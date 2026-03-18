@@ -240,6 +240,15 @@ importers:
 
   apps/faako-erp:
     dependencies:
+      '@faako/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@faako/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -293,6 +302,18 @@ importers:
 
   apps/reebs-erp:
     dependencies:
+      '@faako/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@faako/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@faako/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@prisma/adapter-pg':
         specifier: ^7.1.0
         version: 7.5.0
@@ -471,6 +492,12 @@ importers:
 
   apps/reebs-website:
     dependencies:
+      '@faako/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@prisma/adapter-pg':
         specifier: ^7.1.0
         version: 7.5.0
@@ -646,6 +673,46 @@ importers:
       vite:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
+
+  packages/config:
+    dependencies:
+      '@faako/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/core:
+    dependencies:
+      react:
+        specifier: '>=18'
+        version: 19.2.4
+
+  packages/theme: {}
+
+  packages/types: {}
+
+  packages/ui:
+    dependencies:
+      '@faako/theme':
+        specifier: workspace:*
+        version: link:../theme
+      '@faako/types':
+        specifier: workspace:*
+        version: link:../types
+      '@faako/utils':
+        specifier: workspace:*
+        version: link:../utils
+      react:
+        specifier: '>=18'
+        version: 19.2.4
+      react-router-dom:
+        specifier: '>=6'
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+
+  packages/utils:
+    dependencies:
+      '@faako/types':
+        specifier: workspace:*
+        version: link:../types
 
 packages:
 

@@ -1,7 +1,9 @@
 [build]
-  command = "npm --workspace apps/website run build"
-  publish = "apps/website/dist"
-  functions = "apps/website/netlify/functions"
+  command = "pnpm --filter @faako/faako-website build"
+  publish = "/apps/faako-website/dist"
+
+[functions]
+  directory = "/apps/faako-website/netlify/functions"
 
 [[redirects]]
   from = "/api/*"

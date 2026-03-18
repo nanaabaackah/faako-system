@@ -1,9 +1,9 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command = "pnpm --filter @faako/bynana-portfolio build"
+  publish = "/apps/bynana-portfolio/dist"
 
 [functions]
-  directory = "netlify/functions"
+  directory = "/apps/bynana-portfolio/netlify/functions"
 
 [[headers]]
   for = "/*"

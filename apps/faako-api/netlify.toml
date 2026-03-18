@@ -1,8 +1,9 @@
 [build]
-  base = "apps/faako-api"
   command = "echo 'No build step for API'"
-  publish = "netlify/static"
-  functions = "netlify/functions"
+  publish = "/apps/faako-api/netlify/static"
+
+[functions]
+  directory = "/apps/faako-api/netlify/functions"
 
 [[redirects]]
   from = "/*"

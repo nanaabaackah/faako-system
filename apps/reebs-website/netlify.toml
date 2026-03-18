@@ -1,3 +1,13 @@
+# Reebs website and ERP share the same Netlify functions backend.
+[build]
+command = "pnpm --filter @faako/reebs-website build"
+publish = "/apps/reebs-website/dist"
+
 [functions]
-directory = "netlify/functions"
+directory = "/apps/reebs-erp/netlify/functions"
 node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,6 +1,6 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command = "pnpm --filter @faako/faako-erp build"
+  publish = "/apps/faako-erp/dist"
 
 [[redirects]]
   from = "/*"
