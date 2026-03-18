@@ -1,8 +1,16 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminSettings.css";
 import { useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import {
+  ADMIN_FONT_SIZE_OPTIONS,
+  ADMIN_THEME_OPTIONS,
+  DEFAULT_ADMIN_PREFERENCES,
+  readAdminPreferences,
+  writeAdminPreferences,
+} from "../../utils/adminPreferences";
 
 const defaultConfig = {
   currency: "GHS",
@@ -13,14 +21,123 @@ const defaultConfig = {
   storeAddress: "Sakumono Broadway, Tema, Ghana",
   transportRate: "0",
 };
+const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const PROFILE_IMAGE_TARGET_SIZE = 320;
+const PROFILE_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
-function AdminSettings() {
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read the selected image."));
+    reader.readAsDataURL(file);
+  });
+
+const loadImageElement = (src) =>
+  new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to process the selected image."));
+    image.src = src;
+  });
+
+const normalizeProfileImage = async (file) => {
+  if (!PROFILE_IMAGE_TYPES.has(file.type)) {
+    throw new Error("Upload a JPG, PNG, WEBP, or GIF image.");
+  }
+  if (file.size > PROFILE_IMAGE_MAX_BYTES) {
+    throw new Error("Profile picture must be 2 MB or smaller.");
+  }
+
+  const source = await readFileAsDataUrl(file);
+  const image = await loadImageElement(source);
+  const width = image.naturalWidth || image.width || PROFILE_IMAGE_TARGET_SIZE;
+  const height = image.naturalHeight || image.height || PROFILE_IMAGE_TARGET_SIZE;
+  const cropSize = Math.max(1, Math.min(width, height));
+  const offsetX = Math.max(0, (width - cropSize) / 2);
+  const offsetY = Math.max(0, (height - cropSize) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = PROFILE_IMAGE_TARGET_SIZE;
+  canvas.height = PROFILE_IMAGE_TARGET_SIZE;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Image processing is not available in this browser.");
+  }
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.clearRect(0, 0, PROFILE_IMAGE_TARGET_SIZE, PROFILE_IMAGE_TARGET_SIZE);
+  context.drawImage(
+    image,
+    offsetX,
+    offsetY,
+    cropSize,
+    cropSize,
+    0,
+    0,
+    PROFILE_IMAGE_TARGET_SIZE,
+    PROFILE_IMAGE_TARGET_SIZE,
+  );
+
+  const webpResult = canvas.toDataURL("image/webp", 0.86);
+  if (webpResult.startsWith("data:image/webp")) {
+    return webpResult;
+  }
+  return canvas.toDataURL("image/png");
+};
+
+const getInitials = (firstName, lastName, fallback = "") => {
+  const firstParts = String(firstName || "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const lastParts = String(lastName || "")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (firstParts.length || lastParts.length) {
+    return [firstParts[0], lastParts[lastParts.length - 1]]
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("") || "TM";
+  }
+  if (fallback) {
+    const fallbackParts = String(fallback)
+      .split(/\s+/)
+      .filter(Boolean);
+    return [fallbackParts[0], fallbackParts[fallbackParts.length - 1]]
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+  }
+  return "TM";
+};
+
+function AdminSettings({ profileOnly = false }) {
   const { user, updateUser } = useAuth();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("profile");
-  const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", password: "" });
+  const [profileForm, setProfileForm] = useState({
+    firstName: "",
+    lastName: "",
+    password: "",
+    imageUrl: "",
+    jobTitle: "",
+    phone: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+  });
   const [profileStatus, setProfileStatus] = useState("");
   const [profileError, setProfileError] = useState("");
+  const [profileImageError, setProfileImageError] = useState("");
+  const [profileImageLoading, setProfileImageLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [preferencesForm, setPreferencesForm] = useState(DEFAULT_ADMIN_PREFERENCES);
+  const [preferencesStatus, setPreferencesStatus] = useState("");
 
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -33,8 +150,42 @@ function AdminSettings() {
 
   const roleKey = (user?.role || "staff").toLowerCase();
   const isAdmin = roleKey === "admin";
+  const showTabs = !profileOnly;
+  const pageTitle = profileOnly ? "My Profile" : "Settings";
+  const pageSubtitle = profileOnly
+    ? "Update your name, password, photo, contact details, and system preferences."
+    : "Manage your profile, staff access, and global ERP configuration.";
+  const breadcrumbItems = [{ label: profileOnly ? "Profile" : "Settings" }];
+
+  const syncUserProfile = (data) => {
+    const nextFirstName = String(data?.firstName || "").trim();
+    const nextLastName = String(data?.lastName || "").trim();
+    const nextFullName =
+      String(data?.fullName || "").trim()
+      || [nextFirstName, nextLastName].filter(Boolean).join(" ");
+
+    updateUser({
+      id: data?.id || user?.id,
+      firstName: nextFirstName,
+      lastName: nextLastName,
+      fullName: nextFullName,
+      name: nextFullName,
+      email: data?.email || user?.email,
+      role: data?.role || user?.role,
+      imageUrl: data?.imageUrl || null,
+      jobTitle: data?.jobTitle || "",
+      phone: data?.phone || "",
+      address: data?.address || "",
+      emergencyContactName: data?.emergencyContactName || "",
+      emergencyContactPhone: data?.emergencyContactPhone || "",
+    });
+  };
 
   useEffect(() => {
+    if (profileOnly) {
+      setActiveTab("profile");
+      return;
+    }
     const params = new URLSearchParams(location.search);
     const requestedTab = params.get("tab");
     const allowedTabs = new Set(["profile", "users", "config"]);
@@ -44,7 +195,7 @@ function AdminSettings() {
       return;
     }
     setActiveTab(requestedTab);
-  }, [location.search, isAdmin]);
+  }, [isAdmin, location.search, profileOnly]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -63,17 +214,87 @@ function AdminSettings() {
   }, []);
 
   useEffect(() => {
-    const name = user?.name || user?.fullName || "";
-    const parts = name.trim().split(" ");
-    const firstName = parts[0] || "";
-    const lastName = parts.slice(1).join(" ");
-    setProfileForm((prev) => ({ ...prev, firstName, lastName }));
+    const name =
+      user?.fullName ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+      user?.name ||
+      "";
+    const parts = name.trim().split(" ").filter(Boolean);
+    const firstName = String(user?.firstName || parts[0] || "").trim();
+    const lastName = String(user?.lastName || parts.slice(1).join(" ") || "").trim();
+    setProfileForm((prev) => ({
+      ...prev,
+      firstName,
+      lastName,
+      imageUrl: String(user?.imageUrl || "").trim(),
+      jobTitle: String(user?.jobTitle || "").trim(),
+      phone: String(user?.phone || "").trim(),
+      address: String(user?.address || "").trim(),
+      emergencyContactName: String(user?.emergencyContactName || "").trim(),
+      emergencyContactPhone: String(user?.emergencyContactPhone || "").trim(),
+    }));
   }, [user]);
 
-  const fullName = useMemo(() => {
-    const { firstName, lastName } = profileForm;
-    return [firstName, lastName].filter(Boolean).join(" ");
-  }, [profileForm]);
+  useEffect(() => {
+    setPreferencesForm(readAdminPreferences(user?.id));
+    setPreferencesStatus("");
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (activeTab !== "profile") return;
+    let ignore = false;
+
+    const loadProfile = async () => {
+      setProfileLoading(true);
+      setProfileError("");
+      try {
+        const response = await fetch("/.netlify/functions/staffProfile");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to load profile.");
+        }
+        if (ignore) return;
+        setProfileForm((prev) => ({
+          ...prev,
+          firstName: String(data.firstName || "").trim(),
+          lastName: String(data.lastName || "").trim(),
+          imageUrl: String(data.imageUrl || "").trim(),
+          jobTitle: String(data.jobTitle || "").trim(),
+          phone: String(data.phone || "").trim(),
+          address: String(data.address || "").trim(),
+          emergencyContactName: String(data.emergencyContactName || "").trim(),
+          emergencyContactPhone: String(data.emergencyContactPhone || "").trim(),
+        }));
+        syncUserProfile(data);
+      } catch (error) {
+        if (!ignore) {
+          setProfileError(error.message || "Failed to load profile.");
+        }
+      } finally {
+        if (!ignore) {
+          setProfileLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+    return () => {
+      ignore = true;
+    };
+  }, [activeTab]);
+
+  const profileInitials = useMemo(
+    () =>
+      getInitials(
+        profileForm.firstName,
+        profileForm.lastName,
+        user?.fullName ||
+          [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+          user?.name ||
+          "",
+      ),
+    [profileForm.firstName, profileForm.lastName, user?.firstName, user?.lastName, user?.fullName, user?.name],
+  );
 
   const fetchUsers = async () => {
     setUsersLoading(true);
@@ -100,35 +321,73 @@ function AdminSettings() {
     event.preventDefault();
     setProfileStatus("");
     setProfileError("");
+    setProfileImageError("");
     if (!profileForm.firstName || !profileForm.lastName) {
       setProfileError("First and last name are required.");
       return;
     }
     try {
-      const res = await fetch("/.netlify/functions/users", {
+      const res = await fetch("/.netlify/functions/staffProfile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: user?.id,
           firstName: profileForm.firstName,
           lastName: profileForm.lastName,
           password: profileForm.password || undefined,
+          imageUrl: profileForm.imageUrl || null,
+          jobTitle: profileForm.jobTitle,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          emergencyContactName: profileForm.emergencyContactName,
+          emergencyContactPhone: profileForm.emergencyContactPhone,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to update profile");
-      updateUser({
-        id: user?.id,
-        name: fullName,
-        email: data.email || user?.email,
-        role: user?.role,
-      });
+      setProfileForm((prev) => ({
+        ...prev,
+        firstName: String(data.firstName || "").trim(),
+        lastName: String(data.lastName || "").trim(),
+        password: "",
+        imageUrl: String(data.imageUrl || "").trim(),
+        jobTitle: String(data.jobTitle || "").trim(),
+        phone: String(data.phone || "").trim(),
+        address: String(data.address || "").trim(),
+        emergencyContactName: String(data.emergencyContactName || "").trim(),
+        emergencyContactPhone: String(data.emergencyContactPhone || "").trim(),
+      }));
+      syncUserProfile(data);
       setProfileStatus("Profile updated.");
-      setProfileForm((prev) => ({ ...prev, password: "" }));
     } catch (err) {
       console.error("Profile save failed", err);
       setProfileError(err.message || "Failed to update profile");
     }
+  };
+
+  const handleProfileImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setProfileStatus("");
+    setProfileError("");
+    setProfileImageError("");
+    setProfileImageLoading(true);
+    try {
+      const imageUrl = await normalizeProfileImage(file);
+      setProfileForm((prev) => ({ ...prev, imageUrl }));
+    } catch (error) {
+      setProfileImageError(error.message || "Failed to process the selected image.");
+    } finally {
+      setProfileImageLoading(false);
+    }
+  };
+
+  const removeProfileImage = () => {
+    setProfileStatus("");
+    setProfileError("");
+    setProfileImageError("");
+    setProfileForm((prev) => ({ ...prev, imageUrl: "" }));
   };
 
   const inviteUser = async (event) => {
@@ -158,99 +417,246 @@ function AdminSettings() {
     setConfigStatus("Configuration saved.");
   };
 
+  const savePreferences = (event) => {
+    event.preventDefault();
+    const nextPreferences = writeAdminPreferences(user?.id, preferencesForm);
+    setPreferencesForm(nextPreferences);
+    setPreferencesStatus("System preferences updated.");
+  };
+
   return (
     <div className="settings-page">
       <div className="settings-shell">
-        <AdminBreadcrumb items={[{ label: "Settings" }]} />
+        <AdminBreadcrumb items={breadcrumbItems} />
 
         <header className="settings-header">
           <div>
-            <p className="settings-eyebrow">ERP Brain</p>
-            <h1>Settings</h1>
-            <p className="settings-subtitle">Manage your profile, staff access, and global ERP configuration.</p>
+            <h1>{pageTitle}</h1>
+            <p className="settings-subtitle">{pageSubtitle}</p>
           </div>
         </header>
 
-        <div className="settings-tabs" role="tablist" aria-label="Settings sections">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "profile"}
-            className={activeTab === "profile" ? "is-active" : ""}
-            onClick={() => setActiveTab("profile")}
-          >
-            Profile
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "users"}
-            className={activeTab === "users" ? "is-active" : ""}
-            onClick={() => setActiveTab("users")}
-            disabled={!isAdmin}
-          >
-            User Management
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "config"}
-            className={activeTab === "config" ? "is-active" : ""}
-            onClick={() => setActiveTab("config")}
-          >
-            ERP Config
-          </button>
-        </div>
+        {showTabs && (
+          <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "profile"}
+              className={activeTab === "profile" ? "is-active" : ""}
+              onClick={() => setActiveTab("profile")}
+            >
+              Profile
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "users"}
+              className={activeTab === "users" ? "is-active" : ""}
+              onClick={() => setActiveTab("users")}
+              disabled={!isAdmin}
+            >
+              User Management
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "config"}
+              className={activeTab === "config" ? "is-active" : ""}
+              onClick={() => setActiveTab("config")}
+            >
+              ERP Config
+            </button>
+          </div>
+        )}
 
         {activeTab === "profile" && (
-          <section className="settings-panel">
-            <div className="settings-panel-head">
-              <div>
-                <h3>Profile</h3>
-                <p className="settings-muted">Update your name or reset your password.</p>
-              </div>
-            </div>
-            <form className="settings-form" onSubmit={saveProfile}>
-              <div className="settings-grid">
+          <>
+            <section className="settings-panel">
+              <form className="settings-form" onSubmit={saveProfile}>
+                {profileLoading && <p className="settings-muted">Loading profile...</p>}
+                <div className="settings-profile-media">
+                  <div className="settings-profile-avatar" aria-hidden="true">
+                    {profileForm.imageUrl ? (
+                      <img src={profileForm.imageUrl} alt="" />
+                    ) : (
+                      <span>{profileInitials}</span>
+                    )}
+                  </div>
+                  <div className="settings-profile-media-copy">
+                    <p>Profile picture</p>
+                    <div className="settings-profile-media-actions">
+                      <label className="settings-profile-upload">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={handleProfileImageChange}
+                        />
+                        <span>{profileImageLoading ? "Processing..." : "Upload photo"}</span>
+                      </label>
+                      {profileForm.imageUrl && (
+                        <button
+                          type="button"
+                          className="settings-profile-remove"
+                          onClick={removeProfileImage}
+                        >
+                          Remove photo
+                        </button>
+                      )}
+                    </div>
+                    <p className="settings-profile-note">
+                      JPG, PNG, WEBP, or GIF up to 2 MB. The image is cropped to a square avatar.
+                    </p>
+                    {profileImageError && <p className="settings-error">{profileImageError}</p>}
+                  </div>
+                </div>
+                <div className="settings-grid">
+                  <label>
+                    First name
+                    <input
+                      type="text"
+                      value={profileForm.firstName}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Last name
+                    <input
+                      type="text"
+                      value={profileForm.lastName}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="settings-grid settings-grid--profile-details">
+                  <label>
+                    Phone number
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+233 24 000 0000"
+                      autoComplete="tel"
+                    />
+                  </label>
+                </div>
                 <label>
-                  First name
-                  <input
-                    type="text"
-                    value={profileForm.firstName}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, firstName: e.target.value }))}
-                    required
+                  Address
+                  <textarea
+                    value={profileForm.address}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, address: e.target.value }))}
+                    placeholder="House number, street, area, city"
+                    rows={3}
+                    autoComplete="street-address"
                   />
                 </label>
+                <div className="settings-grid settings-grid--profile-details">
+                  <label>
+                    Emergency contact name
+                    <input
+                      type="text"
+                      value={profileForm.emergencyContactName}
+                      onChange={(e) =>
+                        setProfileForm((prev) => ({
+                          ...prev,
+                          emergencyContactName: e.target.value,
+                        }))
+                      }
+                      placeholder="Name of next of kin"
+                    />
+                  </label>
+                  <label>
+                    Emergency contact phone
+                    <input
+                      type="tel"
+                      value={profileForm.emergencyContactPhone}
+                      onChange={(e) =>
+                        setProfileForm((prev) => ({
+                          ...prev,
+                          emergencyContactPhone: e.target.value,
+                        }))
+                      }
+                      placeholder="+233 24 000 0000"
+                      autoComplete="tel"
+                    />
+                  </label>
+                </div>
                 <label>
-                  Last name
+                  Email
+                  <input type="email" value={user?.email || ""} readOnly />
+                </label>
+                <label>
+                  Reset password
                   <input
-                    type="text"
-                    value={profileForm.lastName}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, lastName: e.target.value }))}
-                    required
+                    type="password"
+                    value={profileForm.password}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, password: e.target.value }))}
+                    placeholder="New password"
                   />
                 </label>
+                {profileError && <p className="settings-error">{profileError}</p>}
+                {profileStatus && <p className="settings-success">{profileStatus}</p>}
+                <div className="settings-actions">
+                  <button type="submit" className="settings-primary">Save profile</button>
+                </div>
+              </form>
+            </section>
+
+            <section className="settings-panel">
+              <div className="settings-panel-head">
+                <div>
+                  <h3>System preferences</h3>
+                  <p className="settings-muted">
+                    Choose how the admin system looks on this device for your account.
+                  </p>
+                </div>
               </div>
-              <label>
-                Email
-                <input type="email" value={user?.email || ""} readOnly />
-              </label>
-              <label>
-                Reset password
-                <input
-                  type="password"
-                  value={profileForm.password}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, password: e.target.value }))}
-                  placeholder="New password"
-                />
-              </label>
-              {profileError && <p className="settings-error">{profileError}</p>}
-              {profileStatus && <p className="settings-success">{profileStatus}</p>}
-              <div className="settings-actions">
-                <button type="submit" className="settings-primary">Save profile</button>
-              </div>
-            </form>
-          </section>
+              <form className="settings-form" onSubmit={savePreferences}>
+                <div className="settings-grid settings-grid--preferences">
+                  <label>
+                    Theme mode
+                    <select
+                      value={preferencesForm.theme}
+                      onChange={(e) => {
+                        setPreferencesStatus("");
+                        setPreferencesForm((prev) => ({ ...prev, theme: e.target.value }));
+                      }}
+                    >
+                      {ADMIN_THEME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Font size
+                    <select
+                      value={preferencesForm.fontSize}
+                      onChange={(e) => {
+                        setPreferencesStatus("");
+                        setPreferencesForm((prev) => ({ ...prev, fontSize: e.target.value }));
+                      }}
+                    >
+                      {ADMIN_FONT_SIZE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <p className="settings-muted settings-preferences-note">
+                  These preferences are stored per user in this browser and apply across the admin system.
+                </p>
+                {preferencesStatus && <p className="settings-success">{preferencesStatus}</p>}
+                <div className="settings-actions">
+                  <button type="submit" className="settings-primary">Save preferences</button>
+                </div>
+              </form>
+            </section>
+          </>
         )}
 
         {activeTab === "users" && (

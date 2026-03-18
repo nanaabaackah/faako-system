@@ -3,6 +3,7 @@ import "./AdminWorkspace.css";
 import { useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
+  faArrowRight,
   faArrowRightFromBracket,
   faCircleCheck,
   faCloudArrowUp,
@@ -963,6 +964,14 @@ function AdminWorkspace({ section = "home" }) {
           <p className="aw-home-kpi-label">Status</p>
           <strong>{isOnline ? "Online" : "Offline"}</strong>
           <span>{syncingQueue ? "Syncing now" : "Ready"}</span>
+        </article>
+        <article className="aw-home-summary-card">
+          <p className="aw-home-kpi-label">POS</p>
+          <strong>Store mode</strong>
+          <span>Fast in-person checkout</span>
+          <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/store-mode")}>
+            Open POS <AppIcon icon={faArrowRight} />
+          </button>
         </article>
       </div>
 

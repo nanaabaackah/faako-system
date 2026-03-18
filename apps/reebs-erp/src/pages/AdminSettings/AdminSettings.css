@@ -1,1 +1,183 @@
 @import "../../styles/admin.css";
+
+.settings-profile-media {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px dashed var(--glass-border);
+  border-radius: 1.15rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.settings-profile-avatar {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  border: 2px solid rgba(15, 143, 120, 0.16);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(224, 241, 186, 0.92)),
+    #f5f7ef;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.settings-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.settings-profile-media-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings-profile-media-copy > p:first-child {
+  margin: 0;
+  font-weight: 700;
+}
+
+.settings-profile-media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.settings-profile-upload,
+.settings-profile-remove {
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.settings-profile-upload:hover,
+.settings-profile-remove:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 143, 120, 0.24);
+}
+
+.settings-profile-upload input {
+  display: none;
+}
+
+.settings-profile-note {
+  margin: 0;
+  font-size: 0.84rem;
+  opacity: 0.75;
+}
+
+.settings-grid--profile-details {
+  align-items: start;
+}
+
+.settings-grid--preferences {
+  align-items: end;
+}
+
+.settings-preferences-note {
+  max-width: 42rem;
+}
+
+.settings-form textarea {
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  padding: 10px 12px;
+  color: var(--text-main);
+  font: inherit;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.settings-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 3rem;
+  cursor: pointer;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18' fill='none'%3E%3Cpath d='M4.5 6.75L9 11.25L13.5 6.75' stroke='%23526072' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52));
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 0.95rem center, 0 0;
+  background-size: 1rem 1rem, 100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 10px 22px rgba(15, 23, 42, 0.06);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.settings-form select:hover {
+  border-color: rgba(15, 143, 120, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+.settings-form select:focus {
+  outline: none;
+  border-color: rgba(15, 143, 120, 0.38);
+  box-shadow:
+    0 0 0 3px rgba(15, 143, 120, 0.12),
+    0 16px 30px rgba(15, 23, 42, 0.1);
+}
+
+.settings-form select option {
+  color: #12212a;
+  background: #f8fbfd;
+}
+
+[data-admin-theme="dark"] body.admin-theme .settings-form select {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18' fill='none'%3E%3Cpath d='M4.5 6.75L9 11.25L13.5 6.75' stroke='%23cbd5e1' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.56));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 26px rgba(2, 6, 23, 0.28);
+}
+
+[data-admin-theme="dark"] body.admin-theme .settings-form select:hover {
+  border-color: rgba(94, 234, 212, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 32px rgba(2, 6, 23, 0.34);
+}
+
+[data-admin-theme="dark"] body.admin-theme .settings-form select:focus {
+  border-color: rgba(94, 234, 212, 0.34);
+  box-shadow:
+    0 0 0 3px rgba(94, 234, 212, 0.12),
+    0 18px 34px rgba(2, 6, 23, 0.38);
+}
+
+[data-admin-theme="dark"] body.admin-theme .settings-form select option {
+  color: #e5e7eb;
+  background: #0f172a;
+}
+
+@media (max-width: 720px) {
+  .settings-profile-media {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+}

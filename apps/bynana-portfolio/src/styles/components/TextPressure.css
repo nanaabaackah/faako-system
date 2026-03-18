@@ -1,0 +1,33 @@
+.text-pressure {
+  display: inline-block;
+  max-width: 100%;
+  touch-action: none;
+}
+
+.text-pressure__line {
+  display: inline-block;
+  white-space: pre;
+}
+
+.text-pressure__char {
+  display: inline-block;
+  transform-origin: center 78%;
+  transform: translateY(calc((1 - var(--tp-scale, 1)) * 0.13em)) scale(var(--tp-scale, 1));
+  transition: transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+.text-pressure__char.is-space {
+  min-width: 0.32em;
+}
+
+.text-pressure:not(.is-active) .text-pressure__char {
+  transform: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .text-pressure,
+  .text-pressure__char {
+    transition: none;
+  }
+}

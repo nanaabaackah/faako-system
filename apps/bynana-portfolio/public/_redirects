@@ -1,0 +1,5 @@
+/api/contact            /.netlify/functions/contact-submit   200!
+/api/contact/           /.netlify/functions/contact-submit   200!
+/api/public/trust-stats   /.netlify/functions/trust-stats-proxy  200!
+/api/public/trust-stats/  /.netlify/functions/trust-stats-proxy  200!
+/*      /index.html 200

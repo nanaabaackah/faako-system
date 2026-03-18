@@ -1,0 +1,382 @@
+.blog-post {
+  position: relative;
+  z-index: 12;
+  color: var(--text-1);
+}
+
+.blog-post__shell {
+  width: min(1600px, 100%);
+  margin: 0 auto;
+  padding: clamp(5.5rem, 10vh, 7.2rem) clamp(4.5rem, 5vw, 3.5rem) clamp(3rem, 8vh, 7rem);
+  display: grid;
+  gap: clamp(1.4rem, 2.8vw, 2.8rem);
+}
+
+.blog-post__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(1rem, 2.2vw, 2.3rem);
+  align-items: start;
+  align-content: start;
+}
+
+.blog-post__intro {
+  display: grid;
+  gap: 0.9rem;
+  width: min(780px, 100%);
+  align-items: start;
+  align-self: start;
+  justify-content: start;
+}
+
+.blog-post__breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  color: color-mix(in srgb, var(--text-1) 74%, transparent);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+}
+
+.blog-post__breadcrumb:hover,
+.blog-post__breadcrumb:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.blog-post__kicker {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 72%, transparent);
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.blog-post__intro h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 4.8rem);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+}
+
+.blog-post__summary {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 82%, transparent);
+  font-size: clamp(0.96rem, 1.22vw, 1.26rem);
+  line-height: 1.55;
+  max-width: 68ch;
+}
+
+.blog-post__meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: color-mix(in srgb, var(--text-1) 70%, transparent);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.blog-post__tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.blog-post__tags li {
+  padding: 0.34rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--text-1) 82%, transparent);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.blog-post__hero-media {
+  min-height: 0;
+  align-self: start;
+}
+
+.blog-post__media {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.blog-post__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.blog-post__media-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1.2rem;
+  color: color-mix(in srgb, var(--text-1) 76%, transparent);
+}
+
+.blog-post__media-placeholder strong {
+  display: block;
+  margin: 0;
+  font-size: 0.88rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.blog-post__media-placeholder span {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.blog-post__facts {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
+}
+
+.blog-post__facts div {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 0.85rem 0.95rem;
+  border-left: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+}
+
+.blog-post__facts div:first-child {
+  border-left: 0;
+}
+
+.blog-post__facts dt {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 62%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.blog-post__facts dd {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 90%, transparent);
+  font-size: clamp(0.9rem, 1.1vw, 1.06rem);
+  line-height: 1.42;
+}
+
+.blog-post__body {
+  display: grid;
+  gap: clamp(1.4rem, 2.8vw, 2.4rem);
+}
+
+.blog-post__section {
+  display: grid;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  gap: clamp(0.9rem, 2.2vw, 2.4rem);
+  padding-top: clamp(0.6rem, 1.4vw, 1rem);
+  border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+}
+
+.blog-post__section-head {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+}
+
+.blog-post__section-index {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 66%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.blog-post__section h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.2vw, 2rem);
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.blog-post__section-content {
+  width: min(860px, 100%);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.blog-post__section-content p {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 82%, transparent);
+  font-size: clamp(0.92rem, 1.03vw, 1.08rem);
+  line-height: 1.62;
+}
+
+.blog-post__list {
+  margin: 0;
+  padding: 0 0 0 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.blog-post__list li {
+  color: color-mix(in srgb, var(--text-1) 84%, transparent);
+  font-size: clamp(0.92rem, 1.01vw, 1.05rem);
+  line-height: 1.55;
+}
+
+.blog-post__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.blog-post__card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem 0.85rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+.blog-post__card h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.blog-post__card p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.48;
+}
+
+.blog-post__card-tag {
+  width: fit-content;
+  margin-top: 0.25rem;
+  color: color-mix(in srgb, var(--text-1) 66%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.blog-post__gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.blog-post__gallery .blog-post__media {
+  min-height: clamp(190px, 24vw, 300px);
+}
+
+.blog-post__cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem 1.5rem;
+  padding-top: clamp(1rem, 2vw, 1.5rem);
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.blog-post__cta-copy h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.2vw, 1.9rem);
+}
+
+.blog-post__cta-copy p {
+  margin: 0.65rem 0 0;
+  color: color-mix(in srgb, var(--text-1) 80%, transparent);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.blog-post__cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.blog-post__next-up {
+  margin-top: clamp(0.5rem, 1.6vw, 1.2rem);
+}
+
+.blog-post__next-up.next-up-cta {
+  min-height: clamp(380px, 70vh, 700px);
+  padding: clamp(1rem, 3vh, 2rem) 0 clamp(0.8rem, 2vh, 1.4rem);
+  gap: clamp(1.4rem, 3vh, 2rem);
+}
+
+.blog-post__next-up .next-up-cta__title {
+  font-size: clamp(2rem, 5.5vw, 3.6rem);
+}
+
+.blog-post__next-up .next-up-cta__visual-link {
+  width: min(300px, 62vw);
+}
+
+@media (max-width: 1080px) {
+  .blog-post__hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blog-post__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .blog-post__section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blog-post__section-head {
+    gap: 0.35rem;
+  }
+
+  .blog-post__cta {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .blog-post__cta-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .blog-post__grid,
+  .blog-post__gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blog-post__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blog-post__facts div {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  }
+
+  .blog-post__facts div:first-child {
+    border-top: 0;
+  }
+
+  .blog-post__intro h1 {
+    margin: 0;
+    font-size: clamp(2.8rem, 5.5vw, 4.8rem);
+  }
+}

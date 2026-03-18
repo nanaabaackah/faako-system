@@ -1,0 +1,32 @@
+.gradual-blur {
+  isolation: isolate;
+  pointer-events: none;
+  transition: opacity 0.3s ease-out;
+}
+
+.gradual-blur--parent {
+  overflow: hidden;
+}
+
+.gradual-blur__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gradual-blur__inner > div {
+  -webkit-backdrop-filter: inherit;
+  backdrop-filter: inherit;
+}
+
+.gradual-blur--page {
+  pointer-events: none;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .gradual-blur__inner > div {
+    background: transparent;
+    opacity: 0.5;
+  }
+}

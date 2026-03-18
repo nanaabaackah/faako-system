@@ -3,10 +3,14 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { hashPassword } from "../../utils/passwords.js";
+import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { requireUser } from "./_shared/userAuth.js";
 import { ensureUserSessionsTable } from "./_shared/userSessions.js";
 
 const SYSTEM_ADMIN_EMAIL = "system_admin@reebs.com";
+const respond = (event, statusCode, body = {}) =>
+  json(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
+
 const cleanNamePart = (value) => (typeof value === "string" ? value.trim() : "");
 const stripSpaces = (value) => cleanNamePart(value).replace(/\s+/g, "");
 const buildEmailFromNames = (firstName, lastName) => {
@@ -34,15 +38,11 @@ const cleanPermissions = (value) => {
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204);
+  }
+
+  if (isCrossSiteBrowserRequest(event)) {
+    return respond(event, 403, { error: "Cross-site requests are not allowed." });
   }
 
   const client = new Client({
@@ -58,24 +58,13 @@ export async function handler(event) {
       try {
         payload = JSON.parse(event.body || "{}");
       } catch {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "Invalid JSON body." }),
-        };
+        return respond(event, 400, { error: "Invalid JSON body." });
       }
     }
 
     const authUser = await requireUser(client, event);
     if (!authUser) {
-      return {
-        statusCode: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ error: "Unauthorized" }),
-      };
+      return respond(event, 401, { error: "Unauthorized" });
     }
     const organizationId = authUser.organizationId;
     const isSystemAdmin = (authUser.email || "").toLowerCase() === SYSTEM_ADMIN_EMAIL;
@@ -88,30 +77,18 @@ export async function handler(event) {
       const permissions = cleanPermissions(payload.permissions) || {};
 
       if (!firstName || !lastName) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "firstName and lastName are required." }),
-        };
+        return respond(event, 400, { error: "firstName and lastName are required." });
       }
 
       const email = buildEmailFromNames(firstName, lastName);
       const fullName = buildFullName(firstName, lastName);
 
       if (!email) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "Could not generate email from name." }),
-        };
+        return respond(event, 400, { error: "Could not generate email from name." });
       }
 
       if (!password) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "Password is required." }),
-        };
+        return respond(event, 400, { error: "Password is required." });
       }
 
       try {
@@ -123,18 +100,10 @@ export async function handler(event) {
           [organizationId, email, passwordHash, firstName, lastName, fullName, role, permissions]
         );
 
-        return {
-          statusCode: 201,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify(result.rows[0]),
-        };
+        return respond(event, 201, result.rows[0]);
       } catch (err) {
         if (err?.code === "23505") {
-          return {
-            statusCode: 409,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-            body: JSON.stringify({ error: "User already exists (duplicate email)." }),
-          };
+          return respond(event, 409, { error: "User already exists (duplicate email)." });
         }
         throw err;
       }
@@ -143,11 +112,7 @@ export async function handler(event) {
     if (method === "PUT") {
       const id = Number(payload.id);
       if (!Number.isFinite(id)) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "User id is required." }),
-        };
+        return respond(event, 400, { error: "User id is required." });
       }
 
       const firstNameRaw = payload.firstName;
@@ -166,11 +131,7 @@ export async function handler(event) {
         [id, organizationId]
       );
       if (existingRes.rowCount === 0) {
-        return {
-          statusCode: 404,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "User not found." }),
-        };
+        return respond(event, 404, { error: "User not found." });
       }
 
       const current = existingRes.rows[0];
@@ -182,19 +143,11 @@ export async function handler(event) {
       const wantsRoleChange =
         requestedRoleNormalized && requestedRoleNormalized !== currentRoleNormalized;
       if (wantsRoleChange && !isSystemAdmin) {
-        return {
-          statusCode: 403,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "Only system administrator can change roles." }),
-        };
+        return respond(event, 403, { error: "Only system administrator can change roles." });
       }
 
       if (!nextFirstName || !nextLastName) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "Users must have both firstName and lastName." }),
-        };
+        return respond(event, 400, { error: "Users must have both firstName and lastName." });
       }
 
       const updates = [];
@@ -239,11 +192,7 @@ export async function handler(event) {
       updates.push(`"updatedAt" = NOW()`);
 
       if (updates.length === 1) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "No fields to update." }),
-        };
+        return respond(event, 400, { error: "No fields to update." });
       }
 
       values.push(id);
@@ -258,40 +207,20 @@ export async function handler(event) {
         );
 
         if (result.rowCount === 0) {
-          return {
-            statusCode: 404,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-            body: JSON.stringify({ error: "User not found." }),
-          };
+          return respond(event, 404, { error: "User not found." });
         }
 
-        return {
-          statusCode: 200,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify(result.rows[0]),
-        };
+        return respond(event, 200, result.rows[0]);
       } catch (err) {
         if (err?.code === "23505") {
-          return {
-            statusCode: 409,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-            body: JSON.stringify({ error: "Duplicate email." }),
-          };
+          return respond(event, 409, { error: "Duplicate email." });
         }
         throw err;
       }
     }
 
     if (method !== "GET") {
-      return {
-        statusCode: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-        },
-        body: JSON.stringify({ error: "Method Not Allowed" }),
-      };
+      return respond(event, 405, { error: "Method Not Allowed" });
     }
 
     await ensureUserSessionsTable(client);
@@ -366,21 +295,10 @@ export async function handler(event) {
       [organizationId]
     );
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify(result.rows),
-    };
+    return respond(event, 200, result.rows);
   } catch (err) {
     console.error("❌ Database error:", err);
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: err.message || "Database error" }),
-    };
+    return respond(event, 500, { error: err.message || "Database error" });
   } finally {
     await client.end().catch(() => {});
   }

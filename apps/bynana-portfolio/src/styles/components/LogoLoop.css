@@ -1,0 +1,116 @@
+.logo-loop {
+  --logo-loop-duration: 24s;
+  --logo-loop-gap: clamp(1.5rem, 2.8vw, 2.35rem);
+  --logo-loop-size: clamp(3.35rem, 2.2vw, 1.9rem);
+  position: relative;
+  width: min(1040px, 100%);
+  margin: 3rem auto;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 1) 10%,
+    rgba(0, 0, 0, 1) 90%,
+    transparent 100%
+  );
+}
+
+.logo-loop__track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: logo-loop-marquee var(--logo-loop-duration) linear infinite;
+}
+
+.logo-loop--pause:hover .logo-loop__track,
+.logo-loop--pause:focus-within .logo-loop__track {
+  animation-play-state: paused;
+}
+
+.logo-loop__list {
+  list-style: none;
+  margin: 0;
+  margin-right: var(--logo-loop-gap);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--logo-loop-gap);
+  flex-shrink: 0;
+}
+
+.logo-loop__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--logo-loop-size) + 0.7rem);
+  height: calc(var(--logo-loop-size) + 0.7rem);
+  color: var(--text-2);
+  opacity: 0.88;
+  transition: color 0.25s ease, transform 0.25s ease, opacity 0.25s ease;
+}
+
+.logo-loop__item svg {
+  width: var(--logo-loop-size);
+  height: var(--logo-loop-size);
+}
+
+.logo-loop__item::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.35rem);
+  transform: translateX(-50%) translateY(-2px);
+  padding: 0.24rem 0.48rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass-2);
+  color: var(--text-1);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.logo-loop__item:hover,
+.logo-loop__item:focus-within {
+  color: var(--accent);
+  opacity: 1;
+  transform: translateY(-2px) scale(1.06);
+}
+
+.logo-loop__item:hover::after,
+.logo-loop__item:focus-within::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@keyframes logo-loop-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-loop__track {
+    animation: none;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+  }
+
+  .logo-loop__list {
+    margin-right: 0;
+  }
+
+  .logo-loop__list[aria-hidden='true'] {
+    display: none;
+  }
+}

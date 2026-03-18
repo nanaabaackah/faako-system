@@ -1,0 +1,107 @@
+.bookings-page {
+  gap: 1.5rem;
+}
+
+.booking-panel {
+  gap: 1.2rem;
+}
+
+.booking-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+}
+
+.booking-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.booking-panel .booking-actions .button {
+  width: auto;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.84rem;
+  line-height: 1.15;
+}
+
+.bookings-empty-state {
+  min-height: clamp(180px, 26vh, 260px);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.bookings-empty-state > div {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 30rem;
+}
+
+.bookings-empty-state .muted {
+  margin: 0;
+}
+
+.booking-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.bookings-page .button-danger {
+  border-color: color-mix(in oklab, var(--danger), var(--border) 40%);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.bookings-page .button-danger:hover {
+  box-shadow: 0 8px 20px rgba(114, 47, 55, 0.22);
+}
+
+.bookings-holiday-label {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+  color: var(--warning);
+}
+
+.bookings-holiday-blocks {
+  margin-top: 0.8rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bookings-holiday-blocks h4 {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .bookings-page {
+    gap: 1rem;
+  }
+
+  .booking-panel {
+    gap: 0.95rem;
+  }
+
+  .booking-grid {
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .booking-actions,
+  .booking-sync {
+    gap: 0.45rem;
+  }
+
+  .bookings-holiday-label {
+    font-size: 0.68rem;
+  }
+}

@@ -1,0 +1,373 @@
+.public-booking {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  gap: 1.5rem;
+}
+
+.public-booking__hero {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.public-booking__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.public-booking__availability {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.public-booking__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.public-booking__legend-item {
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.public-booking__legend-item.is-available {
+  background: var(--success-soft);
+  border-color: color-mix(in oklab, var(--success), var(--border) 45%);
+  color: var(--success);
+}
+
+.public-booking__legend-item.is-booked {
+  background: var(--danger-soft);
+  border-color: color-mix(in oklab, var(--danger), var(--border) 45%);
+  color: var(--danger);
+}
+
+.public-booking__legend-item.is-holiday {
+  background: var(--warning-soft);
+  border-color: color-mix(in oklab, var(--warning), var(--border) 45%);
+  color: var(--warning);
+}
+
+.public-booking__legend-item.is-blocked {
+  background: var(--neutral-soft);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.public-holiday-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+  background: color-mix(in oklab, var(--surface), var(--card) 30%);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.public-holiday-list__items {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.public-holiday-list__row {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.public-availability-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.public-availability-desktop {
+  display: block;
+}
+
+.public-availability-mobile {
+  display: none;
+}
+
+.public-availability-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 110px repeat(7, minmax(120px, 1fr));
+  min-width: 860px;
+}
+
+.public-availability-cell {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem;
+  background: var(--card);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.public-availability-corner {
+  background: transparent;
+  border: none;
+}
+
+.public-availability-day {
+  display: grid;
+  gap: 0.2rem;
+  font-weight: 600;
+}
+
+.public-availability-day.is-holiday {
+  background: color-mix(in oklab, var(--warning), var(--card) 88%);
+}
+
+.public-availability-day__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.public-availability-day__date {
+  font-size: 0.9rem;
+}
+
+.public-availability-day__holidays {
+  margin-top: 0.2rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.public-availability-holiday {
+  font-size: 0.62rem;
+  border-radius: 999px;
+  padding: 0.14rem 0.32rem;
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.public-availability-time {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.public-availability-slot {
+  cursor: default;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.public-availability-slot.is-available {
+  background: var(--success-soft);
+  border-color: color-mix(in oklab, var(--success), var(--border) 45%);
+  color: var(--success);
+  cursor: pointer;
+}
+
+.public-availability-slot.is-available:hover {
+  box-shadow: 0 10px 20px rgba(59, 47, 47, 0.22);
+  transform: translateY(-1px);
+}
+
+.public-availability-slot.is-booked {
+  background: var(--danger-soft);
+  border-color: color-mix(in oklab, var(--danger), var(--border) 45%);
+  color: var(--danger);
+}
+
+.public-availability-slot.is-blocked {
+  background: var(--neutral-soft);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.public-availability-slot.is-selected {
+  outline: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.public-availability-mobile__days {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.public-day-chip {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 14px;
+  padding: 0.45rem 0.6rem;
+  min-width: 62px;
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.public-day-chip__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.public-day-chip__number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.public-day-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.public-day-chip__holiday-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.public-day-chip.is-holiday {
+  border-color: color-mix(in oklab, var(--warning), var(--border) 52%);
+}
+
+.public-day-chip.is-active {
+  border-color: color-mix(in oklab, var(--accent), var(--border) 45%);
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+.public-day-chip.is-active .public-day-chip__number {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.public-availability-mobile__agenda {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.public-agenda-slot {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.public-agenda-slot span:last-child {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.public-agenda-slot.is-available {
+  cursor: pointer;
+}
+
+.public-agenda-slot.is-available span:last-child {
+  color: var(--success);
+}
+
+.public-agenda-slot.is-available.is-selected {
+  border-color: color-mix(in oklab, var(--accent), var(--border) 40%);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.public-agenda-slot.is-booked {
+  background: var(--danger-soft);
+}
+
+.public-agenda-slot.is-booked span:last-child {
+  color: var(--danger);
+}
+
+.public-agenda-slot.is-blocked {
+  background: color-mix(in oklab, var(--surface), var(--card) 35%);
+}
+
+.public-booking__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.public-booking__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.public-booking__confirmation {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.public-booking__honeypot {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .public-booking {
+    padding: 1rem 0.85rem 6.2rem;
+    gap: 1rem;
+  }
+
+  .public-booking__hero .eyebrow,
+  .public-booking__hero .muted {
+    display: none;
+  }
+
+  .public-booking .panel {
+    padding: 1rem;
+  }
+
+  .public-availability-desktop {
+    display: none;
+  }
+
+  .public-availability-mobile {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .public-booking__legend-item {
+    font-size: 0.68rem;
+    padding: 0.16rem 0.46rem;
+  }
+
+  .public-booking__actions {
+    position: sticky;
+    bottom: calc(0.65rem + env(safe-area-inset-bottom));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--card), transparent 4%);
+    backdrop-filter: blur(8px);
+    padding: 0.65rem;
+    justify-content: flex-end;
+  }
+}

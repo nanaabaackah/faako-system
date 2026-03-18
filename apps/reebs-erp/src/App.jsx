@@ -1,6 +1,8 @@
 import React, { Suspense, lazy, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet";
-import { BrowserRouter as Router, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { ErpShellFrame } from "@faako/ui";
+import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
 import { TemplateConfigProvider } from "./context/TemplateConfigContext";
@@ -10,12 +12,20 @@ import SiteLoader from "./components/SiteLoader/SiteLoader";
 import Navbar from "./components/Navbar/Navbar";
 import CartOverlay from "./components/CartOverlay/CartOverlay";
 import PartyConfetti from "./components/PartyConfetti/PartyConfetti";
+import shellConfig from "./config/erpShell.js";
+import {
+  ADMIN_PREFERENCES_CHANGE_EVENT,
+  applyAdminPreferences,
+  clearAppliedAdminPreferences,
+  readAdminPreferences,
+} from "./utils/adminPreferences";
 
 const PortalSidebar = lazy(() => import("./components/PortalSidebar/PortalSidebar"));
 const AdminBottomNav = lazy(() => import("./components/AdminBottomNav/AdminBottomNav"));
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Admin = lazy(() => import("./pages/Admin/Admin"));
+const StoreMode = lazy(() => import("./pages/StoreMode/StoreMode"));
 const AdminWorkspace = lazy(() => import("./pages/AdminWorkspace/AdminWorkspace"));
 const OrdersList = lazy(() => import("./pages/OrdersList/OrdersList"));
 const OrderBuilder = lazy(() => import("./pages/OrderBuilder/OrderBuilder"));
@@ -46,9 +56,9 @@ function RouteFallback() {
 }
 
 function PublicOnly({ children }) {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
 
-  if (loading) return <RouteFallback />;
+  if (!authReady) return <RouteFallback />;
 
   if (user) {
     return <Navigate to="/admin" replace />;
@@ -58,9 +68,9 @@ function PublicOnly({ children }) {
 }
 
 function RequireAuth({ children }) {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
 
-  if (loading) return <RouteFallback />;
+  if (!authReady) return <RouteFallback />;
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -70,7 +80,8 @@ function RequireAuth({ children }) {
 }
 
 function RequireRole({ children, allowedRoles = [] }) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
+  if (!authReady) return <RouteFallback />;
   const role = normalizeRole(user?.role);
 
   if (!allowedRoles.includes(role)) {
@@ -81,54 +92,11 @@ function RequireRole({ children, allowedRoles = [] }) {
 }
 
 function DefaultRedirect() {
-  const { user, loading } = useAuth();
+  const { user, authReady } = useAuth();
 
-  if (loading) return <RouteFallback />;
+  if (!authReady) return <RouteFallback />;
 
   return <Navigate to={user ? '/admin' : '/login'} replace />;
-}
-
-function toTitleCase(value = '') {
-  return value
-    .replace(/[-_/]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function getAdminPageTitle(pathname) {
-  const adminTitles = {
-    '/admin': 'Dashboard',
-    '/admin/inventory': 'Inventory',
-    '/admin/purchases': 'Purchases',
-    '/admin/offline': 'Offline',
-    '/admin/advanced': 'Advanced',
-    '/admin/orders': 'Orders',
-    '/admin/orders/new': 'New Order',
-    '/admin/crm': 'CRM',
-    '/admin/customers': 'Customers',
-    '/admin/users': 'Users',
-    '/admin/employees': 'Employees',
-    '/admin/website-template': 'Website Template',
-    '/admin/directory': 'Directory',
-    '/admin/accounting': 'Accounting',
-    '/admin/expenses': 'Expenses',
-    '/admin/water': 'Water',
-    '/admin/vendors': 'Vendors',
-    '/admin/delivery': 'Delivery',
-    '/admin/documents': 'Documents',
-    '/admin/timesheets': 'Timesheets',
-    '/admin/settings': 'Settings',
-    '/admin/hr': 'HR',
-    '/admin/roles': 'Roles',
-    '/admin/maintenance': 'Maintenance',
-    '/admin/invoicing': 'Invoicing',
-    '/admin/marketing': 'Marketing',
-    '/admin/schedule': 'Schedule',
-    '/admin/bookings': 'Bookings',
-  };
-
-  return adminTitles[pathname] ?? toTitleCase(pathname.replace('/admin/', ''));
 }
 
 function AppRoutes() {
@@ -148,6 +116,14 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <AdminWorkspace section="home" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-mode"
+        element={
+          <RequireAuth>
+            <StoreMode />
           </RequireAuth>
         }
       />
@@ -298,6 +274,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/profile"
+        element={
+          <RequireAuth>
+            <AdminSettings profileOnly />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/admin/settings"
         element={
           <RequireAuth>
@@ -378,23 +362,56 @@ function AppRoutes() {
 }
 
 function AppLayout() {
+  const { user, authReady } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
   const isAdminRoute = pathname.startsWith('/admin');
 
-  const pageTitle = useMemo(() => {
-    if (pathname === '/login') return 'REEBS ERP Login';
-    if (isAdminRoute) return `REEBS ERP — ${getAdminPageTitle(pathname)}`;
-    return 'REEBS ERP';
-  }, [isAdminRoute, pathname]);
+  const pageTitle = useMemo(
+    () => getErpPageTitle(pathname, shellConfig.brand.name, shellConfig.pageTitles, "/admin"),
+    [pathname],
+  );
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-admin-theme', isAdminRoute ? 'true' : 'false');
+    if (typeof window === "undefined" || typeof document === "undefined") return undefined;
+
+    const root = document.documentElement;
+    if (!isAdminRoute) {
+      clearAppliedAdminPreferences(root);
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const activeUserId = authReady ? user?.id : undefined;
+    const syncAdminPreferences = () => {
+      applyAdminPreferences(readAdminPreferences(activeUserId), { root, mediaQuery });
+    };
+    const handlePreferencesChange = (event) => {
+      const changedUserId = String(event?.detail?.userId || "guest");
+      const currentUserId = String(activeUserId || "guest");
+      if (changedUserId !== currentUserId) return;
+      applyAdminPreferences(event?.detail?.preferences, { root, mediaQuery });
+    };
+
+    syncAdminPreferences();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", syncAdminPreferences);
+    } else {
+      mediaQuery.addListener(syncAdminPreferences);
+    }
+    window.addEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferencesChange);
 
     return () => {
-      document.documentElement.removeAttribute('data-admin-theme');
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", syncAdminPreferences);
+      } else {
+        mediaQuery.removeListener(syncAdminPreferences);
+      }
+      window.removeEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferencesChange);
+      clearAppliedAdminPreferences(root);
     };
-  }, [isAdminRoute]);
+  }, [authReady, isAdminRoute, user?.id]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -423,17 +440,24 @@ function AppLayout() {
         <title>{pageTitle}</title>
       </Helmet>
 
-      <div className="portal-app-shell">
-        <Suspense fallback={null}>
-          <PortalSidebar />
-        </Suspense>
-
-        <div className="portal-app-content">{routes}</div>
-
-        <Suspense fallback={null}>
-          <AdminBottomNav />
-        </Suspense>
-      </div>
+      <ErpShellFrame
+        brand={shellConfig.brand}
+        className="portal-app-shell"
+        contentClassName="portal-app-content"
+        layout="overlay"
+        sidebar={(
+          <Suspense fallback={null}>
+            <PortalSidebar />
+          </Suspense>
+        )}
+        bottomNav={(
+          <Suspense fallback={null}>
+            <AdminBottomNav />
+          </Suspense>
+        )}
+      >
+        {routes}
+      </ErpShellFrame>
     </>
   );
 }

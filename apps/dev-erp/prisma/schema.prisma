@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  status    OrgStatus @default(ACTIVE)
+  parentOrganizationId Int?
+  parentOrganization   Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+  childOrganizations   Organization[] @relation("OrganizationHierarchy")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  roles Role[]
+  users User[]
+  bookings Booking[]
+  bookingSettings BookingSettings?
+  calendarIntegrations CalendarIntegration[]
+  accountingEntries AccountingEntry[]
+  invoices Invoice[]
+  productivityEntries ProductivityEntry[]
+  productivityTodos ProductivityTodo[]
+  rentTenants RentTenant[]
+  rentPayments RentPayment[]
+
+  @@index([parentOrganizationId])
+}
+
+model Role {
+  id             Int           @id @default(autoincrement())
+  organizationId Int
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?
+  permissions    Json?
+
+  users User[]
+
+  @@unique([organizationId, name])
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  organizationId Int
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  roleId         Int
+  role           Role          @relation(fields: [roleId], references: [id])
+  firstName      String
+  lastName       String
+  fullName       String
+  email          String        @unique
+  password       String
+  status         UserStatus    @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  productivityEntries ProductivityEntry[]
+  productivityTodos ProductivityTodo[]
+}
+
+model Booking {
+  id            Int            @id @default(autoincrement())
+  organizationId Int
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  externalId    String?
+  source        BookingSource  @default(MANUAL)
+  title         String
+  description   String?
+  startAt       DateTime
+  endAt         DateTime
+  location      String?
+  meetingLink   String?
+  calendarEventId String?
+  calendarProvider CalendarProvider?
+  status        BookingStatus  @default(CONFIRMED)
+  attendeeEmail String?
+  attendeeName  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([organizationId, externalId, source])
+  @@index([organizationId, calendarProvider, calendarEventId])
+  @@index([organizationId, startAt])
+}
+
+model BookingSettings {
+  id             Int           @id @default(autoincrement())
+  organizationId Int           @unique
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  bookingLink    String?
+  calendarEmail  String?
+  defaultLocation String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model ReportConfig {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique
+  isEnabled     Boolean?
+  subjectPrefix String?
+  heading       String?
+  introText     String?
+  footerText    String?
+  contentOptions Json?
+  scheduleFrequency String?
+  scheduleWeekdayUtc Int?
+  scheduleMonthDayUtc Int?
+  scheduleHourUtc Int?
+  scheduleMinuteUtc Int?
+  scheduleDaysBeforeDue Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AlertPreference {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique
+  emailEnabled   Boolean  @default(false)
+  smsEnabled     Boolean  @default(false)
+  notifyOffline  Boolean  @default(true)
+  notifyDegraded Boolean  @default(true)
+  emailRecipients String?
+  smsRecipients   String?
+  fromEmail      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CalendarIntegration {
+  id               Int              @id @default(autoincrement())
+  organizationId   Int
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  provider         CalendarProvider
+  accessToken      String
+  refreshToken     String?
+  tokenExpiry      DateTime?
+  scope            String?
+  email            String?
+  calendarId       String?
+  lastSyncedAt     DateTime?
+  channelId        String?
+  channelToken     String?
+  channelResourceId String?
+  channelExpiration DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([organizationId, provider])
+}
+
+model AccountingEntry {
+  id             Int                @id @default(autoincrement())
+  organizationId Int
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  type           AccountingType
+  status         AccountingStatus
+  source         AccountingSource   @default(MANUAL)
+  sourceRef      String?
+  recurringInterval AccountingInterval?
+  invoiceNumber  String?
+  archivedAt     DateTime?
+  currency       CurrencyCode
+  amount         Decimal            @db.Decimal(14, 2)
+  serviceName    String
+  detail         String?
+  paidAt         DateTime?
+  dueAt          DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organizationId, type])
+  @@index([organizationId, status])
+  @@index([organizationId, source])
+  @@index([organizationId, currency])
+  @@index([organizationId, paidAt])
+  @@index([organizationId, dueAt])
+}
+
+model ProductivityEntry {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id])
+  entryDate       DateTime     @db.Date
+  plannedTasks    Int          @default(0)
+  completedTasks  Int          @default(0)
+  deepWorkMinutes Int          @default(0)
+  focusBlocks     Int          @default(0)
+  blockers        String?
+  energyLevel     Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([userId, entryDate])
+  @@index([organizationId, entryDate])
+  @@index([userId, entryDate])
+}
+
+model ProductivityTodo {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id])
+  title          String
+  notes          String?
+  isDone         Boolean      @default(false)
+  priority       String?
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, userId, isDone])
+  @@index([userId, dueAt])
+}
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+  organizationId Int
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  invoiceNumber  String
+  status         InvoiceStatus @default(DRAFT)
+  currency       CurrencyCode
+  issueDate      DateTime      @db.Date
+  dueDate        DateTime?     @db.Date
+  paidAt         DateTime?
+  clientName     String
+  clientEmail    String?
+  clientAddress  String?
+  notes          String?
+  subtotal       Decimal       @db.Decimal(14, 2)
+  taxRate        Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(14, 2)
+  discount       Decimal       @default(0) @db.Decimal(14, 2)
+  total          Decimal       @db.Decimal(14, 2)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  lineItems InvoiceLineItem[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, dueDate])
+  @@index([organizationId, issueDate])
+}
+
+model InvoiceLineItem {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  description String
+  quantity    Decimal  @db.Decimal(10, 2)
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  amount      Decimal  @db.Decimal(14, 2)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId, sortOrder])
+}
+
+model RentTenant {
+  id                     Int              @id @default(autoincrement())
+  organizationId         Int
+  organization           Organization     @relation(fields: [organizationId], references: [id])
+  status                 RentTenantStatus @default(ACTIVE)
+  tenantName             String
+  tenantEmail            String
+  landlordName           String?
+  landlordEmail          String?
+  currency               CurrencyCode
+  monthlyRent            Decimal          @db.Decimal(14, 2)
+  leaseStartDate         DateTime         @db.Date
+  leaseEndDate           DateTime?        @db.Date
+  openingBalance         Decimal          @default(0) @db.Decimal(14, 2)
+  notes                  String?
+  lastQuarterlySummaryAt DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  payments RentPayment[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, tenantEmail])
+}
+
+model RentPayment {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  tenantId       Int
+  tenant         RentTenant   @relation(fields: [tenantId], references: [id])
+  currency       CurrencyCode
+  amount         Decimal      @db.Decimal(14, 2)
+  paidAt         DateTime     @db.Date
+  method         String?
+  reference      String?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, tenantId, paidAt])
+  @@index([tenantId, paidAt])
+}
+
+enum OrgStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum BookingSource {
+  MANUAL
+  GOOGLE_CALENDAR
+}
+
+enum BookingStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELED
+}
+
+enum CalendarProvider {
+  GOOGLE_CALENDAR
+}
+
+enum AccountingType {
+  REVENUE
+  EXPENSE
+}
+
+enum AccountingStatus {
+  PAID
+  PENDING
+  SCHEDULED
+  OVERDUE
+}
+
+enum AccountingSource {
+  MANUAL
+  FAAKO_SUBSCRIPTION
+}
+
+enum AccountingInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum CurrencyCode {
+  CAD
+  GHS
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum RentTenantStatus {
+  ACTIVE
+  INACTIVE
+}

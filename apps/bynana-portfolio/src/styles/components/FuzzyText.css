@@ -1,0 +1,19 @@
+.fuzzy-text {
+  position: relative;
+  display: inline-block;
+}
+
+.fuzzy-text__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.fuzzy-text__content {
+  display: inline-block;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: inherit;
+  color: inherit;
+}

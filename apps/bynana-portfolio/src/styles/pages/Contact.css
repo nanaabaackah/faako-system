@@ -1,0 +1,371 @@
+.contact-page {
+  position: relative;
+  z-index: 12;
+  color: var(--text-1);
+  padding: clamp(6.1rem, 10.8vh, 8.1rem) clamp(3rem, 4.1vw, 3.2rem) clamp(3.4rem, 9vh, 7.4rem);
+}
+
+.contact-shell {
+  width: min(1380px, 100%);
+  margin: 4rem auto;
+  display: grid;
+  gap: clamp(1.2rem, 2.8vw, 2.8rem);
+}
+
+.contact-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(290px, 0.85fr);
+  gap: clamp(0.8rem, 2vw, 1.8rem);
+  align-items: start;
+}
+
+.contact-hero__copy {
+  display: grid;
+  gap: 0.95rem;
+  align-content: start;
+  padding: clamp(1rem, 1.8vw, 1.4rem) clamp(0.9rem, 2vw, 1.4rem);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+}
+
+.contact-hero__eyebrow {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 68%, transparent);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.contact-hero__copy h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 5.5rem);
+  line-height: 0.9;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+}
+
+.contact-hero__summary {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 78%, transparent);
+  font-size: clamp(0.98rem, 1.18vw, 1.2rem);
+  line-height: 1.62;
+  max-width: 62ch;
+}
+
+.contact-hero__panel {
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+  padding: clamp(1rem, 2.1vw, 1.35rem);
+}
+
+.contact-hero__panel-label {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 66%, transparent);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.contact-hero__panel h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.1vw, 1.72rem);
+  line-height: 1.15;
+}
+
+.contact-hero__meta {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.contact-hero__meta div {
+  display: grid;
+  gap: 0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.contact-hero__meta dt,
+.contact-hero__meta dd {
+  margin: 0;
+}
+
+.contact-hero__meta dt {
+  color: color-mix(in srgb, var(--text-1) 64%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.contact-hero__meta dd {
+  color: color-mix(in srgb, var(--text-1) 80%, transparent);
+  font-size: 0.95rem;
+}
+
+.contact-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.58rem;
+  margin-top: 0.25rem;
+}
+
+.contact-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+}
+
+.contact-strip__item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.78rem;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--text-1) 72%, transparent);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.contact-main {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.36fr) minmax(0, 0.64fr);
+  padding: clamp(1rem, 1.8vw, 1.4rem) clamp(0.9rem, 2vw, 1.4rem);
+  gap: clamp(0.9rem, 1.8vw, 1.5rem);
+  align-items: start;
+}
+
+.contact-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.contact-main__meta {
+  position: sticky;
+  top: calc(var(--nav-height) + 1rem);
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.contact-main__form {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.contact-section__header {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.15rem 0.1rem;
+}
+
+.contact-section__header h2 {
+  margin: 0;
+  font-size: clamp(1.12rem, 2.2vw, 1.68rem);
+}
+
+.contact-section__header p {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-1) 74%, transparent);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.contact-links-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.55rem;
+}
+
+.contact-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 54px;
+  padding: 0.76rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  color: color-mix(in srgb, var(--text-1) 88%, transparent);
+  transition: transform 0.24s ease, border-color 0.24s ease, background-color 0.24s ease;
+}
+
+.contact-link span {
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+.contact-link:hover,
+.contact-link:focus-visible {
+  transform: translateX(4px);
+  border-color: color-mix(in srgb, var(--text-1) 45%, transparent);
+  background-color: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  outline: none;
+}
+
+.contact-link__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-hero__visual {
+  width: 100%;
+  margin-top: 0.2rem;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  overflow: hidden;
+}
+
+.contact-hero__visual img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.contact-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.72rem;
+}
+
+.contact-card {
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+  width: 100%;
+}
+
+.contact-form {
+  padding: 1.05rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.contact-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.contact-form__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.contact-form__field > span {
+  color: color-mix(in srgb, var(--text-1) 70%, transparent);
+  font-size: 0.74rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.contact-form__field input,
+.contact-form__field textarea {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-3) 84%, transparent);
+  color: var(--text-1);
+  padding: 0.74rem 0.76rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.contact-form__field input:focus,
+.contact-form__field textarea:focus {
+  border-color: color-mix(in srgb, var(--text-1) 40%, transparent);
+  background-color: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  outline: none;
+}
+
+.contact-form__field textarea {
+  resize: vertical;
+  min-height: 180px;
+}
+
+.contact-form__hint {
+  color: color-mix(in srgb, var(--text-1) 62%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.contact-form__status {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.contact-form__status--error {
+  color: #8d3030;
+}
+
+.contact-form__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.contact-confirmation {
+  padding: 1.05rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.contact-confirmation h3,
+.contact-confirmation p {
+  margin: 0;
+}
+
+@media (max-width: 1080px) {
+  .contact-hero,
+  .contact-main,
+  .contact-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contact-main__meta {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .contact-page {
+    padding-top: clamp(5.6rem, 14vh, 6.8rem);
+  }
+
+  .contact-hero__copy h1 {
+    font-size: clamp(1.85rem, 9.2vw, 3rem);
+  }
+
+  .contact-hero__actions,
+  .contact-form__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contact-strip__item {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .contact-links-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contact-link {
+    min-height: 50px;
+  }
+
+  .contact-link span {
+    font-size: 0.84rem;
+  }
+}

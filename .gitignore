@@ -1,2 +1,19 @@
-# Local Netlify folder
-.netlify
+node_modules
+.turbo
+dist
+coverage
+.env
+.env.*
+
+**/node_modules
+**/dist
+**/.netlify
+**/.probe_tmp
+**/playwright-report
+**/test-results
+**/.DS_Store
+**/netlify/functions/*.zip
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example

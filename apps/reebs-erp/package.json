@@ -20,6 +20,10 @@
     "test:e2e:all": "concurrently \"npm run netlify\" \"npm run test:e2e\""
   },
   "dependencies": {
+    "@faako/config": "workspace:*",
+    "@faako/core": "workspace:*",
+    "@faako/ui": "workspace:*",
+    "@faako/utils": "workspace:*",
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.2.0",
     "@react-google-maps/api": "^2.20.7",

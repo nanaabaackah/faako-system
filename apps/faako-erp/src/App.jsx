@@ -1,4 +1,7 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Route, Routes, useLocation } from "react-router-dom";
+import { ErpBottomNav, ErpNavSidebar, ErpShellFrame } from "@faako/ui";
+import { filterItemsByRole, getErpPageTitle } from "@faako/utils";
 import Dashboard from "./pages/Dashboard.jsx";
 import Orders from "./pages/Orders.jsx";
 import Inventory from "./pages/Inventory.jsx";
@@ -13,72 +16,46 @@ import Notifications from "./pages/Notifications.jsx";
 import Modules from "./pages/Modules.jsx";
 import Settings from "./pages/Settings.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import shellConfig from "./config/erpShell.js";
 import "./styles/components/panel.css";
 
-export default function App() {
+function AppLayout() {
+  const location = useLocation();
+
+  useEffect(() => {
+    document.title = getErpPageTitle(
+      location.pathname,
+      shellConfig.brand.name,
+      shellConfig.pageTitles,
+      "/",
+    );
+  }, [location.pathname]);
+
   return (
-    <div className="erp-shell">
-      <aside className="erp-sidebar">
-        <div className="brand">Faako ERP</div>
-        <nav className="erp-nav">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/orders" className={({ isActive }) => (isActive ? "active" : "")}>
-            Orders
-          </NavLink>
-          <NavLink
-            to="/inventory"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            Inventory
-          </NavLink>
-          <NavLink to="/bookings" className={({ isActive }) => (isActive ? "active" : "")}>
-            Bookings
-          </NavLink>
-          <NavLink to="/vendors" className={({ isActive }) => (isActive ? "active" : "")}>
-            Vendors
-          </NavLink>
-          <NavLink
-            to="/expenses"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            Expenses
-          </NavLink>
-          <NavLink to="/finance" className={({ isActive }) => (isActive ? "active" : "")}>
-            Finance
-          </NavLink>
-          <NavLink to="/reports" className={({ isActive }) => (isActive ? "active" : "")}>
-            Reports
-          </NavLink>
-          <NavLink to="/people" className={({ isActive }) => (isActive ? "active" : "")}>
-            People
-          </NavLink>
-          <NavLink
-            to="/customers"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            Customers
-          </NavLink>
-          <NavLink
-            to="/notifications"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            Notifications
-          </NavLink>
-          <NavLink to="/modules" className={({ isActive }) => (isActive ? "active" : "")}>
-            Modules
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>
-            Settings
-          </NavLink>
-        </nav>
-      </aside>
-      <div className="erp-main">
-        <header className="erp-topbar">
-          <span>Workspace overview</span>
+    <ErpShellFrame
+      brand={shellConfig.brand}
+      layout="split"
+      sidebar={
+        <ErpNavSidebar
+          brand={shellConfig.brand}
+          currentPath={location.pathname}
+          fallbackPath="/"
+          items={filterItemsByRole(shellConfig.sidebarItems, null)}
+        />
+      }
+      bottomNav={
+        <ErpBottomNav
+          currentPath={location.pathname}
+          fallbackPath="/"
+          items={filterItemsByRole(shellConfig.bottomNavItems, null)}
+        />
+      }
+    >
+      <div className="erp-app-content">
+        <header className="erp-content-header">
+          <span className="erp-content-header__label">{shellConfig.brand.topbarLabel}</span>
         </header>
-        <main className="erp-content">
+        <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
@@ -97,6 +74,10 @@ export default function App() {
           </Routes>
         </main>
       </div>
-    </div>
+    </ErpShellFrame>
   );
+}
+
+export default function App() {
+  return <AppLayout />;
 }

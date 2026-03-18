@@ -16,6 +16,7 @@ import {
   faHome,
   faMoneyCheckDollar,
   faPenToSquare,
+  faReceipt,
   faShieldAlt,
   faSliders,
   faStore,
@@ -57,6 +58,11 @@ const DEFAULT_APPS = [
     label: "Inventory",
     path: "/admin/inventory",
     icon: faBoxesStacked,
+  },
+  {
+    label: "POS",
+    path: "/admin/store-mode",
+    icon: faReceipt,
   },
   {
     label: "CRM",
@@ -729,9 +735,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       </button>
       {userMenuOpen && (
         <div className="portal-sidebar__user-menu">
-          {isAuthenticated && !isWaterUser && (
+          {isAuthenticated && (
             <Link
-              to="/admin/settings?tab=profile"
+              to="/admin/profile"
               className="portal-sidebar__user-link"
               title="Profile settings"
               onClick={() => {
