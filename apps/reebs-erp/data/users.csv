@@ -1,0 +1,7 @@
+id,firstName,lastName,fullName,email,password,role,jobTitle,phone,emergencyContactName,emergencyContactPhone
+1,System,Admin,System Admin,system_admin@reebs.com,,Admin,System Administrator,0244238419,Ama Owusu,0201002001
+2,Maame Ebe,Ackah,Maame Ebe Ackah,maameebe_ackah@reebs.com,,Manager,Marketing Manager,0244001122,Yaw Ackah,0201002002
+3,Mamaa Enyimah,Ackah,Mamaa Enyimah Ackah,mamaaenyimah_ackah@reebs.com,,Manager,Sales Manager,0245003300,Nana Mensah,0201002003
+4,Sabina,Ackah,Sabina Ackah,sabina_ackah@reebs.com,,Manager,Operations Manager,0244112233,Efua Boateng,0201002004
+5,Ato,Ayensu,Ato Ayensu,ato_ayensu@reebs.com,,Driver,Delivery Driver,0245557788,Adjoa Ayensu,0201002012
+6,Sandra,Mensah,Sandra Mensah,sandra_mensah@reebs.com,,Sales,Sales Associate,0245887788,Kwaku Mensah,0201002013

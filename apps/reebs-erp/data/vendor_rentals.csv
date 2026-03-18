@@ -1,0 +1,6 @@
+name,description,price,rate,type,image_url,quantity,status,attendantsNeeded,sourceCategoryCode
+Party Chairs,Vendor-supplied folding chairs for event setups.,15.00,per chair,Party Setup Rentals,/imgs/rentalItems/img_9.png,40,available,1,RENTAL
+Party Tables,Vendor-supplied folding tables for event setups.,30.00,per table,Party Setup Rentals,/imgs/rentalItems/img_10.png,20,available,1,RENTAL
+Event Tent,Vendor-supplied outdoor tent for shaded event seating.,250.00,per tent,Party Setup Rentals,/imgs/rentalItems/img_8.png,4,available,2,RENTAL
+Event Canopy,Vendor-supplied canopy for pop-up event coverage.,180.00,per canopy,Party Setup Rentals,/imgs/rentalItems/img_8b.png,6,available,2,RENTAL
+Double-Sided Slide Bouncer,Vendor-supplied inflatable slide bouncer with double lane slide.,1200.00,per day,Bouncy Castles,/imgs/rentalItems/img_27.png,1,available,3,RENTAL

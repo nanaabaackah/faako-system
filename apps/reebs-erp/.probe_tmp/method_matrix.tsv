@@ -1,0 +1,198 @@
+bookings	OPTIONS	204	
+bookings	GET	401	{"error":"Unauthorized"}
+bookings	POST	400	{"error":"customerId is required."}
+bookings	PUT	401	{"error":"Unauthorized"}
+bookings	PATCH	401	{"error":"Unauthorized"}
+bookings	DELETE	401	{"error":"Unauthorized"}
+bouncy_castles	OPTIONS	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+bouncy_castles	GET	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+bouncy_castles	POST	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+bouncy_castles	PUT	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+bouncy_castles	PATCH	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+bouncy_castles	DELETE	200	[{"id":1,"bouncerId":"BOUN-001255","name":"Spiderman Bouncy House","productId":1255,"capacity":"Up to 8 kids at a time","recommendedAge":"Ages 4-10","priceRange
+createOrder	OPTIONS	204	
+createOrder	GET	405	{"error":"Method Not Allowed"}
+createOrder	POST	400	{"error":"Missing customerId or items."}
+createOrder	PUT	405	{"error":"Method Not Allowed"}
+createOrder	PATCH	405	{"error":"Method Not Allowed"}
+createOrder	DELETE	405	{"error":"Method Not Allowed"}
+customers	OPTIONS	204	
+customers	GET	401	{"error":"Unauthorized"}
+customers	POST	400	{"error":"Name is required."}
+customers	PUT	401	{"error":"Unauthorized"}
+customers	PATCH	405	{"error":"Method Not Allowed"}
+customers	DELETE	405	{"error":"Method Not Allowed"}
+deliveries	OPTIONS	204	
+deliveries	GET	200	[{"id":1,"eventDate":"2026-04-02T00:00:00.000Z","startTime":"10:00Am","endTime":"5pm","venueAddress":"Sakumono complex School","bookingStatus":"confirmed","tota
+deliveries	POST	400	{"error":"bookingId is required."}
+deliveries	PUT	400	{"error":"bookingId is required."}
+deliveries	PATCH	405	{"error":"Method Not Allowed"}
+deliveries	DELETE	405	{"error":"Method Not Allowed"}
+documents	OPTIONS	204	
+documents	GET	401	{"error":"Unauthorized"}
+documents	POST	401	{"error":"Unauthorized"}
+documents	PUT	401	{"error":"Unauthorized"}
+documents	PATCH	401	{"error":"Unauthorized"}
+documents	DELETE	401	{"error":"Unauthorized"}
+expenses	OPTIONS	204	
+expenses	GET	401	{"error":"Unauthorized"}
+expenses	POST	401	{"error":"Unauthorized"}
+expenses	PUT	401	{"error":"Unauthorized"}
+expenses	PATCH	401	{"error":"Unauthorized"}
+expenses	DELETE	401	{"error":"Unauthorized"}
+financials	OPTIONS	204	
+financials	GET	401	{"error":"Unauthorized"}
+financials	POST	401	{"error":"Unauthorized"}
+financials	PUT	401	{"error":"Unauthorized"}
+financials	PATCH	401	{"error":"Unauthorized"}
+financials	DELETE	401	{"error":"Unauthorized"}
+generateInvoice	OPTIONS	204	
+generateInvoice	GET	400	{"error":"orderId is required"}
+generateInvoice	POST	405	{"error":"Method Not Allowed"}
+generateInvoice	PUT	405	{"error":"Method Not Allowed"}
+generateInvoice	PATCH	405	{"error":"Method Not Allowed"}
+generateInvoice	DELETE	405	{"error":"Method Not Allowed"}
+geocode	OPTIONS	204	
+geocode	GET	405	{"error":"Method Not Allowed"}
+geocode	POST	400	{"error":"Address is required."}
+geocode	PUT	405	{"error":"Method Not Allowed"}
+geocode	PATCH	405	{"error":"Method Not Allowed"}
+geocode	DELETE	405	{"error":"Method Not Allowed"}
+getInvoiceDetails	OPTIONS	204	
+getInvoiceDetails	GET	404	{"error":"Booking not found"}
+getInvoiceDetails	POST	405	{"error":"Method not allowed"}
+getInvoiceDetails	PUT	405	{"error":"Method not allowed"}
+getInvoiceDetails	PATCH	405	{"error":"Method not allowed"}
+getInvoiceDetails	DELETE	405	{"error":"Method not allowed"}
+hr	OPTIONS	204	
+hr	GET	401	{"error":"Unauthorized"}
+hr	POST	401	{"error":"Unauthorized"}
+hr	PUT	401	{"error":"Unauthorized"}
+hr	PATCH	401	{"error":"Unauthorized"}
+hr	DELETE	401	{"error":"Unauthorized"}
+indoor_games	OPTIONS	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+indoor_games	GET	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+indoor_games	POST	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+indoor_games	PUT	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+indoor_games	PATCH	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+indoor_games	DELETE	200	[{"id":1,"name":"Giant jenga","productId":1260,"quantity":2,"price":20000,"rate":"per day","availability":"Available","category":"Indoor Games","image":"/imgs/r
+inventory	OPTIONS	200	
+inventory	GET	200	[{"id":1,"sku":"CLO-WHITE-SOCK-000","barcode":null,"name":"White socks- school (7pck)","description":null,"sourceCategoryCode":"CLOTHES","specificCategory":"Gen
+inventory	POST	400	{"error":"Name is required."}
+inventory	PUT	405	{"error":"Method not allowed"}
+inventory	PATCH	400	{"error":"Product id is required."}
+inventory	DELETE	400	{"error":"Product id is required."}
+inventoryCounts	OPTIONS	200	
+inventoryCounts	GET	200	{"rentals":28,"products":1264}
+inventoryCounts	POST	405	{"error":"Method not allowed"}
+inventoryCounts	PUT	405	{"error":"Method not allowed"}
+inventoryCounts	PATCH	405	{"error":"Method not allowed"}
+inventoryCounts	DELETE	405	{"error":"Method not allowed"}
+login	OPTIONS	405	{"error":"Method not allowed"}
+login	GET	405	{"error":"Method not allowed"}
+login	POST	400	{"error":"Email and password are required."}
+login	PUT	405	{"error":"Method not allowed"}
+login	PATCH	405	{"error":"Method not allowed"}
+login	DELETE	405	{"error":"Method not allowed"}
+machines	OPTIONS	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+machines	GET	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+machines	POST	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+machines	PUT	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+machines	PATCH	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+machines	DELETE	200	[{"id":1,"name":"Cotton candy","productId":1249,"quantity":2,"price":1500,"rate":"per head","availability":"available","category":"Kid's Party Rentals","image":
+maintenance	OPTIONS	204	
+maintenance	GET	200	[]
+maintenance	POST	400	{"error":"productId is required."}
+maintenance	PUT	400	{"error":"Maintenance log id is required."}
+maintenance	PATCH	405	{"error":"Method Not Allowed"}
+maintenance	DELETE	405	{"error":"Method Not Allowed"}
+managerBookings	OPTIONS	204	
+managerBookings	GET	401	{"error":"Unauthorized"}
+managerBookings	POST	405	{"error":"Method Not Allowed"}
+managerBookings	PUT	405	{"error":"Method Not Allowed"}
+managerBookings	PATCH	405	{"error":"Method Not Allowed"}
+managerBookings	DELETE	405	{"error":"Method Not Allowed"}
+managerLogin	OPTIONS	204	
+managerLogin	GET	405	{"error":"Method Not Allowed"}
+managerLogin	POST	400	{"error":"Enter a valid 6-digit PIN."}
+managerLogin	PUT	405	{"error":"Method Not Allowed"}
+managerLogin	PATCH	405	{"error":"Method Not Allowed"}
+managerLogin	DELETE	405	{"error":"Method Not Allowed"}
+managerOrders	OPTIONS	204	
+managerOrders	GET	401	{"error":"Unauthorized"}
+managerOrders	POST	405	{"error":"Method Not Allowed"}
+managerOrders	PUT	405	{"error":"Method Not Allowed"}
+managerOrders	PATCH	405	{"error":"Method Not Allowed"}
+managerOrders	DELETE	405	{"error":"Method Not Allowed"}
+managerTokens	OPTIONS	204	
+managerTokens	GET	405	{"error":"Method Not Allowed"}
+managerTokens	POST	401	{"error":"Unauthorized"}
+managerTokens	PUT	405	{"error":"Method Not Allowed"}
+managerTokens	PATCH	405	{"error":"Method Not Allowed"}
+managerTokens	DELETE	405	{"error":"Method Not Allowed"}
+marketing	OPTIONS	204	
+marketing	GET	200	[]
+marketing	POST	400	{"error":"Code is required."}
+marketing	PUT	400	{"error":"id is required."}
+marketing	PATCH	405	{"error":"Method Not Allowed"}
+marketing	DELETE	405	{"error":"Method Not Allowed"}
+opsHubKpis	OPTIONS	200	
+opsHubKpis	GET	401	{"error":"userId is required"}
+opsHubKpis	POST	405	{"error":"Method not allowed"}
+opsHubKpis	PUT	405	{"error":"Method not allowed"}
+opsHubKpis	PATCH	405	{"error":"Method not allowed"}
+opsHubKpis	DELETE	405	{"error":"Method not allowed"}
+orderStats	OPTIONS	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orderStats	GET	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orderStats	POST	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orderStats	PUT	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orderStats	PATCH	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orderStats	DELETE	200	{"windowDays":30,"orders":0,"revenue":0,"units":0,"bookings":1,"bookingRevenue":880,"operatingExpenses":500,"operatingExpensesWindow":500,"operatingExpensesTota
+orders	OPTIONS	204	
+orders	GET	401	{"error":"Unauthorized"}
+orders	POST	401	{"error":"Unauthorized"}
+orders	PUT	401	{"error":"Unauthorized"}
+orders	PATCH	401	{"error":"Unauthorized"}
+orders	DELETE	401	{"error":"Unauthorized"}
+publicStats	OPTIONS	200	
+publicStats	GET	200	{"inventoryCount":1292,"bookingCount":1,"orderCount":1,"updatedAt":"2026-02-27T20:15:42.764Z"}
+publicStats	POST	405	{"error":"Method not allowed"}
+publicStats	PUT	405	{"error":"Method not allowed"}
+publicStats	PATCH	405	{"error":"Method not allowed"}
+publicStats	DELETE	405	{"error":"Method not allowed"}
+stock	OPTIONS	204	
+stock	GET	405	{"error":"Method Not Allowed. Use POST."}
+stock	POST	400	{"error":"Missing required fields: productId, type (StockIn/StockOut), and quantity."}
+stock	PUT	405	{"error":"Method Not Allowed. Use POST."}
+stock	PATCH	405	{"error":"Method Not Allowed. Use POST."}
+stock	DELETE	405	{"error":"Method Not Allowed. Use POST."}
+stockActivity	OPTIONS	200	
+stockActivity	GET	200	{"months":[{"month_key":"2026-01","month_start":"2026-01-01T00:00:00.000Z","stock_in":0,"stock_out":3},{"month_key":"2023-10","month_start":"2023-10-01T00:00:00
+stockActivity	POST	200	{"months":[{"month_key":"2026-01","month_start":"2026-01-01T00:00:00.000Z","stock_in":0,"stock_out":3},{"month_key":"2023-10","month_start":"2023-10-01T00:00:00
+stockActivity	PUT	200	{"months":[{"month_key":"2026-01","month_start":"2026-01-01T00:00:00.000Z","stock_in":0,"stock_out":3},{"month_key":"2023-10","month_start":"2023-10-01T00:00:00
+stockActivity	PATCH	200	{"months":[{"month_key":"2026-01","month_start":"2026-01-01T00:00:00.000Z","stock_in":0,"stock_out":3},{"month_key":"2023-10","month_start":"2023-10-01T00:00:00
+stockActivity	DELETE	200	{"months":[{"month_key":"2026-01","month_start":"2026-01-01T00:00:00.000Z","stock_in":0,"stock_out":3},{"month_key":"2023-10","month_start":"2023-10-01T00:00:00
+timesheets	OPTIONS	204	
+timesheets	GET	400	{"error":"userId is required."}
+timesheets	POST	400	{"error":"userId is required."}
+timesheets	PUT	400	{"error":"userId is required."}
+timesheets	PATCH	400	{"error":"userId is required."}
+timesheets	DELETE	400	{"error":"userId is required."}
+userStats	OPTIONS	400	{"error":"userId is required"}
+userStats	GET	400	{"error":"userId is required"}
+userStats	POST	400	{"error":"userId is required"}
+userStats	PUT	400	{"error":"userId is required"}
+userStats	PATCH	400	{"error":"userId is required"}
+userStats	DELETE	400	{"error":"userId is required"}
+users	OPTIONS	204	
+users	GET	401	{"error":"Unauthorized"}
+users	POST	401	{"error":"Unauthorized"}
+users	PUT	401	{"error":"Unauthorized"}
+users	PATCH	401	{"error":"Unauthorized"}
+users	DELETE	401	{"error":"Unauthorized"}
+vendors	OPTIONS	204	
+vendors	GET	401	{"error":"Unauthorized"}
+vendors	POST	401	{"error":"Unauthorized"}
+vendors	PUT	401	{"error":"Unauthorized"}
+vendors	PATCH	401	{"error":"Unauthorized"}
+vendors	DELETE	401	{"error":"Unauthorized"}

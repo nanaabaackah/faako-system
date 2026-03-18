@@ -1,0 +1,204 @@
+/* ================================================
+   About
+   ================================================ */
+
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+/* About-page story block */
+.story-copy {
+  display: grid;
+  gap: 1.2rem;
+}
+.story-copy p {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.story-copy .story-lead {
+  font-size: 1.1rem;
+  color: var(--surface);
+  font-weight: 600;
+  margin: 0;
+}
+.story-card {
+  background: var(--card);
+  backdrop-filter: blur(14px);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.5rem;
+  box-shadow: 0 14px 28px rgba(20, 12, 6, 0.08);
+}
+.story-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--section-warm-ink);
+}
+.story-card p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.story-numbers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.story-numbers .ribbon {
+  margin-top: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.about-hero-figure .about-hero-art {
+  width: 400px;
+  height: 450px;
+  display: inline-flex;
+  margin-left: 0;
+  margin-top: 2rem;
+  transform-origin: center;
+  filter: drop-shadow(0 18px 30px rgba(20, 12, 6, 0.18));
+  position: relative;
+  z-index: 0;
+}
+.about-hero {
+  margin: 4.5rem 4rem 1rem;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  margin-bottom: -6rem;
+  gap: 2rem;
+}
+.about-hero-copy {
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+  justify-items: center;
+  margin-inline: auto;
+}
+.about-hero-copy .lead {
+  max-width: 56ch;
+  margin-inline: auto;
+}
+.about-hero-copy .cta-actions {
+  justify-content: center;
+}
+.origin-story {
+  padding: 15rem 6rem clamp(2.6rem, 4vw, 3.6rem);
+}
+.how-we-work {
+  padding: 7rem 6rem clamp(2.6rem, 4vw, 3.6rem);
+}
+.mission,
+.values {
+  padding: 1rem 15rem clamp(2.6rem, 4vw, 3.6rem);
+  display: grid;
+  gap: 2.5rem;
+}
+@media (max-width: 1200px) {
+  .about-hero {
+    margin: clamp(4.4rem, 7vw, 5.8rem) clamp(1rem, 4vw, 3rem) 0.8rem;
+    margin-bottom: -3rem;
+  }
+  .origin-story {
+    padding: clamp(8rem, 11vw, 10rem) clamp(1rem, 4vw, 2.4rem)
+      clamp(2rem, 4vw, 3rem);
+  }
+  .how-we-work {
+    padding: clamp(4.8rem, 8vw, 6.4rem) clamp(1rem, 4vw, 2.4rem)
+      clamp(2rem, 4vw, 3rem);
+  }
+  .mission,
+  .values {
+    padding: clamp(1rem, 3vw, 1.5rem) clamp(1rem, 4vw, 2.4rem)
+      clamp(2rem, 4vw, 3rem);
+  }
+}
+@media (max-width: 900px) {
+  .about {
+    gap: 1rem;
+  }
+  .about-hero {
+    margin: calc(var(--header-height) + 0.7rem) 1rem 0.4rem;
+    margin-bottom: 0;
+    gap: 1rem;
+  }
+  .about-hero-figure {
+    display: grid;
+    justify-items: center;
+    margin-inline: auto;
+  }
+  .about-hero-figure .about-hero-art {
+    width: min(320px, 88vw);
+    height: auto;
+    margin: 0;
+  }
+  .origin-story,
+  .how-we-work {
+    padding: clamp(2rem, 5vw, 3rem) 1rem clamp(1.8rem, 4vw, 2.6rem);
+  }
+  .mission,
+  .values {
+    padding: 1rem 1rem clamp(1.8rem, 4vw, 2.6rem);
+  }
+  .story-grid {
+    grid-template-columns: 1fr;
+  }
+  .story-numbers {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 700px) {
+  .about-hero {
+    margin: calc(var(--header-height) + 0.45rem) 0.75rem 0.2rem;
+    gap: 1rem;
+    text-align: center;
+  }
+  .about-hero-copy h1 {
+    font-size: clamp(1.9rem, 8.2vw, 2.7rem);
+    max-width: 100%;
+  }
+  .about-hero-copy .lead {
+    font-size: 1rem;
+    max-width: 100%;
+  }
+  .about-hero-figure {
+    justify-self: center;
+  }
+  .about-hero-figure .about-hero-art {
+    width: min(320px, 85vw);
+    height: auto;
+    margin-inline: auto;
+  }
+  .origin-story,
+  .how-we-work,
+  .mission,
+  .values {
+    padding: 1rem 0.8rem 1.8rem;
+  }
+  .story-copy .story-lead {
+    font-size: 1rem;
+  }
+  .story-numbers .ribbon {
+    width: 100%;
+  }
+}
+@media (max-width: 480px) {
+  .about-hero {
+    margin: calc(var(--header-height) + 4.35rem) 2rem 0;
+  }
+  .origin-story,
+  .how-we-work,
+  .mission,
+  .values {
+    padding: 2rem;
+  }
+  .about-hero-figure .about-hero-art {
+    width: min(280px, 88vw);
+  }
+}
+

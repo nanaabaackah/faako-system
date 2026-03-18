@@ -1,0 +1,597 @@
+/* ================================================
+   Privacy / Terms
+   ================================================ */
+
+.terms-page {
+  padding: 8rem 6rem clamp(2.6rem, 4vw, 3.6rem);
+  display: grid;
+  gap: 2rem;
+}
+.terms-shell {
+  display: grid;
+  gap: 1.4rem;
+  width: min(1160px, calc(100% - 2rem));
+  margin: clamp(1.2rem, 2vw, 2.2rem) auto clamp(2.3rem, 5vw, 3.6rem);
+}
+.terms-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.95fr);
+  gap: 1.1rem;
+  padding: clamp(1.25rem, 3vw, 2.2rem);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background:
+    radial-gradient(
+      circle at 88% 8%,
+      color-mix(in srgb, var(--accent-soft) 34%, transparent),
+      transparent 56%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-alt) 86%, var(--card)),
+      color-mix(in srgb, var(--card) 90%, var(--surface))
+    );
+  border-color: color-mix(in srgb, var(--ink) 11%, transparent);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+.terms-hero-copy {
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+  justify-items: center;
+  margin-inline: auto;
+}
+.terms-hero-copy h1 {
+  font-size: clamp(2.1rem, 3.9vw, 3.35rem);
+  max-width: 14ch;
+}
+.terms-hero-copy .lead {
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--ink) 74%, #655042);
+  margin-inline: auto;
+}
+.terms-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+}
+.terms-meta span {
+  padding: 0.36rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 90%, transparent);
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--ink) 78%, #624c3d);
+}
+.terms-hero-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  padding: 1.1rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--card) 90%, rgba(255, 255, 255, 0.24));
+}
+.terms-hero-panel h2 {
+  font-size: 1.25rem;
+}
+.terms-glance-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+.terms-glance-list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem 0.72rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 82%, transparent);
+}
+.terms-glance-list strong {
+  font-size: 0.92rem;
+}
+.terms-glance-list span {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--ink) 72%, #665345);
+}
+.terms-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.terms-nav {
+  position: sticky;
+  top: 6.45rem;
+  display: grid;
+  gap: 0.36rem;
+  padding: 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 11%, transparent);
+}
+.terms-nav h3 {
+  margin-bottom: 0.4rem;
+  font-size: 1.02rem;
+}
+.terms-nav a {
+  padding: 0.46rem 0.62rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: color-mix(in srgb, var(--ink) 72%, #5f4a3c);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.terms-nav a:hover {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.terms-content {
+  display: grid;
+  gap: 0.9rem;
+}
+.terms-section {
+  display: grid;
+  gap: 0.8rem;
+  scroll-margin-top: calc(var(--header-height) + 1.2rem);
+  border: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
+  border-radius: 1rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+.terms-section h2 {
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+}
+.terms-section p {
+  color: color-mix(in srgb, var(--ink) 75%, #675345);
+}
+.terms-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+  color: color-mix(in srgb, var(--ink) 76%, #5f4c3e);
+}
+.terms-list li::marker {
+  color: var(--accent);
+}
+.terms-footer-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  border-radius: 1rem;
+}
+.terms-footer-note span {
+  color: color-mix(in srgb, var(--ink) 76%, #645142);
+}
+.privacy-page {
+  display: grid;
+  gap: 2rem;
+}
+.privacy-shell {
+  display: grid;
+  gap: 1.4rem;
+  width: min(1160px, calc(100% - 2rem));
+  margin: clamp(1.2rem, 2vw, 2.2rem) auto clamp(2.3rem, 5vw, 3.6rem);
+}
+.privacy-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(250px, 0.9fr);
+  gap: 1.1rem;
+  padding: 10rem 6rem clamp(1.25rem, 3vw, 2.2rem);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ink) 11%, transparent);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+.privacy-hero::after {
+  content: "";
+  position: absolute;
+  width: min(390px, 44vw);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  right: -19%;
+  bottom: -58%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 34%, transparent),
+    transparent 72%
+  );
+  opacity: 0.6;
+  pointer-events: none;
+}
+.privacy-hero-copy {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  text-align: center;
+  justify-items: center;
+  margin-inline: auto;
+}
+.privacy-hero-copy h1 {
+  font-size: clamp(2.15rem, 4vw, 3.45rem);
+  max-width: 13ch;
+}
+.privacy-hero-copy .lead {
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--ink) 74%, #6b4f3d);
+  margin-inline: auto;
+}
+.privacy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+}
+.privacy-meta span {
+  padding: 0.36rem 0.76rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 90%, transparent);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--ink) 80%, #6b4f3d);
+}
+.privacy-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+}
+.privacy-chip-row span {
+  padding: 0.35rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  color: color-mix(in srgb, var(--accent-strong) 82%, #57351b);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.privacy-hero-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  padding: 1.15rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--card) 90%, rgba(255, 255, 255, 0.24));
+}
+.privacy-hero-panel h2 {
+  font-size: 1.25rem;
+}
+.privacy-hero-panel p {
+  color: color-mix(in srgb, var(--ink) 74%, #655041);
+}
+.privacy-hero-panel dl {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+.privacy-hero-panel dl div {
+  display: grid;
+  gap: 0.18rem;
+}
+.privacy-hero-panel dt {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  color: color-mix(in srgb, var(--ink) 66%, #7a6456);
+}
+.privacy-hero-panel dd {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 84%, #5f4430);
+  font-weight: 600;
+}
+.privacy-layout {
+  display: grid;
+  padding: 2rem 6rem clamp(1.25rem, 3vw, 2.2rem);
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+.privacy-nav {
+  position: sticky;
+  top: 6.45rem;
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 11%, transparent);
+}
+.privacy-nav h3 {
+  margin-bottom: 0.4rem;
+  font-size: 1.02rem;
+}
+.privacy-nav a {
+  padding: 0.46rem 0.62rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: color-mix(in srgb, var(--ink) 72%, #5f4a3c);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.privacy-nav a:hover {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.privacy-content {
+  display: grid;
+  gap: 0.9rem;
+}
+.privacy-section {
+  display: grid;
+  gap: 0.85rem;
+  scroll-margin-top: calc(var(--header-height) + 1.2rem);
+  border: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
+  border-radius: 1rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+.privacy-section h2 {
+  font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+}
+.privacy-section p {
+  color: color-mix(in srgb, var(--ink) 75%, #695446);
+}
+.privacy-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+  color: color-mix(in srgb, var(--ink) 76%, #624d3f);
+}
+.privacy-list li::marker {
+  color: var(--accent);
+}
+.privacy-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+.privacy-data-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.95rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 80%, rgba(255, 255, 255, 0.44));
+}
+.privacy-data-card h3 {
+  font-size: 1.03rem;
+}
+.privacy-table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+}
+.privacy-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+.privacy-table th,
+.privacy-table td {
+  padding: 0.78rem 0.84rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  vertical-align: top;
+}
+.privacy-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--accent-strong) 85%, #412515);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.privacy-table td {
+  font-size: 0.93rem;
+  color: color-mix(in srgb, var(--ink) 75%, #5f4637);
+}
+.privacy-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.privacy-rights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.privacy-right-item {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 78%, rgba(255, 255, 255, 0.34));
+}
+.privacy-right-item strong {
+  font-size: 0.95rem;
+}
+.privacy-right-item span {
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--ink) 72%, #655244);
+}
+@media (max-width: 1120px) {
+  .privacy-hero {
+    grid-template-columns: 1fr;
+  }
+  .privacy-layout {
+    padding: 2rem;
+    grid-template-columns: 1fr;
+  }
+  .privacy-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .privacy-nav h3 {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .privacy-hero,
+  .terms-page {
+    padding: 13rem 2rem 2rem;
+    grid-template-columns: 1fr;
+  }
+  .terms-hero {
+    padding: 2rem;
+  }
+  .privacy-data-grid,
+  .privacy-rights-grid {
+    grid-template-columns: 1fr;
+  }
+  .privacy-nav {
+    grid-template-columns: 1fr;
+  }
+}
+:root[data-theme="dark"] .privacy-hero {
+  border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+  background:
+    radial-gradient(
+      circle at 14% 4%,
+      color-mix(in srgb, var(--accent) 32%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      132deg,
+      color-mix(in srgb, var(--surface-alt) 96%, #060403),
+      color-mix(in srgb, var(--surface) 92%, #050302)
+    );
+}
+:root[data-theme="dark"] .privacy-hero-panel,
+:root[data-theme="dark"] .privacy-data-card,
+:root[data-theme="dark"] .privacy-right-item,
+:root[data-theme="dark"] .privacy-table-wrap {
+  border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+}
+:root[data-theme="dark"] .terms-hero,
+:root[data-theme="dark"] .privacy-hero,
+:root[data-theme="dark"] .terms-nav,
+:root[data-theme="dark"] .privacy-nav,
+:root[data-theme="dark"] .terms-section,
+:root[data-theme="dark"] .privacy-section,
+:root[data-theme="dark"] .terms-footer-note {
+  border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .privacy-meta span {
+  background: color-mix(in srgb, var(--surface-alt) 88%, #070403);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .privacy-hero {
+    border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+    background:
+      radial-gradient(
+        circle at 14% 4%,
+        color-mix(in srgb, var(--accent) 32%, transparent),
+        transparent 55%
+      ),
+      linear-gradient(
+        132deg,
+        color-mix(in srgb, var(--surface-alt) 96%, #060403),
+        color-mix(in srgb, var(--surface) 92%, #050302)
+      );
+  }
+  :root:not([data-theme]) .privacy-hero-panel,
+  :root:not([data-theme]) .privacy-data-card,
+  :root:not([data-theme]) .privacy-right-item,
+  :root:not([data-theme]) .privacy-table-wrap {
+    border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+    background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+  }
+  :root:not([data-theme]) .terms-hero,
+  :root:not([data-theme]) .privacy-hero,
+  :root:not([data-theme]) .terms-nav,
+  :root:not([data-theme]) .privacy-nav,
+  :root:not([data-theme]) .terms-section,
+  :root:not([data-theme]) .privacy-section,
+  :root:not([data-theme]) .terms-footer-note {
+    border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+    box-shadow: none;
+  }
+  :root:not([data-theme]) .privacy-meta span {
+    background: color-mix(in srgb, var(--surface-alt) 88%, #070403);
+  }
+}
+:root[data-theme="dark"] .terms-hero {
+  border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+  background:
+    radial-gradient(
+      circle at 88% 8%,
+      color-mix(in srgb, var(--accent) 26%, transparent),
+      transparent 56%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-alt) 96%, #060403),
+      color-mix(in srgb, var(--surface) 92%, #050302)
+    );
+}
+:root[data-theme="dark"] .terms-hero-panel,
+:root[data-theme="dark"] .terms-glance-list li {
+  border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+}
+:root[data-theme="dark"] .terms-meta span {
+  background: color-mix(in srgb, var(--surface-alt) 88%, #070403);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .terms-hero {
+    border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+    background:
+      radial-gradient(
+        circle at 88% 8%,
+        color-mix(in srgb, var(--accent) 26%, transparent),
+        transparent 56%
+      ),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--surface-alt) 96%, #060403),
+        color-mix(in srgb, var(--surface) 92%, #050302)
+      );
+  }
+  :root:not([data-theme]) .terms-hero-panel,
+  :root:not([data-theme]) .terms-glance-list li {
+    border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+    background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+  }
+  :root:not([data-theme]) .terms-meta span {
+    background: color-mix(in srgb, var(--surface-alt) 88%, #070403);
+  }
+}
+@media (max-width: 1120px) {
+  .terms-hero {
+    grid-template-columns: 1fr;
+  }
+  .terms-layout {
+    grid-template-columns: 1fr;
+  }
+  .terms-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .terms-nav h3 {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .terms-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .page.legal-page .terms-shell,
+  .page.legal-page .privacy-shell {
+    width: calc(100% - 0.1rem);
+  }
+}

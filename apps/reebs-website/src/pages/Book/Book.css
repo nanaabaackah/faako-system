@@ -1,0 +1,223 @@
+@import "../../styles/public.css";
+
+.booking-hero {
+  --page-hero-image: url("/imgs/backgrounds/44.png");
+}
+
+.booking-shell > section:not(.page-hero) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.booking-shell > section:not(.page-hero)::before {
+  content: none;
+}
+
+
+.booking-shell .booking-hero {
+  border: 0;
+  box-shadow: none;
+  align-items: end;
+  gap: clamp(1.25rem, 3vw, 2rem);
+}
+
+.booking-shell .booking-hero::after {
+  background:
+    radial-gradient(
+      92% 78% at 50% 86%,
+      rgba(var(--ink-rgb), 0.14) 0%,
+      rgba(var(--ink-rgb), 0.46) 62%,
+      rgba(var(--ink-rgb), 0.6) 100%
+    ),
+    linear-gradient(180deg, rgba(var(--ink-rgb), 0.12) 0%, rgba(var(--ink-rgb), 0.44) 90%);
+}
+
+.booking-shell .booking-hero-copy {
+  max-width: 40rem;
+  justify-items: start;
+  text-align: left;
+  margin-inline: 0;
+}
+
+.booking-shell .booking-pills,
+.booking-shell .booking-cta-row {
+  justify-content: flex-start;
+}
+
+.booking-shell .booking-meta {
+  justify-items: start;
+}
+
+.booking-shell .kicker,
+.booking-shell .booking-hero-card .kicker {
+  color: rgba(var(--white-rgb), 0.8);
+}
+
+.booking-shell .booking-hero-sub,
+.booking-shell .booking-pills span,
+.booking-shell .booking-hero-note,
+.booking-shell .booking-meta p,
+.booking-shell .booking-hero-stats span {
+  color: rgba(var(--white-rgb), 0.9);
+  text-shadow: 0 12px 24px rgba(var(--ink-rgb), 0.32);
+}
+
+.booking-shell .booking-meta strong,
+.booking-shell .booking-hero-card h2,
+.booking-shell .booking-hero-stats strong {
+  color: var(--white);
+}
+
+.booking-shell .booking-rentals{
+  border: 1px solid rgba(var(--ink-rgb), 1);
+}
+
+.booking-shell .booking-hero-card,
+.booking-shell .booking-pills span,
+.booking-shell .booking-meta > div,
+.booking-shell .booking-hero-stats > div,
+.booking-shell .booking-form-card,
+.booking-shell .booking-selected,
+.booking-shell .booking-bundle-option,
+.booking-shell .booking-rental-card,
+.booking-shell .booking-receipt,
+.booking-shell .booking-chip,
+.booking-shell .booking-receipt-pill {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.booking-shell .booking-pills span,
+.booking-shell .booking-chip,
+.booking-shell .booking-receipt-pill {
+  padding: 0;
+  border-radius: 0;
+}
+
+.booking-shell .booking-pills {
+  gap: 0.8rem 1rem;
+}
+
+.booking-shell .booking-meta > div,
+.booking-shell .booking-hero-stats > div {
+  padding: 0;
+}
+
+.booking-shell .booking-hero-stats > div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  align-items: start;
+}
+
+.booking-shell .booking-empty,
+.booking-shell .booking-form .contact-form-note {
+  color: rgba(var(--ink-rgb), 0.74);
+}
+
+.booking-shell .booking-form {
+  gap: clamp(1.35rem, 2.6vw, 1.95rem);
+}
+
+.booking-shell .booking-form-overview {
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 0.8rem;
+}
+
+.booking-shell .booking-form .form-overview-metrics {
+  justify-content: flex-start;
+}
+
+.booking-shell .booking-form .form-section {
+  gap: 1rem;
+}
+
+.booking-shell .booking-grid {
+  content-visibility: visible;
+  contain: none;
+}
+
+.booking-shell .booking-hero .hero-btn-ghost {
+  background: rgba(var(--white-rgb), 0.86);
+  color: var(--ink);
+  border-color: rgba(var(--white-rgb), 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.booking-shell .booking-hero .hero-btn-ghost:hover,
+.booking-shell .booking-hero .hero-btn-ghost:focus-visible {
+  background: rgba(var(--white-rgb), 0.94);
+}
+
+
+@media (max-width: 760px) {
+  .booking-shell .booking-hero-copy {
+    justify-items: center;
+    text-align: center;
+    margin-inline: auto;
+  }
+
+  .booking-shell .booking-pills,
+  .booking-shell .booking-cta-row {
+    justify-content: center;
+  }
+
+  .booking-shell .booking-meta {
+    justify-items: center;
+  }
+
+  .booking-shell .booking-rentals {
+    max-height: none;
+  }
+
+  .booking-shell .booking-rental-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .booking-shell .booking-rental-card {
+    gap: 0.4rem;
+    padding: 0.5rem;
+    border-radius: 14px;
+  }
+
+  .booking-shell .booking-rental-media {
+    border-radius: 12px;
+  }
+
+  .booking-shell .booking-rental-media img {
+    padding: 0.32rem;
+  }
+
+  .booking-shell .booking-rental-head {
+    gap: 0.28rem;
+  }
+
+  .booking-shell .booking-rental-head h4 {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.15;
+  }
+
+  .booking-shell .booking-rental-card .price,
+  .booking-shell .booking-rental-card .rent-meta {
+    font-size: 0.72rem;
+  }
+
+  .booking-shell .booking-rental-actions {
+    gap: 0.3rem;
+  }
+
+  .booking-shell .booking-rental-actions .hero-btn {
+    padding: 0.34rem 0.46rem;
+    font-size: 0.72rem;
+    border-radius: 10px;
+  }
+}

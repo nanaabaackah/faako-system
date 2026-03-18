@@ -1,0 +1,15 @@
+.threads-container {
+  --threads-opacity: 0.3;
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+}
+
+.threads-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: var(--threads-opacity);
+}

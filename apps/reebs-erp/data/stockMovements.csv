@@ -1,0 +1,5 @@
+productId,type,quantity,notes,reference,date
+1,StockIn,50,Initial stock,OPENING-BAL,2023-10-01
+1,StockOut,5,Sold to John,ORD-1001,2023-10-05
+4,StockIn,20,New shipment,INV-9922,2023-10-10
+2,StockOut,2,Damaged,WASTE-01,2023-10-12

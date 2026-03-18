@@ -1,0 +1,22 @@
+{
+  "name": "@faako/faako-api",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "netlify dev",
+    "server": "netlify dev",
+    "lint": "eslint .",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:status": "prisma migrate status"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.3.0",
+    "pg": "^8.17.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.15.1",
+    "prisma": "^7.3.0"
+  }
+}

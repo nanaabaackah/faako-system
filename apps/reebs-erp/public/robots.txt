@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Internal/admin and transactional paths
+Disallow: /admin
+Disallow: /login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /customer-login
+
+Sitemap: https://www.reebspartythemes.com/sitemap.xml

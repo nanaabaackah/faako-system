@@ -1,0 +1,26 @@
+{
+  "name": "@faako/faako-website",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "prebuild": "node ./scripts/sync-netlify-functions.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@lottiefiles/react-lottie-player": "^3.6.0",
+    "animejs": "^4.3.5",
+    "iconsax-react": "^0.0.8",
+    "ogl": "^1.0.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^6.30.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}

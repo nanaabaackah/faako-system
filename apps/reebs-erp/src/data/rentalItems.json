@@ -1,0 +1,123 @@
+[
+    {
+    
+        "name": "Cotton Candy",
+        "quantity": "2",
+        "price": 15.00,
+        "rate":"per head",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_1.png",
+        "page": "/Rentals/CottonCandy"
+    },
+    {
+        
+        "name": "Popcorn",
+        "quantity": "3",
+        "price": 15.00,
+        "rate":"per head",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_2.png",
+        "page": "/Rentals/Popcorn"
+    },
+    {
+       
+        "name": "Snow Cone",
+        "quantity": "1",
+        "price": 15.00,
+        "rate":"per head",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_3.png",
+        "page": "/Rentals/SnowCone"
+    },
+    {
+        
+        "name": "Bouncy Castle",
+        "quantity": "8",
+        "price": "700 - 1500",
+        "rate":"",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_5.png",
+        "page": "/Rentals/BouncyCastle"
+    },
+    {
+      
+        "name": "Trampoline",
+        "quantity": "2",
+        "price": 600.00,
+        "rate":"per hour",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_7.png",
+        "page": "/Rentals/Trammpoline"
+    },
+    {
+    
+        "name": "Canopies & Tents",
+        "quantity": "2",
+        "price": "100-250",
+        "rate":"per item",
+        "availability": "12 to 36 Months",
+        "category": "Party Setup Rentals",
+        "image": "/imgs/rentalItems/img_8.png",
+        "page": "/Rentals/Canopies"
+    },
+    {
+        
+        "name": "Chairs",
+        "quantity": "2",
+        "price": 15.00,
+        "rate":"per chair",
+        "availability": "12 to 36 Months",
+        "category": "Party Setup Rentals",
+        "image": "/imgs/rentalItems/img_9.png",
+        "page": "/Rentals/Chairs"
+    },
+    {
+        
+        "name": "Tables",
+        "quantity": "2",
+        "price": 30.00,
+        "rate":"per table",
+        "availability": "12 to 36 Months",
+        "category": "Party Setup Rentals",
+        "image": "/imgs/rentalItems/img_10.png",
+        "page": "/Rentals/Tables"
+    },
+    {
+        
+        "name": "Package Deals",
+        "quantity": "4",
+        "price": "Contact us for more info",
+        "availability": "12 to 36 Months",
+        "category": "Event Decor & Setup",
+        "image": "/imgs/rentalItems/img_11.png",
+        "page": "/Rentals/Packages"
+    },
+    {
+        
+        "name": "Face Painting",
+        "quantity": "2",
+        "price": 15.00,
+        "rate":"per head",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_12.png",
+        "page": "/Rentals/FacePainting"
+    },
+    {
+        
+        "name": "Indoor Board Games",
+        "quantity": "2",
+        "price": 200.00,
+        "rate":"for 3",
+        "availability": "12 to 36 Months",
+        "category": "Kid's Party Rentals",
+        "image": "/imgs/rentalItems/img_13.png",
+        "page": "/Rentals/IndoorGames"
+    }
+
+]

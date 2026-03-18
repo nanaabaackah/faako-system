@@ -1,0 +1,10 @@
+[build]
+  base = "apps/faako-api"
+  command = "echo 'No build step for API'"
+  publish = "netlify/static"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/:splat"
+  status = 200

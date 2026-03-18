@@ -1,0 +1,445 @@
+@import "../../styles/public.css";
+
+.rental-item-page .rental-item-shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin-inline: auto;
+  padding-bottom: clamp(2rem, 4vw, 3rem);
+  gap: clamp(1rem, 2.2vw, 1.5rem);
+}
+
+.rental-item-page .rental-hero-card {
+  --page-hero-image: url("/imgs/photos/r4.png");
+}
+
+.rental-item-page .rental-item-breadcrumb {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--white-rgb), 0.58);
+  background: rgba(58, 63, 69, 0.05);
+  padding: 0.35rem 0.5rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.rental-item-page .breadcrumb-back {
+  
+  background: rgba(58, 63, 69, 0.05);
+  border-color: rgba(var(--back3-rgb), 0.3);
+}
+
+.rental-item-page .rental-item-hero {
+  border-radius: 28px;
+  border: 1px solid rgba(var(--white-rgb), 0.5);
+  background: rgba(var(--white-rgb), 0.58);
+  box-shadow: 0 22px 34px rgba(var(--ink-rgb), 0.14);
+  grid-template-columns: 1fr;
+  overflow: hidden;
+}
+
+.rental-item-page .rental-hero-media {
+  min-height: clamp(260px, 44vh, 420px);
+  background:
+    radial-gradient(circle at 16% 14%, rgba(var(--other-rgb), 0.3), transparent 50%),
+    radial-gradient(circle at 86% 80%, rgba(var(--back-rgb), 0.22), transparent 54%),
+    rgba(var(--ink-rgb), 0.14);
+  padding: 0;
+}
+
+.rental-item-page .rental-hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: drop-shadow(0 18px 22px rgba(var(--ink-rgb), 0.2));
+}
+
+.rental-item-page .rental-hero-copy {
+  display: grid;
+  align-content: start;
+  gap: clamp(0.65rem, 1.8vw, 0.95rem);
+  padding: clamp(1.1rem, 2.2vw, 1.5rem);
+}
+
+.rental-item-page .rental-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.95rem, 4vw, 3.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.rental-item-page .rental-sub {
+  margin: 0;
+  max-width: 45ch;
+}
+
+.rental-item-page .rental-price-line {
+  padding: 0.72rem;
+  border-radius: 18px;
+  border: 1px solid rgba(var(--back3-rgb), 0.16);
+  background: rgba(58, 63, 69, 0.05);
+}
+
+.rental-item-page .rental-price-line .price {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+}
+
+.rental-item-page .rental-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.rental-item-page .rental-meta-grid > div {
+  border-radius: 14px;
+  border: 1px solid rgba(var(--back3-rgb), 0.18);
+  background: rgba(58, 63, 69, 0.05);
+  padding: 0.55rem 0.64rem;
+}
+
+.rental-item-page .rental-actions {
+  margin-top: 0.2rem;
+}
+
+.rental-item-page .rental-actions .hero-btn {
+  min-height: 2.85rem;
+  padding-inline: 1rem;
+}
+
+.rental-item-page .rental-cart-slot {
+  flex: 1 1 220px;
+}
+
+.rental-item-page .rental-cart-slot .shop-add-to-cart,
+.rental-item-page .rental-cart-slot .shop-cart-controls {
+  width: 100%;
+  min-height: 2.85rem;
+}
+
+.rental-item-page .rental-cart-slot .shop-cart-controls {
+  justify-content: space-between;
+}
+
+.rental-item-page .rental-item-bouncy,
+.rental-item-page .rental-detail-card {
+  border: 1px solid rgba(var(--white-rgb), 0.5);
+  background: rgba(var(--white-rgb), 0.62);
+  box-shadow: 0 16px 28px rgba(var(--ink-rgb), 0.12);
+  border-radius: 22px;
+}
+
+.rental-item-page .section-header.rent-section-header {
+  width: 100%;
+  max-width: none;
+  margin: 0 0 0.4rem;
+  justify-items: start;
+  align-items: start;
+  text-align: left;
+}
+
+.rental-item-page .section-header.rent-section-header h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.15rem);
+  line-height: 1.1;
+}
+
+.rental-item-page .bouncy-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(0.75rem, 1.8vw, 1.05rem);
+}
+
+.rental-item-page .bouncy-card {
+  position: relative;
+  border: 1px solid rgba(var(--back3-rgb), 0.14);
+  background: rgba(58, 63, 69, 0.1);
+  box-shadow: 0 8px 18px rgba(var(--ink-rgb), 0.08);
+  padding: 0.7rem;
+  border-radius: 18px;
+  overflow: hidden;
+  transition:
+    transform 220ms var(--ease-snap),
+    box-shadow 220ms var(--ease-snap),
+    border-color 220ms var(--ease-snap);
+}
+
+.rental-item-page .bouncy-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(var(--other-rgb), 0.16), transparent 32%),
+    radial-gradient(circle at 85% 100%, rgba(var(--back-rgb), 0.1), transparent 34%);
+}
+
+.rental-item-page .bouncy-card.is-selected {
+  border-color: rgba(var(--other-rgb), 0.68);
+  box-shadow: 0 18px 28px rgba(var(--ink-rgb), 0.14);
+  transform: translateY(-2px);
+}
+
+.rental-item-page .bouncy-card-media {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  aspect-ratio: 16 / 11;
+  border: 1px solid rgba(var(--white-rgb), 0.48);
+}
+
+.rental-item-page .bouncy-card-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(var(--ink-rgb), 0.2) 100%);
+}
+
+.rental-item-page .bouncy-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 360ms var(--ease-snap), filter 260ms var(--ease-snap);
+  filter: saturate(1.02);
+}
+
+.rental-item-page .bouncy-card:hover .bouncy-card-media img,
+.rental-item-page .bouncy-card:focus-within .bouncy-card-media img {
+  transform: scale(1.05);
+  filter: saturate(1.1);
+}
+
+.rental-item-page .bouncy-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.55rem;
+  margin-top: 0.06rem;
+}
+
+.rental-item-page .bouncy-card-head h3 {
+  margin: 0.14rem 0 0;
+  font-size: clamp(1.04rem, 1.8vw, 1.24rem);
+  line-height: 1.12;
+}
+
+.rental-item-page .bouncy-price {
+  border-radius: 999px;
+  border: 1px solid rgba(var(--other-rgb), 0.45);
+  background: rgba(var(--other-rgb), 0.16);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  padding: 0.3rem 0.58rem;
+}
+
+.rental-item-page .bouncy-counter {
+  right: 0.5rem;
+  bottom: 0.5rem;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem;
+  background: rgba(var(--ink-rgb), 0.76);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 0.68rem;
+}
+
+.rental-item-page .bouncy-nav {
+  top: calc(50% - 18px);
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--white-rgb), 0.56);
+  
+  background: rgba(58, 63, 69, 0.05);
+  color: rgba(var(--ink-rgb), 0.9);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.rental-item-page .bouncy-nav:hover,
+.rental-item-page .bouncy-nav:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(var(--white-rgb), 0.9);
+}
+
+.rental-item-page .bouncy-nav-left {
+  left: 0.45rem;
+}
+
+.rental-item-page .bouncy-nav-right {
+  right: 0.45rem;
+}
+
+.rental-item-page .bouncy-specs {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rental-item-page .bouncy-specs > div {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--back3-rgb), 0.14);
+  background: rgba(var(--white-rgb), 0.76);
+  padding: 0.45rem 0.5rem;
+}
+
+.rental-item-page .bouncy-specs dt {
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--text-subtle);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.rental-item-page .bouncy-specs dd {
+  margin: 0.18rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.rental-item-page .bouncy-best {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.rental-item-page .bouncy-features {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  line-height: 1.52;
+}
+
+.rental-item-page .bouncy-select {
+  width: 100%;
+  min-height: 2.65rem;
+  margin-top: 0.1rem;
+}
+
+.rental-item-page .bouncy-select.selected {
+  border-color: rgba(var(--other-rgb), 0.6);
+  background: linear-gradient(120deg, rgba(var(--other-rgb), 0.24), rgba(var(--back-rgb), 0.18));
+  color: var(--ink);
+}
+
+.rental-item-page .rental-item-detail-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.rental-item-page .rental-includes {
+  gap: 0.36rem;
+}
+
+.rental-item-page .rental-includes li {
+  border-bottom: 1px dashed rgba(var(--back3-rgb), 0.2);
+  padding-bottom: 0.44rem;
+}
+
+.rental-item-page .rental-feature-row {
+  margin-top: 0.5rem;
+}
+
+.rental-item-page .rental-feature-row > div {
+  border-radius: 14px;
+  border: 1px solid rgba(var(--back3-rgb), 0.16);
+  background: rgba(var(--white-rgb), 0.5);
+  padding: 0.55rem;
+}
+
+.rental-item-page .rental-similar-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.rental-item-page .rental-similar-card {
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid rgba(var(--back3-rgb), 0.15);
+  background: rgba(var(--white-rgb), 0.1);
+  box-shadow: none;
+  padding: 0.45rem;
+  border-radius: 14px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.rental-item-page .rental-similar-card:hover,
+.rental-item-page .rental-similar-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(var(--ink-rgb), 0.12);
+}
+
+.rental-item-page .rental-similar-card img {
+  width: 100%;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.rental-item-page .rental-similar-card h3 {
+  margin: 0.1rem 0;
+  font-size: 1rem;
+}
+
+.rental-item-page .rental-not-found-card {
+  width: min(680px, 100%);
+  margin-inline: auto;
+  margin-top: clamp(1rem, 2.5vw, 1.6rem);
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+@media (max-width: 980px) {
+  .rental-item-page .rental-item-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-item-page .rental-hero-media {
+    min-height: clamp(220px, 50vw, 320px);
+  }
+
+  .rental-item-page .bouncy-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .rental-item-page .rental-item-shell {
+    width: min(1180px, calc(100% - 1rem));
+  }
+
+  .rental-item-page .rental-item-breadcrumb {
+    width: 100%;
+    border-radius: 16px;
+    padding: 0.4rem;
+  }
+
+  .rental-item-page .rental-similar-card {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-item-page .rental-similar-card img {
+    height: 170px;
+  }
+
+  .rental-item-page .rental-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-item-page .bouncy-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

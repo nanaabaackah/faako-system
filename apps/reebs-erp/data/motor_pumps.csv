@@ -1,0 +1,4 @@
+name,quantity,price,rate,status,category,image,page,color,power,notes
+Air Blower Pump - Compact,8,0,per day,available,Machines,/imgs/rentalItems/img_30.png,/Rentals/MotorPump,Orange,600W,"Small bouncy castles; lightweight and quick setup."
+Air Blower Pump - Standard,12,0,per day,available,Machines,/imgs/rentalItems/img_29.png,/Rentals/MotorPump,Yellow,900W,"Most rentals; steady airflow for medium bouncers."
+Air Blower Pump - High Output,6,0,per day,available,Machines,/imgs/rentalItems/img_28.png,/Rentals/MotorPump,Black,1200W,"Large units; use with dual-slide and combo castles."

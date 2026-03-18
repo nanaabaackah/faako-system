@@ -1,0 +1,267 @@
+/* ================================================
+   Not Found
+   ================================================ */
+
+.not-found-page {
+  min-height: calc(100vh - var(--header-height) - 6rem);
+  display: grid;
+  place-items: center;
+  padding: 8rem 2rem clamp(1rem, 4vw, 2.25rem);
+}
+
+.not-found-shell {
+  width: min(880px, 100%);
+  display: grid;
+  gap: 1.1rem;
+  text-align: center;
+  padding: clamp(1.3rem, 3vw, 2.2rem);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background:
+    radial-gradient(
+      circle at 50% -18%,
+      color-mix(in srgb, var(--accent-soft) 34%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-alt) 88%, var(--card)),
+      color-mix(in srgb, var(--card) 92%, var(--surface))
+    );
+  box-shadow: var(--loose-shadow);
+}
+
+.not-found-code {
+  margin: 0;
+  font-size: clamp(5rem, 15vw, 9rem);
+  line-height: 0.9;
+  font-family: var(--font-display);
+  color: color-mix(in srgb, var(--accent-strong) 82%, #482a17);
+  letter-spacing: 0.04em;
+}
+
+.not-found-shell h1 {
+  font-size: clamp(2rem, 4vw, 3.1rem);
+}
+
+.not-found-shell .lead {
+  max-width: 60ch;
+  margin-inline: auto;
+  color: color-mix(in srgb, var(--ink) 74%, #695547);
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+}
+
+.not-found-links {
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.not-found-links h2 {
+  font-size: 1.2rem;
+}
+
+.not-found-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.not-found-grid a {
+  padding: 0.58rem 0.64rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 86%, transparent);
+  color: color-mix(in srgb, var(--ink) 74%, #654f40);
+  font-weight: 600;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.not-found-grid a:hover {
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+}
+
+:root[data-theme="dark"] .not-found-shell {
+  border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+  background:
+    radial-gradient(
+      circle at 50% -18%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-alt) 96%, #060403),
+      color-mix(in srgb, var(--surface) 92%, #050302)
+    );
+}
+
+:root[data-theme="dark"] .not-found-grid a {
+  border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .not-found-shell {
+    border-color: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+    background:
+      radial-gradient(
+        circle at 50% -18%,
+        color-mix(in srgb, var(--accent) 22%, transparent),
+        transparent 58%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-alt) 96%, #060403),
+        color-mix(in srgb, var(--surface) 92%, #050302)
+      );
+  }
+
+  :root:not([data-theme]) .not-found-grid a {
+    border-color: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+    background: color-mix(in srgb, var(--surface-alt) 90%, #070403);
+  }
+}
+
+@media (max-width: 900px) {
+  .not-found-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .not-found-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .not-found-actions .button,
+  .not-found-actions .button-primary,
+  .not-found-actions .button-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.page.not-found-page--v2 {
+  padding: clamp(3.6rem, 7vw, 5.8rem) var(--gutter, 1.25rem);
+}
+
+.page.not-found-page--v2 .not-found-shell {
+  width: min(860px, calc(100% - 1rem));
+  margin: 0 auto;
+  background:
+    linear-gradient(
+      158deg,
+      color-mix(in srgb, var(--card-bg) 95%, white 5%),
+      color-mix(in srgb, var(--card-bg) 87%, var(--accent) 13%)
+    );
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 1.55rem;
+  padding: clamp(1.5rem, 2.8vw, 2.4rem);
+  box-shadow: 0 26px 55px rgba(15, 23, 42, 0.12);
+  text-align: center;
+}
+
+.page.not-found-page--v2 .not-found-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  margin-bottom: 0.9rem;
+}
+
+.page.not-found-page--v2 .not-found-code {
+  margin: 0;
+  font-size: clamp(3.2rem, 11vw, 6rem);
+  line-height: 0.9;
+  font-family: var(--font-display);
+  color: color-mix(in srgb, var(--accent-strong) 84%, var(--ink));
+}
+
+.page.not-found-page--v2 .not-found-shell h1 {
+  margin-top: 0.7rem;
+}
+
+.page.not-found-page--v2 .not-found-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+}
+
+.page.not-found-page--v2 .not-found-links {
+  margin-top: 1.2rem;
+  text-align: left;
+}
+
+.page.not-found-page--v2 .not-found-grid a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.page.not-found-page--v2 .not-found-grid a svg {
+  opacity: 0.62;
+}
+
+:root[data-theme="dark"] .page.not-found-page--v2 .not-found-shell {
+  border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+  background:
+    linear-gradient(
+      158deg,
+      color-mix(in srgb, var(--surface-alt) 95%, #060403),
+      color-mix(in srgb, var(--surface) 92%, #050302)
+    );
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .page.not-found-page--v2 .not-found-shell {
+    border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+    background:
+      linear-gradient(
+        158deg,
+        color-mix(in srgb, var(--surface-alt) 95%, #060403),
+        color-mix(in srgb, var(--surface) 92%, #050302)
+      );
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .page.not-found-page--v2 {
+    padding-inline: 0.8rem;
+  }
+
+  .page.not-found-page--v2 .not-found-shell {
+    width: calc(100% - 0.1rem);
+    padding: 1.05rem;
+    border-radius: 1.1rem;
+  }
+
+  .page.not-found-page--v2 .not-found-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .page.not-found-page--v2 .not-found-actions .button,
+  .page.not-found-page--v2 .not-found-actions .button-primary,
+  .page.not-found-page--v2 .not-found-actions .button-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}

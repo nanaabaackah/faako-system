@@ -1,0 +1,637 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id              Int              @id @default(autoincrement())
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  orders          Order[]
+  orderItems      OrderItem[]
+  products        Product[]
+  stockMovements  StockMovement[]
+  users           User[]
+  employeeProfiles EmployeeProfile[]
+  documents       Document[]
+  vendors         Vendor[]
+  maintenanceLogs MaintenanceLog[]
+  timesheets      Timesheet[]
+  expenses        Expense[]
+  discounts       Discount[]
+  customers       Customer[]
+  bookings        Booking[]
+  bookingItems    BookingItem[]
+  bouncyCastles   BouncyCastle[]
+  indoorGames     IndoorGame[]
+  machines        Machine[]
+  shopItems       ShopItem[]
+  waterRestocks   WaterRestock[]
+  waterSales      WaterSale[]
+  waterExpenses   WaterExpense[]
+  waterAdjustments WaterAdjustment[]
+  accountingConfig AccountingConfig?
+  accountingManualSales AccountingManualSales[]
+  userSessions    UserSession[]
+
+  @@map("organization")
+}
+
+model Order {
+  id              Int           @id @default(autoincrement())
+  organizationId  Int @default(1)
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  orderNumber     String
+  customerId      Int
+  customerName    String
+  status          String
+  deliveryMethod  String   @default("delivery")
+  deliveryDetails Json?
+  pickupDetails   Json?
+  total_amount    Int           
+  orderDate       DateTime
+  deliveryDate    DateTime?
+  assignedUserId  Int?
+  assignedUser    User?         @relation(fields: [assignedUserId], references: [id])
+  createdByUserId Int?
+  updatedByUserId Int?
+  lastModifiedAt  DateTime?     @default(now())
+  
+  customer        Customer      @relation(fields: [customerId], references: [id]) 
+  orderItems      OrderItem[]
+  expenses        Expense[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@unique([organizationId, orderNumber])
+  @@map("order")
+}
+
+model OrderItem {
+  id             Int     @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  orderId        Int
+  productId      Int
+  quantity       Int
+  unit_price     Int     
+  total_amount   Int     
+  Order          Order   @relation(fields: [orderId], references: [id])
+  Product        Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("orderItem")
+}
+
+model Product {
+  id                   Int      @id @default(autoincrement())
+  organizationId       Int @default(1)
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  sku                  String
+  barcode              String?
+  name                 String
+  description          String?
+  vendorId             Int?
+  vendor               Vendor?  @relation(fields: [vendorId], references: [id])
+  
+  sourceCategoryCode   String
+  specificCategory     String?
+  rate                 String?
+  page                 String?
+  age                  String?  
+
+  purchasePriceGhs  Int?            // CP (GHC) in pesewas
+  purchasePriceGbp  Int?            // CP (BP) in pence
+  purchasePriceCad  Int?            // CP (CAD->GBP) in pence
+  stockValue        Int?            // CALCULATED: stock * price
+  saleValue         Int?            // HISTORICAL: Imported from Excel 'SALES VALUE'
+  
+  price                Int      
+  currency             String   @default("GHS")
+  stock                Int      @default(0)
+  isActive             Boolean  @default(true)
+  isArchived           Boolean  @default(false)
+  archivedAt           DateTime?
+  archivedByUserId     Int?
+  isDeleted            Boolean  @default(false)
+  deletedAt            DateTime?
+  deletedByUserId      Int?
+  imageUrl             String?
+  attendantsNeeded     Int?
+  lastUpdatedByUserId  Int?
+  lastUpdatedAt        DateTime? @default(now())
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) 
+  
+  OrderItem            OrderItem[]
+  StockMovement        StockMovement[]
+  bookingItems         BookingItem[]
+  maintenanceLogs      MaintenanceLog[]
+  bouncyCastle         BouncyCastle?
+  indoorGame           IndoorGame?
+  machine              Machine?
+  shopItem             ShopItem?
+  
+  @@unique([organizationId, sku])
+  @@unique([organizationId, barcode])
+  @@map("product")
+}
+
+model StockMovement {
+  id        Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  productId Int
+  type      String
+  quantity  Int
+  date      DateTime
+  createdAt DateTime? @default(now())
+  notes     String?
+  reference String?  // <--- Ensure this line exists
+  soldMonth DateTime? @db.Date
+  performedByUserId Int?
+  performedByName   String?
+  performedByEmail  String?
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  Product   Product  @relation(fields: [productId], references: [id])
+  @@index([productId])
+  @@map("stockMovement")
+}
+
+enum StockType {
+  StockIn
+  StockOut
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email     String   @unique
+  password  String   
+  firstName String
+  lastName  String
+  fullName  String
+  role      String   @default("Staff") 
+  permissions Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  stockMovements StockMovement[]
+  bookings  Booking[]
+  expenses  Expense[]
+  profile   EmployeeProfile?
+  timesheets Timesheet[]
+  sessions  UserSession[]
+  
+  @@map("user")
+}
+
+model UserSession {
+  id            Int          @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id])
+  sessionTokenId String      @unique
+  remember      Boolean      @default(true)
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime     @default(now())
+  lastSeenAt    DateTime     @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+
+  @@index([userId, organizationId])
+  @@index([organizationId, expiresAt, revokedAt])
+  @@map("userSession")
+}
+
+model EmployeeProfile {
+  id                     Int      @id @default(autoincrement())
+  organizationId         Int @default(1)
+  organization           Organization @relation(fields: [organizationId], references: [id])
+  userId                 Int      @unique
+  user                   User     @relation(fields: [userId], references: [id])
+  jobTitle               String?
+  phone                  String?
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("employeeProfile")
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  title     String
+  category  String?
+  fileName  String
+  mimeType  String?
+  size      Int?
+  data      String
+  source    String?  @default("upload")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("document")
+}
+
+model AccountingManualSales {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  year            Int
+  monthlySales    Json
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, year])
+  @@map("accountingManualSales")
+}
+
+model AccountingConfig {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @unique @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  balanceInputs   Json?
+  taxInputs       Json?
+  ghanaTaxConfig  Json?
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("accountingConfig")
+}
+
+model Vendor {
+  id           Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name         String
+  contactName  String?
+  email        String?
+  phone        String?
+  mobileMoneyNumber String?
+  address      String?
+  bankName     String?
+  bankAccount  String?
+  leadTimeDays Int?
+  suppliedItems String[] @default([])
+  notes        String?
+  products     Product[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("vendor")
+}
+
+model MaintenanceLog {
+  id         Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+  issue      String
+  type       String
+  cost       Int      @default(0)
+  status     String   @default("open")
+  notes      String?
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime @updatedAt
+
+  @@map("maintenanceLog")
+}
+
+model Timesheet {
+  id         Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  clockIn    DateTime
+  clockOut   DateTime?
+  clockInLat Float?
+  clockInLng Float?
+  clockOutLat Float?
+  clockOutLng Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("timesheet")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  category    String
+  amount      Int
+  description String
+  date        DateTime
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+  orderId     Int?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  bookingId   Int?
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("expense")
+}
+
+model Discount {
+  id            Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  code          String
+  type          String
+  value         Float
+  minOrderValue Float?
+  expiryDate    DateTime?
+  scope         String?
+  segment       String?
+  reward        String?
+  usageCount    Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([organizationId, code])
+  @@map("discount")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name      String
+  email     String?
+  phone     String?
+  
+  orders    Order[] 
+  bookings Booking[]
+  waterSales WaterSale[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([organizationId, email])
+  @@map("customer")
+}
+
+model WaterRestock {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  productKey      String       @default("gwater-12pk")
+  productName     String       @default("12pk Gwater")
+  quantity        Int
+  unitCost        Int          @default(2200)
+  vendorId        Int?
+  vendorName      String?
+  notes           String?
+  date            DateTime
+  createdByUserId Int?
+  createdByName   String?
+  createdAt       DateTime     @default(now())
+
+  @@map("waterRestock")
+}
+
+model WaterSale {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  productKey      String       @default("gwater-12pk")
+  productName     String       @default("12pk Gwater")
+  quantity        Int
+  saleChannel     String
+  paymentMethod   String       @default("cash")
+  paymentStatus   String       @default("paid")
+  paymentReference String?
+  providerReference String?
+  discountType    String       @default("none")
+  discountValue   Int          @default(0)
+  discountAmount  Int          @default(0)
+  unitPrice       Int
+  totalAmount     Int
+  customerId      Int?
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  customerName    String?
+  notes           String?
+  date            DateTime
+  paidAt          DateTime?
+  createdByUserId Int?
+  createdByName   String?
+  createdAt       DateTime     @default(now())
+
+  @@map("waterSale")
+}
+
+model WaterExpense {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  category        String
+  amount          Int
+  description     String
+  notes           String?
+  date            DateTime
+  createdByUserId Int?
+  createdByName   String?
+  createdAt       DateTime     @default(now())
+
+  @@map("waterExpense")
+}
+
+model WaterAdjustment {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  productKey      String       @default("gwater-12pk")
+  productName     String       @default("12pk Gwater")
+  quantityDelta   Int
+  reason          String
+  notes           String?
+  date            DateTime
+  createdByUserId Int?
+  createdByName   String?
+  createdAt       DateTime     @default(now())
+
+  @@map("waterAdjustment")
+}
+
+model Booking {
+  id           Int           @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  customerId   Int
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  eventDate    DateTime
+  startTime    String?       // e.g., "10:00 AM"
+  endTime      String?       // e.g., "04:00 PM"
+  venueAddress String
+  totalAmount  Int           // In cents
+  status       String        @default("pending") // pending, confirmed, completed, cancelled
+  items        BookingItem[]
+  expenses     Expense[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  assignedUserId Int?
+  assignedUser User?         @relation(fields: [assignedUserId], references: [id])
+  createdByUserId Int?
+  updatedByUserId Int?
+  lastModifiedAt  DateTime?   @default(now())
+  delivery   Delivery?
+
+  @@map("booking")
+}
+
+model BookingItem {
+  id        Int     @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Int     // Price at time of booking (in cents)
+
+  @@map("bookingItem")
+}
+
+model BouncyCastle {
+  id             Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  bouncerId      String
+  name           String
+  productId      Int?     @unique
+  product        Product? @relation(fields: [productId], references: [id])
+  capacity       String?
+  recommendedAge String?
+  priceRange     String?
+  motorsToPump   Int?
+  bestFor        String?
+  features       String?
+  image          String?
+  images         String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, bouncerId])
+  @@map("bouncy_castles")
+}
+
+model IndoorGame {
+  id           Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name         String
+  productId    Int?     @unique
+  product      Product? @relation(fields: [productId], references: [id])
+  quantity     Int?
+  price        Int?
+  rate         String?
+  availability String?
+  category     String?
+  image        String?
+  page         String?
+  piecesTotal  Int?
+  piecesMissing Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("indoor_games")
+}
+
+model Machine {
+  id           Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name         String
+  productId    Int?     @unique
+  product      Product? @relation(fields: [productId], references: [id])
+  quantity     Int?
+  price        Int?
+  rate         String?
+  availability String?
+  category     String?
+  image        String?
+  page         String?
+  power        String?
+  output       String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("machines")
+}
+
+model ShopItem {
+  id          Int      @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name        String
+  productId   Int?     @unique
+  product     Product? @relation(fields: [productId], references: [id])
+  description String?
+  price       Int
+  currency    String   @default("GHS")
+  ageRange    String?
+  category    String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("shop_items")
+}
+
+model Delivery {
+  id         Int      @id @default(autoincrement())
+  bookingId  Int      @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  status     String   @default("scheduled")
+  driverName String?
+  routeGroup String?
+  routeOrder Int?
+  eta        String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@index([status])
+  @@map("delivery")
+}
+
+model ManagerDevice {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  platform   String?
+  deviceId   String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@map("managerDevice")
+}

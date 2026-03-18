@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Reebs Manager",
+    "slug": "reebs-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "extra": {
+      "apiBaseUrl": "https://portal.reebspartythemes.com",
+      "expoProjectId": ""
+    }
+  }
+}

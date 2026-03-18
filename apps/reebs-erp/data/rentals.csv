@@ -1,0 +1,8 @@
+name,quantity,price,rate,status,category,image,page,attendantsNeeded
+Cotton Candy,2,15,per head,available,Kid's Party Rentals,/imgs/rentalItems/img_1.png,/Rentals/CottonCandy,1
+Popcorn,3,15,per head,available,Kid's Party Rentals,/imgs/rentalItems/img_2.png,/Rentals/Popcorn,1
+Snow Cone,1,15,per head,available,Kid's Party Rentals,/imgs/rentalItems/img_3.png,/Rentals/SnowCone,1
+Bouncy Castle,8,700 - 1500,,available,Kid's Party Rentals,/imgs/rentalItems/img_5.png,/Rentals/BouncyCastle,2
+Trampoline,2,600,per hour,available,Kid's Party Rentals,/imgs/rentalItems/img_7.png,/Rentals/Trammpoline,2
+Face Painting,2,15,per head,available,Kid's Party Rentals,/imgs/rentalItems/img_12.png,/Rentals/FacePainting,1
+Indoor Board Games,2,200,for 3,available,Kid's Party Rentals,/imgs/rentalItems/img_13.png,/Rentals/IndoorGames,1

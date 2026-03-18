@@ -1,0 +1,893 @@
+/* ================================================
+   Pricing Page (Solutions-inspired)
+   ================================================ */
+
+.pricing {
+  --pricing-panel-bg: color-mix(in srgb, var(--card) 94%, rgba(255, 255, 255, 0.34));
+  --pricing-panel-bg-strong: color-mix(in srgb, var(--surface-alt) 88%, rgba(255, 255, 255, 0.44));
+  --pricing-panel-border: color-mix(in srgb, var(--border) 72%, transparent);
+  --pricing-panel-shadow: 0 18px 34px rgba(20, 12, 6, 0.12);
+  --pricing-chip-bg: color-mix(in srgb, var(--surface-alt) 80%, rgba(255, 255, 255, 0.5));
+  padding: clamp(6.2rem, 8.6vw, 7.8rem) var(--page-gutter)
+    clamp(3rem, 6vw, 4.4rem);
+  display: grid;
+  gap: 8rem clamp(1.35rem, 3vw, 2.2rem);
+}
+
+.pricing > .pricing-hero-v2,
+.pricing > .page,
+.pricing > .cta {
+  width: min(1160px, 100%);
+  margin-inline: auto;
+}
+
+.pricing > .page {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.pricing .section-header {
+  display: grid;
+  gap: 0.62rem;
+  max-width: 780px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.pricing .section-header .lead {
+  color: color-mix(in srgb, var(--ink) 74%, var(--muted));
+}
+
+.pricing-hero-v2 {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.pricing-hero-v2 > * {
+  position: relative;
+  z-index: 1;
+}
+
+.pricing-hero-content {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: center;
+  text-align: center;
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.pricing-hero-content h1 {
+  margin: 0;
+  max-width: 15ch;
+}
+
+.pricing-hero-content .lead {
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+}
+
+.pricing-philosophy {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.philosophy-card {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--pricing-panel-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--pricing-chip-bg) 88%, rgba(255, 255, 255, 0.34));
+  box-shadow: var(--pricing-panel-shadow);
+  padding: 0.85rem 0.9rem;
+  display: grid;
+  gap: 0.42rem;
+  align-content: start;
+  text-align: left;
+  transition: transform 0.28s ease, border-color 0.28s ease;
+}
+
+.philosophy-card:hover {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--pricing-panel-border));
+}
+
+.philosophy-card svg {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.philosophy-card h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.philosophy-card p {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.pricing-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.95rem;
+  align-items: stretch;
+}
+
+.pricing-tier-card {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid var(--pricing-panel-border);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--pricing-panel-bg-strong) 92%, transparent),
+      color-mix(in srgb, var(--pricing-panel-bg) 94%, transparent)
+    );
+  box-shadow: var(--pricing-panel-shadow);
+  padding: 1.1rem 1rem;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 0.78rem;
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.pricing-tier-card:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--pricing-panel-border));
+  box-shadow: 0 24px 40px rgba(20, 12, 6, 0.16);
+}
+
+.pricing-tier-card.is-popular {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--pricing-panel-border));
+}
+
+.pricing-tier-card .popular-badge {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  padding: 0.2rem 0.56rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.tier-header {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.tier-header h3 {
+  margin: 0;
+  font-size: 1.18rem;
+  color: var(--ink);
+}
+
+.tier-tagline {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  font-size: 0.86rem;
+}
+
+.tier-pricing {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.price-display {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.22rem;
+}
+
+.price-display .currency {
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  font-weight: 700;
+}
+
+.price-display .price {
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 2.15rem);
+  line-height: 1;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.price-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--ink) 64%, var(--muted));
+}
+
+.pricing .timeline {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.tier-best-for {
+  margin: 0;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--pricing-chip-bg) 82%, rgba(255, 255, 255, 0.32));
+  padding: 0.58rem 0.68rem;
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+}
+
+.tier-features {
+  display: grid;
+  gap: 0.48rem;
+  align-content: start;
+}
+
+.tier-features h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--ink) 80%, var(--muted));
+}
+
+.included-list,
+.not-included-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.34rem;
+}
+
+.included-list li,
+.not-included-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.46rem;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+}
+
+.included-list li svg {
+  color: color-mix(in srgb, var(--accent) 82%, var(--ink));
+}
+
+.not-included-title {
+  margin-top: 0.2rem;
+}
+
+.not-included-list li svg {
+  color: color-mix(in srgb, var(--muted) 84%, #776252);
+}
+
+.tier-cta {
+  margin-top: auto;
+}
+
+.tier-cta .button,
+.tier-cta .button-primary,
+.tier-cta .button-ghost {
+  width: 100%;
+  justify-content: center;
+}
+
+.pricing-note,
+.comparison-note {
+  margin: 0;
+  text-align: center;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+  font-size: 0.9rem;
+}
+
+.case-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.case-pricing-card {
+  border-radius: 20px;
+  border: 1px solid var(--pricing-panel-border);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--pricing-panel-bg-strong) 92%, transparent),
+      color-mix(in srgb, var(--pricing-panel-bg) 94%, transparent)
+    );
+  box-shadow: var(--pricing-panel-shadow);
+  padding: 1rem 0.95rem;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.case-pricing-card:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--pricing-panel-border));
+  box-shadow: 0 24px 40px rgba(20, 12, 6, 0.15);
+}
+
+.case-pricing-card .case-header {
+  display: flex;
+  align-items: center;
+  gap: 0.68rem;
+}
+
+.case-pricing-card .case-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 24%, var(--pricing-panel-border));
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.case-pricing-card .case-info h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.case-pricing-card .case-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--ink) 64%, var(--muted));
+}
+
+.case-pricing-card .case-summary {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.case-pricing-card .case-row {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.case-pricing-card .case-row strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 62%, var(--muted));
+}
+
+.case-pricing-card .case-row p {
+  margin: 0;
+  font-size: 0.83rem;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+}
+
+.case-pricing-card .case-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.case-pricing-card .case-modules .module-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  padding: 0.22rem 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.case-pricing-card .case-price-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.64rem;
+  border-top: 1px solid color-mix(in srgb, var(--pricing-panel-border) 80%, transparent);
+  padding-top: 0.68rem;
+}
+
+.case-pricing-card .total-price {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.case-pricing-card .total-price span:first-child {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 62%, var(--muted));
+}
+
+.case-pricing-card .case-price-summary .price {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.case-pricing-card .timeline-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent-strong) 80%, var(--ink));
+}
+
+.case-pricing-card .case-breakdown {
+  display: grid;
+  gap: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--pricing-panel-border) 80%, transparent);
+  padding-top: 0.7rem;
+}
+
+.case-pricing-card .case-breakdown h4,
+.case-pricing-card .case-results h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--ink) 80%, var(--muted));
+}
+
+.case-pricing-card .breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.case-pricing-card .breakdown-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+}
+
+.case-pricing-card .breakdown-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid color-mix(in srgb, var(--pricing-panel-border) 78%, transparent);
+  padding-top: 0.45rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.case-pricing-card .case-results ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.case-pricing-card .case-results li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+}
+
+.case-pricing-card .case-results li svg {
+  color: color-mix(in srgb, var(--accent) 80%, var(--ink));
+}
+
+.case-pricing-card .expand-button {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--surface) 86%, rgba(255, 255, 255, 0.34));
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.36rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  width: fit-content;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.case-pricing-card .expand-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.module-pricing-table {
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid var(--pricing-panel-border);
+  background: color-mix(in srgb, var(--pricing-panel-bg) 94%, rgba(255, 255, 255, 0.34));
+  box-shadow: var(--pricing-panel-shadow);
+}
+
+.module-pricing-table table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.module-pricing-table th,
+.module-pricing-table td {
+  padding: 0.78rem 0.82rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--pricing-panel-border) 78%, transparent);
+  font-size: 0.88rem;
+}
+
+.module-pricing-table thead th {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 66%, var(--muted));
+  background: color-mix(in srgb, var(--pricing-chip-bg) 88%, rgba(255, 255, 255, 0.3));
+}
+
+.module-pricing-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.module-pricing-table .custom-row {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.ongoing-costs-grid,
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.cost-card,
+.payment-card,
+.pricing .faq-card {
+  border-radius: 20px;
+  border: 1px solid var(--pricing-panel-border);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--pricing-panel-bg-strong) 92%, transparent),
+      color-mix(in srgb, var(--pricing-panel-bg) 94%, transparent)
+    );
+  box-shadow: var(--pricing-panel-shadow);
+  padding: 1rem 0.95rem;
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.cost-card:hover,
+.payment-card:hover,
+.pricing .faq-card:hover {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--pricing-panel-border));
+  box-shadow: 0 22px 38px rgba(20, 12, 6, 0.16);
+}
+
+.cost-card h4,
+.payment-card h4,
+.pricing .faq-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.cost-card p,
+.payment-card p,
+.pricing .faq-card p {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 74%, var(--muted));
+  font-size: 0.85rem;
+  line-height: 1.52;
+}
+
+.cost-price,
+.payment-discount {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  font-weight: 800;
+}
+
+.cost-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.26rem;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+  font-size: 0.82rem;
+}
+
+.cost-card li::marker {
+  color: var(--accent);
+}
+
+.total-cost-example {
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--pricing-panel-border));
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--accent) 11%, rgba(255, 255, 255, 0.5)),
+      color-mix(in srgb, var(--pricing-panel-bg) 94%, rgba(255, 255, 255, 0.34))
+    );
+  box-shadow: var(--pricing-panel-shadow);
+  padding: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.total-cost-example h4 {
+  margin: 0;
+}
+
+.example-breakdown {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.example-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+}
+
+.example-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--pricing-panel-border) 80%, transparent);
+}
+
+.example-row.total {
+  color: var(--ink);
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.example-note {
+  margin: 0;
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+}
+
+.payment-card {
+  position: relative;
+}
+
+.payment-card.recommended {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--pricing-panel-border));
+}
+
+.recommended-badge {
+  justify-self: start;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+  padding: 0.2rem 0.54rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.payment-example {
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--pricing-chip-bg) 82%, rgba(255, 255, 255, 0.34));
+  padding: 0.52rem 0.62rem;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.payment-stages {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.stage {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--pricing-panel-border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 0.42rem 0.58rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stage-percent {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--accent-strong) 82%, var(--ink));
+}
+
+.stage-label {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--ink) 74%, var(--muted));
+}
+
+.comparison-table-wrapper {
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid var(--pricing-panel-border);
+  background: color-mix(in srgb, var(--pricing-panel-bg) 94%, rgba(255, 255, 255, 0.34));
+  box-shadow: var(--pricing-panel-shadow);
+}
+
+.comparison-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 0.78rem 0.82rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--pricing-panel-border) 78%, transparent);
+  font-size: 0.86rem;
+  text-align: left;
+}
+
+.comparison-table thead th {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 66%, var(--muted));
+  background: color-mix(in srgb, var(--pricing-chip-bg) 88%, rgba(255, 255, 255, 0.3));
+}
+
+.comparison-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table td svg {
+  color: color-mix(in srgb, var(--accent) 82%, var(--ink));
+}
+
+.comparison-table .total-row {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.cost-breakdown-cell {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.cost-breakdown-cell span {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cost-breakdown-cell small {
+  color: color-mix(in srgb, var(--ink) 62%, var(--muted));
+  font-size: 0.72rem;
+}
+
+.faq-grid-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.pricing .cta {
+  margin-top: 0.2rem;
+}
+
+:root[data-theme="dark"] .pricing {
+  --pricing-panel-bg: color-mix(in srgb, var(--surface-alt) 90%, rgba(8, 6, 5, 0.72));
+  --pricing-panel-bg-strong: color-mix(in srgb, var(--surface) 92%, rgba(5, 4, 3, 0.78));
+  --pricing-panel-border: color-mix(in srgb, #ffffff 16%, var(--border));
+  --pricing-panel-shadow: 0 20px 38px rgba(0, 0, 0, 0.46);
+  --pricing-chip-bg: color-mix(in srgb, var(--surface-alt) 86%, rgba(10, 8, 7, 0.6));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .pricing {
+    --pricing-panel-bg: color-mix(in srgb, var(--surface-alt) 90%, rgba(8, 6, 5, 0.72));
+    --pricing-panel-bg-strong: color-mix(in srgb, var(--surface) 92%, rgba(5, 4, 3, 0.78));
+    --pricing-panel-border: color-mix(in srgb, #ffffff 16%, var(--border));
+    --pricing-panel-shadow: 0 20px 38px rgba(0, 0, 0, 0.46);
+    --pricing-chip-bg: color-mix(in srgb, var(--surface-alt) 86%, rgba(10, 8, 7, 0.6));
+  }
+}
+
+@media (max-width: 1100px) {
+  .pricing-philosophy,
+  .pricing-tiers-grid,
+  .case-pricing-grid,
+  .ongoing-costs-grid,
+  .payment-grid,
+  .faq-grid-two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pricing {
+    padding-inline: clamp(1rem, 3.5vw, 1.5rem);
+  }
+
+  .pricing-hero-content h1 {
+    max-width: 18ch;
+  }
+}
+
+@media (max-width: 700px) {
+  .pricing {
+    padding: calc(var(--header-height) + 1rem) 1rem 2.7rem;
+    gap: 1rem;
+  }
+
+  .pricing > .pricing-hero-v2,
+  .pricing > .page,
+  .pricing > .cta {
+    width: 100%;
+  }
+
+  .pricing-hero-v2 {
+    border-radius: 22px;
+    padding: 1.05rem;
+  }
+
+  .pricing-hero-content h1 {
+    font-size: clamp(2rem, 8vw, 2.6rem);
+  }
+
+  .pricing-philosophy,
+  .pricing-tiers-grid,
+  .case-pricing-grid,
+  .ongoing-costs-grid,
+  .payment-grid,
+  .faq-grid-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .module-pricing-table table,
+  .comparison-table {
+    min-width: 620px;
+  }
+
+  .case-price-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pricing .cta {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing .cta .cta-actions .button,
+  .pricing .cta .cta-actions .button-primary,
+  .pricing .cta .cta-actions .button-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+

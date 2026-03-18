@@ -1,0 +1,337 @@
+@import "../../styles/public.css";
+
+.contact-hero {
+  --page-hero-image: url("/imgs/photos/IMG_3858.JPG");
+}
+
+.contact-hero::before {
+  background-image: url("/imgs/photos/IMG_3858.JPG");
+}
+
+.contact-shell {
+  gap: clamp(1.6rem, 4vw, 3rem);
+}
+
+.contact-shell > section:not(.page-hero) {
+  padding: 2rem 4rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.contact-shell > section:not(.page-hero)::before {
+  content: none;
+}
+
+
+.contact-hero {
+  border: 0;
+  box-shadow: none;
+}
+
+.contact-hero::after {
+  background:
+    radial-gradient(
+      92% 78% at 50% 88%,
+      rgba(var(--ink-rgb), 0.22) 0%,
+      rgba(var(--ink-rgb), 0.62) 62%,
+      rgba(var(--ink-rgb), 0.76) 100%
+    ),
+    linear-gradient(180deg, rgba(var(--ink-rgb), 0.24) 0%, rgba(var(--ink-rgb), 0.72) 88%);
+}
+
+.contact-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
+  gap: clamp(1.15rem, 3vw, 2.4rem);
+  align-items: end;
+}
+
+.contact-hero-copy {
+  width: min(680px, 100%);
+  justify-items: start;
+  text-align: left;
+}
+
+.contact-hero .kicker,
+.contact-hero-card .kicker {
+  color: rgba(var(--white-rgb), 0.82);
+}
+
+.contact-hero .hero-sub,
+.contact-hero-lede,
+.contact-hero .contact-hours-note {
+  color: rgba(var(--white-rgb), 0.9);
+  text-shadow: 0 12px 24px rgba(var(--ink-rgb), 0.3);
+}
+
+.contact-hero .contact-actions,
+.contact-hero .contact-meta {
+  justify-content: flex-start;
+}
+
+.contact-shell .contact-card-header {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contact-shell .contact-card-header .app-icon {
+  flex-shrink: 0;
+  color: var(--back2);
+}
+
+.contact-hero-card .contact-card-header .app-icon {
+  color: rgba(var(--white-rgb), 0.92);
+}
+
+.contact-shell .contact-card h3,
+.contact-hero-card h2 {
+  margin: 0;
+}
+
+.contact-hero-card,
+.contact-shell .contact-card,
+.contact-shell .map-wrapper,
+.contact-shell .contact-socials a,
+.contact-hero .contact-chips span,
+.contact-hero .contact-meta span {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.contact-hero .contact-chips,
+.contact-hero .contact-meta {
+  gap: 0.8rem 1rem;
+}
+
+.contact-hero .contact-chips span,
+.contact-hero .contact-meta span {
+  padding: 0;
+  border-radius: 0;
+  color: rgba(var(--white-rgb), 0.86);
+}
+
+.contact-hero .contact-chips span {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.contact-hero .contact-meta span {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.contact-hero .hero-btn-ghost {
+  background: rgba(var(--white-rgb), 0.12);
+  color: var(--white);
+  border-color: rgba(var(--white-rgb), 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.contact-hero .hero-btn-ghost:hover,
+.contact-hero .hero-btn-ghost:focus-visible {
+  background: rgba(var(--white-rgb), 0.18);
+}
+
+.contact-hero .hero-btn-link {
+  color: rgba(var(--white-rgb), 0.94);
+  border-color: rgba(var(--white-rgb), 0.24);
+}
+
+.contact-hero .hero-btn-link:hover,
+.contact-hero .hero-btn-link:focus-visible {
+  background: rgba(var(--white-rgb), 0.08);
+}
+
+.contact-hero-card {
+  padding: clamp(0.3rem, 1vw, 0.5rem) 0 0;
+  align-self: end;
+}
+
+.contact-hero-card h2,
+.contact-hero-card strong {
+  color: var(--white);
+}
+
+.contact-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.contact-hours {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1rem;
+  padding-top: 0.85rem;
+}
+
+.contact-hours > div {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.contact-hours > div span {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(var(--white-rgb), 0.62);
+}
+
+.contact-hours > div strong {
+  font-size: 1rem;
+  color: rgba(var(--white-rgb), 0.94);
+}
+
+.contact-hours-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(var(--white-rgb), 0.72);
+}
+
+.contact-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 2.4vw, 1.6rem);
+  padding: clamp(0.3rem, 1vw, 0.6rem) 0 0;
+}
+
+.contact-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: clamp(1.15rem, 2.8vw, 1.9rem);
+  align-items: start;
+  padding: clamp(0.3rem, 1vw, 0.6rem) 0 0;
+}
+
+.contact-shell .contact-card {
+  padding: clamp(0.15rem, 0.7vw, 0.4rem) 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.contact-shell .contact-card > p,
+.contact-shell .contact-card-intro,
+.contact-shell .contact-form-note {
+  margin: 0;
+  color: rgba(var(--ink-rgb), 0.68);
+}
+
+.contact-shell .contact-links {
+  gap: 0.55rem;
+}
+
+.contact-shell .contact-links a,
+.contact-shell .contact-socials a {
+  color: rgba(var(--ink-rgb), 0.86);
+}
+
+.contact-shell .contact-socials {
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  gap: 0.8rem;
+}
+
+.contact-shell .contact-socials a {
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+
+.contact-shell .contact-form {
+  gap: clamp(1.35rem, 2.8vw, 1.9rem);
+}
+
+.contact-shell .contact-form .form-overview {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.contact-shell .contact-form .form-overview-metrics {
+  justify-content: flex-start;
+}
+
+.contact-shell .contact-form .form-section {
+  gap: 1rem;
+}
+
+.contact-shell .contact-form-grid {
+  gap: 0.95rem 1rem;
+}
+
+.contact-shell .map-wrapper {
+  min-height: 360px;
+  border-radius: 18px;
+}
+
+@media (max-width: 1040px) {
+  .contact-hero {
+    min-height: auto;
+  }
+
+  .contact-hero-grid {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .contact-hero-card {
+    padding-top: 0;
+    align-self: auto;
+  }
+
+  .contact-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .contact-hero {
+    padding-top: clamp(6.2rem, 12vh, 7.8rem);
+  }
+
+  .contact-shell > section:not(.page-hero) {
+  padding: 2rem ;
+  }
+
+  .contact-hero-copy {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .contact-hero-grid {
+    gap: 1rem;
+  }
+
+  .contact-hero .contact-actions,
+  .contact-hero .contact-meta {
+    justify-content: center;
+  }
+
+  .contact-hero-card,
+  .contact-shell .contact-card {
+    width: 100%;
+  }
+
+  .contact-card-actions {
+    width: 100%;
+  }
+
+  .contact-card-actions .hero-btn {
+    width: 100%;
+  }
+
+  .contact-info-grid,
+  .contact-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-hours {
+    grid-template-columns: 1fr;
+  }
+}

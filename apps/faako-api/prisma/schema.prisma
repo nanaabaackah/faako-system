@@ -1,0 +1,163 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id           String             @id @default(cuid())
+  name         String
+  slug         String             @unique
+  status       OrganizationStatus @default(PENDING)
+  primaryEmail String?
+  teamSize     String?
+  currency     String             @default("USD")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  members      Membership[]
+  signupRequests SignupRequest[]
+  subscriptions Subscription[]
+}
+
+model User {
+  id          String        @id @default(cuid())
+  email       String        @unique
+  fullName    String?
+  status      UserStatus    @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  memberships Membership[]
+  signupRequests SignupRequest[]
+}
+
+model Membership {
+  id              String   @id @default(cuid())
+  organizationId  String
+  userId          String
+  role            String   @default("owner")
+  createdAt       DateTime @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  user            User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+}
+
+model SignupRequest {
+  id             String         @id @default(cuid())
+  organizationId String?
+  userId         String?
+  companyName    String
+  email          String
+  contactName    String?
+  phone          String?
+  teamSize       String?
+  currency       String?
+  websiteUrl     String?
+  logoUrl        String?
+  brandPrimaryColor   String?
+  brandSecondaryColor String?
+  packageTier         String?
+  requestedModules    String[]       @default([])
+  businessType        String?
+  currentWorkflow     String?
+  communicationChannels String[]     @default([])
+  timelinePreference  String?
+  projectDetails      String?
+  painPoints          String?
+  additionalNotes     String?
+  status         SignupStatus   @default(NEW)
+  source         String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
+
+  @@index([email])
+}
+
+model Subscription {
+  id             String               @id @default(cuid())
+  organizationId String?
+  organization   Organization?        @relation(fields: [organizationId], references: [id])
+  name           String
+  status         SubscriptionStatus   @default(ACTIVE)
+  interval       SubscriptionInterval @default(MONTHLY)
+  amount         Decimal              @db.Decimal(14, 2)
+  currency       CurrencyCode         @default(CAD)
+  startedAt      DateTime             @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  payments       SubscriptionPayment[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model SubscriptionPayment {
+  id             String                    @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription              @relation(fields: [subscriptionId], references: [id])
+  status         SubscriptionPaymentStatus @default(PAID)
+  amount         Decimal                   @db.Decimal(14, 2)
+  currency       CurrencyCode              @default(CAD)
+  paidAt         DateTime?
+  dueAt          DateTime?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([paidAt])
+  @@index([dueAt])
+}
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum SignupStatus {
+  NEW
+  REVIEWING
+  CONTACTED
+  CLOSED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELED
+}
+
+enum SubscriptionInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionPaymentStatus {
+  PAID
+  PENDING
+  FAILED
+}
+
+enum CurrencyCode {
+  CAD
+  GHS
+}

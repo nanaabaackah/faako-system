@@ -1,0 +1,11 @@
+name,quantity,price,rate,availability,category,image,page,piecesTotal,piecesMissing
+Giant Jenga,2,200,per day,Available,Indoor Games,/imgs/rentalItems/img_13.png,/Rentals/IndoorGames,54,0
+Board Game Bundle,4,150,per 3 hours,Available,Indoor Games,/imgs/rentalItems/img_18.png,/Rentals/IndoorGames,60,1
+Ludo,3,80,per day,Available,Indoor Games,/imgs/rentalItems/img_15.png,/Rentals/IndoorGames,16,0
+Oware,2,90,per day,Available,Indoor Games,/imgs/rentalItems/img_19.png,/Rentals/IndoorGames,48,2
+UNO,4,70,per day,Available,Indoor Games,/imgs/rentalItems/img_17.png,/Rentals/IndoorGames,108,0
+Scrabble,2,120,per day,Available,Indoor Games,/imgs/rentalItems/img_14.png,/Rentals/IndoorGames,100,0
+Checkers,3,60,per day,Available,Indoor Games,/imgs/rentalItems/img_22.png,/Rentals/IndoorGames,24,0
+Chess,3,80,per day,Available,Indoor Games,/imgs/rentalItems/img_21.png,/Rentals/IndoorGames,32,0
+Dominoes,5,50,per day,Available,Indoor Games,/imgs/rentalItems/img_23.png,/Rentals/IndoorGames,28,0
+Connect Four,2,90,per day,Available,Indoor Games,/imgs/rentalItems/img_20.png,/Rentals/IndoorGames,42,0
