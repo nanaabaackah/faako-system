@@ -11,6 +11,7 @@ const parseOrganizationId = (value: unknown) => {
 
 export const AUTH_USER_STORAGE_KEY = "reebs_auth_user";
 export const AUTH_TOKEN_STORAGE_KEY = "reebs_auth_token";
+export const AUTH_INVALID_EVENT = "reebs:auth-invalid";
 
 const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
 
@@ -36,6 +37,16 @@ const BACKEND_ORIGIN = (() => {
 
 const getPatchedWindow = () =>
   (typeof window === "undefined" ? null : (window as PatchedWindow));
+
+const dispatchAuthInvalidEvent = (detail: Record<string, unknown> = {}) => {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+
+  try {
+    window.dispatchEvent(new CustomEvent(AUTH_INVALID_EVENT, { detail }));
+  } catch {
+    window.dispatchEvent(new Event(AUTH_INVALID_EVENT));
+  }
+};
 
 const readStorageValue = (storage: Storage | undefined, key: string) => {
   if (!storage || typeof storage.getItem !== "function") return "";
@@ -68,6 +79,86 @@ const getStoredUser = () => {
   } catch {
     return null;
   }
+};
+
+const decodeBase64Url = (value: string) => {
+  if (typeof window === "undefined" || typeof window.atob !== "function") return null;
+
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+
+  try {
+    return window.atob(`${normalized}${padding}`);
+  } catch {
+    return null;
+  }
+};
+
+export const readAuthTokenPayload = (token: string | null | undefined = getAuthToken()) => {
+  const trimmedToken = typeof token === "string" ? token.trim() : "";
+  if (!trimmedToken) return null;
+
+  const [payloadPart = ""] = trimmedToken.split(".");
+  if (!payloadPart) return null;
+
+  const decoded = decodeBase64Url(payloadPart);
+  if (!decoded) return null;
+
+  try {
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+};
+
+export const isAuthTokenExpired = (token: string | null | undefined = getAuthToken()) => {
+  const trimmedToken = typeof token === "string" ? token.trim() : "";
+  if (!trimmedToken) return false;
+
+  const payload = readAuthTokenPayload(trimmedToken);
+  const exp = Number(payload?.exp);
+  if (!payload || !Number.isFinite(exp)) return true;
+  return Date.now() >= exp;
+};
+
+export const clearAuthState = (
+  options: {
+    notify?: boolean;
+    reason?: string;
+  } = {},
+) => {
+  const patchedWindow = getPatchedWindow();
+  if (!patchedWindow) return;
+
+  patchedWindow.__reebsAuthToken = "";
+  removeStorageValue(window.localStorage, AUTH_TOKEN_STORAGE_KEY);
+  removeStorageValue(window.sessionStorage, AUTH_TOKEN_STORAGE_KEY);
+  removeStorageValue(window.localStorage, AUTH_USER_STORAGE_KEY);
+  removeStorageValue(window.sessionStorage, AUTH_USER_STORAGE_KEY);
+
+  if (options.notify) {
+    dispatchAuthInvalidEvent({
+      reason: options.reason || "invalid-session",
+    });
+  }
+};
+
+export const addAuthInvalidListener = (
+  listener: (detail?: Record<string, unknown>) => void,
+) => {
+  if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
+    return () => {};
+  }
+
+  const handler = (event: Event) => {
+    const customEvent = event as CustomEvent<Record<string, unknown>>;
+    listener(customEvent.detail);
+  };
+
+  window.addEventListener(AUTH_INVALID_EVENT, handler);
+  return () => {
+    window.removeEventListener(AUTH_INVALID_EVENT, handler);
+  };
 };
 
 export const setAuthToken = (
@@ -208,6 +299,7 @@ export const patchOrganizationFetch = () => {
       : resolvedUrl;
     const baseHeaders = input instanceof Request ? input.headers : init?.headers;
     const headers = new Headers(baseHeaders || {});
+    const isAuthenticatedRequest = headers.has("Authorization") || Boolean(token);
 
     if (organizationId && !headers.has("x-organization-id")) {
       headers.set("x-organization-id", String(organizationId));
@@ -226,7 +318,12 @@ export const patchOrganizationFetch = () => {
         headers,
       });
 
-      return originalFetch(nextRequest);
+      return originalFetch(nextRequest).then((response) => {
+        if (isAuthenticatedRequest && response.status === 401) {
+          clearAuthState({ notify: true, reason: "expired-session" });
+        }
+        return response;
+      });
     }
 
     const nextInit = { ...(init || {}), headers };
@@ -237,7 +334,12 @@ export const patchOrganizationFetch = () => {
       nextInit.credentials = "same-origin";
     }
 
-    return originalFetch(nextUrl, nextInit);
+    return originalFetch(nextUrl, nextInit).then((response) => {
+      if (isAuthenticatedRequest && response.status === 401) {
+        clearAuthState({ notify: true, reason: "expired-session" });
+      }
+      return response;
+    });
   };
 
   patchedWindow.__orgFetchPatched = true;

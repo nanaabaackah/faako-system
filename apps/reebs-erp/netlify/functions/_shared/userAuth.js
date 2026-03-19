@@ -91,6 +91,7 @@ export const requireUser = async (client, event) => {
       if (error?.code !== "42P01") {
         throw error;
       }
+      return null;
     }
   }
 

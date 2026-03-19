@@ -2,10 +2,20 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
-import { normalizeLegacySessionToken } from './utils/authSession'
+import {
+  clearStoredSession,
+  hasStoredSession,
+  normalizeLegacySessionToken,
+} from './utils/authSession'
 
 const AUTH_CSRF_COOKIE_NAME = import.meta.env.VITE_AUTH_CSRF_COOKIE_NAME || 'dev_kpi_csrf'
 const FETCH_PATCH_FLAG = '__devKpiApiFetchPatched__'
+const AUTH_IGNORED_API_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/forgot-password',
+  '/api/auth/setup-account/verify',
+  '/api/auth/setup-account/complete',
+])
 
 const readCookie = (name) => {
   if (!name || typeof document === 'undefined') return ''
@@ -46,6 +56,31 @@ const isApiRequest = (input) => {
   }
 }
 
+const resolveApiPathname = (input) => {
+  if (typeof window === 'undefined') return ''
+
+  const rawUrl =
+    typeof input === 'string' || input instanceof URL
+      ? String(input)
+      : input instanceof Request
+        ? input.url
+        : ''
+
+  if (!rawUrl) return ''
+
+  try {
+    return new URL(rawUrl, window.location.origin).pathname
+  } catch {
+    return ''
+  }
+}
+
+const isSessionManagedApiRequest = (input) => {
+  const pathname = resolveApiPathname(input)
+  if (!pathname.startsWith('/api/')) return false
+  return !AUTH_IGNORED_API_PATHS.has(pathname)
+}
+
 const isCsrfMethod = (method) => {
   const normalized = String(method || 'GET').toUpperCase()
   return !['GET', 'HEAD', 'OPTIONS'].includes(normalized)
@@ -81,6 +116,18 @@ const patchApiFetch = () => {
       ...init,
       headers,
       credentials,
+    }).then((response) => {
+      if (
+        response.status === 401 &&
+        hasStoredSession() &&
+        isSessionManagedApiRequest(input)
+      ) {
+        clearStoredSession({
+          notify: true,
+          reason: 'expired-session',
+        })
+      }
+      return response
     })
   }
 

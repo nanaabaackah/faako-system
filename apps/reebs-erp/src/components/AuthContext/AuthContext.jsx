@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AUTH_USER_STORAGE_KEY, getAuthToken, setAuthToken } from "../../utils/organization.js";
+import {
+  addAuthInvalidListener,
+  AUTH_USER_STORAGE_KEY,
+  clearAuthState,
+  getAuthToken,
+  isAuthTokenExpired,
+  setAuthToken,
+} from "../../utils/organization.js";
 
 const AuthContext = createContext(null);
 
@@ -65,29 +72,72 @@ function AuthProvider({ children }) {
     }
   };
 
-  const clearStoredUser = () => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.removeItem(storageKey);
-      window.sessionStorage.removeItem(storageKey);
-    } catch (err) {
-      console.warn("Failed to clear auth cache", err);
-    }
+  const resetAuthState = (options = {}) => {
+    clearAuthState(options);
+    setUser(null);
+    setAuthLoading(false);
+    setAuthError("");
   };
 
   useEffect(() => {
-    const storedUser = readStoredUser();
-    const storedToken = getAuthToken();
-    if (storedUser && storedToken) {
-      setUser(storedUser);
+    let isActive = true;
+
+    const initializeAuth = async () => {
+      const storedUser = readStoredUser();
+      const storedToken = getAuthToken();
+
+      if (!storedUser && !storedToken) {
+        if (isActive) setAuthReady(true);
+        return;
+      }
+
+      if (!storedUser || !storedToken || isAuthTokenExpired(storedToken)) {
+        resetAuthState();
+        if (isActive) setAuthReady(true);
+        return;
+      }
+
       setAuthToken(storedToken);
-    } else if (storedUser && !storedToken) {
-      clearStoredUser();
-    } else if (!storedUser && storedToken) {
-      setAuthToken("");
-    }
-    setAuthReady(true);
+
+      try {
+        const response = await fetch("/.netlify/functions/authSession", {
+          cache: "no-store",
+        });
+
+        if (!isActive) return;
+
+        if (response.ok) {
+          const nextUser = sanitizeUser(await response.json());
+          setUser(nextUser);
+          updateStoredUser(nextUser);
+        } else if (response.status === 401) {
+          resetAuthState();
+        } else {
+          setUser(storedUser);
+        }
+      } catch (error) {
+        console.warn("Failed to validate auth session", error);
+        if (isActive) {
+          setUser(storedUser);
+        }
+      } finally {
+        if (isActive) {
+          setAuthReady(true);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
+
+  useEffect(() => addAuthInvalidListener(() => {
+    resetAuthState();
+    setAuthReady(true);
+  }), []);
 
   const login = async (email, password, remember = true) => {
     setAuthLoading(true);
@@ -125,16 +175,13 @@ function AuthProvider({ children }) {
         console.warn("Failed to close auth session", err);
       });
     }
-    setUser(null);
-    setAuthToken("");
-    clearStoredUser();
+    resetAuthState();
   };
 
   const updateUser = (nextUser) => {
     if (!nextUser) {
       setUser(nextUser);
-      setAuthToken("");
-      clearStoredUser();
+      resetAuthState();
       return;
     }
     const baseUser = user && typeof user === "object" ? user : {};

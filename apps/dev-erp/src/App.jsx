@@ -45,6 +45,12 @@ import useScrollAnimations from "./hooks/useScrollAnimations";
 import { buildApiUrl } from "./api-url";
 import { readJsonResponse } from "./utils/http";
 import { canAccessPath, hasModuleAccess, isRentOnlyUser } from "./utils/moduleAccess";
+import {
+  addSessionInvalidListener,
+  clearStoredSession,
+  readStoredSessionToken,
+  readStoredSessionUser,
+} from "./utils/authSession";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", Icon: Category, module: "dashboard" },
@@ -132,12 +138,7 @@ const NAV_SWIPE_VERTICAL_TOLERANCE = 72;
 const NAV_SWIPE_MIN_HORIZONTAL_DELTA = 12;
 
 const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
+  return readStoredSessionUser();
 };
 
 const getVisibleNavItems = (user) => {
@@ -154,9 +155,17 @@ const getVisibleMobileTabItems = (user) => {
   return MOBILE_TAB_ITEMS.filter((item) => !item.module || hasModuleAccess(user, item.module));
 };
 
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
-  const user = localStorage.getItem("user");
+const PrivateRoute = ({ authReady, children }) => {
+  if (!authReady) {
+    return (
+      <div className="app-loading" role="status" aria-live="polite">
+        Checking session...
+      </div>
+    );
+  }
+
+  const token = readStoredSessionToken();
+  const user = readStoredSessionUser();
   return token && user ? children : <Navigate to="/login" />;
 };
 
@@ -369,8 +378,7 @@ const AppShell = ({ children, theme, onToggleTheme }) => {
     } catch {
       // local cleanup still happens even if network logout fails
     }
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearStoredSession();
     navigate("/login");
   };
 
@@ -589,8 +597,8 @@ const ModuleScopeRoute = ({ children }) => {
   return children;
 };
 
-const ShellPage = ({ children, theme, onToggleTheme }) => (
-  <PrivateRoute>
+const ShellPage = ({ authReady, children, theme, onToggleTheme }) => (
+  <PrivateRoute authReady={authReady}>
     <ModuleScopeRoute>
       <RouteBoundary>
         <AppShell theme={theme} onToggleTheme={onToggleTheme}>
@@ -611,6 +619,8 @@ const DashboardLanding = () => {
 
 function App() {
   const [theme, setTheme] = useState(getInitialTheme);
+  const [authReady, setAuthReady] = useState(false);
+  const [, setAuthRevision] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -626,6 +636,63 @@ function App() {
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
+
+  useEffect(() => {
+    let isActive = true;
+
+    const validateStoredSession = async () => {
+      const storedToken = readStoredSessionToken();
+      const storedUser = readStoredSessionUser();
+
+      if (!storedToken && !storedUser) {
+        if (isActive) setAuthReady(true);
+        return;
+      }
+
+      if (!storedToken || !storedUser) {
+        clearStoredSession();
+        if (isActive) {
+          setAuthReady(true);
+          setAuthRevision((value) => value + 1);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(buildApiUrl("/api/users/me"), {
+          cache: "no-store",
+        });
+        const payload = await readJsonResponse(response);
+
+        if (!isActive) return;
+
+        if (response.ok && payload && typeof payload === "object") {
+          localStorage.setItem("user", JSON.stringify(payload));
+        } else if (response.status === 401) {
+          clearStoredSession();
+        }
+      } catch (error) {
+        console.warn("Failed to validate stored session", error);
+      } finally {
+        if (isActive) {
+          setAuthReady(true);
+          setAuthRevision((value) => value + 1);
+        }
+      }
+    };
+
+    validateStoredSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => addSessionInvalidListener(() => {
+    clearStoredSession();
+    setAuthReady(true);
+    setAuthRevision((value) => value + 1);
+  }), []);
 
   return (
     <Router>
@@ -667,7 +734,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <DashboardLanding />
             </ShellPage>
           }
@@ -675,7 +742,7 @@ function App() {
         <Route
           path="/rent"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Rent />
             </ShellPage>
           }
@@ -683,7 +750,7 @@ function App() {
         <Route
           path="/bookings"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Bookings />
             </ShellPage>
           }
@@ -691,7 +758,7 @@ function App() {
         <Route
           path="/organizations"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Organizations />
             </ShellPage>
           }
@@ -699,7 +766,7 @@ function App() {
         <Route
           path="/profile"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Profile />
             </ShellPage>
           }
@@ -707,7 +774,7 @@ function App() {
         <Route
           path="/user-control"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <UserControl />
             </ShellPage>
           }
@@ -716,7 +783,7 @@ function App() {
         <Route
           path="/system-health"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <SystemHealth />
             </ShellPage>
           }
@@ -724,7 +791,7 @@ function App() {
         <Route
           path="/reports"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Reports />
             </ShellPage>
           }
@@ -732,7 +799,7 @@ function App() {
         <Route
           path="/accounting"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Accounting />
             </ShellPage>
           }
@@ -740,7 +807,7 @@ function App() {
         <Route
           path="/invoicing"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Invoicing />
             </ShellPage>
           }
@@ -749,7 +816,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <Settings />
             </ShellPage>
           }
@@ -757,7 +824,7 @@ function App() {
         <Route
           path="/audit-logs"
           element={
-            <ShellPage theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
               <AuditLogs />
             </ShellPage>
           }

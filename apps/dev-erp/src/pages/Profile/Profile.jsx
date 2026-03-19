@@ -2,20 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { buildApiUrl } from "../../api-url";
-import { AUTH_SESSION_STORAGE_MARKER } from "../../utils/authSession";
+import {
+  clearStoredSession,
+  readStoredSessionToken,
+  readStoredSessionUser,
+  writeStoredSession,
+} from "../../utils/authSession";
 import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
 import { formatDateTime } from "../../utils/formatters";
 
 const PASSWORD_POLICY_HELP =
   "Password: at least 14 characters, with uppercase, lowercase, number, and special character (no spaces).";
 
-const readLocalUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
+const readLocalUser = () => readStoredSessionUser();
 
 const buildFullName = (profile) => {
   const fullName = String(profile?.fullName || "").trim();
@@ -52,9 +51,9 @@ const Profile = () => {
 
   const loadProfile = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
+      const token = readStoredSessionToken();
       if (!token) {
-        localStorage.removeItem("user");
+        clearStoredSession();
         navigate("/login");
         return;
       }
@@ -75,8 +74,7 @@ const Profile = () => {
         const payload = await readJsonResponse(response);
         if (!response.ok) {
           if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
+            clearStoredSession();
             navigate("/login");
             return;
           }
@@ -88,7 +86,7 @@ const Profile = () => {
           ...(currentLocalUser && typeof currentLocalUser === "object" ? currentLocalUser : {}),
           ...(payload && typeof payload === "object" ? payload : {}),
         };
-        localStorage.setItem("user", JSON.stringify(nextLocalUser));
+        writeStoredSession(nextLocalUser);
         setProfile(nextLocalUser);
         setFormState(buildProfileFormState(nextLocalUser));
         setLastLoadedAt(new Date().toISOString());
@@ -143,9 +141,9 @@ const Profile = () => {
   const handleSaveProfile = async (event) => {
     event.preventDefault();
 
-    const token = localStorage.getItem("token");
+    const token = readStoredSessionToken();
     if (!token) {
-      localStorage.removeItem("user");
+      clearStoredSession();
       navigate("/login");
       return;
     }
@@ -204,8 +202,7 @@ const Profile = () => {
       const payload = await readJsonResponse(response);
       if (!response.ok) {
         if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          clearStoredSession();
           navigate("/login");
           return;
         }
@@ -216,17 +213,12 @@ const Profile = () => {
             : "";
         throw new Error(passwordPolicy ? `${message} ${passwordPolicy}` : message);
       }
-
-      if (payload && typeof payload === "object" && payload.sessionUpdated) {
-        localStorage.setItem("token", AUTH_SESSION_STORAGE_MARKER);
-      }
-
       const currentLocalUser = readLocalUser();
       const nextLocalUser = {
         ...(currentLocalUser && typeof currentLocalUser === "object" ? currentLocalUser : {}),
         ...(payload && typeof payload === "object" ? payload : {}),
       };
-      localStorage.setItem("user", JSON.stringify(nextLocalUser));
+      writeStoredSession(nextLocalUser);
       setProfile(nextLocalUser);
       setFormState(buildProfileFormState(nextLocalUser));
       setLastLoadedAt(new Date().toISOString());

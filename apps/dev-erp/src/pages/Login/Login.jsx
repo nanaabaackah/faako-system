@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { buildApiUrl } from "../../api-url";
 import ThemeToggle from "../../components/ThemeToggle";
-import { AUTH_SESSION_STORAGE_MARKER } from "../../utils/authSession";
+import { writeStoredSession } from "../../utils/authSession";
 import "./Login.css";
 
 const Login = ({ theme, onToggleTheme }) => {
@@ -36,8 +36,7 @@ const Login = ({ theme, onToggleTheme }) => {
         if (!data?.user) {
           throw new Error("Login succeeded but user details were missing.");
         }
-        localStorage.setItem("token", AUTH_SESSION_STORAGE_MARKER);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        writeStoredSession(data.user);
         navigate("/dashboard");
       } else {
         setError(data.error || "Login failed");
