@@ -3,6 +3,12 @@
 command = "pnpm --filter @faako/reebs-website build"
 publish = "/apps/reebs-website/dist"
 
+[dev]
+command = "pnpm --filter @faako/reebs-website dev -- --host 0.0.0.0 --port 5173"
+targetPort = 5173
+port = 8888
+functions = "../reebs-erp/netlify/functions"
+
 [functions]
 directory = "/apps/reebs-erp/netlify/functions"
 node_bundler = "esbuild"
