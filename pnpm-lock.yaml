@@ -377,6 +377,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.20.0
+      prop-types:
+        specifier: ^15.8.1
+        version: 15.8.1
       psql:
         specifier: ^0.0.1
         version: 0.0.1
@@ -561,6 +564,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.20.0
+      prop-types:
+        specifier: ^15.8.1
+        version: 15.8.1
       psql:
         specifier: ^0.0.1
         version: 0.0.1
