@@ -1,6 +1,14 @@
 import crypto from "crypto";
 
 export const PASSWORD_RESET_TTL_MS = 1000 * 60 * 30;
+const PASSWORD_RESET_CLEANUP_INTERVAL_MS = 1000 * 60 * 10;
+
+let hasEnsuredPasswordResetTable = false;
+let hasEnsuredPasswordResetUserIndex = false;
+let hasEnsuredPasswordResetActiveIndex = false;
+let passwordResetEnsurePromise = null;
+let passwordResetCleanupPromise = null;
+let lastPasswordResetCleanupAt = 0;
 
 const hashToken = (token) =>
   crypto.createHash("sha256").update(String(token || "")).digest("hex");
@@ -34,27 +42,54 @@ const getUserAgent = (event) => {
 };
 
 export const ensurePasswordResetTokensTable = async (client) => {
-  await client.query(
-    `CREATE TABLE IF NOT EXISTS "userPasswordResetToken" (
-      "id" SERIAL PRIMARY KEY,
-      "organizationId" INTEGER NOT NULL,
-      "userId" INTEGER NOT NULL,
-      "tokenHash" TEXT NOT NULL UNIQUE,
-      "ipAddress" TEXT,
-      "userAgent" TEXT,
-      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      "expiresAt" TIMESTAMPTZ NOT NULL,
-      "usedAt" TIMESTAMPTZ
-    )`
-  );
-  await client.query(
-    `CREATE INDEX IF NOT EXISTS "userPasswordResetToken_user_idx"
-     ON "userPasswordResetToken" ("userId", "organizationId")`
-  );
-  await client.query(
-    `CREATE INDEX IF NOT EXISTS "userPasswordResetToken_active_idx"
-     ON "userPasswordResetToken" ("organizationId", "expiresAt", "usedAt")`
-  );
+  if (
+    hasEnsuredPasswordResetTable
+    && hasEnsuredPasswordResetUserIndex
+    && hasEnsuredPasswordResetActiveIndex
+  ) {
+    return;
+  }
+
+  if (!passwordResetEnsurePromise) {
+    passwordResetEnsurePromise = (async () => {
+      if (!hasEnsuredPasswordResetTable) {
+        await client.query(
+          `CREATE TABLE IF NOT EXISTS "userPasswordResetToken" (
+            "id" SERIAL PRIMARY KEY,
+            "organizationId" INTEGER NOT NULL,
+            "userId" INTEGER NOT NULL,
+            "tokenHash" TEXT NOT NULL UNIQUE,
+            "ipAddress" TEXT,
+            "userAgent" TEXT,
+            "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            "expiresAt" TIMESTAMPTZ NOT NULL,
+            "usedAt" TIMESTAMPTZ
+          )`
+        );
+        hasEnsuredPasswordResetTable = true;
+      }
+
+      if (!hasEnsuredPasswordResetUserIndex) {
+        await client.query(
+          `CREATE INDEX IF NOT EXISTS "userPasswordResetToken_user_idx"
+           ON "userPasswordResetToken" ("userId", "organizationId")`
+        );
+        hasEnsuredPasswordResetUserIndex = true;
+      }
+
+      if (!hasEnsuredPasswordResetActiveIndex) {
+        await client.query(
+          `CREATE INDEX IF NOT EXISTS "userPasswordResetToken_active_idx"
+           ON "userPasswordResetToken" ("organizationId", "expiresAt", "usedAt")`
+        );
+        hasEnsuredPasswordResetActiveIndex = true;
+      }
+    })().finally(() => {
+      passwordResetEnsurePromise = null;
+    });
+  }
+
+  await passwordResetEnsurePromise;
 };
 
 export const cleanupPasswordResetTokens = async (client) => {
@@ -63,6 +98,32 @@ export const cleanupPasswordResetTokens = async (client) => {
      WHERE "usedAt" IS NOT NULL
         OR "expiresAt" <= NOW()`
   );
+};
+
+export const maybeCleanupPasswordResetTokens = async (
+  client,
+  intervalMs = PASSWORD_RESET_CLEANUP_INTERVAL_MS
+) => {
+  const now = Date.now();
+  if (passwordResetCleanupPromise) {
+    return passwordResetCleanupPromise;
+  }
+
+  if (lastPasswordResetCleanupAt && now - lastPasswordResetCleanupAt < intervalMs) {
+    return null;
+  }
+
+  lastPasswordResetCleanupAt = now;
+  passwordResetCleanupPromise = cleanupPasswordResetTokens(client)
+    .catch((error) => {
+      lastPasswordResetCleanupAt = 0;
+      throw error;
+    })
+    .finally(() => {
+      passwordResetCleanupPromise = null;
+    });
+
+  return passwordResetCleanupPromise;
 };
 
 export const createPasswordResetToken = async (

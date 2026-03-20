@@ -18,7 +18,9 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import {
+  buildCustomerOrderEmailHtml,
   buildCustomerOrderEmailText,
+  buildInternalOrderEmailHtml,
   buildInternalOrderEmailText,
 } from "./_shared/transactionEmailTemplates.js";
 
@@ -526,12 +528,17 @@ export async function handler(event) {
           to: getNotificationCatchallEmail(),
           subject: `New order ${orderNumber}`,
           text: buildInternalOrderEmailText(orderEmailPayload),
+          html: buildInternalOrderEmailHtml(orderEmailPayload),
         }),
         customerEmail
           ? sendNotificationEmail({
               to: customerEmail,
               subject: `We received your order ${orderNumber}`,
               text: buildCustomerOrderEmailText({
+                ...orderEmailPayload,
+                supportEmail: getNotificationCatchallEmail(),
+              }),
+              html: buildCustomerOrderEmailHtml({
                 ...orderEmailPayload,
                 supportEmail: getNotificationCatchallEmail(),
               }),

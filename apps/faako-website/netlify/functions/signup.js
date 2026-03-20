@@ -1,6 +1,14 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
 const { resolveDatabaseUrl } = require("../../src/runtimeConfig");
+const {
+  EMAIL_THEMES,
+  renderEmailLayout,
+  renderKeyValueTable,
+  renderNotice,
+  renderPanel,
+  renderParagraphs
+} = require("../../../../packages/email-kit/src/index.cjs");
 
 const BASE_HEADERS = {
   "content-type": "application/json",
@@ -117,6 +125,7 @@ const NON_PRODUCTION_APP_ENVS = new Set([
   "preview"
 ]);
 const NON_PRODUCTION_NODE_ENVS = new Set(["development", "test"]);
+const FAAKO_EMAIL_THEME = EMAIL_THEMES.faako;
 
 const createId = () => crypto.randomUUID();
 
@@ -475,14 +484,6 @@ const buildUniqueSlug = async (dbClient, companyName) => {
   return `${base}-${Date.now().toString(36)}`;
 };
 
-const escapeHtml = (value) =>
-  String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
 const formatPreviewValue = (value) => {
   if (Array.isArray(value)) {
     return value.length ? value.join(", ") : "N/A";
@@ -492,22 +493,6 @@ const formatPreviewValue = (value) => {
   }
   return String(value);
 };
-
-const buildPreviewTableHtml = (entries) =>
-  entries
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:8px 10px;border:1px solid #e3e3e3;background:#fafafa;font-weight:600;vertical-align:top;white-space:nowrap;">${escapeHtml(
-            label
-          )}</td>
-          <td style="padding:8px 10px;border:1px solid #e3e3e3;vertical-align:top;">${escapeHtml(
-            formatPreviewValue(value)
-          )}</td>
-        </tr>
-      `
-    )
-    .join("");
 
 const buildSubmissionDetailRows = (submission) => [
   ["Company Name", submission.companyName],
@@ -531,7 +516,17 @@ const buildSubmissionDetailRows = (submission) => [
   ["Secondary Color", submission.brandSecondaryColor]
 ];
 
-const buildAdminPreviewHtml = (submission) => {
+const buildForwardingNoticeHtml = (intendedRecipient) =>
+  intendedRecipient
+    ? renderNotice({
+        theme: FAAKO_EMAIL_THEME,
+        title: "Test email forwarding active",
+        tone: "warning",
+        lines: [`Original recipient: ${intendedRecipient}`]
+      })
+    : "";
+
+const buildAdminPreviewHtml = (submission, { intendedRecipient = "" } = {}) => {
   const previewRows = [
     ["Request ID", submission.signupRequestId],
     ["Submitted At", submission.submittedAtIso],
@@ -539,36 +534,82 @@ const buildAdminPreviewHtml = (submission) => {
     ["Organization ID", submission.organizationId]
   ];
 
-  return `
-    <div style="font-family:Arial,sans-serif;color:#1f1f1f;line-height:1.45;">
-      <h2 style="margin:0 0 12px;">New Faako Client Intake</h2>
-      <p style="margin:0 0 16px;">A new signup form was submitted and saved to the database.</p>
-      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:900px;">
-        ${buildPreviewTableHtml(previewRows)}
-      </table>
-    </div>
-  `;
+  return renderEmailLayout({
+    theme: FAAKO_EMAIL_THEME,
+    preheader: `New Faako intake from ${submission.companyName}.`,
+    brandName: "Faako",
+    brandTagline: "Client intake pipeline",
+    eyebrow: "New intake",
+    title: "New client intake",
+    subtitle: "A new signup form was submitted and saved to the database.",
+    introHtml: [
+      buildForwardingNoticeHtml(intendedRecipient),
+      renderParagraphs(
+        "A new client inquiry has been received. Review the submission details below and follow up with the business contact.",
+        { theme: FAAKO_EMAIL_THEME }
+      )
+    ].join(""),
+    bodyHtml: renderPanel({
+      theme: FAAKO_EMAIL_THEME,
+      eyebrow: "Request overview",
+      title: submission.companyName || "Faako intake",
+      bodyHtml: renderKeyValueTable(
+        previewRows.map(([label, value]) => [label, formatPreviewValue(value)]),
+        { theme: FAAKO_EMAIL_THEME, labelWidth: "34%" }
+      )
+    }),
+    footerHtml: `<p style="margin:0;color:${FAAKO_EMAIL_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">Sent from the Faako intake workflow.</p>`
+  });
 };
 
-const buildClientConfirmationHtml = (submission) => {
+const buildClientConfirmationHtml = (submission, { intendedRecipient = "" } = {}) => {
   const submissionRows = buildSubmissionDetailRows(submission);
 
-  return `
-    <div style="font-family:Arial,sans-serif;color:#1f1f1f;line-height:1.45;">
-      <h2 style="margin:0 0 12px;">We received your Faako intake</h2>
-      <p style="margin:0 0 16px;">Hi ${escapeHtml(
-        submission.contactName || "there"
-      )}, thanks for sharing your business details with Faako.</p>
-      <p style="margin:0 0 16px;">Our team will review your request and reply with next steps within one business day.</p>
-      <p style="margin:0 0 16px;">Here is a copy of the full information you submitted.</p>
-      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:680px;">
-        ${buildPreviewTableHtml(submissionRows)}
-      </table>
-      <p style="margin:16px 0 0;">Reference: <strong>${escapeHtml(
-        submission.signupRequestId
-      )}</strong></p>
-    </div>
-  `;
+  return renderEmailLayout({
+    theme: FAAKO_EMAIL_THEME,
+    preheader: `Faako received your intake for ${submission.companyName}.`,
+    brandName: "Faako",
+    brandTagline: "Business systems built around your workflow",
+    eyebrow: "Submission received",
+    title: "We received your intake",
+    subtitle: "Thanks for sharing your business details with Faako.",
+    introHtml: [
+      buildForwardingNoticeHtml(intendedRecipient),
+      renderParagraphs(
+        [
+          `Hi ${submission.contactName || "there"},`,
+          "Our team will review your request and reply with next steps within one business day.",
+          "Here is a copy of the information you submitted for our review."
+        ],
+        { theme: FAAKO_EMAIL_THEME }
+      )
+    ].join(""),
+    bodyHtml: [
+      renderPanel({
+        theme: FAAKO_EMAIL_THEME,
+        eyebrow: "Reference",
+        title: submission.companyName || "Your submission",
+        bodyHtml: renderKeyValueTable(
+          [
+            ["Reference ID", formatPreviewValue(submission.signupRequestId)],
+            ["Submitted at", formatPreviewValue(submission.submittedAtIso)],
+            ["Package tier", formatPreviewValue(submission.packageTier)],
+            ["Requested modules", formatPreviewValue(submission.requestedModules)]
+          ],
+          { theme: FAAKO_EMAIL_THEME, labelWidth: "34%" }
+        )
+      }),
+      renderPanel({
+        theme: FAAKO_EMAIL_THEME,
+        title: "Submission details",
+        bodyHtml: renderKeyValueTable(
+          submissionRows.map(([label, value]) => [label, formatPreviewValue(value)]),
+          { theme: FAAKO_EMAIL_THEME, labelWidth: "34%" }
+        )
+      })
+    ].join(""),
+    footerHtml: `<p style="margin:0;color:${FAAKO_EMAIL_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">Keep this email for your records while we review the request.</p>`
+  });
 };
 
 const parseResponseJson = async (response) => {
@@ -624,19 +665,6 @@ const resolveEmailForwardingRecipient = () => {
   }
 
   return null;
-};
-
-const withForwardingNotice = (html, intendedRecipient) => {
-  if (!intendedRecipient) {
-    return html;
-  }
-
-  return `
-    <div style="margin:0 0 16px;padding:12px 14px;border:1px solid #f5c26b;border-radius:12px;background:#fff4dd;color:#8a5b00;font:600 13px/1.4 Arial,sans-serif;">
-      Test email forwarding is active. Original recipient: ${escapeHtml(intendedRecipient)}
-    </div>
-    ${html}
-  `;
 };
 
 const sendResendEmail = async ({
@@ -705,9 +733,9 @@ const sendSignupPreviewEmails = async (submission) => {
         from: resendFrom,
         to: forwardedRecipient || adminEmail,
         subject: `${forwardedRecipient ? "[Test Forward] " : ""}[Faako] New Intake - ${submission.companyName}`,
-        html: forwardedRecipient
-          ? withForwardingNotice(buildAdminPreviewHtml(submission), adminEmail)
-          : buildAdminPreviewHtml(submission),
+        html: buildAdminPreviewHtml(submission, {
+          intendedRecipient: forwardedRecipient ? adminEmail : ""
+        }),
         idempotencyKey: `${submission.signupRequestId}-admin`
       })
     );
@@ -720,12 +748,9 @@ const sendSignupPreviewEmails = async (submission) => {
         from: resendFrom,
         to: forwardedRecipient || submission.normalizedEmail,
         subject: `${forwardedRecipient ? "[Test Forward] " : ""}Faako intake received`,
-        html: forwardedRecipient
-          ? withForwardingNotice(
-              buildClientConfirmationHtml(submission),
-              submission.normalizedEmail
-            )
-          : buildClientConfirmationHtml(submission),
+        html: buildClientConfirmationHtml(submission, {
+          intendedRecipient: forwardedRecipient ? submission.normalizedEmail : ""
+        }),
         idempotencyKey: `${submission.signupRequestId}-client`
       })
     );

@@ -63,6 +63,19 @@ import { buildInvoiceEmailContent } from "./invoiceEmailTemplate.js";
 import { buildRentMonthlySummaryEmailContent } from "./rentMonthlySummaryEmailTemplate.js";
 import { buildRentPaymentRecordedEmailContent } from "./rentPaymentRecordedEmailTemplate.js";
 import { buildAccountingScheduledReminderEmailContent } from "./accountingScheduledReminderEmailTemplate.js";
+import emailKit from "../../../packages/email-kit/src/index.cjs";
+
+const {
+  EMAIL_THEMES,
+  renderEmailLayout,
+  renderKeyValueTable,
+  renderList,
+  renderMetricGrid,
+  renderPanel,
+  renderParagraphs,
+} = emailKit;
+
+const DEV_ERP_EMAIL_THEME = EMAIL_THEMES.devErp;
 
 const parsePositiveInt = (
   value,
@@ -2093,18 +2106,61 @@ const buildAlertEntries = (systemEntries, siteOverview) => [
 ];
 
 const buildAlertEmailContent = (changes) => {
-  const lines = changes.map(
+  const generatedAt = new Date().toISOString();
+  const normalizedChanges = Array.isArray(changes) ? changes : [];
+  const attentionCount = normalizedChanges.filter((change) => {
+    const status = String(change?.status || "").trim().toLowerCase();
+    return status && !["online", "ok", "healthy"].includes(status);
+  }).length;
+  const lines = normalizedChanges.map(
     (change) =>
       `- ${change.type}: ${change.label} -> ${change.status.toUpperCase()} (${change.note})`
   );
-  const text = `Dev KPI alert\n\n${lines.join("\n")}\n\nGenerated at ${new Date().toISOString()}`;
-  const htmlList = changes
-    .map(
-      (change) =>
-        `<li><strong>${change.type}:</strong> ${change.label} <strong>${change.status.toUpperCase()}</strong> (${change.note})</li>`
-    )
-    .join("");
-  const html = `<p><strong>Dev KPI alert</strong></p><ul>${htmlList}</ul><p>Generated at ${new Date().toISOString()}</p>`;
+  const text = `Dev KPI alert\n\n${lines.join("\n")}\n\nGenerated at ${generatedAt}`;
+  const html = renderEmailLayout({
+    theme: DEV_ERP_EMAIL_THEME,
+    preheader: `Dev KPI alert with ${normalizedChanges.length} change${normalizedChanges.length === 1 ? "" : "s"}.`,
+    brandName: "Dev ERP",
+    brandTagline: "Operational monitoring",
+    eyebrow: "KPI alert",
+    title: "Dev KPI alert",
+    subtitle: "Status changes were detected across tracked services and sites.",
+    introHtml: renderParagraphs(
+      "The following status changes were detected and may need review from the team.",
+      { theme: DEV_ERP_EMAIL_THEME }
+    ),
+    bodyHtml: [
+      renderMetricGrid(
+        [
+          { label: "Changes", value: String(normalizedChanges.length) },
+          { label: "Needs review", value: String(attentionCount) },
+          { label: "Generated", value: generatedAt.slice(11, 16) || generatedAt },
+        ],
+        { theme: DEV_ERP_EMAIL_THEME }
+      ),
+      renderPanel({
+        theme: DEV_ERP_EMAIL_THEME,
+        eyebrow: "Change log",
+        title: "Status updates",
+        bodyHtml: renderList(
+          normalizedChanges.map(
+            (change) =>
+              `${change.type}: ${change.label} -> ${String(change.status || "").toUpperCase()} (${change.note || "No additional note"})`
+          ),
+          { theme: DEV_ERP_EMAIL_THEME }
+        ),
+      }),
+      renderPanel({
+        theme: DEV_ERP_EMAIL_THEME,
+        title: "Generated details",
+        bodyHtml: renderKeyValueTable(
+          [["Generated at", generatedAt]],
+          { theme: DEV_ERP_EMAIL_THEME, labelWidth: "32%" }
+        ),
+      }),
+    ].join(""),
+    footerHtml: `<p style="margin:0;color:${DEV_ERP_EMAIL_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">Sent from the Dev ERP monitoring workflow.</p>`,
+  });
   return { text, html };
 };
 
@@ -2683,8 +2739,6 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const escapeHtmlWithLineBreaks = (value) => escapeHtml(value).replace(/\n/g, "<br />");
-
 const formatReportNumber = (value) => {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return "0";
@@ -2855,40 +2909,68 @@ const buildWeeklyReportEmailContent = (snapshot, templateOptions = {}, contentOp
   ]
     .filter(Boolean)
     .join("\n");
+  const metricItems = [
+    ...(contentOptions.organizations !== false
+      ? [{ label: "Organizations", value: formatReportNumber(snapshot.organizations?.total ?? 0) }]
+      : []),
+    ...(contentOptions.appointments !== false
+      ? [{ label: "Appointments today", value: formatReportNumber(snapshot.appointments?.today ?? 0) }]
+      : []),
+    ...(contentOptions.accounting !== false
+      ? [{ label: "Pending payables", value: formatReportNumber(snapshot.accounting?.pendingPayables ?? 0) }]
+      : []),
+    ...(contentOptions.siteHealth !== false
+      ? [{ label: "Sites online", value: `${snapshot.siteHealth?.onlineSites ?? 0}/${snapshot.siteHealth?.totalSites ?? 0}` }]
+      : []),
+  ];
 
-  const htmlRows = rows
-    .map(
-      ([label, value]) =>
-        `<tr><td style="padding:8px 10px;border:1px solid #d0d0c8;"><strong>${escapeHtml(
-          label
-        )}</strong></td><td style="padding:8px 10px;border:1px solid #d0d0c8;">${escapeHtml(
-          value
-        )}</td></tr>`
-    )
-    .join("");
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;color:#2d2d2d;">
-      <p><strong>${escapeHtml(heading)}</strong></p>
-      <p>Recipients: ${escapeHtml(snapshot.recipients.join(", "))}</p>
-      ${
-        introText
-          ? `<p>${escapeHtmlWithLineBreaks(introText)}</p>`
-          : ""
-      }
-      <table style="border-collapse:collapse;border:1px solid #d0d0c8;">
-        <tbody>
-          ${htmlRows}
-        </tbody>
-      </table>
-      ${
-        footerText
-          ? `<p style="margin-top:14px;">${escapeHtmlWithLineBreaks(footerText)}</p>`
-          : ""
-      }
-      <p style="margin-top:14px;">Generated at ${escapeHtml(snapshot.generatedAt)}</p>
-    </div>
-  `.trim();
+  const html = renderEmailLayout({
+    theme: DEV_ERP_EMAIL_THEME,
+    preheader: `${heading} generated on ${snapshot.generatedAt.slice(0, 10)}.`,
+    brandName: "Dev ERP",
+    brandTagline: "Weekly KPI reporting",
+    eyebrow: "Weekly report",
+    title: heading,
+    subtitle: `Recipients: ${snapshot.recipients.join(", ")}`,
+    introHtml: renderParagraphs(
+      introText || "Here is the latest weekly KPI rollup from the monitored workspace.",
+      { theme: DEV_ERP_EMAIL_THEME }
+    ),
+    bodyHtml: [
+      metricItems.length ? renderMetricGrid(metricItems, { theme: DEV_ERP_EMAIL_THEME }) : "",
+      renderPanel({
+        theme: DEV_ERP_EMAIL_THEME,
+        eyebrow: "Report context",
+        title: "Distribution and schedule",
+        bodyHtml: renderKeyValueTable(
+          [
+            ["Recipients", snapshot.recipients.join(", ") || "None"],
+            ["Generated at", snapshot.generatedAt],
+            ["Schedule", snapshot.schedule],
+          ],
+          { theme: DEV_ERP_EMAIL_THEME, labelWidth: "34%" }
+        ),
+      }),
+      renderPanel({
+        theme: DEV_ERP_EMAIL_THEME,
+        title: "Report details",
+        bodyHtml: renderKeyValueTable(rows, {
+          theme: DEV_ERP_EMAIL_THEME,
+          labelWidth: "42%",
+        }),
+      }),
+    ].join(""),
+    footerHtml: [
+      footerText
+        ? renderParagraphs(footerText, {
+            theme: DEV_ERP_EMAIL_THEME,
+            color: DEV_ERP_EMAIL_THEME.muted,
+            spacing: "0 0 10px",
+          })
+        : "",
+      `<p style="margin:0;color:${DEV_ERP_EMAIL_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">Generated from the Dev ERP KPI reporting workflow.</p>`,
+    ].join(""),
+  });
 
   const subjectDate = snapshot.generatedAt.slice(0, 10);
   return {
@@ -3121,7 +3203,6 @@ const WEEKLY_REPORT_CONTENT_OPTION_DEFINITIONS = [
 
 const RENT_MONTHLY_CONTENT_OPTION_DEFINITIONS = [
   { key: "tenantEmail", label: "Tenant email" },
-  { key: "landlord", label: "Landlord details" },
   { key: "monthlyRent", label: "Monthly rent amount" },
   { key: "paidThisMonth", label: "Paid this month" },
   { key: "expectedThisMonth", label: "Expected this month" },
@@ -3419,12 +3500,12 @@ const getReportDefinitions = () => [
     scheduleType: REPORT_SCHEDULE_TYPES.MONTHLY,
     scheduleOptions: [{ value: REPORT_SCHEDULE_TYPES.MONTHLY, label: "Monthly" }],
     title: "Rent monthly summaries",
-    description: "Monthly rent summaries for active tenants, delivered to the tenant and landlord email on record.",
+    description: "Monthly rent summaries for active tenants, delivered to the tenant email on record and any additional rent contact email.",
     contentOptionDefinitions: RENT_MONTHLY_CONTENT_OPTION_DEFINITIONS,
     enabled: RENT_MONTHLY_EMAIL_ENABLED,
     sender: rentMonthlyFromEmail,
-    recipientLabel: "Per active tenant: tenant email + landlord email",
-    deliveryLabel: "Tenant + landlord emails stored on each rent tenant",
+    recipientLabel: "Per active tenant: tenant email + additional rent contact email",
+    deliveryLabel: "Tenant and additional rent contact emails stored on each rent tenant",
     lastRunAt: rentMonthlyUpdateState.lastRunAt,
     lastScheduledFor: rentMonthlyUpdateState.lastScheduledFor,
     lastResultLabel: getRentMonthlyLastResultLabel(),

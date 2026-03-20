@@ -92,13 +92,17 @@ function AuthProvider({ children }) {
         return;
       }
 
-      if (!storedUser || !storedToken || isAuthTokenExpired(storedToken)) {
+      if (!storedToken || isAuthTokenExpired(storedToken)) {
         resetAuthState();
         if (isActive) setAuthReady(true);
         return;
       }
 
       setAuthToken(storedToken);
+      if (storedUser && isActive) {
+        setUser(storedUser);
+        setAuthReady(true);
+      }
 
       const controller = typeof AbortController === "function" ? new AbortController() : null;
       const timeoutId = controller
@@ -117,14 +121,13 @@ function AuthProvider({ children }) {
           const nextUser = sanitizeUser(await response.json());
           setUser(nextUser);
           updateStoredUser(nextUser);
-        } else {
+        } else if (response.status === 401 || response.status === 403) {
           resetAuthState();
+        } else {
+          console.warn("Auth session validation returned an unexpected status", response.status);
         }
       } catch (error) {
         console.warn("Failed to validate auth session", error);
-        if (isActive) {
-          resetAuthState();
-        }
       } finally {
         if (timeoutId) window.clearTimeout(timeoutId);
         if (isActive) {

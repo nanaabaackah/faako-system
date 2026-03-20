@@ -240,8 +240,8 @@ function Login({ mode = "staff" }) {
                         isCustomer
                           ? "booking@email.com"
                           : forgotMode
-                            ? "you@example.com or firstname_lastname"
-                            : "firstname_lastname or firstname_lastname@reebs.com"
+                            ? "you@example.com or username"
+                            : "firstname_lastname"
                       }
                       autoComplete={isCustomer ? "email" : "username"}
                       required

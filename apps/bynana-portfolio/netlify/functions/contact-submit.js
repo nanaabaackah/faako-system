@@ -1,4 +1,11 @@
 const FORM_NAME = 'contact'
+const {
+  EMAIL_THEMES,
+  renderEmailLayout,
+  renderKeyValueTable,
+  renderPanel,
+  renderParagraphs,
+} = require('../../../../packages/email-kit/src/index.cjs')
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60 * 1000
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 1
 const DEFAULT_NOTIFICATION_TO = 'dev.nanaabaackah@gmail.com'
@@ -14,6 +21,7 @@ const MAX_FIELD_LENGTHS = {
   botField: 200,
 }
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const BYNANA_EMAIL_THEME = EMAIL_THEMES.bynana
 const rateLimitBuckets = globalThis.__bynanaContactRateLimitBuckets ?? new Map()
 
 if (!globalThis.__bynanaContactRateLimitBuckets) {
@@ -136,14 +144,6 @@ const cleanField = (value, maxLength) =>
     .trim()
     .slice(0, maxLength)
 
-const escapeHtml = (value) =>
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
 const getNotificationConfig = () => ({
   apiKey: String(globalThis.process?.env?.RESEND_API_KEY || '').trim(),
   to: cleanField(
@@ -209,35 +209,39 @@ const buildNotificationHtml = ({
     ['Client IP', clientKey || 'Unknown'],
   ]
 
-  const metadataRows = rows
-    .map(
-      ([label, value]) =>
-        `<tr><td style="padding:8px 12px;font-weight:600;vertical-align:top;border:1px solid #e2e8f0;">${escapeHtml(
-          label
-        )}</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">${escapeHtml(value)}</td></tr>`
-    )
-    .join('')
-
-  return `<!doctype html>
-<html lang="en">
-  <body style="margin:0;padding:24px;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif;">
-    <div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
-      <div style="padding:24px 24px 16px;background:#0f172a;color:#f8fafc;">
-        <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.72;">By Nana</p>
-        <h1 style="margin:0;font-size:24px;line-height:1.3;">New contact form submission</h1>
-      </div>
-      <div style="padding:24px;">
-        <table style="width:100%;border-collapse:collapse;border-spacing:0;margin:0 0 24px;">
-          ${metadataRows}
-        </table>
-        <h2 style="margin:0 0 12px;font-size:16px;">Message</h2>
-        <div style="padding:16px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;white-space:pre-wrap;">${escapeHtml(
-          message
-        )}</div>
-      </div>
-    </div>
-  </body>
-</html>`
+  return renderEmailLayout({
+    theme: BYNANA_EMAIL_THEME,
+    preheader: `New portfolio contact form submission from ${name}.`,
+    brandName: 'By Nana',
+    brandTagline: 'Portfolio contact notifications',
+    eyebrow: 'New inquiry',
+    title: 'New contact form submission',
+    subtitle: `Subject: ${subject}`,
+    introHtml: renderParagraphs(
+      'A new message was submitted through the portfolio contact form. Review the sender details and reply directly to continue the conversation.',
+      { theme: BYNANA_EMAIL_THEME }
+    ),
+    bodyHtml: [
+      renderPanel({
+        theme: BYNANA_EMAIL_THEME,
+        eyebrow: 'Submission details',
+        title: name,
+        bodyHtml: renderKeyValueTable(rows, {
+          theme: BYNANA_EMAIL_THEME,
+          labelWidth: '34%',
+        }),
+      }),
+      renderPanel({
+        theme: BYNANA_EMAIL_THEME,
+        title: 'Message',
+        bodyHtml: renderParagraphs(message, {
+          theme: BYNANA_EMAIL_THEME,
+          spacing: '0',
+        }),
+      }),
+    ].join(''),
+    footerHtml: `<p style="margin:0;color:${BYNANA_EMAIL_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">Reply to the sender directly from your email client.</p>`,
+  })
 }
 
 const sendNotificationEmail = async ({

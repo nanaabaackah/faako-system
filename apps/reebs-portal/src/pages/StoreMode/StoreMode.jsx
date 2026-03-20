@@ -109,10 +109,90 @@ const getCustomerLabel = (customer) =>
 const getCustomerMeta = (customer) =>
   [customer?.email, customer?.phone].filter(Boolean).join(" · ") || `ID ${customer?.id ?? "-"}`;
 
+const STORE_MODE_DRAFT_VERSION = 1;
+const STORE_MODE_DRAFT_PREFIX = "reebs-store-mode-draft";
+
+const sanitizeDraftString = (value, max = 240) =>
+  typeof value === "string" ? value.slice(0, max) : "";
+
+const sanitizeDraftOrderItems = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const productId = Number(item?.productId);
+      const quantity = Math.max(1, Math.round(Number(item?.quantity) || 0));
+      const unitPrice = Number(item?.unitPrice);
+      const stock = Number(item?.stock);
+      if (!Number.isFinite(productId) || productId <= 0) return null;
+      return {
+        productId,
+        name: sanitizeDraftString(item?.name || "Untitled", 160) || "Untitled",
+        quantity,
+        unitPrice: Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
+        stock: Number.isFinite(stock) && stock >= 0 ? stock : quantity,
+        currency: sanitizeDraftString(item?.currency || "GHS", 8) || "GHS",
+      };
+    })
+    .filter(Boolean);
+};
+
+const sanitizeDraftCustomer = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const id = Number(value.id);
+  const customer = {
+    id: Number.isFinite(id) && id > 0 ? id : null,
+    name: sanitizeDraftString(value.name, 160),
+    email: sanitizeDraftString(value.email, 160),
+    phone: sanitizeDraftString(value.phone, 40),
+  };
+  return customer.id || customer.name || customer.email || customer.phone ? customer : null;
+};
+
+const getStoreModeDraftKey = (user) => {
+  const organizationId = Number(user?.organizationId);
+  const userId = Number(user?.id);
+  if (!Number.isFinite(organizationId) || organizationId <= 0) return "";
+  if (!Number.isFinite(userId) || userId <= 0) return "";
+  return `${STORE_MODE_DRAFT_PREFIX}:${organizationId}:${userId}`;
+};
+
+const readStoreModeDraft = (key) => {
+  if (!key || typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== STORE_MODE_DRAFT_VERSION || !parsed?.data || typeof parsed.data !== "object") {
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoreModeDraft = (key, data) => {
+  if (!key || typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    key,
+    JSON.stringify({
+      version: STORE_MODE_DRAFT_VERSION,
+      savedAt: Date.now(),
+      data,
+    })
+  );
+};
+
+const clearStoreModeDraft = (key) => {
+  if (!key || typeof window === "undefined") return;
+  window.sessionStorage.removeItem(key);
+};
+
 function StoreMode() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const customerPickerRef = useRef(null);
+  const restoredDraftKeyRef = useRef("");
   const [hoveredImage, setHoveredImage] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -139,6 +219,7 @@ function StoreMode() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
+  const draftStorageKey = useMemo(() => getStoreModeDraftKey(user), [user]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -213,6 +294,27 @@ function StoreMode() {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!draftStorageKey || restoredDraftKeyRef.current === draftStorageKey) return;
+    const draft = readStoreModeDraft(draftStorageKey);
+    if (draft) {
+      setSelectedProductId(Number.isFinite(Number(draft.selectedProductId)) ? Number(draft.selectedProductId) : null);
+      setOrderItems(sanitizeDraftOrderItems(draft.orderItems));
+      setCustomerName(sanitizeDraftString(draft.customerName, 160));
+      setCustomerContact(sanitizeDraftString(draft.customerContact, 160));
+      setSelectedCustomer(sanitizeDraftCustomer(draft.selectedCustomer));
+      setPaymentMethod(draft.paymentMethod === "momo" ? "momo" : "cash");
+      setMomoReference(sanitizeDraftString(draft.momoReference, 120));
+      setDiscountType(draft.discountType === "percent" ? "percent" : "amount");
+      setDiscountValue(sanitizeDraftString(draft.discountValue, 32));
+      setCashReceived(sanitizeDraftString(draft.cashReceived, 32));
+      setCustomerDropdownOpen(false);
+      setSubmitError("");
+      setSuccess("");
+    }
+    restoredDraftKeyRef.current = draftStorageKey;
+  }, [draftStorageKey]);
 
   const categories = useMemo(() => {
     const values = new Set();
@@ -291,17 +393,6 @@ function StoreMode() {
 
   const showAddCustomerOption = Boolean(normalizedCustomerLookup) && !hasExactCustomerMatch;
 
-  const customerFieldNote = useMemo(() => {
-    if (customersError) return customersError;
-    if (selectedCustomer?.id) {
-      return `Using ${getCustomerLabel(selectedCustomer)} from the customer directory.`;
-    }
-    if (showAddCustomerOption) {
-      return "Select add customer to create a new directory record with the entered name or email.";
-    }
-    return "Search the customer directory or add a new customer from this field.";
-  }, [customersError, selectedCustomer, showAddCustomerOption]);
-
   const orderQtyById = useMemo(
     () => new Map(orderItems.map((item) => [item.productId, item.quantity])),
     [orderItems]
@@ -313,6 +404,12 @@ function StoreMode() {
     const compareNumber = (left, right) => (left - right) * direction;
 
     return [...visibleItems].sort((left, right) => {
+      const leftOutOfStock = getQuantity(left) <= 0;
+      const rightOutOfStock = getQuantity(right) <= 0;
+      if (leftOutOfStock !== rightOutOfStock) {
+        return leftOutOfStock ? 1 : -1;
+      }
+
       switch (sortConfig.key) {
         case "sku":
           return compareText(
@@ -325,17 +422,12 @@ function StoreMode() {
           return compareNumber(getUnitPrice(left), getUnitPrice(right));
         case "stock":
           return compareNumber(getQuantity(left), getQuantity(right));
-        case "order":
-          return compareNumber(
-            orderQtyById.get(Number(left?.id)) || 0,
-            orderQtyById.get(Number(right?.id)) || 0
-          );
         case "item":
         default:
           return compareText(String(left?.name || ""), String(right?.name || ""));
       }
     });
-  }, [orderQtyById, sortConfig.direction, sortConfig.key, visibleItems]);
+  }, [sortConfig.direction, sortConfig.key, visibleItems]);
 
   const requestSort = (key) => {
     setSortConfig((prev) => {
@@ -352,7 +444,7 @@ function StoreMode() {
   };
 
   const sortHeaderClassName = (key) =>
-    `sort-header store-mode-sort-header${sortConfig.key === key ? " is-active" : ""}`;
+    `store-mode-sort-header${sortConfig.key === key ? " is-active" : ""}`;
 
   const orderCurrency = useMemo(() => orderItems[0]?.currency || "GHS", [orderItems]);
   const subtotal = useMemo(
@@ -380,6 +472,35 @@ function StoreMode() {
     () => new Map(items.map((item) => [Number(item.id), item])),
     [items]
   );
+
+  useEffect(() => {
+    if (!items.length) return;
+    setOrderItems((current) => {
+      let changed = false;
+      const next = current.map((item) => {
+        const latest = inventoryById.get(Number(item.productId));
+        if (!latest) return item;
+        const synced = {
+          ...item,
+          name: latest?.name || item.name,
+          unitPrice: getUnitPrice(latest),
+          stock: getQuantity(latest),
+          currency: latest?.currency || item.currency || "GHS",
+        };
+        if (
+          synced.name !== item.name ||
+          synced.unitPrice !== item.unitPrice ||
+          synced.stock !== item.stock ||
+          synced.currency !== item.currency
+        ) {
+          changed = true;
+        }
+        return synced;
+      });
+      return changed ? next : current;
+    });
+  }, [inventoryById, items.length]);
+
   const itemCount = useMemo(
     () => orderItems.reduce((sum, item) => sum + item.quantity, 0),
     [orderItems]
@@ -392,6 +513,50 @@ function StoreMode() {
     !(paymentMethod === "cash" && cashShortfall > 0) &&
     !(paymentMethod === "momo" && !normalizedMomoReference);
   const canPayLater = orderItems.length > 0 && receiptContact.channel === "email";
+
+  useEffect(() => {
+    if (!draftStorageKey || restoredDraftKeyRef.current !== draftStorageKey) return;
+    const draft = {
+      selectedProductId: Number.isFinite(Number(selectedProductId)) ? Number(selectedProductId) : null,
+      orderItems,
+      customerName,
+      customerContact,
+      selectedCustomer,
+      paymentMethod,
+      momoReference,
+      discountType,
+      discountValue,
+      cashReceived,
+    };
+    const hasDraft =
+      draft.orderItems.length > 0 ||
+      Boolean(normalizeText(draft.customerName)) ||
+      Boolean(normalizeText(draft.customerContact)) ||
+      Boolean(draft.selectedCustomer?.id) ||
+      draft.paymentMethod !== "cash" ||
+      draft.discountType !== "amount" ||
+      Boolean(normalizeText(draft.momoReference)) ||
+      Boolean(normalizeText(draft.discountValue)) ||
+      Boolean(normalizeText(draft.cashReceived));
+
+    if (hasDraft) {
+      writeStoreModeDraft(draftStorageKey, draft);
+    } else {
+      clearStoreModeDraft(draftStorageKey);
+    }
+  }, [
+    cashReceived,
+    customerContact,
+    customerName,
+    discountType,
+    discountValue,
+    draftStorageKey,
+    momoReference,
+    orderItems,
+    paymentMethod,
+    selectedCustomer,
+    selectedProductId,
+  ]);
 
   const addToOrder = (product) => {
     const productId = Number(product?.id);
@@ -454,6 +619,7 @@ function StoreMode() {
     setCashReceived("");
     setSubmitError("");
     setSuccess("");
+    clearStoreModeDraft(draftStorageKey);
   };
 
   const showImagePreview = useCallback((src, name) => {
@@ -814,16 +980,7 @@ function StoreMode() {
                       Stock <span className="sort-indicator">{sortIndicator("stock")}</span>
                     </button>
                   </th>
-                  <th className="store-mode-col store-mode-col--order">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("order")}
-                      onClick={() => requestSort("order")}
-                      aria-pressed={sortConfig.key === "order"}
-                    >
-                      Order <span className="sort-indicator">{sortIndicator("order")}</span>
-                    </button>
-                  </th>
+                  <th className="store-mode-col store-mode-col--order">Order</th>
                 </tr>
               </thead>
               <tbody>
@@ -1023,7 +1180,6 @@ function StoreMode() {
                     <small
                       className={`store-builder-field-note ${customersError ? "is-error" : selectedCustomer?.id ? "is-valid" : ""}`}
                     >
-                      {customerFieldNote}
                     </small>
                   </label>
 

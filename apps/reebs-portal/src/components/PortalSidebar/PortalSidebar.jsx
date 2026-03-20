@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -34,11 +34,20 @@ import {
   faXmark,
   faArrowRightFromBracket,
   faArrowRightToBracket,
+  faExternalLinkAlt,
+  faMagnifyingGlass,
 } from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
 import { WEBSITE_URL } from "../../utils/website";
 
 const MOBILE_QUERY = "(max-width: 720px)";
+const REEBS_PORTAL_LOGO = "/imgs/icons/logo2-white.svg";
+
+const getSearchShortcutLabel = () => {
+  if (typeof navigator === "undefined") return "Ctrl K";
+  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? "Cmd K" : "Ctrl K";
+};
 
 const DEFAULT_APPS = [
   {
@@ -209,6 +218,8 @@ const formatNotificationTime = (date) => {
 function PortalSidebar({ apps = DEFAULT_APPS }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const searchFieldRef = useRef(null);
+  const pendingSearchFocusRef = useRef(false);
   const [expanded, setExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -221,6 +232,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const [notificationsError, setNotificationsError] = useState("");
   const [notificationPayload, setNotificationPayload] = useState({ orders: [], bookings: [] });
   const [readNotifications, setReadNotifications] = useState(() => new Set());
+  const [navQuery, setNavQuery] = useState("");
   const { user, logout, authReady } = useAuth();
   const isAuthenticated = Boolean(user);
   const userRole = String(user?.role || "staff").toLowerCase();
@@ -234,6 +246,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     user?.email ||
     (authReady ? "Not signed in" : "Loading...");
   const displayEmail = user?.personalEmail || user?.email || (authReady ? "Sign in required" : "Loading...");
+  const roleLabel = isWaterUser
+    ? "Water workspace"
+    : `${String(user?.role || "Staff").replace(/^./, (value) => value.toUpperCase())} workspace`;
   const userInitials = isAuthenticated
     ? displayName
       .split(/\s+/)
@@ -248,6 +263,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     () => `reebs_notifications_read_${user?.id || "guest"}`,
     [user?.id]
   );
+  const searchShortcutLabel = useMemo(() => getSearchShortcutLabel(), []);
 
   const normalizedPath = useMemo(() => normalizePath(location.pathname), [location.pathname]);
 
@@ -299,6 +315,50 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMobile, overlayOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleKeyDown = (event) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() !== "k") return;
+
+      event.preventDefault();
+      pendingSearchFocusRef.current = true;
+
+      if (isMobile) {
+        setOverlayOpen(true);
+        return;
+      }
+
+      if (!expanded) {
+        setExpanded(true);
+        return;
+      }
+
+      searchFieldRef.current?.focus();
+      searchFieldRef.current?.select?.();
+      pendingSearchFocusRef.current = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [expanded, isMobile]);
+
+  useEffect(() => {
+    if (!pendingSearchFocusRef.current) return;
+    if (isMobile && !overlayOpen) return;
+    if (!isMobile && !expanded) return;
+    if (typeof window === "undefined") return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      searchFieldRef.current?.focus();
+      searchFieldRef.current?.select?.();
+      pendingSearchFocusRef.current = false;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [expanded, isMobile, overlayOpen]);
 
   useEffect(() => {
     if (!authReady || !isAuthenticated || isWaterUser) {
@@ -386,16 +446,47 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return app.roles.some((role) => String(role).toLowerCase() === userRole);
   };
 
+  const visibleApps = useMemo(
+    () => apps.filter((app) => canSeeApp(app)),
+    [apps, isAuthenticated, isWaterUser, userRole]
+  );
+
+  const filteredApps = useMemo(() => {
+    const term = navQuery.trim().toLowerCase();
+    if (!term) return visibleApps;
+
+    return visibleApps.filter((app) =>
+      [app.label, app.description, app.path]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term))
+    );
+  }, [navQuery, visibleApps]);
+
+  const renderSearch = (context = "sidebar") => (
+    <label
+      className={`portal-sidebar__search portal-sidebar__search--${context}`}
+      htmlFor={`portal-sidebar-search-${context}`}
+    >
+      <AppIcon icon={faMagnifyingGlass} className="portal-sidebar__search-icon" />
+      <input
+        id={`portal-sidebar-search-${context}`}
+        ref={searchFieldRef}
+        type="search"
+        className="portal-sidebar__search-input"
+        value={navQuery}
+        onChange={(event) => setNavQuery(event.target.value)}
+        placeholder="Search portal..."
+      />
+      <span className="portal-sidebar__search-hint">{searchShortcutLabel}</span>
+    </label>
+  );
+
   const renderLinks = (context = "sidebar") => (
-    <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
-      {apps.filter(canSeeApp).map((app) => {
+    filteredApps.length > 0 ? (
+      <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
+        {filteredApps.map((app) => {
         const active = isActive(app);
-        const linkClasses = [
-          "portal-sidebar__link",
-          context === "overlay" ? "portal-sidebar__link--overlay" : "",
-          active ? "is-active" : "",
-          app.external ? "portal-sidebar__link--external" : "",
-        ]
+        const linkClasses = ["portal-sidebar__link", active ? "is-active" : ""]
           .filter(Boolean)
           .join(" ");
         if (app.external) {
@@ -413,8 +504,17 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   if (isMobile) setOverlayOpen(false);
                 }}
               >
-                <AppIcon icon={app.icon} />
-                <span>{app.label}</span>
+                <span className="portal-sidebar__link-main">
+                  <span className="portal-sidebar__link-icon" aria-hidden="true">
+                    <AppIcon icon={app.icon} />
+                  </span>
+                  <span className="portal-sidebar__link-label">{app.label}</span>
+                </span>
+                <AppIcon
+                  icon={faExternalLinkAlt}
+                  className="portal-sidebar__link-trailing"
+                  aria-hidden="true"
+                />
               </a>
             </li>
           );
@@ -430,13 +530,26 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 if (isMobile && overlayOpen) setOverlayOpen(false);
               }}
             >
-              <AppIcon icon={app.icon} />
-              <span>{app.label}</span>
+              <span className="portal-sidebar__link-main">
+                <span className="portal-sidebar__link-icon" aria-hidden="true">
+                  <AppIcon icon={app.icon} />
+                </span>
+                <span className="portal-sidebar__link-label">{app.label}</span>
+              </span>
             </Link>
           </li>
         );
-      })}
-    </ul>
+        })}
+      </ul>
+    ) : (
+      <p className="portal-sidebar__empty" role="status" aria-live="polite">
+        {navQuery.trim()
+          ? `No modules match "${navQuery.trim()}".`
+          : isAuthenticated
+            ? "No portal modules are available."
+            : "Sign in to view portal modules."}
+      </p>
+    )
   );
 
   const handleSignOut = () => {
@@ -782,17 +895,35 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             onClick={() => setOverlayOpen(false)}
           >
             <div className="portal-sidebar__overlay-content" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="portal-sidebar__overlay-close"
-                onClick={() => setOverlayOpen(false)}
-                aria-label="Close menu"
-              >
-                <AppIcon icon={faXmark} />
-              </button>
-              {renderUserSection("overlay")}
+              <div className="portal-sidebar__overlay-header">
+                <Link
+                  to="/admin"
+                  className="portal-sidebar__brand"
+                  onClick={() => setOverlayOpen(false)}
+                >
+                  <span className="portal-sidebar__brand-mark" aria-hidden="true">
+                    <img src={REEBS_PORTAL_LOGO} alt="" />
+                  </span>
+                  <span className="portal-sidebar__brand-copy">
+                    <span className="portal-sidebar__brand-kicker">{roleLabel}</span>
+                    <span className="portal-sidebar__brand-full">REEBS Portal</span>
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  className="portal-sidebar__overlay-close"
+                  onClick={() => setOverlayOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <AppIcon icon={faXmark} />
+                </button>
+              </div>
+              {renderSearch("overlay")}
               {renderNotifications("overlay")}
-              <nav aria-label="Portal apps">{renderLinks("overlay")}</nav>
+              <nav className="portal-sidebar__overlay-nav" aria-label="Portal apps">
+                {renderLinks("overlay")}
+              </nav>
+              {renderUserSection("overlay")}
             </div>
           </div>,
           document.body
@@ -802,30 +933,43 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   return (
     <>
       <aside className={`portal-sidebar ${expanded ? "is-expanded" : ""}`} aria-label="Portal navigation">
-        <div className="portal-sidebar__brand">
-          <span className="portal-sidebar__brand-short">R</span>
-          <span className="portal-sidebar__brand-full">Reebs ERP</span>
+        <div className="portal-sidebar__panel">
+          <div className="portal-sidebar__header">
+            <Link to="/admin" className="portal-sidebar__brand">
+              <span className="portal-sidebar__brand-mark" aria-hidden="true">
+                <img src={REEBS_PORTAL_LOGO} alt="" />
+              </span>
+              <span className="portal-sidebar__brand-copy">
+                <span className="portal-sidebar__brand-kicker">{roleLabel}</span>
+                <span className="portal-sidebar__brand-full">REEBS Portal</span>
+              </span>
+            </Link>
+            <div className="portal-sidebar__toggle">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMobile) {
+                    setOverlayOpen(true);
+                    return;
+                  }
+                  setExpanded((prev) => !prev);
+                }}
+                className="portal-sidebar__toggle-btn"
+                aria-label={isMobile ? "Open menu" : expanded ? "Collapse navigation" : "Expand navigation"}
+              >
+                <AppIcon icon={isMobile ? faBars : expanded ? faChevronLeft : faBars} />
+              </button>
+            </div>
+          </div>
+          {!isMobile && expanded && renderSearch()}
+          {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
+          {!isMobile && (
+            <div className="portal-sidebar__footer">
+              {renderNotifications()}
+              {renderUserSection()}
+            </div>
+          )}
         </div>
-        {!isMobile && renderUserSection()}
-        <div className="portal-sidebar__toggle">
-          <button
-            type="button"
-            onClick={() => {
-              if (isMobile) {
-                setOverlayOpen(true);
-                return;
-              }
-              setExpanded((prev) => !prev);
-            }}
-            className="portal-sidebar__toggle-btn"
-            aria-label={isMobile ? "Open menu" : "Toggle navigation"}
-          >
-            <AppIcon icon={isMobile ? faBars : expanded ? faChevronLeft : faBars} />
-            {!isMobile && <span>{expanded ? "Collapse" : "Explore"}</span>}
-          </button>
-        </div>
-        {!isMobile && renderNotifications()}
-        {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
       </aside>
       {mobileOverlay}
     </>

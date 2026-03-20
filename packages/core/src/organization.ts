@@ -15,6 +15,9 @@ export const AUTH_INVALID_EVENT = "reebs:auth-invalid";
 
 const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
 const DEFAULT_LOCAL_BACKEND_BASE_URL = "http://localhost:8888";
+const USE_FUNCTION_PROXY_IN_DEV = ["1", "true", "yes", "on"].includes(
+  String(import.meta.env?.VITE_FUNCTIONS_VIA_PROXY || "").trim().toLowerCase(),
+);
 
 const getLocalDevBackendBaseUrl = () => {
   if (typeof window === "undefined") return "";
@@ -259,6 +262,7 @@ const isNetlifyFunctionRequest = (url: string) => {
 const resolveBackendUrl = (url: string) => {
   if (!url.startsWith("/.netlify/functions/")) return url;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (import.meta.env?.DEV && USE_FUNCTION_PROXY_IN_DEV) return url;
   if (!BACKEND_BASE_URL) return url;
 
   try {

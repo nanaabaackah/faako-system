@@ -4,16 +4,12 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import {
-  ensureAuditColumns,
-  backfillAuditDefaults,
-  findDefaultAdmin,
   resolveActor,
   normalizeActor,
 } from "./auditHelpers.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { notifyManager } from "./_shared/managerPush.js";
 import {
-  backfillProductVendorLinksFromProducts,
   ensureProductVendorLinksTable,
   getProductVendorIdsMap,
   parseVendorIdsInput,
@@ -44,6 +40,10 @@ const barcodeColumnStatements = [
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "barcode" TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "product_barcode_org_unique"
     ON "product" ("organizationId", "barcode")`,
+];
+const inventoryAuditColumnStatements = [
+  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "lastUpdatedByUserId" INTEGER`,
+  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "lastUpdatedAt" TIMESTAMPTZ DEFAULT NOW()`,
 ];
 const vendorColumnStatements = [`ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "vendorId" INTEGER`];
 const inventoryEditRequestStatements = [
@@ -83,9 +83,56 @@ const inventoryEditRequestStatements = [
 ];
 const EDITABLE_FIELDS_BY_MANAGER = new Set(["name", "description", "priceCents", "stock"]);
 
+let hasEnsuredInventoryReadSchema = false;
+let inventoryReadSchemaPromise = null;
+let hasEnsuredInventoryWriteSchema = false;
+let inventoryWriteSchemaPromise = null;
+
 const parseNumber = (value, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+};
+
+const ensureInventoryReadSchema = async (client) => {
+  if (hasEnsuredInventoryReadSchema) return;
+
+  if (!inventoryReadSchemaPromise) {
+    inventoryReadSchemaPromise = (async () => {
+      for (const statement of inventoryAuditColumnStatements) {
+        try {
+          await client.query(statement);
+        } catch (err) {
+          console.warn("Inventory audit column check failed:", err?.message || err);
+        }
+      }
+      await ensureProductStatusColumns(client);
+      await ensureProductBarcodeColumn(client);
+      await ensureProductVendorColumn(client);
+      await ensureProductVendorLinksTable(client);
+      hasEnsuredInventoryReadSchema = true;
+    })().finally(() => {
+      inventoryReadSchemaPromise = null;
+    });
+  }
+
+  await inventoryReadSchemaPromise;
+};
+
+const ensureInventoryWriteSchema = async (client) => {
+  await ensureInventoryReadSchema(client);
+  if (hasEnsuredInventoryWriteSchema) return;
+
+  if (!inventoryWriteSchemaPromise) {
+    inventoryWriteSchemaPromise = (async () => {
+      await ensureInventoryEditRequestTable(client);
+      await ensureSourceCategoryValue(client, "WATER");
+      hasEnsuredInventoryWriteSchema = true;
+    })().finally(() => {
+      inventoryWriteSchemaPromise = null;
+    });
+  }
+
+  await inventoryWriteSchemaPromise;
 };
 
 const toCents = (value) => {
@@ -315,17 +362,11 @@ export async function handler(event = {}) {
     }
 
     const organizationId = Number(authenticatedUser.organizationId);
-    await ensureAuditColumns(client);
-    await ensureProductStatusColumns(client);
-    await ensureProductBarcodeColumn(client);
-    await ensureProductVendorColumn(client);
-    await ensureProductVendorLinksTable(client);
-    await backfillProductVendorLinksFromProducts(client, organizationId);
-    await ensureInventoryEditRequestTable(client);
-    await ensureSourceCategoryValue(client, "WATER");
-    const admin = await findDefaultAdmin(client, organizationId);
-    if (admin?.id) {
-      await backfillAuditDefaults(client, admin.id, organizationId);
+    const needsWriteSchema = method !== "GET" || requestedView === "edit-requests";
+    if (needsWriteSchema) {
+      await ensureInventoryWriteSchema(client);
+    } else {
+      await ensureInventoryReadSchema(client);
     }
 
     if (method === "GET") {

@@ -20,7 +20,9 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import {
+  buildCustomerBookingEmailHtml,
   buildCustomerBookingEmailText,
+  buildInternalBookingEmailHtml,
   buildInternalBookingEmailText,
 } from "./_shared/transactionEmailTemplates.js";
 
@@ -604,12 +606,16 @@ export async function handler(event) {
               to: getNotificationCatchallEmail(),
               subject: `New booking #${createdBooking?.id || ""}`.trim(),
               text: buildInternalBookingEmailText(createdBooking),
+              html: buildInternalBookingEmailHtml(createdBooking),
             }),
             createdBooking?.customerEmail
               ? sendNotificationEmail({
                   to: createdBooking.customerEmail,
                   subject: `We received your booking #${createdBooking?.id || ""}`.trim(),
                   text: buildCustomerBookingEmailText(createdBooking, {
+                    supportEmail: getNotificationCatchallEmail(),
+                  }),
+                  html: buildCustomerBookingEmailHtml(createdBooking, {
                     supportEmail: getNotificationCatchallEmail(),
                   }),
                 })

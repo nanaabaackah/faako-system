@@ -1,4 +1,7 @@
 import { APP_ENV } from "../../../runtimeEnv.js";
+import emailKit from "../../../../../packages/email-kit/src/index.cjs";
+
+const { EMAIL_THEMES, renderNotice } = emailKit;
 
 const DEFAULT_CATCHALL_EMAIL = "info@reebspartythemes.com";
 const DEFAULT_FROM_EMAIL = `REEBS Party Themes <${DEFAULT_CATCHALL_EMAIL}>`;
@@ -59,7 +62,7 @@ const toBrevoRecipient = (value, fallback = {}) => {
 };
 
 const getReplyToEmail = () => readEnv("EMAIL_REPLY_TO") || getNotificationCatchallEmail();
-const getForcedEmailRecipient = () => readEnv("EMAIL_FORCE_TO");
+export const getForcedEmailRecipient = () => readEnv("EMAIL_FORCE_TO");
 
 export const getNotificationCatchallEmail = () =>
   readEnv("EMAIL_CATCHALL_TO") || DEFAULT_CATCHALL_EMAIL;
@@ -71,6 +74,7 @@ export const sendNotificationEmail = async ({
   to,
   subject,
   text,
+  html = "",
   replyTo = getReplyToEmail(),
 }) => {
   const recipients = normalizeRecipients(to);
@@ -94,6 +98,20 @@ export const sendNotificationEmail = async ({
     ? `[Local test] ${normalizedSubject}`
     : normalizedSubject;
   const finalText = `${redirectHeader}${normalizedText}`.trim();
+  const redirectHtml = shouldForceRecipient && html
+    ? renderNotice({
+        theme: EMAIL_THEMES.reebs,
+        title: "Local email redirect active",
+        tone: "warning",
+        lines: [
+          `Original recipient(s): ${recipients.join(", ") || "none"}`,
+          `Delivered to: ${forcedRecipient}`,
+        ],
+      })
+    : "";
+  const finalHtml = html
+    ? `${redirectHtml}${html}`.trim()
+    : "";
 
   if (!isEmailNotificationsEnabled()) {
     return { skipped: true, reason: "disabled" };
@@ -128,6 +146,7 @@ export const sendNotificationEmail = async ({
       to: toRecipients,
       subject: finalSubject,
       textContent: finalText,
+      htmlContent: finalHtml || undefined,
       replyTo: replyToRecipient || undefined,
     }),
   });

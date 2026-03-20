@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-export const USER_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+export const USER_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 6;
 const TOUCH_INTERVAL_SQL = "5 minutes";
 
 export const ensureUserSessionsTable = async (client) => {
