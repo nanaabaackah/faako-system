@@ -4,6 +4,8 @@
 
 [functions]
   directory = "/apps/faako-api/netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["pg", "pg-pool", "pgpass", "pg-types", "pg-protocol", "pg-connection-string"]
 
 [[redirects]]
   from = "/*"
