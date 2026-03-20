@@ -7,7 +7,6 @@ import {
   isAuthTokenExpired,
   setAuthToken,
 } from "../../utils/organization.js";
-import { isPortalAppOrigin } from "../../utils/portal.js";
 
 const AuthContext = createContext(null);
 const SESSION_VALIDATION_TIMEOUT_MS = 6500;
@@ -85,12 +84,6 @@ function AuthProvider({ children }) {
     let isActive = true;
 
     const initializeAuth = async () => {
-      if (!isPortalAppOrigin()) {
-        resetAuthState();
-        if (isActive) setAuthReady(true);
-        return;
-      }
-
       const storedUser = readStoredUser();
       const storedToken = getAuthToken();
 

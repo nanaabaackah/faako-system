@@ -1,0 +1,18 @@
+[build]
+command = "pnpm --filter @faako/reebs-portal build"
+publish = "/apps/reebs-portal/dist"
+
+[dev]
+command = "pnpm --filter @faako/reebs-portal dev -- --host 0.0.0.0 --port 5174"
+targetPort = 5174
+port = 8888
+functions = "netlify/functions"
+
+[functions]
+directory = "/apps/reebs-portal/netlify/functions"
+node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

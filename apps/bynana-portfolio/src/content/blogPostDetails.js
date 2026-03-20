@@ -246,7 +246,7 @@ export const blogPostDetails = [
         ],
       },
       {
-        id: 'reebs-erp',
+        id: 'reebs-portal',
         title: 'Internal ERP capabilities',
         cards: [
           { title: 'Inventory + movement logs', detail: 'Unified catalog with traceable stock updates.' },
@@ -367,4 +367,3 @@ export const blogPostDetails = [
 export const blogPostDetailsBySlug = Object.fromEntries(
   blogPostDetails.map((post) => [post.slug, post]),
 );
-

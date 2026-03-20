@@ -1,4 +1,5 @@
-# Reebs website and ERP share the same Netlify functions backend.
+# Reebs website is a frontend-only site in production.
+# It talks to the portal backend via VITE_BACKEND_BASE_URL / VITE_REEBS_PORTAL_URL.
 [build]
 command = "pnpm --filter @faako/reebs-website build"
 publish = "/apps/reebs-website/dist"
@@ -7,11 +8,7 @@ publish = "/apps/reebs-website/dist"
 command = "pnpm --filter @faako/reebs-website dev -- --host 0.0.0.0 --port 5173"
 targetPort = 5173
 port = 8888
-functions = "../reebs-erp/netlify/functions"
-
-[functions]
-directory = "/apps/reebs-erp/netlify/functions"
-node_bundler = "esbuild"
+functions = "../reebs-portal/netlify/functions"
 
 [[redirects]]
   from = "/*"

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEye, faEyeSlash } from "/src/icons/iconSet";
+import { buildWebsiteUrl } from "../../utils/website";
 
 function Login({ mode = "staff" }) {
   const navigate = useNavigate();
@@ -291,14 +292,16 @@ function Login({ mode = "staff" }) {
               <div className="login-switches">
                 <div className="login-switch">
                   <span>{isCustomer ? "Team member?" : "Booking customer?"}</span>
-                  <Link to={isCustomer ? "/login" : "/customer-login"}>
-                    {isCustomer ? "Staff login" : "Customer login"}
-                  </Link>
+                  {isCustomer ? (
+                    <Link to="/login">Staff login</Link>
+                  ) : (
+                    <a href={buildWebsiteUrl("/customer-login")}>Customer login</a>
+                  )}
                 </div>
 
                 <div className="login-switch">
                   <span>Need help?</span>
-                  <Link to="/contact">Contact REEBS</Link>
+                  <a href={buildWebsiteUrl("/contact")}>Contact REEBS</a>
                 </div>
               </div>
             </div>

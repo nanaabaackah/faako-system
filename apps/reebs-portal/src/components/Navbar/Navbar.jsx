@@ -9,7 +9,7 @@ import { faMagnifyingGlass, faShoppingCart, faSignInAlt, faTimes, faUser } from 
 import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCache';
 import { isOnlineShopItem, isTestCategoryItem } from '/src/utils/frontendInventoryFilters';
 import { getCatalogItemDisplayName } from '/src/utils/itemMediaBackgrounds';
-import { buildPortalUrl } from '../../utils/portal';
+import { buildWebsiteUrl } from '/src/utils/website';
 
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
@@ -17,6 +17,9 @@ const NAV_LINKS = [
   { label: 'Rentals', path: '/Rentals' },
   { label: 'Contact', path: '/Contact' }
 ];
+
+const PORTAL_HOSTNAME = 'portal.reebspartythemes.com';
+const PORTAL_LOGIN_URL = `https://${PORTAL_HOSTNAME}/login`;
 
 const SEARCH_SHORTCUTS = [
   {
@@ -271,8 +274,18 @@ const getAiSearchGuide = (query) => {
   };
 };
 
-const getNavbarLoginTarget = (isAuthenticated) =>
-  buildPortalUrl(isAuthenticated ? '/admin' : '/login');
+const getNavbarLoginTarget = () => {
+  if (!import.meta.env?.PROD || typeof window === 'undefined') {
+    return '/login';
+  }
+
+  const currentHost = window.location.hostname.toLowerCase();
+  if (currentHost === PORTAL_HOSTNAME) {
+    return '/login';
+  }
+
+  return PORTAL_LOGIN_URL;
+};
 
 const isPathActive = (pathname, path) => {
   if (path === '/') return pathname === '/';
@@ -444,8 +457,8 @@ const Navbar = ({ scrollContainerRef }) => {
   };
 
   const isAuthenticated = Boolean(authReady && user);
-  const authPath = getNavbarLoginTarget(isAuthenticated);
-  const useExternalAuthPath = authPath.startsWith('http');
+  const authPath = isAuthenticated ? '/admin' : getNavbarLoginTarget();
+  const useExternalAuthPath = !isAuthenticated && authPath.startsWith('http');
   const authLabel = authReady && user ? 'Dashboard' : 'Sign in';
   const authIcon = authReady && user ? faUser : faSignInAlt;
   const cartItemCount = cart.reduce(
@@ -493,21 +506,22 @@ const Navbar = ({ scrollContainerRef }) => {
 
   const handleSearchNavigate = (path) => {
     closeSearch();
-    navigate(path);
+    if (typeof window === 'undefined') return;
+    window.location.assign(buildWebsiteUrl(path));
   };
 
   const renderLinks = (onClick) => (
     <ul className="navbar-links" role="list">
       {NAV_LINKS.map((item) => (
         <li key={item.path}>
-          <Link
-            to={item.path}
+          <a
+            href={buildWebsiteUrl(item.path)}
             className={isPathActive(location.pathname, item.path) ? 'is-active' : ''}
             aria-current={isPathActive(location.pathname, item.path) ? 'page' : undefined}
             onClick={onClick}
           >
             {item.label}
-          </Link>
+          </a>
         </li>
       ))}
     </ul>
@@ -600,7 +614,7 @@ const Navbar = ({ scrollContainerRef }) => {
         </div>
 
         <div className="navbar-col navbar-col-logo">
-          <Link to="/" className="navbar-logo-link" aria-label="REEBS home">
+          <a href={buildWebsiteUrl('/')} className="navbar-logo-link" aria-label="REEBS home">
             <img
               src="/imgs/brand/reebs_logo.svg"
               alt="REEBS"
@@ -608,7 +622,7 @@ const Navbar = ({ scrollContainerRef }) => {
               height="58"
               decoding="async"
             />
-          </Link>
+          </a>
         </div>
 
         <div className="navbar-col navbar-col-actions">
@@ -640,7 +654,7 @@ const Navbar = ({ scrollContainerRef }) => {
 
       <nav className={`navbar navbar-mobile ${mobileOpen ? 'is-open' : ''}`} aria-label="Mobile navigation">
         <div className="navbar-mobile-top">
-          <Link to="/" className="navbar-logo-link" aria-label="REEBS home">
+          <a href={buildWebsiteUrl('/')} className="navbar-logo-link" aria-label="REEBS home">
             <img
               src="/imgs/brand/reebs_logo.svg"
               alt="REEBS"
@@ -648,7 +662,7 @@ const Navbar = ({ scrollContainerRef }) => {
               height="54"
               decoding="async"
             />
-          </Link>
+          </a>
           <div className="navbar-mobile-top-actions">
             {renderSearchTrigger('navbar-search-btn-mobile')}
             <button

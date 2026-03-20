@@ -4,7 +4,7 @@
 
 Target app boundaries:
 
-- `apps/reebs-erp`
+- `apps/reebs-portal`
 - `apps/reebs-website`
 - `apps/faako-erp`
 - `apps/faako-api`
@@ -46,7 +46,7 @@ Validation results:
 
 Current duplication hotspots from the existing workspace scan:
 
-- `apps/reebs-erp/src` and the original `reebs-website/src` share 117 identical source files.
+- `apps/reebs-portal/src` and the original `reebs-website/src` share 117 identical source files.
 - The overlap is concentrated in admin pages, shared auth/cart/template context, global admin styles, and shell components.
 - `apps/faako-erp/src` is still a direct copy of the previous standalone `faako/apps/erp/src`.
 - `apps/faako-website` and `apps/faako-api` were copied almost verbatim from the previous `faako` repo.
@@ -75,7 +75,7 @@ Shared workspace packages introduced in this step:
 
 App ownership after this step:
 
-- `apps/reebs-erp`
+- `apps/reebs-portal`
   Owns admin routes, backend, Prisma, Netlify functions, and Reebs-specific modules.
 - `apps/reebs-website`
   Owns the public site. Shared template configuration and runtime utilities are now workspace packages instead of duplicated local modules.
@@ -94,7 +94,7 @@ Completed in this increment:
 2. Moved Reebs template-config state and organization/auth-token utilities into `packages/core`.
 3. Moved the shared breadcrumb UI into `packages/ui`.
 4. Added reusable ERP shell primitives and wired `faako-erp` to the shared shell.
-5. Wrapped `reebs-erp` admin routes in the shared shell frame so shell-level design tokens and layout changes can now be applied centrally.
+5. Wrapped `reebs-portal` admin routes in the shared shell frame so shell-level design tokens and layout changes can now be applied centrally.
 6. Added app-local ERP shell config files for Reebs and Faako so branding and module navigation remain app-specific.
 
 Not done yet:
@@ -107,15 +107,15 @@ Not done yet:
 
 Logical moves completed in this step:
 
-- `apps/reebs-erp/src/context/TemplateConfigContext.jsx`
+- `apps/reebs-portal/src/context/TemplateConfigContext.jsx`
   moved to `packages/core/src/templateConfig.tsx`
 - `apps/reebs-website/src/context/TemplateConfigContext.jsx`
   moved to `packages/core/src/templateConfig.tsx`
-- `apps/reebs-erp/src/utils/organization.js`
+- `apps/reebs-portal/src/utils/organization.js`
   moved to `packages/core/src/organization.ts`
 - `apps/reebs-website/src/utils/organization.js`
   moved to `packages/core/src/organization.ts`
-- `apps/reebs-erp/src/components/AdminBreadcrumb/AdminBreadcrumb.jsx`
+- `apps/reebs-portal/src/components/AdminBreadcrumb/AdminBreadcrumb.jsx`
   moved to `packages/ui/src/ErpBreadcrumb.tsx`
 - `apps/reebs-website/src/components/AdminBreadcrumb/AdminBreadcrumb.jsx`
   moved to `packages/ui/src/ErpBreadcrumb.tsx`

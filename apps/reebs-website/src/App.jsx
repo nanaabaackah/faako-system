@@ -12,11 +12,13 @@ import PartyConfetti from "./components/PartyConfetti/PartyConfetti";
 import { faArrowRight } from "./icons/iconSet";
 import useScrollReveal from "./hooks/useScrollReveal";
 import { applySeo } from "./utils/seo";
+import { buildPortalUrl } from "./utils/portal";
 
 const Home = lazy(() => import("./pages/Home/Home"));
 const Footer = lazy(() => import("./components/Footer/Footer"));
 
 const Login = lazy(() => import("./pages/Login/Login"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword/ResetPassword"));
 const About = lazy(() => import("./pages/About/About"));
 const Book = lazy(() => import("./pages/Book/Book"));
 const Cart = lazy(() => import("./pages/Cart/Cart"));
@@ -31,8 +33,6 @@ const RentalItem = lazy(() => import("./pages/RentalItem/RentalItem"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService/TermsOfService"));
 const Shop = lazy(() => import("./pages/Shop/Shop"));
 
-const normalizeRole = (role) => String(role || "").trim().toLowerCase();
-
 function RouteFallback() {
   return (
     <SiteLoader
@@ -43,31 +43,6 @@ function RouteFallback() {
   );
 }
 
-function RequireAuth({ children }) {
-  const { user, authReady } = useAuth();
-  const location = useLocation();
-  if (!authReady) return <RouteFallback />;
-  if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  const normalizedPath = location.pathname.toLowerCase();
-  const role = normalizeRole(user?.role);
-  if (role === "water" && normalizedPath.startsWith("/admin") && normalizedPath !== "/admin/water") {
-    return <Navigate to="/admin/water" replace />;
-  }
-  return children;
-}
-
-function RequireRole({ allowedRoles = [], children }) {
-  const { user, authReady } = useAuth();
-  if (!authReady) return <RouteFallback />;
-  if (!allowedRoles.length) return children;
-  const role = normalizeRole(user?.role);
-  const canAccess = allowedRoles.some((allowed) => normalizeRole(allowed) === role);
-  if (!canAccess) return <Navigate to="/admin" replace />;
-  return children;
-}
-
 function PublicOnly({ children }) {
   const { user, authReady } = useAuth();
   if (!authReady) return <RouteFallback />;
@@ -75,15 +50,28 @@ function PublicOnly({ children }) {
   return children;
 }
 
-function DefaultRedirect() {
-  const { user, authReady } = useAuth();
-  if (!authReady) return <RouteFallback />;
-  return <Navigate to={user ? "/admin" : "/"} replace />;
+function PortalRedirect({ targetPath = "" }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const nextPath =
+      targetPath
+      || `${location.pathname}${location.search || ""}${location.hash || ""}`;
+    const targetUrl = buildPortalUrl(nextPath);
+
+    if (window.location.href === targetUrl) return;
+    window.location.replace(targetUrl);
+  }, [location.hash, location.pathname, location.search, targetPath]);
+
+  return <RouteFallback />;
 }
 
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/admin/*" element={<PortalRedirect />} />
       <Route path="/" element={<Home />} />
       <Route path="/home" element={<Home />} />
       <Route path="/about" element={<About />} />
@@ -102,11 +90,10 @@ function AppRoutes() {
       <Route
         path="/login"
         element={
-          <PublicOnly>
-            <Login />
-          </PublicOnly>
+          <PortalRedirect targetPath="/login" />
         }
       />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/delivery-policy" element={<DeliveryPolicy />} />
       <Route path="/faq" element={<FAQ />} />
       <Route path="/gallery" element={<Navigate to="/about" replace />} />
@@ -127,8 +114,11 @@ function App() {
     const publicScrollRef = useRef(null);
     const [showShellCta, setShowShellCta] = useState(false);
     const pathname = location.pathname.toLowerCase();
-    const isAdminRoute = pathname.startsWith("/admin");
-    const isAuthRoute = pathname === "/login" || pathname === "/customer-login";
+    const isPortalRoute = pathname.startsWith("/admin");
+    const isAuthRoute =
+      pathname === "/login"
+      || pathname === "/customer-login"
+      || pathname === "/reset-password";
     const isHomeRoute = pathname === "/" || pathname === "/home";
     const routes = (
       <Suspense fallback={<RouteFallback />}>
@@ -140,16 +130,32 @@ function App() {
 
     useEffect(() => {
 
-      if (isAuthRoute) {
-        const isCustomerLogin = pathname === "/customer-login";
+      if (isPortalRoute) {
         applySeo({
           pathname: location.pathname,
-          title: isCustomerLogin
-            ? "Customer Login | REEBS Party Themes"
-            : "Staff Login | REEBS Party Themes",
-          description: isCustomerLogin
-            ? "Customer access page for returning booking and checkout visitors."
-            : "Secure sign-in for REEBS administrators and staff.",
+          title: "REEBS Portal | REEBS Party Themes",
+          description: "Protected REEBS portal. Redirecting to the team workspace.",
+          noIndex: true,
+          schema: null,
+        });
+        return;
+      }
+
+      if (isAuthRoute) {
+        const isCustomerLogin = pathname === "/customer-login";
+        const isResetPassword = pathname === "/reset-password";
+        applySeo({
+          pathname: location.pathname,
+          title: isResetPassword
+            ? "Reset Password | REEBS Party Themes"
+            : isCustomerLogin
+              ? "Customer Login | REEBS Party Themes"
+              : "Staff Login | REEBS Party Themes",
+          description: isResetPassword
+            ? "Secure REEBS staff password reset page."
+            : isCustomerLogin
+              ? "Customer access page for returning booking and checkout visitors."
+              : "Secure sign-in for REEBS administrators and staff.",
           noIndex: true,
           schema: null,
         });
@@ -161,39 +167,7 @@ function App() {
         pathname: location.pathname,
         noIndex: noIndexPaths.has(pathname),
       });
-    }, [isAdminRoute, isAuthRoute, location.pathname, pathname]);
-
-    useEffect(() => {
-      if (typeof window === "undefined" || typeof document === "undefined") return undefined;
-
-      const root = document.documentElement;
-      if (!isAdminRoute) {
-        root.removeAttribute("data-admin-theme");
-        return undefined;
-      }
-
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const syncAdminTheme = () => {
-        root.setAttribute("data-admin-theme", mediaQuery.matches ? "dark" : "light");
-      };
-
-      syncAdminTheme();
-
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener("change", syncAdminTheme);
-      } else {
-        mediaQuery.addListener(syncAdminTheme);
-      }
-
-      return () => {
-        if (mediaQuery.removeEventListener) {
-          mediaQuery.removeEventListener("change", syncAdminTheme);
-        } else {
-          mediaQuery.removeListener(syncAdminTheme);
-        }
-        root.removeAttribute("data-admin-theme");
-      };
-    }, [isAdminRoute]);
+    }, [isAuthRoute, isPortalRoute, location.pathname, pathname]);
 
     useEffect(() => {
       if (typeof window === "undefined" || !window.history) return undefined;
@@ -211,11 +185,7 @@ function App() {
 
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 
-      if (isAdminRoute) {
-        const adminContent = document.querySelector(".portal-app-content");
-        if (adminContent instanceof HTMLElement) {
-          adminContent.scrollTo({ top: 0, left: 0, behavior: "auto" });
-        }
+      if (isPortalRoute) {
         return;
       }
 
@@ -223,11 +193,11 @@ function App() {
       if (scrollHost) {
         scrollHost.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
-    }, [location.pathname, location.search, isAdminRoute]);
+    }, [isPortalRoute, location.pathname, location.search]);
 
     useEffect(() => {
       if (typeof document === "undefined") return undefined;
-      if (isAdminRoute) {
+      if (isPortalRoute) {
         document.documentElement.style.setProperty("--scroll-progress", "0");
         setShowShellCta(false);
         return undefined;
@@ -279,20 +249,10 @@ function App() {
         mutationObserver?.disconnect();
         if (rafId) window.cancelAnimationFrame(rafId);
       };
-    }, [isAdminRoute, isHomeRoute, location.pathname]);
+    }, [isHomeRoute, isPortalRoute, location.pathname]);
 
-    if (isAdminRoute) {
-      return (
-        <div className="portal-app-shell">
-          <Suspense fallback={<RouteFallback />}>
-            <PortalSidebar />
-          </Suspense>
-          <div className="portal-app-content">{routes}</div>
-          <Suspense fallback={null}>
-            <AdminBottomNav />
-          </Suspense>
-        </div>
-      );
+    if (isPortalRoute) {
+      return routes;
     }
 
     return (
