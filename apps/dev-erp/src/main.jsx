@@ -7,7 +7,7 @@ import {
   hasStoredSession,
   normalizeLegacySessionToken,
 } from './utils/authSession'
-import { syncMobileBrowserChrome } from '../../../packages/utils/src/mobileBrowserChrome'
+import { syncMobileBrowserChrome } from './utils/mobileBrowserChrome'
 
 const AUTH_CSRF_COOKIE_NAME = import.meta.env.VITE_AUTH_CSRF_COOKIE_NAME || 'dev_kpi_csrf'
 const FETCH_PATCH_FLAG = '__devKpiApiFetchPatched__'
