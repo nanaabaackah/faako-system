@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
-    "pg": "^8.17.1"
+    "pg": "^8.17.1",
+    "pg-pool": "^3.10.1"
   },
   "devDependencies": {
     "netlify-cli": "^23.15.1",
