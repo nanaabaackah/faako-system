@@ -233,6 +233,9 @@ importers:
       pg-connection-string:
         specifier: ^2.12.0
         version: 2.12.0
+      pg-int8:
+        specifier: ^1.0.1
+        version: 1.0.1
       pg-pool:
         specifier: ^3.10.1
         version: 3.13.0(pg@8.20.0)
@@ -245,6 +248,21 @@ importers:
       pgpass:
         specifier: ^1.0.5
         version: 1.0.5
+      postgres-array:
+        specifier: ^2.0.0
+        version: 2.0.0
+      postgres-bytea:
+        specifier: ^1.0.0
+        version: 1.0.1
+      postgres-date:
+        specifier: ^1.0.7
+        version: 1.0.7
+      postgres-interval:
+        specifier: ^1.2.0
+        version: 1.2.0
+      split2:
+        specifier: ^4.2.0
+        version: 4.2.0
     devDependencies:
       netlify-cli:
         specifier: ^23.15.1
@@ -301,6 +319,9 @@ importers:
       pg-connection-string:
         specifier: ^2.12.0
         version: 2.12.0
+      pg-int8:
+        specifier: ^1.0.1
+        version: 1.0.1
       pg-pool:
         specifier: ^3.10.1
         version: 3.13.0(pg@8.20.0)
@@ -313,6 +334,18 @@ importers:
       pgpass:
         specifier: ^1.0.5
         version: 1.0.5
+      postgres-array:
+        specifier: ^2.0.0
+        version: 2.0.0
+      postgres-bytea:
+        specifier: ^1.0.0
+        version: 1.0.1
+      postgres-date:
+        specifier: ^1.0.7
+        version: 1.0.7
+      postgres-interval:
+        specifier: ^1.2.0
+        version: 1.2.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -325,6 +358,9 @@ importers:
       react-router-dom:
         specifier: ^6.30.3
         version: 6.30.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      split2:
+        specifier: ^4.2.0
+        version: 4.2.0
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.7.0
@@ -13593,14 +13629,14 @@ snapshots:
 
   ini@4.1.1: {}
 
-  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
       prop-types: 15.8.1
       react: 16.14.0
       terminal-link: 2.1.1
 
-  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       arr-rotate: 1.0.0
       figures: 3.2.0
@@ -13608,7 +13644,7 @@ snapshots:
       lodash.isequal: 4.5.0
       react: 16.14.0
 
-  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       chalk: 4.1.2
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
@@ -15836,9 +15872,9 @@ snapshots:
       get-port: 5.1.1
       has-yarn: 2.1.0
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
-      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
-      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
-      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
+      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
+      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
+      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
       meow: 7.1.1
       node-fetch: 2.7.0
       open: 7.4.2
