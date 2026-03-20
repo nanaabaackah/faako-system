@@ -1,117 +1,78 @@
-# 🌐 bynana — Developer Portfolio
+# ByNana Portfolio
 
-This is the personal portfolio website of **Nana Aba Ackah**, built to showcase professional experience, technical skills, and select frontend projects. The site is developed using modern web technologies including **React**, **Vite**, and **Tailwind CSS**, and is designed with accessibility, performance, and responsiveness in mind.
+Workspace package: `@faako/bynana-portfolio`
 
----
+Personal portfolio site for Nana Aba Ackah.
 
-## Tech Stack
+This app owns the public frontend plus two serverless integrations: the contact form handler and the trust-stats proxy.
 
-| Tech | Description |
-|------|-------------|
-| **React** | JavaScript library for building interactive UIs |
-| **Vite** | Lightning-fast build tool for modern web development |
-| **Tailwind CSS** | Utility-first CSS framework for responsive design |
-| **React Router** | Handles client-side routing |
-| **Netlify** | Hosting and deployment (specify if used) |
+## What Lives Here
 
----
+- React and Vite frontend in `src/`
+- route screens for home, about, projects, blog, resume, and contact
+- Netlify Functions in `netlify/functions`
+- deploy-time security headers and redirects in `netlify.toml`
 
-## Features
+Current functions:
 
-- Fast, responsive, and SEO-friendly design
-- Clear presentation of skills, tools, and experience
-- Projects section with detailed case study (customizable)
-- External links to GitHub, LinkedIn, and contact
-- Mobile-first responsive layout
-- Accessibility-conscious components and structure
+- `contact-submit`
+- `trust-stats-proxy`
 
----
+## Local Dev
 
-## 🛠 Setup Instructions
-
-1. **Clone the repo:**
+Primary command:
 
 ```bash
-git clone https://github.com/your-username/portfolio-site.git
-cd portfolio-site
+pnpm --filter @faako/bynana-portfolio run dev
 ```
 
-2. **Install dependencies:**
+Useful commands:
 
 ```bash
-npm install
+pnpm --filter @faako/bynana-portfolio run build
+pnpm --filter @faako/bynana-portfolio run preview
+pnpm --filter @faako/bynana-portfolio run lint
 ```
 
-3. **Run locally:**
+The frontend uses the normal Vite dev port.
 
-```bash
-npm run dev
-```
+## Serverless Environment
 
-**Build for Production**
+The frontend itself is static. The sensitive configuration lives only on the Netlify function side.
 
-```bash
-npm run build
-```
+Trust stats proxy settings:
 
-## API Security (Trust Stats)
+- `TRUST_STATS_UPSTREAM_URL`
+- `TRUST_STATS_UPSTREAM_TOKEN`
+- `TRUST_STATS_ALLOWED_ORIGINS`
+- `TRUST_STATS_UPSTREAM_TIMEOUT_MS`
+- `TRUST_STATS_CACHE_CONTROL`
 
-The homepage now reads live trust stats through a Netlify Function proxy:
+Contact function settings:
 
-- Browser calls only: `/api/public/trust-stats`
-- Server function calls upstream API: `netlify/functions/trust-stats-proxy.js`
-- Upstream URL/token stay server-side (not exposed in browser bundle)
-- Response is sanitized to only return `{ "organizations": number }`
+- `RESEND_API_KEY`
+- `CONTACT_NOTIFICATION_TO`
+- `CONTACT_NOTIFICATION_FROM`
+- `CONTACT_NOTIFICATION_SUBJECT_PREFIX`
+- `CONTACT_ALLOWED_ORIGINS`
+- `CONTACT_RATE_LIMIT_WINDOW_MS`
+- `CONTACT_RATE_LIMIT_MAX_REQUESTS`
+- `CONTACT_FORM_SUBMISSION_URL`
+- `CONTACT_FORM_SITE_ORIGIN`
 
-Set these environment variables in Netlify (or local function env):
+Important rule:
 
-- `TRUST_STATS_UPSTREAM_URL` (required): full upstream URL
-- `TRUST_STATS_UPSTREAM_TOKEN` (optional): bearer token for upstream auth
-- `TRUST_STATS_ALLOWED_ORIGINS` (optional): comma-separated origin allowlist
-- `TRUST_STATS_UPSTREAM_TIMEOUT_MS` (optional): upstream timeout in ms
+- none of those values belong in browser-visible `VITE_*` config
 
-## Contact Security
+## Deployment
 
-The contact form now posts to a Netlify Function before forwarding to the static Netlify form target:
+This app has its own Netlify site and config in `apps/bynana-portfolio/netlify.toml`.
 
-- Browser calls only: `/api/contact`
-- Server function validates input, rejects filled honeypots, applies server-side rate limiting, and sends a Resend email notification after the Netlify form submission succeeds
-- A hidden static form definition in `index.html` keeps Netlify form detection intact for production
+Build behavior:
 
-Optional environment variables:
+- Netlify builds with `pnpm --filter @faako/bynana-portfolio build`
+- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio`
+- the publish folder is `apps/bynana-portfolio/dist`
+- function requests are routed through `/api/contact` and `/api/public/trust-stats`
 
-- `RESEND_API_KEY`: required for contact notification emails
-- `CONTACT_NOTIFICATION_TO`: recipient email address for notifications
-- `CONTACT_NOTIFICATION_FROM`: Resend sender identity, for example `Portfolio Contact <onboarding@resend.dev>` or a verified domain sender
-- `CONTACT_NOTIFICATION_SUBJECT_PREFIX`: prefix added to the notification email subject
-- `CONTACT_ALLOWED_ORIGINS`: comma-separated origin allowlist for contact submissions
-- `CONTACT_RATE_LIMIT_WINDOW_MS`: rate-limit window for the contact function
-- `CONTACT_RATE_LIMIT_MAX_REQUESTS`: allowed submissions per client within the window
-- `CONTACT_FORM_SUBMISSION_URL`: explicit absolute URL for the Netlify form submission target
-- `CONTACT_FORM_SITE_ORIGIN`: fallback site origin if forwarded host headers are unavailable
-
-If you are still using Resend's onboarding sender, keep `CONTACT_NOTIFICATION_FROM=Portfolio Contact <onboarding@resend.dev>`. For production deliverability, switch that value to a sender address on a domain you have verified in Resend.
-
-**Folder Structure**
-
-src/
-├── assets/         # Images and static files
-├── components/     # Reusable UI components
-├── pages/          # Route-based views (About, Projects, etc.)
-├── App.jsx
-├── main.jsx
-
-**To Do**
-
-- Add more featured projects
-- Lighthouse performance + accessibility badge
-
-License
-
-This project is open-sourced for learning and inspiration purposes.
-All content and visuals belong to Nana Aba Ackah © 2025.
-
-🌍 [Portfolio Website](nanaabaackah.com)
-💼 [LinkedIn](https://www.linkedin.com/in/nana-aba-ackah/)
-💻 <nanaabaackah@gmail.com>
-📝 [Resume](https://nanaabaackah.com/documents/Nana%20Aba%20Ackah%20Resume.pdf)
+The checked-in Netlify config also sets stricter headers, CORS handling through the functions, and hides upstream trust-stats credentials from the browser.

@@ -79,6 +79,19 @@ model SignupRequest {
   @@index([email])
 }
 
+model RequestThrottle {
+  bucketKey   String   @id
+  scope       String
+  hitCount    Int      @default(0)
+  windowStart DateTime @default(now())
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([scope, expiresAt])
+  @@index([expiresAt])
+}
+
 model Subscription {
   id             String               @id @default(cuid())
   organizationId String?

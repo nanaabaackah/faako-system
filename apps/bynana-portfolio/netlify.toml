@@ -1,5 +1,6 @@
 [build]
   command = "pnpm --filter @faako/bynana-portfolio build"
+  ignore = "node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio"
   publish = "/apps/bynana-portfolio/dist"
 
 [functions]

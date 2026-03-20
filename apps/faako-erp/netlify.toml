@@ -1,5 +1,6 @@
 [build]
   command = "pnpm --filter @faako/faako-erp build"
+  ignore = "node ./scripts/netlify-ignore.mjs @faako/faako-erp"
   publish = "/apps/faako-erp/dist"
 
 [[redirects]]

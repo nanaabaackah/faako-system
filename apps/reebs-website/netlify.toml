@@ -2,6 +2,7 @@
 # It talks to the portal backend via VITE_BACKEND_BASE_URL / VITE_REEBS_PORTAL_URL.
 [build]
 command = "pnpm --filter @faako/reebs-website build"
+ignore = "node ./scripts/netlify-ignore.mjs @faako/reebs-website"
 publish = "/apps/reebs-website/dist"
 
 [dev]

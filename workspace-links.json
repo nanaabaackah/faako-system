@@ -1,0 +1,7 @@
+{
+  "appBuildDependencies": {
+    "@faako/faako-website": [
+      "@faako/faako-api"
+    ]
+  }
+}

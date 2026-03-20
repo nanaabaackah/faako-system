@@ -1,5 +1,6 @@
 [build]
   command = "pnpm --filter @faako/faako-website build"
+  ignore = "node ./scripts/netlify-ignore.mjs @faako/faako-website"
   publish = "/apps/faako-website/dist"
 
 [functions]

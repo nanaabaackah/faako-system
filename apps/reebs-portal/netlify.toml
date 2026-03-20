@@ -1,5 +1,6 @@
 [build]
 command = "pnpm --filter @faako/reebs-portal build"
+ignore = "node ./scripts/netlify-ignore.mjs @faako/reebs-portal"
 publish = "/apps/reebs-portal/dist"
 
 [dev]

@@ -10,9 +10,12 @@
     "dev": "turbo run dev",
     "dev:faako": "node ./scripts/dev-faako.mjs",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
+    "affected:apps": "node ./scripts/affected-apps.mjs",
+    "deploy:check": "node ./scripts/netlify-ignore.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "create:app": "node ./scripts/create-app-from-reference.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0"
