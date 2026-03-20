@@ -625,12 +625,6 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
-
-    // Update Safari/mobile browser chrome color
-    const color = theme === "dark" ? "#3b2f2f" : "#f6f1e8";
-    document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
-      el.setAttribute("content", color);
-    });
   }, [theme]);
   
   const handleToggleTheme = () => {

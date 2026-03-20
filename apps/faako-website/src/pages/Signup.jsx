@@ -160,11 +160,6 @@ const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 
 const resolveApiEndpoint = (path) => {
   const normalizedPath = String(path || "").replace(/^\/+/, "");
-
-  if (!import.meta.env.PROD) {
-    return `/api/${normalizedPath}`;
-  }
-
   const configuredBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "")
     .trim()
     .replace(/\/+$/, "");

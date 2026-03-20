@@ -4,6 +4,7 @@
   --muted: #5b6270;
   --accent: #1d4ed8;
   --surface: #f2f4f8;
+  --browser-chrome-color: var(--surface);
   --card: #ffffff;
   --border: #dfe3ea;
   --radius: 14px;
@@ -18,8 +19,14 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--browser-chrome-color);
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
+  background: var(--surface);
 }
 
 a {

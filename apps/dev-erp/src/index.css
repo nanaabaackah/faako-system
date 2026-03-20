@@ -5,6 +5,7 @@
   --accent: #722f37;
   --accent-soft: rgba(114, 47, 55, 0.16);
   --surface: #f6f1e8;
+  --browser-chrome-color: var(--surface);
   --card: color-mix(in oklab, #f6f1e8, #a8cfa2 16%);
   --border: color-mix(in oklab, #36454f, #f6f1e8 68%);
   --radius: 16px;
@@ -67,6 +68,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  background: var(--browser-chrome-color);
 }
 
 body {

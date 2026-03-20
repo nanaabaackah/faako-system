@@ -1,7 +1,8 @@
 const { Pool } = require("pg");
+const { resolveDatabaseUrl } = require("./runtimeConfig");
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: resolveDatabaseUrl()
 });
 
 const query = (text, params) => pool.query(text, params);

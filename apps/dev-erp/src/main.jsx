@@ -7,6 +7,7 @@ import {
   hasStoredSession,
   normalizeLegacySessionToken,
 } from './utils/authSession'
+import { syncMobileBrowserChrome } from '../../../packages/utils/src/mobileBrowserChrome'
 
 const AUTH_CSRF_COOKIE_NAME = import.meta.env.VITE_AUTH_CSRF_COOKIE_NAME || 'dev_kpi_csrf'
 const FETCH_PATCH_FLAG = '__devKpiApiFetchPatched__'
@@ -136,6 +137,7 @@ const patchApiFetch = () => {
 
 patchApiFetch()
 normalizeLegacySessionToken()
+syncMobileBrowserChrome({ fallbackColor: '#f6f1e8' })
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

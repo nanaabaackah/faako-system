@@ -1,3 +1,5 @@
+import { readMobileBrowserChromeColor } from "../../../../packages/utils/src/mobileBrowserChrome";
+
 const SITE_NAME = "REEBS Party Themes";
 const SITE_URL = "https://www.reebspartythemes.com";
 const DEFAULT_IMAGE = `${SITE_URL}/imgs/promos/banner.jpg`;
@@ -8,7 +10,7 @@ const DEFAULT_KEYWORDS =
 const DEFAULT_LOCALE = "en_GH";
 const DEFAULT_LANGUAGE = "en-GH";
 const DEFAULT_TWITTER = "@reebspartythemes_";
-const DEFAULT_THEME_COLOR = "#f97316";
+const DEFAULT_THEME_COLOR = "#ffffff";
 
 const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
@@ -503,7 +505,10 @@ export const applySeo = ({
   ensureMeta("name", "twitter:site").setAttribute("content", DEFAULT_TWITTER);
   ensureMeta("name", "twitter:url").setAttribute("content", canonical);
 
-  ensureMeta("name", "theme-color").setAttribute("content", DEFAULT_THEME_COLOR);
+  ensureMeta("name", "theme-color").setAttribute(
+    "content",
+    readMobileBrowserChromeColor(DEFAULT_THEME_COLOR)
+  );
 
   ensureLink("canonical").setAttribute("href", canonical);
   ensureAlternateLink("en-GH").setAttribute("href", canonical);

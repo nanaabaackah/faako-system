@@ -8,6 +8,9 @@ import { CurrencyProvider } from "./contexts/CurrencyContext.jsx";
 import "./styles/global.css";
 import "./styles/header.css";
 import "./styles/footer.css";
+import { syncMobileBrowserChrome } from "../../../packages/utils/src/mobileBrowserChrome";
+
+syncMobileBrowserChrome({ fallbackColor: "#fbfbfb" });
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

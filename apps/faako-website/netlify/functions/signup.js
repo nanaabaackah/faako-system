@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
+const { resolveDatabaseUrl } = require("../../src/runtimeConfig");
 
 const BASE_HEADERS = {
   "content-type": "application/json",
@@ -13,23 +14,35 @@ const DEV_ALLOWED_ORIGINS = new Set([
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
+  "http://localhost:5176",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://127.0.0.1:5175",
+  "http://127.0.0.1:5176",
   "http://localhost:8888",
   "http://127.0.0.1:8888",
+  "http://localhost:8889",
+  "http://127.0.0.1:8889",
   "https://faako.nanaabaackah.com",
 ]);
 
-const pool =
-  global.__faakoPgPool ||
-  new Pool({
-    connectionString: process.env.DATABASE_URL
+let pool = global.__faakoPgPool || null;
+
+const getPool = () => {
+  if (pool) {
+    return pool;
+  }
+
+  pool = new Pool({
+    connectionString: resolveDatabaseUrl()
   });
 
-if (!global.__faakoPgPool) {
-  global.__faakoPgPool = pool;
-}
+  if (!global.__faakoPgPool) {
+    global.__faakoPgPool = pool;
+  }
+
+  return pool;
+};
 
 const PACKAGE_RULES = {
   starter: {
@@ -94,6 +107,16 @@ const ACCEPTED_RESPONSE_BODY = JSON.stringify({
   message: "Thanks. We have received your form."
 });
 const RESEND_EMAILS_ENDPOINT = "https://api.resend.com/emails";
+const DEFAULT_TEST_EMAIL_FORWARD_TO = "faako@nanaabaackah.com";
+const NON_PRODUCTION_APP_ENVS = new Set([
+  "development",
+  "dev",
+  "local",
+  "test",
+  "staging",
+  "preview"
+]);
+const NON_PRODUCTION_NODE_ENVS = new Set(["development", "test"]);
 
 const createId = () => crypto.randomUUID();
 
@@ -574,6 +597,48 @@ const formatResendFrom = (email, name) => {
   return `${name} <${email}>`;
 };
 
+const normalizeRuntimeValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const resolveEmailForwardingRecipient = () => {
+  const explicitRecipient = normalizeEmail(process.env.EMAIL_FORCE_TO);
+  if (explicitRecipient) {
+    return explicitRecipient;
+  }
+
+  const deployContext = normalizeRuntimeValue(process.env.CONTEXT);
+  if (deployContext && deployContext !== "production") {
+    return DEFAULT_TEST_EMAIL_FORWARD_TO;
+  }
+
+  const appEnv = normalizeRuntimeValue(process.env.APP_ENV);
+  if (NON_PRODUCTION_APP_ENVS.has(appEnv)) {
+    return DEFAULT_TEST_EMAIL_FORWARD_TO;
+  }
+
+  const nodeEnv = normalizeRuntimeValue(process.env.NODE_ENV);
+  if (NON_PRODUCTION_NODE_ENVS.has(nodeEnv)) {
+    return DEFAULT_TEST_EMAIL_FORWARD_TO;
+  }
+
+  return null;
+};
+
+const withForwardingNotice = (html, intendedRecipient) => {
+  if (!intendedRecipient) {
+    return html;
+  }
+
+  return `
+    <div style="margin:0 0 16px;padding:12px 14px;border:1px solid #f5c26b;border-radius:12px;background:#fff4dd;color:#8a5b00;font:600 13px/1.4 Arial,sans-serif;">
+      Test email forwarding is active. Original recipient: ${escapeHtml(intendedRecipient)}
+    </div>
+    ${html}
+  `;
+};
+
 const sendResendEmail = async ({
   apiKey,
   from,
@@ -623,6 +688,7 @@ const sendSignupPreviewEmails = async (submission) => {
   const adminEmail =
     normalizeOptionalText(process.env.INTAKE_ADMIN_EMAIL, 255) ||
     normalizeOptionalText(process.env.ADMIN_EMAIL, 255);
+  const forwardedRecipient = resolveEmailForwardingRecipient();
 
   if (!resendApiKey || !resendFromEmail) {
     return;
@@ -637,9 +703,11 @@ const sendSignupPreviewEmails = async (submission) => {
       sendResendEmail({
         apiKey: resendApiKey,
         from: resendFrom,
-        to: adminEmail,
-        subject: `[Faako] New Intake - ${submission.companyName}`,
-        html: buildAdminPreviewHtml(submission),
+        to: forwardedRecipient || adminEmail,
+        subject: `${forwardedRecipient ? "[Test Forward] " : ""}[Faako] New Intake - ${submission.companyName}`,
+        html: forwardedRecipient
+          ? withForwardingNotice(buildAdminPreviewHtml(submission), adminEmail)
+          : buildAdminPreviewHtml(submission),
         idempotencyKey: `${submission.signupRequestId}-admin`
       })
     );
@@ -650,9 +718,14 @@ const sendSignupPreviewEmails = async (submission) => {
       sendResendEmail({
         apiKey: resendApiKey,
         from: resendFrom,
-        to: submission.normalizedEmail,
-        subject: "Faako intake received",
-        html: buildClientConfirmationHtml(submission),
+        to: forwardedRecipient || submission.normalizedEmail,
+        subject: `${forwardedRecipient ? "[Test Forward] " : ""}Faako intake received`,
+        html: forwardedRecipient
+          ? withForwardingNotice(
+              buildClientConfirmationHtml(submission),
+              submission.normalizedEmail
+            )
+          : buildClientConfirmationHtml(submission),
         idempotencyKey: `${submission.signupRequestId}-client`
       })
     );
@@ -955,7 +1028,11 @@ exports.handler = async (event) => {
     };
   }
 
-  if (!normalizeOptionalText(process.env.DATABASE_URL, 4096)) {
+  let databaseUrl = "";
+
+  try {
+    databaseUrl = resolveDatabaseUrl();
+  } catch (error) {
     return {
       statusCode: 503,
       headers,
@@ -963,12 +1040,29 @@ exports.handler = async (event) => {
         error: "Signup service is not configured",
         ...(process.env.NODE_ENV === "production"
           ? {}
-          : { debug: { message: "DATABASE_URL is missing" } })
+          : {
+              debug: {
+                message: error instanceof Error ? error.message : "Database configuration is invalid"
+              }
+            })
       })
     };
   }
 
-  const dbClient = await pool.connect();
+  if (!normalizeOptionalText(databaseUrl, 4096)) {
+    return {
+      statusCode: 503,
+      headers,
+      body: JSON.stringify({
+        error: "Signup service is not configured",
+        ...(process.env.NODE_ENV === "production"
+          ? {}
+          : { debug: { message: "Resolved database URL is missing" } })
+      })
+    };
+  }
+
+  const dbClient = await getPool().connect();
 
   try {
     const recentDuplicate = await dbClient.query(

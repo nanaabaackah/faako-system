@@ -63,3 +63,5 @@ export const getErpPageTitle = (
 
   return `${brandName} — ${label}`;
 };
+
+export * from "./mobileBrowserChrome";

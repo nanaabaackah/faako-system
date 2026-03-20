@@ -14,6 +14,18 @@ export const AUTH_TOKEN_STORAGE_KEY = "reebs_auth_token";
 export const AUTH_INVALID_EVENT = "reebs:auth-invalid";
 
 const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
+const DEFAULT_LOCAL_BACKEND_BASE_URL = "http://localhost:8888";
+
+const getLocalDevBackendBaseUrl = () => {
+  if (typeof window === "undefined") return "";
+
+  const hostname = window.location.hostname?.toLowerCase();
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return DEFAULT_LOCAL_BACKEND_BASE_URL;
+  }
+
+  return "";
+};
 
 const getBackendBaseUrl = () => {
   const envBase = import.meta.env?.VITE_BACKEND_BASE_URL;
@@ -21,7 +33,7 @@ const getBackendBaseUrl = () => {
   if (trimmed) return trimmed.replace(/\/+$/, "");
 
   if (import.meta.env?.DEV && typeof window !== "undefined") {
-    return window.location.origin;
+    return getLocalDevBackendBaseUrl() || window.location.origin;
   }
 
   return DEFAULT_BACKEND_BASE_URL;

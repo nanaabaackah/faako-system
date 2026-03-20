@@ -3,8 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "netlify dev",
-    "server": "netlify dev",
+    "dev": "pnpm run dev:backend",
+    "dev:backend": "node ../../scripts/run-with-env-file.mjs .env.dev -- pnpm exec netlify functions:serve --offline --functions netlify/functions --port 8889",
+    "netlify": "node ../../scripts/run-with-env-file.mjs .env.dev -- pnpm exec netlify dev",
+    "server": "pnpm run netlify",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

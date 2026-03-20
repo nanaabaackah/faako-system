@@ -74,6 +74,7 @@
   --surface-1: #f3eee0;
   --surface-2: #ddd6c3;
   --surface-3: #ebe5d4;
+  --browser-chrome-color: var(--surface-3);
   --text-1: #3c3c3c;
   --text-2: #555948;
   --line: rgba(60, 60, 60, 0.18);
@@ -159,6 +160,7 @@ body,
 
 html {
   scroll-behavior: smooth;
+  background: var(--browser-chrome-color);
 }
 
 body {

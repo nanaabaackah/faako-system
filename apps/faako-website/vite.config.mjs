@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "");
-  const apiProxyTarget = env.FAAKO_API_PROXY_TARGET || "http://127.0.0.1:8888";
+  const apiProxyTarget = env.FAAKO_API_PROXY_TARGET || "http://127.0.0.1:8889";
 
   return {
     plugins: [react()],
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 5173,
+      port: 5175,
       proxy: {
         "/api": {
           target: apiProxyTarget,
