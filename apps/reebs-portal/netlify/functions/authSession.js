@@ -3,6 +3,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { requireUser } from "./_shared/userAuth.js";
+import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
 
 const respond = (event, statusCode, body = {}) =>
   json(event, statusCode, body, { methods: "GET, OPTIONS" });
@@ -27,6 +28,7 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    await ensureUserPersonalEmailColumn(client);
 
     const authUser = await requireUser(client, event);
     if (!authUser) {
@@ -39,6 +41,7 @@ export async function handler(event = {}) {
         "organizationId",
         role,
         email,
+        "personalEmail",
         "firstName",
         "lastName",
         "fullName"

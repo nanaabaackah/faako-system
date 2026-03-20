@@ -5,6 +5,11 @@ import { hashPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { requireUser } from "./_shared/userAuth.js";
 import { ensureUserImageUrlColumn, normalizeProfileImageUrl } from "./_shared/userProfileImage.js";
+import {
+  ensureUserPersonalEmailColumn,
+  isValidPersonalEmail,
+  normalizePersonalEmail,
+} from "./_shared/userPersonalEmail.js";
 
 const respond = (event, statusCode, body = {}) =>
   json(event, statusCode, body, { methods: "GET, PUT, OPTIONS" });
@@ -79,6 +84,7 @@ const selectCurrentProfile = async (client, userId, organizationId) => {
     `SELECT
       u.id,
       u.email,
+      u."personalEmail",
       u."firstName",
       u."lastName",
       u."fullName",
@@ -88,9 +94,7 @@ const selectCurrentProfile = async (client, userId, organizationId) => {
       u."updatedAt",
       p."jobTitle",
       p."phone",
-      p."address",
-      p."emergencyContactName",
-      p."emergencyContactPhone"
+      p."address"
     FROM "user" u
     LEFT JOIN "employeeProfile" p ON p."userId" = u.id
     WHERE u.id = $1 AND u."organizationId" = $2
@@ -127,6 +131,7 @@ export async function handler(event = {}) {
     }
 
     await ensureUserImageUrlColumn(client);
+    await ensureUserPersonalEmailColumn(client);
     await ensureEmployeeProfileTable(client);
 
     const userId = Number(authUser.id);
@@ -158,8 +163,10 @@ export async function handler(event = {}) {
     const jobTitle = cleanString(payload.jobTitle) || null;
     const phone = cleanString(payload.phone) || null;
     const address = cleanString(payload.address) || null;
-    const emergencyContactName = cleanString(payload.emergencyContactName) || null;
-    const emergencyContactPhone = cleanString(payload.emergencyContactPhone) || null;
+    const personalEmailProvided = Object.prototype.hasOwnProperty.call(payload, "personalEmail");
+    const nextPersonalEmail = personalEmailProvided
+      ? normalizePersonalEmail(payload.personalEmail) || null
+      : normalizePersonalEmail(currentProfile.personalEmail) || null;
     const profileImageInput = normalizeProfileImageUrl(payload.imageUrl);
 
     if (profileImageInput.error) {
@@ -168,6 +175,9 @@ export async function handler(event = {}) {
     if (!firstName || !lastName) {
       return respond(event, 400, { error: "First and last name are required." });
     }
+    if (personalEmailProvided && !isValidPersonalEmail(nextPersonalEmail)) {
+      return respond(event, 400, { error: "Enter a valid personal email address." });
+    }
 
     const nextEmail = buildEmailFromNames(firstName, lastName);
     if (!nextEmail) {
@@ -175,12 +185,28 @@ export async function handler(event = {}) {
     }
     const fullName = buildFullName(firstName, lastName);
 
+    if (nextPersonalEmail) {
+      const personalEmailConflict = await client.query(
+        `SELECT id
+         FROM "user"
+         WHERE "organizationId" = $1
+           AND LOWER("personalEmail") = $2
+           AND id <> $3
+         LIMIT 1`,
+        [organizationId, nextPersonalEmail, userId]
+      );
+      if (personalEmailConflict.rowCount > 0) {
+        return respond(event, 409, { error: "That personal email is already assigned to another user." });
+      }
+    }
+
     const userUpdates = [
       `"firstName" = $1`,
       `"lastName" = $2`,
       `"fullName" = $3`,
       `"email" = $4`,
-      `"imageUrl" = $5`,
+      `"personalEmail" = $5`,
+      `"imageUrl" = $6`,
       `"updatedAt" = NOW()`,
     ];
     const userValues = [
@@ -188,6 +214,7 @@ export async function handler(event = {}) {
       lastName,
       fullName,
       nextEmail,
+      nextPersonalEmail,
       profileImageInput.provided ? profileImageInput.value : currentProfile.imageUrl || null,
     ];
 
@@ -208,17 +235,15 @@ export async function handler(event = {}) {
 
     await client.query(
       `INSERT INTO "employeeProfile"
-        ("organizationId", "userId", "jobTitle", "phone", "address", "emergencyContactName", "emergencyContactPhone", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        ("organizationId", "userId", "jobTitle", "phone", "address", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        ON CONFLICT ("userId") DO UPDATE SET
          "organizationId" = EXCLUDED."organizationId",
          "jobTitle" = EXCLUDED."jobTitle",
          "phone" = EXCLUDED."phone",
          "address" = EXCLUDED."address",
-         "emergencyContactName" = EXCLUDED."emergencyContactName",
-         "emergencyContactPhone" = EXCLUDED."emergencyContactPhone",
          "updatedAt" = NOW()`,
-      [organizationId, userId, jobTitle, phone, address, emergencyContactName, emergencyContactPhone],
+      [organizationId, userId, jobTitle, phone, address],
     );
 
     const updatedProfile = await selectCurrentProfile(client, userId, organizationId);

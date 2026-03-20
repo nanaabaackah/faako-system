@@ -125,11 +125,10 @@ function AdminSettings({ profileOnly = false }) {
     lastName: "",
     password: "",
     imageUrl: "",
+    personalEmail: "",
     jobTitle: "",
     phone: "",
     address: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
   });
   const [profileStatus, setProfileStatus] = useState("");
   const [profileError, setProfileError] = useState("");
@@ -153,7 +152,7 @@ function AdminSettings({ profileOnly = false }) {
   const showTabs = !profileOnly;
   const pageTitle = profileOnly ? "My Profile" : "Settings";
   const pageSubtitle = profileOnly
-    ? "Update your name, password, photo, contact details, and system preferences."
+    ? "Update your name, username, delivery email, password, photo, and system preferences."
     : "Manage your profile, staff access, and global ERP configuration.";
   const breadcrumbItems = [{ label: profileOnly ? "Profile" : "Settings" }];
 
@@ -171,13 +170,12 @@ function AdminSettings({ profileOnly = false }) {
       fullName: nextFullName,
       name: nextFullName,
       email: data?.email || user?.email,
+      personalEmail: data?.personalEmail ?? "",
       role: data?.role || user?.role,
       imageUrl: data?.imageUrl || null,
       jobTitle: data?.jobTitle || "",
       phone: data?.phone || "",
       address: data?.address || "",
-      emergencyContactName: data?.emergencyContactName || "",
-      emergencyContactPhone: data?.emergencyContactPhone || "",
     });
   };
 
@@ -227,11 +225,10 @@ function AdminSettings({ profileOnly = false }) {
       firstName,
       lastName,
       imageUrl: String(user?.imageUrl || "").trim(),
+      personalEmail: String(user?.personalEmail || "").trim(),
       jobTitle: String(user?.jobTitle || "").trim(),
       phone: String(user?.phone || "").trim(),
       address: String(user?.address || "").trim(),
-      emergencyContactName: String(user?.emergencyContactName || "").trim(),
-      emergencyContactPhone: String(user?.emergencyContactPhone || "").trim(),
     }));
   }, [user]);
 
@@ -259,11 +256,10 @@ function AdminSettings({ profileOnly = false }) {
           firstName: String(data.firstName || "").trim(),
           lastName: String(data.lastName || "").trim(),
           imageUrl: String(data.imageUrl || "").trim(),
+          personalEmail: String(data.personalEmail || "").trim(),
           jobTitle: String(data.jobTitle || "").trim(),
           phone: String(data.phone || "").trim(),
           address: String(data.address || "").trim(),
-          emergencyContactName: String(data.emergencyContactName || "").trim(),
-          emergencyContactPhone: String(data.emergencyContactPhone || "").trim(),
         }));
         syncUserProfile(data);
       } catch (error) {
@@ -335,11 +331,10 @@ function AdminSettings({ profileOnly = false }) {
           lastName: profileForm.lastName,
           password: profileForm.password || undefined,
           imageUrl: profileForm.imageUrl || null,
+          personalEmail: profileForm.personalEmail,
           jobTitle: profileForm.jobTitle,
           phone: profileForm.phone,
           address: profileForm.address,
-          emergencyContactName: profileForm.emergencyContactName,
-          emergencyContactPhone: profileForm.emergencyContactPhone,
         }),
       });
       const data = await res.json();
@@ -350,11 +345,10 @@ function AdminSettings({ profileOnly = false }) {
         lastName: String(data.lastName || "").trim(),
         password: "",
         imageUrl: String(data.imageUrl || "").trim(),
+        personalEmail: String(data.personalEmail || "").trim(),
         jobTitle: String(data.jobTitle || "").trim(),
         phone: String(data.phone || "").trim(),
         address: String(data.address || "").trim(),
-        emergencyContactName: String(data.emergencyContactName || "").trim(),
-        emergencyContactPhone: String(data.emergencyContactPhone || "").trim(),
       }));
       syncUserProfile(data);
       setProfileStatus("Profile updated.");
@@ -531,6 +525,19 @@ function AdminSettings({ profileOnly = false }) {
                 </div>
                 <div className="settings-grid settings-grid--profile-details">
                   <label>
+                    Personal email
+                    <input
+                      type="email"
+                      value={profileForm.personalEmail}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, personalEmail: e.target.value }))}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                    />
+                    <span className="settings-muted">
+                      Password reset links and staff notifications are sent here.
+                    </span>
+                  </label>
+                  <label>
                     Phone number
                     <input
                       type="tel"
@@ -551,40 +558,12 @@ function AdminSettings({ profileOnly = false }) {
                     autoComplete="street-address"
                   />
                 </label>
-                <div className="settings-grid settings-grid--profile-details">
-                  <label>
-                    Emergency contact name
-                    <input
-                      type="text"
-                      value={profileForm.emergencyContactName}
-                      onChange={(e) =>
-                        setProfileForm((prev) => ({
-                          ...prev,
-                          emergencyContactName: e.target.value,
-                        }))
-                      }
-                      placeholder="Name of next of kin"
-                    />
-                  </label>
-                  <label>
-                    Emergency contact phone
-                    <input
-                      type="tel"
-                      value={profileForm.emergencyContactPhone}
-                      onChange={(e) =>
-                        setProfileForm((prev) => ({
-                          ...prev,
-                          emergencyContactPhone: e.target.value,
-                        }))
-                      }
-                      placeholder="+233 24 000 0000"
-                      autoComplete="tel"
-                    />
-                  </label>
-                </div>
                 <label>
-                  Email
-                  <input type="email" value={user?.email || ""} readOnly />
+                  Portal username
+                  <input type="text" value={user?.email || ""} readOnly />
+                  <span className="settings-muted">
+                    This autogenerated `@reebs.com` value is your login ID, not your delivery inbox.
+                  </span>
                 </label>
                 <label>
                   Reset password

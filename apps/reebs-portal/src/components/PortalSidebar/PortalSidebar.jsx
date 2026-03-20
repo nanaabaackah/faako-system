@@ -232,14 +232,18 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     user?.fullName ||
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email ||
-    "Guest";
-  const displayEmail = user?.email || (authReady ? "Not signed in" : "Loading...");
-  const userInitials = displayName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "GU";
+    (authReady ? "Not signed in" : "Loading...");
+  const displayEmail = user?.personalEmail || user?.email || (authReady ? "Sign in required" : "Loading...");
+  const userInitials = isAuthenticated
+    ? displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("") || "TM"
+    : authReady
+      ? "SI"
+      : "..";
   const readStorageKey = useMemo(
     () => `reebs_notifications_read_${user?.id || "guest"}`,
     [user?.id]
@@ -372,6 +376,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const canSeeApp = (app) => {
+    if (!isAuthenticated) {
+      return false;
+    }
     if (isWaterUser) {
       return app.path === "/admin/water";
     }

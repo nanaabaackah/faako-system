@@ -451,6 +451,28 @@ function AppLayout() {
   );
 
   if (isAdminRoute) {
+    if (!authReady) {
+      return (
+        <>
+          <Helmet>
+            <title>{pageTitle}</title>
+          </Helmet>
+          <RouteFallback />
+        </>
+      );
+    }
+
+    if (!user) {
+      return (
+        <>
+          <Helmet>
+            <title>{pageTitle}</title>
+          </Helmet>
+          {routes}
+        </>
+      );
+    }
+
     if (isStoreModeRoute) {
       return (
         <>

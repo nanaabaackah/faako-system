@@ -24,6 +24,10 @@ function Login({ mode = "staff" }) {
   const [localError, setLocalError] = useState("");
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotIdentifier, setForgotIdentifier] = useState("");
+  const [forgotPersonalEmail, setForgotPersonalEmail] = useState("");
+  const [forgotNeedsPersonalEmail, setForgotNeedsPersonalEmail] = useState(false);
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotRequiresPhoneVerification, setForgotRequiresPhoneVerification] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [forgotStatus, setForgotStatus] = useState("");
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
@@ -40,11 +44,19 @@ function Login({ mode = "staff" }) {
     setLocalError("");
     setForgotError("");
     setForgotStatus("");
+    setForgotPersonalEmail("");
+    setForgotNeedsPersonalEmail(false);
+    setForgotPhone("");
+    setForgotRequiresPhoneVerification(false);
     setForgotIdentifier((currentValue) => currentValue || form.email.trim());
   };
 
   const closeForgotPassword = () => {
     setForgotMode(false);
+    setForgotPersonalEmail("");
+    setForgotNeedsPersonalEmail(false);
+    setForgotPhone("");
+    setForgotRequiresPhoneVerification(false);
     setForgotError("");
     setForgotStatus("");
     setLocalError("");
@@ -72,7 +84,7 @@ function Login({ mode = "staff" }) {
     }
 
     if (!email || !form.password) {
-      setLocalError("Email/username and password are required.");
+      setLocalError("Username and password are required.");
       return;
     }
 
@@ -92,7 +104,15 @@ function Login({ mode = "staff" }) {
 
     const identifier = forgotIdentifier.trim().toLowerCase();
     if (!identifier) {
-      setForgotError("Enter your staff email or username.");
+      setForgotError("Enter your username or personal email.");
+      return;
+    }
+    if (forgotNeedsPersonalEmail && !forgotPersonalEmail.trim()) {
+      setForgotError("Enter the personal email you want to use for reset links.");
+      return;
+    }
+    if (forgotNeedsPersonalEmail && forgotRequiresPhoneVerification && !forgotPhone.trim()) {
+      setForgotError("Enter the staff phone number linked to your account.");
       return;
     }
 
@@ -103,15 +123,34 @@ function Login({ mode = "staff" }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ identifier }),
+        body: JSON.stringify({
+          identifier,
+          personalEmail: forgotNeedsPersonalEmail ? forgotPersonalEmail.trim() : undefined,
+          phone: forgotNeedsPersonalEmail && forgotRequiresPhoneVerification ? forgotPhone.trim() : undefined,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || "Unable to send a reset link right now.");
       }
+      if (data?.requiresPersonalEmailSetup) {
+        const canSelfServe = Boolean(data?.requiresPhoneVerification);
+        setForgotNeedsPersonalEmail(canSelfServe);
+        setForgotRequiresPhoneVerification(canSelfServe);
+        if (!canSelfServe) {
+          setForgotPersonalEmail("");
+          setForgotPhone("");
+        }
+        setForgotStatus(data?.message || "Set your personal email to receive the reset link.");
+        return;
+      }
+      setForgotNeedsPersonalEmail(false);
+      setForgotPersonalEmail("");
+      setForgotPhone("");
+      setForgotRequiresPhoneVerification(false);
       setForgotStatus(
         data?.message
-        || "If an account matches that email or username, a reset link will be sent."
+        || "If an account matches that username or personal email, a reset link will be sent."
       );
     } catch (err) {
       setForgotError(err.message || "Unable to send a reset link right now.");
@@ -161,8 +200,12 @@ function Login({ mode = "staff" }) {
                   {isCustomer
                     ? "Customer accounts run through your booking details. Enter your email and phone number and we’ll take you into the booking flow."
                     : forgotMode
-                      ? "Enter the staff email or username tied to your account. If it matches, we’ll send a secure reset link."
-                      : "Use your staff email or username and password to open the REEBS portal."}
+                      ? forgotNeedsPersonalEmail
+                        ? forgotRequiresPhoneVerification
+                          ? "This username does not have a delivery inbox yet. Confirm your staff phone and set your personal email below to receive the reset link."
+                          : "This username does not have a delivery inbox yet. Set your personal email below and we’ll send the reset link there."
+                        : "Enter the username or personal email tied to your account. If it matches, we’ll send a secure reset link to your personal inbox."
+                      : "Use your REEBS username and password to open the staff portal."}
                 </p>
               </div>
 
@@ -172,19 +215,34 @@ function Login({ mode = "staff" }) {
               >
                 <div className="login-form-stack">
                   <label className="login-field">
-                    <span className="login-field-label">{isCustomer ? "Email" : "Email or username"}</span>
+                    <span className="login-field-label">
+                      {isCustomer ? "Email" : forgotMode ? "Personal email or username" : "Username"}
+                    </span>
                     <input
                       type={isCustomer ? "email" : "text"}
                       value={forgotMode && !isCustomer ? forgotIdentifier : form.email}
                       onChange={(event) => {
                         const nextValue = event.target.value;
                         if (forgotMode && !isCustomer) {
+                          if (forgotNeedsPersonalEmail) {
+                            setForgotNeedsPersonalEmail(false);
+                            setForgotPersonalEmail("");
+                            setForgotPhone("");
+                            setForgotRequiresPhoneVerification(false);
+                            setForgotStatus("");
+                          }
                           setForgotIdentifier(nextValue);
                           return;
                         }
                         setForm((prev) => ({ ...prev, email: nextValue }));
                       }}
-                      placeholder={isCustomer ? "booking@email.com" : "firstname_lastname or you@reebs.com"}
+                      placeholder={
+                        isCustomer
+                          ? "booking@email.com"
+                          : forgotMode
+                            ? "you@example.com or firstname_lastname"
+                            : "firstname_lastname or firstname_lastname@reebs.com"
+                      }
                       autoComplete={isCustomer ? "email" : "username"}
                       required
                     />
@@ -204,11 +262,44 @@ function Login({ mode = "staff" }) {
                       />
                     </label>
                   ) : forgotMode ? (
-                    <p className="login-customer-note" role="note">
-                      We do not reveal whether an account exists. If the details match a REEBS staff
-                      account, the reset link will expire after 30 minutes and active sessions will be
-                      signed out after the password change.
-                    </p>
+                    <>
+                      <p className="login-customer-note" role="note">
+                        {forgotNeedsPersonalEmail
+                          ? forgotRequiresPhoneVerification
+                            ? "To protect the account, match the staff phone on file before we save the new delivery email."
+                            : "Your personal email becomes the delivery address for password resets and staff notifications."
+                          : "We do not reveal whether an account exists. If the details match a REEBS staff account, the reset link will expire after 30 minutes and active sessions will be signed out after the password change."}
+                      </p>
+                      {forgotNeedsPersonalEmail && (
+                        <>
+                          {forgotRequiresPhoneVerification && (
+                            <label className="login-field">
+                              <span className="login-field-label">Confirm staff phone</span>
+                              <input
+                                type="tel"
+                                value={forgotPhone}
+                                onChange={(event) => setForgotPhone(event.target.value)}
+                                placeholder="+233 24 000 0000"
+                                autoComplete="tel"
+                                inputMode="tel"
+                                required
+                              />
+                            </label>
+                          )}
+                          <label className="login-field">
+                            <span className="login-field-label">Set personal email</span>
+                            <input
+                              type="email"
+                              value={forgotPersonalEmail}
+                              onChange={(event) => setForgotPersonalEmail(event.target.value)}
+                              placeholder="you@example.com"
+                              autoComplete="email"
+                              required
+                            />
+                          </label>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <>
                       <label className="login-field login-password-row">
@@ -276,8 +367,12 @@ function Login({ mode = "staff" }) {
                     ? "Continue to booking"
                     : forgotMode
                       ? forgotSubmitting
-                        ? "Sending link..."
-                        : "Send reset link"
+                        ? forgotNeedsPersonalEmail
+                          ? "Saving email..."
+                          : "Sending link..."
+                        : forgotNeedsPersonalEmail
+                          ? "Save email and send link"
+                          : "Send reset link"
                       : authLoading
                         ? "Signing in..."
                         : "Sign in"}

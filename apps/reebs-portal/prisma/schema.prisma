@@ -177,6 +177,7 @@ model User {
   organizationId Int @default(1)
   organization   Organization @relation(fields: [organizationId], references: [id])
   email     String   @unique
+  personalEmail String?
   password  String   
   firstName String
   lastName  String
@@ -193,6 +194,7 @@ model User {
   timesheets Timesheet[]
   sessions  UserSession[]
   
+  @@unique([organizationId, personalEmail])
   @@map("user")
 }
 

@@ -4,6 +4,7 @@ import { Client } from "pg";
 import { hashPassword, verifyPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { signUserToken } from "./_shared/userAuth.js";
+import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
 import {
   createUserSession,
   ensureUserSessionsTable,
@@ -52,16 +53,17 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    await ensureUserPersonalEmailColumn(client);
     const result = isUsernameOnly
       ? await client.query(
-        `SELECT id, "firstName", "lastName", "fullName", email, role, "organizationId", password
+        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password
          FROM "user"
          WHERE SPLIT_PART(LOWER(email), '@', 1) = $1
          LIMIT 1`,
         [normalizedEmail]
       )
       : await client.query(
-        `SELECT id, "firstName", "lastName", "fullName", email, role, "organizationId", password
+        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password
          FROM "user"
          WHERE LOWER(email) = $1
          LIMIT 1`,
