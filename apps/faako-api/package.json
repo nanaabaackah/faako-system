@@ -26,7 +26,8 @@
     "postgres-bytea": "^1.0.0",
     "postgres-date": "^1.0.7",
     "postgres-interval": "^1.2.0",
-    "split2": "^4.2.0"
+    "split2": "^4.2.0",
+    "xtend": "^4.0.2"
   },
   "devDependencies": {
     "netlify-cli": "^23.15.1",

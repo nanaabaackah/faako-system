@@ -31,7 +31,8 @@
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.30.3",
-    "split2": "^4.2.0"
+    "split2": "^4.2.0",
+    "xtend": "^4.0.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
