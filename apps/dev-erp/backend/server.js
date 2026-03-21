@@ -64,7 +64,7 @@ import { buildRentMonthlySummaryEmailContent } from "./rentMonthlySummaryEmailTe
 import { buildRentPaymentRecordedEmailContent } from "./rentPaymentRecordedEmailTemplate.js";
 import { buildAccountingScheduledReminderEmailContent } from "./accountingScheduledReminderEmailTemplate.js";
 import { createRequire } from "module";
-import emailKit from "../../../packages/email-kit/src/index.cjs";
+import emailKit from "../../packages/email-kit/src/index.cjs";
 
 const require = createRequire(import.meta.url);
 
