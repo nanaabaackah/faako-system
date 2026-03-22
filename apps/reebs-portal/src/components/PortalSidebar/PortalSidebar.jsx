@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
@@ -62,6 +63,7 @@ const DEFAULT_APPS = [
     icon: faGlobe,
     external: true,
     description: "Open the public website",
+    roles: ["admin", "manager"],
   },
   {
     label: "Inventory",
@@ -89,11 +91,13 @@ const DEFAULT_APPS = [
     label: "Bookings",
     path: "/admin/bookings",
     icon: faCalendarDays,
+    roles: ["admin", "manager"],
   },
   {
     label: "Scheduling",
     path: "/admin/schedule",
     icon: faCalendarCheck,
+    roles: ["admin", "manager"],
   },
   {
     label: "Accounting",
@@ -122,6 +126,7 @@ const DEFAULT_APPS = [
     label: "Water",
     path: "/admin/water",
     icon: faStore,
+    roles: ["admin", "manager"],
   },
   {
     label: "Human Resources",
@@ -143,6 +148,7 @@ const DEFAULT_APPS = [
     label: "Delivery",
     path: "/admin/delivery",
     icon: faTruck,
+    roles: ["admin", "manager"],
   },
   {
     label: "Documents",
@@ -246,9 +252,6 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     user?.email ||
     (authReady ? "Not signed in" : "Loading...");
   const displayEmail = user?.personalEmail || user?.email || (authReady ? "Sign in required" : "Loading...");
-  const roleLabel = isWaterUser
-    ? "Water workspace"
-    : `${String(user?.role || "Staff").replace(/^./, (value) => value.toUpperCase())} workspace`;
   const userInitials = isAuthenticated
     ? displayName
       .split(/\s+/)
@@ -843,7 +846,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
         aria-expanded={userMenuOpen}
         aria-label="Open user menu"
       >
-        <span className="portal-sidebar__user-avatar">{userInitials}</span>
+        <span className="portal-sidebar__user-avatar">
+          {user?.profilePhoto ? (
+            <img src={user.profilePhoto} alt={displayName} />
+          ) : (
+            userInitials
+          )}
+        </span>
         <span className="portal-sidebar__user-info">
           <span className="portal-sidebar__user-name">{displayName}</span>
           <span className="portal-sidebar__user-email">{displayEmail}</span>
@@ -905,7 +914,6 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                     <img src={REEBS_PORTAL_LOGO} alt="" />
                   </span>
                   <span className="portal-sidebar__brand-copy">
-                    <span className="portal-sidebar__brand-kicker">{roleLabel}</span>
                     <span className="portal-sidebar__brand-full">REEBS Portal</span>
                   </span>
                 </Link>
@@ -919,11 +927,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 </button>
               </div>
               {renderSearch("overlay")}
-              {renderNotifications("overlay")}
               <nav className="portal-sidebar__overlay-nav" aria-label="Portal apps">
                 {renderLinks("overlay")}
               </nav>
-              {renderUserSection("overlay")}
+              <div className="portal-sidebar__footer">
+                {renderNotifications("overlay")}
+                {renderUserSection("overlay")}
+              </div>
             </div>
           </div>,
           document.body
@@ -940,7 +950,6 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 <img src={REEBS_PORTAL_LOGO} alt="" />
               </span>
               <span className="portal-sidebar__brand-copy">
-                <span className="portal-sidebar__brand-kicker">{roleLabel}</span>
                 <span className="portal-sidebar__brand-full">REEBS Portal</span>
               </span>
             </Link>

@@ -1,5 +1,15 @@
 @import "../../styles/admin.css";
 
+.portal-app-shell {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.7)),
+    url("/imgs/backgrounds/background1.png") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  min-height: 100vh !important;
+}
+
 :root {
   --aw-ink: #162024;
   --aw-muted: #5f6b75;
@@ -40,7 +50,7 @@
 
 .aw-shell {
   min-height: 100vh;
-  padding: 1rem 1rem 0;
+  padding: 1rem 1rem 5rem;
   color: var(--aw-ink);
   font-family: "Inter", "Segoe UI", sans-serif;
 }
@@ -59,14 +69,14 @@
 .aw-title-block h1 {
   margin: 0;
   font-family: inherit;
-  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  font-size: clamp(2.35rem, 3vw, 2.8rem);
   line-height: 1.12;
 }
 
 .aw-title-block p {
   margin: 0.3rem 0 0;
   color: var(--aw-muted);
-  font-size: 0.92rem;
+  font-size: 1.2rem;
 }
 
 .aw-eyebrow {
@@ -272,6 +282,8 @@
 
 .aw-home-summary-card {
   border-right: 1px solid var(--aw-border);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   background: transparent;
   padding: 0.72rem 0.82rem;
 }
@@ -314,6 +326,8 @@
 }
 
 .aw-home-kpi-card {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
   border-radius: 0.92rem;
   background:
@@ -374,6 +388,8 @@
 }
 
 .aw-home-kpi-chart-card {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
   border-radius: 0.96rem;
   background: rgba(255, 255, 255, 0.9);
@@ -531,6 +547,8 @@
 }
 
 .aw-staff-hero-btn {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   width: 6.5rem;
   height: 6.5rem;
   padding: 0;
@@ -555,13 +573,14 @@
 }
 
 .aw-staff-summary-card {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.8rem;
   align-items: start;
   border: 1px solid var(--aw-border);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.9);
   padding: 0.92rem;
   box-shadow: var(--aw-shadow);
   min-height: 6.6rem;
@@ -593,7 +612,8 @@
 .aw-staff-empty {
   border: 1px dashed var(--aw-border);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   padding: 0.95rem;
 }
 
@@ -675,6 +695,8 @@
 }
 
 .aw-stock-card {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   display: flex;
   justify-content: space-between;
   gap: 0.8rem;
@@ -918,6 +940,8 @@
 }
 
 .aw-link-card {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
   border-radius: 0.8rem;
   background: #fff;
@@ -992,6 +1016,9 @@
 [data-admin-theme="dark"] body.admin-theme .aw-home-summary-card,
 [data-admin-theme="dark"] body.admin-theme .aw-home-kpi-card,
 [data-admin-theme="dark"] body.admin-theme .aw-home-kpi-chart-card {
+
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-color: rgba(148, 163, 184, 0.22);
   background: linear-gradient(160deg, rgba(16, 22, 33, 0.88) 0%, rgba(17, 28, 36, 0.92) 100%);
 }
@@ -1040,6 +1067,16 @@
 }
 
 @media (max-width: 720px) {
+  .aw-topbar {
+    flex-direction: column;
+    align-items: stretch;
+
+  }
+
+  .aw-actions {
+    justify-content: flex-start;
+  }
+
   .aw-nav {
     left: 0.7rem;
     right: 0.7rem;
@@ -1094,10 +1131,8 @@ body.admin-theme.aw-theme .aw-section-grid {
 }
 
 body.admin-theme.aw-theme :is(
-  .portal-sidebar,
   .portal-sidebar__notifications-body,
   .portal-sidebar__user-menu,
-  .portal-sidebar__overlay-content,
   .aw-kpi,
   .aw-home-summary-card,
   .aw-home-kpi-card,

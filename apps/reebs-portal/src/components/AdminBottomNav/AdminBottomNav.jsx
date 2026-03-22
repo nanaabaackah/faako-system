@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faBoxesStacked,
-  faCloudArrowUp,
+  faStore,
   faHome,
   faReceipt,
 } from "/src/icons/iconSet";
@@ -14,7 +14,7 @@ const BASE_NAV_ITEMS = [
   { id: "home", label: "Home", path: "/admin", icon: faHome },
   { id: "inventory", label: "Stock", path: "/admin/inventory", icon: faBoxesStacked },
   { id: "purchases", label: "Buy", path: "/admin/purchases", icon: faReceipt },
-  { id: "offline", label: "Sync", path: "/admin/offline", icon: faCloudArrowUp },
+  { id: "store-mode", label: "POS", path: "/admin/store-mode", icon: faStore },
 ];
 
 const WATER_NAV_ITEMS = [{ id: "water", label: "Water", path: "/admin/water", icon: faBoxesStacked }];

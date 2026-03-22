@@ -1745,6 +1745,12 @@ body.admin-theme .store-mode-page {
   .store-builder-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .store-builder-submit--icon {
+    width: 22.5rem;
+    height: 12rem;
+    font-size: 10rem;
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1798,11 +1804,9 @@ body.admin-theme .store-mode-page {
     grid-column: 1 / -1;
   }
 
-  .store-mode-filter-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 0.2rem;
-    scrollbar-width: thin;
+  .store-mode-filter-row,
+  .store-mode-category {
+    display: none;
   }
 
   .store-mode-filter-btn {
@@ -1817,8 +1821,8 @@ body.admin-theme .store-mode-page {
   .store-builder-dock {
     position: static;
     margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 1.4rem;
+    padding: 0;
+    border: none;
   }
 
   .store-builder-left {
@@ -1849,10 +1853,8 @@ body.admin-theme .store-mode-page {
 
   .store-builder-checkout {
     min-width: 0;
-    padding-left: 0;
-    padding-top: 0;
-    border-left: none;
-    border-top: none;
+    padding: 1rem;
+    border: none;
   }
 }
 

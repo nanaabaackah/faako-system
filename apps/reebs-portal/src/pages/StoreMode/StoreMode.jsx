@@ -228,7 +228,7 @@ function StoreMode() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
-    const mediaQuery = window.matchMedia("(max-width: 720px)");
+    const mediaQuery = window.matchMedia("(max-width: 820px)");
     const syncViewport = (event) => setIsMobileViewport(event.matches);
 
     setIsMobileViewport(mediaQuery.matches);
@@ -855,7 +855,7 @@ function StoreMode() {
     <div className="store-mode-page">
       <div className="store-mode-shell">
         <header className="store-mode-topbar">
-          <button type="button" className="store-mode-exit" onClick={() => navigate("/admin/inventory")}>
+          <button type="button" className="store-mode-exit" onClick={() => navigate("/admin")}>
             <AppIcon icon={faArrowLeft} />
             <span className="store-mode-exit-label store-mode-exit-label--full">Leave Store Mode</span>
             <span className="store-mode-exit-label store-mode-exit-label--short">Exit</span>
@@ -980,7 +980,6 @@ function StoreMode() {
                       Stock <span className="sort-indicator">{sortIndicator("stock")}</span>
                     </button>
                   </th>
-                  <th className="store-mode-col store-mode-col--order">Order</th>
                 </tr>
               </thead>
               <tbody>
@@ -1005,16 +1004,16 @@ function StoreMode() {
                   return (
                     <tr
                       key={item.id}
-                      className={`${isOut ? "is-out" : isLow ? "is-low" : ""} ${isSelected ? "is-selected" : ""} ${isMobileViewport && !isOut ? "store-mode-row--clickable" : ""}`}
+                      className={`${isOut ? "is-out" : isLow ? "is-low" : ""} ${isSelected ? "is-selected" : ""} ${!isOut ? "store-mode-row--clickable" : ""}`}
                       onClick={
-                        isMobileViewport && !isOut
+                        !isOut
                           ? () => {
                               addToOrder(item);
                             }
                           : undefined
                       }
                       onKeyDown={
-                        isMobileViewport && !isOut
+                        !isOut
                           ? (event) => {
                               if (event.key === "Enter" || event.key === " ") {
                                 event.preventDefault();
@@ -1023,8 +1022,8 @@ function StoreMode() {
                             }
                           : undefined
                       }
-                      tabIndex={isMobileViewport && !isOut ? 0 : undefined}
-                      role={isMobileViewport && !isOut ? "button" : undefined}
+                      tabIndex={!isOut ? 0 : undefined}
+                      role={!isOut ? "button" : undefined}
                     >
                       <td className="store-mode-cell store-mode-cell--item">
                         <div className="store-mode-product">
@@ -1069,39 +1068,6 @@ function StoreMode() {
                         <span className={`store-mode-stock-pill ${isOut ? "is-out" : isLow ? "is-low" : ""}`}>
                           {stock}
                         </span>
-                      </td>
-                      <td className="store-mode-cell store-mode-cell--order" data-label="Order">
-                        {!showCompactOrderControls ? (
-                          <button
-                            type="button"
-                            className="store-mode-row-select"
-                            onClick={() => setSelectedProductId(productId)}
-                            disabled={isOut}
-                          >
-                            {isOut ? "Out" : "Select"}
-                          </button>
-                        ) : null}
-                        <div className={`store-mode-stepper ${showCompactOrderControls ? "" : "store-mode-stepper--collapsed"}`}>
-                          <button
-                            type="button"
-                            className="store-mode-stepper-btn"
-                            onClick={() => removeFromOrder(productId)}
-                            disabled={currentQty <= 0}
-                            aria-label={`Remove ${item.name || "item"}`}
-                          >
-                            <AppIcon icon={faMinus} />
-                          </button>
-                          <span>{currentQty}</span>
-                          <button
-                            type="button"
-                            className="store-mode-stepper-btn"
-                            onClick={() => addToOrder(item)}
-                            disabled={stock <= 0 || currentQty >= stock}
-                            aria-label={`Add ${item.name || "item"}`}
-                          >
-                            <AppIcon icon={faPlus} />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );
@@ -1272,23 +1238,12 @@ function StoreMode() {
                   <span>Total</span>
                   <strong>{formatMoney(total, orderCurrency)}</strong>
                 </div>
-                {paymentMethod === "cash" && (
-                  <>
-                    <div className="store-builder-inline-total">
-                      <span>Change</span>
-                      <strong>{formatMoney(changeDue, orderCurrency)}</strong>
-                    </div>
-                    <div className="store-builder-inline-total">
-                      <span>Due</span>
-                      <strong>{formatMoney(cashShortfall, orderCurrency)}</strong>
-                    </div>
-                  </>
-                )}
+                
               </div>
             </section>
           </div>
 
-          <section className="store-builder-checkout store-builder-panel store-builder-panel--checkout">
+          <section className="store-builder-checkout store-builder-panel--checkout">
             <div className="store-builder-section-head">
               <span>Checkout</span>
               <h3>Payment and actions</h3>
@@ -1336,17 +1291,23 @@ function StoreMode() {
               </div>
 
               {paymentMethod === "cash" && (
-                <label className="store-builder-field store-builder-field--cash">
-                  <span>Cash received</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={cashReceived}
-                    onChange={(event) => setCashReceived(event.target.value)}
-                    placeholder="0.00"
-                  />
-                </label>
+                <>
+                  <label className="store-builder-field store-builder-field--cash">
+                    <span>Cash received</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={cashReceived}
+                      onChange={(event) => setCashReceived(event.target.value)}
+                      placeholder="0.00"
+                    />
+                  </label>
+                  <div className="store-builder-inline-total">
+                    <span>Change</span>
+                    <strong>{formatMoney(changeDue, orderCurrency)}</strong>
+                  </div>
+                </>
               )}
 
               {paymentMethod === "momo" && (

@@ -126,7 +126,6 @@ function AdminWorkspace({ section = "home" }) {
   const { user, logout } = useAuth();
   const roleKey = normalizeRole(user?.role);
   const isSystemAdmin = roleKey === "admin";
-  const isManager = roleKey === "manager";
   const canViewHomeKpis = roleKey === "admin" || roleKey === "manager";
 
   const [inventory, setInventory] = useState([]);
@@ -190,7 +189,7 @@ function AdminWorkspace({ section = "home" }) {
   const sectionTitle =
     activeSection === "home"
       ? profileFirstName
-        ? `Welcome ${profileFirstName}`
+        ? `Welcome ${profileFirstName}!`
         : "Welcome"
       : sectionConfig.title;
   const sectionSubtitle =
@@ -1068,31 +1067,30 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderHome = () => (
     <section className="aw-section-grid">
-      <div className="aw-home-summary-grid">
-        <article className="aw-home-summary-card">
-          <p className="aw-home-kpi-label">Items</p>
-          <strong>{inventory.length}</strong>
-          <span>Tracked products</span>
-        </article>
-        <article className="aw-home-summary-card">
-          <p className="aw-home-kpi-label">Low stock</p>
-          <strong>{inventoryLowStockItems.length}</strong>
-          <span>{inventoryLowStockItems.length ? "Needs action" : "Healthy"}</span>
-        </article>
-        <article className="aw-home-summary-card">
-          <p className="aw-home-kpi-label">Queue</p>
-          <strong>{pendingQueue.length}</strong>
-          <span>{failedQueueCount} failed</span>
-        </article>
-        <article className="aw-home-summary-card">
-          <p className="aw-home-kpi-label">Status</p>
-          <strong>{isOnline ? "Online" : "Offline"}</strong>
-          <span>{syncingQueue ? "Syncing now" : "Ready"}</span>
-        </article>
-      </div>
-
       {canViewHomeKpis ? (
         <>
+            <div className="aw-home-summary-grid">
+            <article className="aw-home-summary-card">
+              <p className="aw-home-kpi-label">Items</p>
+              <strong>{inventory.length}</strong>
+              <span>Tracked products</span>
+            </article>
+            <article className="aw-home-summary-card">
+              <p className="aw-home-kpi-label">Low stock</p>
+              <strong>{inventoryLowStockItems.length}</strong>
+              <span>{inventoryLowStockItems.length ? "Needs action" : "Healthy"}</span>
+            </article>
+            <article className="aw-home-summary-card">
+              <p className="aw-home-kpi-label">Queue</p>
+              <strong>{pendingQueue.length}</strong>
+              <span>{failedQueueCount} failed</span>
+            </article>
+            <article className="aw-home-summary-card">
+              <p className="aw-home-kpi-label">Status</p>
+              <strong>{isOnline ? "Online" : "Offline"}</strong>
+              <span>{syncingQueue ? "Syncing now" : "Ready"}</span>
+            </article>
+          </div>
           <div className="aw-panel aw-home-kpi-panel">
             <div className="aw-panel-header">
               <h2>Business KPI Dashboard</h2>
@@ -1908,7 +1906,6 @@ function AdminWorkspace({ section = "home" }) {
     <div className="aw-shell">
       <header className="aw-topbar">
         <div className="aw-title-block">
-          <p className="aw-eyebrow">REEBS ERP</p>
           <h1>{sectionTitle}</h1>
           <p>{sectionSubtitle}</p>
         </div>
@@ -1925,20 +1922,6 @@ function AdminWorkspace({ section = "home" }) {
             <AppIcon icon={faRotateRight} />
             Sync
           </button>
-          <button type="button" className="aw-secondary-btn" onClick={logout}>
-            <AppIcon icon={faArrowRightFromBracket} />
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <section className="aw-user-strip">
-        <div>
-          <strong>{profileName}</strong>
-          <p>{isSystemAdmin ? "System admin" : isManager ? "Manager" : "Store user"}</p>
-        </div>
-        <div className="aw-user-strip-right">
-          <span className="aw-status-chip pending">{pendingQueue.length} pending</span>
           <button
             type="button"
             className="aw-link-btn"
@@ -1946,8 +1929,11 @@ function AdminWorkspace({ section = "home" }) {
           >
             Refresh stock
           </button>
+          <button type="button" className="aw-secondary-btn" onClick={logout}>
+            <AppIcon icon={faArrowRightFromBracket} />
+          </button>
         </div>
-      </section>
+      </header>
 
       {(surfaceNotice || surfaceError || inventoryError) && (
         <section className="aw-feedback">

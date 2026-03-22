@@ -1,5 +1,5 @@
 .portal-app-shell {
-  --portal-sidebar-collapsed: 96px;
+  --portal-sidebar-collapsed: 120px;
   --portal-sidebar-expanded: 336px;
   --portal-bottom-nav-clearance: calc(6.6rem + env(safe-area-inset-bottom));
   --portal-sidebar-accent: #27dde5;
@@ -17,7 +17,7 @@
   position: relative;
   width: 100%;
   min-height: var(--app-vh);
-  background: var(--surface);
+  background: transparent;
   color: var(--ink);
   font-family: "Inter", "Segoe UI", sans-serif;
   overflow-x: hidden;
@@ -49,7 +49,7 @@
   z-index: 1400;
   width: var(--portal-sidebar-collapsed);
   padding: 0.9rem;
-  background: var(--portal-sidebar-bg);
+  background: transparent;
   color: var(--portal-sidebar-ink);
   transition: width 0.3s ease, padding 0.3s ease;
   box-sizing: border-box;
@@ -71,9 +71,9 @@
   gap: 1rem;
   padding: 1.15rem;
   color: var(--portal-sidebar-ink);
-  background: var(--portal-sidebar-panel);
+  background: var(--card);
   border: 1px solid var(--portal-sidebar-border);
-  border-radius: 1.85rem;
+  border-radius: 1rem;
   box-shadow: var(--portal-sidebar-shadow);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -199,7 +199,6 @@
   min-width: 0;
   border: none;
   padding: 0;
-  background: transparent;
   color: var(--portal-sidebar-ink);
   font: inherit;
   font-size: 0.98rem;
@@ -512,6 +511,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.portal-sidebar__user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .portal-sidebar__user-info {
@@ -576,8 +583,31 @@
 }
 
 .portal-sidebar:not(.is-expanded) .portal-sidebar__brand-copy,
-.portal-sidebar:not(.is-expanded) .portal-sidebar__search,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__search {
+  display: none;
+}
+
 .portal-sidebar:not(.is-expanded) .portal-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.portal-sidebar:not(.is-expanded) .portal-sidebar__user-button,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__notifications-toggle {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.portal-sidebar:not(.is-expanded) .portal-sidebar__user-info,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__user-caret,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__notifications-title span:last-child,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__notifications-caret,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__notifications-count {
   display: none;
 }
 
@@ -609,7 +639,7 @@
 .portal-sidebar__overlay {
   position: fixed;
   inset: 0;
-  background: rgba(3, 8, 20, 0.62);
+  background: transparent;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
@@ -632,8 +662,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 100dvh;
-  overflow-y: auto;
+  height: 100%;
   box-sizing: border-box;
   overscroll-behavior: contain;
 }
@@ -644,7 +673,17 @@
   width: 100%;
 }
 
+.portal-sidebar__overlay-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
 .portal-sidebar__user--overlay {
+  margin-top: auto;
   padding-top: 0.5rem;
   border-top: 1px solid var(--portal-sidebar-border);
 }
@@ -735,6 +774,14 @@
   .portal-sidebar__overlay-content {
     width: min(360px, 100%);
     border-left: 0;
+  }
+
+  .portal-sidebar__overlay-content .portal-sidebar__footer {
+    display: grid;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--portal-sidebar-border);
+    gap: 0.85rem;
+    margin-top: 0;
   }
 
   .portal-sidebar__search-hint {
