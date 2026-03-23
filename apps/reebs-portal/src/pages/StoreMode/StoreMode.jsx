@@ -228,7 +228,7 @@ function StoreMode() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
-    const mediaQuery = window.matchMedia("(max-width: 820px)");
+    const mediaQuery = window.matchMedia("(max-width: 1024px)");
     const syncViewport = (event) => setIsMobileViewport(event.matches);
 
     setIsMobileViewport(mediaQuery.matches);
@@ -1214,10 +1214,7 @@ function StoreMode() {
                       );
                     })}
                   </div>
-                ) : (
-                  <p className="store-builder-empty store-builder-empty--inline">
-                    Use the + buttons above to build the order.
-                  </p>
+                ) : (null
                 )}
               </div>
 

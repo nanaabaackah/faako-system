@@ -76,8 +76,8 @@
   border: 1px solid var(--portal-sidebar-border);
   border-radius: 1rem;
   box-shadow: var(--portal-sidebar-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
 }
 
 .portal-sidebar__header,
