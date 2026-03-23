@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./AdminWorkspace.css";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,8 @@ import {
   faPlus,
   faRotateRight,
   faTrash,
+  faBolt,
+  faXmark,
 } from "/src/icons/iconSet";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import {
@@ -657,17 +660,18 @@ function AdminWorkspace({ section = "home" }) {
     () => queue.filter((item) => item.status === "failed").length,
     [queue]
   );
+  const conflictsCount = useMemo(
+    () => queue.filter((item) => item.lastError?.includes("conflict") || item.lastError?.includes("duplicate")).length,
+    [queue]
+  );
   const syncedQueueCount = useMemo(
     () => queue.filter((item) => item.status === "synced").length,
     [queue]
   );
 
-  const topProducts = useMemo(() => kpiStats?.topProducts || [], [kpiStats]);
   const kpiLowStockItems = useMemo(() => kpiStats?.lowStockItems || [], [kpiStats]);
-  const topBookedRental = useMemo(() => kpiStats?.topRentalBookings?.[0], [kpiStats]);
   const operatingExpensesWindow =
     kpiStats?.operatingExpensesWindow ?? kpiStats?.operatingExpenses ?? 0;
-  const operatingExpensesDisplay = kpiStats?.operatingExpenses ?? 0;
   const totalRevenue = (kpiStats?.revenue ?? 0) + (kpiStats?.bookingRevenue ?? 0);
   const netAfterExpenses = totalRevenue - operatingExpensesWindow;
   const inventoryValue = kpiStats?.inventoryValue ?? 0;
@@ -681,11 +685,7 @@ function AdminWorkspace({ section = "home" }) {
     }),
     [retailRevenue, rentalRevenue, revenueTotal]
   );
-  const avgLeadTime = directoryStats?.avgLeadTime ?? 0;
-  const avgLeadTimeLabel = avgLeadTime ? `${avgLeadTime} days` : "—";
-  const leadTimeCoverage = directoryStats?.leadTimeCoverage ?? 0;
   const lowStockCount = kpiStats?.lowStockCount ?? kpiLowStockItems.length;
-  const conflictsCount = kpiStats?.conflicts?.length || 0;
   const lockedInValue = kpiStats?.lockedInNextQuarter ?? 0;
   const netMarginPctRaw = totalRevenue > 0 ? Math.round((netAfterExpenses / totalRevenue) * 100) : 0;
   const netMarginPct = Math.max(0, Math.min(100, netMarginPctRaw));
@@ -693,9 +693,6 @@ function AdminWorkspace({ section = "home" }) {
     ? Math.min(100, Math.round((lowStockCount / Math.max(1, inventory.length)) * 100))
     : 0;
   const lockedInPct = totalRevenue > 0 ? Math.min(100, Math.round((lockedInValue / totalRevenue) * 100)) : 0;
-  const leadCoveragePct = directoryStats?.vendors
-    ? Math.min(100, Math.round((leadTimeCoverage / Math.max(1, directoryStats.vendors)) * 100))
-    : 0;
   const revenueMixSegments = useMemo(
     () => [
       { key: "retail", label: "Retail", value: Math.max(0, retailRevenue), color: "#3b82f6" },
@@ -708,7 +705,7 @@ function AdminWorkspace({ section = "home" }) {
     () => revenueMixSegments.reduce((sum, segment) => sum + segment.value, 0),
     [revenueMixSegments]
   );
-  const revenueDonutRadius = 44;
+  const revenueDonutRadius = 53;
   const revenueDonutCircumference = 2 * Math.PI * revenueDonutRadius;
   const revenueMixDonut = useMemo(() => {
     let consumed = 0;
@@ -734,17 +731,6 @@ function AdminWorkspace({ section = "home" }) {
     () => Math.max(1, ...operationsBars.map((entry) => entry.value)),
     [operationsBars]
   );
-  const conflictText = useMemo(() => {
-    const conflicts = kpiStats?.conflicts || [];
-    if (!conflicts.length) return "No inventory conflicts detected.";
-    const first = conflicts[0];
-    const bookingIds = Array.isArray(first.booking_ids)
-      ? first.booking_ids.map((id) => `#${id}`).join(", ")
-      : "";
-    const shortDate = first.event_date ? formatDate(first.event_date) : "";
-    const moreCount = conflicts.length > 1 ? ` + ${conflicts.length - 1} more conflict(s)` : "";
-    return `Product #${first.product_id} (${first.product_name || "Item"}) needs ${first.total_quantity} on ${shortDate} with only ${first.product_stock ?? 0} in stock. Bookings: ${bookingIds}${moreCount}`;
-  }, [kpiStats]);
   const signedInAt = useMemo(() => {
     const raw = String(user?.authenticatedAt || user?.sessionCreatedAt || "").trim();
     if (!raw) return null;
@@ -1066,11 +1052,26 @@ function AdminWorkspace({ section = "home" }) {
   };
 
   const renderHome = () => (
-    <section className="aw-section-grid">
+    <section className="aw-section-grid aw-home-view">
+
+
+      <section className="aw-staff-hero">
+        <div className="aw-staff-hero-actions">
+          <button
+            type="button"
+            className="aw-primary-btn aw-staff-hero-btn"
+            onClick={() => navigate("/admin/store-mode")}
+            aria-label="Store Mode"
+          >
+            <AppIcon icon={faArrowRight} />
+          </button>
+          <span className="aw-staff-hero-cta-label">Store Mode</span>
+        </div>
+      </section>
       {canViewHomeKpis ? (
         <>
             <div className="aw-home-summary-grid">
-            <article className="aw-home-summary-card">
+            <article className="aw-home-summary-card glass-card">
               <p className="aw-home-kpi-label">Items</p>
               <strong>{inventory.length}</strong>
               <span>Tracked products</span>
@@ -1091,6 +1092,100 @@ function AdminWorkspace({ section = "home" }) {
               <span>{syncingQueue ? "Syncing now" : "Ready"}</span>
             </article>
           </div>
+
+          <div className="aw-panel">
+            <div className="aw-toolbar aw-quick-actions-grid">
+              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/purchases")}>
+                <AppIcon icon={faMinus} />
+                <span>Create Order</span>
+              </button>
+              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/inventory")}>
+                <AppIcon icon={faBoxesStacked} />
+                <span>Record Stock</span>
+              </button>
+              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/directory")}>
+                <AppIcon icon={faClipboardList} />
+                <span>Add Customer</span>
+              </button>
+            </div>
+          </div>
+
+          {(inventoryLowStockItems.length > 0 || failedQueueCount > 0 || conflictsCount > 0) && (
+            <div className="aw-panel">
+              <div className="aw-panel-header">
+                <h2>Alerts & Issues</h2>
+                <span className="aw-alert-badge">{inventoryLowStockItems.length + failedQueueCount + conflictsCount}</span>
+              </div>
+              <div className="aw-alerts-grid">
+                {inventoryLowStockItems.length > 0 && (
+                  <div className="aw-alert-card aw-alert-warning">
+                    <div className="aw-alert-icon"><AppIcon icon={faBolt} /></div>
+                    <div className="aw-alert-content">
+                      <strong>{inventoryLowStockItems.length} Low Stock Items</strong>
+                      <p>Reorder soon to avoid stockouts</p>
+                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/inventory")}>
+                        View
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {failedQueueCount > 0 && (
+                  <div className="aw-alert-card aw-alert-error">
+                    <div className="aw-alert-icon"><AppIcon icon={faXmark} /></div>
+                    <div className="aw-alert-content">
+                      <strong>{failedQueueCount} Sync Failures</strong>
+                      <p>Actions failed to sync</p>
+                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/offline")}>
+                        Fix
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {conflictsCount > 0 && (
+                  <div className="aw-alert-card aw-alert-attention">
+                    <div className="aw-alert-icon"><AppIcon icon={faRotateRight} /></div>
+                    <div className="aw-alert-content">
+                      <strong>{conflictsCount} Inventory Conflicts</strong>
+                      <p>Stock data needs review</p>
+                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/inventory")}>
+                        Review
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="aw-panel">
+            <div className="aw-panel-header">
+              <h2>Performance Trends</h2>
+            </div>
+            <div className="aw-performance-grid">
+              <div className="aw-performance-card">
+                <p className="aw-performance-label">Revenue Status</p>
+                <div className="aw-performance-bar">
+                  <div className="aw-performance-fill" style={{ width: `${Math.min(100, (totalRevenue / 10000) * 100)}%`, backgroundColor: '#0f8f78' }} />
+                </div>
+                <span className="aw-performance-text">{netMarginPctRaw}% margin</span>
+              </div>
+              <div className="aw-performance-card">
+                <p className="aw-performance-label">Inventory Health</p>
+                <div className="aw-performance-bar">
+                  <div className="aw-performance-fill" style={{ width: `${Math.max(0, 100 - inventoryRiskPct)}%`, backgroundColor: inventoryRiskPct > 30 ? '#f59e0b' : '#0f8f78' }} />
+                </div>
+                <span className="aw-performance-text">{Math.max(0, 100 - inventoryRiskPct)}% healthy</span>
+              </div>
+              <div className="aw-performance-card">
+                <p className="aw-performance-label">Order Velocity</p>
+                <div className="aw-performance-bar">
+                  <div className="aw-performance-fill" style={{ width: `${Math.min(100, (kpiStats?.orders / 100) * 100)}%`, backgroundColor: '#3b82f6' }} />
+                </div>
+                <span className="aw-performance-text">{kpiStats?.orders ?? 0} orders</span>
+              </div>
+            </div>
+          </div>
+
           <div className="aw-panel aw-home-kpi-panel">
             <div className="aw-panel-header">
               <h2>Business KPI Dashboard</h2>
@@ -1113,35 +1208,35 @@ function AdminWorkspace({ section = "home" }) {
             {!kpiLoading && !kpiError && (
               <>
                 <div className="aw-home-kpi-grid">
-                  <article className="aw-home-kpi-card aw-home-kpi-card-hero">
+                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/purchases")}>
                     <p className="aw-home-kpi-label">Revenue</p>
                     <strong>{toCurrency(totalRevenue, "GHS")}</strong>
                     <span>Retail {revenueSplit.retailPct}% • Rental {revenueSplit.rentalPct}%</span>
-                  </article>
-                  <article className="aw-home-kpi-card aw-home-kpi-card-hero">
+                  </button>
+                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/expenses")}>
                     <p className="aw-home-kpi-label">Net after expenses</p>
                     <strong>{toCurrency(netAfterExpenses, "GHS")}</strong>
                     <span>{netMarginPctRaw}% margin</span>
                     <div className="aw-home-kpi-meter">
                       <span style={{ width: `${netMarginPct}%` }} />
                     </div>
-                  </article>
-                  <article className="aw-home-kpi-card aw-home-kpi-card-hero">
+                  </button>
+                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/inventory")}>
                     <p className="aw-home-kpi-label">Inventory value</p>
                     <strong>{toCurrency(inventoryValue, "GHS")}</strong>
                     <span>{inventoryRiskPct}% low-stock risk</span>
                     <div className="aw-home-kpi-meter is-warning">
                       <span style={{ width: `${Math.max(8, 100 - inventoryRiskPct)}%` }} />
                     </div>
-                  </article>
-                  <article className="aw-home-kpi-card aw-home-kpi-card-hero">
+                  </button>
+                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/bookings")}>
                     <p className="aw-home-kpi-label">Locked-in next quarter</p>
                     <strong>{toCurrency(lockedInValue, "GHS")}</strong>
                     <span>{kpiStats?.nextQuarterLabel || "Next quarter"}</span>
                     <div className="aw-home-kpi-meter is-accent">
                       <span style={{ width: `${lockedInPct}%` }} />
                     </div>
-                  </article>
+                  </button>
                 </div>
 
                 <div className="aw-home-kpi-chart-grid">
@@ -1227,153 +1322,29 @@ function AdminWorkspace({ section = "home" }) {
                 </div>
 
                 <div className="aw-home-kpi-grid aw-home-kpi-grid-tight">
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Sales</p>
+                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/purchases")}>
+                    <p className="aw-home-kpi-label">Orders</p>
                     <strong>{kpiStats?.orders ?? 0}</strong>
-                    <span>Orders placed</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
+                    <span>Placed</span>
+                  </button>
+                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/purchases")}>
                     <p className="aw-home-kpi-label">Units sold</p>
                     <strong>{kpiStats?.units ?? 0}</strong>
                     <span>Items shipped</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Bookings</p>
-                    <strong>{kpiStats?.bookings ?? 0}</strong>
-                    <span>{toCurrency(kpiStats?.bookingRevenue ?? 0, "GHS")}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Operating expenses</p>
-                    <strong>{toCurrency(operatingExpensesDisplay, "GHS")}</strong>
-                    <span>{kpiStats?.expenseWindowLabel || "Last 30 days"}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Maintenance requests</p>
-                    <strong>{kpiStats?.maintenanceOpen ?? 0}</strong>
-                    <span>{toCurrency(kpiStats?.maintenanceCost ?? 0, "GHS")}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
+                  </button>
+                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/inventory")}>
+                    <p className="aw-home-kpi-label">Low stock</p>
+                    <strong>{lowStockCount}</strong>
+                    <span>Needs reorder</span>
+                  </button>
+                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/directory")}>
                     <p className="aw-home-kpi-label">Customers</p>
                     <strong>{directoryStats.customers ?? 0}</strong>
-                    <span>
-                      {directoryError
-                        ? "Directory unavailable"
-                        : directoryLoading
-                          ? "Loading directory..."
-                          : "CRM records"}
-                    </span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Vendors</p>
-                    <strong>{directoryStats.vendors ?? 0}</strong>
-                    <span>
-                      {directoryError
-                        ? "Directory unavailable"
-                        : directoryLoading
-                          ? "Loading directory..."
-                          : "Suppliers listed"}
-                    </span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Avg lead time</p>
-                    <strong>{avgLeadTimeLabel}</strong>
-                    <span>
-                      {directoryError
-                        ? "Directory unavailable"
-                        : `${leadTimeCoverage} vendor${leadTimeCoverage === 1 ? "" : "s"} tracked`}
-                    </span>
-                    <div className="aw-home-kpi-meter is-neutral">
-                      <span style={{ width: `${leadCoveragePct}%` }} />
-                    </div>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Low stock items</p>
-                    <strong>{lowStockCount}</strong>
-                    <span>{lowStockCount > 0 ? "Needs reorder" : "All above reorder level"}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Cash flow projection</p>
-                    <strong>{toCurrency(lockedInValue, "GHS")}</strong>
-                    <span>Confirmed bookings for {kpiStats?.nextQuarterLabel || "next quarter"}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Inventory conflicts</p>
-                    <strong>{conflictsCount}</strong>
-                    <span>{conflictsCount ? "Conflicts detected" : "No conflicts"}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Retail revenue split</p>
-                    <strong>{revenueSplit.retailPct}%</strong>
-                    <span>{toCurrency(retailRevenue, "GHS")}</span>
-                  </article>
-                  <article className="aw-home-kpi-card">
-                    <p className="aw-home-kpi-label">Rental revenue split</p>
-                    <strong>{revenueSplit.rentalPct}%</strong>
-                    <span>{toCurrency(rentalRevenue, "GHS")}</span>
-                  </article>
+                    <span>Active</span>
+                  </button>
                 </div>
               </>
             )}
-          </div>
-
-          <div className="aw-panel">
-            <div className="aw-panel-header">
-              <h2>KPI Detail</h2>
-            </div>
-            <div className="aw-home-kpi-grid aw-home-kpi-grid-tight">
-              <article className="aw-home-kpi-card">
-                <p className="aw-home-kpi-label">Popular products</p>
-                {!topProducts.length ? (
-                  <p className="aw-muted">No product data yet.</p>
-                ) : (
-                  <ul className="aw-queue-list">
-                    {topProducts.slice(0, 5).map((item) => (
-                      <li key={`${item.id}-${item.sku || "sku"}`} className="aw-queue-item">
-                        <div>
-                          <strong>{item.name || item.sku || "Product"}</strong>
-                          <p>{item.sku || "No SKU"}</p>
-                        </div>
-                        <span className="aw-status-chip pending">{item.units || 0} units</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </article>
-              <article className="aw-home-kpi-card">
-                <p className="aw-home-kpi-label">Top booked rental</p>
-                {topBookedRental ? (
-                  <>
-                    <strong>{topBookedRental.name || "Untitled"}</strong>
-                    <p className="aw-muted">
-                      {topBookedRental.units || 0} bookings • {toCurrency(topBookedRental.revenue || 0, "GHS")}
-                    </p>
-                  </>
-                ) : (
-                  <p className="aw-muted">No recent rental bookings.</p>
-                )}
-              </article>
-              <article className="aw-home-kpi-card">
-                <p className="aw-home-kpi-label">Stock velocity</p>
-                {!kpiStats?.velocity?.length ? (
-                  <p className="aw-muted">No stock movement data.</p>
-                ) : (
-                  <ul className="aw-queue-list">
-                    {kpiStats.velocity.map((row) => (
-                      <li key={row.label} className="aw-queue-item">
-                        <div>
-                          <strong>{row.label}</strong>
-                          <p>In: {row.stockIn} • Out: {row.stockOut}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </article>
-              <article className="aw-home-kpi-card">
-                <p className="aw-home-kpi-label">Conflict summary</p>
-                <p className="aw-muted">{conflictText}</p>
-              </article>
-            </div>
           </div>
 
           <div className="aw-panel">
@@ -1409,20 +1380,6 @@ function AdminWorkspace({ section = "home" }) {
         </>
       ) : (
         <>
-          <section className="aw-staff-hero">
-            <div className="aw-staff-hero-actions">
-              <button
-                type="button"
-                className="aw-primary-btn aw-staff-hero-btn"
-                onClick={() => navigate("/admin/store-mode")}
-                aria-label="Store Mode"
-              >
-                <AppIcon icon={faArrowRight} />
-              </button>
-              <span className="aw-staff-hero-cta-label">Store Mode</span>
-            </div>
-          </section>
-
           <div className="aw-staff-summary-grid">
             {staffSummaryCards.map((card) => (
               <article key={card.key} className="aw-staff-summary-card">
@@ -1437,121 +1394,44 @@ function AdminWorkspace({ section = "home" }) {
               </article>
             ))}
           </div>
-
-          <div className="aw-panel aw-staff-panel">
-            <div className="aw-panel-header">
-              <h2>Your activity</h2>
-              <button
-                type="button"
-                className="aw-link-btn"
-                onClick={() => navigate("/admin/offline")}
-              >
-                Open sync queue
-              </button>
-            </div>
-            {recentStaffActivity.length ? (
-              <ul className="aw-queue-list">
-                {recentStaffActivity.map((item) => (
-                  <li key={item.id} className="aw-queue-item">
-                    <div>
-                      <strong>{item.label || "Store activity"}</strong>
-                      <p>{formatDateTime(item.createdAt)}</p>
-                    </div>
-                    <div className="aw-queue-status">
-                      <span className={`aw-status-chip ${item.status || "pending"}`}>
-                        {item.status || "pending"}
-                      </span>
-                      {item.lastError && <small>{item.lastError}</small>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="aw-staff-empty">
-                <strong>No staff activity logged yet.</strong>
-                <p>Stock changes and sync actions from this device will appear here once work starts.</p>
-              </div>
-            )}
-          </div>
         </>
       )}
 
-      {canViewHomeKpis && (
-        <div className="aw-panel">
-          <div className="aw-panel-header">
-            <h2>Quick Stock</h2>
-            <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/inventory")}>
-              Open stock
-            </button>
-          </div>
-          {inventoryLoading ? (
-            <p className="aw-muted">Loading stock...</p>
-          ) : inventoryLowStockItems.length ? (
-            <div className="aw-stock-list">
-              {inventoryLowStockItems.slice(0, 6).map((item) => {
-                const outBusy = stockBusyId === `${item.id}-out`;
-                const inBusy = stockBusyId === `${item.id}-in`;
-                return (
-                  <article key={item.id} className="aw-stock-card">
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p>Qty {getQuantity(item)}</p>
-                    </div>
-                    <div className="aw-stock-actions">
-                      <button
-                        type="button"
-                        className="aw-icon-btn danger"
-                        onClick={() => handleQuickStock(item, "out")}
-                        disabled={outBusy}
-                        aria-label={`Reduce stock for ${item.name}`}
-                      >
-                        <AppIcon icon={faMinus} />
-                      </button>
-                      <button
-                        type="button"
-                        className="aw-icon-btn success"
-                        onClick={() => handleQuickStock(item, "in")}
-                        disabled={inBusy}
-                        aria-label={`Increase stock for ${item.name}`}
-                      >
-                        <AppIcon icon={faPlus} />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="aw-muted">No low-stock alerts.</p>
-          )}
+      <div className="aw-panel aw-staff-panel">
+        <div className="aw-panel-header">
+          <h2>Your activity</h2>
+          <button
+            type="button"
+            className="aw-link-btn"
+            onClick={() => navigate("/admin/offline")}
+          >
+            Open sync queue
+          </button>
         </div>
-      )}
-
-      {isSystemAdmin && adminViewMode === "advanced" && (
-        <div className="aw-panel">
-          <div className="aw-panel-header">
-            <h2>Admin Signal</h2>
+        {recentStaffActivity.length ? (
+          <ul className="aw-queue-list">
+            {recentStaffActivity.map((item) => (
+              <li key={item.id} className="aw-queue-item">
+                <div>
+                  <strong>{item.label || "Store activity"}</strong>
+                  <p>{formatDateTime(item.createdAt)}</p>
+                </div>
+                <div className="aw-queue-status">
+                  <span className={`aw-status-chip ${item.status || "pending"}`}>
+                    {item.status || "pending"}
+                  </span>
+                  {item.lastError && <small>{item.lastError}</small>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="aw-staff-empty">
+            <strong>No staff activity logged yet.</strong>
+            <p>Stock changes and sync actions from this device will appear here once work starts.</p>
           </div>
-          <div className="aw-kpi-grid">
-            <article className="aw-kpi">
-              <p className="aw-kpi-label">Failed Sync</p>
-              <strong>{failedQueueCount}</strong>
-            </article>
-            <article className="aw-kpi">
-              <p className="aw-kpi-label">Synced</p>
-              <strong>{syncedQueueCount}</strong>
-            </article>
-            <article className="aw-kpi">
-              <p className="aw-kpi-label">Stock Snapshot</p>
-              <strong>{usingInventorySnapshot ? "Cached" : "Live"}</strong>
-            </article>
-            <article className="aw-kpi">
-              <p className="aw-kpi-label">Customer Snapshot</p>
-              <strong>{usingCustomerSnapshot ? "Cached" : "Live"}</strong>
-            </article>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 

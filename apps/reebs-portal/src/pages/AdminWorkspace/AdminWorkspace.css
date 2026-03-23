@@ -68,6 +68,7 @@
 
 .aw-title-block h1 {
   margin: 0;
+  font-weight: 900;
   font-family: inherit;
   font-size: clamp(2.35rem, 3vw, 2.8rem);
   line-height: 1.12;
@@ -253,10 +254,12 @@
 }
 
 .aw-kpi {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
-  border-radius: 0.9rem;
+  border-radius: 1.25rem;
   background: rgba(255, 255, 255, 0.86);
-  padding: 0.72rem 0.82rem;
+  padding: 0.76rem 0.84rem;
 }
 
 .aw-kpi-label {
@@ -281,11 +284,17 @@
 }
 
 .aw-home-summary-card {
-  border-right: 1px solid var(--aw-border);
+  border-right: 2px solid var(--aw-primary);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   background: transparent;
-  padding: 0.72rem 0.82rem;
+  padding: 0.76rem 0.84rem;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+
+.aw-home-summary-card:hover {
+  transform: translateY(-2px);
 }
 
 .aw-home-kpi-label {
@@ -329,16 +338,40 @@
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
-  border-radius: 0.92rem;
+  border-radius: 1.25rem;
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 249, 249, 0.95) 100%);
   padding: 0.76rem 0.84rem;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.aw-home-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
 .aw-home-kpi-card-hero {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--aw-border);
+  border-radius: 1.25rem;
   background:
     radial-gradient(circle at 95% 0%, rgba(15, 143, 120, 0.15), transparent 52%),
     linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 248, 249, 0.95) 100%);
+  font: inherit;
+  text-align: left;
+  padding: 0.76rem 0.84rem;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.aw-home-kpi-card-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
 .aw-home-kpi-meter {
@@ -391,9 +424,28 @@
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--aw-border);
-  border-radius: 0.96rem;
+  border-radius: 1.25rem;
   background: rgba(255, 255, 255, 0.9);
-  padding: 0.84rem;
+  padding: 0.76rem 0.84rem;
+}
+
+/* Button styling for KPI cards */
+button.aw-home-kpi-card,
+button.aw-home-kpi-card-hero {
+  border: 1px solid var(--aw-border);
+  color: inherit;
+}
+
+button.aw-home-kpi-card:focus,
+button.aw-home-kpi-card-hero:focus {
+  outline: 2px solid var(--aw-primary);
+  outline-offset: 2px;
+}
+
+button.aw-home-kpi-card:disabled,
+button.aw-home-kpi-card-hero:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .aw-home-kpi-chart-head {
@@ -1375,8 +1427,6 @@ body.admin-theme.aw-theme .aw-nav-btn.is-active {
 body.admin-theme.aw-theme .portal-app-content :is(
   .aw-panel,
   .aw-home-summary-card,
-  .aw-home-kpi-card,
-  .aw-home-kpi-chart-card,
   .aw-stock-card,
   .aw-link-card
 ) {
@@ -1387,6 +1437,18 @@ body.admin-theme.aw-theme .portal-app-content :is(
   -webkit-backdrop-filter: none !important;
 }
 
+/* KPI cards retain their glass-morphism styling */
+body.admin-theme.aw-theme .portal-app-content :is(
+  .aw-home-kpi-card,
+  .aw-home-kpi-chart-card
+) {
+  background: transparent !important;
+  border: 1px solid var(--aw-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+}
+
 body.admin-theme.aw-theme .portal-app-content .aw-panel-header {
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   margin-bottom: 0.35rem;
@@ -1395,4 +1457,219 @@ body.admin-theme.aw-theme .portal-app-content .aw-panel-header {
 
 [data-admin-theme="dark"] body.admin-theme.aw-theme .portal-app-content .aw-panel-header {
   border-bottom-color: rgba(148, 163, 184, 0.24);
+}
+
+/* Quick Actions Grid */
+body.admin-theme.aw-theme .aw-quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  padding: 0.76rem 0.84rem;
+}
+
+body.admin-theme.aw-theme .aw-quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
+  background: linear-gradient(135deg, var(--aw-card), rgba(255, 255, 255, 0.85));
+  border: 1px solid var(--aw-border);
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--aw-ink);
+}
+
+body.admin-theme.aw-theme .aw-quick-action-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(15, 143, 120, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1), var(--aw-card));
+}
+
+body.admin-theme.aw-theme .aw-quick-action-btn:active {
+  transform: translateY(-1px);
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-quick-action-btn {
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.7), rgba(31, 41, 55, 0.6));
+  border-color: rgba(148, 163, 184, 0.24);
+  color: var(--aw-ink);
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-quick-action-btn:hover {
+  box-shadow: 0 10px 25px rgba(45, 212, 191, 0.12);
+}
+
+/* Alerts & Issues Section */
+body.admin-theme.aw-theme .aw-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  background: var(--aw-danger);
+  color: white;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+body.admin-theme.aw-theme .aw-alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  padding: 0.76rem 0.84rem;
+}
+
+body.admin-theme.aw-theme .aw-alert-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--aw-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+body.admin-theme.aw-theme .aw-alert-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+body.admin-theme.aw-theme .aw-alert-warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(251, 146, 60, 0.06));
+}
+
+body.admin-theme.aw-theme .aw-alert-error {
+  border-color: rgba(216, 74, 70, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(216, 74, 70, 0.06));
+}
+
+body.admin-theme.aw-theme .aw-alert-attention {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(59, 130, 246, 0.06));
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-card {
+  background: rgba(31, 41, 55, 0.6);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-warning {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(245, 158, 11, 0.12));
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-error {
+  border-color: rgba(248, 113, 113, 0.3);
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(248, 113, 113, 0.1));
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-attention {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(96, 165, 250, 0.1));
+}
+
+body.admin-theme.aw-theme .aw-alert-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+body.admin-theme.aw-theme .aw-alert-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+body.admin-theme.aw-theme .aw-alert-content {
+  flex: 1;
+}
+
+body.admin-theme.aw-theme .aw-alert-content strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--aw-ink);
+}
+
+body.admin-theme.aw-theme .aw-alert-content p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--aw-muted);
+}
+
+body.admin-theme.aw-theme .aw-link-btn {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--aw-primary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: opacity 0.2s ease;
+}
+
+body.admin-theme.aw-theme .aw-link-btn:hover {
+  opacity: 0.8;
+}
+
+/* Performance Trends Section */
+body.admin-theme.aw-theme .aw-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 0.76rem 0.84rem;
+}
+
+body.admin-theme.aw-theme .aw-performance-card {
+  padding: 1rem;
+  background: transparent;
+  border: none;
+}
+
+body.admin-theme.aw-theme .aw-performance-label {
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--aw-ink);
+}
+
+body.admin-theme.aw-theme .aw-performance-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 0.25rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+body.admin-theme.aw-theme .aw-performance-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  border-radius: 0.25rem;
+}
+
+body.admin-theme.aw-theme .aw-performance-text {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--aw-muted);
+  font-weight: 500;
+}
+
+[data-admin-theme="dark"] body.admin-theme.aw-theme .aw-performance-bar {
+  background: rgba(255, 255, 255, 0.08);
 }

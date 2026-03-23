@@ -163,6 +163,9 @@ body.admin-readonly .customers-search-input input {
   border-radius: 20px;
   padding: 20px 24px;
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.15);
+  background: transparent;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
 }
 
 .admin-card h2 {
@@ -204,6 +207,9 @@ body.admin-readonly .customers-search-input input {
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.15);
   display: grid;
   gap: 8px;
+  background: transparent;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
 }
 
 .inventory-kpi-label {
@@ -270,6 +276,9 @@ body.admin-readonly .customers-search-input input {
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.15);
   display: grid;
   gap: 14px;
+  background: transparent;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
 }
 
 .inventory-kpi-chart-head {
@@ -1416,8 +1425,8 @@ body.admin-readonly .customers-search-input input {
   box-shadow:
     0 16px 30px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
@@ -14134,6 +14143,17 @@ body.admin-theme .portal-app-content :is(
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* Re-enable backdrop-filter for inventory cards */
+body.admin-theme .portal-app-content :is(
+  .admin-card,
+  .inventory-kpi-card,
+  .inventory-kpi-chart-card,
+  .inventory-card
+) {
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
 }
 
 body.admin-theme .portal-app-content :is(

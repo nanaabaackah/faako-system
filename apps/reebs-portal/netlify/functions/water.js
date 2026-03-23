@@ -8,9 +8,9 @@ import {
 } from "./_shared/productVendors.js";
 import { requireUser } from "./_shared/userAuth.js";
 
-const PRODUCT_NAME = "12pk Gwater";
-const PRODUCT_KEY = "gwater-12pk";
-const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15pk Gwater"];
+const PRODUCT_NAME = "15pk Gwater";
+const PRODUCT_KEY = "gwater-15pk";
+const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "12pk Gwater"];
 const DEFAULT_PURCHASE_COST = 2200;
 const RETAIL_PRICE = 2700;
 const BULK_RETAIL_PRICE = 2600;

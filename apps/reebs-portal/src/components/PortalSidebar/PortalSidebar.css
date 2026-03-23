@@ -42,6 +42,7 @@
 }
 
 .portal-sidebar {
+  border-right: 5px solid var(--portal-sidebar-border);
   position: fixed;
   left: 0;
   top: 0;

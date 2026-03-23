@@ -741,7 +741,6 @@ function AdminWater() {
 
         <section className="water-module-hero">
           <div className="water-module-hero-copy">
-            <span className="water-module-pill">Fixed product</span>
             <h2>{productName || "15pk Gwater"}</h2>
             <p>
               Purchase cost is fixed at {formatCurrency(dashboard?.product?.purchaseCost)} per pack.
