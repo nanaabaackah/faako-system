@@ -103,6 +103,9 @@ importers:
 
   apps/dev-erp:
     dependencies:
+      '@faako/email-kit':
+        specifier: workspace:*
+        version: link:../../packages/email-kit
       '@fortawesome/free-brands-svg-icons':
         specifier: ^6.7.2
         version: 6.7.2
@@ -766,6 +769,8 @@ importers:
       react:
         specifier: '>=18'
         version: 19.2.4
+
+  packages/email-kit: {}
 
   packages/theme: {}
 
@@ -13635,14 +13640,14 @@ snapshots:
 
   ini@4.1.1: {}
 
-  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
+  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
     dependencies:
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
       prop-types: 15.8.1
       react: 16.14.0
       terminal-link: 2.1.1
 
-  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
+  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
     dependencies:
       arr-rotate: 1.0.0
       figures: 3.2.0
@@ -13650,7 +13655,7 @@ snapshots:
       lodash.isequal: 4.5.0
       react: 16.14.0
 
-  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
+  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
     dependencies:
       chalk: 4.1.2
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
@@ -15878,9 +15883,9 @@ snapshots:
       get-port: 5.1.1
       has-yarn: 2.1.0
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
-      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
-      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
-      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
+      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
+      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
+      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
       meow: 7.1.1
       node-fetch: 2.7.0
       open: 7.4.2
