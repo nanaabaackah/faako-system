@@ -4,11 +4,11 @@ function HomeQuickAnswersSection() {
   return (
     <section className="home-flow home-flow--answers">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal">
           <h2 className="section-title">Before You Book</h2>
         </div>
 
-        <div className="answers-grid">
+        <div className="answers-grid reveal">
           {QUICK_ANSWERS.map((item) => (
             <article key={item.question} className="answer-row">
               <h3>{item.question}</h3>

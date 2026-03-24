@@ -6,12 +6,12 @@ function HomeServicesSection() {
     <div className="home-services-stack">
       <section className="home-flow home-flow--services">
         <div className="container">
-          <div className="section-header">
+          <div className="section-header reveal">
             <h2 className="section-title">Everything You Need, In One Place</h2>
             <p className="section-description">Rentals, styling, and party supplies without running around town.</p>
           </div>
 
-          <div className="services-rail">
+          <div className="services-rail reveal">
             {HOME_SERVICES.map((service) => (
               <Link to={service.to} className="service-row" key={service.title}>
                 <img

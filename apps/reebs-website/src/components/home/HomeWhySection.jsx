@@ -5,14 +5,14 @@ function HomeWhySection() {
   return (
     <section className="home-flow home-flow--why">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal">
           <h2 className="section-title">Why REEBS</h2>
           <p className="section-description">
             One team for rentals, styling, and support, so your day feels fun instead of stressful.
           </p>
         </div>
 
-        <ul className="why-list" role="list">
+        <ul className="why-list reveal" role="list">
           {WHY_REEBS_ITEMS.map((item) => (
             <li className="why-item" key={item.title}>
               <span className="why-icon"><AppIcon icon={item.icon} /></span>

@@ -103,6 +103,9 @@ importers:
 
   apps/dev-erp:
     dependencies:
+      '@faako/email-kit':
+        specifier: workspace:*
+        version: link:../../packages/email-kit
       '@fortawesome/free-brands-svg-icons':
         specifier: ^6.7.2
         version: 6.7.2
@@ -766,6 +769,8 @@ importers:
       react:
         specifier: '>=18'
         version: 19.2.4
+
+  packages/email-kit: {}
 
   packages/theme: {}
 

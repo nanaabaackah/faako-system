@@ -23,14 +23,14 @@ function HomeShopHighlightsSection({
   return (
     <section className="home-flow home-flow--shop">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal">
           <h2 className="section-title">Easy Add-Ons People Grab With Their Rentals</h2>
           <p className="section-description">
             Quick party extras and practical supplies customers keep adding to their setup.
           </p>
         </div>
 
-        <div className="home-shop-panels" role="list" aria-label="Popular shop items">
+        <div className="home-shop-panels reveal" role="list" aria-label="Popular shop items">
           {popularShopItems.map((item, index) => {
             const itemKey = item.id || item.productId || item.slug || `${item.name}-${index}`;
             const itemPrice = getHomeShopPrice(item);
@@ -86,7 +86,7 @@ function HomeShopHighlightsSection({
           })}
         </div>
 
-        <div className="featured-more">
+        <div className="featured-more reveal">
           <Link to="/shop" className="btn btn-primary btn-lg">Browse All Shop Items</Link>
         </div>
       </div>

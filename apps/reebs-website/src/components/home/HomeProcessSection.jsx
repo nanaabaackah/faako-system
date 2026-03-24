@@ -4,12 +4,12 @@ function HomeProcessSection() {
   return (
     <section id="how-it-works" className="home-flow home-flow--process">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal">
           <h2 className="section-title">Simple Steps, Zero Stress</h2>
           <p className="section-description">From first chat to final pickup, we keep it clear and easy.</p>
         </div>
 
-        <ol className="process-line">
+        <ol className="process-line reveal">
           {PROCESS_STEPS.map((step, index) => (
             <li key={step.title} className="process-step">
               <span className="process-index">{index + 1}</span>

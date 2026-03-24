@@ -154,9 +154,9 @@
 }
 
 .navbar-currency-select {
-  min-width: 76px;
+  max-width: 85px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 20px;
   border: 1px solid rgba(var(--back3-rgb), 0.2);
   background: rgba(var(--white-rgb), 0.94);
   color: var(--ink);
@@ -738,7 +738,7 @@
     right: 0.5rem;
     transform: none;
     width: auto;
-    max-width: none;
+    max-width: 100%;
     box-sizing: border-box;
     top: 0;
     padding:
@@ -751,9 +751,9 @@
   }
 
   .navbar-mobile-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .navbar-mobile .navbar-links {

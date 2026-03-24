@@ -32,12 +32,12 @@ function HomeHeroSection({
 
       <div className="hero-overlay" aria-hidden="true" />
 
-      <div className="hero-content">
+      <div className="hero-content reveal">
         <h1 className="hero-title">{templateSettings.heroHeading}</h1>
 
         <p className="hero-subtitle">{templateSettings.heroTagline}</p>
 
-        <form className="hero-lead-form" onSubmit={onHeroLeadSubmit}>
+        <form className="hero-lead-form reveal" onSubmit={onHeroLeadSubmit}>
           <input
             type="email"
             value={heroEmail}
@@ -52,13 +52,13 @@ function HomeHeroSection({
           </button>
         </form>
 
-        <div className="hero-proof-row" aria-label="Services and Products we have">
+        <div className="hero-proof-row reveal" aria-label="Services and Products we have">
           {HERO_PROOF_ITEMS.map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
 
-        <div className="why-stats-shell" role="region" aria-label="REEBS highlights">
+        <div className="why-stats-shell reveal" role="region" aria-label="REEBS highlights">
           <div className="why-stats" role="list" aria-label="REEBS highlights">
             {HERO_STATS.map((stat) => (
               <p className="why-stat" role="listitem" key={stat.key}>

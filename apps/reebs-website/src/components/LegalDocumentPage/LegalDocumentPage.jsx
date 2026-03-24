@@ -6,13 +6,13 @@ const DEFAULT_CONTACT_LINKS = [
     label: "info@reebspartythemes.com",
   },
   {
-    href: "https://wa.me/233244238419",
-    label: "WhatsApp: +233 244 238 419",
+    href: "https://wa.me/233244781819",
+    label: "WhatsApp: +233 244 781 819",
     external: true,
   },
   {
-    href: "tel:+233244238419",
-    label: "+233 24 423 8419",
+    href: "tel:+233244781819",
+    label: "+233 244 781 8419",
   },
 ];
 
@@ -40,10 +40,10 @@ function LegalDocumentPage({
         <nav className="legal-toc" aria-label={`${title} contents`}>
           <p className="legal-toc-label">Contents</p>
           <ol className="legal-toc-list">
-            {sections.map((section, index) => (
+            {sections.map((section) => (
               <li key={section.id}>
                 <a href={`#${section.id}`}>
-                  {section.label || `${index + 1}.`} {section.title}
+                  {section.title}
                 </a>
               </li>
             ))}

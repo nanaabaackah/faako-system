@@ -4,14 +4,14 @@ function HomeMomentsSection() {
   return (
     <section className="home-flow home-flow--moments">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal">
           <h2 className="section-title">What Clients Say After The Event</h2>
           <p className="section-description">
             Quick notes from families and teams who have booked with REEBS.
           </p>
         </div>
 
-        <ul className="moments-list" role="list">
+        <ul className="moments-list reveal" role="list">
           {REAL_PARTY_MOMENTS.map((moment) => (
             <li key={`${moment.name}-${moment.event}`} className="moment-row">
               <p className="moment-quote">“{moment.quote}”</p>

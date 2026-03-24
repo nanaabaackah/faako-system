@@ -490,6 +490,47 @@ hr {
   margin-inline: auto;
 }
 
+.reveal {
+  animation: rise 0.9s ease both;
+  animation-delay: var(--delay, 0s);
+}
+.reveal[data-scroll] {
+  animation: none;
+}
+
+.reveal.js-observed-reveal {
+  animation: none;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+  .site-main::before {
+    animation: none;
+  }
+  .scroll-reveal,
+  [data-scroll] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .page {
+    filter: none;
+    opacity: 1;
+    transition: none;
+  }
+}
+
 .section-header {
   max-width: 760px;
   margin: auto 0;
