@@ -40,7 +40,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
-    "@faako/email-kit": "workspace:*",
     "googleapis": "^144.0.0",
     "iconsax": "^0.0.1",
     "iconsax-react": "^0.0.8",
