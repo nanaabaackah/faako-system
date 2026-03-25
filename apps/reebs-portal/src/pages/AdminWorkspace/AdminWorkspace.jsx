@@ -1096,7 +1096,7 @@ function AdminWorkspace({ section = "home" }) {
           <div className="aw-panel">
             <div className="aw-toolbar aw-quick-actions-grid">
               <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/purchases")}>
-                <AppIcon icon={faMinus} />
+                <AppIcon icon={faPlus} />
                 <span>Create Order</span>
               </button>
               <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/inventory")}>

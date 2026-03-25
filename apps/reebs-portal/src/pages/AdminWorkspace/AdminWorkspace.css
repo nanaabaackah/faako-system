@@ -30,7 +30,7 @@
   --aw-shadow: 0 18px 34px rgba(2, 6, 23, 0.42);
   --aw-primary: #2dd4bf;
   --aw-primary-soft: rgba(45, 212, 191, 0.16);
-  --aw-danger: #f87171;
+  --aw-danger: red;
   --aw-danger-soft: rgba(248, 113, 113, 0.16);
 }
 
@@ -391,7 +391,7 @@
 }
 
 .aw-home-kpi-meter.is-warning {
-  background: rgba(245, 158, 11, 0.16);
+  background: red;
 }
 
 .aw-home-kpi-meter.is-warning span {
@@ -1102,7 +1102,7 @@ button.aw-home-kpi-card-hero:disabled {
   .aw-shell {
     max-width: 1200px;
     margin: 0 auto;
-    padding-bottom: 0;
+    padding-bottom: 3rem;
   }
 
   .aw-panel {
@@ -1419,7 +1419,7 @@ body.admin-theme.aw-theme .aw-nav-btn.is-active {
 
 @media (min-width: 900px) {
   body.admin-theme.aw-theme .aw-shell {
-    padding-bottom: 0;
+    padding-bottom: 5rem;
   }
 }
 
@@ -1533,7 +1533,7 @@ body.admin-theme.aw-theme .aw-alert-card {
   gap: 1rem;
   padding: 1rem 1.25rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.7);
+  background: red;
   border: 1px solid var(--aw-border);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -1561,13 +1561,13 @@ body.admin-theme.aw-theme .aw-alert-attention {
 }
 
 [data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-card {
-  background: rgba(31, 41, 55, 0.6);
+  background: red;
   border-color: rgba(148, 163, 184, 0.24);
 }
 
 [data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-warning {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(245, 158, 11, 0.12));
+  border-color: red;
+  background: linear-gradient(135deg, rgba(131, 41, 55, 0.8), rgba(150, 40, 55, 0.12));
 }
 
 [data-admin-theme="dark"] body.admin-theme.aw-theme .aw-alert-error {
