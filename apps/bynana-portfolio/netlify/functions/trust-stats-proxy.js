@@ -6,7 +6,10 @@ const env = globalThis.process?.env ?? {};
 const buildBaseHeaders = () => ({
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': env.TRUST_STATS_CACHE_CONTROL || DEFAULT_CACHE_CONTROL,
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
   'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   Vary: 'Origin',
 });

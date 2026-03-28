@@ -3,6 +3,7 @@ import "./AdminAccounting.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faWandMagicSparkles } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import {
   EXPENSE_CATEGORY_LABELS,
   getExpenseCategoryStyle,
@@ -125,6 +126,7 @@ function AdminAccounting() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState("info");
   const [isFetching, setIsFetching] = useState(false);
   const [orders, setOrders] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -311,11 +313,21 @@ function AdminAccounting() {
     setSelectedHistoricalYear(matchedYear);
   }, [windowKey]);
 
+  const pushNotice = (message, tone = "info") => {
+    setNotice(message);
+    setNoticeTone(tone);
+  };
+
+  const clearNotice = () => {
+    setNotice("");
+    setNoticeTone("info");
+  };
+
   const fetchData = async (key = windowKey) => {
     if (!data) setLoading(true);
     setIsFetching(true);
     setError("");
-    setNotice("");
+    clearNotice();
     try {
       const result = await fetchJson(`/.netlify/functions/financials?window=${key}`);
       setData(result);
@@ -750,7 +762,10 @@ function AdminAccounting() {
       ownerEquity: toMoneyString(ownerEquityAuto),
       retainedEarnings: toMoneyString(retainedEarningsAuto),
     });
-    setNotice("Balance inputs auto-filled from recorded revenue, costs, expense, and tax estimates. Click Save to store them.");
+    pushNotice(
+      "Balance inputs auto-filled from recorded revenue, costs, expense, and tax estimates. Click Save to store them.",
+      "info"
+    );
   };
 
   const autoFillTaxInputs = () => {
@@ -766,13 +781,13 @@ function AdminAccounting() {
       withholdingCredits: toMoneyString(0),
       grossProduction: toMoneyString(salesBase),
     });
-    setNotice("Tax inputs auto-filled from the selected window. Review them, then click Save.");
+    pushNotice("Tax inputs auto-filled from the selected window. Review them, then click Save.", "info");
   };
 
   const resetGhanaTaxRates = () => {
     ghanaTaxConfigEditedRef.current = true;
     setGhanaTaxConfig(ghTaxDefaults);
-    setNotice("Ghana tax rates reset to default template values. Click Save to keep them.");
+    pushNotice("Ghana tax rates reset to default template values. Click Save to keep them.", "info");
   };
 
   const saveAccountingConfigSection = async (section) => {
@@ -820,7 +835,7 @@ function AdminAccounting() {
       if (section === "taxInputs") taxInputsEditedRef.current = false;
       if (section === "taxRates") ghanaTaxConfigEditedRef.current = false;
 
-      setNotice(successMessage);
+      pushNotice(successMessage, "success");
     } catch (err) {
       setAccountingConfigError(err.message || "Unable to save accounting settings.");
     } finally {
@@ -871,9 +886,9 @@ function AdminAccounting() {
       const nextYear = HISTORICAL_INPUT_YEARS.find((candidate) => candidate > year);
       if (nextYear) {
         await changeHistoricalYear(nextYear);
-        setNotice(`Saved ${year} historical sales. Continue with ${nextYear}.`);
+        pushNotice(`Saved ${year} historical sales. Continue with ${nextYear}.`, "success");
       } else {
-        setNotice(`Saved ${year} historical sales.`);
+        pushNotice(`Saved ${year} historical sales.`, "success");
       }
     } catch (err) {
       setHistoricalSalesError(err.message || `Unable to save ${year} sales to the database.`);
@@ -1026,16 +1041,30 @@ function AdminAccounting() {
         )}
         {!loading && error && (
           <div className="accounting-inline">
-            <p className="accounting-error">{error}</p>
+            <InlineNotice
+              tone="error"
+              title="Financials unavailable"
+              message={error}
+            />
             <button type="button" className="accounting-secondary" onClick={() => fetchData(windowKey)}>
               Retry
             </button>
           </div>
         )}
         {!loading && !error && accountingConfigError && (
-          <p className="accounting-error">{accountingConfigError}</p>
+          <InlineNotice
+            tone="error"
+            title="Accounting settings not saved"
+            message={accountingConfigError}
+          />
         )}
-        {!loading && !error && notice && <p className="accounting-status">{notice}</p>}
+        {!loading && !error && notice && (
+          <InlineNotice
+            tone={noticeTone}
+            title={noticeTone === "success" ? "Accounting updated" : "Review ready"}
+            message={notice}
+          />
+        )}
 
         {!loading && !error && data && (
           <section className="accounting-panels accounting-panels-stack">
@@ -1098,7 +1127,14 @@ function AdminAccounting() {
                   ) : null
                 ))}
               </div>
-              {historicalSalesError && <p className="accounting-error">{historicalSalesError}</p>}
+              {historicalSalesError && (
+                <InlineNotice
+                  tone="error"
+                  title="Historical sales not saved"
+                  message={historicalSalesError}
+                  compact
+                />
+              )}
               <div className="accounting-pnl">
                 <div className="accounting-pnl-row">
                   <span>Input total for {selectedHistoricalYear}</span>

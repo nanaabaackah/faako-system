@@ -4,6 +4,7 @@ import "./AdminSettings.css";
 import { useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import {
   ADMIN_FONT_SIZE_OPTIONS,
   ADMIN_THEME_OPTIONS,
@@ -500,7 +501,14 @@ function AdminSettings({ profileOnly = false }) {
                     <p className="settings-profile-note">
                       JPG, PNG, WEBP, or GIF up to 2 MB. The image is cropped to a square avatar.
                     </p>
-                    {profileImageError && <p className="settings-error">{profileImageError}</p>}
+                    {profileImageError && (
+                      <InlineNotice
+                        tone="error"
+                        title="Photo not updated"
+                        message={profileImageError}
+                        compact
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="settings-grid">
@@ -574,8 +582,20 @@ function AdminSettings({ profileOnly = false }) {
                     placeholder="New password"
                   />
                 </label>
-                {profileError && <p className="settings-error">{profileError}</p>}
-                {profileStatus && <p className="settings-success">{profileStatus}</p>}
+                {profileError && (
+                  <InlineNotice
+                    tone="error"
+                    title="Profile not saved"
+                    message={profileError}
+                  />
+                )}
+                {profileStatus && (
+                  <InlineNotice
+                    tone="success"
+                    title="Profile saved"
+                    message={profileStatus}
+                  />
+                )}
                 <div className="settings-actions">
                   <button type="submit" className="settings-primary">Save profile</button>
                 </div>
@@ -629,7 +649,13 @@ function AdminSettings({ profileOnly = false }) {
                 <p className="settings-muted settings-preferences-note">
                   These preferences are stored per user in this browser and apply across the admin system.
                 </p>
-                {preferencesStatus && <p className="settings-success">{preferencesStatus}</p>}
+                {preferencesStatus && (
+                  <InlineNotice
+                    tone="success"
+                    title="Preferences saved"
+                    message={preferencesStatus}
+                  />
+                )}
                 <div className="settings-actions">
                   <button type="submit" className="settings-primary">Save preferences</button>
                 </div>
@@ -647,7 +673,13 @@ function AdminSettings({ profileOnly = false }) {
               </div>
             </div>
             {usersLoading && <p className="settings-muted">Loading users...</p>}
-            {usersError && <p className="settings-error">{usersError}</p>}
+            {usersError && (
+              <InlineNotice
+                tone="error"
+                title="User update failed"
+                message={usersError}
+              />
+            )}
             <div className="settings-users">
               <div className="settings-users-list">
                 {users.map((member) => (
@@ -706,7 +738,13 @@ function AdminSettings({ profileOnly = false }) {
                       required
                     />
                   </label>
-                  {inviteStatus && <p className="settings-success">{inviteStatus}</p>}
+                  {inviteStatus && (
+                    <InlineNotice
+                      tone="success"
+                      title="User added"
+                      message={inviteStatus}
+                    />
+                  )}
                   <button type="submit" className="settings-primary">Add user</button>
                 </form>
               </aside>
@@ -785,7 +823,13 @@ function AdminSettings({ profileOnly = false }) {
                   onChange={(e) => setConfigForm((prev) => ({ ...prev, storePhone: e.target.value }))}
                 />
               </label>
-              {configStatus && <p className="settings-success">{configStatus}</p>}
+              {configStatus && (
+                <InlineNotice
+                  tone="success"
+                  title="Configuration saved"
+                  message={configStatus}
+                />
+              )}
               <div className="settings-actions">
                 <button type="submit" className="settings-primary">Save configuration</button>
               </div>

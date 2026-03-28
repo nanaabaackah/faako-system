@@ -3,7 +3,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { hashPassword, verifyPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
-import { signUserToken } from "./_shared/userAuth.js";
+import { buildUserSessionCookie, signUserToken } from "./_shared/userAuth.js";
 import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
 import {
   createUserSession,
@@ -12,8 +12,8 @@ import {
 } from "./_shared/userSessions.js";
 const SESSION_ONLY_TTL_MS = 1000 * 60 * 60 * 12;
 
-const respond = (event, statusCode, payload = {}) =>
-  json(event, statusCode, payload, { methods: "POST, OPTIONS" });
+const respond = (event, statusCode, payload = {}, extraHeaders = {}) =>
+  json(event, statusCode, payload, { methods: "POST, OPTIONS", extraHeaders });
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -112,10 +112,16 @@ export async function handler(event) {
       return respond(event, 500, { error: "Auth secret is not configured." });
     }
 
+    const sessionCookie = buildUserSessionCookie(event, token, { ttlMs: sessionTtlMs });
     return respond(event, 200, {
       ...safeUser,
+      authenticatedAt: session.createdAt,
+      sessionCreatedAt: session.createdAt,
+      sessionLastSeenAt: session.lastSeenAt,
       token,
       expiresInHours: Math.round(sessionTtlMs / (1000 * 60 * 60)),
+    }, {
+      "Set-Cookie": sessionCookie,
     });
   } catch (err) {
     console.error("Login error", err);

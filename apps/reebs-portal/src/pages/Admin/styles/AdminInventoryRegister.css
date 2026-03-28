@@ -1,0 +1,622 @@
+.inventory-register-head {
+  align-items: flex-end;
+}
+
+.inventory-register-head h3 {
+  margin: 0;
+}
+
+.inventory-register-head-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.inventory-register-toolbar {
+  display: grid;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.inventory-register-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.inventory-register-filter-controls {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.inventory-register-filter-controls .admin-search {
+  flex: 1 1 280px;
+}
+
+.inventory-register-stock-controls {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.inventory-register-filter-select {
+  position: relative;
+  display: grid;
+  gap: 0.2rem;
+  flex: 0 0 196px;
+  border: 1px solid var(--admin-portal-border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  padding: 0.5rem 0.8rem 0.55rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.inventory-register-filter-select:hover {
+  border-color: color-mix(in oklab, var(--accent), transparent 68%);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.inventory-register-filter-select::after {
+  content: "";
+  position: absolute;
+  right: 0.95rem;
+  bottom: 0.98rem;
+  width: 0.52rem;
+  height: 0.52rem;
+  border-right: 1.8px solid var(--text-muted);
+  border-bottom: 1.8px solid var(--text-muted);
+  transform: rotate(45deg);
+  pointer-events: none;
+  transition: border-color 0.18s ease;
+}
+
+.inventory-register-filter-select:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.inventory-register-filter-select:focus-within::after,
+.inventory-register-filter-select:hover::after {
+  border-color: var(--accent);
+}
+
+.inventory-register-filter-kicker {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-register-filter-controls .admin-search .search-field {
+  border: 1px solid var(--admin-portal-border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.inventory-register-filter-controls .admin-search .search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.inventory-register-filter-controls .admin-search .search-field__input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.inventory-register-filter-controls .admin-search .search-field__input:focus {
+  outline: none;
+  border-color: transparent;
+}
+
+.inventory-register-filter-select select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+  padding: 0 1.9rem 0 0;
+  min-height: 1.35rem;
+  color: var(--text-main);
+  -webkit-text-fill-color: currentColor;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-register-filter-select select:focus {
+  outline: none;
+  border-color: transparent;
+}
+
+.inventory-register-filter-select select::-ms-expand {
+  display: none;
+}
+
+.inventory-register-filter-select select option {
+  color: #12212a;
+  background: #f8fbfd;
+}
+
+.inventory-register-view-controls {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 6px;
+  justify-self: end;
+  justify-items: end;
+  align-content: end;
+  margin-left: auto;
+}
+
+.inventory-register-control-kicker {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-tab-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-portal-border);
+  background: rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  flex-wrap: wrap;
+}
+
+.inventory-tab-menu--view {
+  justify-content: flex-end;
+}
+
+.inventory-tab-button {
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  opacity: 0.78;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.inventory-tab-button:hover,
+.inventory-tab-button:focus-visible {
+  background: rgba(255, 255, 255, 0.4);
+  opacity: 1;
+  outline: none;
+}
+
+.inventory-tab-button.is-active {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  opacity: 1;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.inventory-register-pagination {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--admin-portal-border);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--card), white 10%), var(--card));
+}
+
+.inventory-register-pagination-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.inventory-register-pagination-kicker {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-register-pagination-range {
+  color: var(--text-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.inventory-register-pagination-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.inventory-register-pagination-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--admin-portal-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--card), white 14%);
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inventory-register-pagination-controls {
+  gap: 0.55rem;
+}
+
+.inventory-register-pagination-controls button {
+  min-width: 5.9rem;
+  min-height: 2.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-portal-border);
+  background: color-mix(in oklab, var(--card), white 20%);
+  color: var(--text-main);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  padding: 0.45rem 0.95rem;
+}
+
+.inventory-register-pagination-controls button:hover:not(:disabled),
+.inventory-register-pagination-controls button:focus-visible:not(:disabled) {
+  border-color: color-mix(in oklab, var(--accent), transparent 55%);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 12px 24px rgba(15, 23, 42, 0.12);
+  outline: none;
+}
+
+.inventory-register-pagination-controls button:disabled {
+  background: color-mix(in oklab, var(--card), transparent 10%);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.stock-activity-help {
+  margin: -0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.stock-activity-bar {
+  width: 100%;
+  border: 0;
+  text-align: left;
+}
+
+.stock-activity-bar.is-interactive {
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.stock-activity-bar.is-interactive:hover:not(:disabled),
+.stock-activity-bar.is-interactive:focus-visible {
+  transform: translateX(2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  outline: none;
+}
+
+.stock-activity-bar.is-interactive:disabled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.inventory-activity-modal {
+  max-width: 760px;
+}
+
+.inventory-activity-modal-list {
+  display: grid;
+  gap: 12px;
+}
+
+.inventory-activity-modal-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--admin-portal-border);
+  background: var(--card);
+}
+
+.inventory-activity-modal-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.inventory-activity-modal-item-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+  border: 1px solid var(--admin-portal-border);
+}
+
+.inventory-activity-modal-item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.inventory-activity-modal-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.inventory-activity-modal-item-copy h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.inventory-activity-modal-item-copy p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.inventory-activity-modal-item-summary {
+  display: grid;
+  gap: 0.18rem;
+  justify-items: end;
+  text-align: right;
+}
+
+.inventory-activity-modal-item-summary strong {
+  font-size: 1rem;
+}
+
+.inventory-activity-modal-item-summary span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+body.admin-theme .inventory-table-scroll {
+  --inventory-table-border-color: color-mix(in oklab, var(--admin-portal-border), #475569 38%);
+  border: 1px solid var(--inventory-table-border-color);
+  border-top-right-radius: 1rem;
+  border-top-left-radius: 1rem;
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--inventory-table-border-color);
+}
+
+body.admin-theme .inventory-table-scroll table {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.admin-theme .inventory-table-scroll thead tr {
+  background: color-mix(in oklab, #94a3b8 22%, white 78%);
+}
+
+body.admin-theme .inventory-table-scroll thead th {
+  text-align: center;
+  background: transparent;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--inventory-table-border-color);
+}
+
+body.admin-theme .inventory-table-scroll thead .sort-header {
+  width: 100%;
+  justify-content: center;
+  background: transparent;
+}
+
+body.admin-theme .inventory-table-scroll tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.inventory-table-text {
+  display: inline-block;
+  text-align: left;
+  max-width: 100%;
+}
+
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-text,
+body.admin-theme .inventory-table-scroll tbody td > .admin-product,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-category,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-stock,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-value,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-updated,
+body.admin-theme .inventory-table-scroll tbody td > .bookings-menu.inventory-menu {
+  margin-inline: auto;
+}
+
+body.admin-theme .inventory-table-scroll tbody td > .admin-product,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-category,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-stock,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-value,
+body.admin-theme .inventory-table-scroll tbody td > .inventory-table-updated {
+  display: inline-grid;
+  width: max-content;
+  max-width: 100%;
+  text-align: left;
+  justify-items: start;
+  align-content: center;
+}
+
+body.admin-theme .inventory-table-scroll tbody td > .bookings-menu.inventory-menu {
+  width: fit-content;
+}
+
+body.admin-theme .inventory-menu-trigger {
+  min-width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.55rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-main);
+}
+
+body.admin-theme .inventory-card-menu .inventory-menu-trigger {
+  min-width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.5rem;
+}
+
+body.admin-theme .inventory-menu-trigger:hover,
+body.admin-theme .inventory-menu-trigger:focus-visible,
+body.admin-theme .inventory-menu-trigger[aria-expanded="true"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.inventory-table-category,
+.inventory-table-stock,
+.inventory-table-value,
+.inventory-card-badges {
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  justify-items: start;
+  width: fit-content;
+}
+
+.inventory-table-updated {
+  display: block;
+  color: var(--text-main);
+  width: fit-content;
+  text-align: left;
+}
+
+.inventory-table-stock {
+  justify-items: start;
+}
+
+.inventory-table-stock .admin-stock {
+  min-width: 42px;
+  line-height: 1;
+}
+
+.inventory-card-badges {
+  grid-template-columns: repeat(auto-fit, minmax(0, max-content));
+  align-items: center;
+}
+
+.admin-field-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  opacity: 0.72;
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-tab-menu {
+  background: rgba(15, 23, 42, 0.46);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-tab-button {
+  color: var(--text-main);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-tab-button:hover,
+[data-admin-theme="dark"] body.admin-theme .inventory-tab-button:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-tab-button.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.22);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-table-scroll {
+  --inventory-table-border-color: var(--admin-portal-border);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--inventory-table-border-color);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-table-scroll thead tr {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-table-scroll thead th {
+  background: transparent;
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-register-filter-select select option {
+  color: #e8eef8;
+  background: #152133;
+}
+
+[data-admin-theme="dark"] body.admin-theme .inventory-menu-trigger,
+[data-admin-theme="dark"] body.admin-theme .inventory-menu-trigger:hover,
+[data-admin-theme="dark"] body.admin-theme .inventory-menu-trigger:focus-visible,
+[data-admin-theme="dark"] body.admin-theme .inventory-menu-trigger[aria-expanded="true"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.admin-theme .admin-table tbody tr.is-healthy td {
+  background: transparent;
+}
+
+body.admin-theme .admin-table tbody tr.is-low td {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+body.admin-theme .admin-table tbody tr.is-out td {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table tbody tr.is-healthy td {
+  background: transparent;
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table tbody tr.is-low td {
+  background: rgba(245, 158, 11, 0.14);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table tbody tr.is-out td {
+  background: rgba(239, 68, 68, 0.12);
+}

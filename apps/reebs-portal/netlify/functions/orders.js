@@ -4,18 +4,10 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { sanitizeOrderLogisticsDetails } from "./_shared/orderDetails.js";
-import { requireUser } from "./_shared/userAuth.js";
 
-const json = (statusCode, body, extraHeaders = {}) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    ...extraHeaders,
-  },
-  body: JSON.stringify(body),
-});
+const ORDER_METHODS = "GET,PUT,OPTIONS";
 
 const normalizeStatus = (status) =>
   typeof status === "string" ? status.trim().toLowerCase() : "";
@@ -65,15 +57,7 @@ const ensureOrderColumns = async (client) => {
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,PUT,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: ORDER_METHODS });
   }
 
   const client = new Client({
@@ -85,19 +69,21 @@ export async function handler(event = {}) {
     await client.connect();
     await ensureAuditColumns(client);
     await ensureOrderColumns(client);
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: ORDER_METHODS,
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
+    const { authUser, organizationId } = authResult;
     let payload = null;
     if (event.httpMethod === "PUT") {
       try {
         payload = JSON.parse(event.body || "{}");
       } catch {
-        return json(400, { error: "Invalid JSON body." });
+        return respond(event, 400, { error: "Invalid JSON body." }, { methods: ORDER_METHODS });
       }
     }
-    const organizationId = authUser.organizationId;
     await backfillAuditDefaults(client, authUser.id, organizationId);
 
     if (event.httpMethod === "GET") {
@@ -139,8 +125,12 @@ export async function handler(event = {}) {
                AND oi."organizationId" = o."organizationId"
            ) AS items
          FROM "order" o
-         LEFT JOIN "user" assignee ON assignee.id = o."assignedUserId"
-         LEFT JOIN "user" updater ON updater.id = o."updatedByUserId"
+         LEFT JOIN "user" assignee
+           ON assignee.id = o."assignedUserId"
+          AND assignee."organizationId" = o."organizationId"
+         LEFT JOIN "user" updater
+           ON updater.id = o."updatedByUserId"
+          AND updater."organizationId" = o."organizationId"
          WHERE o."organizationId" = $1
          ${hasOrderId ? `AND o.id = $2` : ""}
          ORDER BY o."orderDate" DESC, o."id" DESC`
@@ -150,16 +140,18 @@ export async function handler(event = {}) {
 
       if (hasOrderId) {
         if (result.rowCount === 0) {
-          return json(404, { error: "Order not found." });
+          return respond(event, 404, { error: "Order not found." }, { methods: ORDER_METHODS });
         }
-        return json(200, withDeliveryTotals(result.rows[0]));
+        return respond(event, 200, withDeliveryTotals(result.rows[0]), { methods: ORDER_METHODS });
       }
 
-      return json(200, (result.rows || []).map(withDeliveryTotals));
+      return respond(event, 200, (result.rows || []).map(withDeliveryTotals), {
+        methods: ORDER_METHODS,
+      });
     }
 
     if (event.httpMethod !== "PUT") {
-      return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "GET,PUT,OPTIONS" });
+      return respond(event, 405, { error: "Method Not Allowed" }, { methods: ORDER_METHODS });
     }
 
     const orderId = Number(payload.id);
@@ -174,22 +166,22 @@ export async function handler(event = {}) {
     const normalizedDelivery = sanitizeOrderLogisticsDetails(payload.deliveryDetails);
     const normalizedMethod = hasMethodField ? normalizeDeliveryMethod(payload.deliveryMethod) : "";
     if (!Number.isFinite(orderId)) {
-      return json(400, { error: "Order id is required." });
+      return respond(event, 400, { error: "Order id is required." }, { methods: ORDER_METHODS });
     }
     if (hasStatusField && !nextStatus) {
-      return json(400, { error: "Status is required." });
+      return respond(event, 400, { error: "Status is required." }, { methods: ORDER_METHODS });
     }
     if (!wantsStatusUpdate && !hasLogisticsField) {
-      return json(400, { error: "No updates provided." });
+      return respond(event, 400, { error: "No updates provided." }, { methods: ORDER_METHODS });
     }
     if (hasMethodField && !normalizedMethod) {
-      return json(400, { error: "Invalid delivery method." });
+      return respond(event, 400, { error: "Invalid delivery method." }, { methods: ORDER_METHODS });
     }
     if (hasPickupField && payload.pickupDetails && !normalizedPickup) {
-      return json(400, { error: "Invalid pickup details." });
+      return respond(event, 400, { error: "Invalid pickup details." }, { methods: ORDER_METHODS });
     }
     if (hasDeliveryField && payload.deliveryDetails && !normalizedDelivery) {
-      return json(400, { error: "Invalid delivery details." });
+      return respond(event, 400, { error: "Invalid delivery details." }, { methods: ORDER_METHODS });
     }
 
     const orderRes = await client.query(
@@ -199,7 +191,7 @@ export async function handler(event = {}) {
       [orderId, organizationId]
     );
     if (orderRes.rowCount === 0) {
-      return json(404, { error: "Order not found." });
+      return respond(event, 404, { error: "Order not found." }, { methods: ORDER_METHODS });
     }
 
     const currentStatus = normalizeStatus(orderRes.rows[0].status);
@@ -217,13 +209,28 @@ export async function handler(event = {}) {
     const alreadyCancelled = isCancelledStatus(currentStatus);
 
     if (wantsStatusUpdate && alreadyCancelled && !cancelling) {
-      return json(400, { error: "Cannot reopen a cancelled order. Create a new order instead." });
+      return respond(
+        event,
+        400,
+        { error: "Cannot reopen a cancelled order. Create a new order instead." },
+        { methods: ORDER_METHODS }
+      );
     }
     if (hasLogisticsField && effectiveMethod === "pickup" && !nextPickupDetails) {
-      return json(400, { error: "Pickup details are required for pickup orders." });
+      return respond(
+        event,
+        400,
+        { error: "Pickup details are required for pickup orders." },
+        { methods: ORDER_METHODS }
+      );
     }
     if (hasLogisticsField && effectiveMethod === "delivery" && !nextDeliveryDetails) {
-      return json(400, { error: "Delivery details are required for delivery orders." });
+      return respond(
+        event,
+        400,
+        { error: "Delivery details are required for delivery orders." },
+        { methods: ORDER_METHODS }
+      );
     }
 
     const actor = {
@@ -320,14 +327,18 @@ export async function handler(event = {}) {
         [orderId, organizationId]
       );
       await client.query("COMMIT");
-      return json(200, updatedRes.rows[0] || { id: orderId, status: nextStatus });
+      return respond(event, 200, updatedRes.rows[0] || { id: orderId, status: nextStatus }, {
+        methods: ORDER_METHODS,
+      });
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
     }
   } catch (err) {
     console.error("❌ Database error:", err);
-    return json(500, { error: "Failed to process order update" });
+    return respond(event, 500, { error: "Failed to process order update" }, {
+      methods: ORDER_METHODS,
+    });
   } finally {
     await client.end().catch(() => {});
   }

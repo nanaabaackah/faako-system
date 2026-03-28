@@ -3,6 +3,14 @@
   ignore = "node ./scripts/netlify-ignore.mjs @faako/faako-erp"
   publish = "/apps/faako-erp/dist"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), geolocation=(), microphone=()"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

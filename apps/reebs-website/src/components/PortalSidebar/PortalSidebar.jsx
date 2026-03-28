@@ -102,6 +102,7 @@ const DEFAULT_APPS = [
     label: "Expenses",
     path: "/admin/expenses",
     icon: faMoneyCheckDollar,
+    roles: ["admin", "manager"],
   },
   {
     label: "Water",
@@ -118,6 +119,7 @@ const DEFAULT_APPS = [
     label: "Vendors",
     path: "/admin/vendors",
     icon: faStore,
+    roles: ["admin", "manager"],
   },
   {
     label: "Maintenance",

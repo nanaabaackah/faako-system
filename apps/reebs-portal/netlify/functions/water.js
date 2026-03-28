@@ -10,7 +10,7 @@ import { requireUser } from "./_shared/userAuth.js";
 
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = "gwater-15pk";
-const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "12pk Gwater"];
+const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
 const DEFAULT_PURCHASE_COST = 2200;
 const RETAIL_PRICE = 2700;
 const BULK_RETAIL_PRICE = 2600;
@@ -76,6 +76,9 @@ const tableStatements = [
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "discountValue" INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "discountAmount" INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedByUserId" INTEGER`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedByName" TEXT`,
   `CREATE TABLE IF NOT EXISTS "waterExpense" (
     "id" SERIAL PRIMARY KEY,
     "organizationId" INTEGER NOT NULL,
@@ -593,6 +596,9 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByUserId\"",
         "\"createdByName\"",
         "\"createdAt\"",
+        "\"updatedAt\"",
+        "\"updatedByUserId\"",
+        "\"updatedByName\"",
       ],
       organizationId
     ),
@@ -654,6 +660,13 @@ const buildDashboard = async (client, organizationId, options = {}) => {
     expenses,
     adjustments,
   };
+};
+
+const getStoredDiscountInputValue = (discountType, discountValue) => {
+  const storedValue = Number(discountValue) || 0;
+  if (discountType === "amount") return storedValue / 100;
+  if (discountType === "percent") return storedValue / 100;
+  return "";
 };
 
 export async function handler(event = {}) {
@@ -751,12 +764,118 @@ export async function handler(event = {}) {
       return json(200, await buildDashboard(client, organizationId));
     }
 
+    if (action === "update_restock") {
+      const restockId = Number(payload.restockId ?? payload.id);
+      if (!Number.isFinite(restockId) || restockId <= 0) {
+        return json(400, { error: "Valid restock id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT
+           id,
+           quantity,
+           "unitCost",
+           "vendorId",
+           "vendorName",
+           notes,
+           date
+         FROM "waterRestock"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [restockId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water restock not found." });
+      }
+
+      const existingRestock = existingRes.rows?.[0] || null;
+      const quantity = parsePositiveInteger(payload.quantity ?? existingRestock.quantity);
+      const requestedVendorId = Object.prototype.hasOwnProperty.call(payload, "vendorId")
+        ? Number(payload.vendorId)
+        : Number(existingRestock.vendorId);
+      const vendorId =
+        Number.isFinite(requestedVendorId) && requestedVendorId > 0 ? requestedVendorId : null;
+      const vendorName = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "vendorName")
+          ? payload.vendorName
+          : existingRestock.vendorName
+      ) || null;
+      const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
+        ? cleanText(payload.notes) || null
+        : cleanText(existingRestock.notes) || null;
+      const date = parseDate(payload.date || existingRestock.date);
+
+      if (!quantity) return json(400, { error: "Restock quantity must be greater than zero." });
+      if (!date) return json(400, { error: "A valid restock date is required." });
+
+      const dashboard = await buildDashboard(client, organizationId, {
+        includeLinkedProduct: false,
+      });
+      const stockWithoutExisting = dashboard.summary.stockOnHand - toAmount(existingRestock.quantity);
+      if (stockWithoutExisting + quantity < 0) {
+        return json(400, { error: "Restock update would push stock below zero." });
+      }
+
+      await client.query(
+        `UPDATE "waterRestock"
+         SET "quantity" = $3,
+             "vendorId" = $4,
+             "vendorName" = $5,
+             "notes" = $6,
+             "date" = $7
+         WHERE id = $1 AND "organizationId" = $2`,
+        [restockId, organizationId, quantity, vendorId, vendorName, notes, date]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "delete_restock") {
+      const restockId = Number(payload.restockId ?? payload.id);
+      if (!Number.isFinite(restockId) || restockId <= 0) {
+        return json(400, { error: "Valid restock id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT id, quantity
+         FROM "waterRestock"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [restockId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water restock not found." });
+      }
+
+      const existingRestock = existingRes.rows?.[0] || null;
+      const dashboard = await buildDashboard(client, organizationId, {
+        includeLinkedProduct: false,
+      });
+      const stockWithoutExisting = dashboard.summary.stockOnHand - toAmount(existingRestock.quantity);
+      if (stockWithoutExisting < 0) {
+        return json(400, { error: "Undoing this restock would push stock below zero." });
+      }
+
+      await client.query(
+        `DELETE FROM "waterRestock"
+         WHERE id = $1 AND "organizationId" = $2`,
+        [restockId, organizationId]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
     if (action === "sale") {
       const quantity = parsePositiveInteger(payload.quantity);
       const saleChannel = normalizeChannel(payload.saleChannel);
       const paymentMethod = normalizePaymentMethod(payload.paymentMethod);
       const paymentStatus = normalizePaymentStatus(payload.paymentStatus, paymentMethod);
       const discountType = normalizeDiscountType(payload.discountType);
+      const unitPriceOverride = Object.prototype.hasOwnProperty.call(payload, "unitPrice")
+        ? parseMoney(payload.unitPrice)
+        : null;
       const requestedCustomerId = Number(payload.customerId);
       let customerId =
         Number.isFinite(requestedCustomerId) && requestedCustomerId > 0 ? requestedCustomerId : null;
@@ -804,10 +923,11 @@ export async function handler(event = {}) {
         includeLinkedProduct: false,
       });
       if (quantity > dashboard.summary.stockOnHand) {
-        return json(400, { error: "Not enough 12pk Gwater in stock for this sale." });
+        return json(400, { error: "Not enough 15pk Gwater in stock for this sale." });
       }
 
-      const unitPrice = resolveSalePrice(quantity, saleChannel);
+      const unitPrice = unitPriceOverride || resolveSalePrice(quantity, saleChannel);
+      if (!unitPrice) return json(400, { error: "Sale price must be greater than zero." });
       const subtotalAmount = unitPrice * quantity;
       const discountDetails = resolveSaleDiscount(
         discountType,
@@ -881,6 +1001,216 @@ export async function handler(event = {}) {
       return json(200, await buildDashboard(client, organizationId));
     }
 
+    if (action === "update_sale") {
+      const saleId = Number(payload.saleId ?? payload.id);
+      if (!Number.isFinite(saleId) || saleId <= 0) {
+        return json(400, { error: "Valid sale id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT
+           id,
+           quantity,
+           "saleChannel",
+           "paymentMethod",
+           "paymentStatus",
+           "discountType",
+           "discountValue",
+           "unitPrice",
+           "customerId",
+           "customerName",
+           "paymentReference",
+           "providerReference",
+           notes,
+           date,
+           "paidAt"
+         FROM "waterSale"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [saleId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water order not found." });
+      }
+
+      const existingSale = existingRes.rows?.[0] || null;
+      const quantity = parsePositiveInteger(payload.quantity ?? existingSale.quantity);
+      const saleChannel = normalizeChannel(payload.saleChannel ?? existingSale.saleChannel);
+      const paymentMethod = normalizePaymentMethod(payload.paymentMethod ?? existingSale.paymentMethod);
+      const paymentStatus = normalizePaymentStatus(
+        payload.paymentStatus ?? existingSale.paymentStatus,
+        paymentMethod
+      );
+      const discountType = normalizeDiscountType(payload.discountType ?? existingSale.discountType);
+      const discountInput = Object.prototype.hasOwnProperty.call(payload, "discountValue")
+        ? payload.discountValue
+        : getStoredDiscountInputValue(discountType, existingSale.discountValue);
+      const unitPriceOverride = Object.prototype.hasOwnProperty.call(payload, "unitPrice")
+        ? parseMoney(payload.unitPrice)
+        : null;
+      const unitPrice =
+        unitPriceOverride ||
+        Math.max(0, Number(existingSale.unitPrice) || 0) ||
+        resolveSalePrice(quantity, saleChannel);
+      const requestedCustomerId = Object.prototype.hasOwnProperty.call(payload, "customerId")
+        ? Number(payload.customerId)
+        : Number(existingSale.customerId);
+      let customerId =
+        Number.isFinite(requestedCustomerId) && requestedCustomerId > 0 ? requestedCustomerId : null;
+      let customerName = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "customerName")
+          ? payload.customerName
+          : existingSale.customerName
+      ) || null;
+      const customerPhone = cleanText(payload.customerPhone) || null;
+      const providerReference = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "providerReference")
+          ? payload.providerReference
+          : existingSale.providerReference
+      ) || null;
+      const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
+        ? cleanText(payload.notes) || null
+        : cleanText(existingSale.notes) || null;
+      const date = parseDate(payload.date || existingSale.date);
+      const paidAt =
+        paymentStatus === "paid"
+          ? parseDate(payload.paidAt || existingSale.paidAt || payload.date || existingSale.date)
+          : null;
+
+      if (!quantity) return json(400, { error: "Sale quantity must be greater than zero." });
+      if (!date) return json(400, { error: "A valid sale date is required." });
+      if (!unitPrice) return json(400, { error: "Sale price must be greater than zero." });
+      if (!customerName && !customerId) {
+        return json(400, { error: "Customer name is required for every water order." });
+      }
+
+      if (customerId) {
+        const customerRes = await client.query(
+          `SELECT id, name, phone
+           FROM "customer"
+           WHERE id = $1 AND "organizationId" = $2
+           LIMIT 1`,
+          [customerId, organizationId]
+        );
+        if (customerRes.rowCount === 0) {
+          return json(404, { error: "Linked REEBS customer not found." });
+        }
+        const linkedCustomer = customerRes.rows?.[0] || null;
+        customerName = cleanText(linkedCustomer?.name) || customerName;
+        if (customerPhone && cleanText(linkedCustomer?.phone) !== customerPhone) {
+          await updateCustomerPhone(client, organizationId, customerId, customerPhone);
+        }
+      } else if (customerName) {
+        const resolvedCustomer = await findOrCreateCustomerByName(
+          client,
+          organizationId,
+          customerName,
+          customerPhone
+        );
+        customerId = Number(resolvedCustomer?.id) || null;
+        customerName = cleanText(resolvedCustomer?.name) || customerName;
+      }
+
+      const dashboard = await buildDashboard(client, organizationId, {
+        includeLinkedProduct: false,
+      });
+      const availableStock = dashboard.summary.stockOnHand + toAmount(existingSale.quantity);
+      if (quantity > availableStock) {
+        return json(400, { error: "Not enough 15pk Gwater in stock for this order." });
+      }
+
+      const subtotalAmount = unitPrice * quantity;
+      const discountDetails = resolveSaleDiscount(discountType, discountInput, subtotalAmount);
+      if (discountDetails.error) {
+        return json(400, { error: discountDetails.error });
+      }
+
+      const totalAmount = subtotalAmount - discountDetails.discountAmount;
+
+      await client.query(
+        `UPDATE "waterSale"
+         SET "quantity" = $3,
+             "saleChannel" = $4,
+             "paymentMethod" = $5,
+             "paymentStatus" = $6,
+             "discountType" = $7,
+             "discountValue" = $8,
+             "discountAmount" = $9,
+             "unitPrice" = $10,
+             "totalAmount" = $11,
+             "customerId" = $12,
+             "customerName" = $13,
+             "providerReference" = $14,
+             "notes" = $15,
+             "date" = $16,
+             "paidAt" = $17,
+             "updatedAt" = NOW(),
+             "updatedByUserId" = $18,
+             "updatedByName" = $19
+         WHERE id = $1 AND "organizationId" = $2`,
+        [
+          saleId,
+          organizationId,
+          quantity,
+          saleChannel,
+          paymentMethod,
+          paymentStatus,
+          discountDetails.discountType,
+          discountDetails.discountValue,
+          discountDetails.discountAmount,
+          unitPrice,
+          totalAmount,
+          customerId,
+          customerName,
+          providerReference,
+          notes,
+          date,
+          paidAt,
+          createdByUserId,
+          createdByName,
+        ]
+      );
+
+      if (!cleanText(existingSale.paymentReference)) {
+        await client.query(
+          `UPDATE "waterSale"
+           SET "paymentReference" = $2
+           WHERE id = $1 AND "organizationId" = $3`,
+          [saleId, buildPaymentReference(organizationId, saleId), organizationId]
+        );
+      }
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "delete_sale") {
+      const saleId = Number(payload.saleId ?? payload.id);
+      if (!Number.isFinite(saleId) || saleId <= 0) {
+        return json(400, { error: "Valid sale id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT id
+         FROM "waterSale"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [saleId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water order not found." });
+      }
+
+      await client.query(
+        `DELETE FROM "waterSale"
+         WHERE id = $1 AND "organizationId" = $2`,
+        [saleId, organizationId]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
     if (action === "expense") {
       const category = cleanText(payload.category);
       const description = cleanText(payload.description);
@@ -905,6 +1235,95 @@ export async function handler(event = {}) {
           "createdByName"
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [organizationId, category, amount, description, notes, date, createdByUserId, createdByName]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "update_expense") {
+      const expenseId = Number(payload.expenseId ?? payload.id);
+      if (!Number.isFinite(expenseId) || expenseId <= 0) {
+        return json(400, { error: "Valid expense id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT
+           id,
+           category,
+           amount,
+           description,
+           notes,
+           date
+         FROM "waterExpense"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [expenseId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water expense not found." });
+      }
+
+      const existingExpense = existingRes.rows?.[0] || null;
+      const category = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "category")
+          ? payload.category
+          : existingExpense.category
+      );
+      const description = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "description")
+          ? payload.description
+          : existingExpense.description
+      );
+      const amount = Object.prototype.hasOwnProperty.call(payload, "amount")
+        ? parseMoney(payload.amount)
+        : Math.max(0, Number(existingExpense.amount) || 0);
+      const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
+        ? cleanText(payload.notes) || null
+        : cleanText(existingExpense.notes) || null;
+      const date = parseDate(payload.date || existingExpense.date);
+
+      if (!category) return json(400, { error: "Expense category is required." });
+      if (!description) return json(400, { error: "Expense description is required." });
+      if (!amount) return json(400, { error: "Expense amount must be greater than zero." });
+      if (!date) return json(400, { error: "A valid expense date is required." });
+
+      await client.query(
+        `UPDATE "waterExpense"
+         SET "category" = $3,
+             "amount" = $4,
+             "description" = $5,
+             "notes" = $6,
+             "date" = $7
+         WHERE id = $1 AND "organizationId" = $2`,
+        [expenseId, organizationId, category, amount, description, notes, date]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "delete_expense") {
+      const expenseId = Number(payload.expenseId ?? payload.id);
+      if (!Number.isFinite(expenseId) || expenseId <= 0) {
+        return json(400, { error: "Valid expense id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT id
+         FROM "waterExpense"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [expenseId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water expense not found." });
+      }
+
+      await client.query(
+        `DELETE FROM "waterExpense"
+         WHERE id = $1 AND "organizationId" = $2`,
+        [expenseId, organizationId]
       );
 
       return json(200, await buildDashboard(client, organizationId));
@@ -950,6 +1369,105 @@ export async function handler(event = {}) {
           createdByUserId,
           createdByName,
         ]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "update_adjustment") {
+      const adjustmentId = Number(payload.adjustmentId ?? payload.id);
+      if (!Number.isFinite(adjustmentId) || adjustmentId <= 0) {
+        return json(400, { error: "Valid correction id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT
+           id,
+           "quantityDelta",
+           reason,
+           notes,
+           date
+         FROM "waterAdjustment"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [adjustmentId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water correction not found." });
+      }
+
+      const existingAdjustment = existingRes.rows?.[0] || null;
+      const quantityDelta = Object.prototype.hasOwnProperty.call(payload, "quantityDelta")
+        ? parseSignedInteger(payload.quantityDelta)
+        : parseSignedInteger(existingAdjustment.quantityDelta);
+      const reason = cleanText(
+        Object.prototype.hasOwnProperty.call(payload, "reason")
+          ? payload.reason
+          : existingAdjustment.reason
+      );
+      const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
+        ? cleanText(payload.notes) || null
+        : cleanText(existingAdjustment.notes) || null;
+      const date = parseDate(payload.date || existingAdjustment.date);
+
+      if (!quantityDelta) return json(400, { error: "Stock correction cannot be zero." });
+      if (!reason) return json(400, { error: "A reason is required for stock corrections." });
+      if (!date) return json(400, { error: "A valid correction date is required." });
+
+      const dashboard = await buildDashboard(client, organizationId, {
+        includeLinkedProduct: false,
+      });
+      const stockWithoutExisting =
+        dashboard.summary.stockOnHand - toAmount(existingAdjustment.quantityDelta);
+      if (stockWithoutExisting + quantityDelta < 0) {
+        return json(400, { error: "Stock correction would push quantity below zero." });
+      }
+
+      await client.query(
+        `UPDATE "waterAdjustment"
+         SET "quantityDelta" = $3,
+             "reason" = $4,
+             "notes" = $5,
+             "date" = $6
+         WHERE id = $1 AND "organizationId" = $2`,
+        [adjustmentId, organizationId, quantityDelta, reason, notes, date]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "delete_adjustment") {
+      const adjustmentId = Number(payload.adjustmentId ?? payload.id);
+      if (!Number.isFinite(adjustmentId) || adjustmentId <= 0) {
+        return json(400, { error: "Valid correction id is required." });
+      }
+
+      const existingRes = await client.query(
+        `SELECT id, "quantityDelta"
+         FROM "waterAdjustment"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [adjustmentId, organizationId]
+      );
+
+      if (existingRes.rowCount === 0) {
+        return json(404, { error: "Water correction not found." });
+      }
+
+      const existingAdjustment = existingRes.rows?.[0] || null;
+      const dashboard = await buildDashboard(client, organizationId, {
+        includeLinkedProduct: false,
+      });
+      const stockWithoutExisting = dashboard.summary.stockOnHand - toAmount(existingAdjustment.quantityDelta);
+      if (stockWithoutExisting < 0) {
+        return json(400, { error: "Undoing this correction would push stock below zero." });
+      }
+
+      await client.query(
+        `DELETE FROM "waterAdjustment"
+         WHERE id = $1 AND "organizationId" = $2`,
+        [adjustmentId, organizationId]
       );
 
       return json(200, await buildDashboard(client, organizationId));

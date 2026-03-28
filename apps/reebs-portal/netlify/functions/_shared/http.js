@@ -82,6 +82,7 @@ export const buildResponseHeaders = (
   const requestOrigin = normalizeOrigin(getHeaderValue(event, "origin"));
   if (requestOrigin && isAllowedAppOrigin(requestOrigin)) {
     headers["Access-Control-Allow-Origin"] = requestOrigin;
+    headers["Access-Control-Allow-Credentials"] = "true";
     headers.Vary = "Origin";
   }
 

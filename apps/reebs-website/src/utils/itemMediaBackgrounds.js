@@ -73,9 +73,26 @@ const UNSAFE_MEDIA_SCHEME = /^(?:data|javascript|vbscript|file):/i;
 const HAS_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const HAS_UNSAFE_URL_CHARACTERS = /["'<>\\]/;
 const ABSOLUTE_URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
+const HAS_FILE_EXTENSION = /\.[a-z0-9]{2,}(?:[?#].*)?$/i;
+
+const normalizeCatalogRelativePath = (value = "") => {
+  const normalized = value
+    .toString()
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^public\//i, "");
+
+  if (!normalized || normalized.startsWith("//")) return "";
+  if (/^(?:\/|\.\.\/|\.\/)/.test(normalized)) {
+    return encodeURI(normalized);
+  }
+  if (!HAS_FILE_EXTENSION.test(normalized)) return "";
+
+  return encodeURI(`/${normalized.replace(/^\/+/, "")}`);
+};
 
 export const sanitizeCatalogMediaUrl = (value, fallback = PLACEHOLDER_IMAGE) => {
-  const raw = value?.toString().trim() || "";
+  const raw = value?.toString().trim().replace(/\\/g, "/") || "";
   if (!raw) return fallback;
   if (HAS_CONTROL_CHARACTERS.test(raw) || HAS_UNSAFE_URL_CHARACTERS.test(raw)) {
     return fallback;
@@ -92,10 +109,7 @@ export const sanitizeCatalogMediaUrl = (value, fallback = PLACEHOLDER_IMAGE) => 
       return fallback;
     }
   }
-  if (/^(?:\/|\.\.\/|\.\/)/.test(raw)) {
-    return raw;
-  }
-  return fallback;
+  return normalizeCatalogRelativePath(raw) || fallback;
 };
 
 export const toCatalogCssImageValue = (value, fallback = PLACEHOLDER_IMAGE) => {

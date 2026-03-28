@@ -1,35 +1,24 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-export async function handler(event) {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
-      },
-      body: "",
-    };
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,OPTIONS" });
+
+export async function handler(event = {}) {
+  const method = (event.httpMethod || "GET").toUpperCase();
+  if (method === "OPTIONS") {
+    return json(event, 204, {});
   }
 
-  if (event.httpMethod !== "GET") {
-    return {
-      statusCode: 405,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Method not allowed" }),
-    };
+  if (method !== "GET") {
+    return json(event, 405, { error: "Method not allowed" });
   }
 
   const id = Number(event.queryStringParameters?.id || 0);
-  if (!Number.isFinite(id)) {
-    return {
-      statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Missing or invalid booking id" }),
-    };
+  if (!Number.isFinite(id) || id <= 0) {
+    return json(event, 400, { error: "Missing or invalid booking id" });
   }
 
   const client = new Client({
@@ -39,6 +28,16 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    const internal = await requireInternalUser(client, event, {
+      methods: "GET,OPTIONS",
+      roles: ["owner", "admin", "manager"],
+      roleError: "Manager access required.",
+    });
+    if (internal.errorResponse) {
+      return internal.errorResponse;
+    }
+
+    const { organizationId } = internal;
     const result = await client.query(
       `SELECT
          b.id,
@@ -54,42 +53,46 @@ export async function handler(event) {
          c.phone AS "customerPhone",
          COALESCE(
            json_agg(
-               json_build_object(
-                 'id', bi.id,
-                 'productId', bi."productId",
-                 'quantity', bi.quantity,
-                 'price', bi.price,
-                 'productName', p.name,
-                 'attendantsNeeded', p."attendantsNeeded",
-                 'rate', p.rate
-               )
+             json_build_object(
+               'id', bi.id,
+               'productId', bi."productId",
+               'quantity', bi.quantity,
+               'price', bi.price,
+               'productName', p.name,
+               'attendantsNeeded', p."attendantsNeeded",
+               'rate', p.rate
+             )
              ORDER BY bi.id
            ) FILTER (WHERE bi.id IS NOT NULL),
            '[]'::json
          ) AS items
        FROM "booking" b
-       JOIN "customer" c ON c.id = b."customerId"
-       LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id
-       LEFT JOIN "product" p ON p.id = bi."productId"
+       JOIN "customer" c
+         ON c.id = b."customerId"
+        AND c."organizationId" = b."organizationId"
+       LEFT JOIN "bookingItem" bi
+         ON bi."bookingId" = b.id
+        AND bi."organizationId" = b."organizationId"
+       LEFT JOIN "product" p
+         ON p.id = bi."productId"
+        AND p."organizationId" = b."organizationId"
        WHERE b.id = $1
+         AND b."organizationId" = $2
        GROUP BY b.id, c.id`,
-      [id]
+      [id, organizationId]
     );
 
     const expensesRes = await client.query(
       `SELECT id, category, amount, description, date
        FROM "expense"
        WHERE "bookingId" = $1
+         AND "organizationId" = $2
        ORDER BY date ASC, id ASC`,
-      [id]
+      [id, organizationId]
     );
 
     if (result.rowCount === 0) {
-      return {
-        statusCode: 404,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Booking not found" }),
-      };
+      return json(event, 404, { error: "Booking not found" });
     }
 
     const bookingRow = result.rows[0];
@@ -130,15 +133,16 @@ export async function handler(event) {
       });
 
       if (pumpQty > 0 && !hasPump) {
-        let pumpProduct = null;
         const pumpRes = await client.query(
           `SELECT id, name, price
            FROM "product"
-           WHERE UPPER(sku) LIKE 'PUM-%' OR LOWER(name) LIKE '%motor pump%'
+           WHERE "organizationId" = $1
+             AND (UPPER(sku) LIKE 'PUM-%' OR LOWER(name) LIKE '%motor pump%')
            ORDER BY id
-           LIMIT 1`
+           LIMIT 1`,
+          [organizationId]
         );
-        pumpProduct = pumpRes.rows[0] || null;
+        const pumpProduct = pumpRes.rows[0] || null;
         bookingItems = [
           ...bookingItems,
           {
@@ -166,26 +170,15 @@ export async function handler(event) {
       0
     );
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        ...bookingRow,
-        items: bookingItems,
-        expenses,
-        expensesTotal: expensesTotal / 100,
-      }),
-    };
+    return json(event, 200, {
+      ...bookingRow,
+      items: bookingItems,
+      expenses,
+      expensesTotal: expensesTotal / 100,
+    });
   } catch (err) {
-    console.error("❌ getInvoiceDetails error:", err);
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Failed to fetch invoice details" }),
-    };
+    console.error("getInvoiceDetails error:", err);
+    return json(event, 500, { error: "Failed to fetch invoice details" });
   } finally {
     await client.end().catch(() => {});
   }

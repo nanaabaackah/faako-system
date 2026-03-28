@@ -1,36 +1,24 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const corsHeaders = {
-  "Content-Type": "application/json",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,OPTIONS" });
 
-const parseUserId = (event) => {
-  const raw =
-    event?.queryStringParameters?.userId ||
-    event?.headers?.["x-user-id"] ||
-    event?.headers?.["X-User-Id"] ||
-    null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const isOwnerRole = (role) => {
-  const normalized = String(role || "").trim().toLowerCase();
-  return normalized === "owner" || normalized === "admin";
-};
-
-const countWithFallback = async (client, primarySql, fallbackSql) => {
+const countWithFallback = async (
+  client,
+  primarySql,
+  primaryParams,
+  fallbackSql,
+  fallbackParams = primaryParams
+) => {
   try {
-    const result = await client.query(primarySql);
+    const result = await client.query(primarySql, primaryParams);
     return Number(result.rows[0]?.count || 0);
   } catch (err) {
     console.warn("Primary KPI query failed, falling back:", err?.message || err);
-    const fallback = await client.query(fallbackSql);
+    const fallback = await client.query(fallbackSql, fallbackParams);
     return Number(fallback.rows[0]?.count || 0);
   }
 };
@@ -38,23 +26,11 @@ const countWithFallback = async (client, primarySql, fallbackSql) => {
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") {
-    return { statusCode: 200, headers: corsHeaders, body: "" };
-  }
-  if (method !== "GET") {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Method not allowed" }),
-    };
+    return json(event, 204, {});
   }
 
-  const userId = parseUserId(event);
-  if (!userId) {
-    return {
-      statusCode: 401,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "userId is required" }),
-    };
+  if (method !== "GET") {
+    return json(event, 405, { error: "Method not allowed" });
   }
 
   const client = new Client({
@@ -64,49 +40,53 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const roleRes = await client.query(
-      `SELECT role FROM "user" WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-    const role = roleRes.rows[0]?.role || "";
-    if (!isOwnerRole(role)) {
-      return {
-        statusCode: 403,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "Owner access required" }),
-      };
+    const internal = await requireInternalUser(client, event, {
+      methods: "GET,OPTIONS",
+      roles: ["owner", "admin"],
+      roleError: "Admin access required.",
+    });
+    if (internal.errorResponse) {
+      return internal.errorResponse;
     }
 
+    const { organizationId } = internal;
     const [orgRes, userRes] = await Promise.all([
-      client.query(`SELECT COUNT(*)::int AS count FROM "organization"`),
-      client.query(`SELECT COUNT(*)::int AS count FROM "user"`),
+      client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM "organization"
+         WHERE id = $1`,
+        [organizationId]
+      ),
+      client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM "user"
+         WHERE "organizationId" = $1`,
+        [organizationId]
+      ),
     ]);
 
     const products = await countWithFallback(
       client,
       `SELECT COUNT(*)::int AS count
        FROM "product"
-       WHERE COALESCE("isDeleted", false) = false
+       WHERE "organizationId" = $1
+         AND COALESCE("isDeleted", false) = false
          AND COALESCE("isArchived", false) = false`,
-      `SELECT COUNT(*)::int AS count FROM "product"`
+      [organizationId],
+      `SELECT COUNT(*)::int AS count
+       FROM "product"
+       WHERE "organizationId" = $1`,
+      [organizationId]
     );
 
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        organizations: Number(orgRes.rows[0]?.count || 0),
-        users: Number(userRes.rows[0]?.count || 0),
-        products,
-      }),
-    };
+    return json(event, 200, {
+      organizations: Number(orgRes.rows[0]?.count || 0),
+      users: Number(userRes.rows[0]?.count || 0),
+      products,
+    });
   } catch (err) {
     console.error("opsHubKpis error:", err);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Failed to load KPI data" }),
-    };
+    return json(event, 500, { error: "Failed to load KPI data" });
   } finally {
     await client.end().catch(() => {});
   }

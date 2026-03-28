@@ -1,6 +1,6 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("../../src/runtimeConfig");
+const { canExposeDebugDetails, resolveDatabaseUrl } = require("../../src/runtimeConfig");
 const {
   EMAIL_THEMES,
   renderEmailLayout,
@@ -11,11 +11,15 @@ const {
 } = require("../../../../packages/email-kit/src/index.cjs");
 
 const BASE_HEADERS = {
-  "content-type": "application/json",
   "access-control-allow-methods": "POST, OPTIONS",
   "access-control-allow-headers": "content-type",
   "cache-control": "no-store",
-  "x-content-type-options": "nosniff"
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  "content-type": "application/json",
+  "permissions-policy": "camera=(), geolocation=(), microphone=()",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY"
 };
 
 const DEV_ALLOWED_ORIGINS = new Set([
@@ -35,6 +39,8 @@ const DEV_ALLOWED_ORIGINS = new Set([
 ]);
 
 let pool = global.__faakoPgPool || null;
+let rateLimitStore = global.__faakoSignupRateLimitStore || null;
+let lastPersistentRateLimitPruneAt = global.__faakoPersistentRateLimitPruneAt || 0;
 
 const getPool = () => {
   if (pool) {
@@ -50,6 +56,25 @@ const getPool = () => {
   }
 
   return pool;
+};
+
+const getRateLimitStore = () => {
+  if (rateLimitStore) {
+    return rateLimitStore;
+  }
+
+  rateLimitStore = new Map();
+
+  if (!global.__faakoSignupRateLimitStore) {
+    global.__faakoSignupRateLimitStore = rateLimitStore;
+  }
+
+  return rateLimitStore;
+};
+
+const setLastPersistentRateLimitPruneAt = (value) => {
+  lastPersistentRateLimitPruneAt = value;
+  global.__faakoPersistentRateLimitPruneAt = value;
 };
 
 const PACKAGE_RULES = {
@@ -110,6 +135,11 @@ const BOT_FIELD_NAME = "companyFax";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//;
 const MAX_REQUEST_BODY_BYTES = 24 * 1024;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS_PER_IP = 20;
+const RATE_LIMIT_MAX_REQUESTS_PER_EMAIL = 5;
+const RATE_LIMIT_STORE_MAX_ENTRIES = 5000;
+const PERSISTENT_RATE_LIMIT_PRUNE_INTERVAL_MS = 5 * 60 * 1000;
 const ACCEPTED_RESPONSE_BODY = JSON.stringify({
   ok: true,
   message: "Thanks. We have received your form."
@@ -128,6 +158,7 @@ const NON_PRODUCTION_NODE_ENVS = new Set(["development", "test"]);
 const FAAKO_EMAIL_THEME = EMAIL_THEMES.faako;
 
 const createId = () => crypto.randomUUID();
+const createRandomSuffix = () => crypto.randomInt(1000, 10000);
 
 const publicTableColumnsCache = new Map();
 
@@ -386,6 +417,24 @@ const getHeaderValue = (headers, name) => {
   return null;
 };
 
+const normalizeIpAddress = (value) => {
+  const normalized = normalizeOptionalText(value, 256);
+  if (!normalized) {
+    return null;
+  }
+
+  const candidate = normalized.split(",")[0].trim().replace(/^\[(.*)\]$/, "$1");
+  return candidate || null;
+};
+
+const getClientIp = (event) =>
+  normalizeIpAddress(
+    getHeaderValue(event.headers, "x-nf-client-connection-ip") ||
+      getHeaderValue(event.headers, "x-forwarded-for") ||
+      getHeaderValue(event.headers, "client-ip") ||
+      getHeaderValue(event.headers, "x-real-ip")
+  );
+
 const normalizeOrigin = (value) => {
   const normalized = normalizeOptionalText(value, 255);
   if (!normalized) {
@@ -441,6 +490,157 @@ const buildResponseHeaders = (origin, event) => {
   return responseHeaders;
 };
 
+const pruneRateLimitStore = (store, now) => {
+  for (const [key, entry] of store.entries()) {
+    if (!entry || entry.resetAt <= now) {
+      store.delete(key);
+    }
+  }
+
+  if (store.size <= RATE_LIMIT_STORE_MAX_ENTRIES) {
+    return;
+  }
+
+  const overflowCount = store.size - RATE_LIMIT_STORE_MAX_ENTRIES;
+  const oldestKeys = [...store.entries()]
+    .sort((left, right) => left[1].resetAt - right[1].resetAt)
+    .slice(0, overflowCount)
+    .map(([key]) => key);
+
+  oldestKeys.forEach((key) => {
+    store.delete(key);
+  });
+};
+
+const consumeRateLimit = (bucketKey, limit, now = Date.now()) => {
+  const store = getRateLimitStore();
+  pruneRateLimitStore(store, now);
+
+  const existing = store.get(bucketKey);
+  const entry =
+    !existing || existing.resetAt <= now
+      ? { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS }
+      : existing;
+
+  entry.count += 1;
+  store.set(bucketKey, entry);
+
+  return {
+    limited: entry.count > limit,
+    retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
+  };
+};
+
+const buildRateLimitResponse = (headers, retryAfterSeconds) => ({
+  statusCode: 429,
+  headers: {
+    ...headers,
+    "retry-after": String(retryAfterSeconds),
+  },
+  body: JSON.stringify({
+    error: "Too many signup attempts. Please try again later.",
+  }),
+});
+
+const getRateLimitSecret = () => normalizeOptionalText(process.env.RATE_LIMIT_SECRET, 512);
+
+const buildRateLimitBucketKey = (scope, identifier) => {
+  const normalizedScope = normalizeOptionalText(scope, 64);
+  const normalizedIdentifier = normalizeOptionalText(identifier, 512);
+
+  if (!normalizedScope || !normalizedIdentifier) {
+    return null;
+  }
+
+  const secret = getRateLimitSecret();
+  const payload = `${normalizedScope}:${normalizedIdentifier}`;
+  const digest = secret
+    ? crypto.createHmac("sha256", secret).update(payload).digest("hex")
+    : crypto.createHash("sha256").update(payload).digest("hex");
+
+  return `${normalizedScope}:${digest}`;
+};
+
+const maybePrunePersistentRateLimits = async (dbClient, now = Date.now()) => {
+  if (
+    lastPersistentRateLimitPruneAt &&
+    now - lastPersistentRateLimitPruneAt < PERSISTENT_RATE_LIMIT_PRUNE_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  setLastPersistentRateLimitPruneAt(now);
+  await dbClient.query('DELETE FROM "RequestThrottle" WHERE "expiresAt" <= CURRENT_TIMESTAMP');
+};
+
+const consumePersistentRateLimit = async (
+  dbClient,
+  { scope, identifier, limit, windowMs = RATE_LIMIT_WINDOW_MS },
+) => {
+  const bucketKey = buildRateLimitBucketKey(scope, identifier);
+  if (!bucketKey) {
+    return { limited: false, retryAfterSeconds: 0 };
+  }
+
+  const windowSeconds = Math.max(1, Math.ceil(windowMs / 1000));
+  const result = await dbClient.query(
+    `
+      INSERT INTO "RequestThrottle" (
+        "bucketKey",
+        "scope",
+        "hitCount",
+        "windowStart",
+        "expiresAt",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (
+        $1,
+        $2,
+        1,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP + ($3::integer * INTERVAL '1 second'),
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("bucketKey")
+      DO UPDATE
+      SET
+        "scope" = EXCLUDED."scope",
+        "hitCount" = CASE
+          WHEN "RequestThrottle"."expiresAt" <= CURRENT_TIMESTAMP THEN 1
+          ELSE "RequestThrottle"."hitCount" + 1
+        END,
+        "windowStart" = CASE
+          WHEN "RequestThrottle"."expiresAt" <= CURRENT_TIMESTAMP THEN CURRENT_TIMESTAMP
+          ELSE "RequestThrottle"."windowStart"
+        END,
+        "expiresAt" = CASE
+          WHEN "RequestThrottle"."expiresAt" <= CURRENT_TIMESTAMP
+            THEN CURRENT_TIMESTAMP + ($3::integer * INTERVAL '1 second')
+          ELSE "RequestThrottle"."expiresAt"
+        END,
+        "updatedAt" = CURRENT_TIMESTAMP
+      RETURNING
+        "hitCount",
+        GREATEST(
+          1,
+          CEIL(EXTRACT(EPOCH FROM ("expiresAt" - CURRENT_TIMESTAMP)))
+        )::integer AS "retryAfterSeconds"
+    `,
+    [bucketKey, scope, windowSeconds],
+  );
+
+  const row = result.rows[0] || {};
+  const hitCount = Number(row.hitCount) || 0;
+  const retryAfterSeconds = Math.max(1, Number(row.retryAfterSeconds) || windowSeconds);
+
+  return {
+    limited: hitCount > limit,
+    retryAfterSeconds,
+  };
+};
+
 const isModuleAvailableForPackage = (moduleId, packageTier) => {
   const moduleConfig = MODULE_CATALOG[moduleId];
   if (!moduleConfig) {
@@ -478,7 +678,7 @@ const buildUniqueSlug = async (dbClient, companyName) => {
       return candidate;
     }
 
-    candidate = `${base}-${Math.floor(Math.random() * 9000) + 1000}`;
+    candidate = `${base}-${createRandomSuffix()}`;
   }
 
   return `${base}-${Date.now().toString(36)}`;
@@ -789,6 +989,7 @@ const parseUrlEncodedPayload = (body) => {
 exports.handler = async (event) => {
   const requestOrigin = normalizeOrigin(getHeaderValue(event.headers, "origin"));
   const headers = buildResponseHeaders(requestOrigin, event);
+  const debugDetailsAllowed = canExposeDebugDetails();
 
   if (requestOrigin && !isAllowedOrigin(requestOrigin, event)) {
     return {
@@ -812,6 +1013,12 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({ error: "Method not allowed" })
     };
+  }
+
+  const clientIp = getClientIp(event) || "unknown";
+  const ipRateLimit = consumeRateLimit(`ip:${clientIp}`, RATE_LIMIT_MAX_REQUESTS_PER_IP);
+  if (ipRateLimit.limited) {
+    return buildRateLimitResponse(headers, ipRateLimit.retryAfterSeconds);
   }
 
   const rawBody = typeof event.body === "string" ? event.body : "";
@@ -878,6 +1085,14 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({ error: "companyName and email are required" })
     };
+  }
+
+  const emailRateLimit = consumeRateLimit(
+    `email:${normalizedEmail}`,
+    RATE_LIMIT_MAX_REQUESTS_PER_EMAIL
+  );
+  if (emailRateLimit.limited) {
+    return buildRateLimitResponse(headers, emailRateLimit.retryAfterSeconds);
   }
 
   const packageTier = normalizePackageTier(payload.packageTier);
@@ -1063,13 +1278,13 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         error: "Signup service is not configured",
-        ...(process.env.NODE_ENV === "production"
-          ? {}
-          : {
+        ...(debugDetailsAllowed
+          ? {
               debug: {
                 message: error instanceof Error ? error.message : "Database configuration is invalid"
               }
-            })
+            }
+          : {})
       })
     };
   }
@@ -1080,9 +1295,9 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         error: "Signup service is not configured",
-        ...(process.env.NODE_ENV === "production"
-          ? {}
-          : { debug: { message: "Resolved database URL is missing" } })
+        ...(debugDetailsAllowed
+          ? { debug: { message: "Resolved database URL is missing" } }
+          : {})
       })
     };
   }
@@ -1090,6 +1305,34 @@ exports.handler = async (event) => {
   const dbClient = await getPool().connect();
 
   try {
+    const canPersistRequestThrottle = await tableHasRequiredColumns(
+      dbClient,
+      "RequestThrottle",
+      ["bucketKey", "scope", "hitCount", "windowStart", "expiresAt"]
+    );
+
+    if (canPersistRequestThrottle) {
+      await maybePrunePersistentRateLimits(dbClient);
+
+      const persistentIpRateLimit = await consumePersistentRateLimit(dbClient, {
+        scope: "signup-ip",
+        identifier: clientIp,
+        limit: RATE_LIMIT_MAX_REQUESTS_PER_IP,
+      });
+      if (persistentIpRateLimit.limited) {
+        return buildRateLimitResponse(headers, persistentIpRateLimit.retryAfterSeconds);
+      }
+
+      const persistentEmailRateLimit = await consumePersistentRateLimit(dbClient, {
+        scope: "signup-email",
+        identifier: normalizedEmail,
+        limit: RATE_LIMIT_MAX_REQUESTS_PER_EMAIL,
+      });
+      if (persistentEmailRateLimit.limited) {
+        return buildRateLimitResponse(headers, persistentEmailRateLimit.retryAfterSeconds);
+      }
+    }
+
     const recentDuplicate = await dbClient.query(
       `
         SELECT "id"
@@ -1327,7 +1570,7 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({
         error: "Unable to save signup request",
-        ...(process.env.NODE_ENV === "production" ? {} : { debug: debugError })
+        ...(debugDetailsAllowed ? { debug: debugError } : {})
       })
     };
   } finally {

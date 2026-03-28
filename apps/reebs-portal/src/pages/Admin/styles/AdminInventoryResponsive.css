@@ -1,0 +1,107 @@
+@media (max-width: 900px) {
+  .inventory-kpi-panel-head,
+  .inventory-water-strip {
+    align-items: stretch;
+  }
+
+  .inventory-kpi-grid--primary,
+  .inventory-insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-water-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .inventory-header-actions .inventory-header-action {
+    flex: 0 0 auto;
+  }
+
+  .inventory-register-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-register-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inventory-register-pagination-meta {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .inventory-register-pagination-page {
+    width: 100%;
+  }
+
+  .inventory-register-pagination-controls {
+    width: 100%;
+  }
+
+  .inventory-register-pagination-controls button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .inventory-register-filter-controls {
+    width: 100%;
+  }
+
+  .inventory-register-stock-controls {
+    width: 100%;
+  }
+
+  .inventory-register-filter-select {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .inventory-register-view-controls {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .inventory-tab-menu {
+    width: 100%;
+  }
+
+  .inventory-tab-menu--view {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .inventory-tab-menu--filters {
+    width: 100%;
+  }
+
+  .inventory-tab-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 140px;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .inventory-water-strip-head,
+  .inventory-water-strip-stats {
+    width: 100%;
+  }
+
+  .inventory-water-strip-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-activity-modal-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-activity-modal-item-summary {
+    justify-items: start;
+    text-align: left;
+  }
+}

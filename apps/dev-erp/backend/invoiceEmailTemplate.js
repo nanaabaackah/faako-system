@@ -92,7 +92,7 @@ const parseInvoiceLineDescription = (rawDescription = "") => {
 
 const renderInvoiceLineRows = (lineItems, currency, theme) => {
   if (!lineItems.length) {
-    return `<tr><td colspan="4" style="padding:14px 12px;border:1px solid ${theme.border};color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">No line items</td></tr>`;
+    return `<tr><td colspan="4" style="padding:14px 12px;border:1px solid ${theme.border};color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">No line items</td></tr>`;
   }
 
   return lineItems
@@ -107,19 +107,71 @@ const renderInvoiceLineRows = (lineItems, currency, theme) => {
 
       return `
         <tr>
-          <td style="padding:12px 12px 12px ${leftPadding}px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:left;">${escapeHtml(
+          <td style="padding:12px 12px 12px ${leftPadding}px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:left;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
             descriptionText
           )}</td>
-          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:right;">${escapeHtml(
+          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:right;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
             quantityText
           )}</td>
-          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:right;">${escapeHtml(
+          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:400 14px/1.55 Arial,sans-serif;text-align:right;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
             formatInvoiceCurrency(lineItem.rate, currency)
           )}</td>
-          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:700 14px/1.55 Arial,sans-serif;text-align:right;">${escapeHtml(
+          <td style="padding:12px;border:1px solid ${theme.border};background:${rowBackground};color:${theme.text};font:700 14px/1.55 Arial,sans-serif;text-align:right;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
             formatInvoiceCurrency(lineItem.amount, currency)
           )}</td>
         </tr>
+      `.trim();
+    })
+    .join("");
+};
+
+const renderInvoiceLineCards = (lineItems, currency, theme) => {
+  if (!lineItems.length) {
+    return `
+      <div class="email-mobile-card" style="display:none;max-height:0;overflow:hidden;margin:0;padding:14px;border:1px solid ${theme.border};border-radius:16px;background:${theme.surfaceBg};color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">
+        No line items
+      </div>
+    `.trim();
+  }
+
+  return lineItems
+    .map((lineItem) => {
+      const descriptionText = lineItem.description || "Line item";
+      const quantityText = `${lineItem.quantity.toLocaleString("en-US")} ${formatQuantityUnit(
+        lineItem.quantity,
+        lineItem.unit || DEFAULT_QUANTITY_UNIT
+      )}`.trim();
+      const cardBackground = lineItem.isMonthlyCharge ? theme.accentSoft : theme.surfaceBg;
+
+      return `
+        <div class="email-mobile-card" style="display:none;max-height:0;overflow:hidden;margin:0 0 12px;padding:14px 14px 4px;border:1px solid ${theme.border};border-radius:16px;background:${cardBackground};">
+          ${
+            lineItem.isMonthlyCharge
+              ? `<p style="margin:0 0 8px;color:${theme.accentDark};font:800 11px/1.2 Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Monthly charge</p>`
+              : ""
+          }
+          <p style="margin:0 0 10px;color:${theme.heading};font:700 15px/1.45 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+            descriptionText
+          )}</p>
+          <div style="margin:0 0 10px;">
+            <p style="margin:0 0 4px;color:${theme.muted};font:800 11px/1.2 Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Qty</p>
+            <p style="margin:0;color:${theme.text};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+              quantityText
+            )}</p>
+          </div>
+          <div style="margin:0 0 10px;">
+            <p style="margin:0 0 4px;color:${theme.muted};font:800 11px/1.2 Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Rate</p>
+            <p style="margin:0;color:${theme.text};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+              formatInvoiceCurrency(lineItem.rate, currency)
+            )}</p>
+          </div>
+          <div style="margin:0 0 10px;">
+            <p style="margin:0 0 4px;color:${theme.muted};font:800 11px/1.2 Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Amount</p>
+            <p style="margin:0;color:${theme.heading};font:700 15px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+              formatInvoiceCurrency(lineItem.amount, currency)
+            )}</p>
+          </div>
+        </div>
       `.trim();
     })
     .join("");
@@ -240,10 +292,10 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
   );
 
   const detailsHtml = `
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0 12px;margin:0 0 18px;">
+    <table class="email-column-table" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0 12px;margin:0 0 18px;">
       <tbody>
         <tr>
-          <td style="width:50%;padding-right:10px;vertical-align:top;">
+          <td class="email-column-cell" style="width:50%;padding-right:10px;vertical-align:top;">
             ${renderPanel({
               theme,
               eyebrow: "Bill to",
@@ -257,7 +309,7 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
               ),
             })}
           </td>
-          <td style="width:50%;padding-left:10px;vertical-align:top;">
+          <td class="email-column-cell" style="width:50%;padding-left:10px;vertical-align:top;">
             ${renderPanel({
               theme,
               eyebrow: "Invoice details",
@@ -279,19 +331,24 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
   `.trim();
 
   const lineItemsHtml = `
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${theme.border};border-radius:18px;overflow:hidden;margin:0 0 18px;">
-      <thead>
-        <tr>
-          <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:left;font:700 13px/1.35 Arial,sans-serif;">Description</th>
-          <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;">Qty</th>
-          <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;">Rate</th>
-          <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${renderInvoiceLineRows(lineItems, currency, theme)}
-      </tbody>
-    </table>
+    <div class="email-desktop-table" style="display:block;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${theme.border};border-radius:18px;overflow:hidden;margin:0 0 18px;table-layout:fixed;">
+        <thead>
+          <tr>
+            <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:left;font:700 13px/1.35 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Description</th>
+            <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Qty</th>
+            <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Rate</th>
+            <th style="padding:12px;border:1px solid ${theme.border};background:${theme.accentSoft};color:${theme.heading};text-align:right;font:700 13px/1.35 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${renderInvoiceLineRows(lineItems, currency, theme)}
+        </tbody>
+      </table>
+    </div>
+    <div class="email-mobile-table" style="display:none;max-height:0;overflow:hidden;margin:0 0 18px;">
+      ${renderInvoiceLineCards(lineItems, currency, theme)}
+    </div>
   `.trim();
 
   const totalsHtml = renderPanel({
@@ -302,34 +359,34 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
       <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
         <tbody>
           <tr>
-            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">Monthly charges</td>
-            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;">${escapeHtml(
+            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Monthly charges</td>
+            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
               formatInvoiceCurrency(monthlyChargeTotal, currency)
             )}</td>
           </tr>
           <tr>
-            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">Subtotal (excluding monthly charges)</td>
-            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;">${escapeHtml(
+            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Subtotal (excluding monthly charges)</td>
+            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
               formatInvoiceCurrency(regularSubtotal, currency)
             )}</td>
           </tr>
           <tr>
-            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">Tax (${escapeHtml(
+            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Tax (${escapeHtml(
               taxRate.toFixed(2)
             )}%)</td>
-            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;">${escapeHtml(
+            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
               formatInvoiceCurrency(taxAmount, currency)
             )}</td>
           </tr>
           <tr>
-            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;">Discount</td>
-            <td style="padding:7px 0;text-align:right;color:${theme.dangerText};font:700 14px/1.55 Arial,sans-serif;">-${escapeHtml(
+            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Discount</td>
+            <td style="padding:7px 0;text-align:right;color:${theme.dangerText};font:700 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">-${escapeHtml(
               formatInvoiceCurrency(discount, currency)
             )}</td>
           </tr>
           <tr>
-            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};color:${theme.heading};font:800 16px/1.4 Arial,sans-serif;">Total due</td>
-            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};text-align:right;color:${theme.heading};font:800 20px/1.4 Arial,sans-serif;">${escapeHtml(
+            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};color:${theme.heading};font:800 16px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Total due</td>
+            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};text-align:right;color:${theme.heading};font:800 20px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
               formatInvoiceCurrency(total, currency)
             )}</td>
           </tr>
@@ -348,7 +405,7 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
 
   const footerHtml = [
     renderParagraphs(supportMessage, { theme, color: theme.muted, spacing: "0 0 10px" }),
-    `<p style="margin:0;color:${theme.text};font:400 14px/1.7 Arial,sans-serif;">Thank you,<br /><strong>${escapeHtml(
+    `<p style="margin:0;color:${theme.text};font:400 14px/1.7 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Thank you,<br /><strong>${escapeHtml(
       closingName
     )}</strong></p>`,
   ].join("");

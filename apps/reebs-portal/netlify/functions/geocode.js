@@ -2,47 +2,51 @@
 // Filename: geocode.js
 // Server-side geocoding proxy for map pins (avoids browser CORS issues).
 
-import "../../runtimeEnv.js";
+import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import https from "https";
+import { Client } from "pg";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body, extraHeaders = {}) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    ...extraHeaders,
-  },
-  body: JSON.stringify(body),
-});
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "POST,OPTIONS" });
 
-export async function handler(event) {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST,OPTIONS",
-      },
-      body: "",
-    };
+export async function handler(event = {}) {
+  const method = (event.httpMethod || "POST").toUpperCase();
+  if (method === "OPTIONS") {
+    return json(event, 204, {});
   }
 
-  if (event.httpMethod !== "POST") {
-    return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "POST,OPTIONS" });
+  if (method !== "POST") {
+    return json(event, 405, { error: "Method Not Allowed" });
   }
 
   let data;
   try {
     data = JSON.parse(event.body || "{}");
   } catch {
-    return json(400, { error: "Invalid JSON body." });
+    return json(event, 400, { error: "Invalid JSON body." });
   }
 
   const address = typeof data.address === "string" ? data.address.trim() : "";
-  if (!address) return json(400, { error: "Address is required." });
+  if (!address) return json(event, 400, { error: "Address is required." });
+  if (address.length > 250) {
+    return json(event, 400, { error: "Address is too long." });
+  }
+
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: resolvePgSslConfig(),
+  });
 
   try {
+    await client.connect();
+    const internal = await requireInternalUser(client, event, {
+      methods: "POST,OPTIONS",
+    });
+    if (internal.errorResponse) {
+      return internal.errorResponse;
+    }
+
     const referer =
       event.headers?.origin ||
       (event.headers?.host ? `https://${event.headers.host}` : "https://reebs.app");
@@ -70,7 +74,6 @@ export async function handler(event) {
       .map((part) => part.trim())
       .filter(Boolean);
 
-    const includesGhana = normalize(raw).includes("ghana");
     const includesAccra = normalize(raw).includes("accra");
 
     const buildCandidate = (segments) => {
@@ -96,8 +99,8 @@ export async function handler(event) {
     const orderedCandidates = candidates
       .map(compact)
       .filter(Boolean)
-      .filter((cand) => {
-        const key = cand.toLowerCase();
+      .filter((candidate) => {
+        const key = candidate.toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -152,6 +155,7 @@ export async function handler(event) {
       } catch {
         return null;
       }
+
       const hit = Array.isArray(payload) ? payload[0] : null;
       if (!hit) return null;
 
@@ -165,13 +169,17 @@ export async function handler(event) {
     for (const candidate of orderedCandidates) {
       // eslint-disable-next-line no-await-in-loop
       const coords = await attempt(candidate, { country: true });
-      if (coords) return json(200, { ...coords, query: candidate, provider: "nominatim", status: "OK" });
+      if (coords) {
+        return json(event, 200, { ...coords, query: candidate, provider: "nominatim", status: "OK" });
+      }
     }
 
     for (const candidate of orderedCandidates) {
       // eslint-disable-next-line no-await-in-loop
       const coords = await attempt(candidate, { country: false });
-      if (coords) return json(200, { ...coords, query: candidate, provider: "nominatim", status: "OK" });
+      if (coords) {
+        return json(event, 200, { ...coords, query: candidate, provider: "nominatim", status: "OK" });
+      }
     }
 
     const attemptGoogle = async (candidate, options = { country: true }) => {
@@ -217,20 +225,26 @@ export async function handler(event) {
     for (const candidate of orderedCandidates) {
       // eslint-disable-next-line no-await-in-loop
       const coords = await attemptGoogle(candidate, { country: true });
-      if (coords) return json(200, { ...coords, query: candidate, provider: "google", status: "OK" });
+      if (coords) return json(event, 200, { ...coords, query: candidate, provider: "google", status: "OK" });
     }
 
     for (const candidate of orderedCandidates) {
       // eslint-disable-next-line no-await-in-loop
       const coords = await attemptGoogle(candidate, { country: false });
-      if (coords) return json(200, { ...coords, query: candidate, provider: "google", status: "OK" });
+      if (coords) return json(event, 200, { ...coords, query: candidate, provider: "google", status: "OK" });
     }
 
     const provider = googleApiKey ? "google" : "nominatim";
-    const status = googleApiKey ? googleStatus || "ZERO_RESULTS" : lastStatus ? `HTTP_${lastStatus}` : "ZERO_RESULTS";
-    return json(200, { lat: null, lng: null, tried, lastStatus, provider, status });
+    const status = googleApiKey
+      ? googleStatus || "ZERO_RESULTS"
+      : lastStatus
+        ? `HTTP_${lastStatus}`
+        : "ZERO_RESULTS";
+    return json(event, 200, { lat: null, lng: null, tried, lastStatus, provider, status });
   } catch (err) {
     console.error("Geocode error:", err);
-    return json(500, { error: "Geocode error", details: err?.message || String(err) });
+    return json(event, 500, { error: "Geocode error" });
+  } finally {
+    await client.end().catch(() => {});
   }
 }

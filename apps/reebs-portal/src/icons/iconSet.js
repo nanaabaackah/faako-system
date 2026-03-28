@@ -103,6 +103,7 @@ export const faClock = Clock;
 export const faCloudArrowUp = CloudAdd;
 export const faColumns = Hierarchy;
 export const faDownload = DocumentDownload;
+export const faEllipsisHorizontal = More;
 export const faEllipsisVertical = More;
 export const faEnvelope = Sms;
 export const faExternalLinkAlt = ExportSquare;

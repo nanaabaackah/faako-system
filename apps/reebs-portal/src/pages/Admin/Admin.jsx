@@ -1,10 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Admin.css";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
+import { AppIcon } from "../../components/Icon/Icon";
+import {
+  faEllipsisHorizontal,
+  faFolderOpen,
+  faPlus,
+  faRotateRight,
+  faTrash,
+  faXmark,
+} from "../../icons/iconSet";
 
 const getQuantity = (item) => {
   const raw = item?.quantity ?? item?.stock ?? 0;
@@ -27,6 +36,11 @@ const getReorderQuantity = (item) => {
 const getCategory = (item) =>
   item?.specificCategory || item?.specificcategory || item?.sourceCategoryCode || "-";
 
+const normalizeSourceCode = (item) =>
+  String(item?.sourceCategoryCode || item?.sourcecategorycode || "")
+    .trim()
+    .toUpperCase();
+
 const getItemVendorIds = (item) => {
   if (Array.isArray(item?.vendorIds)) {
     return item.vendorIds
@@ -48,6 +62,8 @@ const formatItemVendorLabel = (item, vendorNameById) => {
   return `Vendors: ${vendorNames.join(", ")}`;
 };
 
+const isVendorLinkedInventoryItem = (item) => getItemVendorIds(item).length > 0;
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -58,6 +74,32 @@ const formatDateTime = (value) => {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatStockActivityMonth = (value) => {
+  const [year, month] = String(value || "").split("-");
+  const parsedYear = Number(year);
+  const parsedMonth = Number(month);
+  if (!Number.isFinite(parsedYear) || !Number.isFinite(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+    return value || "-";
+  }
+  const date = new Date(Date.UTC(parsedYear, parsedMonth - 1, 1));
+  return date.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
   });
 };
 
@@ -75,10 +117,142 @@ const formatMoney = (value, currency = "GHS") => {
   }
 };
 
-const formatUser = (name) => name || "Admin";
+const formatWholeMoney = (value, currency = "GHS") => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "-";
+  try {
+    return new Intl.NumberFormat("en-GH", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(numeric));
+  } catch {
+    return `${currency} ${Math.round(numeric)}`;
+  }
+};
+
+const formatWholeMoneyFromCents = (value, currency = "GHS") =>
+  formatWholeMoney((Number(value) || 0) / 100, currency);
+
+const capitalizeWords = (value) =>
+  String(value || "")
+    .replace(/\b([a-z])/gi, (match) => match.toUpperCase())
+    .trim();
+
+const normalizeInventoryCategoryName = (value) =>
+  capitalizeWords(
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+
+const formatInventoryItemName = (name, fallback = "Untitled") => {
+  const formatted = capitalizeWords(name || "");
+  return formatted || fallback;
+};
+
+const formatUser = (name) => capitalizeWords(name || "Admin");
+const formatUpdatedDetails = (value, name) => {
+  const date = formatDateTime(value);
+  const user = formatUser(name);
+  if (date === "-") return `Updated By ${user}`;
+  return `${date} By ${user}`;
+};
 const toNumber = (value, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+};
+
+const getInventorySegment = (item) => {
+  const source = normalizeSourceCode(item);
+  if (source === "WATER") return "water";
+  if (isVendorLinkedInventoryItem(item)) return "outsourced";
+  if (source === "RENTAL") return "rental";
+  return "shop";
+};
+
+const supportsLowStockLimit = (item) => getInventorySegment(item) !== "rental";
+
+const isLowStockItem = (item) => {
+  const quantity = getQuantity(item);
+  if (quantity <= 0) return false;
+  if (!supportsLowStockLimit(item)) return false;
+  return quantity <= getReorderLevel(item);
+};
+
+const formatInventorySegment = (segment) => {
+  switch (segment) {
+    case "rental":
+      return "Rentals";
+    case "outsourced":
+      return "Outsourced";
+    case "water":
+      return "Water";
+    default:
+      return "Shop";
+  }
+};
+
+const getInventoryCostValue = (item) => {
+  const explicit = toNumber(item?.stockValue, NaN);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const quantity = Math.max(0, getQuantity(item));
+  const unitCost =
+    toNumber(item?.purchasePriceGhs, NaN) ||
+    toNumber(item?.purchasePriceCad, NaN) ||
+    toNumber(item?.purchasePriceGbp, NaN) ||
+    0;
+  return quantity * (Number.isFinite(unitCost) ? unitCost : 0);
+};
+
+const getInventorySaleValue = (item) => {
+  const explicit = toNumber(item?.saleValue, NaN);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  return Math.max(0, getQuantity(item)) * Math.max(0, toNumber(item?.price, 0));
+};
+
+const getInventoryStockValue = (item) =>
+  Math.max(0, getQuantity(item)) * Math.max(0, toNumber(item?.price, 0));
+
+const isRecentlyUpdated = (item, windowHours = 24) => {
+  const timestamp = new Date(item?.lastUpdatedAt || item?.updatedAt || 0).getTime();
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return false;
+  return Date.now() - timestamp <= windowHours * 60 * 60 * 1000;
+};
+
+const buildInventoryStats = (list = []) => {
+  const totalItems = list.length;
+  const totalUnits = list.reduce((sum, item) => sum + Math.max(0, getQuantity(item)), 0);
+  const lowStock = list.filter(isLowStockItem).length;
+  const outOfStock = list.filter((item) => getQuantity(item) <= 0).length;
+  const healthyItems = Math.max(0, totalItems - lowStock - outOfStock);
+  const costValue = list.reduce((sum, item) => sum + getInventoryCostValue(item), 0);
+  const saleValue = list.reduce((sum, item) => sum + getInventorySaleValue(item), 0);
+  const missingBarcodes = list.filter((item) => !String(item?.barcode || "").trim()).length;
+  const missingReorderRules = list.filter(
+    (item) => supportsLowStockLimit(item) && (getReorderLevel(item) <= 0 || getReorderQuantity(item) <= 0)
+  ).length;
+  const vendorLinked = list.filter((item) => getItemVendorIds(item).length > 0).length;
+  const recentlyUpdated = list.filter((item) => isRecentlyUpdated(item)).length;
+  const avgUnitsPerSku = totalItems ? (totalUnits / totalItems).toFixed(1) : "0.0";
+  return {
+    totalItems,
+    totalUnits,
+    lowStock,
+    outOfStock,
+    healthyItems,
+    healthyRate: totalItems ? Math.round((healthyItems / totalItems) * 100) : 0,
+    lowStockRate: totalItems ? Math.round((lowStock / totalItems) * 100) : 0,
+    outOfStockRate: totalItems ? Math.round((outOfStock / totalItems) * 100) : 0,
+    avgUnitsPerSku,
+    costValue,
+    saleValue,
+    missingBarcodes,
+    missingReorderRules,
+    vendorLinked,
+    recentlyUpdated,
+  };
 };
 
 const MOBILE_VIEW_QUERY = "(max-width: 720px)";
@@ -88,10 +262,34 @@ const getIsMobileView = () =>
   typeof window !== "undefined" && window.matchMedia(MOBILE_VIEW_QUERY).matches;
 
 const CAD_TAX_RATE = 0.13;
+const INVENTORY_VIEW_MODES = new Set(["table", "cards", "activity"]);
+const INVENTORY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced", "water"]);
+const INVENTORY_STOCK_FILTERS = new Set(["all", "in", "out", "low"]);
+const INVENTORY_ADD_CATEGORY_VALUE = "__add_category__";
 
 function getInitialViewMode() {
-  return "cards";
+  return getIsMobileView() ? "cards" : "table";
 }
+
+const normalizeInventoryViewParam = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return INVENTORY_VIEW_MODES.has(normalized) ? normalized : getInitialViewMode();
+};
+
+const normalizeInventoryStockParam = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return INVENTORY_STOCK_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const normalizeInventoryScopeParam = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return INVENTORY_SCOPE_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const readBooleanParam = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+};
 
 function Admin() {
   const [items, setItems] = useState([]);
@@ -101,15 +299,18 @@ function Admin() {
   const [viewMode, setViewMode] = useState(getInitialViewMode); // table | cards | activity
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
   const [search, setSearch] = useState("");
+  const [scopeFilter, setScopeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [outOfStockOnly, setOutOfStockOnly] = useState(false);
   const [reorderOnly, setReorderOnly] = useState(false);
   const [page, setPage] = useState(0);
-  const pageSize = 10;
+  const pageSize = 49;
   const [stockActivity, setStockActivity] = useState([]);
   const [stockActivityError, setStockActivityError] = useState("");
   const [stockActivityLoading, setStockActivityLoading] = useState(false);
+  const [activityDetail, setActivityDetail] = useState(null);
+  const [waterSnapshot, setWaterSnapshot] = useState(null);
   const [formState, setFormState] = useState({
     type: "StockIn",
     quantity: "",
@@ -131,7 +332,6 @@ function Admin() {
   const [editRequestsError, setEditRequestsError] = useState("");
   const [activeEditRequestId, setActiveEditRequestId] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
-  const [updatingStockId, setUpdatingStockId] = useState(null);
   const [newItemOpen, setNewItemOpen] = useState(false);
   const [newItemSaving, setNewItemSaving] = useState(false);
   const [newItemError, setNewItemError] = useState("");
@@ -154,6 +354,8 @@ function Admin() {
     quantity: "",
     sourceCategoryCode: "CLOTHES",
     specificCategory: "",
+    categoryDraft: "",
+    isAddingCategory: false,
     description: "",
     purchasePriceGbp: "",
     purchasePriceCad: "",
@@ -163,6 +365,7 @@ function Admin() {
     cadConversionRate: null,
   };
   const [newItemRows, setNewItemRows] = useState([{ ...newItemTemplate }]);
+  const [customInventoryCategories, setCustomInventoryCategories] = useState({});
   const { user } = useAuth();
   const { rates } = useCart();
   const userRole = (user?.role || "").toLowerCase();
@@ -171,6 +374,9 @@ function Admin() {
   const canSubmitInventoryEdits = userRole === "admin" || userRole === "manager" || userRole === "staff";
   const canEditAllInventoryFields = userRole === "admin";
   const canAdjustInventoryStockDirectly = userRole === "admin" || userRole === "manager";
+  const canCreateInventoryCategories = userRole === "admin" || userRole === "manager";
+  const canViewUpdatedColumn = isSystemAdmin || userRole === "manager";
+  const shouldShowUpdatedColumn = canViewUpdatedColumn;
   const detailAccessMessage = canEditAllInventoryFields
     ? "Admins can update every editable field on this item."
     : userRole === "manager"
@@ -226,12 +432,24 @@ function Admin() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const seededSearch = params.get("search");
-    if (seededSearch !== null) {
-      setSearch(seededSearch);
-      setPage(0);
-    }
-  }, [location.search]);
+    const nextSearch = params.get("search") || "";
+    const nextView = normalizeInventoryViewParam(params.get("view"));
+    const nextStockFilter = normalizeInventoryStockParam(params.get("stock"));
+    const nextScopeFilter = normalizeInventoryScopeParam(params.get("scope"));
+    const nextInStockOnly = nextStockFilter === "in";
+    const nextOutOfStockOnly = nextStockFilter === "out";
+    const nextReorderOnly = readBooleanParam(params.get("reorder")) || nextStockFilter === "low";
+    const resolvedView = isMobileView && nextView === "table" ? "cards" : nextView;
+
+    setSearch((current) => (current === nextSearch ? current : nextSearch));
+    setScopeFilter((current) => (current === nextScopeFilter ? current : nextScopeFilter));
+    setCategoryFilter((current) => (current === "all" ? current : "all"));
+    setInStockOnly((current) => (current === nextInStockOnly ? current : nextInStockOnly));
+    setOutOfStockOnly((current) => (current === nextOutOfStockOnly ? current : nextOutOfStockOnly));
+    setReorderOnly((current) => (current === nextReorderOnly ? current : nextReorderOnly));
+    setViewMode((current) => (current === resolvedView ? current : resolvedView));
+    setPage(0);
+  }, [isMobileView, location.search]);
 
   useEffect(() => {
     setArchivedSelected((prev) => {
@@ -241,6 +459,13 @@ function Admin() {
       return next;
     });
   }, [archivedItems]);
+
+  useEffect(() => {
+    if (canViewUpdatedColumn) return;
+    setSortConfig((current) =>
+      current.key === "lastUpdatedAt" ? { key: "id", direction: "asc" } : current
+    );
+  }, [canViewUpdatedColumn]);
 
   const refreshInventory = useCallback(async () => {
     setLoading(true);
@@ -338,11 +563,30 @@ function Admin() {
     }
   }, []);
 
+  const buildStockActivityQuery = useCallback((extraParams = {}) => {
+    const params = new URLSearchParams();
+    const trimmedSearch = search.trim();
+    const currentStockFocus = outOfStockOnly ? "out" : reorderOnly ? "low" : inStockOnly ? "in" : "all";
+
+    if (scopeFilter !== "all") params.set("scope", scopeFilter);
+    if (categoryFilter !== "all") params.set("category", categoryFilter);
+    if (currentStockFocus !== "all") params.set("stock", currentStockFocus);
+    if (trimmedSearch) params.set("search", trimmedSearch);
+
+    Object.entries(extraParams || {}).forEach(([key, value]) => {
+      if (value === null || typeof value === "undefined" || value === "") return;
+      params.set(key, String(value));
+    });
+
+    return params.toString();
+  }, [categoryFilter, inStockOnly, outOfStockOnly, reorderOnly, scopeFilter, search]);
+
   const loadStockActivity = useCallback(async () => {
     setStockActivityLoading(true);
     setStockActivityError("");
     try {
-      const res = await fetch("/.netlify/functions/stockActivity");
+      const query = buildStockActivityQuery();
+      const res = await fetch(`/.netlify/functions/stockActivity${query ? `?${query}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Unable to load stock history.");
       setStockActivity(Array.isArray(data?.months) ? data.months : []);
@@ -353,11 +597,74 @@ function Admin() {
     } finally {
       setStockActivityLoading(false);
     }
+  }, [buildStockActivityQuery]);
+
+  const loadWaterSnapshot = useCallback(async () => {
+    try {
+      const response = await fetch("/.netlify/functions/water");
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to load water summary.");
+      }
+      const summary = data?.summary && typeof data.summary === "object" ? data.summary : {};
+      setWaterSnapshot({
+        stock: Math.max(0, Number(summary.stockOnHand) || 0),
+        revenue: Number(summary.revenue) || 0,
+        profit: Number(summary.netProfit) || 0,
+      });
+    } catch (err) {
+      console.error("Failed to load water snapshot", err);
+      setWaterSnapshot(null);
+    }
   }, []);
+
+  const closeActivityDetail = useCallback(() => {
+    setActivityDetail(null);
+  }, []);
+
+  const openActivityDetail = useCallback(async (row, movementType) => {
+    const monthKey = String(row?.month_key || "").trim();
+    if (!monthKey || !["in", "out"].includes(movementType)) return;
+
+    setActivityDetail({
+      monthKey,
+      movementType,
+      items: [],
+      loading: true,
+      error: "",
+    });
+
+    try {
+      const query = buildStockActivityQuery({ month: monthKey, movementType });
+      const response = await fetch(`/.netlify/functions/stockActivity?${query}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to load movement items.");
+      }
+
+      setActivityDetail({
+        monthKey,
+        movementType,
+        items: Array.isArray(data?.items) ? data.items : [],
+        loading: false,
+        error: "",
+      });
+    } catch (err) {
+      console.error("Failed to load movement detail", err);
+      setActivityDetail({
+        monthKey,
+        movementType,
+        items: [],
+        loading: false,
+        error: err.message || "Unable to load movement items.",
+      });
+    }
+  }, [buildStockActivityQuery]);
 
   const refreshInventorySurface = useCallback(async () => {
     await Promise.all([
       refreshInventory(),
+      loadWaterSnapshot(),
       loadStockActivity(),
       canApproveInventoryEdits ? loadEditRequests() : Promise.resolve(),
       archivedOpen ? loadStatusItems("archived") : Promise.resolve(),
@@ -370,8 +677,18 @@ function Admin() {
     loadEditRequests,
     loadStatusItems,
     loadStockActivity,
+    loadWaterSnapshot,
     refreshInventory,
   ]);
+
+  useEffect(() => {
+    loadWaterSnapshot();
+  }, [loadWaterSnapshot]);
+
+  useEffect(() => {
+    if (viewMode === "activity") return;
+    setActivityDetail(null);
+  }, [viewMode]);
 
   const toggleArchivedSelection = (id) => {
     setArchivedSelected((prev) => {
@@ -399,7 +716,7 @@ function Admin() {
 
   const archiveItem = async (item) => {
     if (!item?.id) return;
-    if (!window.confirm(`Archive "${item.name || "this item"}"?`)) return;
+    if (!window.confirm(`Archive "${formatInventoryItemName(item.name, "This Item")}"?`)) return;
     setActionItemId(item.id);
     try {
       const response = await fetch("/.netlify/functions/inventory", {
@@ -411,7 +728,7 @@ function Admin() {
       if (!response.ok) throw new Error(data?.error || "Failed to archive item.");
       setItems((prev) => prev.filter((row) => row.id !== item.id));
       setArchivedItems((prev) => [data, ...prev]);
-      setSuccess(`${item.name || "Item"} archived.`);
+      setSuccess(`${formatInventoryItemName(item.name, "Item")} archived.`);
     } catch (err) {
       console.error("Archive failed", err);
       setSubmitError(err.message || "Archive failed.");
@@ -422,7 +739,7 @@ function Admin() {
 
   const deleteItem = async (item) => {
     if (!item?.id) return;
-    if (!window.confirm(`Delete "${item.name || "this item"}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${formatInventoryItemName(item.name, "This Item")}"? This cannot be undone.`)) return;
     setActionItemId(item.id);
     try {
       const response = await fetch("/.netlify/functions/inventory", {
@@ -434,7 +751,7 @@ function Admin() {
       if (!response.ok) throw new Error(data?.error || "Failed to delete item.");
       setItems((prev) => prev.filter((row) => row.id !== item.id));
       setDeletedItems((prev) => [data, ...prev]);
-      setSuccess(`${item.name || "Item"} deleted.`);
+      setSuccess(`${formatInventoryItemName(item.name, "Item")} deleted.`);
     } catch (err) {
       console.error("Delete failed", err);
       setSubmitError(err.message || "Delete failed.");
@@ -509,8 +826,9 @@ function Admin() {
   };
 
   useEffect(() => {
+    if (viewMode !== "activity") return;
     loadStockActivity();
-  }, [loadStockActivity]);
+  }, [loadStockActivity, viewMode]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -547,7 +865,7 @@ function Admin() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, categoryFilter, inStockOnly, outOfStockOnly, reorderOnly, viewMode, items.length]);
+  }, [search, scopeFilter, categoryFilter, inStockOnly, outOfStockOnly, reorderOnly, viewMode, items.length]);
 
   const sortValue = (item, key) => {
     switch (key) {
@@ -557,12 +875,22 @@ function Admin() {
         return (item.name || "").toLowerCase();
       case "sku":
         return (item.sku || "").toLowerCase();
+      case "segment":
+        return getInventorySegment(item);
       case "category":
         return (getCategory(item) || "").toLowerCase();
       case "quantity":
         return getQuantity(item);
+      case "price":
+        return Math.max(0, toNumber(item?.price, 0));
       case "reorderLevel":
         return getReorderLevel(item);
+      case "costValue":
+        return getInventoryCostValue(item);
+      case "inventoryValue":
+        return getInventoryStockValue(item);
+      case "saleValue":
+        return getInventorySaleValue(item);
       case "lastUpdatedAt":
         return new Date(item.lastUpdatedAt || item.updatedAt || 0).getTime();
       case "lastUpdatedByName":
@@ -572,11 +900,19 @@ function Admin() {
     }
   };
 
-  const inventory = useMemo(() => {
+  const stockFocus = outOfStockOnly ? "out" : reorderOnly ? "low" : inStockOnly ? "in" : "all";
+
+  const applyStockFocus = useCallback((next) => {
+    setInStockOnly(next === "in");
+    setOutOfStockOnly(next === "out");
+    setReorderOnly(next === "low");
+  }, []);
+
+  const baseFilteredInventory = useMemo(() => {
     const list = [...items];
     const needle = search.trim().toLowerCase();
     const filterCategory = categoryFilter.toLowerCase();
-    const filtered = list.filter((item) => {
+    return list.filter((item) => {
       const quantity = getQuantity(item);
       if (needle) {
         const name = (item.name || "").toLowerCase();
@@ -592,10 +928,16 @@ function Admin() {
       }
       if (inStockOnly && quantity <= 0) return false;
       if (outOfStockOnly && quantity > 0) return false;
-      if (reorderOnly && quantity > getReorderLevel(item)) return false;
+      if (reorderOnly && !isLowStockItem(item)) return false;
       return true;
     });
+  }, [items, search, categoryFilter, inStockOnly, outOfStockOnly, reorderOnly]);
 
+  const inventory = useMemo(() => {
+    const filtered = baseFilteredInventory.filter((item) => {
+      if (scopeFilter === "all") return true;
+      return getInventorySegment(item) === scopeFilter;
+    });
     const { key, direction } = sortConfig;
     filtered.sort((a, b) => {
       const va = sortValue(a, key);
@@ -605,7 +947,7 @@ function Admin() {
       return 0;
     });
     return filtered;
-  }, [items, sortConfig, search, categoryFilter, inStockOnly, outOfStockOnly, reorderOnly]);
+  }, [baseFilteredInventory, scopeFilter, sortConfig]);
 
   const pageCount = Math.max(1, Math.ceil(inventory.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
@@ -613,26 +955,89 @@ function Admin() {
     const start = clampedPage * pageSize;
     return inventory.slice(start, start + pageSize);
   }, [inventory, clampedPage, pageSize]);
+  const paginationStart = inventory.length === 0 ? 0 : clampedPage * pageSize + 1;
+  const paginationEnd = Math.min(inventory.length, (clampedPage + 1) * pageSize);
+  const paginationDisplayPage = inventory.length === 0 ? 0 : clampedPage + 1;
+  const paginationDisplayCount = inventory.length === 0 ? 0 : pageCount;
+  const inventoryPagination = (
+    <div className="table-pagination inventory-register-pagination">
+      <div className="inventory-register-pagination-copy">
+        <strong className="inventory-register-pagination-range">
+          Showing {paginationStart}-{paginationEnd} of {inventory.length}
+        </strong>
+      </div>
+      <div className="inventory-register-pagination-meta">
+        <span className="inventory-register-pagination-page">
+          Page {paginationDisplayPage} of {paginationDisplayCount}
+        </span>
+        <div className="table-pagination-controls inventory-register-pagination-controls">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={clampedPage === 0}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={clampedPage >= pageCount - 1}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-  const totalItems = inventory.length;
-  const totalUnits = inventory.reduce((sum, item) => sum + getQuantity(item), 0);
-  const lowStock = inventory.filter((item) => getQuantity(item) <= getReorderLevel(item)).length;
-  const outOfStock = inventory.filter((item) => getQuantity(item) <= 0).length;
-  const healthyItems = Math.max(0, totalItems - lowStock);
-  const healthyRate = totalItems ? Math.round((healthyItems / totalItems) * 100) : 0;
-  const lowStockRate = totalItems ? Math.round((lowStock / totalItems) * 100) : 0;
-  const outOfStockRate = totalItems ? Math.round((outOfStock / totalItems) * 100) : 0;
-  const avgUnitsPerSku = totalItems ? (totalUnits / totalItems).toFixed(1) : "0.0";
+  const coreInventory = useMemo(() => {
+    if (scopeFilter === "water") return inventory;
+    return inventory.filter((item) => getInventorySegment(item) !== "water");
+  }, [inventory, scopeFilter]);
+  const waterInventory = useMemo(() => {
+    if (scopeFilter === "water") return inventory;
+    return baseFilteredInventory.filter((item) => getInventorySegment(item) === "water");
+  }, [baseFilteredInventory, inventory, scopeFilter]);
+  const primaryInventoryStats = useMemo(() => buildInventoryStats(coreInventory), [coreInventory]);
+  const waterInventoryStats = useMemo(() => buildInventoryStats(waterInventory), [waterInventory]);
+  const waterSnapshotProfitLabel = (Number(waterSnapshot?.profit) || 0) < 0 ? "Loss" : "Profit";
+  const waterSnapshotProfitDisplayValue = Math.abs(Number(waterSnapshot?.profit) || 0);
+  const stockHealthInventory = scopeFilter === "water" ? inventory : coreInventory;
+  const scopeSummaries = useMemo(() => {
+    const summaryMap = new Map(
+      ["shop", "rental", "outsourced", "water"].map((key) => [
+        key,
+        { key, label: formatInventorySegment(key), count: 0, units: 0, lowStock: 0 },
+      ])
+    );
+    baseFilteredInventory.forEach((item) => {
+      const key = getInventorySegment(item);
+      const entry = summaryMap.get(key);
+      if (!entry) return;
+      entry.count += 1;
+      entry.units += Math.max(0, getQuantity(item));
+      if (isLowStockItem(item)) entry.lowStock += 1;
+    });
+    return [
+      {
+        key: "all",
+        label: "All inventory",
+        count: baseFilteredInventory.length,
+        units: baseFilteredInventory.reduce((sum, item) => sum + Math.max(0, getQuantity(item)), 0),
+        lowStock: baseFilteredInventory.filter(isLowStockItem).length,
+      },
+      ...Array.from(summaryMap.values()).filter((entry) => entry.key !== "water"),
+    ];
+  }, [baseFilteredInventory]);
   const stockHealthSegments = useMemo(() => {
     let healthy = 0;
     let low = 0;
     let out = 0;
-    inventory.forEach((item) => {
+    stockHealthInventory.forEach((item) => {
       const quantity = getQuantity(item);
-      const reorderLevel = getReorderLevel(item);
       if (quantity <= 0) {
         out += 1;
-      } else if (quantity <= reorderLevel) {
+      } else if (isLowStockItem(item)) {
         low += 1;
       } else {
         healthy += 1;
@@ -643,7 +1048,7 @@ function Admin() {
       { key: "low", label: "Low stock", value: low, color: "#f59e0b" },
       { key: "out", label: "Out of stock", value: out, color: "#ef4444" },
     ];
-  }, [inventory]);
+  }, [stockHealthInventory]);
   const stockHealthTotal = stockHealthSegments.reduce((sum, segment) => sum + segment.value, 0);
   const stockActivityMax = useMemo(
     () =>
@@ -670,7 +1075,7 @@ function Admin() {
   }, [stockHealthSegments, stockHealthTotal, donutCircumference]);
   const categoryUnits = useMemo(() => {
     const totals = new Map();
-    inventory.forEach((item) => {
+    stockHealthInventory.forEach((item) => {
       const key = String(getCategory(item) || "Uncategorized");
       const quantity = Math.max(0, getQuantity(item));
       totals.set(key, (totals.get(key) || 0) + quantity);
@@ -679,11 +1084,30 @@ function Admin() {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
-  }, [inventory]);
+  }, [stockHealthInventory]);
   const categoryUnitsMax = useMemo(
     () => Math.max(1, ...categoryUnits.map((entry) => entry.value)),
     [categoryUnits]
   );
+  const activityFilterSummary = useMemo(() => {
+    const parts = [];
+    if (scopeFilter !== "all") parts.push(formatInventorySegment(scopeFilter));
+    if (categoryFilter !== "all") parts.push(capitalizeWords(categoryFilter));
+    if (stockFocus === "in") parts.push("In Stock");
+    if (stockFocus === "low") parts.push("Low Stock");
+    if (stockFocus === "out") parts.push("Out Of Stock");
+    if (search.trim()) parts.push(`Search: ${search.trim()}`);
+    return parts.length ? parts.join(" · ") : "All Inventory";
+  }, [categoryFilter, scopeFilter, search, stockFocus]);
+  const activityDetailMonthLabel = activityDetail ? formatStockActivityMonth(activityDetail.monthKey) : "";
+  const activityDetailTypeLabel =
+    activityDetail?.movementType === "out" ? "Stock Out" : "Stock In";
+  const primaryAttentionCount = primaryInventoryStats.lowStock + primaryInventoryStats.outOfStock;
+  const primaryAttentionRate = primaryInventoryStats.totalItems
+    ? Math.round((primaryAttentionCount / primaryInventoryStats.totalItems) * 100)
+    : 0;
+  const stockHealthTitle = scopeFilter === "water" ? "Water stock health" : "Core stock health";
+  const categoryUnitsTitle = scopeFilter === "water" ? "Water units by category" : "Core units by category";
   const detailIndex = useMemo(() => {
     if (!detailItem) return -1;
     return inventory.findIndex((item) => item.id === detailItem.id);
@@ -812,6 +1236,126 @@ function Admin() {
     setNewItemRows((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
   };
 
+  const handleNewItemSourceCategoryChange = (index, value) => {
+    setNewItemRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              sourceCategoryCode: value,
+              specificCategory: "",
+              categoryDraft: "",
+              isAddingCategory: false,
+            }
+          : row
+      )
+    );
+  };
+
+  const handleNewItemCategorySelect = (index, value) => {
+    if (value === INVENTORY_ADD_CATEGORY_VALUE) {
+      if (!canCreateInventoryCategories) return;
+      setNewItemRows((prev) =>
+        prev.map((row, i) =>
+          i === index
+            ? {
+                ...row,
+                isAddingCategory: true,
+                categoryDraft: "",
+              }
+            : row
+        )
+      );
+      return;
+    }
+
+    setNewItemRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              specificCategory: value,
+              categoryDraft: "",
+              isAddingCategory: false,
+            }
+          : row
+      )
+    );
+  };
+
+  const handleNewItemCategoryDraftChange = (index, value) => {
+    setNewItemRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              categoryDraft: value,
+            }
+          : row
+      )
+    );
+  };
+
+  const cancelNewItemCategoryCreate = (index) => {
+    setNewItemRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              categoryDraft: "",
+              isAddingCategory: false,
+            }
+          : row
+      )
+    );
+  };
+
+  const saveNewItemCategory = (index) => {
+    if (!canCreateInventoryCategories) {
+      setNewItemError("Only admins and managers can create categories.");
+      return;
+    }
+
+    const row = newItemRows[index];
+    const nextCategory = normalizeInventoryCategoryName(row?.categoryDraft);
+    if (!nextCategory) {
+      setNewItemError(`Row ${index + 1}: Enter a category name.`);
+      return;
+    }
+
+    const sourceCategory = String(row?.sourceCategoryCode || "CLOTHES").toUpperCase();
+    const existingOptions = specificCategoriesBySource[sourceCategory] || [];
+    const existingMatch = existingOptions.find(
+      (value) => value.trim().toLowerCase() === nextCategory.toLowerCase()
+    );
+
+    setCustomInventoryCategories((prev) => {
+      if (existingMatch) return prev;
+      const current = Array.isArray(prev[sourceCategory]) ? prev[sourceCategory] : [];
+      if (current.some((value) => value.trim().toLowerCase() === nextCategory.toLowerCase())) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [sourceCategory]: [...current, nextCategory],
+      };
+    });
+
+    setNewItemRows((prev) =>
+      prev.map((currentRow, i) =>
+        i === index
+          ? {
+              ...currentRow,
+              specificCategory: existingMatch || nextCategory,
+              categoryDraft: "",
+              isAddingCategory: false,
+            }
+          : currentRow
+      )
+    );
+    setNewItemError("");
+  };
+
   const handlePurchasePriceGbpChange = (index, value) => {
     setNewItemRows((prev) =>
       prev.map((row, i) =>
@@ -888,6 +1432,35 @@ function Admin() {
     );
   };
 
+  const specificCategoriesBySource = useMemo(() => {
+    const grouped = new Map();
+    const addCategory = (source, value) => {
+      const normalizedSource = String(source || "CLOTHES").trim().toUpperCase() || "CLOTHES";
+      const normalizedCategory = normalizeInventoryCategoryName(value);
+      if (!normalizedCategory) return;
+      if (!grouped.has(normalizedSource)) grouped.set(normalizedSource, new Set());
+      grouped.get(normalizedSource).add(normalizedCategory);
+    };
+
+    items.forEach((item) => {
+      addCategory(
+        normalizeSourceCode(item) || "CLOTHES",
+        item?.specificCategory || item?.specificcategory || ""
+      );
+    });
+
+    Object.entries(customInventoryCategories).forEach(([source, values]) => {
+      values.forEach((value) => addCategory(source, value));
+    });
+
+    return Object.fromEntries(
+      Array.from(grouped.entries()).map(([source, valueSet]) => [
+        source,
+        Array.from(valueSet).sort((a, b) => a.localeCompare(b)),
+      ])
+    );
+  }, [customInventoryCategories, items]);
+
   const categories = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -907,6 +1480,7 @@ function Admin() {
 
   const resetNewItemForm = () => {
     setNewItemRows([{ ...newItemTemplate }]);
+    setNewItemError("");
   };
 
   useEffect(() => {
@@ -975,7 +1549,8 @@ function Admin() {
         ...row,
         name: row.name.trim(),
         barcode: row.barcode.trim(),
-        specificCategory: row.specificCategory.trim(),
+        specificCategory: normalizeInventoryCategoryName(row.specificCategory),
+        categoryDraft: normalizeInventoryCategoryName(row.categoryDraft),
         description: row.description.trim(),
       }))
       .filter((row) => row.name);
@@ -993,6 +1568,10 @@ function Admin() {
       const purchasePriceValue = hasPurchasePrice ? Number(row.purchasePriceGbp) : null;
       const hasCadPrice = row.purchasePriceCad !== "" && row.purchasePriceCad !== null;
       const purchasePriceCadValue = hasCadPrice ? Number(row.purchasePriceCad) : null;
+      if (row.isAddingCategory) {
+        setNewItemError(`Row ${i + 1}: Save or cancel the new category first.`);
+        return;
+      }
       if (!Number.isFinite(priceValue) || priceValue < 0) {
         setNewItemError(`Row ${i + 1}: Price must be zero or higher.`);
         return;
@@ -1341,78 +1920,6 @@ function Admin() {
     }
   };
 
-  const adjustStockInline = async (item, delta) => {
-    if (!canAdjustInventoryStockDirectly) {
-      setSubmitError("Only admins and managers can adjust stock directly.");
-      return;
-    }
-    if (!delta) return;
-    const currentQty = getQuantity(item);
-    if (delta < 0 && currentQty <= 0) {
-      setSubmitError("Cannot reduce stock below zero.");
-      return;
-    }
-
-    setUpdatingStockId(item.id);
-    setSubmitError("");
-    setSuccess("");
-    const type = delta > 0 ? "StockIn" : "StockOut";
-    const quantity = Math.abs(delta);
-
-    try {
-      const response = await fetch("/.netlify/functions/stock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: item.id,
-          type,
-          quantity,
-          notes: undefined,
-          reference: undefined,
-          userId: user?.id,
-          userName:
-            user?.fullName ||
-            user?.name ||
-            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-            undefined,
-          userEmail: user?.email,
-        }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Stock update failed.");
-      }
-
-      const actorName =
-        user?.fullName ||
-        user?.name ||
-        [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-        user?.email ||
-        "Updated";
-
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === item.id
-            ? {
-                ...row,
-                quantity: toNumber(payload.newStock, getQuantity(row)),
-                lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
-                lastUpdatedByName: payload.lastUpdatedByName || actorName,
-              }
-            : row
-        )
-      );
-      await loadStockActivity();
-      setSuccess(payload?.message || "Stock updated.");
-    } catch (err) {
-      console.error("Inline stock update failed", err);
-      setSubmitError(err.message || "Stock update failed.");
-    } finally {
-      setUpdatingStockId(null);
-    }
-  };
-
   const onSubmit = async (event) => {
     event.preventDefault();
     if (!activeItem) return;
@@ -1481,97 +1988,161 @@ function Admin() {
   };
 
   return (
-    <div className="admin-page">
+    <div className="admin-page inventory-page">
       <div className="admin-shell">
         <AdminBreadcrumb items={[{ label: "Inventory" }]} />
-        <header className="admin-header">
-          <div>
-            <p className="admin-eyebrow">Inventory Control</p>
-            <h1>Stock Admin</h1>
-            <p className="admin-subtitle">
-              Track live stock, spot low inventory, and adjust quantities in seconds.
-            </p>
-            <div className="admin-simple-steps" aria-label="Quick stock entry steps">
-              <span>1. Search an item</span>
-              <span>2. Click it</span>
-              <span>3. Update and save</span>
-            </div>
+        <header className="admin-header inventory-hub-header">
+          <div className="inventory-hub-copy">
+            <h1>Stock Management</h1>
           </div>
-          <div className="admin-header-actions">
+          <div className="admin-header-actions inventory-header-actions">
             <button
               type="button"
-              className="admin-chip"
+              className="admin-chip inventory-header-action"
+              aria-label={newItemOpen ? "Close add items" : "Add items"}
+              title={newItemOpen ? "Close add items" : "Add items"}
               onClick={() => {
                 setNewItemError("");
                 setSuccess("");
                 setNewItemOpen((open) => !open);
               }}
             >
-              {newItemOpen ? "Close" : "Add items"}
+              <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
+              <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
             </button>
             <button
               type="button"
-              className="admin-chip"
+              className="admin-chip inventory-header-action"
+              aria-label="Open archived items"
+              title="Archived items"
               onClick={() => {
                 setArchivedOpen(true);
                 clearArchivedSelection();
                 loadStatusItems("archived");
               }}
             >
-              Archived
+              <AppIcon icon={faFolderOpen} size={16} />
+              <span className="sr-only">Archived</span>
             </button>
             <button
               type="button"
-              className="admin-chip"
+              className="admin-chip inventory-header-action"
+              aria-label="Open recently deleted items"
+              title="Recently deleted"
               onClick={() => {
                 setDeletedOpen(true);
                 loadStatusItems("deleted");
               }}
             >
-              Recently deleted
+              <AppIcon icon={faTrash} size={16} />
+              <span className="sr-only">Recently deleted</span>
             </button>
-            <button type="button" className="admin-refresh" onClick={refreshInventorySurface}>
-              Refresh
+            <button
+              type="button"
+              className="admin-refresh inventory-header-action"
+              aria-label="Refresh inventory"
+              title="Refresh inventory"
+              onClick={refreshInventorySurface}
+            >
+              <AppIcon icon={faRotateRight} size={16} />
+              <span className="sr-only">Refresh</span>
             </button>
           </div>
         </header>
 
-        <section className="inventory-kpi-panel" aria-label="Inventory KPIs">
-          <div className="inventory-kpi-grid">
-            <article className="inventory-kpi-card">
-              <p className="inventory-kpi-label">Total items</p>
-              <h2 className="inventory-kpi-value">{totalItems}</h2>
-              <p className="inventory-kpi-meta">{healthyItems} healthy SKUs</p>
-              <div className="inventory-kpi-meter" aria-hidden="true">
-                <span style={{ width: `${healthyRate}%` }} />
-              </div>
-              <p className="inventory-kpi-foot">{healthyRate}% above reorder level</p>
-            </article>
-            <article className="inventory-kpi-card">
+        <section className="inventory-scope-grid" aria-label="Inventory type scope">
+          {scopeSummaries.map((summary) => {
+            const isActive = scopeFilter === summary.key;
+            return (
+              <button
+                key={summary.key}
+                type="button"
+                className={`inventory-scope-card bubble-card ${isActive ? "is-active" : ""}`}
+                onClick={() => setScopeFilter(summary.key)}
+              >
+                <span className="inventory-scope-label">{summary.label}</span>
+                <strong className="inventory-scope-value">{summary.count}</strong>
+                <span className="inventory-scope-meta">
+                  {summary.units} units · {summary.lowStock} low
+                </span>
+              </button>
+            );
+          })}
+        </section>
+
+        <section className="inventory-kpi-panel" aria-label="Inventory hub KPIs">
+          <div className="inventory-kpi-panel-head">
+            <div className="inventory-kpi-panel-aside">
+            </div>
+          </div>
+
+          <div className="inventory-kpi-grid inventory-kpi-grid--primary">
+            <article className="inventory-kpi-card bubble-card">
               <p className="inventory-kpi-label">Units on hand</p>
-              <h2 className="inventory-kpi-value">{totalUnits}</h2>
-              <p className="inventory-kpi-meta">Average {avgUnitsPerSku} units per SKU</p>
+              <h2 className="inventory-kpi-value">{primaryInventoryStats.totalUnits}</h2>
+              <p className="inventory-kpi-meta">
+                Average {primaryInventoryStats.avgUnitsPerSku} units per SKU
+              </p>
               <div className="inventory-kpi-meter inventory-kpi-meter--accent" aria-hidden="true">
-                <span style={{ width: `${Math.min(100, Math.round(Number(avgUnitsPerSku) * 10))}%` }} />
+                <span
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.round(Number(primaryInventoryStats.avgUnitsPerSku) * 10)
+                    )}%`,
+                  }}
+                />
               </div>
-              <p className="inventory-kpi-foot">Live stock in current filtered view</p>
             </article>
-            <article className="inventory-kpi-card">
-              <p className="inventory-kpi-label">Low stock risk</p>
-              <h2 className="inventory-kpi-value">{lowStock}</h2>
-              <p className="inventory-kpi-meta">{outOfStock} fully out of stock</p>
+            <article className="inventory-kpi-card bubble-card">
+              <p className="inventory-kpi-label">Inventory value</p>
+              <h2 className="inventory-kpi-value inventory-kpi-value--money">
+                {formatMoney(primaryInventoryStats.costValue)}
+              </h2>
+              <p className="inventory-kpi-meta">
+                {formatMoney(primaryInventoryStats.saleValue)} at selling price
+              </p>
+            </article>
+            <article className="inventory-kpi-card bubble-card">
+              <p className="inventory-kpi-label">Needs attention</p>
+              <h2 className="inventory-kpi-value">{primaryAttentionCount}</h2>
+              <p className="inventory-kpi-meta">
+                {primaryInventoryStats.outOfStock} out of stock · {primaryInventoryStats.lowStock} low stock
+              </p>
               <div className="inventory-kpi-meter inventory-kpi-meter--danger" aria-hidden="true">
-                <span style={{ width: `${lowStockRate}%` }} />
+                <span style={{ width: `${primaryAttentionRate}%` }} />
               </div>
-              <p className="inventory-kpi-foot">{outOfStockRate}% are out of stock</p>
             </article>
           </div>
 
+          {waterInventoryStats.totalItems > 0 && scopeFilter !== "water" && waterSnapshot && (
+            <Link className="inventory-water-strip bubble-card" to="/admin/water" aria-label="Open water module">
+              <div className="inventory-water-strip-head">
+                <div className="inventory-water-strip-copy">
+                  <h3>GWater</h3>
+                </div>
+              </div>
+              <div className="inventory-water-strip-stats">
+                <div className="inventory-water-stat bubble-card">
+                  <span>Stock</span>
+                  <strong>{waterSnapshot.stock}</strong>
+                </div>
+                <div className="inventory-water-stat bubble-card">
+                  <span>Revenue</span>
+                  <strong>{formatWholeMoneyFromCents(waterSnapshot.revenue)}</strong>
+                </div>
+                <div className="inventory-water-stat bubble-card">
+                  <span>{waterSnapshotProfitLabel}</span>
+                  <strong>{formatWholeMoneyFromCents(waterSnapshotProfitDisplayValue)}</strong>
+                </div>
+              </div>
+            </Link>
+          )}
+
           <div className="inventory-kpi-visuals">
-            <article className="inventory-kpi-chart-card">
+            <article className="inventory-kpi-chart-card bubble-card">
               <div className="inventory-kpi-chart-head">
-                <h3>Stock health</h3>
-                <span>{stockHealthTotal} SKUs</span>
+                <h3>{stockHealthTitle}</h3>
               </div>
               <div className="inventory-kpi-donut-wrap">
                 <div className="inventory-kpi-donut-shell" role="img" aria-label="Stock health breakdown chart">
@@ -1626,9 +2197,9 @@ function Admin() {
               </div>
             </article>
 
-            <article className="inventory-kpi-chart-card">
+            <article className="inventory-kpi-chart-card bubble-card">
               <div className="inventory-kpi-chart-head">
-                <h3>Units by category</h3>
+                <h3>{categoryUnitsTitle}</h3>
                 <span>Top 5</span>
               </div>
               {categoryUnits.length === 0 ? (
@@ -1661,8 +2232,7 @@ function Admin() {
         {canApproveInventoryEdits && (
           <section className="admin-card inventory-edit-approvals" aria-label="Inventory edit approvals">
             <div className="admin-focus-header">
-              <div>
-                <p className="admin-eyebrow">Approvals</p>
+              <div >
                 <h3>Pending stock item edits</h3>
               </div>
               <span className="admin-focus-count">{editRequests.length} waiting</span>
@@ -1714,27 +2284,69 @@ function Admin() {
         )}
 
         <section className="admin-table">
-          <div className="admin-table-header">
-            <h3>Current inventory</h3>
-            {loading && <span className="admin-status">Loading inventory...</span>}
-            {!loading && error && <span className="admin-error">{error}</span>}
-          </div>
-          <div className="admin-controls">
-            <div className="admin-control-group">
-              <label className="admin-search">
-                Search
-                <SearchField
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  onClear={() => setSearch("")}
-                  placeholder="Name, SKU, or barcode"
-                  aria-label="Search inventory"
-                />
+          <div className="inventory-register-toolbar">
+            <div className="inventory-register-head-status">
+              {loading && <span className="admin-status">Loading inventory...</span>}
+              {!loading && error && <span className="admin-error">{error}</span>}
+            </div>
+            <div className="inventory-register-search-row">
+              <div className="inventory-register-filter-controls">
+                <label className="admin-search">
+                  <SearchField
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    onClear={() => setSearch("")}
+                    placeholder="Search by Name, SKU, or barcode"
+                    aria-label="Search inventory"
+                  />
+                </label>
+              </div>
+              <div className="inventory-register-view-controls">
+                <div
+                  className="inventory-tab-menu inventory-tab-menu--view"
+                  role="group"
+                  aria-label="Toggle inventory view"
+                >
+                  {!isMobileView && (
+                    <button
+                      type="button"
+                      className={`inventory-tab-button ${viewMode === "table" ? "is-active" : ""}`}
+                      onClick={() => setViewMode("table")}
+                    >
+                      List
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`inventory-tab-button ${viewMode === "cards" ? "is-active" : ""}`}
+                    onClick={() => setViewMode("cards")}
+                  >
+                    Card
+                  </button>
+                  <button
+                    type="button"
+                    className={`inventory-tab-button ${viewMode === "activity" ? "is-active" : ""}`}
+                    onClick={() => setViewMode("activity")}
+                  >
+                    Activity
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="inventory-register-stock-controls">
+              <label className="inventory-register-filter-select">
+                <span className="inventory-register-filter-kicker">Stock</span>
+                <select value={stockFocus} onChange={(event) => applyStockFocus(event.target.value)}>
+                  <option value="all">All stock</option>
+                  <option value="in">In stock</option>
+                  <option value="low">Low stock</option>
+                  <option value="out">Out of stock</option>
+                </select>
               </label>
-              <label className="admin-select">
-                Category
+              <label className="inventory-register-filter-select">
+                <span className="inventory-register-filter-kicker">Category</span>
                 <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                  <option value="all">All</option>
+                  <option value="all">All Categories</option>
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -1742,63 +2354,6 @@ function Admin() {
                   ))}
                 </select>
               </label>
-              <label className="admin-checkbox">
-                <input
-                  type="checkbox"
-                  checked={inStockOnly}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setInStockOnly(checked);
-                    if (checked) setOutOfStockOnly(false);
-                  }}
-                />
-                In stock only
-              </label>
-              <label className="admin-checkbox">
-                <input
-                  type="checkbox"
-                  checked={outOfStockOnly}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setOutOfStockOnly(checked);
-                    if (checked) setInStockOnly(false);
-                  }}
-                />
-                Out of stock only
-              </label>
-              <label className="admin-checkbox">
-                <input
-                  type="checkbox"
-                  checked={reorderOnly}
-                  onChange={(e) => setReorderOnly(e.target.checked)}
-                />
-                Needs reorder
-              </label>
-            </div>
-            <div className="admin-view-toggle" role="group" aria-label="Toggle inventory view">
-              {!isMobileView && (
-                <button
-                  type="button"
-                  className={`admin-chip ${viewMode === "table" ? "is-active" : ""}`}
-                  onClick={() => setViewMode("table")}
-                >
-                  Table view
-                </button>
-              )}
-              <button
-                type="button"
-                className={`admin-chip ${viewMode === "cards" ? "is-active" : ""}`}
-                onClick={() => setViewMode("cards")}
-              >
-                Card view
-              </button>
-              <button
-                type="button"
-                className={`admin-chip ${viewMode === "activity" ? "is-active" : ""}`}
-                onClick={() => setViewMode("activity")}
-              >
-                Activity view
-              </button>
             </div>
           </div>
 
@@ -1806,22 +2361,41 @@ function Admin() {
             <div className="stock-activity-grid">
               {stockActivityError && <p className="admin-error">{stockActivityError}</p>}
               {stockActivityLoading && <p className="admin-status">Loading movement history...</p>}
-              {!stockActivityLoading && stockActivity.length === 0 && !stockActivityError && (
-                <p className="admin-empty">No movement history.</p>
+              {!stockActivityLoading && stockActivity.length === 0 && !stockActivityError && inventory.length === 0 && (
+                <p className="admin-empty">No items match the current filters.</p>
+              )}
+              {!stockActivityLoading && stockActivity.length === 0 && !stockActivityError && inventory.length > 0 && (
+                <p className="admin-empty">No movement history for the current filters.</p>
               )}
               {stockActivity.map((row) => (
                 <div key={row.month_key} className="stock-activity-row">
                   <div>
-                    <p className="stock-activity-month">{row.month_key}</p>
-                    <p className="stock-activity-meta">Stock in / out</p>
+                    <p className="stock-activity-month">{formatStockActivityMonth(row.month_key)}</p>
+                    <p className="stock-activity-meta">
+                      {`${Number(row.stock_in) || 0} in · ${Number(row.stock_out) || 0} out`}
+                    </p>
                   </div>
                   <div className="stock-activity-bars">
-                    <div className="stock-activity-bar in" style={getStockActivityBarStyle(row.stock_in)}>
+                    <button
+                      type="button"
+                      className="stock-activity-bar in is-interactive"
+                      style={getStockActivityBarStyle(row.stock_in)}
+                      onClick={() => openActivityDetail(row, "in")}
+                      disabled={!Number(row.stock_in)}
+                      aria-label={`Open stock in items for ${formatStockActivityMonth(row.month_key)}`}
+                    >
                       <span>+{row.stock_in || 0}</span>
-                    </div>
-                    <div className="stock-activity-bar out" style={getStockActivityBarStyle(row.stock_out)}>
+                    </button>
+                    <button
+                      type="button"
+                      className="stock-activity-bar out is-interactive"
+                      style={getStockActivityBarStyle(row.stock_out)}
+                      onClick={() => openActivityDetail(row, "out")}
+                      disabled={!Number(row.stock_out)}
+                      aria-label={`Open stock out items for ${formatStockActivityMonth(row.month_key)}`}
+                    >
                       <span>-{row.stock_out || 0}</span>
-                    </div>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1829,7 +2403,7 @@ function Admin() {
           )}
 
           {viewMode === "table" && !isMobileView && (
-            <div className="admin-table-scroll">
+            <div className="admin-table-scroll inventory-table-scroll">
               <table>
                 <thead>
                   <tr>
@@ -1859,40 +2433,46 @@ function Admin() {
                       </button>
                     </th>
                     <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("reorderLevel")}>
-                        Reorder <span className="sort-indicator">{sortIndicator("reorderLevel")}</span>
+                      <button type="button" className="sort-header" onClick={() => requestSort("price")}>
+                        Price <span className="sort-indicator">{sortIndicator("price")}</span>
                       </button>
                     </th>
                     <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("lastUpdatedAt")}>
-                        Last updated <span className="sort-indicator">{sortIndicator("lastUpdatedAt")}</span>
+                      <button type="button" className="sort-header" onClick={() => requestSort("inventoryValue")}>
+                        Inventory value <span className="sort-indicator">{sortIndicator("inventoryValue")}</span>
                       </button>
                     </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("lastUpdatedByName")}>
-                        Updated by <span className="sort-indicator">{sortIndicator("lastUpdatedByName")}</span>
-                      </button>
-                    </th>
+                    {shouldShowUpdatedColumn && (
+                      <th>
+                        <button type="button" className="sort-header" onClick={() => requestSort("lastUpdatedAt")}>
+                          Updated <span className="sort-indicator">{sortIndicator("lastUpdatedAt")}</span>
+                        </button>
+                      </th>
+                    )}
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {!loading && inventory.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="admin-empty">
+                      <td colSpan={shouldShowUpdatedColumn ? 9 : 8} className="admin-empty">
                         No items found in inventory.
                       </td>
                     </tr>
                   )}
                   {paginatedInventory.map((item) => {
                     const quantity = getQuantity(item);
-                    const isLow = quantity <= getReorderLevel(item);
+                    const isOut = quantity <= 0;
+                    const isLow = isLowStockItem(item);
                     const isMenuOpen = openMenuId === item.id;
+                    const segment = getInventorySegment(item);
                     const vendorLabel = formatItemVendorLabel(item, vendorNameById);
+                    const productMeta = item.barcode ? `Barcode ${item.barcode}` : "";
+                    const stockStateClass = isOut ? "is-out" : isLow ? "is-low" : "is-healthy";
                     return (
                       <tr
                         key={item.id}
-                        className={[isLow ? "is-low" : "", isMenuOpen ? "menu-open" : ""].filter(Boolean).join(" ")}
+                        className={[stockStateClass, isMenuOpen ? "menu-open" : ""].filter(Boolean).join(" ")}
                         onClick={() => openItemEditor(item)}
                         role="button"
                         tabIndex={0}
@@ -1903,63 +2483,58 @@ function Admin() {
                           }
                         }}
                       >
-                        <td>{item.id}</td>
+                        <td>
+                          <span className="inventory-table-text">{item.id}</span>
+                        </td>
                         <td>
                           <div className="admin-product">
-                            <span className="admin-product-name">{item.name || "Untitled"}</span>
-                            <span className="admin-product-id">{vendorLabel}</span>
+                            <span className="admin-product-name">{formatInventoryItemName(item.name)}</span>
+                            {productMeta ? (
+                              <span className="admin-product-id">{productMeta}</span>
+                            ) : null}
+                            {segment === "outsourced" && (
+                              <span className="admin-product-id">{vendorLabel}</span>
+                            )}
                           </div>
                         </td>
                         <td>
-                          <span>{item.sku || "-"}</span>
-                          {item.barcode && (
-                            <>
-                              <br />
-                              <span>Barcode {item.barcode}</span>
-                            </>
-                          )}
+                          <span className="inventory-table-text">{item.sku || "-"}</span>
                         </td>
-                        <td>{getCategory(item)}</td>
                         <td>
-                          {canAdjustInventoryStockDirectly ? (
-                            <div
-                              className="admin-stock-ctrl"
-                              onClick={(e) => e.stopPropagation()}
-                              role="group"
-                              aria-label={`Adjust stock for ${item.name || "item"}`}
-                            >
-                              <button
-                                type="button"
-                                className="admin-stock-btn"
-                                onClick={() => adjustStockInline(item, -1)}
-                                disabled={updatingStockId === item.id}
-                              >
-                                −
-                              </button>
-                              <span className="admin-stock">
-                                {updatingStockId === item.id ? "…" : quantity}
-                              </span>
-                              <button
-                                type="button"
-                                className="admin-stock-btn"
-                                onClick={() => adjustStockInline(item, 1)}
-                                disabled={updatingStockId === item.id}
-                              >
-                                +
-                              </button>
-                            </div>
-                          ) : (
+                          <div className="inventory-table-category">
+                            <span>{getCategory(item)}</span>
+                            {segment === "rental" && Number(item.attendantsNeeded) > 0 && (
+                              <small>{item.attendantsNeeded} attendants</small>
+                            )}
+                            {segment === "outsourced" && (
+                              <small>{vendorLabel}</small>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="inventory-table-stock">
                             <span className="admin-stock">{quantity}</span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="admin-reorder">
-                            <span>Level {getReorderLevel(item)}</span>
-                            <span>Qty {getReorderQuantity(item)}</span>
                           </div>
                         </td>
-                        <td>{formatDateTime(item.lastUpdatedAt || item.updatedAt)}</td>
-                        <td>{formatUser(item.lastUpdatedByName)}</td>
+                        <td>
+                          <div className="inventory-table-value">
+                            <strong>{formatMoney(toNumber(item?.price, 0))}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="inventory-table-value">
+                            <strong>{formatMoney(getInventoryStockValue(item))}</strong>
+                          </div>
+                        </td>
+                        {shouldShowUpdatedColumn && (
+                          <td>
+                            <div className="inventory-table-updated">
+                              <span title={formatUpdatedDetails(item.lastUpdatedAt || item.updatedAt, item.lastUpdatedByName)}>
+                                {formatDate(item.lastUpdatedAt || item.updatedAt)}
+                              </span>
+                            </div>
+                          </td>
+                        )}
                         <td>
                           {!isMobileView && (
                             <div className="bookings-menu inventory-menu">
@@ -1968,12 +2543,14 @@ function Admin() {
                                 className="bookings-edit inventory-menu-trigger"
                                 aria-haspopup="true"
                                 aria-expanded={openMenuId === item.id}
+                                aria-label={`Open actions for ${formatInventoryItemName(item.name, "Item")}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleRowMenu(item.id, e);
                                 }}
                               >
-                                ⋮
+                                <AppIcon icon={faEllipsisHorizontal} size={14} />
+                                <span className="sr-only">Actions</span>
                               </button>
                               <div
                                 className={`bookings-menu-list inventory-menu-list ${openMenuId === item.id ? "open" : ""}`}
@@ -2060,24 +2637,7 @@ function Admin() {
                   })}
                 </tbody>
               </table>
-              <div className="table-pagination">
-                <span>
-                  Showing {inventory.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(inventory.length, (clampedPage + 1) * pageSize)} of {inventory.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              {inventoryPagination}
             </div>
           )}
 
@@ -2090,14 +2650,16 @@ function Admin() {
                 {paginatedInventory.map((item) => {
                 const quantity = getQuantity(item);
                 const isOut = quantity <= 0;
-                const isLow = !isOut && quantity <= getReorderLevel(item);
+                const isLow = isLowStockItem(item);
                 const isInteractive = true;
                 const isMenuOpen = openMenuId === `card-${item.id}`;
+                const segment = getInventorySegment(item);
+                const segmentLabel = formatInventorySegment(segment);
                 const vendorLabel = formatItemVendorLabel(item, vendorNameById);
                 return (
                   <div
                     key={item.id}
-                    className={`inventory-card ${isOut ? "is-out" : isLow ? "is-low" : ""} ${isMenuOpen ? "menu-open" : ""}`}
+                    className={`inventory-card bubble-card ${isOut ? "is-out" : isLow ? "is-low" : ""} ${isMenuOpen ? "menu-open" : ""}`}
                     role={isInteractive ? "button" : undefined}
                     tabIndex={isInteractive ? 0 : undefined}
                     onClick={isInteractive ? () => openItemEditor(item) : undefined}
@@ -2115,9 +2677,9 @@ function Admin() {
 	                    <div className="inventory-card-head">
 	                      <div className="inventory-card-head-main">
 	                        <span className="admin-product-id">ID {item.id}</span>
-	                        <span className={`inventory-card-state ${isOut ? "is-out" : isLow ? "is-low" : "is-healthy"}`}>
-	                          {isOut ? "Out of stock" : isLow ? "Low stock" : "In stock"}
-	                        </span>
+                          <div className="inventory-card-badges">
+                            <span className={`inventory-type-pill is-${segment}`}>{segmentLabel}</span>
+                          </div>
 	                      </div>
 	                      <div className="inventory-card-head-actions">
 	                        <span className="admin-stock">Qty {quantity}</span>
@@ -2130,12 +2692,14 @@ function Admin() {
 	                            className="bookings-edit inventory-menu-trigger"
 	                            aria-haspopup="true"
 	                            aria-expanded={openMenuId === `card-${item.id}`}
+                                aria-label={`Open actions for ${formatInventoryItemName(item.name, "Item")}`}
 	                            onClick={(e) => {
 	                              e.stopPropagation();
 	                              toggleRowMenu(`card-${item.id}`, e);
 	                            }}
 	                          >
-	                            ⋮
+	                            <AppIcon icon={faEllipsisHorizontal} size={14} />
+                                <span className="sr-only">Actions</span>
 	                          </button>
 	                          <div
 	                            className={`bookings-menu-list inventory-menu-list inventory-card-menu-list ${openMenuId === `card-${item.id}` ? "open" : ""}`}
@@ -2216,7 +2780,7 @@ function Admin() {
 	                        </div>
 	                      </div>
 	                    </div>
-	                    <h4 className="inventory-card-title">{item.name || "Untitled"}</h4>
+	                    <h4 className="inventory-card-title">{formatInventoryItemName(item.name)}</h4>
 	                    <div className="inventory-card-details">
 	                      <p className="inventory-card-sub">
 	                        {item.sku ? `SKU ${item.sku}` : "No SKU"}
@@ -2225,12 +2789,19 @@ function Admin() {
 	                        <p className="inventory-card-sub">Barcode {item.barcode}</p>
 	                      )}
 	                      <p className="inventory-card-sub">{getCategory(item)}</p>
-                        <p className="inventory-card-sub inventory-card-subtle">{vendorLabel}</p>
+                        {segment === "rental" && Number(item.attendantsNeeded) > 0 && (
+                          <p className="inventory-card-sub inventory-card-subtle">
+                            {item.attendantsNeeded} attendants needed
+                          </p>
+                        )}
+                        {segment === "outsourced" && (
+                          <p className="inventory-card-sub inventory-card-subtle">{vendorLabel}</p>
+                        )}
 	                    </div>
 	                    <div className="inventory-card-footer">
 	                      <div className="inventory-card-meta">
 	                        <p className="inventory-card-sub inventory-card-subtle">
-	                          Reorder at {getReorderLevel(item)} · Restock {getReorderQuantity(item)}
+                            Cost {formatMoney(getInventoryCostValue(item))} · Sell {formatMoney(getInventorySaleValue(item))}
 	                        </p>
 	                        <p className="inventory-card-sub inventory-card-subtle">
 	                          Updated {formatDateTime(item.lastUpdatedAt || item.updatedAt)}
@@ -2259,24 +2830,7 @@ function Admin() {
 	                );
 	              })}
               </div>
-              <div className="table-pagination">
-                <span>
-                  Showing {inventory.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(inventory.length, (clampedPage + 1) * pageSize)} of {inventory.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              {inventoryPagination}
             </>
           )}
         </section>
@@ -2348,7 +2902,7 @@ function Admin() {
                               checked={archivedSelected.has(item.id)}
                               onChange={() => toggleArchivedSelection(item.id)}
                             />
-                            <span>{item.name || "Untitled"}</span>
+                            <span>{formatInventoryItemName(item.name)}</span>
                           </label>
                           <span>Stock {getQuantity(item)}</span>
                         </li>
@@ -2390,7 +2944,7 @@ function Admin() {
                     <ul className="admin-kpi-list">
                       {deletedItems.map((item) => (
                         <li key={item.id}>
-                          <span>{item.name || "Untitled"}</span>
+                          <span>{formatInventoryItemName(item.name)}</span>
                           <span>Stock {getQuantity(item)}</span>
                         </li>
                       ))}
@@ -2410,9 +2964,7 @@ function Admin() {
           <div className="customers-modal-panel admin-new-item-panel">
             <header className="admin-new-item-header">
               <div className="admin-new-item-title">
-                <p className="admin-eyebrow">Quick add inventory</p>
-                <h2>Add new items</h2>
-                <p className="admin-subtitle">We’ll auto-generate SKUs and mark items active.</p>
+                <h2>Add items</h2>
                 <div className="admin-new-item-meta">
                   <span className="pill blue">Items {newItemRows.length}</span>
                 </div>
@@ -2426,186 +2978,260 @@ function Admin() {
                 }}
                 aria-label="Close"
               >
-                ✕
+                <AppIcon icon={faXmark} size={18} />
+                <span className="sr-only">Close</span>
               </button>
             </header>
 
             <form className="admin-new-item-form" onSubmit={createInventoryItems}>
-              {newItemRows.map((row, index) => (
-                <div key={index} className="admin-new-item-row">
-                  <div className="admin-new-item-row-head">
-                    <span className="pill purple">Item {index + 1}</span>
-                    {newItemRows.length > 1 && (
-                      <button
-                        type="button"
-                        className="admin-chip"
-                        onClick={() => removeNewItemRow(index)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+              {newItemRows.map((row, index) => {
+                const sourceCategoryCode = String(row.sourceCategoryCode || "CLOTHES").toUpperCase();
+                const rowCategoryOptions = specificCategoriesBySource[sourceCategoryCode] || [];
+                const hasPurchasePriceGbp = row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null;
+                const hasPurchasePriceCad = row.purchasePriceCad !== "" && row.purchasePriceCad !== null;
+                const isGbpLockedToCad = hasPurchasePriceCad;
+                const isGbpDerivedFromCad = hasPurchasePriceCad && Boolean(cadToGbpWithTaxRate);
 
-                  <div className="admin-form-grid">
-                    <label>
-                      Name
-                      <input
-                        type="text"
-                        value={row.name}
-                        onChange={(e) => updateNewItemRow(index, "name", e.target.value)}
-                        placeholder="e.g., Blue Party Cups"
-                      />
-                    </label>
-                    <label>
-                      Barcode
-                      <input
-                        type="text"
-                        value={row.barcode}
-                        onChange={(e) => updateNewItemRow(index, "barcode", e.target.value)}
-                        placeholder="Scan code (optional)"
-                      />
-                    </label>
-                  <label>
-                    Price (GHS)
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={row.price}
-                      onChange={(e) => updateNewItemRow(index, "price", e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </label>
-                  <label>
-                    Purchase price (GBP)
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      disabled={row.purchasePriceCad !== "" && row.purchasePriceCad !== null}
-                      value={row.purchasePriceGbp}
-                      onChange={(e) => handlePurchasePriceGbpChange(index, e.target.value)}
-                      placeholder="0.00"
-                    />
-                    {row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null && (
-                      <span className="admin-purchase-cedis">
-                        <span>Purchase price (GHS)</span>
-                        <strong>
-                          {gbpRate
-                            ? formatMoney(Number(row.purchasePriceGbp) * gbpRate, "GHS")
-                            : "Rate unavailable"}
-                        </strong>
-                      </span>
-                    )}
-                  </label>
-                  {row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null && (
-                    <>
-                      {gbpRate ? (
-                        <label className="admin-checkbox admin-purchase-accept">
-                          <input
-                            type="checkbox"
-                            checked={row.conversionAccepted && row.conversionRate === gbpRate}
-                            onChange={(e) => handleConversionAccept(index, e.target.checked)}
-                          />
-                          Accept conversion at 1 GBP = GHS {gbpRate.toFixed(2)}
-                        </label>
-                      ) : (
-                        <p className="admin-purchase-note">
-                          Conversion rate unavailable. Try again in a moment.
-                        </p>
+                return (
+                  <div key={index} className="admin-new-item-row bubble-card">
+                    <div className="admin-new-item-row-head">
+                      <h3 className="admin-new-item-row-index">Item {index + 1}</h3>
+                      {newItemRows.length > 1 && (
+                        <button
+                          type="button"
+                          className="admin-chip"
+                          onClick={() => removeNewItemRow(index)}
+                        >
+                          Remove
+                        </button>
                       )}
-                    </>
-                  )}
-                  <label>
-                    Purchase price (CAD)
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={row.purchasePriceCad}
-                      onChange={(e) => handlePurchasePriceCadChange(index, e.target.value)}
-                      placeholder="0.00"
-                    />
-                    {row.purchasePriceCad !== "" && row.purchasePriceCad !== null && (
-                      <span className="admin-purchase-cedis">
-                        <span>Converted price (GBP)</span>
-                        <strong>
-                          {cadToGbpWithTaxRate
-                            ? formatMoney(
-                                Number(row.purchasePriceCad) * cadToGbpWithTaxRate,
-                                "GBP"
-                              )
-                            : "Rate unavailable"}
-                        </strong>
-                      </span>
-                    )}
-                  </label>
-                  {row.purchasePriceCad !== "" && row.purchasePriceCad !== null && (
-                    <>
-                      {cadToGbpWithTaxRate ? (
-                        <label className="admin-checkbox admin-purchase-accept">
-                          <input
-                            type="checkbox"
-                            checked={
-                              row.cadConversionAccepted &&
-                              row.cadConversionRate === cadToGbpWithTaxRate
-                            }
-                            onChange={(e) => handleCadConversionAccept(index, e.target.checked)}
-                          />
-                          Accept conversion at 1 CAD (+13% tax) = GBP{" "}
-                          {cadToGbpWithTaxRate.toFixed(4)}
-                        </label>
-                      ) : (
-                        <p className="admin-purchase-note">
-                          Conversion rate unavailable. Try again in a moment.
-                        </p>
-                      )}
-                    </>
-                  )}
-                  <label>
-                    Quantity on hand
-                    <input
-                      type="number"
-                        min="0"
-                        step="1"
-                        value={row.quantity}
-                        onChange={(e) => updateNewItemRow(index, "quantity", e.target.value)}
-                        placeholder="0"
-                      />
-                    </label>
-                    <label>
-                      Source category
-                      <select
-                        value={row.sourceCategoryCode}
-                        onChange={(e) => updateNewItemRow(index, "sourceCategoryCode", e.target.value)}
-                      >
-                        <option value="CLOTHES">CLOTHES</option>
-                        <option value="TOYS">TOYS</option>
-                        <option value="RENTAL">RENTAL</option>
-                        <option value="WATER">WATER</option>
-                      </select>
-                    </label>
-                    <label>
-                      Specific category
-                      <input
-                        type="text"
-                        value={row.specificCategory}
-                        onChange={(e) => updateNewItemRow(index, "specificCategory", e.target.value)}
-                        placeholder="e.g., Balloons"
-                      />
-                    </label>
+                    </div>
+
+                    <div className="admin-new-item-grid">
+                      <label className="admin-new-item-field--wide">
+                        Name
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => updateNewItemRow(index, "name", e.target.value)}
+                          placeholder="e.g., Blue Party Cups"
+                        />
+                      </label>
+                      <label>
+                        Barcode
+                        <input
+                          type="text"
+                          value={row.barcode}
+                          onChange={(e) => updateNewItemRow(index, "barcode", e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </label>
+                      <label>
+                        Price (GHS)
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.price}
+                          onChange={(e) => updateNewItemRow(index, "price", e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </label>
+                      <label>
+                        Qty
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row.quantity}
+                          onChange={(e) => updateNewItemRow(index, "quantity", e.target.value)}
+                          placeholder="0"
+                        />
+                      </label>
+                      <label>
+                        Type
+                        <select
+                          value={row.sourceCategoryCode}
+                          onChange={(e) => handleNewItemSourceCategoryChange(index, e.target.value)}
+                        >
+                          <option value="CLOTHES">CLOTHES</option>
+                          <option value="TOYS">TOYS</option>
+                          <option value="RENTAL">RENTAL</option>
+                          <option value="WATER">WATER</option>
+                        </select>
+                      </label>
+                      <label className="admin-new-item-field--wide">
+                        Category
+                        <div className="admin-new-item-category-stack">
+                          <select
+                            value={row.isAddingCategory ? INVENTORY_ADD_CATEGORY_VALUE : row.specificCategory}
+                            onChange={(e) => handleNewItemCategorySelect(index, e.target.value)}
+                          >
+                            <option value="">Select category</option>
+                            {rowCategoryOptions.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                            {canCreateInventoryCategories && (
+                              <option value={INVENTORY_ADD_CATEGORY_VALUE}>+ Add category</option>
+                            )}
+                          </select>
+
+                          {row.isAddingCategory && canCreateInventoryCategories ? (
+                            <div className="admin-new-item-category-creator">
+                              <input
+                                type="text"
+                                value={row.categoryDraft}
+                                onChange={(e) => handleNewItemCategoryDraftChange(index, e.target.value)}
+                                placeholder="Enter new category"
+                              />
+                              <div className="admin-new-item-category-actions">
+                                <button
+                                  type="button"
+                                  className="admin-chip"
+                                  onClick={() => saveNewItemCategory(index)}
+                                >
+                                  Save category
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-chip"
+                                  onClick={() => cancelNewItemCategoryCreate(index)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </label>
+
+                      <div className="admin-new-item-price-section admin-new-item-field--full">
+                        <div className="admin-new-item-price-section-head">
+                          <span className="admin-new-item-price-kicker">Purchase Pricing</span>
+                        </div>
+
+                        <div className="admin-new-item-price-grid">
+                          <div
+                            className={[
+                              "admin-new-item-price-card",
+                              hasPurchasePriceGbp ? "is-active" : "",
+                              isGbpDerivedFromCad ? "is-derived" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <label
+                              htmlFor={`admin-new-item-gbp-${index}`}
+                              className="admin-new-item-price-heading"
+                            >
+                              <span className="admin-new-item-price-name">GBP</span>
+                            </label>
+                            <input
+                              id={`admin-new-item-gbp-${index}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              disabled={isGbpLockedToCad}
+                              value={row.purchasePriceGbp}
+                              onChange={(e) => handlePurchasePriceGbpChange(index, e.target.value)}
+                              placeholder="0.00"
+                            />
+                            {hasPurchasePriceGbp && (
+                              <span className="admin-purchase-cedis">
+                                <span>Estimated GHS</span>
+                                <strong>
+                                  {gbpRate
+                                    ? formatMoney(Number(row.purchasePriceGbp) * gbpRate, "GHS")
+                                    : "Rate unavailable"}
+                                </strong>
+                              </span>
+                            )}
+                            {hasPurchasePriceGbp &&
+                              (gbpRate ? (
+                                <label className="admin-checkbox admin-purchase-accept">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.conversionAccepted && row.conversionRate === gbpRate}
+                                    onChange={(e) => handleConversionAccept(index, e.target.checked)}
+                                  />
+                                  Use 1 GBP = GHS {gbpRate.toFixed(2)}
+                                </label>
+                              ) : (
+                                <p className="admin-purchase-note">GBP to GHS rate unavailable.</p>
+                              ))}
+                          </div>
+
+                          <div
+                            className={[
+                              "admin-new-item-price-card",
+                              hasPurchasePriceCad ? "is-active" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <label
+                              htmlFor={`admin-new-item-cad-${index}`}
+                              className="admin-new-item-price-heading"
+                            >
+                              <span className="admin-new-item-price-name">CAD</span>
+                            </label>
+                            <input
+                              id={`admin-new-item-cad-${index}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={row.purchasePriceCad}
+                              onChange={(e) => handlePurchasePriceCadChange(index, e.target.value)}
+                              placeholder="0.00"
+                            />
+                            {hasPurchasePriceCad && (
+                              <span className="admin-purchase-cedis">
+                                <span>GBP Base</span>
+                                <strong>
+                                  {cadToGbpWithTaxRate
+                                    ? formatMoney(
+                                        Number(row.purchasePriceCad) * cadToGbpWithTaxRate,
+                                        "GBP"
+                                      )
+                                    : "Rate unavailable"}
+                                </strong>
+                              </span>
+                            )}
+                            {hasPurchasePriceCad &&
+                              (cadToGbpWithTaxRate ? (
+                                <label className="admin-checkbox admin-purchase-accept">
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      row.cadConversionAccepted &&
+                                      row.cadConversionRate === cadToGbpWithTaxRate
+                                    }
+                                    onChange={(e) => handleCadConversionAccept(index, e.target.checked)}
+                                  />
+                                  Use 1 CAD = GBP {cadToGbpWithTaxRate.toFixed(4)}
+                                </label>
+                              ) : (
+                                <p className="admin-purchase-note">CAD to GBP rate unavailable.</p>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <label className="admin-new-item-field--full">
+                        Description
+                        <textarea
+                          rows="2"
+                          value={row.description}
+                          onChange={(e) => updateNewItemRow(index, "description", e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </label>
+                    </div>
                   </div>
-                  <label>
-                    Description
-                    <textarea
-                      rows="2"
-                      value={row.description}
-                      onChange={(e) => updateNewItemRow(index, "description", e.target.value)}
-                      placeholder="Short description (optional)"
-                    />
-                  </label>
-                </div>
-              ))}
+                );
+              })}
 
               <div className="admin-new-item-actions">
                 <button type="button" className="admin-secondary" onClick={addNewItemRow}>
@@ -2627,6 +3253,62 @@ function Admin() {
               </div>
               {newItemError && <p className="admin-error">{newItemError}</p>}
             </form>
+          </div>
+        </div>
+      )}
+
+      {activityDetail && (
+        <div className="admin-modal" role="dialog" aria-modal="true">
+          <div className="admin-modal-panel inventory-activity-modal">
+            <header>
+              <div>
+                <p className="admin-eyebrow">Movement items</p>
+                <h2>{activityDetailTypeLabel} · {activityDetailMonthLabel}</h2>
+                <span className="admin-modal-meta">{activityFilterSummary}</span>
+              </div>
+              <button className="admin-close" onClick={closeActivityDetail} aria-label="Close">
+                Close
+              </button>
+            </header>
+
+            {activityDetail.loading && <p className="admin-status">Loading item movement...</p>}
+            {!activityDetail.loading && activityDetail.error && <p className="admin-error">{activityDetail.error}</p>}
+            {!activityDetail.loading && !activityDetail.error && activityDetail.items.length === 0 && (
+              <p className="admin-empty">No items recorded for this movement.</p>
+            )}
+
+            {!activityDetail.loading && !activityDetail.error && activityDetail.items.length > 0 && (
+              <div className="inventory-activity-modal-list">
+                {activityDetail.items.map((item) => (
+                  <article key={item.id} className="inventory-activity-modal-item bubble-card">
+                    <div className="inventory-activity-modal-item-main">
+                      {item.image ? (
+                        <div className="inventory-activity-modal-item-thumb">
+                          <img
+                            src={item.image}
+                            alt={formatInventoryItemName(item.name, "Inventory item")}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="inventory-activity-modal-item-copy">
+                        <h3>{formatInventoryItemName(item.name)}</h3>
+                        <p>
+                          {item.sku ? `SKU ${item.sku}` : "No SKU"} · {item.movement_count || 0} movement
+                          {Number(item.movement_count) === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="inventory-activity-modal-item-summary">
+                      <strong>
+                        {activityDetail.movementType === "out" ? "-" : "+"}
+                        {item.total_quantity || 0}
+                      </strong>
+                      <span>{formatDate(item.latest_date)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2909,12 +3591,12 @@ function Admin() {
             <header>
               <div>
                 <p className="admin-eyebrow">Adjust stock</p>
-                <h2>{activeItem.name || "Untitled"}</h2>
+                <h2>{formatInventoryItemName(activeItem.name)}</h2>
                 <span className="admin-modal-meta">ID {activeItem.id}</span>
               </div>
               {activeItem.image && (
                 <div className="admin-modal-thumb">
-                  <img src={activeItem.image} alt={activeItem.name || "Product image"} />
+                  <img src={activeItem.image} alt={formatInventoryItemName(activeItem.name, "Product Image")} />
                 </div>
               )}
               <button className="admin-close" onClick={closeAdjustForm} aria-label="Close">

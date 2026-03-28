@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminDirectory.css";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faRotateRight, faXmark, faPen, faEye } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -46,6 +47,27 @@ const tabs = [
   { key: "vendors", label: "Vendors" },
 ];
 
+const DIRECTORY_TAB_KEYS = new Set(tabs.map((tab) => tab.key));
+
+const normalizeDirectoryTab = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return DIRECTORY_TAB_KEYS.has(normalized) ? normalized : "users";
+};
+
+const buildDirectorySearch = ({ tab = "users", query = "" } = {}) => {
+  const params = new URLSearchParams();
+  const normalizedTab = normalizeDirectoryTab(tab);
+  const trimmedQuery = String(query || "").trim();
+  if (normalizedTab !== "users") {
+    params.set("tab", normalizedTab);
+  }
+  if (trimmedQuery) {
+    params.set("q", trimmedQuery);
+  }
+  const next = params.toString();
+  return next ? `?${next}` : "";
+};
+
 const generateEmailFromNames = (firstName, lastName) => {
   const clean = (value) => (value || "").trim().replace(/\s+/g, "").toLowerCase();
   const first = clean(firstName);
@@ -55,6 +77,8 @@ const generateEmailFromNames = (firstName, lastName) => {
 };
 
 function AdminDirectory() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("users");
   const [users, setUsers] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -358,6 +382,79 @@ function AdminDirectory() {
       : activeTab === "vendors"
         ? "Search name, contact, email"
         : "Search name, email, role";
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextTab = normalizeDirectoryTab(params.get("tab"));
+    const nextQuery = params.get("q") || "";
+    setActiveTab((current) => (current === nextTab ? current : nextTab));
+    setQuery((current) => (current === nextQuery ? current : nextQuery));
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = String(params.get("action") || "").trim().toLowerCase();
+    if (!action || loading) return;
+
+    const targetTab = normalizeDirectoryTab(params.get("tab"));
+    if (targetTab !== activeTab) return;
+
+    const resetSearch = () =>
+      navigate(
+        {
+          pathname: location.pathname,
+          search: buildDirectorySearch({ tab: targetTab, query: params.get("q") || "" }),
+        },
+        { replace: true }
+      );
+
+    if (action === "create") {
+      if (canMutate) {
+        openCreateModal();
+      }
+      resetSearch();
+      return;
+    }
+
+    const recordId = params.get("id");
+    if (!recordId) {
+      resetSearch();
+      return;
+    }
+
+    const sourceList =
+      targetTab === "customers" ? customers : targetTab === "vendors" ? vendors : users;
+    const targetRow = sourceList.find((item) => String(item.id) === String(recordId));
+
+    if (!targetRow) {
+      resetSearch();
+      return;
+    }
+
+    if (action === "edit" && canMutate) {
+      openEditModal(targetRow);
+      resetSearch();
+      return;
+    }
+
+    if (action === "view" && targetTab !== "users") {
+      void openDetail(targetRow);
+      resetSearch();
+      return;
+    }
+
+    resetSearch();
+  }, [
+    activeTab,
+    canMutate,
+    customers,
+    loading,
+    location.pathname,
+    location.search,
+    navigate,
+    users,
+    vendors,
+  ]);
 
   return (
     <div className="customers-page">

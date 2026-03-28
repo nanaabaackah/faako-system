@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./OrderBuilder.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
 
 const getUnitPrice = (item) => {
@@ -361,7 +362,13 @@ function OrderBuilder() {
         </header>
 
         {loading && <p className="order-status-text">Loading customers and products...</p>}
-        {!loading && error && <p className="order-error">{error}</p>}
+        {!loading && error && (
+          <InlineNotice
+            tone="error"
+            title="Order builder unavailable"
+            message={error}
+          />
+        )}
 
         {!loading && !error && (
           <div className="order-grid">
@@ -420,9 +427,12 @@ function OrderBuilder() {
                 />
               </label>
               {scanFeedback && (
-                <p className={scanFeedback.type === "error" ? "order-error" : "order-success"}>
-                  {scanFeedback.message}
-                </p>
+                <InlineNotice
+                  tone={scanFeedback.type === "error" ? "error" : "success"}
+                  title={scanFeedback.type === "error" ? "Product not found" : "Item added to order"}
+                  message={scanFeedback.message}
+                  compact
+                />
               )}
               <div className="order-product-list">
                 {filteredProducts.map((product) => {
@@ -515,8 +525,20 @@ function OrderBuilder() {
                   </strong>
                 </div>
               </div>
-              {submitError && <p className="order-error">{submitError}</p>}
-              {success && <p className="order-success">{success}</p>}
+              {submitError && (
+                <InlineNotice
+                  tone="error"
+                  title="Order not created"
+                  message={submitError}
+                />
+              )}
+              {success && (
+                <InlineNotice
+                  tone="success"
+                  title="Order created"
+                  message={success}
+                />
+              )}
               <button
                 type="button"
                 className="order-submit"

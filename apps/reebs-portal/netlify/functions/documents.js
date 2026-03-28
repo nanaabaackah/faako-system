@@ -1,20 +1,16 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireUser } from "./_shared/userAuth.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const DOCUMENT_METHODS = "GET,POST,OPTIONS";
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "document" (
     "id" SERIAL PRIMARY KEY,
+    "organizationId" INTEGER,
     "title" TEXT NOT NULL,
     "category" TEXT,
     "fileName" TEXT NOT NULL,
@@ -25,6 +21,7 @@ const tableStatements = [
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE "document" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER`,
   `ALTER TABLE "document" ADD COLUMN IF NOT EXISTS "category" TEXT`,
   `ALTER TABLE "document" ADD COLUMN IF NOT EXISTS "fileName" TEXT`,
   `ALTER TABLE "document" ADD COLUMN IF NOT EXISTS "mimeType" TEXT`,
@@ -49,15 +46,7 @@ const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: DOCUMENT_METHODS });
   }
 
   const client = new Client({
@@ -67,11 +56,15 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: DOCUMENT_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can access documents.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
-    const organizationId = authUser.organizationId;
+    const { organizationId } = authResult;
     await ensureDocumentTable(client);
     const orgColumnRes = await client.query(
       `SELECT 1
@@ -93,47 +86,52 @@ export async function handler(event = {}) {
           hasOrganizationId ? [id, organizationId] : [id]
         );
         if (result.rowCount === 0) {
-          return json(404, { error: "Document not found." });
+          return respond(event, 404, { error: "Document not found." }, { methods: DOCUMENT_METHODS });
         }
-        return json(200, result.rows[0]);
+        return respond(event, 200, result.rows[0], { methods: DOCUMENT_METHODS });
       }
 
       const list = await client.query(
         `SELECT id, title, category, "fileName", "mimeType", size, source, "createdAt"
          FROM "document"
          ${hasOrganizationId ? `WHERE "organizationId" = $1` : ""}
-         ORDER BY "createdAt" DESC, id DESC`,
+        ORDER BY "createdAt" DESC, id DESC`,
         hasOrganizationId ? [organizationId] : []
       );
-      return json(200, list.rows || []);
+      return respond(event, 200, list.rows || [], { methods: DOCUMENT_METHODS });
     }
 
     if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method Not Allowed" });
+      return respond(event, 405, { error: "Method Not Allowed" }, { methods: DOCUMENT_METHODS });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return respond(event, 400, { error: "Invalid JSON body." }, { methods: DOCUMENT_METHODS });
     }
 
     const title = cleanText(payload.title) || cleanText(payload.fileName);
     const category = cleanText(payload.category) || "Other";
     const fileName = cleanText(payload.fileName);
     const mimeType = cleanText(payload.mimeType) || "application/octet-stream";
-    const data = cleanText(payload.data);
+    const data = cleanText(payload.data).replace(/\s+/g, "");
     const source = cleanText(payload.source) || "upload";
 
     if (!title) {
-      return json(400, { error: "Title is required." });
+      return respond(event, 400, { error: "Title is required." }, { methods: DOCUMENT_METHODS });
     }
     if (!fileName) {
-      return json(400, { error: "fileName is required." });
+      return respond(event, 400, { error: "fileName is required." }, { methods: DOCUMENT_METHODS });
     }
     if (!data) {
-      return json(400, { error: "Document data is required." });
+      return respond(event, 400, { error: "Document data is required." }, { methods: DOCUMENT_METHODS });
+    }
+    if (!BASE64_PATTERN.test(data)) {
+      return respond(event, 400, { error: "Document data must be valid base64." }, {
+        methods: DOCUMENT_METHODS,
+      });
     }
 
     let size = Number(payload.size);
@@ -143,6 +141,14 @@ export async function handler(event = {}) {
       } catch {
         size = null;
       }
+    }
+    if (!Number.isFinite(size) || size <= 0) {
+      return respond(event, 400, { error: "Document size is invalid." }, { methods: DOCUMENT_METHODS });
+    }
+    if (size > MAX_DOCUMENT_BYTES) {
+      return respond(event, 413, { error: "Document exceeds the 10 MB upload limit." }, {
+        methods: DOCUMENT_METHODS,
+      });
     }
 
     const result = await client.query(
@@ -154,10 +160,10 @@ export async function handler(event = {}) {
         : [title, category, fileName, mimeType, size, data, source]
     );
 
-    return json(200, result.rows[0]);
+    return respond(event, 200, result.rows[0], { methods: DOCUMENT_METHODS });
   } catch (err) {
     console.error("❌ Document error:", err);
-    return json(500, { error: "Failed to process documents." });
+    return respond(event, 500, { error: "Failed to process documents." }, { methods: DOCUMENT_METHODS });
   } finally {
     await client.end().catch(() => {});
   }

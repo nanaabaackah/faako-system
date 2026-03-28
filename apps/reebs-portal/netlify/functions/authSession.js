@@ -2,11 +2,16 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
-import { requireUser } from "./_shared/userAuth.js";
+import {
+  buildUserSessionCookie,
+  getBearerUserTokenFromEvent,
+  requireUser,
+  verifyUserToken,
+} from "./_shared/userAuth.js";
 import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
 
-const respond = (event, statusCode, body = {}) =>
-  json(event, statusCode, body, { methods: "GET, OPTIONS" });
+const respond = (event, statusCode, body = {}, extraHeaders = {}) =>
+  json(event, statusCode, body, { methods: "GET, OPTIONS", extraHeaders });
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
@@ -56,7 +61,24 @@ export async function handler(event = {}) {
       return respond(event, 401, { error: "Unauthorized" });
     }
 
-    return respond(event, 200, result.rows[0]);
+    const bearerToken = getBearerUserTokenFromEvent(event);
+    const bearerPayload = verifyUserToken(bearerToken);
+    const remainingTtlMs = Number(bearerPayload?.exp || 0) - Date.now();
+    const extraHeaders =
+      bearerToken && remainingTtlMs > 0
+        ? {
+          "Set-Cookie": buildUserSessionCookie(event, bearerToken, {
+            ttlMs: remainingTtlMs,
+          }),
+        }
+        : {};
+
+    return respond(event, 200, {
+      ...result.rows[0],
+      authenticatedAt: authUser.sessionCreatedAt || null,
+      sessionCreatedAt: authUser.sessionCreatedAt || null,
+      sessionLastSeenAt: authUser.sessionLastSeenAt || null,
+    }, extraHeaders);
   } catch (error) {
     console.error("Auth session check failed:", error);
     return respond(event, 500, { error: "Failed to validate session." });

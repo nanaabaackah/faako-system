@@ -1,0 +1,201 @@
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LOW_STOCK_THRESHOLD = 3;
+
+const PAYMENT_OPTIONS = [
+  { value: "cash", label: "Cash" },
+  { value: "momo", label: "MoMo" },
+];
+
+const DISCOUNT_OPTIONS = [
+  { value: "amount", label: "Amount" },
+  { value: "percent", label: "%" },
+];
+
+const getQuantity = (item) => {
+  const raw = item?.quantity ?? item?.stock ?? 0;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getAvailableQuantity = (item, quantityInOrder = 0) =>
+  Math.max(0, getQuantity(item) - Math.max(0, Number(quantityInOrder) || 0));
+
+const getUnitPrice = (item) => {
+  if (typeof item?.price === "number") return item.price;
+  if (typeof item?.price === "string") {
+    const parsed = Number(item.price);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof item?.priceCents === "number") return item.priceCents / 100;
+  if (typeof item?.priceCents === "string") {
+    const parsed = Number(item.priceCents);
+    return Number.isFinite(parsed) ? parsed / 100 : 0;
+  }
+  return 0;
+};
+
+const getCategory = (item) =>
+  item?.specificCategory || item?.specificcategory || item?.sourceCategoryCode || "General";
+
+const isSaleableProduct = (item) => {
+  const source = String(item?.sourceCategoryCode || item?.sourcecategorycode || "")
+    .trim()
+    .toLowerCase();
+  return source !== "rental";
+};
+
+const formatMoney = (value, currency = "GHS") => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "-";
+  try {
+    return new Intl.NumberFormat("en-GH", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(numeric);
+  } catch {
+    return `${currency} ${numeric.toFixed(2)}`;
+  }
+};
+
+const normalizeText = (value) =>
+  typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+
+const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
+
+const parseReceiptContact = (value) => {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return { channel: "", value: "", email: "", phone: "", isValid: false };
+  }
+  if (EMAIL_PATTERN.test(normalized)) {
+    const email = normalized.toLowerCase();
+    return { channel: "email", value: email, email, phone: "", isValid: true };
+  }
+  const digits = normalizePhoneDigits(normalized);
+  if (digits.length >= 9) {
+    return { channel: "whatsapp", value: normalized, email: "", phone: normalized, isValid: true };
+  }
+  return { channel: "", value: normalized, email: "", phone: "", isValid: false };
+};
+
+const todayValue = () => new Date().toISOString().slice(0, 10);
+
+const sortCustomersByName = (customers) =>
+  [...customers].sort((left, right) =>
+    String(left?.name || left?.email || left?.phone || "").localeCompare(
+      String(right?.name || right?.email || right?.phone || "")
+    )
+  );
+
+const getCustomerLabel = (customer) =>
+  customer?.name || customer?.email || customer?.phone || `Customer #${customer?.id ?? ""}`;
+
+const getCustomerMeta = (customer) =>
+  [customer?.email, customer?.phone].filter(Boolean).join(" · ") || `ID ${customer?.id ?? "-"}`;
+
+const STORE_MODE_DRAFT_VERSION = 1;
+const STORE_MODE_DRAFT_PREFIX = "reebs-store-mode-draft";
+
+const sanitizeDraftString = (value, max = 240) =>
+  typeof value === "string" ? value.slice(0, max) : "";
+
+const sanitizeDraftOrderItems = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const productId = Number(item?.productId);
+      const quantity = Math.max(1, Math.round(Number(item?.quantity) || 0));
+      const unitPrice = Number(item?.unitPrice);
+      const stock = Number(item?.stock);
+      if (!Number.isFinite(productId) || productId <= 0) return null;
+      return {
+        productId,
+        name: sanitizeDraftString(item?.name || "Untitled", 160) || "Untitled",
+        quantity,
+        unitPrice: Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
+        stock: Number.isFinite(stock) && stock >= 0 ? stock : quantity,
+        currency: sanitizeDraftString(item?.currency || "GHS", 8) || "GHS",
+      };
+    })
+    .filter(Boolean);
+};
+
+const sanitizeDraftCustomer = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const id = Number(value.id);
+  const customer = {
+    id: Number.isFinite(id) && id > 0 ? id : null,
+    name: sanitizeDraftString(value.name, 160),
+    email: sanitizeDraftString(value.email, 160),
+    phone: sanitizeDraftString(value.phone, 40),
+  };
+  return customer.id || customer.name || customer.email || customer.phone ? customer : null;
+};
+
+const getStoreModeDraftKey = (user) => {
+  const organizationId = Number(user?.organizationId);
+  const userId = Number(user?.id);
+  if (!Number.isFinite(organizationId) || organizationId <= 0) return "";
+  if (!Number.isFinite(userId) || userId <= 0) return "";
+  return `${STORE_MODE_DRAFT_PREFIX}:${organizationId}:${userId}`;
+};
+
+const readStoreModeDraft = (key) => {
+  if (!key || typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== STORE_MODE_DRAFT_VERSION || !parsed?.data || typeof parsed.data !== "object") {
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoreModeDraft = (key, data) => {
+  if (!key || typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    key,
+    JSON.stringify({
+      version: STORE_MODE_DRAFT_VERSION,
+      savedAt: Date.now(),
+      data,
+    })
+  );
+};
+
+const clearStoreModeDraft = (key) => {
+  if (!key || typeof window === "undefined") return;
+  window.sessionStorage.removeItem(key);
+};
+
+export {
+  EMAIL_PATTERN,
+  LOW_STOCK_THRESHOLD,
+  PAYMENT_OPTIONS,
+  DISCOUNT_OPTIONS,
+  clearStoreModeDraft,
+  formatMoney,
+  getAvailableQuantity,
+  getCategory,
+  getCustomerLabel,
+  getCustomerMeta,
+  getQuantity,
+  getStoreModeDraftKey,
+  getUnitPrice,
+  isSaleableProduct,
+  normalizePhoneDigits,
+  normalizeText,
+  parseReceiptContact,
+  readStoreModeDraft,
+  sanitizeDraftCustomer,
+  sanitizeDraftOrderItems,
+  sanitizeDraftString,
+  sortCustomersByName,
+  todayValue,
+  writeStoreModeDraft,
+};

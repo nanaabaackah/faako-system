@@ -7,12 +7,14 @@ import {
   faArrowRight,
   faArrowRightFromBracket,
   faBoxesStacked,
+  faCalendarDays,
   faClipboardList,
   faCircleCheck,
   faCloudArrowUp,
   faClock,
   faMinus,
   faPlus,
+  faReceipt,
   faRotateRight,
   faTrash,
   faBolt,
@@ -29,12 +31,65 @@ import {
   saveOfflineQueue,
 } from "../../utils/offlineQueue";
 import { ADMIN_QUICK_ACTIONS } from "../../utils/adminQuickActions";
+import {
+  DASHBOARD_PATHS,
+} from "../../utils/adminDashboardLinks";
 import SearchField from "../../components/SearchField/SearchField";
+import { AdminWorkspaceHomeView } from "./components/AdminWorkspaceHomeView";
 
 const STOCK_ACTION_OPTIONS = [1, 5, 10];
-const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_THRESHOLD = 3;
 const APPROVAL_ORDER_MIN = 2000;
 const APPROVAL_BOOKING_MIN = 3000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const HOME_WINDOW_OPTIONS = [
+  {
+    key: "today",
+    label: "Today",
+    orderStatsWindow: "today",
+    financialWindow: "today",
+    previousFinancialWindow: "yesterday",
+    sourceLabel: "Live sales, bookings, and expenses",
+  },
+  {
+    key: "7d",
+    label: "7 days",
+    orderStatsWindow: "7d",
+    financialWindow: "last7Days",
+    previousFinancialWindow: "previous7Days",
+    sourceLabel: "Rolling 7-day operating window",
+  },
+  {
+    key: "30d",
+    label: "30 days",
+    orderStatsWindow: "30d",
+    financialWindow: "last30Days",
+    previousFinancialWindow: "previous30Days",
+    sourceLabel: "Rolling 30-day operating window",
+  },
+  {
+    key: "thisMonth",
+    label: "This month",
+    orderStatsWindow: "thisMonth",
+    financialWindow: "thisMonth",
+    previousFinancialWindow: "lastMonth",
+    sourceLabel: "Month-to-date live finance and ops",
+  },
+];
+
+const buildPathWithParams = (basePath, params = {}) => {
+  const [pathname, baseSearch = ""] = String(basePath || "").split("?");
+  const searchParams = new URLSearchParams(baseSearch);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const normalized = String(value).trim();
+    if (!normalized || normalized === "all") return;
+    searchParams.set(key, normalized);
+  });
+  const nextSearch = searchParams.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
+};
 
 const normalizeRole = (value) => String(value || "").trim().toLowerCase();
 const toNumber = (value, fallback = 0) => {
@@ -88,6 +143,182 @@ const formatDate = (value) => {
   });
 };
 
+const formatMonthLabel = (value) => {
+  if (!value) return "";
+  const normalized =
+    typeof value === "string" && /^\d{4}-\d{2}$/.test(value)
+      ? `${value}-01T00:00:00Z`
+      : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB", {
+    month: "short",
+    year: "2-digit",
+  });
+};
+
+const normalizeIdFilter = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
+};
+
+const startOfDay = (value = new Date()) => {
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const endOfDay = (value = new Date()) => {
+  const date = startOfDay(value);
+  if (!date) return null;
+  date.setDate(date.getDate() + 1);
+  return date;
+};
+
+const resolveHomeWindowRanges = (windowKey = "30d", nowValue = new Date()) => {
+  const now = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date(nowValue);
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  if (!todayStart || !todayEnd) {
+    const fallback = new Date();
+    return {
+      currentStart: fallback,
+      currentEnd: fallback,
+      previousStart: fallback,
+      previousEnd: fallback,
+    };
+  }
+
+  switch (windowKey) {
+    case "today":
+      return {
+        currentStart: todayStart,
+        currentEnd: todayEnd,
+        previousStart: new Date(todayStart.getTime() - DAY_MS),
+        previousEnd: todayStart,
+      };
+    case "7d": {
+      const currentStart = new Date(now.getTime() - 7 * DAY_MS);
+      const previousEnd = currentStart;
+      return {
+        currentStart,
+        currentEnd: now,
+        previousStart: new Date(previousEnd.getTime() - 7 * DAY_MS),
+        previousEnd,
+      };
+    }
+    case "thisMonth": {
+      const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return {
+        currentStart,
+        currentEnd: now,
+        previousStart,
+        previousEnd: currentStart,
+      };
+    }
+    case "30d":
+    default: {
+      const currentStart = new Date(now.getTime() - 30 * DAY_MS);
+      const previousEnd = currentStart;
+      return {
+        currentStart,
+        currentEnd: now,
+        previousStart: new Date(previousEnd.getTime() - 30 * DAY_MS),
+        previousEnd,
+      };
+    }
+  }
+};
+
+const isDateInRange = (value, start, end) => {
+  if (!value || !start || !end) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date >= start && date < end;
+};
+
+const isOrderClosed = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  return ["fulfilled", "completed", "delivered", "cancelled", "canceled"].includes(normalized);
+};
+
+const isBookingClosed = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  return ["completed", "cancelled", "canceled"].includes(normalized);
+};
+
+const getOrderWorkDate = (order) =>
+  order?.deliveryDate || order?.lastModifiedAt || order?.orderDate || null;
+
+const getBookingWorkDate = (booking) =>
+  booking?.eventDate || booking?.lastModifiedAt || null;
+
+const isToday = (value) => {
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+  return isDateInRange(value, todayStart, todayEnd);
+};
+
+const isOverdue = (value) => {
+  const date = startOfDay(value);
+  const today = startOfDay(new Date());
+  if (!date || !today) return false;
+  return date < today;
+};
+
+const pluralize = (value, label) => `${value} ${label}${value === 1 ? "" : "s"}`;
+
+const formatDeltaText = (value, formatter, neutralLabel = "No change vs last period") => {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount === 0) return neutralLabel;
+  const prefix = amount > 0 ? "+" : "-";
+  return `${prefix}${formatter(Math.abs(amount))} vs last period`;
+};
+
+const formatCompactCount = (value) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return "0";
+  return `${Math.round(numeric)}`;
+};
+
+const getCustomerTotalValue = (customer) =>
+  toNumber(customer?.total_spent) + toNumber(customer?.total_rented);
+
+const buildSparkline = (items, getValue) => {
+  const values = (Array.isArray(items) ? items : []).map((item) =>
+    Math.max(0, Number(getValue(item)) || 0)
+  );
+  if (!values.length) {
+    return { linePoints: "", fillPoints: "", max: 0 };
+  }
+  const max = Math.max(...values, 0);
+  if (max <= 0) {
+    return { linePoints: "", fillPoints: "", max };
+  }
+  const points = values
+    .map((value, index) => {
+      const x = values.length === 1 ? 50 : (index / Math.max(1, values.length - 1)) * 100;
+      const y = 100 - Math.min(96, (value / max) * 96);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return {
+    linePoints: points,
+    fillPoints: `0,100 ${points} 100,100`,
+    max,
+  };
+};
+
+const stockForecastLabel = (forecastLeadTime, lowStockCount) => {
+  if (!forecastLeadTime) return "Set vendor lead times to forecast reorder pressure.";
+  if (!lowStockCount) return `Lead time average ${forecastLeadTime}d with no critical stock risk.`;
+  return `${lowStockCount} items are below level and vendors average ${forecastLeadTime}d lead time.`;
+};
+
 const formatDuration = (value) => {
   const totalSeconds = Math.max(0, Math.floor((Number(value) || 0) / 1000));
   const days = Math.floor(totalSeconds / 86400);
@@ -98,6 +329,21 @@ const formatDuration = (value) => {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m ${seconds}s`;
   return `${seconds}s`;
+};
+
+const formatRelativeTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 60 * 1000) return "Just now";
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return formatDateTime(value);
 };
 
 const getFirstName = (user, fallbackName = "") => {
@@ -112,6 +358,52 @@ const isLikelyOfflineError = (error) => {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true;
   const message = String(error?.message || "").toLowerCase();
   return message.includes("network") || message.includes("failed to fetch");
+};
+
+const getActivityVisual = (item) => {
+  const kind = String(item?.kind || "").trim().toLowerCase();
+  const tone = String(item?.tone || "").trim().toLowerCase();
+
+  if (kind === "order" || kind === "sync-order") {
+    return {
+      icon: faReceipt,
+      accentClass: tone === "failed" ? "is-failed" : "is-order",
+      actionLabel: kind === "sync-order" ? "Queue" : "Open",
+    };
+  }
+  if (kind === "booking") {
+    return {
+      icon: faCalendarDays,
+      accentClass: "is-booking",
+      actionLabel: "Open",
+    };
+  }
+  if (kind === "stock" || kind === "sync-stock") {
+    return {
+      icon: faBoxesStacked,
+      accentClass: tone === "failed" ? "is-failed" : "is-stock",
+      actionLabel: kind === "sync-stock" ? "Queue" : "Open",
+    };
+  }
+  if (tone === "failed") {
+    return {
+      icon: faXmark,
+      accentClass: "is-failed",
+      actionLabel: "Open",
+    };
+  }
+  if (tone === "pending") {
+    return {
+      icon: faCloudArrowUp,
+      accentClass: "is-pending",
+      actionLabel: "Open",
+    };
+  }
+  return {
+    icon: faClipboardList,
+    accentClass: "is-neutral",
+    actionLabel: "Open",
+  };
 };
 
 const INITIAL_PURCHASE_STATUS = "paid";
@@ -162,6 +454,34 @@ function AdminWorkspace({ section = "home" }) {
   const [kpiStats, setKpiStats] = useState(null);
   const [kpiLoading, setKpiLoading] = useState(false);
   const [kpiError, setKpiError] = useState("");
+  const [dashboardWindow, setDashboardWindow] = useState("30d");
+  const [financialStats, setFinancialStats] = useState({
+    cashflow: [],
+    windowLabel: "",
+    summary: { revenue: 0, netProfit: 0, operatingExpenses: 0, rentalIncome: 0 },
+    automation: null,
+  });
+  const [previousFinancialStats, setPreviousFinancialStats] = useState({
+    cashflow: [],
+    windowLabel: "",
+    summary: { revenue: 0, netProfit: 0, operatingExpenses: 0, rentalIncome: 0 },
+    automation: null,
+  });
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const [financialError, setFinancialError] = useState("");
+  const [stockActivity, setStockActivity] = useState([]);
+  const [stockActivityLoading, setStockActivityLoading] = useState(false);
+  const [stockActivityError, setStockActivityError] = useState("");
+  const [workflowOrders, setWorkflowOrders] = useState([]);
+  const [workflowBookings, setWorkflowBookings] = useState([]);
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [workflowError, setWorkflowError] = useState("");
+  const [homeUpdatedAt, setHomeUpdatedAt] = useState("");
+  const [activityScope, setActivityScope] = useState("mine");
+  const [assignedWorkFilter, setAssignedWorkFilter] = useState("");
+  const [isAssignedWorkListVisible, setIsAssignedWorkListVisible] = useState(true);
+  const [expandedAssignedWorkKey, setExpandedAssignedWorkKey] = useState("");
   const [directoryStats, setDirectoryStats] = useState({
     customers: 0,
     vendors: 0,
@@ -170,10 +490,11 @@ function AdminWorkspace({ section = "home" }) {
   });
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [directoryError, setDirectoryError] = useState("");
-  const [approvalItems, setApprovalItems] = useState([]);
-  const [approvalsLoading, setApprovalsLoading] = useState(false);
-  const [approvalsError, setApprovalsError] = useState("");
+  const [activityItems, setActivityItems] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState("");
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
+  const [sessionFallbackStartedAt, setSessionFallbackStartedAt] = useState(() => new Date());
 
   const profileName =
     user?.fullName ||
@@ -185,6 +506,10 @@ function AdminWorkspace({ section = "home" }) {
   const viewModeStorageKey = useMemo(
     () => `reebs_admin_view_mode_${user?.id || "guest"}`,
     [user?.id]
+  );
+  const activeWindowConfig = useMemo(
+    () => HOME_WINDOW_OPTIONS.find((option) => option.key === dashboardWindow) || HOME_WINDOW_OPTIONS[2],
+    [dashboardWindow]
   );
 
   const activeSection = section in SECTION_CONFIG ? section : "home";
@@ -214,6 +539,14 @@ function AdminWorkspace({ section = "home" }) {
     const timer = window.setInterval(updateDateTime, 1000);
     return () => window.clearInterval(timer);
   }, [activeSection]);
+
+  useEffect(() => {
+    setSessionFallbackStartedAt(new Date());
+  }, [user?.id]);
+
+  useEffect(() => {
+    setActivityScope(canViewHomeKpis ? "team" : "mine");
+  }, [canViewHomeKpis, user?.id]);
 
   const postJson = useCallback(async (url, payload) => {
     const response = await fetch(url, {
@@ -356,6 +689,7 @@ function AdminWorkspace({ section = "home" }) {
         stock: toNumber(row.stock),
       })),
       inventoryValue: toNumber(payload.inventoryValue),
+      productCount: toNumber(payload.productCount),
       retailRevenue: toNumber(payload.retailRevenue),
       rentalRevenue: toNumber(payload.rentalRevenue),
       categories: list(payload.categories, (row) => ({
@@ -370,6 +704,193 @@ function AdminWorkspace({ section = "home" }) {
     };
   }, []);
 
+  const normalizeFinancialStats = useCallback((payload) => {
+    if (!payload || typeof payload !== "object") {
+      return {
+        cashflow: [],
+        windowLabel: "",
+        summary: { revenue: 0, netProfit: 0, operatingExpenses: 0, rentalIncome: 0 },
+        automation: null,
+      };
+    }
+    return {
+      windowLabel: payload.windowLabel || payload.expenseWindowLabel || "This month",
+      summary: {
+        revenue: toNumber(payload?.summary?.revenue),
+        netProfit: toNumber(payload?.summary?.netProfit),
+        operatingExpenses: toNumber(payload?.summary?.operatingExpenses),
+        rentalIncome: toNumber(payload?.summary?.rentalIncome),
+      },
+      automation: payload?.automation || null,
+      startDate: payload?.startDate || "",
+      endDate: payload?.endDate || "",
+      cashflow: Array.isArray(payload.cashflow)
+        ? payload.cashflow
+            .map((row) => ({
+              date: row?.date,
+              revenue: toNumber(row?.revenue),
+            }))
+            .filter((row) => row.date)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+        : [],
+    };
+  }, []);
+
+  const normalizeStockActivity = useCallback((payload) => {
+    const rows = Array.isArray(payload?.months) ? payload.months : [];
+    return rows
+      .map((row) => ({
+        monthKey: row?.month_key || "",
+        monthStart: row?.month_start || "",
+        label: formatMonthLabel(row?.month_start || row?.month_key),
+        stockIn: toNumber(row?.stock_in),
+        stockOut: toNumber(row?.stock_out),
+      }))
+      .filter((row) => row.monthKey || row.monthStart)
+      .sort((a, b) => new Date(a.monthStart || a.monthKey) - new Date(b.monthStart || b.monthKey));
+  }, []);
+
+  const normalizeActivityItems = useCallback((payload) => {
+    const details =
+      payload?.details && typeof payload.details === "object" ? payload.details : {};
+    const activityScopeKey = String(payload?.scope || "mine").trim().toLowerCase();
+    const formatStatus = (value, fallback = "") => {
+      const normalized = String(value || "").trim();
+      if (!normalized) return fallback;
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    };
+
+    const orders = Array.isArray(details.orders)
+      ? details.orders.map((order) => ({
+          id: `activity-order-${order.id}`,
+          kind: "order",
+          label: order.orderNumber ? `Order ${order.orderNumber}` : `Order #${order.id}`,
+          meta: [
+            order.customerName ? `Customer: ${order.customerName}` : "",
+            formatStatus(order.status, "Order"),
+            activityScopeKey === "team"
+              ? `By ${order.updatedByName || order.createdByName || order.assignedUserName || "Team"}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
+          createdAt: order.lastModifiedAt || order.orderDate || order.deliveryDate,
+          tone: "synced",
+          badgeLabel: "Order",
+          href: `${DASHBOARD_PATHS.orders}?id=${order.id}`,
+          actor: order.updatedByName || order.createdByName || order.assignedUserName || "",
+        }))
+      : [];
+
+    const bookings = Array.isArray(details.bookings)
+      ? details.bookings.map((booking) => ({
+          id: `activity-booking-${booking.id}`,
+          kind: "booking",
+          label: `Booking #${booking.id}`,
+          meta: [
+            booking.customerName ? `Client: ${booking.customerName}` : "",
+            formatStatus(booking.status, "Booking"),
+            activityScopeKey === "team"
+              ? `By ${booking.updatedByName || booking.createdByName || booking.assignedUserName || "Team"}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" • "),
+          createdAt: booking.lastModifiedAt || booking.eventDate,
+          tone: "synced",
+          badgeLabel: "Booking",
+          href: `/admin/bookings?id=${booking.id}`,
+          actor: booking.updatedByName || booking.createdByName || booking.assignedUserName || "",
+        }))
+      : [];
+
+    const stockMovements = Array.isArray(details.stockMovements)
+      ? details.stockMovements.map((movement) => {
+          const isStockOut = String(movement.type || "").trim().toLowerCase() === "stockout";
+          const movementLabel = isStockOut ? "Stock out" : "Stock in";
+          return {
+            id: `activity-stock-${movement.id}`,
+            kind: "stock",
+            label: movement.productName
+              ? `${movementLabel}: ${movement.productName}`
+              : movementLabel,
+            meta: [
+              Number.isFinite(Number(movement.quantity))
+                ? `${Number(movement.quantity)} unit${Number(movement.quantity) === 1 ? "" : "s"}`
+                : "",
+              movement.reference ? `Ref: ${movement.reference}` : "",
+              activityScopeKey === "team"
+                ? `By ${movement.performedByName || "Team"}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" • "),
+            createdAt: movement.createdAt || movement.date,
+            tone: "synced",
+            badgeLabel: "Stock",
+            href: DASHBOARD_PATHS.inventoryActivity,
+            actor: movement.performedByName || "",
+          };
+        })
+      : [];
+
+    return [...orders, ...bookings, ...stockMovements]
+      .sort(
+        (a, b) =>
+          new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()
+      )
+      .slice(0, 8);
+  }, []);
+
+  const fetchWorkflowData = useCallback(async () => {
+    if (!user?.id) {
+      setWorkflowOrders([]);
+      setWorkflowBookings([]);
+      setTeamUsers([]);
+      setWorkflowError("");
+      return;
+    }
+
+    setWorkflowLoading(true);
+    setWorkflowError("");
+    try {
+      const requests = [
+        fetch(`/.netlify/functions/orders?ts=${Date.now()}`),
+        fetch(`/.netlify/functions/bookings?ts=${Date.now()}`),
+      ];
+      if (canViewHomeKpis) {
+        requests.push(fetch(`/.netlify/functions/users?ts=${Date.now()}`));
+      }
+
+      const responses = await Promise.all(requests);
+      const payloads = await Promise.all(
+        responses.map((response) => response.json().catch(() => null))
+      );
+
+      const [ordersRes, bookingsRes, usersRes] = responses;
+      const [ordersData, bookingsData, usersData] = payloads;
+
+      if (!ordersRes.ok) {
+        throw new Error(ordersData?.error || "Failed to load orders.");
+      }
+      if (!bookingsRes.ok) {
+        throw new Error(bookingsData?.error || "Failed to load bookings.");
+      }
+      if (canViewHomeKpis && usersRes && !usersRes.ok) {
+        throw new Error(usersData?.error || "Failed to load team members.");
+      }
+
+      setWorkflowOrders(Array.isArray(ordersData) ? ordersData : []);
+      setWorkflowBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      setTeamUsers(canViewHomeKpis && Array.isArray(usersData) ? usersData : []);
+      setHomeUpdatedAt(new Date().toISOString());
+    } catch (error) {
+      setWorkflowError(error.message || "Unable to load dashboard workflow data.");
+    } finally {
+      setWorkflowLoading(false);
+    }
+  }, [canViewHomeKpis, user?.id]);
+
   const fetchHomeKpis = useCallback(async () => {
     if (!canViewHomeKpis) {
       setKpiStats(null);
@@ -379,7 +900,9 @@ function AdminWorkspace({ section = "home" }) {
     setKpiLoading(true);
     setKpiError("");
     try {
-      const response = await fetch(`/.netlify/functions/orderStats?ts=${Date.now()}`);
+      const response = await fetch(
+        `/.netlify/functions/orderStats?window=${activeWindowConfig.orderStatsWindow}&ts=${Date.now()}`
+      );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Failed to load KPI data.");
@@ -390,7 +913,86 @@ function AdminWorkspace({ section = "home" }) {
     } finally {
       setKpiLoading(false);
     }
-  }, [canViewHomeKpis, normalizeKpiStats]);
+  }, [activeWindowConfig.orderStatsWindow, canViewHomeKpis, normalizeKpiStats]);
+
+  const fetchFinancialStats = useCallback(async () => {
+    if (!canViewHomeKpis) {
+      const emptyState = {
+        cashflow: [],
+        windowLabel: "",
+        summary: { revenue: 0, netProfit: 0, operatingExpenses: 0, rentalIncome: 0 },
+        automation: null,
+      };
+      setFinancialStats(emptyState);
+      setPreviousFinancialStats(emptyState);
+      setFinancialError("");
+      return;
+    }
+    setFinancialLoading(true);
+    setFinancialError("");
+    try {
+      const [currentResponse, previousResponse] = await Promise.all([
+        fetch(
+          `/.netlify/functions/financials?window=${activeWindowConfig.financialWindow}&ts=${Date.now()}`
+        ),
+        fetch(
+          `/.netlify/functions/financials?window=${activeWindowConfig.previousFinancialWindow}&ts=${Date.now()}`
+        ),
+      ]);
+      const [currentPayload, previousPayload] = await Promise.all([
+        currentResponse.json().catch(() => null),
+        previousResponse.json().catch(() => null),
+      ]);
+      if (!currentResponse.ok) {
+        throw new Error(currentPayload?.error || "Failed to load revenue trend.");
+      }
+      if (!previousResponse.ok) {
+        throw new Error(previousPayload?.error || "Failed to load previous financial window.");
+      }
+      setFinancialStats(normalizeFinancialStats(currentPayload));
+      setPreviousFinancialStats(normalizeFinancialStats(previousPayload));
+    } catch (error) {
+      const emptyState = {
+        cashflow: [],
+        windowLabel: "",
+        summary: { revenue: 0, netProfit: 0, operatingExpenses: 0, rentalIncome: 0 },
+        automation: null,
+      };
+      setFinancialStats(emptyState);
+      setPreviousFinancialStats(emptyState);
+      setFinancialError(error.message || "Unable to load revenue trend.");
+    } finally {
+      setFinancialLoading(false);
+    }
+  }, [
+    activeWindowConfig.financialWindow,
+    activeWindowConfig.previousFinancialWindow,
+    canViewHomeKpis,
+    normalizeFinancialStats,
+  ]);
+
+  const fetchStockActivity = useCallback(async () => {
+    if (!canViewHomeKpis) {
+      setStockActivity([]);
+      setStockActivityError("");
+      return;
+    }
+    setStockActivityLoading(true);
+    setStockActivityError("");
+    try {
+      const response = await fetch(`/.netlify/functions/stockActivity?ts=${Date.now()}`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load stock activity.");
+      }
+      setStockActivity(normalizeStockActivity(payload));
+    } catch (error) {
+      setStockActivity([]);
+      setStockActivityError(error.message || "Unable to load stock activity.");
+    } finally {
+      setStockActivityLoading(false);
+    }
+  }, [canViewHomeKpis, normalizeStockActivity]);
 
   const fetchDirectoryKpis = useCallback(async () => {
     if (!canViewHomeKpis) {
@@ -407,17 +1009,8 @@ function AdminWorkspace({ section = "home" }) {
     setDirectoryLoading(true);
     setDirectoryError("");
     try {
-      const [customersRes, vendorsRes] = await Promise.all([
-        fetch("/.netlify/functions/customers"),
-        fetch("/.netlify/functions/vendors"),
-      ]);
-      const [customersData, vendorsData] = await Promise.all([
-        customersRes.json().catch(() => null),
-        vendorsRes.json().catch(() => null),
-      ]);
-      if (!customersRes.ok) {
-        throw new Error(customersData?.error || "Failed to load customers.");
-      }
+      const vendorsRes = await fetch("/.netlify/functions/vendors");
+      const vendorsData = await vendorsRes.json().catch(() => null);
       if (!vendorsRes.ok) {
         throw new Error(vendorsData?.error || "Failed to load vendors.");
       }
@@ -429,7 +1022,7 @@ function AdminWorkspace({ section = "home" }) {
         ? Math.round(leadTimes.reduce((sum, value) => sum + value, 0) / leadTimes.length)
         : 0;
       setDirectoryStats({
-        customers: Array.isArray(customersData) ? customersData.length : 0,
+        customers: customers.length,
         vendors: vendorRows.length,
         avgLeadTime,
         leadTimeCoverage: leadTimes.length,
@@ -439,76 +1032,46 @@ function AdminWorkspace({ section = "home" }) {
     } finally {
       setDirectoryLoading(false);
     }
-  }, [canViewHomeKpis]);
+  }, [canViewHomeKpis, customers.length]);
 
-  const fetchApprovals = useCallback(async () => {
-    if (!canViewHomeKpis) {
-      setApprovalItems([]);
-      setApprovalsError("");
+  const fetchActivityFeed = useCallback(async () => {
+    if (!user?.id) {
+      setActivityItems([]);
+      setActivityError("");
       return;
     }
-    setApprovalsLoading(true);
-    setApprovalsError("");
+    setActivityLoading(true);
+    setActivityError("");
     try {
-      const [ordersRes, bookingsRes] = await Promise.all([
-        fetch("/.netlify/functions/orders"),
-        fetch("/.netlify/functions/bookings"),
-      ]);
-      const [ordersData, bookingsData] = await Promise.all([
-        ordersRes.json().catch(() => null),
-        bookingsRes.json().catch(() => null),
-      ]);
-      if (!ordersRes.ok) throw new Error(ordersData?.error || "Failed to load orders.");
-      if (!bookingsRes.ok) throw new Error(bookingsData?.error || "Failed to load bookings.");
-
-      const nextItems = [];
-      const orders = Array.isArray(ordersData) ? ordersData : [];
-      orders.forEach((order) => {
-        const status = String(order.status || "").toLowerCase();
-        const amount = Number(order.total || 0);
-        if (!Number.isFinite(amount) || amount < APPROVAL_ORDER_MIN) return;
-        if (status !== "pending") return;
-        nextItems.push({
-          key: `order-${order.id}`,
-          type: "order",
-          id: order.id,
-          title: order.orderNumber || `Order #${order.id}`,
-          meta: order.customerName ? `Customer: ${order.customerName}` : "High-value order",
-          amount,
-          date: order.orderDate,
-          href: "/admin/purchases",
-        });
+      const params = new URLSearchParams({
+        details: "1",
+        limit: canViewHomeKpis && activityScope === "team" ? "24" : "18",
+        scope: canViewHomeKpis ? activityScope : "mine",
+        ts: String(Date.now()),
       });
-
-      const bookings = Array.isArray(bookingsData) ? bookingsData : [];
-      bookings.forEach((booking) => {
-        const status = String(booking.status || "").toLowerCase();
-        const amount = Number(booking.totalAmount || 0) / 100;
-        if (!Number.isFinite(amount) || amount < APPROVAL_BOOKING_MIN) return;
-        if (status !== "pending") return;
-        nextItems.push({
-          key: `booking-${booking.id}`,
-          type: "booking",
-          id: booking.id,
-          title: `Booking #${booking.id}`,
-          meta: booking.customerName ? `Client: ${booking.customerName}` : "High-value booking",
-          amount,
-          date: booking.eventDate,
-          href: "/admin/bookings",
-        });
-      });
-
-      nextItems.sort((a, b) => {
-        if (b.amount !== a.amount) return b.amount - a.amount;
-        return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
-      });
-      setApprovalItems(nextItems.slice(0, 6));
+      const response = await fetch(`/.netlify/functions/userStats?${params.toString()}`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          payload?.error
+            || (activityScope === "team"
+              ? "Unable to load team activity."
+              : "Unable to load your activity.")
+        );
+      }
+      setActivityItems(normalizeActivityItems(payload));
     } catch (error) {
-      setApprovalsError(error.message || "Unable to load approvals.");
+      setActivityItems([]);
+      setActivityError(
+        error.message
+          || (activityScope === "team"
+            ? "Unable to load team activity."
+            : "Unable to load your activity.")
+      );
     } finally {
-      setApprovalsLoading(false);
+      setActivityLoading(false);
     }
-  }, [canViewHomeKpis]);
+  }, [activityScope, canViewHomeKpis, normalizeActivityItems, user?.id]);
 
   const syncQueue = useCallback(
     async ({ silent = false } = {}) => {
@@ -568,6 +1131,11 @@ function AdminWorkspace({ section = "home" }) {
       setQueue(nextQueue);
       if (syncedCount > 0) {
         await loadInventory({ quiet: true });
+        await Promise.all([
+          fetchActivityFeed(),
+          fetchWorkflowData(),
+          canViewHomeKpis ? fetchHomeKpis() : Promise.resolve(),
+        ]);
       }
       if (!silent) {
         if (failedCount > 0) {
@@ -578,15 +1146,33 @@ function AdminWorkspace({ section = "home" }) {
       }
       setSyncingQueue(false);
     },
-    [isOnline, loadInventory, queue, sendPurchase, sendStockUpdate, syncingQueue]
+    [
+      canViewHomeKpis,
+      fetchActivityFeed,
+      fetchHomeKpis,
+      fetchWorkflowData,
+      isOnline,
+      loadInventory,
+      queue,
+      sendPurchase,
+      sendStockUpdate,
+      syncingQueue,
+    ]
   );
 
   useEffect(() => {
     document.body.classList.add("admin-theme", "aw-theme");
     return () => {
-      document.body.classList.remove("admin-theme", "aw-theme");
+      document.body.classList.remove("admin-theme", "aw-theme", "aw-home-bg");
     };
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("aw-home-bg", activeSection === "home");
+    return () => {
+      document.body.classList.remove("aw-home-bg");
+    };
+  }, [activeSection]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -634,11 +1220,34 @@ function AdminWorkspace({ section = "home" }) {
   }, [loadCustomers, loadInventory]);
 
   useEffect(() => {
-    if (!canViewHomeKpis) return;
+    if (activeSection !== "home") return;
+    fetchWorkflowData();
+    fetchActivityFeed();
+  }, [activeSection, fetchActivityFeed, fetchWorkflowData]);
+
+  useEffect(() => {
+    if (activeSection !== "home" || !canViewHomeKpis) return;
     fetchHomeKpis();
+    fetchFinancialStats();
+    fetchStockActivity();
     fetchDirectoryKpis();
-    fetchApprovals();
-  }, [canViewHomeKpis, fetchApprovals, fetchDirectoryKpis, fetchHomeKpis]);
+  }, [
+    activeSection,
+    canViewHomeKpis,
+    fetchDirectoryKpis,
+    fetchFinancialStats,
+    fetchHomeKpis,
+    fetchStockActivity,
+  ]);
+
+  useEffect(() => {
+    if (activeSection !== "home" || !user?.id || typeof window === "undefined") return undefined;
+    const timer = window.setInterval(() => {
+      fetchActivityFeed();
+      fetchWorkflowData();
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, [activeSection, fetchActivityFeed, fetchWorkflowData, user?.id]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -660,7 +1269,7 @@ function AdminWorkspace({ section = "home" }) {
     () => queue.filter((item) => item.status === "failed").length,
     [queue]
   );
-  const conflictsCount = useMemo(
+  const syncConflictCount = useMemo(
     () => queue.filter((item) => item.lastError?.includes("conflict") || item.lastError?.includes("duplicate")).length,
     [queue]
   );
@@ -668,6 +1277,159 @@ function AdminWorkspace({ section = "home" }) {
     () => queue.filter((item) => item.status === "synced").length,
     [queue]
   );
+  const currentUserId = normalizeIdFilter(user?.id);
+  const homeWindowRanges = useMemo(
+    () => resolveHomeWindowRanges(dashboardWindow, currentDateTime),
+    [currentDateTime, dashboardWindow]
+  );
+  const currentWindowOrders = useMemo(
+    () =>
+      workflowOrders.filter((order) =>
+        isDateInRange(order?.orderDate || order?.lastModifiedAt, homeWindowRanges.currentStart, homeWindowRanges.currentEnd)
+      ),
+    [homeWindowRanges.currentEnd, homeWindowRanges.currentStart, workflowOrders]
+  );
+  const previousWindowOrders = useMemo(
+    () =>
+      workflowOrders.filter((order) =>
+        isDateInRange(order?.orderDate || order?.lastModifiedAt, homeWindowRanges.previousStart, homeWindowRanges.previousEnd)
+      ),
+    [homeWindowRanges.previousEnd, homeWindowRanges.previousStart, workflowOrders]
+  );
+  const currentWindowBookings = useMemo(
+    () =>
+      workflowBookings.filter((booking) =>
+        isDateInRange(booking?.eventDate || booking?.lastModifiedAt, homeWindowRanges.currentStart, homeWindowRanges.currentEnd)
+      ),
+    [homeWindowRanges.currentEnd, homeWindowRanges.currentStart, workflowBookings]
+  );
+  const previousWindowBookings = useMemo(
+    () =>
+      workflowBookings.filter((booking) =>
+        isDateInRange(booking?.eventDate || booking?.lastModifiedAt, homeWindowRanges.previousStart, homeWindowRanges.previousEnd)
+      ),
+    [homeWindowRanges.previousEnd, homeWindowRanges.previousStart, workflowBookings]
+  );
+  const currentWindowCustomers = useMemo(
+    () =>
+      customers.filter((customer) =>
+        isDateInRange(customer?.createdAt, homeWindowRanges.currentStart, homeWindowRanges.currentEnd)
+      ),
+    [customers, homeWindowRanges.currentEnd, homeWindowRanges.currentStart]
+  );
+  const previousWindowCustomers = useMemo(
+    () =>
+      customers.filter((customer) =>
+        isDateInRange(customer?.createdAt, homeWindowRanges.previousStart, homeWindowRanges.previousEnd)
+      ),
+    [customers, homeWindowRanges.previousEnd, homeWindowRanges.previousStart]
+  );
+  const openWorkflowOrders = useMemo(
+    () => workflowOrders.filter((order) => !isOrderClosed(order?.status)),
+    [workflowOrders]
+  );
+  const openWorkflowBookings = useMemo(
+    () => workflowBookings.filter((booking) => !isBookingClosed(booking?.status)),
+    [workflowBookings]
+  );
+  const myOpenOrders = useMemo(
+    () =>
+      openWorkflowOrders.filter((order) =>
+        [
+          order?.assignedUserId,
+          order?.createdByUserId,
+          order?.updatedByUserId,
+        ].some((value) => normalizeIdFilter(value) === currentUserId)
+      ),
+    [currentUserId, openWorkflowOrders]
+  );
+  const myOpenBookings = useMemo(
+    () =>
+      openWorkflowBookings.filter((booking) =>
+        [
+          booking?.assignedUserId,
+          booking?.createdByUserId,
+          booking?.updatedByUserId,
+        ].some((value) => normalizeIdFilter(value) === currentUserId)
+      ),
+    [currentUserId, openWorkflowBookings]
+  );
+  const myDueTodayOrders = useMemo(
+    () => myOpenOrders.filter((order) => isToday(getOrderWorkDate(order))),
+    [myOpenOrders]
+  );
+  const myDueTodayBookings = useMemo(
+    () => myOpenBookings.filter((booking) => isToday(getBookingWorkDate(booking))),
+    [myOpenBookings]
+  );
+  const myOverdueOrders = useMemo(
+    () => myOpenOrders.filter((order) => isOverdue(getOrderWorkDate(order))),
+    [myOpenOrders]
+  );
+  const myOverdueBookings = useMemo(
+    () => myOpenBookings.filter((booking) => isOverdue(getBookingWorkDate(booking))),
+    [myOpenBookings]
+  );
+  const overdueOrders = useMemo(
+    () => openWorkflowOrders.filter((order) => isOverdue(getOrderWorkDate(order))),
+    [openWorkflowOrders]
+  );
+  const overdueBookings = useMemo(
+    () => openWorkflowBookings.filter((booking) => isOverdue(getBookingWorkDate(booking))),
+    [openWorkflowBookings]
+  );
+  const pendingConfirmationBookings = useMemo(
+    () =>
+      openWorkflowBookings.filter((booking) => {
+        const normalized = String(booking?.status || "").trim().toLowerCase();
+        return normalized === "pending" && !isOverdue(getBookingWorkDate(booking));
+      }),
+    [openWorkflowBookings]
+  );
+  const approvalItems = useMemo(() => {
+    if (!canViewHomeKpis) return [];
+    const nextItems = [];
+    workflowOrders.forEach((order) => {
+      const status = String(order?.status || "").trim().toLowerCase();
+      const amount = toNumber(order?.total);
+      if (status !== "pending" || amount < APPROVAL_ORDER_MIN) return;
+      nextItems.push({
+        key: `order-${order.id}`,
+        type: "order",
+        id: order.id,
+        title: order.orderNumber || `Order #${order.id}`,
+        meta: order.customerName ? `Customer: ${order.customerName}` : "High-value order",
+        amount,
+        date: order.orderDate || order.lastModifiedAt,
+        reason: "High-value order still waiting for approval",
+        ageLabel: formatRelativeTime(order.orderDate || order.lastModifiedAt),
+        href: buildPathWithParams(DASHBOARD_PATHS.orderApprovals, { id: order.id }),
+      });
+    });
+    workflowBookings.forEach((booking) => {
+      const status = String(booking?.status || "").trim().toLowerCase();
+      const amount = toNumber(booking?.totalAmount) / 100;
+      if (status !== "pending" || amount < APPROVAL_BOOKING_MIN) return;
+      nextItems.push({
+        key: `booking-${booking.id}`,
+        type: "booking",
+        id: booking.id,
+        title: `Booking #${booking.id}`,
+        meta: booking.customerName ? `Client: ${booking.customerName}` : "High-value booking",
+        amount,
+        date: booking.eventDate || booking.lastModifiedAt,
+        reason: "Rental booking value is above the approval threshold",
+        ageLabel: formatRelativeTime(booking.eventDate || booking.lastModifiedAt),
+        href: buildPathWithParams(DASHBOARD_PATHS.bookingsPending, { id: booking.id }),
+      });
+    });
+    return nextItems
+      .sort((a, b) => {
+        if (b.amount !== a.amount) return b.amount - a.amount;
+        return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+      })
+      .slice(0, 6);
+  }, [canViewHomeKpis, workflowBookings, workflowOrders]);
 
   const kpiLowStockItems = useMemo(() => kpiStats?.lowStockItems || [], [kpiStats]);
   const operatingExpensesWindow =
@@ -687,10 +1449,31 @@ function AdminWorkspace({ section = "home" }) {
   );
   const lowStockCount = kpiStats?.lowStockCount ?? kpiLowStockItems.length;
   const lockedInValue = kpiStats?.lockedInNextQuarter ?? 0;
+  const bookingStockConflicts = useMemo(
+    () =>
+      Array.isArray(kpiStats?.conflicts)
+        ? kpiStats.conflicts.map((row, index) => ({
+            key: `conflict-${row?.product_id || index}-${row?.event_date || index}`,
+            productId: row?.product_id,
+            productName: row?.product_name || "Booked product",
+            productStock: toNumber(row?.product_stock),
+            reservedUnits: toNumber(row?.total_quantity),
+            eventDate: row?.event_date,
+            bookingIds: Array.isArray(row?.booking_ids) ? row.booking_ids : [],
+          }))
+        : [],
+    [kpiStats?.conflicts]
+  );
+  const bookingConflictCount = bookingStockConflicts.length;
+  const visibleBookingConflicts = useMemo(
+    () => bookingStockConflicts.slice(0, 3),
+    [bookingStockConflicts]
+  );
   const netMarginPctRaw = totalRevenue > 0 ? Math.round((netAfterExpenses / totalRevenue) * 100) : 0;
   const netMarginPct = Math.max(0, Math.min(100, netMarginPctRaw));
-  const inventoryRiskPct = inventory.length
-    ? Math.min(100, Math.round((lowStockCount / Math.max(1, inventory.length)) * 100))
+  const inventoryItemCount = kpiStats?.productCount || inventory.length;
+  const inventoryRiskPct = inventoryItemCount
+    ? Math.min(100, Math.round((lowStockCount / Math.max(1, inventoryItemCount)) * 100))
     : 0;
   const lockedInPct = totalRevenue > 0 ? Math.min(100, Math.round((lockedInValue / totalRevenue) * 100)) : 0;
   const revenueMixSegments = useMemo(
@@ -717,15 +1500,83 @@ function AdminWorkspace({ section = "home" }) {
       return { ...segment, dash, offset };
     });
   }, [revenueMixSegments, revenueMixTotal, revenueDonutCircumference]);
+  const revenueTrend = useMemo(
+    () => financialStats.cashflow || [],
+    [financialStats.cashflow]
+  );
+  const revenueTrendSpark = useMemo(
+    () => buildSparkline(revenueTrend, (entry) => entry.revenue),
+    [revenueTrend]
+  );
+  const revenueTrendLatest = revenueTrend.length
+    ? revenueTrend[revenueTrend.length - 1]?.revenue || 0
+    : 0;
+  const revenueTrendStart = revenueTrend.length ? revenueTrend[0]?.revenue || 0 : 0;
+  const revenueTrendDelta = revenueTrendLatest - revenueTrendStart;
+  const revenueTrendDeltaLabel = revenueTrend.length > 1
+    ? `${revenueTrendDelta >= 0 ? "+" : "-"}${toCurrency(Math.abs(revenueTrendDelta), "GHS")} vs start`
+    : "Waiting for more days";
+  const revenueTrendRangeLabel = revenueTrend.length
+    ? `${formatDate(revenueTrend[0]?.date)} to ${formatDate(revenueTrend[revenueTrend.length - 1]?.date)}`
+    : "No cashflow points yet";
+  const velocityTrend = useMemo(
+    () => Array.isArray(kpiStats?.velocity) ? kpiStats.velocity.slice(-6) : [],
+    [kpiStats?.velocity]
+  );
+  const velocityMax = useMemo(
+    () =>
+      Math.max(
+        1,
+        ...velocityTrend.map((entry) => Math.max(toNumber(entry.stockIn), toNumber(entry.stockOut)))
+      ),
+    [velocityTrend]
+  );
+  const velocityTotals = useMemo(
+    () =>
+      velocityTrend.reduce(
+        (sum, entry) => ({
+          stockIn: sum.stockIn + toNumber(entry.stockIn),
+          stockOut: sum.stockOut + toNumber(entry.stockOut),
+        }),
+        { stockIn: 0, stockOut: 0 }
+      ),
+    [velocityTrend]
+  );
+  const stockActivityTotals = useMemo(
+    () =>
+      stockActivity.reduce(
+        (sum, entry) => ({
+          stockIn: sum.stockIn + toNumber(entry.stockIn),
+          stockOut: sum.stockOut + toNumber(entry.stockOut),
+        }),
+        { stockIn: 0, stockOut: 0 }
+      ),
+    [stockActivity]
+  );
+  const stockActivitySpark = useMemo(
+    () => buildSparkline(stockActivity, (entry) => toNumber(entry.stockIn) + toNumber(entry.stockOut)),
+    [stockActivity]
+  );
+  const stockActivityRangeLabel = stockActivity.length
+    ? `${stockActivity[0]?.label || ""} to ${stockActivity[stockActivity.length - 1]?.label || ""}`
+    : "No monthly stock history yet";
   const operationsBars = useMemo(
     () => [
       { key: "orders", label: "Orders", value: kpiStats?.orders ?? 0, color: "#3b82f6" },
       { key: "bookings", label: "Bookings", value: kpiStats?.bookings ?? 0, color: "#14b8a6" },
       { key: "low-stock", label: "Low stock", value: lowStockCount, color: "#f59e0b" },
+      { key: "conflicts", label: "Stock conflicts", value: bookingConflictCount, color: "#ef4444" },
       { key: "approvals", label: "Approvals", value: approvalItems.length, color: "#ef4444" },
       { key: "queue", label: "Queue pending", value: pendingQueue.length, color: "#8b5cf6" },
     ],
-    [approvalItems.length, kpiStats?.bookings, kpiStats?.orders, lowStockCount, pendingQueue.length]
+    [
+      approvalItems.length,
+      bookingConflictCount,
+      kpiStats?.bookings,
+      kpiStats?.orders,
+      lowStockCount,
+      pendingQueue.length,
+    ]
   );
   const operationsBarsMax = useMemo(
     () => Math.max(1, ...operationsBars.map((entry) => entry.value)),
@@ -738,72 +1589,712 @@ function AdminWorkspace({ section = "home" }) {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }, [user?.authenticatedAt, user?.sessionCreatedAt]);
   const sessionDurationLabel = useMemo(() => {
-    if (!signedInAt) return "Just now";
-    return formatDuration(currentDateTime.getTime() - signedInAt.getTime());
-  }, [currentDateTime, signedInAt]);
+    const anchor = signedInAt || sessionFallbackStartedAt;
+    return formatDuration(currentDateTime.getTime() - anchor.getTime());
+  }, [currentDateTime, sessionFallbackStartedAt, signedInAt]);
+  const pendingSyncActivity = useMemo(
+    () =>
+      queue
+        .filter((item) => item.status !== "synced")
+        .map((item) => ({
+          id: `queue-${item.id}`,
+          kind: item.type === "purchase" ? "sync-order" : item.type === "stock" ? "sync-stock" : "sync",
+          label: item.label || "Queued activity",
+          meta:
+            item.type === "purchase"
+              ? "Waiting to sync order"
+              : item.type === "stock"
+                ? "Waiting to sync stock update"
+                : "Waiting to sync",
+          createdAt: item.createdAt,
+          tone: item.status === "failed" ? "failed" : "pending",
+          badgeLabel: item.status === "failed" ? "Sync failed" : "Pending sync",
+          href: DASHBOARD_PATHS.offline,
+          lastError: item.lastError,
+        })),
+    [queue]
+  );
   const recentStaffActivity = useMemo(
     () =>
-      [...queue]
+      [...(activityScope === "team" ? [] : pendingSyncActivity), ...activityItems]
         .sort((a, b) => {
           const left = new Date(a?.createdAt || 0).getTime();
           const right = new Date(b?.createdAt || 0).getTime();
           return right - left;
         })
-        .slice(0, 5),
-    [queue]
+        .slice(0, 6),
+    [
+      activityItems,
+      activityScope,
+      pendingSyncActivity,
+    ]
   );
-  const staffSummaryCards = useMemo(
+  const revenueDeltaLabel = useMemo(
+    () => formatDeltaText(
+      financialStats.summary.revenue - previousFinancialStats.summary.revenue,
+      (value) => toCurrency(value, "GHS")
+    ),
+    [financialStats.summary.revenue, previousFinancialStats.summary.revenue]
+  );
+  const netDeltaLabel = useMemo(
+    () => formatDeltaText(
+      financialStats.summary.netProfit - previousFinancialStats.summary.netProfit,
+      (value) => toCurrency(value, "GHS")
+    ),
+    [financialStats.summary.netProfit, previousFinancialStats.summary.netProfit]
+  );
+  const stockForecastNote = useMemo(
+    () => stockForecastLabel(directoryStats.avgLeadTime, lowStockCount),
+    [directoryStats.avgLeadTime, lowStockCount]
+  );
+  const customersDeltaLabel = useMemo(
+    () => formatDeltaText(
+      currentWindowCustomers.length - previousWindowCustomers.length,
+      (value) => pluralize(value, "customer")
+    ),
+    [currentWindowCustomers.length, previousWindowCustomers.length]
+  );
+  const allAssignedWorkItems = useMemo(() => {
+    const items = [
+      ...myOpenOrders.map((order) => ({
+        key: `my-order-${order.id}`,
+        type: "Order",
+        title: order.orderNumber || `Order #${order.id}`,
+        subtitle: order.customerName ? `Customer: ${order.customerName}` : "Assigned order",
+        when: getOrderWorkDate(order),
+        overdue: isOverdue(getOrderWorkDate(order)),
+        dueToday: isToday(getOrderWorkDate(order)),
+        path: buildPathWithParams(DASHBOARD_PATHS.orders, { id: order.id, assigned: currentUserId }),
+      })),
+      ...myOpenBookings.map((booking) => ({
+        key: `my-booking-${booking.id}`,
+        type: "Booking",
+        title: `Booking #${booking.id}`,
+        subtitle: booking.customerName ? `Client: ${booking.customerName}` : "Assigned booking",
+        when: getBookingWorkDate(booking),
+        overdue: isOverdue(getBookingWorkDate(booking)),
+        dueToday: isToday(getBookingWorkDate(booking)),
+        path: buildPathWithParams("/admin/bookings", { id: booking.id, assigned: currentUserId }),
+      })),
+    ];
+
+    return items
+      .sort((left, right) => {
+        if (left.overdue !== right.overdue) return left.overdue ? -1 : 1;
+        if (left.dueToday !== right.dueToday) return left.dueToday ? -1 : 1;
+        return new Date(left.when || 0).getTime() - new Date(right.when || 0).getTime();
+      });
+  }, [currentUserId, myOpenBookings, myOpenOrders]);
+  useEffect(() => {
+    setAssignedWorkFilter((current) => {
+      if (current) return current;
+      if (myOverdueOrders.length + myOverdueBookings.length > 0) return "my-overdue";
+      if (myOpenOrders.length > 0) return "my-orders";
+      if (myOpenBookings.length > 0) return "my-bookings";
+      if (myDueTodayOrders.length + myDueTodayBookings.length > 0) return "my-today";
+      return "my-orders";
+    });
+  }, [
+    myDueTodayBookings.length,
+    myDueTodayOrders.length,
+    myOpenBookings.length,
+    myOpenOrders.length,
+    myOverdueBookings.length,
+    myOverdueOrders.length,
+  ]);
+  const handleAssignedWorkFilterClick = useCallback((nextFilter) => {
+    const isSameFilter = assignedWorkFilter === nextFilter;
+    setAssignedWorkFilter(nextFilter);
+    setIsAssignedWorkListVisible(isSameFilter ? !isAssignedWorkListVisible : true);
+  }, [assignedWorkFilter, isAssignedWorkListVisible]);
+  const assignedWorkItems = useMemo(() => {
+    switch (assignedWorkFilter) {
+      case "my-bookings":
+        return allAssignedWorkItems.filter((item) => item.type === "Booking");
+      case "my-today":
+        return allAssignedWorkItems.filter((item) => item.dueToday);
+      case "my-overdue":
+        return allAssignedWorkItems.filter((item) => item.overdue);
+      case "my-orders":
+      default:
+        return allAssignedWorkItems.filter((item) => item.type === "Order");
+    }
+  }, [allAssignedWorkItems, assignedWorkFilter]);
+  useEffect(() => {
+    const availableKeys = new Set(assignedWorkItems.map((item) => item.key));
+    setExpandedAssignedWorkKey((current) => {
+      if (current && availableKeys.has(current)) {
+        return current;
+      }
+      return assignedWorkItems.find((item) => item.overdue)?.key || "";
+    });
+  }, [assignedWorkItems]);
+  const myWorkCards = useMemo(
     () => [
       {
-        key: "session",
-        icon: faClock,
-        label: "Logged in",
-        value: sessionDurationLabel,
-        meta: signedInAt ? `Since ${formatDateTime(signedInAt)}` : "Active on this device",
+        key: "my-orders",
+        label: "My orders",
+        value: myOpenOrders.length,
+        meta: myOverdueOrders.length
+          ? `${myOverdueOrders.length} overdue`
+          : myDueTodayOrders.length
+            ? `${myDueTodayOrders.length} due today`
+            : "No order backlog",
+        onClick: () => handleAssignedWorkFilterClick("my-orders"),
+        isActive: assignedWorkFilter === "my-orders",
       },
       {
-        key: "activity",
-        icon: faClipboardList,
-        label: "Activity",
-        value: queue.length,
-        meta: queue.length
-          ? `${syncedQueueCount} synced • ${pendingQueue.length} waiting`
-          : "No actions logged yet",
+        key: "my-bookings",
+        label: "My bookings",
+        value: myOpenBookings.length,
+        meta: myOverdueBookings.length
+          ? `${myOverdueBookings.length} overdue`
+          : myDueTodayBookings.length
+            ? `${myDueTodayBookings.length} due today`
+            : "No booking backlog",
+        onClick: () => handleAssignedWorkFilterClick("my-bookings"),
+        isActive: assignedWorkFilter === "my-bookings",
       },
       {
-        key: "stock",
-        icon: faBoxesStacked,
-        label: "Stock watch",
-        value: inventoryLoading ? "..." : inventoryLowStockItems.length,
-        meta: inventoryLoading
-          ? "Checking store stock"
-          : inventoryLowStockItems.length
-            ? "Low-stock items need attention"
-            : "No urgent low-stock items",
+        key: "my-today",
+        label: "Due today",
+        value: myDueTodayOrders.length + myDueTodayBookings.length,
+        meta: `${myDueTodayOrders.length} orders • ${myDueTodayBookings.length} bookings`,
+        onClick: () => handleAssignedWorkFilterClick("my-today"),
+        isActive: assignedWorkFilter === "my-today",
       },
       {
-        key: "status",
-        icon: faCloudArrowUp,
-        label: "Connection",
-        value: isOnline ? "Online" : "Offline",
-        meta: syncingQueue
-          ? "Syncing queued actions now"
-          : usingInventorySnapshot
-            ? "Using saved stock snapshot"
-            : "Live stock ready",
+        key: "my-overdue",
+        label: "Overdue",
+        value: myOverdueOrders.length + myOverdueBookings.length,
+        meta: `${myOverdueOrders.length} orders • ${myOverdueBookings.length} bookings`,
+        onClick: () => handleAssignedWorkFilterClick("my-overdue"),
+        isActive: assignedWorkFilter === "my-overdue",
       },
     ],
     [
-      inventoryLoading,
+      assignedWorkFilter,
+      handleAssignedWorkFilterClick,
+      myDueTodayBookings.length,
+      myDueTodayOrders.length,
+      myOpenBookings.length,
+      myOpenOrders.length,
+      myOverdueBookings.length,
+      myOverdueOrders.length,
+    ]
+  );
+  const exceptionsFirstItems = useMemo(
+    () =>
+      [
+        {
+          key: "low-stock",
+          title: "Low stock",
+          count: lowStockCount,
+          note: stockForecastLabel(directoryStats.avgLeadTime, lowStockCount),
+          path: DASHBOARD_PATHS.inventoryLow,
+          tone: "warning",
+        },
+        {
+          key: "sync-failed",
+          title: "Sync failures",
+          count: failedQueueCount,
+          note: syncConflictCount
+            ? `${syncConflictCount} need duplicate or conflict review`
+            : "Queued actions need a retry",
+          path: DASHBOARD_PATHS.offline,
+          tone: "error",
+        },
+        {
+          key: "orders-overdue",
+          title: "Overdue orders",
+          count: overdueOrders.length,
+          note: overdueOrders[0]?.customerName
+            ? `Oldest: ${overdueOrders[0].customerName}`
+            : "Orders are past their expected date",
+          path: buildPathWithParams(DASHBOARD_PATHS.orders, { timing: "overdue" }),
+          tone: "attention",
+        },
+        {
+          key: "bookings-overdue",
+          title: "Overdue bookings",
+          count: overdueBookings.length,
+          note: overdueBookings[0]?.customerName
+            ? `Oldest: ${overdueBookings[0].customerName}`
+            : "Bookings need follow-up",
+          path: buildPathWithParams("/admin/bookings", { timing: "overdue" }),
+          tone: "attention",
+        },
+        {
+          key: "conflicts",
+          title: "Inventory conflicts",
+          count: bookingConflictCount,
+          note: visibleBookingConflicts[0]
+            ? `${visibleBookingConflicts[0].productName} is overbooked`
+            : "Bookings are reserved above live stock",
+          path: "/admin/bookings",
+          tone: "error",
+        },
+        {
+          key: "approvals",
+          title: "Approvals waiting",
+          count: approvalItems.length,
+          note: approvalItems[0]?.reason || "High-value orders and bookings need review",
+          path: DASHBOARD_PATHS.orderApprovals,
+          tone: "neutral",
+        },
+      ].filter((item) => item.count > 0),
+    [
+      approvalItems,
+      bookingConflictCount,
+      directoryStats.avgLeadTime,
+      failedQueueCount,
+      lowStockCount,
+      overdueBookings,
+      overdueOrders,
+      syncConflictCount,
+      visibleBookingConflicts,
+    ]
+  );
+  const customerHealth = useMemo(() => {
+    const activeCustomers = customers.filter(
+      (customer) => toNumber(customer?.orders) + toNumber(customer?.bookings) > 0
+    );
+    const repeatCustomers = activeCustomers.filter(
+      (customer) => toNumber(customer?.orders) + toNumber(customer?.bookings) > 1
+    );
+    const topCustomers = [...activeCustomers]
+      .sort((left, right) => getCustomerTotalValue(right) - getCustomerTotalValue(left))
+      .slice(0, 3);
+    const vipThreshold = topCustomers.length
+      ? getCustomerTotalValue(topCustomers[topCustomers.length - 1])
+      : 0;
+    const inactiveVipCustomers = activeCustomers
+      .filter((customer) => {
+        if (!vipThreshold || getCustomerTotalValue(customer) < vipThreshold) return false;
+        const lastActivity = customer?.last_activity_at || customer?.last_order_date || customer?.last_booking_date;
+        if (!lastActivity) return true;
+        return !isDateInRange(lastActivity, new Date(currentDateTime.getTime() - 30 * DAY_MS), currentDateTime);
+      })
+      .sort((left, right) => getCustomerTotalValue(right) - getCustomerTotalValue(left))
+      .slice(0, 3);
+
+    return {
+      newThisWindow: currentWindowCustomers.length,
+      repeatRate: activeCustomers.length
+        ? Math.round((repeatCustomers.length / activeCustomers.length) * 100)
+        : 0,
+      topCustomers,
+      inactiveVipCustomers,
+    };
+  }, [currentDateTime, currentWindowCustomers.length, customers]);
+  const recommendationItems = useMemo(() => {
+    const items = [];
+    if (lowStockCount > 0) {
+      items.push({
+        key: "reorder",
+        title: `Reorder ${Math.min(lowStockCount, 3)} item${lowStockCount === 1 ? "" : "s"} today`,
+        note: stockForecastLabel(directoryStats.avgLeadTime, lowStockCount),
+        path: DASHBOARD_PATHS.inventoryLow,
+      });
+    }
+    if (pendingConfirmationBookings.length > 0) {
+      items.push({
+        key: "pending-bookings",
+        title: `${pendingConfirmationBookings.length} booking${pendingConfirmationBookings.length === 1 ? "" : "s"} need confirmation`,
+        note: pendingConfirmationBookings[0]?.customerName
+          ? `Next: ${pendingConfirmationBookings[0].customerName} on ${formatDate(pendingConfirmationBookings[0].eventDate)}`
+          : "Open the pending bookings queue",
+        path: buildPathWithParams("/admin/bookings", { status: "pending", timing: "next7" }),
+      });
+    }
+    if (customerHealth.inactiveVipCustomers.length > 0) {
+      items.push({
+        key: "inactive-vip",
+        title: `${customerHealth.inactiveVipCustomers.length} high-value customer${customerHealth.inactiveVipCustomers.length === 1 ? "" : "s"} inactive 30+ days`,
+        note: customerHealth.inactiveVipCustomers[0]?.name
+          ? `Follow up with ${customerHealth.inactiveVipCustomers[0].name}`
+          : "Open customer health list",
+        path: buildPathWithParams(DASHBOARD_PATHS.customerDirectory, {
+          q: customerHealth.inactiveVipCustomers[0]?.name || "",
+        }),
+      });
+    }
+    if (canViewHomeKpis && approvalItems.length > 0) {
+      items.push({
+        key: "approvals",
+        title: `${approvalItems.length} approval${approvalItems.length === 1 ? "" : "s"} need a decision`,
+        note: approvalItems[0]?.title || "Review high-value orders and bookings",
+        path: approvalItems[0]?.href || DASHBOARD_PATHS.orderApprovals,
+      });
+    }
+    if (!items.length) {
+      items.push({
+        key: "clear",
+        title: "No urgent recommendations",
+        note: roleKey === "water"
+          ? "Open the water desk for the next live task."
+          : "Open Store Mode to continue the day’s work.",
+        path: roleKey === "water" ? DASHBOARD_PATHS.water : DASHBOARD_PATHS.pos,
+      });
+    }
+    return items.slice(0, 4);
+  }, [
+    approvalItems,
+    canViewHomeKpis,
+    customerHealth.inactiveVipCustomers,
+    directoryStats.avgLeadTime,
+    lowStockCount,
+    pendingConfirmationBookings,
+    roleKey,
+  ]);
+  const teamLoadRows = useMemo(() => {
+    if (!teamUsers.length) return [];
+    const counts = new Map();
+    const ensureRow = (id) => {
+      const key = normalizeIdFilter(id);
+      if (!key) return null;
+      if (!counts.has(key)) {
+        counts.set(key, { orders: 0, bookings: 0, overdue: 0 });
+      }
+      return counts.get(key);
+    };
+    openWorkflowOrders.forEach((order) => {
+      const row = ensureRow(order?.assignedUserId);
+      if (!row) return;
+      row.orders += 1;
+      if (isOverdue(getOrderWorkDate(order))) row.overdue += 1;
+    });
+    openWorkflowBookings.forEach((booking) => {
+      const row = ensureRow(booking?.assignedUserId);
+      if (!row) return;
+      row.bookings += 1;
+      if (isOverdue(getBookingWorkDate(booking))) row.overdue += 1;
+    });
+    return teamUsers
+      .map((member) => {
+        const countsRow = counts.get(normalizeIdFilter(member?.id)) || { orders: 0, bookings: 0, overdue: 0 };
+        const total = countsRow.orders + countsRow.bookings;
+        return {
+          id: member.id,
+          name: member.fullName || member.name || member.email || `User #${member.id}`,
+          orders: countsRow.orders,
+          bookings: countsRow.bookings,
+          overdue: countsRow.overdue,
+          total,
+          activeSessionCount: toNumber(member.activeSessionCount),
+          path:
+            countsRow.bookings > countsRow.orders
+              ? buildPathWithParams("/admin/bookings", {
+                  assigned: member.id,
+                  timing: countsRow.overdue ? "overdue" : "all",
+                })
+              : buildPathWithParams(DASHBOARD_PATHS.orders, {
+                  assigned: member.id,
+                  timing: countsRow.overdue ? "overdue" : "all",
+                }),
+        };
+      })
+      .sort((left, right) => {
+        if (right.overdue !== left.overdue) return right.overdue - left.overdue;
+        return right.total - left.total;
+      })
+      .slice(0, 5);
+  }, [openWorkflowBookings, openWorkflowOrders, teamUsers]);
+  const homeSummaryCards = useMemo(
+    () =>
+      canViewHomeKpis
+        ? []
+        : [
+            {
+              key: "session",
+              label: "Logged in",
+              value: sessionDurationLabel,
+              meta: signedInAt ? `Since ${formatDateTime(signedInAt)}` : "Active now",
+              path: "/admin/timesheets",
+            },
+            {
+              key: "queue",
+              label: "Sync queue",
+              value: pendingQueue.length,
+              meta: pendingQueue.length
+                ? `${failedQueueCount} failed • ${syncedQueueCount} synced`
+                : "Nothing waiting to sync",
+              path: DASHBOARD_PATHS.offline,
+            },
+            {
+              key: "stock",
+              label: "Low stock",
+              value: inventoryLowStockItems.length,
+              meta: inventoryLowStockItems.length ? "Needs action" : "Healthy",
+              path: DASHBOARD_PATHS.inventoryLow,
+            },
+            {
+              key: "customers",
+              label: "Customers",
+              value: customers.length,
+              meta: usingCustomerSnapshot ? "Using saved snapshot" : "Directory ready",
+              path: DASHBOARD_PATHS.customerDirectory,
+            },
+          ],
+    [
+      canViewHomeKpis,
+      customers.length,
+      failedQueueCount,
       inventoryLowStockItems.length,
-      isOnline,
       pendingQueue.length,
-      queue.length,
       sessionDurationLabel,
       signedInAt,
       syncedQueueCount,
-      syncingQueue,
-      usingInventorySnapshot,
+      usingCustomerSnapshot,
+    ]
+  );
+
+  const refreshHomeDashboard = useCallback(() => {
+    fetchWorkflowData();
+    fetchHomeKpis();
+    fetchFinancialStats();
+    fetchStockActivity();
+    fetchDirectoryKpis();
+  }, [
+    fetchDirectoryKpis,
+    fetchFinancialStats,
+    fetchHomeKpis,
+    fetchStockActivity,
+    fetchWorkflowData,
+  ]);
+
+  const toggleAssignedWorkItem = useCallback((itemKey) => {
+    setExpandedAssignedWorkKey((current) => (current === itemKey ? "" : itemKey));
+  }, []);
+
+  const recentStaffActivityWithVisual = useMemo(
+    () =>
+      recentStaffActivity.map((item) => ({
+        ...item,
+        visual: getActivityVisual(item),
+      })),
+    [recentStaffActivity]
+  );
+
+  const businessKpiPanel = useMemo(
+    () => ({
+      visible: canViewHomeKpis,
+      updatedAt: homeUpdatedAt ? formatRelativeTime(homeUpdatedAt) : "",
+      sourceLabel: activeWindowConfig.sourceLabel,
+      windowOptions: HOME_WINDOW_OPTIONS,
+      activeWindow: dashboardWindow,
+      onWindowChange: setDashboardWindow,
+      onRefresh: refreshHomeDashboard,
+      refreshDisabled:
+        kpiLoading || financialLoading || stockActivityLoading || directoryLoading || workflowLoading,
+      loading: kpiLoading,
+      error: kpiError,
+      summaryCards: [
+        {
+          key: "revenue",
+          label: "Revenue",
+          value: toCurrency(totalRevenue, "GHS"),
+          meta: revenueDeltaLabel,
+          path: DASHBOARD_PATHS.accounting,
+        },
+        {
+          key: "net",
+          label: "Net after expenses",
+          value: toCurrency(netAfterExpenses, "GHS"),
+          meta: netDeltaLabel,
+          meterWidth: netMarginPct,
+          path: DASHBOARD_PATHS.expenses,
+        },
+        {
+          key: "inventory",
+          label: "Inventory value",
+          value: toCurrency(inventoryValue, "GHS"),
+          meta: stockForecastNote,
+          meterClass: "is-warning",
+          meterWidth: Math.max(8, 100 - inventoryRiskPct),
+          path: DASHBOARD_PATHS.inventoryLow,
+        },
+        {
+          key: "locked-in",
+          label: "Locked-in next quarter",
+          value: toCurrency(lockedInValue, "GHS"),
+          meta: `${kpiStats?.nextQuarterLabel || "Next quarter"} • ${lockedInPct}% of current revenue`,
+          meterClass: "is-accent",
+          meterWidth: lockedInPct,
+          path: DASHBOARD_PATHS.bookingsConfirmed,
+        },
+      ],
+      revenueMix: {
+        path: DASHBOARD_PATHS.accounting,
+        totalValue: toCurrency(totalRevenue, "GHS"),
+        radius: revenueDonutRadius,
+        circumference: revenueDonutCircumference,
+        donut: revenueMixDonut,
+        segments: revenueMixSegments,
+        total: revenueMixTotal,
+      },
+      revenueTrend: {
+        path: DASHBOARD_PATHS.accounting,
+        windowLabel: financialStats.windowLabel || "This month",
+        loading: financialLoading,
+        error: financialError,
+        hasData: revenueTrend.length > 0,
+        latestValue: toCurrency(revenueTrendLatest, "GHS"),
+        deltaLabel: revenueTrendDeltaLabel,
+        rangeLabel: revenueTrendRangeLabel,
+        spark: revenueTrendSpark,
+      },
+      stockMovement: {
+        path: DASHBOARD_PATHS.inventoryActivity,
+        loading: stockActivityLoading,
+        error: stockActivityError,
+        hasData: stockActivity.length > 0,
+        totals: stockActivityTotals,
+        spark: stockActivitySpark,
+        rangeLabel: stockActivityRangeLabel,
+        velocityTotalsLabel: `Recent 6 months: ${velocityTotals.stockIn} in • ${velocityTotals.stockOut} out`,
+        velocityTrend: velocityTrend.map((entry) => ({
+          ...entry,
+          stockIn: toNumber(entry.stockIn),
+          stockOut: toNumber(entry.stockOut),
+        })),
+        velocityMax,
+      },
+      operationalLoad: {
+        path: "/admin/bookings",
+        bars: operationsBars,
+        max: operationsBarsMax,
+      },
+    }),
+    [
+      activeWindowConfig.sourceLabel,
+      canViewHomeKpis,
+      dashboardWindow,
+      directoryLoading,
+      financialError,
+      financialLoading,
+      financialStats.windowLabel,
+      homeUpdatedAt,
+      inventoryRiskPct,
+      inventoryValue,
+      kpiError,
+      kpiLoading,
+      kpiStats?.nextQuarterLabel,
+      lockedInPct,
+      lockedInValue,
+      netAfterExpenses,
+      netDeltaLabel,
+      netMarginPct,
+      operationsBars,
+      operationsBarsMax,
+      refreshHomeDashboard,
+      revenueDonutCircumference,
+      revenueDonutRadius,
+      revenueDeltaLabel,
+      revenueMixDonut,
+      revenueMixSegments,
+      revenueMixTotal,
+      revenueTrend.length,
+      revenueTrendDeltaLabel,
+      revenueTrendLatest,
+      revenueTrendRangeLabel,
+      revenueTrendSpark,
+      stockActivity.length,
+      stockActivityError,
+      stockActivityLoading,
+      stockActivityRangeLabel,
+      stockActivitySpark,
+      stockActivityTotals,
+      stockForecastNote,
+      totalRevenue,
+      velocityMax,
+      velocityTotals.stockIn,
+      velocityTotals.stockOut,
+      velocityTrend,
+      workflowLoading,
+    ]
+  );
+
+  const approvalsPanel = useMemo(
+    () => ({
+      loading: workflowLoading,
+      items: approvalItems.map((item) => ({
+        ...item,
+        amountLabel: toCurrency(item.amount, "GHS"),
+      })),
+      emptyPath: DASHBOARD_PATHS.orders,
+    }),
+    [approvalItems, workflowLoading]
+  );
+
+  const teamLoadPanel = useMemo(
+    () => ({
+      loading: workflowLoading,
+      rows: teamLoadRows,
+      emptyPath: DASHBOARD_PATHS.userDirectory,
+    }),
+    [teamLoadRows, workflowLoading]
+  );
+
+  const customerHealthPanel = useMemo(
+    () => ({
+      summaryCards: [
+        {
+          key: "new",
+          label: "New this window",
+          value: customerHealth.newThisWindow,
+          meta: customersDeltaLabel,
+          path: DASHBOARD_PATHS.customerDirectory,
+        },
+        {
+          key: "repeat",
+          label: "Repeat rate",
+          value: `${customerHealth.repeatRate}%`,
+          meta: "Customers with more than one order or booking",
+          path: DASHBOARD_PATHS.customerDirectory,
+        },
+        {
+          key: "top",
+          label: "Top customers",
+          value: customerHealth.topCustomers.length,
+          meta: "Highest current value customers",
+          path: DASHBOARD_PATHS.customerDirectory,
+        },
+        {
+          key: "inactive-vip",
+          label: "Inactive VIPs",
+          value: customerHealth.inactiveVipCustomers.length,
+          meta: "High-value customers quiet for 30+ days",
+          path: DASHBOARD_PATHS.customerDirectory,
+        },
+      ],
+      topCustomers: customerHealth.topCustomers,
+      inactiveVipCustomers: customerHealth.inactiveVipCustomers,
+      getCustomerPath: (id) => buildPathWithParams(DASHBOARD_PATHS.customerDirectory, { id }),
+      getCustomerValueLabel: (customer) => toCurrency(getCustomerTotalValue(customer), "GHS"),
+      getInactiveMeta: (customer) =>
+        customer.last_activity_at
+          ? `Last active ${formatDate(customer.last_activity_at)}`
+          : "No recent activity recorded",
+    }),
+    [customerHealth, customersDeltaLabel]
+  );
+
+  const activityPanel = useMemo(
+    () => ({
+      canViewHomeKpis,
+      activityScope,
+      onScopeChange: setActivityScope,
+      error: activityError,
+      loading: activityLoading,
+      items: recentStaffActivityWithVisual,
+    }),
+    [
+      activityError,
+      activityLoading,
+      activityScope,
+      canViewHomeKpis,
+      recentStaffActivityWithVisual,
     ]
   );
 
@@ -844,6 +2335,28 @@ function AdminWorkspace({ section = "home" }) {
       return name.includes(needle) || phone.includes(needle) || email.includes(needle);
     });
   }, [customerSearch, customers]);
+
+  const homeQuickActions = useMemo(() => {
+    if (roleKey === "water") {
+      return [
+        { key: "water", label: "Water Desk", icon: faPlus, path: DASHBOARD_PATHS.water },
+        { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
+        { key: "vendors", label: "Vendors", icon: faBoxesStacked, path: DASHBOARD_PATHS.vendors },
+      ];
+    }
+    if (canViewHomeKpis) {
+      return [
+        { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
+        { key: "approval", label: "Review Approvals", icon: faReceipt, path: DASHBOARD_PATHS.orderApprovals },
+        { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
+      ];
+    }
+    return [
+      { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
+      { key: "stock", label: "Record Stock", icon: faBoxesStacked, path: DASHBOARD_PATHS.inventory },
+      { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
+    ];
+  }, [canViewHomeKpis, roleKey]);
 
   const purchaseCatalog = useMemo(() => {
     const products = searchedInventory.filter((item) => getQuantity(item) > 0);
@@ -960,6 +2473,12 @@ function AdminWorkspace({ section = "home" }) {
       const result = await sendPurchase(payload);
       applyPurchaseToLocalStock(purchaseItems);
       setPurchaseItems([]);
+      await Promise.all([
+        fetchActivityFeed(),
+        fetchWorkflowData(),
+        canViewHomeKpis ? fetchHomeKpis() : Promise.resolve(),
+        canViewHomeKpis ? fetchFinancialStats() : Promise.resolve(),
+      ]);
       setSurfaceNotice(
         result?.orderNumber
           ? `Purchase synced (${result.orderNumber}).`
@@ -1021,6 +2540,11 @@ function AdminWorkspace({ section = "home" }) {
       } else {
         adjustProductQuantity(item.id, delta);
       }
+      await Promise.all([
+        fetchActivityFeed(),
+        fetchWorkflowData(),
+        canViewHomeKpis ? fetchHomeKpis() : Promise.resolve(),
+      ]);
       setSurfaceNotice(
         direction === "in"
           ? `${item.name}: +${quantity} added.`
@@ -1052,387 +2576,29 @@ function AdminWorkspace({ section = "home" }) {
   };
 
   const renderHome = () => (
-    <section className="aw-section-grid aw-home-view">
-
-
-      <section className="aw-staff-hero">
-        <div className="aw-staff-hero-actions">
-          <button
-            type="button"
-            className="aw-primary-btn aw-staff-hero-btn"
-            onClick={() => navigate("/admin/store-mode")}
-            aria-label="Store Mode"
-          >
-            <AppIcon icon={faArrowRight} />
-          </button>
-          <span className="aw-staff-hero-cta-label">Store Mode</span>
-        </div>
-      </section>
-      {canViewHomeKpis ? (
-        <>
-            <div className="aw-home-summary-grid">
-            <article className="aw-home-summary-card glass-card">
-              <p className="aw-home-kpi-label">Items</p>
-              <strong>{inventory.length}</strong>
-              <span>Tracked products</span>
-            </article>
-            <article className="aw-home-summary-card">
-              <p className="aw-home-kpi-label">Low stock</p>
-              <strong>{inventoryLowStockItems.length}</strong>
-              <span>{inventoryLowStockItems.length ? "Needs action" : "Healthy"}</span>
-            </article>
-            <article className="aw-home-summary-card">
-              <p className="aw-home-kpi-label">Queue</p>
-              <strong>{pendingQueue.length}</strong>
-              <span>{failedQueueCount} failed</span>
-            </article>
-            <article className="aw-home-summary-card">
-              <p className="aw-home-kpi-label">Status</p>
-              <strong>{isOnline ? "Online" : "Offline"}</strong>
-              <span>{syncingQueue ? "Syncing now" : "Ready"}</span>
-            </article>
-          </div>
-
-          <div className="aw-panel">
-            <div className="aw-toolbar aw-quick-actions-grid">
-              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/purchases")}>
-                <AppIcon icon={faPlus} />
-                <span>Create Order</span>
-              </button>
-              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/inventory")}>
-                <AppIcon icon={faBoxesStacked} />
-                <span>Record Stock</span>
-              </button>
-              <button type="button" className="aw-quick-action-btn" onClick={() => navigate("/admin/directory")}>
-                <AppIcon icon={faClipboardList} />
-                <span>Add Customer</span>
-              </button>
-            </div>
-          </div>
-
-          {(inventoryLowStockItems.length > 0 || failedQueueCount > 0 || conflictsCount > 0) && (
-            <div className="aw-panel">
-              <div className="aw-panel-header">
-                <h2>Alerts & Issues</h2>
-                <span className="aw-alert-badge">{inventoryLowStockItems.length + failedQueueCount + conflictsCount}</span>
-              </div>
-              <div className="aw-alerts-grid">
-                {inventoryLowStockItems.length > 0 && (
-                  <div className="aw-alert-card aw-alert-warning">
-                    <div className="aw-alert-icon"><AppIcon icon={faBolt} /></div>
-                    <div className="aw-alert-content">
-                      <strong>{inventoryLowStockItems.length} Low Stock Items</strong>
-                      <p>Reorder soon to avoid stockouts</p>
-                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/inventory")}>
-                        View
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {failedQueueCount > 0 && (
-                  <div className="aw-alert-card aw-alert-error">
-                    <div className="aw-alert-icon"><AppIcon icon={faXmark} /></div>
-                    <div className="aw-alert-content">
-                      <strong>{failedQueueCount} Sync Failures</strong>
-                      <p>Actions failed to sync</p>
-                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/offline")}>
-                        Fix
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {conflictsCount > 0 && (
-                  <div className="aw-alert-card aw-alert-attention">
-                    <div className="aw-alert-icon"><AppIcon icon={faRotateRight} /></div>
-                    <div className="aw-alert-content">
-                      <strong>{conflictsCount} Inventory Conflicts</strong>
-                      <p>Stock data needs review</p>
-                      <button type="button" className="aw-link-btn" onClick={() => navigate("/admin/inventory")}>
-                        Review
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="aw-panel">
-            <div className="aw-panel-header">
-              <h2>Performance Trends</h2>
-            </div>
-            <div className="aw-performance-grid">
-              <div className="aw-performance-card">
-                <p className="aw-performance-label">Revenue Status</p>
-                <div className="aw-performance-bar">
-                  <div className="aw-performance-fill" style={{ width: `${Math.min(100, (totalRevenue / 10000) * 100)}%`, backgroundColor: '#0f8f78' }} />
-                </div>
-                <span className="aw-performance-text">{netMarginPctRaw}% margin</span>
-              </div>
-              <div className="aw-performance-card">
-                <p className="aw-performance-label">Inventory Health</p>
-                <div className="aw-performance-bar">
-                  <div className="aw-performance-fill" style={{ width: `${Math.max(0, 100 - inventoryRiskPct)}%`, backgroundColor: inventoryRiskPct > 30 ? '#f59e0b' : '#0f8f78' }} />
-                </div>
-                <span className="aw-performance-text">{Math.max(0, 100 - inventoryRiskPct)}% healthy</span>
-              </div>
-              <div className="aw-performance-card">
-                <p className="aw-performance-label">Order Velocity</p>
-                <div className="aw-performance-bar">
-                  <div className="aw-performance-fill" style={{ width: `${Math.min(100, (kpiStats?.orders / 100) * 100)}%`, backgroundColor: '#3b82f6' }} />
-                </div>
-                <span className="aw-performance-text">{kpiStats?.orders ?? 0} orders</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="aw-panel aw-home-kpi-panel">
-            <div className="aw-panel-header">
-              <h2>Business KPI Dashboard</h2>
-              <button
-                type="button"
-                className="aw-secondary-btn"
-                onClick={() => {
-                  fetchHomeKpis();
-                  fetchDirectoryKpis();
-                  fetchApprovals();
-                }}
-                disabled={kpiLoading || directoryLoading || approvalsLoading}
-              >
-                <AppIcon icon={faRotateRight} />
-                Refresh KPI
-              </button>
-            </div>
-            {kpiLoading && <p className="aw-muted">Loading KPI data...</p>}
-            {!kpiLoading && kpiError && <p className="aw-feedback-error">{kpiError}</p>}
-            {!kpiLoading && !kpiError && (
-              <>
-                <div className="aw-home-kpi-grid">
-                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/purchases")}>
-                    <p className="aw-home-kpi-label">Revenue</p>
-                    <strong>{toCurrency(totalRevenue, "GHS")}</strong>
-                    <span>Retail {revenueSplit.retailPct}% • Rental {revenueSplit.rentalPct}%</span>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/expenses")}>
-                    <p className="aw-home-kpi-label">Net after expenses</p>
-                    <strong>{toCurrency(netAfterExpenses, "GHS")}</strong>
-                    <span>{netMarginPctRaw}% margin</span>
-                    <div className="aw-home-kpi-meter">
-                      <span style={{ width: `${netMarginPct}%` }} />
-                    </div>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/inventory")}>
-                    <p className="aw-home-kpi-label">Inventory value</p>
-                    <strong>{toCurrency(inventoryValue, "GHS")}</strong>
-                    <span>{inventoryRiskPct}% low-stock risk</span>
-                    <div className="aw-home-kpi-meter is-warning">
-                      <span style={{ width: `${Math.max(8, 100 - inventoryRiskPct)}%` }} />
-                    </div>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card aw-home-kpi-card-hero" onClick={() => navigate("/admin/bookings")}>
-                    <p className="aw-home-kpi-label">Locked-in next quarter</p>
-                    <strong>{toCurrency(lockedInValue, "GHS")}</strong>
-                    <span>{kpiStats?.nextQuarterLabel || "Next quarter"}</span>
-                    <div className="aw-home-kpi-meter is-accent">
-                      <span style={{ width: `${lockedInPct}%` }} />
-                    </div>
-                  </button>
-                </div>
-
-                <div className="aw-home-kpi-chart-grid">
-                  <article className="aw-home-kpi-chart-card">
-                    <div className="aw-home-kpi-chart-head">
-                      <h3>Revenue mix</h3>
-                      <span>Retail, rental, expenses</span>
-                    </div>
-                    <div className="aw-home-kpi-donut-wrap">
-                      <div className="aw-home-kpi-donut-shell">
-                        <svg viewBox="0 0 120 120" role="img" aria-label="Revenue composition">
-                          <circle
-                            className="aw-home-kpi-donut-track"
-                            cx="60"
-                            cy="60"
-                            r={revenueDonutRadius}
-                          />
-                          {revenueMixDonut.map((segment) => (
-                            <circle
-                              key={segment.key}
-                              cx="60"
-                              cy="60"
-                              r={revenueDonutRadius}
-                              fill="none"
-                              stroke={segment.color}
-                              strokeWidth="12"
-                              strokeLinecap="round"
-                              strokeDasharray={`${segment.dash} ${revenueDonutCircumference - segment.dash}`}
-                              strokeDashoffset={segment.offset}
-                              transform="rotate(-90 60 60)"
-                            />
-                          ))}
-                        </svg>
-                        <div className="aw-home-kpi-donut-center">
-                          <strong>{toCurrency(totalRevenue, "GHS")}</strong>
-                          <span>Total revenue</span>
-                        </div>
-                      </div>
-                      <ul className="aw-home-kpi-legend">
-                        {revenueMixSegments.map((segment) => {
-                          const percentage = revenueMixTotal
-                            ? Math.round((segment.value / revenueMixTotal) * 100)
-                            : 0;
-                          return (
-                            <li key={segment.key}>
-                              <span style={{ backgroundColor: segment.color }} />
-                              <b>{segment.label}</b>
-                              <em>{percentage}%</em>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </article>
-
-                  <article className="aw-home-kpi-chart-card">
-                    <div className="aw-home-kpi-chart-head">
-                      <h3>Operational load</h3>
-                      <span>Key work queues right now</span>
-                    </div>
-                    <ul className="aw-home-kpi-bars">
-                      {operationsBars.map((entry) => {
-                        const widthPct = Math.round((entry.value / operationsBarsMax) * 100);
-                        return (
-                          <li key={entry.key} className="aw-home-kpi-bar-row">
-                            <div className="aw-home-kpi-bar-label">
-                              <span>{entry.label}</span>
-                              <strong>{entry.value}</strong>
-                            </div>
-                            <div className="aw-home-kpi-bar-track">
-                              <span
-                                style={{
-                                  width: `${entry.value > 0 ? Math.max(10, widthPct) : 0}%`,
-                                  backgroundColor: entry.color,
-                                }}
-                              />
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </article>
-                </div>
-
-                <div className="aw-home-kpi-grid aw-home-kpi-grid-tight">
-                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/purchases")}>
-                    <p className="aw-home-kpi-label">Orders</p>
-                    <strong>{kpiStats?.orders ?? 0}</strong>
-                    <span>Placed</span>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/purchases")}>
-                    <p className="aw-home-kpi-label">Units sold</p>
-                    <strong>{kpiStats?.units ?? 0}</strong>
-                    <span>Items shipped</span>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/inventory")}>
-                    <p className="aw-home-kpi-label">Low stock</p>
-                    <strong>{lowStockCount}</strong>
-                    <span>Needs reorder</span>
-                  </button>
-                  <button type="button" className="aw-home-kpi-card" onClick={() => navigate("/admin/directory")}>
-                    <p className="aw-home-kpi-label">Customers</p>
-                    <strong>{directoryStats.customers ?? 0}</strong>
-                    <span>Active</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="aw-panel">
-            <div className="aw-panel-header">
-              <h2>Approvals queue</h2>
-              <span className="aw-count-pill">{approvalItems.length} waiting</span>
-            </div>
-            {approvalsLoading && <p className="aw-muted">Loading approvals...</p>}
-            {!approvalsLoading && approvalsError && <p className="aw-feedback-error">{approvalsError}</p>}
-            {!approvalsLoading && !approvalsError && !approvalItems.length && (
-              <p className="aw-muted">No approvals waiting.</p>
-            )}
-            {!approvalsLoading && !approvalsError && approvalItems.length > 0 && (
-              <ul className="aw-queue-list">
-                {approvalItems.map((item) => (
-                  <li key={item.key} className="aw-queue-item">
-                    <div>
-                      <strong>{item.title}</strong>
-                      <p>{item.meta}</p>
-                      <p>Due {formatDate(item.date)}</p>
-                    </div>
-                    <div className="aw-queue-status">
-                      <span className="aw-status-chip pending">{toCurrency(item.amount, "GHS")}</span>
-                      <button type="button" className="aw-link-btn" onClick={() => navigate(item.href)}>
-                        Open
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="aw-staff-summary-grid">
-            {staffSummaryCards.map((card) => (
-              <article key={card.key} className="aw-staff-summary-card">
-                <div className="aw-staff-summary-icon" aria-hidden="true">
-                  <AppIcon icon={card.icon} />
-                </div>
-                <div>
-                  <p className="aw-home-kpi-label">{card.label}</p>
-                  <strong>{card.value}</strong>
-                  <span>{card.meta}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-
-      <div className="aw-panel aw-staff-panel">
-        <div className="aw-panel-header">
-          <h2>Your activity</h2>
-          <button
-            type="button"
-            className="aw-link-btn"
-            onClick={() => navigate("/admin/offline")}
-          >
-            Open sync queue
-          </button>
-        </div>
-        {recentStaffActivity.length ? (
-          <ul className="aw-queue-list">
-            {recentStaffActivity.map((item) => (
-              <li key={item.id} className="aw-queue-item">
-                <div>
-                  <strong>{item.label || "Store activity"}</strong>
-                  <p>{formatDateTime(item.createdAt)}</p>
-                </div>
-                <div className="aw-queue-status">
-                  <span className={`aw-status-chip ${item.status || "pending"}`}>
-                    {item.status || "pending"}
-                  </span>
-                  {item.lastError && <small>{item.lastError}</small>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="aw-staff-empty">
-            <strong>No staff activity logged yet.</strong>
-            <p>Stock changes and sync actions from this device will appear here once work starts.</p>
-          </div>
-        )}
-      </div>
-    </section>
+    <AdminWorkspaceHomeView
+      storeModePath={DASHBOARD_PATHS.pos}
+      workflowError={workflowError}
+      myWorkCards={myWorkCards}
+      assignedWorkItems={assignedWorkItems}
+      isAssignedWorkListVisible={isAssignedWorkListVisible}
+      workflowLoading={workflowLoading}
+      assignedWorkFilter={assignedWorkFilter}
+      expandedAssignedWorkKey={expandedAssignedWorkKey}
+      onToggleAssignedWorkItem={toggleAssignedWorkItem}
+      onNavigate={navigate}
+      formatDate={formatDate}
+      homeSummaryCards={homeSummaryCards}
+      homeQuickActions={homeQuickActions}
+      recommendationItems={recommendationItems}
+      kpiPanel={businessKpiPanel}
+      approvalsPanel={approvalsPanel}
+      teamLoadPanel={teamLoadPanel}
+      customerHealthPanel={customerHealthPanel}
+      activityPanel={activityPanel}
+      formatRelativeTime={formatRelativeTime}
+      formatDateTime={formatDateTime}
+    />
   );
 
   const renderInventory = () => (
@@ -1801,13 +2967,6 @@ function AdminWorkspace({ section = "home" }) {
           >
             <AppIcon icon={faRotateRight} />
             Sync
-          </button>
-          <button
-            type="button"
-            className="aw-link-btn"
-            onClick={() => loadInventory({ quiet: false })}
-          >
-            Refresh stock
           </button>
           <button type="button" className="aw-secondary-btn" onClick={logout}>
             <AppIcon icon={faArrowRightFromBracket} />

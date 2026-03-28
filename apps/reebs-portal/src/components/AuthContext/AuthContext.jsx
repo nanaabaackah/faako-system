@@ -86,22 +86,15 @@ function AuthProvider({ children }) {
     const initializeAuth = async () => {
       const storedUser = readStoredUser();
       const storedToken = getAuthToken();
-
-      if (!storedUser && !storedToken) {
-        if (isActive) setAuthReady(true);
-        return;
-      }
-
-      if (!storedToken || isAuthTokenExpired(storedToken)) {
-        resetAuthState();
-        if (isActive) setAuthReady(true);
-        return;
-      }
-
-      setAuthToken(storedToken);
       if (storedUser && isActive) {
         setUser(storedUser);
-        setAuthReady(true);
+      }
+
+      const hasLegacyToken = Boolean(storedToken) && !isAuthTokenExpired(storedToken);
+      if (hasLegacyToken) {
+        setAuthToken(storedToken);
+      } else if (storedToken) {
+        setAuthToken(null);
       }
 
       const controller = typeof AbortController === "function" ? new AbortController() : null;
@@ -119,6 +112,7 @@ function AuthProvider({ children }) {
 
         if (response.ok) {
           const nextUser = sanitizeUser(await response.json());
+          setAuthToken(null);
           setUser(nextUser);
           updateStoredUser(nextUser);
         } else if (response.status === 401 || response.status === 403) {
@@ -160,8 +154,8 @@ function AuthProvider({ children }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Login failed");
       const safeUser = sanitizeUser(data);
+      setAuthToken(null);
       setUser(safeUser);
-      setAuthToken(data?.token, { remember });
       writeStoredUser(safeUser, remember);
       return safeUser;
     } catch (err) {
@@ -173,13 +167,10 @@ function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    const token = getAuthToken();
-    if (token && typeof window !== "undefined" && typeof window.fetch === "function") {
+    if (typeof window !== "undefined" && typeof window.fetch === "function") {
       window.fetch("/.netlify/functions/logout", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        keepalive: true,
       }).catch((err) => {
         console.warn("Failed to close auth session", err);
       });

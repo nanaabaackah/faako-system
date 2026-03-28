@@ -8,16 +8,9 @@ import {
   getVendorProductSummaries,
   setProductVendorLinks,
 } from "./_shared/productVendors.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const VENDOR_METHODS = "GET,POST,PUT,PATCH,OPTIONS";
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "vendor" (
@@ -199,15 +192,7 @@ const collectVendorMatches = (productName, vendors = []) => {
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: VENDOR_METHODS });
   }
 
   const client = new Client({
@@ -217,11 +202,15 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: VENDOR_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can access vendors.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
-    const organizationId = authUser.organizationId;
+    const { organizationId } = authResult;
     await ensureVendorTable(client);
     await ensureProductLinkColumns(client);
     await ensureProductVendorLinksTable(client);
@@ -261,31 +250,31 @@ export async function handler(event = {}) {
         vendorIds: vendorRows.map((vendor) => vendor.id),
       });
 
-      return json(200, vendorRows.map((vendor) => {
+      return respond(event, 200, vendorRows.map((vendor) => {
         const summary = vendorSummaries.get(Number(vendor.id)) || {};
         return {
           ...vendor,
           products: Number(summary.products || 0),
           productNames: Array.isArray(summary.productNames) ? summary.productNames : [],
         };
-      }));
+      }), { methods: VENDOR_METHODS });
     }
 
     if (event.httpMethod !== "POST" && event.httpMethod !== "PUT" && event.httpMethod !== "PATCH") {
-      return json(405, { error: "Method Not Allowed" });
+      return respond(event, 405, { error: "Method Not Allowed" }, { methods: VENDOR_METHODS });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return respond(event, 400, { error: "Invalid JSON body." }, { methods: VENDOR_METHODS });
     }
 
     if (event.httpMethod === "PATCH") {
       const action = cleanText(payload.action).toLowerCase();
       if (action !== "autolink-products") {
-        return json(400, { error: "Unsupported vendor action." });
+        return respond(event, 400, { error: "Unsupported vendor action." }, { methods: VENDOR_METHODS });
       }
 
       const vendorIdFilter = Number(payload.vendorId);
@@ -316,13 +305,13 @@ export async function handler(event = {}) {
         suppliedItems: parseSuppliedItems(row.suppliedItems),
       }));
       if (!vendors.length) {
-        return json(200, {
+        return respond(event, 200, {
           linkedCount: 0,
           skippedCount: 0,
           ambiguousCount: 0,
           items: [],
           message: "No vendors with supplied items were available to match.",
-        });
+        }, { methods: VENDOR_METHODS });
       }
 
       const productParams = [];
@@ -397,7 +386,7 @@ export async function handler(event = {}) {
         });
       }
 
-      return json(200, {
+      return respond(event, 200, {
         linkedCount,
         linkedProductCount,
         skippedCount,
@@ -406,7 +395,7 @@ export async function handler(event = {}) {
         message: linkedCount
           ? `Created ${linkedCount} vendor link${linkedCount === 1 ? "" : "s"} across ${linkedProductCount} product${linkedProductCount === 1 ? "" : "s"}.`
           : "No matching in-stock products were linked.",
-      });
+      }, { methods: VENDOR_METHODS });
     }
 
     const name = cleanText(payload.name);
@@ -424,7 +413,7 @@ export async function handler(event = {}) {
     const notes = cleanText(payload.notes) || null;
 
     if (event.httpMethod === "POST") {
-      if (!name) return json(400, { error: "Vendor name is required." });
+      if (!name) return respond(event, 400, { error: "Vendor name is required." }, { methods: VENDOR_METHODS });
 
       const result = await client.query(
         `INSERT INTO "vendor"
@@ -449,11 +438,13 @@ export async function handler(event = {}) {
           : [name, contactName, email, phone, mobileMoneyNumber, address, bankName, bankAccount, leadTimeDays, suppliedItems, notes]
       );
 
-      return json(200, result.rows[0]);
+      return respond(event, 200, result.rows[0], { methods: VENDOR_METHODS });
     }
 
     const id = Number(payload.id);
-    if (!Number.isFinite(id)) return json(400, { error: "Vendor id is required." });
+    if (!Number.isFinite(id)) {
+      return respond(event, 400, { error: "Vendor id is required." }, { methods: VENDOR_METHODS });
+    }
 
     const updates = [];
     const values = [];
@@ -499,18 +490,13 @@ export async function handler(event = {}) {
     );
 
     if (result.rowCount === 0) {
-      return json(404, { error: "Vendor not found." });
+      return respond(event, 404, { error: "Vendor not found." }, { methods: VENDOR_METHODS });
     }
 
-    return json(200, result.rows[0]);
+    return respond(event, 200, result.rows[0], { methods: VENDOR_METHODS });
   } catch (err) {
     console.error("❌ Vendors error:", err);
-    return json(500, {
-      error:
-        process.env.NODE_ENV === "production"
-          ? "Failed to process vendors."
-          : err?.message || "Failed to process vendors.",
-    });
+    return respond(event, 500, { error: "Failed to process vendors." }, { methods: VENDOR_METHODS });
   } finally {
     await client.end().catch(() => {});
   }

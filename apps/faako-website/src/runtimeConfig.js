@@ -7,6 +7,19 @@ const getAppEnv = () =>
 
 const isLocalAppEnv = () => LOCAL_APP_ENVS.has(getAppEnv());
 
+const canExposeDebugDetails = () => {
+  const override = normalizeAppEnv(process.env.EXPOSE_DEBUG_ERRORS);
+  if (override === "true") {
+    return true;
+  }
+
+  if (override === "false") {
+    return false;
+  }
+
+  return isLocalAppEnv();
+};
+
 const resolveDatabaseUrl = () => {
   if (isLocalAppEnv()) {
     const localDatabaseUrl =
@@ -40,6 +53,7 @@ const resolveDatabaseUrl = () => {
 };
 
 module.exports = {
+  canExposeDebugDetails,
   getAppEnv,
   isLocalAppEnv,
   resolveDatabaseUrl,

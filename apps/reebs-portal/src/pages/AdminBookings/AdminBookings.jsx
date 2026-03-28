@@ -11,7 +11,7 @@ import {
   faChevronRight,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 
@@ -84,6 +84,83 @@ const normalizeStatus = (status) => {
   return normalized === "canceled" ? "cancelled" : normalized;
 };
 
+const BOOKING_STATUS_FILTERS = new Set(["all", "pending", "confirmed", "completed", "cancelled"]);
+
+const normalizeBookingStatusFilter = (value) => {
+  const normalized = normalizeStatus(value);
+  return BOOKING_STATUS_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const BOOKING_TIMING_FILTERS = new Set(["all", "today", "overdue", "next7"]);
+
+const normalizeBookingTimingFilter = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return BOOKING_TIMING_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const normalizeIdFilter = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
+};
+
+const isClosedBooking = (booking) => {
+  const status = normalizeStatus(booking?.status);
+  return ["completed", "cancelled"].includes(status);
+};
+
+const getBookingScheduleDate = (booking) => {
+  if (!booking?.eventDate) return null;
+  const parsed = new Date(booking.eventDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
+const matchesBookingTiming = (booking, timingFilter) => {
+  if (timingFilter === "all") return true;
+  if (isClosedBooking(booking)) return false;
+  const eventDate = getBookingScheduleDate(booking);
+  if (!eventDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (timingFilter === "today") {
+    return eventDate.getTime() === today.getTime();
+  }
+  if (timingFilter === "overdue") {
+    return eventDate.getTime() < today.getTime();
+  }
+  if (timingFilter === "next7") {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return eventDate.getTime() >= today.getTime() && eventDate.getTime() < nextWeek.getTime();
+  }
+  return true;
+};
+
+const buildBookingsSearch = ({ query = "", status = "all", assigned = "", timing = "all" } = {}) => {
+  const params = new URLSearchParams();
+  const trimmedQuery = String(query || "").trim();
+  const normalizedStatus = normalizeBookingStatusFilter(status);
+  const normalizedAssigned = normalizeIdFilter(assigned);
+  const normalizedTiming = normalizeBookingTimingFilter(timing);
+  if (trimmedQuery) {
+    params.set("q", trimmedQuery);
+  }
+  if (normalizedStatus !== "all") {
+    params.set("status", normalizedStatus);
+  }
+  if (normalizedAssigned) {
+    params.set("assigned", normalizedAssigned);
+  }
+  if (normalizedTiming !== "all") {
+    params.set("timing", normalizedTiming);
+  }
+  const next = params.toString();
+  return next ? `?${next}` : "";
+};
+
 const getBookingStage = (booking) => {
   const status = normalizeStatus(booking?.status);
   if (status === "cancelled") return "cancelled";
@@ -98,6 +175,7 @@ const buildMapUrl = (address) => {
 };
 
 function AdminBookings() {
+  const location = useLocation();
   const [bookings, setBookings] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -105,6 +183,8 @@ function AdminBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assignedFilter, setAssignedFilter] = useState("");
+  const [timingFilter, setTimingFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
@@ -299,8 +379,20 @@ function AdminBookings() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextQuery = params.get("q") || "";
+    const nextStatus = normalizeBookingStatusFilter(params.get("status"));
+    const nextAssigned = normalizeIdFilter(params.get("assigned"));
+    const nextTiming = normalizeBookingTimingFilter(params.get("timing"));
+    setQuery((current) => (current === nextQuery ? current : nextQuery));
+    setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
+    setAssignedFilter((current) => (current === nextAssigned ? current : nextAssigned));
+    setTimingFilter((current) => (current === nextTiming ? current : nextTiming));
+  }, [location.search]);
+
+  useEffect(() => {
     setPage(0);
-  }, [statusFilter, query, bookings.length]);
+  }, [assignedFilter, statusFilter, query, timingFilter, bookings.length]);
 
   const productMap = useMemo(() => {
     const map = new Map();
@@ -361,6 +453,12 @@ function AdminBookings() {
       if (statusFilter !== "all" && String(booking.status || "").toLowerCase() !== statusFilter) {
         return false;
       }
+      if (assignedFilter && String(booking.assignedUserId || "") !== assignedFilter) {
+        return false;
+      }
+      if (!matchesBookingTiming(booking, timingFilter)) {
+        return false;
+      }
       if (!needle) return true;
       const idText = String(booking.id || "").toLowerCase();
       const customer = String(booking.customerName || "").toLowerCase();
@@ -368,7 +466,7 @@ function AdminBookings() {
       return idText.includes(needle) || customer.includes(needle) || status.includes(needle);
     });
     return list;
-  }, [bookings, query, statusFilter]);
+  }, [assignedFilter, bookings, query, statusFilter, timingFilter]);
 
   const sortValue = (booking, key) => {
     switch (key) {
@@ -679,6 +777,58 @@ function AdminBookings() {
     setEditing(null);
     setSaveError("");
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = String(params.get("action") || "").trim().toLowerCase();
+    const bookingId = params.get("id");
+    if ((!action && !bookingId) || loading) return;
+
+      const nextSearch = buildBookingsSearch({
+        query: params.get("q") || "",
+        status: params.get("status") || "all",
+        assigned: params.get("assigned") || "",
+        timing: params.get("timing") || "all",
+      });
+    const finish = () =>
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch,
+        },
+        { replace: true }
+      );
+
+    if (action === "create") {
+      if (!isMobileView) {
+        openCreate();
+      }
+      finish();
+      return;
+    }
+
+    if (!bookingId) {
+      finish();
+      return;
+    }
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
+    if (!targetBooking) {
+      finish();
+      return;
+    }
+
+    if (action === "edit") {
+      if (!isMobileView) {
+        openEdit(targetBooking);
+      }
+      finish();
+      return;
+    }
+
+    setDetailBooking(targetBooking);
+    finish();
+  }, [bookings, isMobileView, loading, location.pathname, location.search, navigate]);
 
   const save = async (event) => {
     event.preventDefault();

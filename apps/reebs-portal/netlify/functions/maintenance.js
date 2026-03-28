@@ -1,15 +1,10 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "maintenanceLog" (
@@ -62,15 +57,7 @@ const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-      },
-      body: "",
-    };
+    return json(event, 204, {});
   }
 
   const client = new Client({
@@ -80,6 +67,12 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    const access = await requireInternalUser(client, event, {
+      methods: "GET,POST,PUT,OPTIONS",
+    });
+    if (access.errorResponse) return access.errorResponse;
+
+    const { organizationId } = access;
     await ensureMaintenanceTable(client);
 
     if (event.httpMethod === "GET") {
@@ -98,21 +91,22 @@ export async function handler(event = {}) {
           m."createdAt",
           m."resolvedAt"
         FROM "maintenanceLog" m
-        JOIN "product" p ON p.id = m."productId"
-        ORDER BY m."createdAt" DESC, m.id DESC`
+        JOIN "product" p ON p.id = m."productId" AND p."organizationId" = $1
+        ORDER BY m."createdAt" DESC, m.id DESC`,
+        [organizationId]
       );
-      return json(200, result.rows || []);
+      return json(event, 200, result.rows || []);
     }
 
     if (event.httpMethod !== "POST" && event.httpMethod !== "PUT") {
-      return json(405, { error: "Method Not Allowed" });
+      return json(event, 405, { error: "Method Not Allowed" });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return json(event, 400, { error: "Invalid JSON body." });
     }
 
     if (event.httpMethod === "POST") {
@@ -124,10 +118,21 @@ export async function handler(event = {}) {
       const costCents = Number.isFinite(costValue) ? Math.max(0, Math.round(costValue * 100)) : 0;
 
       if (!Number.isFinite(productId)) {
-        return json(400, { error: "productId is required." });
+        return json(event, 400, { error: "productId is required." });
       }
       if (!issue) {
-        return json(400, { error: "Issue description is required." });
+        return json(event, 400, { error: "Issue description is required." });
+      }
+
+      const productRes = await client.query(
+        `SELECT id
+         FROM "product"
+         WHERE id = $1 AND "organizationId" = $2
+         LIMIT 1`,
+        [productId, organizationId]
+      );
+      if (productRes.rowCount === 0) {
+        return json(event, 404, { error: "Product not found." });
       }
 
       await client.query("BEGIN");
@@ -144,12 +149,12 @@ export async function handler(event = {}) {
           `UPDATE "product"
            SET "isActive" = false,
                "updatedAt" = NOW()
-           WHERE id = $1`,
-          [productId]
+           WHERE id = $1 AND "organizationId" = $2`,
+          [productId, organizationId]
         );
 
         await client.query("COMMIT");
-        return json(200, { id: insert.rows[0]?.id || null, status: "open" });
+        return json(event, 200, { id: insert.rows[0]?.id || null, status: "open" });
       } catch (err) {
         await client.query("ROLLBACK");
         throw err;
@@ -161,21 +166,26 @@ export async function handler(event = {}) {
     const notes = cleanText(payload.notes) || null;
 
     if (!Number.isFinite(logId)) {
-      return json(400, { error: "Maintenance log id is required." });
+      return json(event, 400, { error: "Maintenance log id is required." });
     }
     if (!status) {
-      return json(400, { error: "Status is required." });
+      return json(event, 400, { error: "Status is required." });
     }
 
     await client.query("BEGIN");
     try {
       const existing = await client.query(
-        `SELECT "productId", status FROM "maintenanceLog" WHERE id = $1`,
-        [logId]
+        `SELECT m."productId", m.status
+         FROM "maintenanceLog" m
+         JOIN "product" p ON p.id = m."productId"
+         WHERE m.id = $1
+           AND p."organizationId" = $2
+         LIMIT 1`,
+        [logId, organizationId]
       );
       if (existing.rowCount === 0) {
         await client.query("ROLLBACK");
-        return json(404, { error: "Maintenance log not found." });
+        return json(event, 404, { error: "Maintenance log not found." });
       }
       const productId = existing.rows[0]?.productId;
 
@@ -194,20 +204,20 @@ export async function handler(event = {}) {
           `UPDATE "product"
            SET "isActive" = true,
                "updatedAt" = NOW()
-           WHERE id = $1`,
-          [productId]
+           WHERE id = $1 AND "organizationId" = $2`,
+          [productId, organizationId]
         );
       }
 
       await client.query("COMMIT");
-      return json(200, { id: logId, status });
+      return json(event, 200, { id: logId, status });
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
     }
   } catch (err) {
     console.error("❌ Maintenance error:", err);
-    return json(500, { error: "Failed to process maintenance." });
+    return json(event, 500, { error: "Failed to process maintenance." });
   } finally {
     await client.end().catch(() => {});
   }

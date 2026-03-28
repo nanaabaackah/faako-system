@@ -48,6 +48,31 @@ const getWindowRange = (windowKey = "thisMonth") => {
   }
 
   switch (windowKey) {
+    case "yesterday": {
+      const start = new Date(Date.UTC(year, month, now.getUTCDate() - 1));
+      const end = new Date(Date.UTC(year, month, now.getUTCDate()));
+      return { start, end, label: "Yesterday" };
+    }
+    case "last7Days": {
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const end = now;
+      return { start, end, label: "Last 7 days" };
+    }
+    case "previous7Days": {
+      const end = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return { start, end, label: "Previous 7 days" };
+    }
+    case "last30Days": {
+      const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const end = now;
+      return { start, end, label: "Last 30 days" };
+    }
+    case "previous30Days": {
+      const end = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return { start, end, label: "Previous 30 days" };
+    }
     case "lastMonth": {
       const start = startOfMonth(year, month - 1);
       const end = endOfMonth(year, month - 1);

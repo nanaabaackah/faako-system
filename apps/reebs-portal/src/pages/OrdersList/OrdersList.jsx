@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./OrdersList.css";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
@@ -52,6 +52,80 @@ const normalizeStatus = (status) => {
   if (typeof status !== "string") return "";
   const normalized = status.trim().toLowerCase();
   return normalized === "canceled" ? "cancelled" : normalized;
+};
+
+const ORDER_STATUS_FILTERS = new Set(["all", "pending", "paid", "fulfilled", "cancelled", "completed"]);
+
+const normalizeOrderStatusFilter = (value) => {
+  const normalized = normalizeStatus(value);
+  return ORDER_STATUS_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const ORDER_TIMING_FILTERS = new Set(["all", "today", "overdue"]);
+
+const normalizeOrderTimingFilter = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ORDER_TIMING_FILTERS.has(normalized) ? normalized : "all";
+};
+
+const normalizeIdFilter = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
+};
+
+const isClosedOrder = (order) => {
+  const status = normalizeStatus(order?.status);
+  return ["fulfilled", "completed", "delivered", "cancelled"].includes(status);
+};
+
+const getOrderScheduleDate = (order) => {
+  const details = getFulfillmentDetails(order);
+  const raw = details.date || order?.deliveryDate || order?.orderDate;
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
+const matchesOrderTiming = (order, timingFilter) => {
+  if (timingFilter === "all") return true;
+  if (isClosedOrder(order)) return false;
+  const scheduleDate = getOrderScheduleDate(order);
+  if (!scheduleDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (timingFilter === "today") {
+    return scheduleDate.getTime() === today.getTime();
+  }
+  if (timingFilter === "overdue") {
+    return scheduleDate.getTime() < today.getTime();
+  }
+  return true;
+};
+
+const buildOrdersSearch = ({ query = "", status = "all", assigned = "", timing = "all" } = {}) => {
+  const params = new URLSearchParams();
+  const trimmedQuery = String(query || "").trim();
+  const normalizedStatus = normalizeOrderStatusFilter(status);
+  const normalizedAssigned = normalizeIdFilter(assigned);
+  const normalizedTiming = normalizeOrderTimingFilter(timing);
+  if (trimmedQuery) {
+    params.set("q", trimmedQuery);
+  }
+  if (normalizedStatus !== "all") {
+    params.set("status", normalizedStatus);
+  }
+  if (normalizedAssigned) {
+    params.set("assigned", normalizedAssigned);
+  }
+  if (normalizedTiming !== "all") {
+    params.set("timing", normalizedTiming);
+  }
+  const next = params.toString();
+  return next ? `?${next}` : "";
 };
 
 const isPickupOrder = (deliveryMethod) =>
@@ -129,6 +203,7 @@ const getIsMobileView = () =>
 
 function OrdersList() {
   const { user } = useAuth();
+  const location = useLocation();
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = roleKey === "admin" || roleKey === "manager";
   const [orders, setOrders] = useState([]);
@@ -136,6 +211,8 @@ function OrdersList() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assignedFilter, setAssignedFilter] = useState("");
+  const [timingFilter, setTimingFilter] = useState("all");
   const [viewMode] = useState("cards"); // cards only
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
   const [page, setPage] = useState(0);
@@ -251,11 +328,55 @@ function OrdersList() {
     setDetailEditError("");
   }, [detailOrder]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextQuery = params.get("q") || "";
+    const nextStatus = normalizeOrderStatusFilter(params.get("status"));
+    const nextAssigned = normalizeIdFilter(params.get("assigned"));
+    const nextTiming = normalizeOrderTimingFilter(params.get("timing"));
+    setQuery((current) => (current === nextQuery ? current : nextQuery));
+    setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
+    setAssignedFilter((current) => (current === nextAssigned ? current : nextAssigned));
+    setTimingFilter((current) => (current === nextTiming ? current : nextTiming));
+  }, [location.search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get("id");
+    if (!orderId || loading) return;
+
+    const nextSearch = buildOrdersSearch({
+      query: params.get("q") || "",
+      status: params.get("status") || "all",
+      assigned: params.get("assigned") || "",
+      timing: params.get("timing") || "all",
+    });
+    const targetOrder = orders.find((order) => String(order.id) === String(orderId));
+
+    if (targetOrder) {
+      setDetailOrder(targetOrder);
+    }
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch,
+      },
+      { replace: true }
+    );
+  }, [loading, location.pathname, location.search, navigate, orders]);
+
   const filteredOrders = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const list = orders.filter((order) => {
       const orderStatus = normalizeStatus(order.status || "");
       if (statusFilter !== "all" && orderStatus !== statusFilter) {
+        return false;
+      }
+      if (assignedFilter && String(order.assignedUserId || "") !== assignedFilter) {
+        return false;
+      }
+      if (!matchesOrderTiming(order, timingFilter)) {
         return false;
       }
       if (!needle) return true;
@@ -266,7 +387,7 @@ function OrdersList() {
       );
     });
     return list;
-  }, [orders, query, statusFilter]);
+  }, [assignedFilter, orders, query, statusFilter, timingFilter]);
 
   const sortValue = (order, key) => {
     switch (key) {
@@ -357,7 +478,7 @@ function OrdersList() {
 
   useEffect(() => {
     setPage(0);
-  }, [query, statusFilter, viewMode, orders.length]);
+  }, [assignedFilter, query, statusFilter, timingFilter, viewMode, orders.length]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

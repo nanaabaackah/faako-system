@@ -5,6 +5,13 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
+  ADMIN_PREFERENCES_CHANGE_EVENT,
+  applyAdminPreferences,
+  readAdminPreferences,
+  resolveAdminTheme,
+  writeAdminPreferences,
+} from "../../utils/adminPreferences";
+import {
   faBars,
   faBullhorn,
   faCalendarDays,
@@ -27,6 +34,8 @@ import {
   faUserGroup,
   faUserTie,
   faUsers,
+  faSun,
+  faMoon,
   faChevronLeft,
   faChevronDown,
   faBell,
@@ -40,9 +49,11 @@ import {
 } from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
 import { WEBSITE_URL } from "../../utils/website";
+import { DASHBOARD_PATHS } from "../../utils/adminDashboardLinks";
 
 const MOBILE_QUERY = "(max-width: 720px)";
 const REEBS_PORTAL_LOGO = "/imgs/icons/logo2-white.svg";
+const ADMIN_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 const getSearchShortcutLabel = () => {
   if (typeof navigator === "undefined") return "Ctrl K";
@@ -121,6 +132,7 @@ const DEFAULT_APPS = [
     label: "Expenses",
     path: "/admin/expenses",
     icon: faMoneyCheckDollar,
+    roles: ["admin", "manager"],
   },
   {
     label: "Water",
@@ -138,6 +150,7 @@ const DEFAULT_APPS = [
     label: "Vendors",
     path: "/admin/vendors",
     icon: faStore,
+    roles: ["admin", "manager"],
   },
   {
     label: "Maintenance",
@@ -194,6 +207,39 @@ const normalizePath = (pathname) => {
   return trimmed || "/admin";
 };
 
+const buildPathWithParams = (basePath, params = {}) => {
+  const [pathname, baseSearch = ""] = String(basePath || "").split("?");
+  const searchParams = new URLSearchParams(baseSearch);
+  Object.entries(params).forEach(([key, value]) => {
+    const normalized = value == null ? "" : String(value).trim();
+    if (!normalized) {
+      searchParams.delete(key);
+      return;
+    }
+    searchParams.set(key, normalized);
+  });
+  const nextSearch = searchParams.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
+};
+
+const getResolvedAdminTheme = (userId) => {
+  const storedPreferences = readAdminPreferences(userId);
+  const rootTheme =
+    typeof document !== "undefined"
+      ? document.documentElement.getAttribute("data-admin-theme")
+      : "";
+
+  if (rootTheme === "light" || rootTheme === "dark") {
+    return rootTheme;
+  }
+
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    return resolveAdminTheme(storedPreferences.theme, window.matchMedia(ADMIN_THEME_MEDIA_QUERY));
+  }
+
+  return storedPreferences.theme === "dark" ? "dark" : "light";
+};
+
 const NOTIFICATION_WINDOW_DAYS = 21;
 
 const toDate = (value) => {
@@ -239,10 +285,24 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const [notificationPayload, setNotificationPayload] = useState({ orders: [], bookings: [] });
   const [readNotifications, setReadNotifications] = useState(() => new Set());
   const [navQuery, setNavQuery] = useState("");
+  const [searchPayload, setSearchPayload] = useState({
+    customers: [],
+    inventory: [],
+    orders: [],
+    bookings: [],
+  });
+  const [searchLoaded, setSearchLoaded] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const { user, logout, authReady } = useAuth();
+  const activeAdminUserId = authReady ? user?.id : undefined;
+  const [resolvedAdminTheme, setResolvedAdminTheme] = useState(() =>
+    getResolvedAdminTheme(activeAdminUserId)
+  );
   const isAuthenticated = Boolean(user);
   const userRole = String(user?.role || "staff").toLowerCase();
   const isWaterUser = userRole === "water";
+  const canSearchInvoices = userRole === "admin" || userRole === "manager";
   const authLabel = isAuthenticated ? "Sign out" : "Sign in";
   const authIcon = isAuthenticated ? faArrowRightFromBracket : faArrowRightToBracket;
   const displayName =
@@ -252,6 +312,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     user?.email ||
     (authReady ? "Not signed in" : "Loading...");
   const displayEmail = user?.personalEmail || user?.email || (authReady ? "Sign in required" : "Loading...");
+  const userAvatarSrc = String(user?.imageUrl || user?.profilePhoto || "").trim();
   const userInitials = isAuthenticated
     ? displayName
       .split(/\s+/)
@@ -288,6 +349,41 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    setResolvedAdminTheme(getResolvedAdminTheme(activeAdminUserId));
+  }, [activeAdminUserId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia(ADMIN_THEME_MEDIA_QUERY);
+    const syncTheme = () => {
+      setResolvedAdminTheme(getResolvedAdminTheme(activeAdminUserId));
+    };
+    const handlePreferencesChange = (event) => {
+      const changedUserId = String(event?.detail?.userId || "guest");
+      const currentUserId = String(activeAdminUserId || "guest");
+      if (changedUserId !== currentUserId) return;
+      syncTheme();
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", syncTheme);
+    } else {
+      mediaQuery.addListener(syncTheme);
+    }
+    window.addEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferencesChange);
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", syncTheme);
+      } else {
+        mediaQuery.removeListener(syncTheme);
+      }
+      window.removeEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferencesChange);
+    };
+  }, [activeAdminUserId]);
 
   useEffect(() => {
     setUserMenuOpen(false);
@@ -412,6 +508,71 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   }, [authReady, isAuthenticated, isWaterUser]);
 
   useEffect(() => {
+    if (authReady && isAuthenticated) return;
+    setSearchPayload({ customers: [], inventory: [], orders: [], bookings: [] });
+    setSearchLoaded(false);
+    setSearchLoading(false);
+    setSearchError("");
+  }, [authReady, isAuthenticated]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) return undefined;
+    if (!navQuery.trim() || searchLoaded || searchLoading) return undefined;
+
+    let active = true;
+
+    const fetchSearchData = async () => {
+      setSearchLoading(true);
+      setSearchError("");
+      const requests = [
+        { key: "customers", label: "customers", path: "/.netlify/functions/customers" },
+        { key: "inventory", label: "inventory", path: "/.netlify/functions/inventory" },
+        { key: "orders", label: "orders", path: "/.netlify/functions/orders" },
+        { key: "bookings", label: "bookings", path: "/.netlify/functions/bookings" },
+      ];
+
+      try {
+        const settled = await Promise.allSettled(requests.map((request) => fetch(request.path)));
+        const nextPayload = { customers: [], inventory: [], orders: [], bookings: [] };
+        const errors = [];
+
+        for (let index = 0; index < settled.length; index += 1) {
+          const result = settled[index];
+          const request = requests[index];
+          if (result.status !== "fulfilled") {
+            errors.push(`Unable to load ${request.label}.`);
+            continue;
+          }
+          const response = result.value;
+          const data = await response.json().catch(() => null);
+          if (!response.ok) {
+            errors.push(data?.error || `Unable to load ${request.label}.`);
+            continue;
+          }
+          nextPayload[request.key] = Array.isArray(data) ? data : [];
+        }
+
+        if (!active) return;
+        setSearchPayload(nextPayload);
+        setSearchLoaded(true);
+        setSearchError(errors[0] || "");
+      } catch (err) {
+        if (!active) return;
+        console.error("Failed to load sidebar search data", err);
+        setSearchLoaded(true);
+        setSearchError(err.message || "Unable to load search data.");
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    };
+
+    fetchSearchData();
+    return () => {
+      active = false;
+    };
+  }, [authReady, isAuthenticated, navQuery, searchLoaded, searchLoading]);
+
+  useEffect(() => {
     if (!authReady || !isAuthenticated) return;
     if (typeof window === "undefined") return;
     try {
@@ -454,9 +615,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     [apps, isAuthenticated, isWaterUser, userRole]
   );
 
-  const filteredApps = useMemo(() => {
+  const moduleSearchResults = useMemo(() => {
     const term = navQuery.trim().toLowerCase();
-    if (!term) return visibleApps;
+    if (!term) return [];
 
     return visibleApps.filter((app) =>
       [app.label, app.description, app.path]
@@ -464,6 +625,151 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
         .some((value) => String(value).toLowerCase().includes(term))
     );
   }, [navQuery, visibleApps]);
+
+  const recordSearchResults = useMemo(() => {
+    const needle = navQuery.trim().toLowerCase();
+    if (!needle || !isAuthenticated) return [];
+
+    const matchesText = (value) => String(value || "").toLowerCase().includes(needle);
+    const pushMatches = (target, list, buildItem, limit) => {
+      for (const row of list) {
+        if (target.length >= limit) break;
+        const nextItem = buildItem(row);
+        if (!nextItem) continue;
+        if (target.some((item) => item.key === nextItem.key)) continue;
+        target.push(nextItem);
+      }
+    };
+
+    const orders = searchLoaded ? searchPayload.orders : notificationPayload.orders;
+    const bookings = searchLoaded ? searchPayload.bookings : notificationPayload.bookings;
+    const results = [];
+
+    pushMatches(
+      results,
+      searchPayload.customers.filter((customer) =>
+        matchesText(customer?.name) || matchesText(customer?.phone) || matchesText(customer?.email)
+      ),
+      (customer) => ({
+        key: `customer-${customer.id}`,
+        kind: "Customer",
+        title: customer.name || `Customer #${customer.id}`,
+        meta: [customer.phone, customer.email].filter(Boolean).join(" • ") || "Open customer record",
+        path: buildPathWithParams(DASHBOARD_PATHS.customerDirectory, { id: customer.id }),
+        icon: faUserGroup,
+      }),
+      3
+    );
+
+    pushMatches(
+      results,
+      orders.filter((order) =>
+        matchesText(order?.orderNumber) || matchesText(order?.customerName) || matchesText(order?.status)
+      ),
+      (order) => ({
+        key: `order-${order.id}`,
+        kind: "Order",
+        title: order.orderNumber || `Order #${order.id}`,
+        meta: order.customerName ? `Customer: ${order.customerName}` : "Open order",
+        path: buildPathWithParams(DASHBOARD_PATHS.orders, { id: order.id }),
+        icon: faClipboardList,
+      }),
+      6
+    );
+
+    pushMatches(
+      results,
+      bookings.filter((booking) =>
+        matchesText(booking?.id) || matchesText(booking?.customerName) || matchesText(booking?.status)
+      ),
+      (booking) => ({
+        key: `booking-${booking.id}`,
+        kind: "Booking",
+        title: `Booking #${booking.id}`,
+        meta: booking.customerName ? `Client: ${booking.customerName}` : "Open booking",
+        path: buildPathWithParams("/admin/bookings", { id: booking.id }),
+        icon: faCalendarDays,
+      }),
+      9
+    );
+
+    pushMatches(
+      results,
+      searchPayload.inventory.filter((item) =>
+        matchesText(item?.name) || matchesText(item?.sku) || matchesText(item?.barcode)
+      ),
+      (item) => ({
+        key: `product-${item.id}`,
+        kind: "Product",
+        title: item.name || `Product #${item.id}`,
+        meta: item.sku ? `SKU: ${item.sku}` : "Open product inventory",
+        path: buildPathWithParams(DASHBOARD_PATHS.inventory, { q: item.name || item.sku || item.id }),
+        icon: faBoxesStacked,
+      }),
+      12
+    );
+
+    if (canSearchInvoices) {
+      pushMatches(
+        results,
+        orders.filter((order) =>
+          matchesText(order?.orderNumber) || matchesText(order?.customerName)
+        ),
+        (order) => ({
+          key: `invoice-order-${order.id}`,
+          kind: "Invoice",
+          title: `Receipt ${order.orderNumber || `#${order.id}`}`,
+          meta: order.customerName ? `Receipt for ${order.customerName}` : "Open order receipt",
+          path: `/admin/invoicing?type=orders&id=${order.id}`,
+          icon: faFileInvoiceDollar,
+        }),
+        14
+      );
+      pushMatches(
+        results,
+        bookings.filter((booking) =>
+          matchesText(booking?.id) || matchesText(booking?.customerName)
+        ),
+        (booking) => ({
+          key: `invoice-booking-${booking.id}`,
+          kind: "Invoice",
+          title: `Invoice for Booking #${booking.id}`,
+          meta: booking.customerName ? `Rental invoice for ${booking.customerName}` : "Open booking invoice",
+          path: `/admin/invoicing?type=bookings&id=${booking.id}`,
+          icon: faFileInvoiceDollar,
+        }),
+        16
+      );
+    }
+
+    return results.slice(0, 8);
+  }, [
+    canSearchInvoices,
+    isAuthenticated,
+    navQuery,
+    notificationPayload.bookings,
+    notificationPayload.orders,
+    searchLoaded,
+    searchPayload.bookings,
+    searchPayload.customers,
+    searchPayload.inventory,
+    searchPayload.orders,
+  ]);
+
+  const handleSearchNavigate = (item) => {
+    setNavQuery("");
+    setUserMenuOpen(false);
+    if (isMobile) {
+      setOverlayOpen(false);
+    }
+    if (item.external) {
+      if (typeof window !== "undefined") {
+        window.open(item.path, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+    navigate(item.path);
+  };
 
   const renderSearch = (context = "sidebar") => (
     <label
@@ -474,20 +780,22 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       <input
         id={`portal-sidebar-search-${context}`}
         ref={searchFieldRef}
-        type="search"
+        type="text"
         className="portal-sidebar__search-input"
         value={navQuery}
         onChange={(event) => setNavQuery(event.target.value)}
-        placeholder="Search portal..."
+        placeholder="Search"
+        enterKeyHint="search"
+        autoComplete="off"
       />
       <span className="portal-sidebar__search-hint">{searchShortcutLabel}</span>
     </label>
   );
 
   const renderLinks = (context = "sidebar") => (
-    filteredApps.length > 0 ? (
+    visibleApps.length > 0 ? (
       <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
-        {filteredApps.map((app) => {
+        {visibleApps.map((app) => {
         const active = isActive(app);
         const linkClasses = ["portal-sidebar__link", active ? "is-active" : ""]
           .filter(Boolean)
@@ -555,6 +863,92 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     )
   );
 
+  const renderSearchResults = (context = "sidebar") => {
+    const trimmedQuery = navQuery.trim();
+    if (!trimmedQuery || !isAuthenticated) {
+      return renderLinks(context);
+    }
+
+    const moduleResults = moduleSearchResults
+      .slice(0, 4)
+      .map((app) => ({
+        key: `module-${app.label}`,
+        kind: "Module",
+        title: app.label,
+        meta: app.description || app.path,
+        path: app.path,
+        icon: app.icon,
+        external: Boolean(app.external),
+      }));
+    const hasResults = recordSearchResults.length > 0 || moduleResults.length > 0;
+
+    return (
+      <div className={`portal-sidebar__search-results portal-sidebar__search-results--${context}`}>
+        {searchLoading && (
+          <p className="portal-sidebar__search-status">Searching customers, orders, bookings, inventory, and modules...</p>
+        )}
+        {searchError && (
+          <p className="portal-sidebar__search-status is-warning">{searchError}</p>
+        )}
+        {recordSearchResults.length > 0 && (
+          <div className="portal-sidebar__search-group">
+            <p className="portal-sidebar__search-section-label">Records</p>
+            <ul className="portal-sidebar__search-list">
+              {recordSearchResults.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    className="portal-sidebar__search-result"
+                    onClick={() => handleSearchNavigate(item)}
+                  >
+                    <span className="portal-sidebar__search-result-icon" aria-hidden="true">
+                      <AppIcon icon={item.icon} />
+                    </span>
+                    <span className="portal-sidebar__search-result-copy">
+                      <strong>{item.title}</strong>
+                      <span>{item.meta}</span>
+                    </span>
+                    <span className="portal-sidebar__search-result-kind">{item.kind}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {moduleResults.length > 0 && (
+          <div className="portal-sidebar__search-group">
+            <p className="portal-sidebar__search-section-label">Modules</p>
+            <ul className="portal-sidebar__search-list">
+              {moduleResults.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    className="portal-sidebar__search-result"
+                    onClick={() => handleSearchNavigate(item)}
+                  >
+                    <span className="portal-sidebar__search-result-icon" aria-hidden="true">
+                      <AppIcon icon={item.icon} />
+                    </span>
+                    <span className="portal-sidebar__search-result-copy">
+                      <strong>{item.title}</strong>
+                      <span>{item.meta}</span>
+                    </span>
+                    <span className="portal-sidebar__search-result-kind">{item.kind}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {!searchLoading && !hasResults && (
+          <p className="portal-sidebar__empty" role="status" aria-live="polite">
+            No records or modules match "{trimmedQuery}".
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const handleSignOut = () => {
     logout();
     setUserMenuOpen(false);
@@ -574,6 +968,22 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       return;
     }
     handleSignOut();
+  };
+
+  const handleThemeChange = (nextTheme) => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const mediaQuery = window.matchMedia(ADMIN_THEME_MEDIA_QUERY);
+    const nextPreferences = writeAdminPreferences(activeAdminUserId, {
+      ...readAdminPreferences(activeAdminUserId),
+      theme: nextTheme,
+    });
+
+    applyAdminPreferences(nextPreferences, {
+      root: document.documentElement,
+      mediaQuery,
+    });
+    setResolvedAdminTheme(resolveAdminTheme(nextPreferences.theme, mediaQuery));
   };
 
   const notifications = useMemo(() => {
@@ -757,26 +1167,37 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
   const renderNotifications = (context = "sidebar") => {
     if (isWaterUser) return null;
+    const compactCollapsedSidebar = context === "sidebar" && !isMobile && !expanded;
+    const unreadBadgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
     return (
       <div className={`portal-sidebar__notifications portal-sidebar__notifications--${context}`}>
         <button
           type="button"
           className="portal-sidebar__notifications-toggle"
-          onClick={() => setNotificationsOpen((open) => !open)}
-          aria-expanded={notificationsOpen}
-          aria-label="Toggle notifications"
+          onClick={() => {
+            if (compactCollapsedSidebar) return;
+            setNotificationsOpen((open) => !open);
+          }}
+          aria-expanded={compactCollapsedSidebar ? false : notificationsOpen}
+          aria-label={
+            unreadCount > 0
+              ? `${unreadBadgeLabel} unread notifications`
+              : "Notifications"
+          }
         >
           <span className="portal-sidebar__notifications-title">
             <AppIcon icon={faBell} />
             <span>Notifications</span>
           </span>
-          <span className="portal-sidebar__notifications-count">{unreadCount}</span>
+          {unreadCount > 0 && (
+            <span className="portal-sidebar__notifications-count">{unreadBadgeLabel}</span>
+          )}
           <AppIcon
             icon={faChevronDown}
             className={`portal-sidebar__notifications-caret ${notificationsOpen ? "is-open" : ""}`}
           />
         </button>
-        {notificationsOpen && (
+        {!compactCollapsedSidebar && notificationsOpen && (
           <div className="portal-sidebar__notifications-body">
             {isAuthenticated && unreadCount > 0 && (
               <div className="portal-sidebar__notifications-actions">
@@ -847,8 +1268,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
         aria-label="Open user menu"
       >
         <span className="portal-sidebar__user-avatar">
-          {user?.profilePhoto ? (
-            <img src={user.profilePhoto} alt={displayName} />
+          {userAvatarSrc ? (
+            <img src={userAvatarSrc} alt={displayName} />
           ) : (
             userInitials
           )}
@@ -878,6 +1299,33 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               <span>Profile settings</span>
             </Link>
           )}
+          <div className="portal-sidebar__user-menu-group">
+            <p className="portal-sidebar__user-menu-label">Appearance</p>
+            <div className="portal-sidebar__theme-toggle" role="group" aria-label="Theme">
+              <button
+                type="button"
+                className={`portal-sidebar__theme-option ${resolvedAdminTheme === "light" ? "is-active" : ""}`}
+                onClick={() => handleThemeChange("light")}
+                aria-pressed={resolvedAdminTheme === "light"}
+                title="Light mode"
+                aria-label="Light mode"
+              >
+                <AppIcon icon={faSun} />
+                <span className="sr-only">Light mode</span>
+              </button>
+              <button
+                type="button"
+                className={`portal-sidebar__theme-option ${resolvedAdminTheme === "dark" ? "is-active" : ""}`}
+                onClick={() => handleThemeChange("dark")}
+                aria-pressed={resolvedAdminTheme === "dark"}
+                title="Dark mode"
+                aria-label="Dark mode"
+              >
+                <AppIcon icon={faMoon} />
+                <span className="sr-only">Dark mode</span>
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             className="portal-sidebar__signout-btn"
@@ -928,7 +1376,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               </div>
               {renderSearch("overlay")}
               <nav className="portal-sidebar__overlay-nav" aria-label="Portal apps">
-                {renderLinks("overlay")}
+                {renderSearchResults("overlay")}
               </nav>
               <div className="portal-sidebar__footer">
                 {renderNotifications("overlay")}
@@ -971,7 +1419,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             </div>
           </div>
           {!isMobile && expanded && renderSearch()}
-          {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
+          {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderSearchResults()}</nav>}
           {!isMobile && (
             <div className="portal-sidebar__footer">
               {renderNotifications()}

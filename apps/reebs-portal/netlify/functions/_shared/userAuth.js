@@ -2,9 +2,72 @@ import crypto from "crypto";
 import { touchUserSession } from "./userSessions.js";
 
 const getSecret = () => process.env.USER_APP_SECRET || "";
+export const USER_SESSION_COOKIE_NAME =
+  String(process.env.USER_SESSION_COOKIE_NAME || "reebs_user_session").trim()
+  || "reebs_user_session";
 
 const base64UrlEncode = (value) => Buffer.from(value, "utf8").toString("base64url");
 const base64UrlDecode = (value) => Buffer.from(value, "base64url").toString("utf8");
+
+const getHeaderValue = (event, key) => {
+  const headers = event?.headers;
+  if (!headers || typeof headers !== "object") return "";
+  return String(
+    headers[key]
+    || headers[key.toLowerCase()]
+    || headers[key.toUpperCase()]
+    || ""
+  ).trim();
+};
+
+const parseCookieHeader = (value) => {
+  const cookies = new Map();
+  String(value || "")
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      const separatorIndex = part.indexOf("=");
+      if (separatorIndex <= 0) return;
+      const key = part.slice(0, separatorIndex).trim();
+      const rawValue = part.slice(separatorIndex + 1).trim();
+      if (!key) return;
+      cookies.set(key, rawValue);
+    });
+  return cookies;
+};
+
+const isLocalHostValue = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized.includes("localhost") || normalized.includes("127.0.0.1");
+};
+
+const shouldUseSecureCookies = (event) => {
+  const forwardedProto = getHeaderValue(event, "x-forwarded-proto").toLowerCase();
+  if (forwardedProto === "http") return false;
+  if (forwardedProto === "https") return true;
+
+  const origin = getHeaderValue(event, "origin");
+  if (origin) {
+    try {
+      const parsed = new URL(origin);
+      return parsed.protocol === "https:";
+    } catch {
+      return !isLocalHostValue(origin);
+    }
+  }
+
+  const host = getHeaderValue(event, "host");
+  return host ? !isLocalHostValue(host) : true;
+};
+
+const resolveCookieDomain = (event) => {
+  const configuredDomain = String(process.env.USER_SESSION_COOKIE_DOMAIN || "").trim();
+  if (configuredDomain && !isLocalHostValue(configuredDomain)) {
+    return configuredDomain;
+  }
+  return "";
+};
 
 const signPayload = (payload, secret) => {
   const json = JSON.stringify(payload);
@@ -51,11 +114,78 @@ export const verifyUserToken = (token) => {
   return verifyPayload(token, secret);
 };
 
-export const getUserFromEvent = (event) => {
+export const getBearerUserTokenFromEvent = (event) => {
   const header = event?.headers?.authorization || event?.headers?.Authorization || "";
   if (!header || !header.toLowerCase().startsWith("bearer ")) return null;
-  const token = header.slice(7).trim();
+  return header.slice(7).trim() || null;
+};
+
+export const getCookieUserTokenFromEvent = (event) => {
+  const cookies = parseCookieHeader(
+    getHeaderValue(event, "cookie") || getHeaderValue(event, "Cookie")
+  );
+  const token = cookies.get(USER_SESSION_COOKIE_NAME);
+  if (!token) return null;
+  try {
+    return decodeURIComponent(token);
+  } catch {
+    return token;
+  }
+};
+
+export const getUserTokenFromEvent = (event) =>
+  getBearerUserTokenFromEvent(event) || getCookieUserTokenFromEvent(event);
+
+export const getUserFromEvent = (event) => {
+  const token = getUserTokenFromEvent(event);
   return verifyUserToken(token);
+};
+
+export const buildUserSessionCookie = (event, token, { ttlMs } = {}) => {
+  const parts = [
+    `${USER_SESSION_COOKIE_NAME}=${encodeURIComponent(String(token || ""))}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+  ];
+
+  if (shouldUseSecureCookies(event)) {
+    parts.push("Secure");
+  }
+
+  const domain = resolveCookieDomain(event);
+  if (domain) {
+    parts.push(`Domain=${domain}`);
+  }
+
+  const ttlSeconds = Math.max(0, Math.floor(Number(ttlMs || 0) / 1000));
+  if (ttlSeconds > 0) {
+    parts.push(`Max-Age=${ttlSeconds}`);
+  }
+
+  return parts.join("; ");
+};
+
+export const clearUserSessionCookie = (event) => {
+  const parts = [
+    `${USER_SESSION_COOKIE_NAME}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+  ];
+
+  if (shouldUseSecureCookies(event)) {
+    parts.push("Secure");
+  }
+
+  const domain = resolveCookieDomain(event);
+  if (domain) {
+    parts.push(`Domain=${domain}`);
+  }
+
+  return parts.join("; ");
 };
 
 export const requireUser = async (client, event) => {
@@ -68,7 +198,14 @@ export const requireUser = async (client, event) => {
   if (sessionTokenId) {
     try {
       const sessionResult = await client.query(
-        `SELECT u.id, u."organizationId", u.role, u."fullName", u.email
+        `SELECT
+           u.id,
+           u."organizationId",
+           u.role,
+           u."fullName",
+           u.email,
+           s."createdAt" AS "sessionCreatedAt",
+           s."lastSeenAt" AS "sessionLastSeenAt"
          FROM "user" u
          INNER JOIN "userSession" s
            ON s."userId" = u.id
@@ -96,7 +233,14 @@ export const requireUser = async (client, event) => {
   }
 
   const result = await client.query(
-    `SELECT id, "organizationId", role, "fullName", email
+    `SELECT
+       id,
+       "organizationId",
+       role,
+       "fullName",
+       email,
+       NULL::timestamptz AS "sessionCreatedAt",
+       NULL::timestamptz AS "sessionLastSeenAt"
      FROM "user"
      WHERE id = $1 AND "organizationId" = $2
      LIMIT 1`,

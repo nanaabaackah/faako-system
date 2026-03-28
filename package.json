@@ -15,7 +15,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "create:app": "node ./scripts/create-app-from-reference.mjs"
+    "create:app": "node ./scripts/create-app-from-reference.mjs",
+    "security:scan": "node ./scripts/security-scan.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

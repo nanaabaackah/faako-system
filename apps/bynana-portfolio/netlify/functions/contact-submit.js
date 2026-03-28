@@ -31,7 +31,10 @@ if (!globalThis.__bynanaContactRateLimitBuckets) {
 const buildBaseHeaders = () => ({
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store',
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
   'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 })
 

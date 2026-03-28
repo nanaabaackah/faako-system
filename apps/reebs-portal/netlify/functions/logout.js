@@ -2,11 +2,11 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
-import { getUserFromEvent } from "./_shared/userAuth.js";
+import { clearUserSessionCookie, getUserFromEvent } from "./_shared/userAuth.js";
 import { ensureUserSessionsTable, revokeUserSession } from "./_shared/userSessions.js";
 
-const respond = (event, statusCode, body = {}) =>
-  json(event, statusCode, body, { methods: "POST, OPTIONS" });
+const respond = (event, statusCode, body = {}, extraHeaders = {}) =>
+  json(event, statusCode, body, { methods: "POST, OPTIONS", extraHeaders });
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -26,7 +26,9 @@ export async function handler(event) {
     typeof payload?.sessionTokenId === "string" ? payload.sessionTokenId.trim() : "";
 
   if (!sessionTokenId) {
-    return respond(event, 200, { revoked: false });
+    return respond(event, 200, { revoked: false }, {
+      "Set-Cookie": clearUserSessionCookie(event),
+    });
   }
 
   const client = new Client({
@@ -38,7 +40,9 @@ export async function handler(event) {
     await client.connect();
     await ensureUserSessionsTable(client);
     const revoked = await revokeUserSession(client, sessionTokenId);
-    return respond(event, 200, { revoked });
+    return respond(event, 200, { revoked }, {
+      "Set-Cookie": clearUserSessionCookie(event),
+    });
   } catch (error) {
     console.error("Logout error", error);
     return respond(event, 500, { error: "Failed to close session." });

@@ -1,192 +1,31 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppIcon } from "/src/components/Icon/Icon";
-import {
-  faArrowLeft,
-  faClock,
-  faMinus,
-  faMoneyBillWave,
-  faPlus,
-  faRotateRight,
-  faTrash,
-  faXmark,
-} from "/src/icons/iconSet";
 import { useAuth } from "../../components/AuthContext/AuthContext";
-import SearchField from "../../components/SearchField/SearchField";
-import { getCatalogItemImage } from "../../utils/itemMediaBackgrounds";
+import { StoreModeLayout } from "./components/StoreModeLayout";
+import {
+  EMAIL_PATTERN,
+  LOW_STOCK_THRESHOLD,
+  clearStoreModeDraft,
+  getAvailableQuantity,
+  getCategory,
+  getCustomerLabel,
+  getQuantity,
+  getStoreModeDraftKey,
+  getUnitPrice,
+  isSaleableProduct,
+  normalizePhoneDigits,
+  normalizeText,
+  parseReceiptContact,
+  readStoreModeDraft,
+  sanitizeDraftCustomer,
+  sanitizeDraftOrderItems,
+  sanitizeDraftString,
+  sortCustomersByName,
+  todayValue,
+  writeStoreModeDraft,
+} from "./storeModeShared";
 import "./StoreMode.css";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const getQuantity = (item) => {
-  const raw = item?.quantity ?? item?.stock ?? 0;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const getUnitPrice = (item) => {
-  if (typeof item?.price === "number") return item.price;
-  if (typeof item?.price === "string") {
-    const parsed = Number(item.price);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (typeof item?.priceCents === "number") return item.priceCents / 100;
-  if (typeof item?.priceCents === "string") {
-    const parsed = Number(item.priceCents);
-    return Number.isFinite(parsed) ? parsed / 100 : 0;
-  }
-  return 0;
-};
-
-const getCategory = (item) =>
-  item?.specificCategory || item?.specificcategory || item?.sourceCategoryCode || "General";
-
-const isSaleableProduct = (item) => {
-  const source = String(item?.sourceCategoryCode || item?.sourcecategorycode || "")
-    .trim()
-    .toLowerCase();
-  return source !== "rental";
-};
-
-const formatMoney = (value, currency = "GHS") => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return "-";
-  try {
-    return new Intl.NumberFormat("en-GH", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(numeric);
-  } catch {
-    return `${currency} ${numeric.toFixed(2)}`;
-  }
-};
-
-const normalizeText = (value) =>
-  typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
-
-const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
-
-const parseReceiptContact = (value) => {
-  const normalized = normalizeText(value);
-  if (!normalized) {
-    return { channel: "", value: "", email: "", phone: "", isValid: false };
-  }
-  if (EMAIL_PATTERN.test(normalized)) {
-    const email = normalized.toLowerCase();
-    return { channel: "email", value: email, email, phone: "", isValid: true };
-  }
-  const digits = normalizePhoneDigits(normalized);
-  if (digits.length >= 9) {
-    return { channel: "whatsapp", value: normalized, email: "", phone: normalized, isValid: true };
-  }
-  return { channel: "", value: normalized, email: "", phone: "", isValid: false };
-};
-
-const todayValue = () => new Date().toISOString().slice(0, 10);
-
-const PAYMENT_OPTIONS = [
-  { value: "cash", label: "Cash" },
-  { value: "momo", label: "MoMo" },
-];
-
-const DISCOUNT_OPTIONS = [
-  { value: "amount", label: "Amount" },
-  { value: "percent", label: "%" },
-];
-
-const sortCustomersByName = (customers) =>
-  [...customers].sort((left, right) =>
-    String(left?.name || left?.email || left?.phone || "").localeCompare(
-      String(right?.name || right?.email || right?.phone || "")
-    )
-  );
-
-const getCustomerLabel = (customer) =>
-  customer?.name || customer?.email || customer?.phone || `Customer #${customer?.id ?? ""}`;
-
-const getCustomerMeta = (customer) =>
-  [customer?.email, customer?.phone].filter(Boolean).join(" · ") || `ID ${customer?.id ?? "-"}`;
-
-const STORE_MODE_DRAFT_VERSION = 1;
-const STORE_MODE_DRAFT_PREFIX = "reebs-store-mode-draft";
-
-const sanitizeDraftString = (value, max = 240) =>
-  typeof value === "string" ? value.slice(0, max) : "";
-
-const sanitizeDraftOrderItems = (value) => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const productId = Number(item?.productId);
-      const quantity = Math.max(1, Math.round(Number(item?.quantity) || 0));
-      const unitPrice = Number(item?.unitPrice);
-      const stock = Number(item?.stock);
-      if (!Number.isFinite(productId) || productId <= 0) return null;
-      return {
-        productId,
-        name: sanitizeDraftString(item?.name || "Untitled", 160) || "Untitled",
-        quantity,
-        unitPrice: Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
-        stock: Number.isFinite(stock) && stock >= 0 ? stock : quantity,
-        currency: sanitizeDraftString(item?.currency || "GHS", 8) || "GHS",
-      };
-    })
-    .filter(Boolean);
-};
-
-const sanitizeDraftCustomer = (value) => {
-  if (!value || typeof value !== "object") return null;
-  const id = Number(value.id);
-  const customer = {
-    id: Number.isFinite(id) && id > 0 ? id : null,
-    name: sanitizeDraftString(value.name, 160),
-    email: sanitizeDraftString(value.email, 160),
-    phone: sanitizeDraftString(value.phone, 40),
-  };
-  return customer.id || customer.name || customer.email || customer.phone ? customer : null;
-};
-
-const getStoreModeDraftKey = (user) => {
-  const organizationId = Number(user?.organizationId);
-  const userId = Number(user?.id);
-  if (!Number.isFinite(organizationId) || organizationId <= 0) return "";
-  if (!Number.isFinite(userId) || userId <= 0) return "";
-  return `${STORE_MODE_DRAFT_PREFIX}:${organizationId}:${userId}`;
-};
-
-const readStoreModeDraft = (key) => {
-  if (!key || typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed?.version !== STORE_MODE_DRAFT_VERSION || !parsed?.data || typeof parsed.data !== "object") {
-      return null;
-    }
-    return parsed.data;
-  } catch {
-    return null;
-  }
-};
-
-const writeStoreModeDraft = (key, data) => {
-  if (!key || typeof window === "undefined") return;
-  window.sessionStorage.setItem(
-    key,
-    JSON.stringify({
-      version: STORE_MODE_DRAFT_VERSION,
-      savedAt: Date.now(),
-      data,
-    })
-  );
-};
-
-const clearStoreModeDraft = (key) => {
-  if (!key || typeof window === "undefined") return;
-  window.sessionStorage.removeItem(key);
-};
 
 function StoreMode() {
   const navigate = useNavigate();
@@ -325,11 +164,17 @@ function StoreMode() {
     return Array.from(values).sort((left, right) => left.localeCompare(right));
   }, [items]);
 
+  const orderQtyById = useMemo(
+    () => new Map(orderItems.map((item) => [item.productId, item.quantity])),
+    [orderItems]
+  );
+
   const filteredItems = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return items
       .filter((item) => {
-        const stock = getQuantity(item);
+        const quantityInOrder = orderQtyById.get(Number(item?.id)) || 0;
+        const stock = getAvailableQuantity(item, quantityInOrder);
         if (needle) {
           const haystack = [item?.name || "", item?.sku || "", item?.barcode || ""]
             .join(" ")
@@ -338,21 +183,21 @@ function StoreMode() {
         }
         if (categoryFilter !== "all" && getCategory(item) !== categoryFilter) return false;
         if (stockFilter === "in" && stock <= 0) return false;
-        if (stockFilter === "low" && (stock <= 0 || stock > 5)) return false;
+        if (stockFilter === "low" && (stock <= 0 || stock > LOW_STOCK_THRESHOLD)) return false;
         if (stockFilter === "out" && stock > 0) return false;
         return true;
       })
       .sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || "")));
-  }, [categoryFilter, items, search, stockFilter]);
+  }, [categoryFilter, items, orderQtyById, search, stockFilter]);
 
-  const mobileSearchTerm = search.trim();
+  const searchTerm = search.trim();
+  const hasSearchQuery = Boolean(searchTerm);
   const visibleItems = useMemo(() => {
-    if (isMobileViewport && !mobileSearchTerm) return [];
+    if (!hasSearchQuery) return [];
     return filteredItems;
-  }, [filteredItems, isMobileViewport, mobileSearchTerm]);
+  }, [filteredItems, hasSearchQuery]);
 
-  const emptyStateMessage =
-    isMobileViewport && !mobileSearchTerm ? "Search for a product to start a sale." : "No items match this filter.";
+  const emptyStateMessage = hasSearchQuery ? "No items match this filter." : "";
 
   const normalizedCustomerLookup = useMemo(() => normalizeText(customerName), [customerName]);
   const normalizedCustomerLookupLower = normalizedCustomerLookup.toLowerCase();
@@ -393,19 +238,14 @@ function StoreMode() {
 
   const showAddCustomerOption = Boolean(normalizedCustomerLookup) && !hasExactCustomerMatch;
 
-  const orderQtyById = useMemo(
-    () => new Map(orderItems.map((item) => [item.productId, item.quantity])),
-    [orderItems]
-  );
-
   const sortedVisibleItems = useMemo(() => {
     const direction = sortConfig.direction === "asc" ? 1 : -1;
     const compareText = (left, right) => left.localeCompare(right) * direction;
     const compareNumber = (left, right) => (left - right) * direction;
 
     return [...visibleItems].sort((left, right) => {
-      const leftOutOfStock = getQuantity(left) <= 0;
-      const rightOutOfStock = getQuantity(right) <= 0;
+      const leftOutOfStock = getAvailableQuantity(left, orderQtyById.get(Number(left?.id)) || 0) <= 0;
+      const rightOutOfStock = getAvailableQuantity(right, orderQtyById.get(Number(right?.id)) || 0) <= 0;
       if (leftOutOfStock !== rightOutOfStock) {
         return leftOutOfStock ? 1 : -1;
       }
@@ -421,13 +261,16 @@ function StoreMode() {
         case "price":
           return compareNumber(getUnitPrice(left), getUnitPrice(right));
         case "stock":
-          return compareNumber(getQuantity(left), getQuantity(right));
+          return compareNumber(
+            getAvailableQuantity(left, orderQtyById.get(Number(left?.id)) || 0),
+            getAvailableQuantity(right, orderQtyById.get(Number(right?.id)) || 0)
+          );
         case "item":
         default:
           return compareText(String(left?.name || ""), String(right?.name || ""));
       }
     });
-  }, [sortConfig.direction, sortConfig.key, visibleItems]);
+  }, [orderQtyById, sortConfig.direction, sortConfig.key, visibleItems]);
 
   const requestSort = (key) => {
     setSortConfig((prev) => {
@@ -505,7 +348,6 @@ function StoreMode() {
     () => orderItems.reduce((sum, item) => sum + item.quantity, 0),
     [orderItems]
   );
-  const summaryMetricCount = paymentMethod === "cash" ? 5 : 3;
   const receiptChannel = receiptContact.isValid ? receiptContact.channel : "";
   const canCompleteSale =
     orderItems.length > 0 &&
@@ -852,516 +694,99 @@ function StoreMode() {
   };
 
   return (
-    <div className="store-mode-page">
-      <div className="store-mode-shell">
-        <header className="store-mode-topbar">
-          <button type="button" className="store-mode-exit" onClick={() => navigate("/admin")}>
-            <AppIcon icon={faArrowLeft} />
-            <span className="store-mode-exit-label store-mode-exit-label--full">Leave Store Mode</span>
-            <span className="store-mode-exit-label store-mode-exit-label--short">Exit</span>
-          </button>
-          <div className="store-mode-topbar-copy">
-            <h1>Point of sale</h1>
-          </div>
-          <button
-            type="button"
-            className="store-mode-refresh store-mode-refresh--icon"
-            onClick={refreshInventory}
-            disabled={loading}
-            aria-label="Refresh inventory"
-            title="Refresh inventory"
-          >
-            <AppIcon icon={faRotateRight} />
-          </button>
-        </header>
-
-        {(loading || error || submitError || success) && (
-          <div className="store-mode-feedback">
-            {loading && <p className="admin-status">Loading stock...</p>}
-            {!loading && error && <p className="admin-error">{error}</p>}
-            {submitError && <p className="admin-error">{submitError}</p>}
-            {success && <p className="admin-success">{success}</p>}
-          </div>
-        )}
-
-        <section className="store-mode-surface">
-          <div className="store-mode-toolbar">
-            <SearchField
-              className="store-mode-search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onClear={() => setSearch("")}
-              placeholder="Search item"
-              aria-label="Search stock"
-            />
-
-            <div className="store-mode-filter-row" role="group" aria-label="Stock filter">
-              {[
-                { id: "all", label: "All" },
-                { id: "in", label: "In stock" },
-                { id: "low", label: "Low" },
-                { id: "out", label: "Out" },
-              ].map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`store-mode-filter-btn ${stockFilter === option.id ? "is-active" : ""}`}
-                  onClick={() => setStockFilter(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <label className="store-mode-category">
-              <span>Category</span>
-              <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                <option value="all">All</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="store-mode-table-scroll">
-            <table className="store-mode-table">
-              <thead>
-                <tr>
-                  <th className="store-mode-col store-mode-col--item">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("item")}
-                      onClick={() => requestSort("item")}
-                      aria-pressed={sortConfig.key === "item"}
-                    >
-                      Item <span className="sort-indicator">{sortIndicator("item")}</span>
-                    </button>
-                  </th>
-                  <th className="store-mode-col store-mode-col--sku">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("sku")}
-                      onClick={() => requestSort("sku")}
-                      aria-pressed={sortConfig.key === "sku"}
-                    >
-                      SKU <span className="sort-indicator">{sortIndicator("sku")}</span>
-                    </button>
-                  </th>
-                  <th className="store-mode-col store-mode-col--category">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("category")}
-                      onClick={() => requestSort("category")}
-                      aria-pressed={sortConfig.key === "category"}
-                    >
-                      Category <span className="sort-indicator">{sortIndicator("category")}</span>
-                    </button>
-                  </th>
-                  <th className="store-mode-col store-mode-col--price">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("price")}
-                      onClick={() => requestSort("price")}
-                      aria-pressed={sortConfig.key === "price"}
-                    >
-                      Price <span className="sort-indicator">{sortIndicator("price")}</span>
-                    </button>
-                  </th>
-                  <th className="store-mode-col store-mode-col--stock">
-                    <button
-                      type="button"
-                      className={sortHeaderClassName("stock")}
-                      onClick={() => requestSort("stock")}
-                      aria-pressed={sortConfig.key === "stock"}
-                    >
-                      Stock <span className="sort-indicator">{sortIndicator("stock")}</span>
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {!loading && visibleItems.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="store-mode-empty">
-                      {emptyStateMessage}
-                    </td>
-                  </tr>
-                )}
-                {sortedVisibleItems.map((item) => {
-                  const productId = Number(item.id);
-                  const stock = getQuantity(item);
-                  const currentQty = orderQtyById.get(productId) || 0;
-                  const isOut = stock <= 0;
-                  const isLow = !isOut && stock <= 5;
-                  const isSelected = selectedProductId === productId || currentQty > 0;
-                  const showCompactOrderControls = isSelected || currentQty > 0;
-                  const productName = item.name || "Untitled";
-                  const productImage = getCatalogItemImage(item);
-                  const productPrice = formatMoney(getUnitPrice(item), item.currency || "GHS");
-                  return (
-                    <tr
-                      key={item.id}
-                      className={`${isOut ? "is-out" : isLow ? "is-low" : ""} ${isSelected ? "is-selected" : ""} ${!isOut ? "store-mode-row--clickable" : ""}`}
-                      onClick={
-                        !isOut
-                          ? () => {
-                              addToOrder(item);
-                            }
-                          : undefined
-                      }
-                      onKeyDown={
-                        !isOut
-                          ? (event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                addToOrder(item);
-                              }
-                            }
-                          : undefined
-                      }
-                      tabIndex={!isOut ? 0 : undefined}
-                      role={!isOut ? "button" : undefined}
-                    >
-                      <td className="store-mode-cell store-mode-cell--item">
-                        <div className="store-mode-product">
-                          <button
-                            type="button"
-                            className="store-mode-product-image-trigger"
-                            onMouseEnter={() => {
-                              if (!isMobileViewport) showImagePreview(productImage, productName);
-                            }}
-                            onMouseLeave={() => {
-                              if (!isMobileViewport) hideImagePreview();
-                            }}
-                            onFocus={() => {
-                              if (!isMobileViewport) showImagePreview(productImage, productName);
-                            }}
-                            onBlur={() => {
-                              if (!isMobileViewport) hideImagePreview();
-                            }}
-                            aria-label={`Preview ${productName}`}
-                          >
-                            <img
-                              className="store-mode-product-image"
-                              src={productImage}
-                              alt={productName}
-                              loading="lazy"
-                            />
-                          </button>
-                          <div className="store-mode-product-copy">
-                            <strong>{productName}</strong>
-                            <span className="store-mode-product-price">{productPrice}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="store-mode-cell store-mode-cell--sku" data-label="SKU">
-                        {item.sku || `ID ${item.id}`}
-                      </td>
-                      <td className="store-mode-cell store-mode-cell--category" data-label="Category">
-                        {getCategory(item)}
-                      </td>
-                      <td className="store-mode-cell store-mode-cell--price" data-label="Price">{productPrice}</td>
-                      <td className="store-mode-cell store-mode-cell--stock" data-label="Stock">
-                        <span className={`store-mode-stock-pill ${isOut ? "is-out" : isLow ? "is-low" : ""}`}>
-                          {stock}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <aside className="store-builder-dock" aria-label="Order builder">
-        <div className="store-builder-bar">
-          <div className="store-builder-left">
-            <section className="store-builder-panel store-builder-panel--customer">
-              <div className="store-builder-section-head">
-                <span>Customer</span>
-                <h3>Walk-in details</h3>
-              </div>
-              <div className="store-builder-controls">
-                <div className="store-builder-inline-fields">
-                  <label className="store-builder-field">
-                    <span>Customer</span>
-                    <div className="store-builder-customer-picker" ref={customerPickerRef}>
-                      <input
-                        type="text"
-                        value={customerName}
-                        onChange={handleCustomerNameChange}
-                        onFocus={() => setCustomerDropdownOpen(true)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") {
-                            setCustomerDropdownOpen(false);
-                          }
-                        }}
-                        placeholder="Select or add customer"
-                        autoComplete="off"
-                      />
-                      {customerDropdownOpen ? (
-                        <div className="store-builder-customer-menu" role="listbox" aria-label="Customer directory">
-                          {customersLoading ? (
-                            <div className="store-builder-customer-status">Loading customers...</div>
-                          ) : (
-                            <>
-                              {customerMatches.map((customer) => (
-                                <button
-                                  key={customer.id}
-                                  type="button"
-                                  className={`store-builder-customer-option ${selectedCustomer?.id === customer.id ? "is-selected" : ""}`}
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onClick={() => handleSelectCustomer(customer)}
-                                >
-                                  <strong>{getCustomerLabel(customer)}</strong>
-                                  <span>{getCustomerMeta(customer)}</span>
-                                </button>
-                              ))}
-
-                              {showAddCustomerOption ? (
-                                <button
-                                  type="button"
-                                  className="store-builder-customer-option is-create"
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onClick={handleChooseAddCustomer}
-                                >
-                                  <strong>Add customer</strong>
-                                  <span>{normalizedCustomerLookup}</span>
-                                </button>
-                              ) : null}
-
-                              {!customerMatches.length && !showAddCustomerOption ? (
-                                <div className="store-builder-customer-status">No customers found.</div>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                    <small
-                      className={`store-builder-field-note ${customersError ? "is-error" : selectedCustomer?.id ? "is-valid" : ""}`}
-                    >
-                    </small>
-                  </label>
-
-                  <label className="store-builder-field">
-                    <span>WhatsApp or email</span>
-                    <input
-                      type="text"
-                      value={customerContact}
-                      onChange={(event) => setCustomerContact(event.target.value)}
-                      placeholder="Optional"
-                    />
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section className="store-builder-panel store-builder-panel--cart">
-              <div className="store-builder-summary">
-                <div>
-                  <h2>{itemCount} {itemCount === 1 ? "item" : "items"}</h2>
-                </div>
-                <button
-                  type="button"
-                  className="store-builder-clear"
-                  onClick={clearOrder}
-                  disabled={!orderItems.length || submitting}
-                >
-                  <AppIcon icon={faTrash} /> Clear
-                </button>
-              </div>
-
-              <div className="store-builder-main">
-                {orderItems.length ? (
-                  <div className="store-builder-strip">
-                    {orderItems.map((item) => {
-                      const liveProduct = inventoryById.get(Number(item.productId));
-                      const maxStock = getQuantity(liveProduct || item);
-                      return (
-                        <div key={item.productId} className="store-builder-chip">
-                          <div className="store-builder-chip-copy">
-                            <strong>{item.name}</strong>
-                            <span>
-                              {formatMoney(item.unitPrice, item.currency || "GHS")} x {item.quantity}
-                            </span>
-                          </div>
-                          <div className="store-builder-chip-actions">
-                            <button
-                              type="button"
-                              className="store-mode-stepper-btn"
-                              onClick={() => removeFromOrder(item.productId)}
-                              disabled={submitting}
-                            >
-                              <AppIcon icon={faMinus} />
-                            </button>
-                            <strong>{formatMoney(item.unitPrice * item.quantity, item.currency || "GHS")}</strong>
-                            <button
-                              type="button"
-                              className="store-mode-stepper-btn"
-                              onClick={() => liveProduct && addToOrder(liveProduct)}
-                              disabled={submitting || !liveProduct || item.quantity >= maxStock}
-                            >
-                              <AppIcon icon={faPlus} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (null
-                )}
-              </div>
-
-              <div
-                className="store-builder-inline-totals"
-                aria-label="Order totals"
-                style={{ gridTemplateColumns: `repeat(${summaryMetricCount}, minmax(0, 1fr))` }}
-              >
-                <div className="store-builder-inline-total">
-                  <span>Subtotal</span>
-                  <strong>{formatMoney(subtotal, orderCurrency)}</strong>
-                </div>
-                <div className="store-builder-inline-total">
-                  <span>Discount</span>
-                  <strong>-{formatMoney(discountAmount, orderCurrency)}</strong>
-                </div>
-                <div className="store-builder-inline-total store-builder-inline-total--strong">
-                  <span>Total</span>
-                  <strong>{formatMoney(total, orderCurrency)}</strong>
-                </div>
-                
-              </div>
-            </section>
-          </div>
-
-          <section className="store-builder-checkout store-builder-panel--checkout">
-            <div className="store-builder-section-head">
-              <span>Checkout</span>
-              <h3>Payment and actions</h3>
-            </div>
-            <div className="store-builder-payment-stack">
-              <div className="store-builder-methods" role="group" aria-label="Payment method">
-                {PAYMENT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`store-builder-method ${paymentMethod === option.value ? "is-active" : ""}`}
-                    onClick={() => setPaymentMethod(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="store-builder-field store-builder-field--discount">
-                <span>Discount</span>
-                <div className="store-builder-discount-row">
-                  <div className="store-builder-discount-types" role="group" aria-label="Discount type">
-                    {DISCOUNT_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`store-builder-discount-toggle ${discountType === option.value ? "is-active" : ""}`}
-                        onClick={() => setDiscountType(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    max={discountType === "percent" ? "100" : undefined}
-                    step={discountType === "percent" ? "1" : "0.01"}
-                    value={discountValue}
-                    onChange={(event) => setDiscountValue(event.target.value)}
-                    placeholder={discountType === "percent" ? "0" : "0.00"}
-                    className="store-builder-discount-input"
-                  />
-                </div>
-              </div>
-
-              {paymentMethod === "cash" && (
-                <>
-                  <label className="store-builder-field store-builder-field--cash">
-                    <span>Cash received</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={cashReceived}
-                      onChange={(event) => setCashReceived(event.target.value)}
-                      placeholder="0.00"
-                    />
-                  </label>
-                  <div className="store-builder-inline-total">
-                    <span>Change</span>
-                    <strong>{formatMoney(changeDue, orderCurrency)}</strong>
-                  </div>
-                </>
-              )}
-
-              {paymentMethod === "momo" && (
-                <label className="store-builder-field store-builder-field--cash">
-                  <span>MoMo reference</span>
-                  <input
-                    type="text"
-                    value={momoReference}
-                    onChange={(event) => setMomoReference(event.target.value)}
-                    placeholder="Transaction ID or sender number"
-                  />
-                </label>
-              )}
-            </div>
-            <div className="store-builder-actions">
-              <button
-                type="button"
-                className="store-builder-submit store-builder-submit--icon"
-                onClick={() => submitSale({ payLater: false })}
-                disabled={submitting || !canCompleteSale}
-                aria-label={submitting ? "Selling" : "Sell"}
-                title={submitting ? "Selling" : "Sell"}
-              >
-                <AppIcon icon={faMoneyBillWave} />
-              </button>
-              <button
-                type="button"
-                className="store-builder-submit store-builder-submit--danger store-builder-submit--icon"
-                onClick={clearOrder}
-                disabled={!orderItems.length || submitting}
-                aria-label="Cancel sale"
-                title="Cancel sale"
-              >
-                <AppIcon icon={faXmark} />
-              </button>
-              <button
-                type="button"
-                className="store-builder-submit store-builder-submit--pending store-builder-submit--pay-later"
-                onClick={() => submitSale({ payLater: true })}
-                disabled={submitting || !canPayLater}
-              >
-                <AppIcon icon={faClock} /> {submitting ? "Saving..." : "Pay later"}
-              </button>
-            </div>
-          </section>
-        </div>
-      </aside>
-
-      {hoveredImage ? (
-        <div className="store-mode-image-lightbox" aria-hidden="true">
-          <div className="store-mode-image-lightbox-frame">
-            <img src={hoveredImage.src} alt={hoveredImage.name} />
-            <span>{hoveredImage.name}</span>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <StoreModeLayout
+      onExit={() => navigate("/admin")}
+      onRefresh={refreshInventory}
+      loading={loading}
+      error={error}
+      submitError={submitError}
+      success={success}
+      inventoryProps={{
+        search,
+        onSearchChange: (event) => setSearch(event.target.value),
+        onSearchClear: () => setSearch(""),
+        stockFilter,
+        onStockFilterChange: setStockFilter,
+        categoryFilter,
+        onCategoryFilterChange: (event) => setCategoryFilter(event.target.value),
+        categories,
+        sortKey: sortConfig.key,
+        sortHeaderClassName,
+        requestSort,
+        sortIndicator,
+        loading,
+        hasSearchQuery,
+        visibleItems,
+        emptyStateMessage,
+        sortedVisibleItems,
+        orderQtyById,
+        selectedProductId,
+        isMobileViewport,
+        showImagePreview,
+        hideImagePreview,
+        addToOrder,
+      }}
+      customerProps={{
+        customerPickerRef,
+        customerName,
+        onCustomerNameChange: handleCustomerNameChange,
+        onCustomerFocus: () => setCustomerDropdownOpen(true),
+        onCustomerKeyDown: (event) => {
+          if (event.key === "Escape") {
+            setCustomerDropdownOpen(false);
+          }
+        },
+        customerDropdownOpen,
+        customersLoading,
+        customerMatches,
+        selectedCustomer,
+        onSelectCustomer: handleSelectCustomer,
+        showAddCustomerOption,
+        onChooseAddCustomer: handleChooseAddCustomer,
+        normalizedCustomerLookup,
+        customerContact,
+        onCustomerContactChange: (event) => setCustomerContact(event.target.value),
+        customersError,
+      }}
+      orderProps={{
+        itemCount,
+        clearOrder,
+        orderItems,
+        inventoryById,
+        submitting,
+        removeFromOrder,
+        addToOrder,
+        subtotal,
+        discountAmount,
+        total,
+        orderCurrency,
+      }}
+      cartProps={{
+        itemCount,
+        orderItemsLength: orderItems.length,
+        subtotal,
+        discountAmount,
+        total,
+        orderCurrency,
+        paymentMethod,
+        onPaymentMethodChange: setPaymentMethod,
+        discountType,
+        onDiscountTypeChange: setDiscountType,
+        discountValue,
+        onDiscountValueChange: (event) => setDiscountValue(event.target.value),
+        cashReceived,
+        onCashReceivedChange: (event) => setCashReceived(event.target.value),
+        changeDue,
+        momoReference,
+        onMomoReferenceChange: (event) => setMomoReference(event.target.value),
+        submitSale,
+        submitting,
+        canCompleteSale,
+        canPayLater,
+        clearOrder,
+      }}
+      hoveredImage={hoveredImage}
+    />
   );
 }
 

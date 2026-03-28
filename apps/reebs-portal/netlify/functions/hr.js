@@ -2,16 +2,21 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { hasAnyRole, normalizeRole, requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const HR_METHODS = "GET,PUT,OPTIONS";
+const VALID_USER_ROLES = new Set([
+  "owner",
+  "admin",
+  "manager",
+  "staff",
+  "warehouse",
+  "driver",
+  "viewer",
+  "custodian",
+  "sales",
+  "water",
+]);
 
 const profileTableStatements = [
   `CREATE TABLE IF NOT EXISTS "employeeProfile" (
@@ -52,15 +57,7 @@ const cleanString = (value) => (typeof value === "string" ? value.trim() : "");
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,PUT,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: HR_METHODS });
   }
 
   const client = new Client({
@@ -70,11 +67,15 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: HR_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can access HR records.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
-    const organizationId = authUser.organizationId;
+    const { authUser, organizationId } = authResult;
     await ensureAuditColumns(client);
     await ensureEmployeeProfileTable(client);
     await backfillAuditDefaults(client, authUser.id, organizationId);
@@ -125,39 +126,62 @@ export async function handler(event = {}) {
         ORDER BY u."fullName" ASC NULLS LAST, u.id ASC`,
         [organizationId]
       );
-      return json(200, staff.rows || []);
+      return respond(event, 200, staff.rows || [], { methods: HR_METHODS });
     }
 
     if (event.httpMethod !== "PUT") {
-      return json(405, { error: "Method not allowed." });
+      return respond(event, 405, { error: "Method not allowed." }, { methods: HR_METHODS });
     }
 
     let data = {};
     try {
       data = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return respond(event, 400, { error: "Invalid JSON body." }, { methods: HR_METHODS });
     }
 
     const id = Number(data.id);
     if (!Number.isFinite(id)) {
-      return json(400, { error: "Employee id is required." });
+      return respond(event, 400, { error: "Employee id is required." }, { methods: HR_METHODS });
     }
 
     const currentRes = await client.query(
       `SELECT "firstName", "lastName", role
        FROM "user"
-       WHERE id = $1 AND "organizationId" = $2`,
+      WHERE id = $1 AND "organizationId" = $2`,
       [id, organizationId]
     );
     if (currentRes.rowCount === 0) {
-      return json(404, { error: "Employee not found." });
+      return respond(event, 404, { error: "Employee not found." }, { methods: HR_METHODS });
     }
 
     const currentUser = currentRes.rows[0];
+    const canManageRoles = hasAnyRole(authUser, ["owner", "admin"]);
+    const currentRoleKey = normalizeRole(currentUser.role);
+    if (!canManageRoles && (currentRoleKey === "owner" || currentRoleKey === "admin")) {
+      return respond(
+        event,
+        403,
+        { error: "Only owners and admins can update privileged accounts." },
+        { methods: HR_METHODS }
+      );
+    }
+    const nextRoleKey =
+      data.role === undefined ? normalizeRole(currentUser.role) : normalizeRole(cleanString(data.role));
+    if (data.role !== undefined && !canManageRoles) {
+      return respond(
+        event,
+        403,
+        { error: "Only owners and admins can change employee roles." },
+        { methods: HR_METHODS }
+      );
+    }
+    if (data.role !== undefined && !VALID_USER_ROLES.has(nextRoleKey)) {
+      return respond(event, 400, { error: "Invalid employee role." }, { methods: HR_METHODS });
+    }
     const firstName = data.firstName === undefined ? currentUser.firstName : cleanString(data.firstName);
     const lastName = data.lastName === undefined ? currentUser.lastName : cleanString(data.lastName);
-    const role = data.role === undefined ? currentUser.role : cleanString(data.role) || currentUser.role;
+    const role = data.role === undefined ? currentUser.role : nextRoleKey || currentUser.role;
     const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
 
     const userUpdates = [];
@@ -263,10 +287,10 @@ export async function handler(event = {}) {
       [id, organizationId]
     );
 
-    return json(200, updated.rows[0]);
+    return respond(event, 200, updated.rows[0], { methods: HR_METHODS });
   } catch (err) {
     console.error("❌ HR error:", err);
-    return json(500, { error: "Failed to process HR request" });
+    return respond(event, 500, { error: "Failed to process HR request" }, { methods: HR_METHODS });
   } finally {
     await client.end().catch(() => {});
   }

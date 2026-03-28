@@ -11,15 +11,9 @@ import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
+import { hasAnyRole, requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const EXPENSE_METHODS = "GET,POST,OPTIONS";
 
 const getMonthRange = (value) => {
   const now = value ? new Date(value) : new Date();
@@ -38,15 +32,7 @@ const normalizeExpenseRow = (row) => ({
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: EXPENSE_METHODS });
   }
 
   const client = new Client({
@@ -56,14 +42,18 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: EXPENSE_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can access expenses.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
-    const organizationId = authUser.organizationId;
+    const { authUser, organizationId } = authResult;
     const table = await resolveExpenseTable(client);
     if (!table) {
-      return json(500, { error: "Expenses table not found." });
+      return respond(event, 500, { error: "Expenses table not found." }, { methods: EXPENSE_METHODS });
     }
     const columns = await resolveExpenseColumns(client, table);
     const hasUserId = columns.includes("userId");
@@ -97,12 +87,17 @@ export async function handler(event = {}) {
       });
 
       if (debug) {
-        return json(200, {
+        if (!hasAnyRole(authUser, ["owner", "admin"])) {
+          return respond(event, 403, { error: "Only owners and admins can use debug mode." }, {
+            methods: EXPENSE_METHODS,
+          });
+        }
+        return respond(event, 200, {
           table: table.label,
           count: table.count,
           columns,
           categories: EXPENSE_CATEGORIES,
-        });
+        }, { methods: EXPENSE_METHODS });
       }
 
       const result = await client.query(
@@ -164,24 +159,26 @@ export async function handler(event = {}) {
         return String(b.id).localeCompare(String(a.id));
       });
 
-      return json(200, combined.map(normalizeExpenseRow));
+      return respond(event, 200, combined.map(normalizeExpenseRow), { methods: EXPENSE_METHODS });
     }
 
     if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method Not Allowed" });
+      return respond(event, 405, { error: "Method Not Allowed" }, { methods: EXPENSE_METHODS });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return respond(event, 400, { error: "Invalid JSON body." }, { methods: EXPENSE_METHODS });
     }
 
     if (payload?.seed) {
       const existing = await client.query(`SELECT COUNT(*)::int AS count FROM ${table.queryRef}`);
       if ((existing.rows[0]?.count || 0) > 0) {
-        return json(200, { seeded: false, count: existing.rows[0].count });
+        return respond(event, 200, { seeded: false, count: existing.rows[0].count }, {
+          methods: EXPENSE_METHODS,
+        });
       }
 
       const now = new Date();
@@ -254,7 +251,9 @@ export async function handler(event = {}) {
         values
       );
 
-      return json(200, { seeded: true, count: samples.length });
+      return respond(event, 200, { seeded: true, count: samples.length }, {
+        methods: EXPENSE_METHODS,
+      });
     }
 
     const category = typeof payload.category === "string" ? payload.category.trim() : "";
@@ -266,25 +265,29 @@ export async function handler(event = {}) {
     const dateValue = payload.date ? new Date(payload.date) : new Date();
 
     if (category && category.toLowerCase() !== "auto" && !isSupportedExpenseCategory(category)) {
-      return json(400, {
+      return respond(event, 400, {
         error: "Invalid category.",
         allowedCategories: EXPENSE_CATEGORIES,
-      });
+      }, { methods: EXPENSE_METHODS });
     }
     if (!description) {
-      return json(400, { error: "Description is required." });
+      return respond(event, 400, { error: "Description is required." }, { methods: EXPENSE_METHODS });
     }
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
-      return json(400, { error: "Amount must be greater than zero." });
+      return respond(event, 400, { error: "Amount must be greater than zero." }, { methods: EXPENSE_METHODS });
     }
     if (Number.isNaN(dateValue.getTime())) {
-      return json(400, { error: "Invalid date." });
+      return respond(event, 400, { error: "Invalid date." }, { methods: EXPENSE_METHODS });
     }
     if (orderId && !hasOrderId) {
-      return json(400, { error: "Order links are not supported in this expenses table." });
+      return respond(event, 400, { error: "Order links are not supported in this expenses table." }, {
+        methods: EXPENSE_METHODS,
+      });
     }
     if (bookingId && !hasBookingId) {
-      return json(400, { error: "Booking links are not supported in this expenses table." });
+      return respond(event, 400, { error: "Booking links are not supported in this expenses table." }, {
+        methods: EXPENSE_METHODS,
+      });
     }
     if (orderId) {
       const orderCheck = await client.query(
@@ -292,7 +295,7 @@ export async function handler(event = {}) {
         [orderId, organizationId]
       );
       if (orderCheck.rowCount === 0) {
-        return json(400, { error: "Order not found." });
+        return respond(event, 400, { error: "Order not found." }, { methods: EXPENSE_METHODS });
       }
     }
     if (bookingId) {
@@ -301,7 +304,7 @@ export async function handler(event = {}) {
         [bookingId, organizationId]
       );
       if (bookingCheck.rowCount === 0) {
-        return json(400, { error: "Booking not found." });
+        return respond(event, 400, { error: "Booking not found." }, { methods: EXPENSE_METHODS });
       }
     }
 
@@ -344,13 +347,13 @@ export async function handler(event = {}) {
       insertValues
     );
 
-    return json(200, {
+    return respond(event, 200, {
       ...normalizeExpenseRow(insert.rows[0]),
       categoryAutoDetected: !category || category.toLowerCase() === "auto",
-    });
+    }, { methods: EXPENSE_METHODS });
   } catch (err) {
     console.error("❌ Expenses error:", err);
-    return json(500, { error: err.message || "Failed to process expenses" });
+    return respond(event, 500, { error: "Failed to process expenses" }, { methods: EXPENSE_METHODS });
   } finally {
     await client.end().catch(() => {});
   }

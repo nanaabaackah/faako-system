@@ -440,7 +440,7 @@ export async function handler(event) {
 
     // HANDLE GET: List all customers with stats
     const result = await client.query(
-      `SELECT
+       `SELECT
          c.id,
          c.name,
          c.email,
@@ -450,16 +450,33 @@ export async function handler(event) {
          COALESCE(o.orders, 0)::int AS orders,
          COALESCE(b.bookings, 0)::int AS bookings,
          COALESCE(o.total_spent, 0) AS total_spent,
-         COALESCE(b.total_rented, 0) AS total_rented
+         COALESCE(b.total_rented, 0) AS total_rented,
+         o.last_order_date,
+         b.last_booking_date,
+         NULLIF(
+           GREATEST(
+             COALESCE(o.last_order_date, TIMESTAMP 'epoch'),
+             COALESCE(b.last_booking_date, TIMESTAMP 'epoch')
+           ),
+           TIMESTAMP 'epoch'
+         ) AS last_activity_at
        FROM "customer" c
        LEFT JOIN (
-         SELECT "customerId", COUNT(*) AS orders, COALESCE(SUM(total_amount), 0) AS total_spent
+         SELECT
+           "customerId",
+           COUNT(*) AS orders,
+           COALESCE(SUM(total_amount), 0) AS total_spent,
+           MAX("orderDate") AS last_order_date
          FROM "order"
          WHERE "organizationId" = $1
          GROUP BY "customerId"
        ) o ON o."customerId" = c.id
        LEFT JOIN (
-         SELECT "customerId", COUNT(*) AS bookings, COALESCE(SUM("totalAmount"), 0) AS total_rented
+         SELECT
+           "customerId",
+           COUNT(*) AS bookings,
+           COALESCE(SUM("totalAmount"), 0) AS total_rented,
+           MAX("eventDate") AS last_booking_date
          FROM "booking"
          WHERE "organizationId" = $1
          GROUP BY "customerId"

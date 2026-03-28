@@ -9,56 +9,47 @@ import {
   ensureAuditColumns,
   backfillAuditDefaults,
 } from "./auditHelpers.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
+
+const STOCK_METHODS = "POST,OPTIONS";
+
+const normalizeStockType = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "stockin") return "StockIn";
+  if (normalized === "stockout") return "StockOut";
+  return "";
+};
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "POST,OPTIONS",
-      },
-      body: "",
-    };
+    return respond(event, 204, {}, { methods: STOCK_METHODS });
   }
-  // 1. Only allow POST requests
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method Not Allowed. Use POST." }),
-    };
+    return respond(event, 405, { error: "Method Not Allowed. Use POST." }, { methods: STOCK_METHODS });
   }
 
-  // 2. Parse the request body
   let data;
   try {
     data = JSON.parse(event.body);
   } catch (error) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Invalid JSON format in request body." }),
-    };
+    return respond(event, 400, { error: "Invalid JSON format in request body." }, { methods: STOCK_METHODS });
   }
 
-  // 3. Validate required fields
-  const { productId, type, quantity, notes, reference, userId, userName, userEmail, soldMonth } = data;
+  const { productId, type, quantity, notes, reference, soldMonth } = data;
   if (!productId || !type || !quantity) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ 
-        error: "Missing required fields: productId, type (StockIn/StockOut), and quantity." 
-      }),
-    };
+    return respond(
+      event,
+      400,
+      { error: "Missing required fields: productId, type (StockIn/StockOut), and quantity." },
+      { methods: STOCK_METHODS }
+    );
   }
-  
+
   const productQuantity = parseInt(quantity, 10);
   if (isNaN(productQuantity) || productQuantity <= 0) {
-      return {
-          statusCode: 400,
-          body: JSON.stringify({ error: "Quantity must be a positive number." }),
-      };
+    return respond(event, 400, { error: "Quantity must be a positive number." }, {
+      methods: STOCK_METHODS,
+    });
   }
 
   const normalizeSoldMonth = (value) => {
@@ -74,10 +65,21 @@ export async function handler(event) {
     return null;
   };
 
-  const soldMonthValue = normalizeSoldMonth(soldMonth);
+  const normalizedType = normalizeStockType(type);
+  if (!normalizedType) {
+    return respond(event, 400, { error: "Type must be StockIn or StockOut." }, {
+      methods: STOCK_METHODS,
+    });
+  }
 
-  // Determine the stock change based on the type
-  const stockDelta = type.toLowerCase() === 'stockin' ? productQuantity : -productQuantity;
+  const soldMonthValue = normalizeSoldMonth(soldMonth);
+  if (soldMonth != null && !soldMonthValue) {
+    return respond(event, 400, { error: "soldMonth must be YYYY-MM or YYYY-MM-DD." }, {
+      methods: STOCK_METHODS,
+    });
+  }
+
+  const stockDelta = normalizedType === "StockIn" ? productQuantity : -productQuantity;
 
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -87,33 +89,24 @@ export async function handler(event) {
   try {
     await client.connect();
     await ensureAuditColumns(client);
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: "Unauthorized" }),
-      };
+    const authResult = await requireInternalUser(client, event, {
+      methods: STOCK_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can adjust stock directly.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
-    const role = String(authUser.role || "").trim().toLowerCase();
-    if (role !== "admin" && role !== "manager") {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: "Only admins and managers can adjust stock directly." }),
-      };
-    }
-    const organizationId = authUser.organizationId;
+    const { authUser, organizationId } = authResult;
     const actor = {
       userId: authUser.id,
       userName: authUser.fullName,
       userEmail: authUser.email,
     };
     await backfillAuditDefaults(client, actor.userId, organizationId);
-    
-    // Start a transaction
-    await client.query('BEGIN');
-    
-    // 4. Update the product stock
-    // Added quotes around "stock" and "id" for absolute safety with Prisma
+
+    await client.query("BEGIN");
+
     const updateProductQuery = `
       UPDATE "product"
       SET "stock" = "stock" + $1,
@@ -131,16 +124,12 @@ export async function handler(event) {
     ]);
 
     if (updateResult.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: `Product with ID ${productId} not found.` }),
-      };
+      await client.query("ROLLBACK");
+      return respond(event, 404, { error: `Product with ID ${productId} not found.` }, {
+        methods: STOCK_METHODS,
+      });
     }
-    
-    // 5. Insert the StockMovement record
-    // CRITICAL: Double quotes added to "type", "quantity", "notes", "reference", and "date"
-    // This prevents PostgreSQL from converting them to lowercase or tripping on keywords.
+
     const insertMovementQuery = `
       INSERT INTO "stockMovement" (
         "organizationId",
@@ -158,48 +147,42 @@ export async function handler(event) {
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, NOW())
     `;
-    
+
     await client.query(insertMovementQuery, [
-        organizationId,
-        productId, 
-        type, 
-        productQuantity, 
-        notes || null, 
-        reference || null,
-        soldMonthValue,
-        actor.userId,
-        actor.userName,
-        actor.userEmail,
+      organizationId,
+      productId,
+      normalizedType,
+      productQuantity,
+      notes || null,
+      reference || null,
+      soldMonthValue,
+      actor.userId,
+      actor.userName,
+      actor.userEmail,
     ]);
 
-    // 6. Commit the transaction
-    await client.query('COMMIT');
+    await client.query("COMMIT");
 
-    return {
-      statusCode: 200,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*" 
-      },
-      body: JSON.stringify({ 
-        message: `${type} successful.`,
-        productId: productId,
-        newStock: updateResult.rows[0].stock,
-        lastUpdatedAt: updateResult.rows[0].lastUpdatedAt,
-        lastUpdatedByUserId: updateResult.rows[0].lastUpdatedByUserId,
-        lastUpdatedByName: actor.userName,
-      }),
-    };
+    return respond(event, 200, {
+      message: `${normalizedType} successful.`,
+      productId: productId,
+      newStock: updateResult.rows[0].stock,
+      lastUpdatedAt: updateResult.rows[0].lastUpdatedAt,
+      lastUpdatedByUserId: updateResult.rows[0].lastUpdatedByUserId,
+      lastUpdatedByName: actor.userName,
+    }, {
+      methods: STOCK_METHODS,
+    });
 
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query("ROLLBACK").catch(() => {});
     console.error("❌ Transaction failed:", err);
 
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Database error", details: err.message }),
-    };
+    return respond(event, 500, {
+      error: "Failed to process stock movement.",
+    }, {
+      methods: STOCK_METHODS,
+    });
 
   } finally {
     await client.end().catch(() => {});

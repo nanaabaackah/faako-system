@@ -1,20 +1,9 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireUser } from "./_shared/userAuth.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const RESPONSE_HEADERS = {
-  "Content-Type": "application/json",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Organization-Id",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-};
-
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: RESPONSE_HEADERS,
-  body: JSON.stringify(body),
-});
+const ACCOUNTING_CONFIG_METHODS = "GET,POST,OPTIONS";
 
 const BALANCE_DEFAULTS = {
   cashOnHand: "0",
@@ -157,7 +146,7 @@ const toResponseBody = (row) => ({
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: RESPONSE_HEADERS, body: "" };
+    return respond(event, 204, {}, { methods: ACCOUNTING_CONFIG_METHODS });
   }
 
   const client = new Client({
@@ -168,14 +157,17 @@ export async function handler(event = {}) {
   try {
     await client.connect();
 
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: ACCOUNTING_CONFIG_METHODS,
+      roles: ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can access accounting settings.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
+    const { authUser, organizationId } = authResult;
 
     await ensureAccountingConfigTable(client);
-
-    const organizationId = Number(authUser.organizationId);
 
     if (event.httpMethod === "GET") {
       const result = await client.query(
@@ -187,26 +179,32 @@ export async function handler(event = {}) {
       );
 
       if (result.rowCount === 0) {
-        return json(200, {
+        return respond(event, 200, {
           balanceInputs: null,
           taxInputs: null,
           ghanaTaxConfig: null,
           updatedAt: null,
-        });
+        }, { methods: ACCOUNTING_CONFIG_METHODS });
       }
 
-      return json(200, toResponseBody(result.rows[0]));
+      return respond(event, 200, toResponseBody(result.rows[0]), {
+        methods: ACCOUNTING_CONFIG_METHODS,
+      });
     }
 
     if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method Not Allowed" });
+      return respond(event, 405, { error: "Method Not Allowed" }, {
+        methods: ACCOUNTING_CONFIG_METHODS,
+      });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return respond(event, 400, { error: "Invalid JSON body." }, {
+        methods: ACCOUNTING_CONFIG_METHODS,
+      });
     }
 
     const hasBalanceInputs = payload.balanceInputs && typeof payload.balanceInputs === "object";
@@ -214,7 +212,9 @@ export async function handler(event = {}) {
     const hasGhanaTaxConfig = payload.ghanaTaxConfig && typeof payload.ghanaTaxConfig === "object";
 
     if (!hasBalanceInputs && !hasTaxInputs && !hasGhanaTaxConfig) {
-      return json(400, { error: "At least one config section is required." });
+      return respond(event, 400, { error: "At least one config section is required." }, {
+        methods: ACCOUNTING_CONFIG_METHODS,
+      });
     }
 
     const currentResult = await client.query(
@@ -270,10 +270,14 @@ export async function handler(event = {}) {
       ]
     );
 
-    return json(200, toResponseBody(result.rows[0]));
+    return respond(event, 200, toResponseBody(result.rows[0]), {
+      methods: ACCOUNTING_CONFIG_METHODS,
+    });
   } catch (err) {
     console.error("❌ Accounting config error:", err);
-    return json(500, { error: "Failed to load or save accounting settings." });
+    return respond(event, 500, { error: "Failed to load or save accounting settings." }, {
+      methods: ACCOUNTING_CONFIG_METHODS,
+    });
   } finally {
     await client.end().catch(() => {});
   }

@@ -2,36 +2,24 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,OPTIONS" });
 
 export async function handler(event = {}) {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
-      },
-      body: "",
-    };
+  const method = (event.httpMethod || "GET").toUpperCase();
+  if (method === "OPTIONS") {
+    return json(event, 204, {});
   }
 
-  if (event.httpMethod !== "GET") {
-    return json(405, { error: "Method Not Allowed" });
+  if (method !== "GET") {
+    return json(event, 405, { error: "Method Not Allowed" });
   }
 
   const orderId = Number(event.queryStringParameters?.orderId);
   if (!Number.isFinite(orderId)) {
-    return json(400, { error: "orderId is required" });
+    return json(event, 400, { error: "orderId is required" });
   }
 
   const client = new Client({
@@ -41,7 +29,16 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    const internal = await requireInternalUser(client, event, {
+      methods: "GET,OPTIONS",
+      roles: ["owner", "admin", "manager"],
+      roleError: "Manager access required.",
+    });
+    if (internal.errorResponse) {
+      return internal.errorResponse;
+    }
 
+    const { organizationId } = internal;
     const orderRes = await client.query(
       `SELECT
          o.id,
@@ -57,13 +54,16 @@ export async function handler(event = {}) {
          c.email AS customer_email,
          c.phone AS customer_phone
        FROM "order" o
-       LEFT JOIN "customer" c ON c.id = o."customerId"
-       WHERE o.id = $1`,
-      [orderId]
+       LEFT JOIN "customer" c
+         ON c.id = o."customerId"
+        AND c."organizationId" = o."organizationId"
+       WHERE o.id = $1
+         AND o."organizationId" = $2`,
+      [orderId, organizationId]
     );
 
     if (orderRes.rowCount === 0) {
-      return json(404, { error: "Order not found" });
+      return json(event, 404, { error: "Order not found" });
     }
 
     const order = orderRes.rows[0];
@@ -76,18 +76,22 @@ export async function handler(event = {}) {
          p.name,
          p.sku
        FROM "orderItem" oi
-       JOIN "product" p ON p.id = oi."productId"
+       JOIN "product" p
+         ON p.id = oi."productId"
+        AND p."organizationId" = oi."organizationId"
        WHERE oi."orderId" = $1
+         AND oi."organizationId" = $2
        ORDER BY oi.id ASC`,
-      [orderId]
+      [orderId, organizationId]
     );
 
     const expensesRes = await client.query(
       `SELECT id, category, amount, description, date
        FROM "expense"
        WHERE "orderId" = $1
+         AND "organizationId" = $2
        ORDER BY date ASC, id ASC`,
-      [orderId]
+      [orderId, organizationId]
     );
 
     const items = itemsRes.rows.map((row) => ({
@@ -157,7 +161,7 @@ export async function handler(event = {}) {
     const taxTotalCents = 0;
     const grandTotalCents = subtotalCents;
 
-    return json(200, {
+    return json(event, 200, {
       invoiceNumber: `REC-${order.orderNumber}`,
       orderId: order.id,
       date: new Date(order.orderDate || Date.now()).toLocaleDateString("en-GB"),
@@ -178,8 +182,8 @@ export async function handler(event = {}) {
       expensesTotal: expensesTotalCents / 100,
     });
   } catch (err) {
-    console.error("❌ Invoice generation error:", err);
-    return json(500, { error: "Failed to generate invoice" });
+    console.error("Invoice generation error:", err);
+    return json(event, 500, { error: "Failed to generate invoice" });
   } finally {
     await client.end().catch(() => {});
   }

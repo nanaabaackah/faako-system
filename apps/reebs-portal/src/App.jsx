@@ -236,7 +236,9 @@ function AppRoutes() {
         path="/admin/expenses"
         element={
           <RequireAuth>
-            <AdminExpenses />
+            <RequireRole allowedRoles={['admin', 'manager']}>
+              <AdminExpenses />
+            </RequireRole>
           </RequireAuth>
         }
       />
@@ -252,7 +254,9 @@ function AppRoutes() {
         path="/admin/vendors"
         element={
           <RequireAuth>
-            <AdminVendors />
+            <RequireRole allowedRoles={['admin', 'manager']}>
+              <AdminVendors />
+            </RequireRole>
           </RequireAuth>
         }
       />

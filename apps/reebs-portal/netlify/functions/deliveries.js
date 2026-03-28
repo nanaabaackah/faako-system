@@ -1,15 +1,10 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "delivery" (
@@ -61,18 +56,22 @@ const ensureDeliveryTable = async (client) => {
 
 const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
-const resolveAvailableDriver = async (client, bookingId) => {
+const resolveAvailableDriver = async (client, bookingId, organizationId) => {
   const bookingRes = await client.query(
-    `SELECT "eventDate", "assignedUserId" FROM "booking" WHERE id = $1`,
-    [bookingId]
+    `SELECT "eventDate", "assignedUserId"
+     FROM "booking"
+     WHERE id = $1 AND "organizationId" = $2`,
+    [bookingId, organizationId]
   );
   if (bookingRes.rowCount === 0) return null;
   const booking = bookingRes.rows[0];
 
   if (booking.assignedUserId) {
     const assignedRes = await client.query(
-      `SELECT "fullName", role FROM "user" WHERE id = $1`,
-      [booking.assignedUserId]
+      `SELECT "fullName", role
+       FROM "user"
+       WHERE id = $1 AND "organizationId" = $2`,
+      [booking.assignedUserId, organizationId]
     );
     const assigned = assignedRes.rows[0];
     if (assigned && String(assigned.role || "").toLowerCase() === "driver") {
@@ -81,7 +80,12 @@ const resolveAvailableDriver = async (client, bookingId) => {
   }
 
   const driversRes = await client.query(
-    `SELECT id, "fullName" FROM "user" WHERE LOWER(role) = 'driver' ORDER BY "fullName" ASC`
+    `SELECT id, "fullName"
+     FROM "user"
+     WHERE "organizationId" = $1
+       AND LOWER(role) = 'driver'
+     ORDER BY "fullName" ASC`,
+    [organizationId]
   );
   if (driversRes.rowCount === 0) return null;
 
@@ -89,11 +93,12 @@ const resolveAvailableDriver = async (client, bookingId) => {
     `SELECT d."driverName", COUNT(*)::int AS total
      FROM "delivery" d
      JOIN "booking" b ON b.id = d."bookingId"
-     WHERE b."eventDate"::date = $1::date
+     WHERE b."organizationId" = $1
+       AND b."eventDate"::date = $2::date
        AND COALESCE(b.status, '') NOT ILIKE 'cancelled'
        AND d."driverName" IS NOT NULL
      GROUP BY d."driverName"`,
-    [booking.eventDate]
+    [organizationId, booking.eventDate]
   );
   const assignments = new Map(
     (assignmentsRes.rows || []).map((row) => [row.driverName, Number(row.total) || 0])
@@ -114,15 +119,7 @@ const resolveAvailableDriver = async (client, bookingId) => {
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-      },
-      body: "",
-    };
+    return json(event, 204, {});
   }
 
   const client = new Client({
@@ -132,6 +129,12 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    const access = await requireInternalUser(client, event, {
+      methods: "GET,POST,PUT,OPTIONS",
+    });
+    if (access.errorResponse) return access.errorResponse;
+
+    const { organizationId } = access;
     await ensureDeliveryTable(client);
 
     if (event.httpMethod === "GET") {
@@ -171,36 +174,38 @@ export async function handler(event = {}) {
              '[]'::json
            ) AS items
          FROM "booking" b
-         JOIN "customer" c ON c.id = b."customerId"
-         LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
+         JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
+         LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId" AND assignee."organizationId" = b."organizationId"
          LEFT JOIN "delivery" d ON d."bookingId" = b.id
-         LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id
-         LEFT JOIN "product" p ON p.id = bi."productId"
+         LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
+         LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
          LEFT JOIN "bouncy_castles" bc ON bc."productId" = bi."productId"
-         WHERE COALESCE(b.status, '') NOT ILIKE 'cancelled'
+         WHERE b."organizationId" = $1
+           AND COALESCE(b.status, '') NOT ILIKE 'cancelled'
          GROUP BY b.id, c.id, assignee.id, d.id
          ORDER BY b."eventDate" ASC,
            COALESCE(d."routeGroup", '') ASC,
            COALESCE(d."routeOrder", 9999) ASC,
-           b.id ASC`
+           b.id ASC`,
+        [organizationId]
       );
-      return json(200, result.rows || []);
+      return json(event, 200, result.rows || []);
     }
 
     if (event.httpMethod !== "POST" && event.httpMethod !== "PUT") {
-      return json(405, { error: "Method Not Allowed" });
+      return json(event, 405, { error: "Method Not Allowed" });
     }
 
     let payload = {};
     try {
       payload = JSON.parse(event.body || "{}");
     } catch {
-      return json(400, { error: "Invalid JSON body." });
+      return json(event, 400, { error: "Invalid JSON body." });
     }
 
     const bookingId = Number(payload.bookingId);
     if (!Number.isFinite(bookingId)) {
-      return json(400, { error: "bookingId is required." });
+      return json(event, 400, { error: "bookingId is required." });
     }
 
     const status = cleanText(payload.status) || "scheduled";
@@ -210,13 +215,25 @@ export async function handler(event = {}) {
     const eta = cleanText(payload.eta) || null;
     const notes = cleanText(payload.notes) || null;
 
+    const bookingOwnershipRes = await client.query(
+      `SELECT id
+       FROM "booking"
+       WHERE id = $1 AND "organizationId" = $2
+       LIMIT 1`,
+      [bookingId, organizationId]
+    );
+    if (bookingOwnershipRes.rowCount === 0) {
+      return json(event, 404, { error: "Booking not found." });
+    }
+
     if (!driverName) {
       const existingDriver = await client.query(
         `SELECT "driverName" FROM "delivery" WHERE "bookingId" = $1`,
         [bookingId]
       );
       driverName =
-        existingDriver.rows[0]?.driverName || (await resolveAvailableDriver(client, bookingId));
+        existingDriver.rows[0]?.driverName
+        || (await resolveAvailableDriver(client, bookingId, organizationId));
     }
 
     const upsert = await client.query(
@@ -236,10 +253,10 @@ export async function handler(event = {}) {
       [bookingId, status, driverName, routeGroup, routeOrder, eta, notes]
     );
 
-    return json(200, upsert.rows[0]);
+    return json(event, 200, upsert.rows[0]);
   } catch (err) {
     console.error("❌ Delivery error:", err);
-    return json(500, { error: "Failed to process delivery data" });
+    return json(event, 500, { error: "Failed to process delivery data" });
   } finally {
     await client.end().catch(() => {});
   }

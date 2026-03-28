@@ -59,9 +59,7 @@ function AdminTimesheets() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/timesheets", {
-        headers: { "x-user-id": String(user.id) },
-      });
+      const res = await fetch("/.netlify/functions/timesheets");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load timesheets.");
       setActiveShift(data.activeShift || null);
@@ -133,7 +131,7 @@ function AdminTimesheets() {
     try {
       const res = await fetch("/.netlify/functions/timesheets", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": String(user.id) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(coords),
       });
       const data = await res.json();

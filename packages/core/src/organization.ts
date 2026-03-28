@@ -179,35 +179,16 @@ export const addAuthInvalidListener = (
 
 export const setAuthToken = (
   token: string | null | undefined,
-  options: { remember?: boolean } = {},
+  _options: { remember?: boolean } = {},
 ) => {
   const patchedWindow = getPatchedWindow();
   if (!patchedWindow) return;
 
-  const remember = options?.remember;
   const nextToken = typeof token === "string" ? token.trim() : "";
 
   patchedWindow.__reebsAuthToken = nextToken;
-
-  if (remember === true || remember === false) {
-    removeStorageValue(window.localStorage, AUTH_TOKEN_STORAGE_KEY);
-    removeStorageValue(window.sessionStorage, AUTH_TOKEN_STORAGE_KEY);
-
-    if (nextToken) {
-      const target = remember ? window.localStorage : window.sessionStorage;
-      try {
-        target.setItem(AUTH_TOKEN_STORAGE_KEY, nextToken);
-      } catch {
-        // Keep the in-memory token when storage writes fail.
-      }
-    }
-    return;
-  }
-
-  if (!nextToken) {
-    removeStorageValue(window.localStorage, AUTH_TOKEN_STORAGE_KEY);
-    removeStorageValue(window.sessionStorage, AUTH_TOKEN_STORAGE_KEY);
-  }
+  removeStorageValue(window.localStorage, AUTH_TOKEN_STORAGE_KEY);
+  removeStorageValue(window.sessionStorage, AUTH_TOKEN_STORAGE_KEY);
 };
 
 export const getAuthToken = () => {
@@ -331,7 +312,7 @@ export const patchOrganizationFetch = () => {
       const requestWithUrl = new Request(nextUrl, request);
       const nextRequest = new Request(requestWithUrl, {
         cache: request.cache === "default" ? "no-store" : request.cache,
-        credentials: request.credentials || "same-origin",
+        credentials: request.credentials || "include",
         headers,
       });
 
@@ -348,7 +329,7 @@ export const patchOrganizationFetch = () => {
       nextInit.cache = "no-store";
     }
     if (!Object.prototype.hasOwnProperty.call(nextInit, "credentials")) {
-      nextInit.credentials = "same-origin";
+      nextInit.credentials = "include";
     }
 
     return originalFetch(nextUrl, nextInit).then((response) => {
