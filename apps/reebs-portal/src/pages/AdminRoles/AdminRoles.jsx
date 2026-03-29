@@ -378,12 +378,12 @@ function AdminRoles() {
         />
 
         <section className="roles-kpis">
-          <div className="roles-card">
+          <div className="glass-card roles-card">
             <p className="roles-label">Total users</p>
             <h3>{users.length}</h3>
             <p className="roles-sub">People with access</p>
           </div>
-          <div className="roles-card">
+          <div className="glass-card roles-card">
             <p className="roles-label">Active sessions</p>
             <h3>{loading ? "..." : totalActiveSessions}</h3>
             <p className="roles-sub">
@@ -394,7 +394,7 @@ function AdminRoles() {
                   : "No signed-in staff"}
             </p>
           </div>
-          <div className="roles-card">
+          <div className="glass-card roles-card">
             <p className="roles-label">Role distribution</p>
             <div className="roles-legend">
               <span className="pill purple">Admin {roleCounts.admin}</span>
@@ -405,7 +405,7 @@ function AdminRoles() {
           </div>
         </section>
 
-        <section className="roles-panel">
+        <section className="glass-card roles-panel">
           <div className="roles-panel-head">
             <div>
               <p className="roles-label">User management</p>
@@ -446,19 +446,22 @@ function AdminRoles() {
           {!loading && !error && (
             <div className="roles-table-wrapper">
           <table className="roles-table">
-            <thead>
+                <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>User</th>
                     <th>Role</th>
                     <th>Last login</th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user) => {
+                  {filteredUsers.map((user, index) => {
                     const roleKey = (user.role || "").toLowerCase();
                     const menuOpen = openMenu?.userId === user.id;
                     return (
                         <tr key={user.id} onClick={() => openDetailModal(user)} className="roles-row">
+                        <td className="table-row-index">{index}</td>
                         <td>
                           <div className="roles-user">
                             <strong>{user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed"}</strong>
@@ -495,10 +498,23 @@ function AdminRoles() {
                   })}
                   {!filteredUsers.length && (
                     <tr>
-                      <td colSpan={4} className="roles-empty">{users.length ? "No matches found." : "No users yet."}</td>
+                      <td colSpan={5} className="roles-empty">{users.length ? "No matches found." : "No users yet."}</td>
                     </tr>
                   )}
                 </tbody>
+                {filteredUsers.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{filteredUsers.length} users</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
@@ -737,7 +753,7 @@ function AdminRoles() {
                 </div>
               </div>
             </div>
-            <section className="roles-session-panel">
+            <section className="glass-card roles-session-panel">
               <div className="roles-session-summary">
                 <div>
                   <p className="roles-label">Active sessions</p>

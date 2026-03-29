@@ -126,6 +126,17 @@ function StoreModeInventoryPanel({
 }) {
   const inventoryPanelRef = React.useRef(null);
   const [isCompactSearchLayout, setIsCompactSearchLayout] = React.useState(isMobileViewport);
+  const inventoryTableSummary = React.useMemo(() => {
+    return sortedVisibleItems.reduce(
+      (accumulator, item) => {
+        accumulator.count += 1;
+        accumulator.stock += getQuantity(item);
+        accumulator.price += getUnitPrice(item);
+        return accumulator;
+      },
+      { count: 0, stock: 0, price: 0 }
+    );
+  }, [sortedVisibleItems]);
 
   React.useEffect(() => {
     const panelNode = inventoryPanelRef.current;
@@ -192,6 +203,7 @@ function StoreModeInventoryPanel({
           <table className="store-mode-table">
             <thead>
               <tr>
+                <th className="store-mode-col store-mode-col--index table-row-index">#</th>
                 <th className="store-mode-col store-mode-col--item">
                   <button
                     type="button"
@@ -251,12 +263,12 @@ function StoreModeInventoryPanel({
             <tbody>
               {!loading && visibleItems.length === 0 && emptyStateMessage && (
                 <tr>
-                  <td colSpan={isCompactSearchLayout ? 2 : 5} className="store-mode-empty">
+                  <td colSpan={isCompactSearchLayout ? 3 : 6} className="store-mode-empty">
                     {emptyStateMessage}
                   </td>
                 </tr>
               )}
-              {sortedVisibleItems.map((item) => {
+              {sortedVisibleItems.map((item, index) => {
                 const productId = Number(item.id);
                 const currentQty = orderQtyById.get(productId) || 0;
                 const stock = getAvailableQuantity(item, currentQty);
@@ -293,6 +305,9 @@ function StoreModeInventoryPanel({
                     tabIndex={!isOut ? 0 : undefined}
                     role={!isOut ? "button" : undefined}
                   >
+                    <td className="store-mode-cell store-mode-cell--index table-row-index">
+                      {index}
+                    </td>
                     <td className="store-mode-cell store-mode-cell--item">
                       <div className="store-mode-product">
                         <button
@@ -347,6 +362,42 @@ function StoreModeInventoryPanel({
                 );
               })}
             </tbody>
+            {sortedVisibleItems.length > 0 && (
+              <tfoot className="admin-table-footer">
+                {isCompactSearchLayout ? (
+                  <tr>
+                    <td className="admin-table-summary-cell is-count">
+                      <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
+                    </td>
+                    <td className="admin-table-summary-cell is-empty" />
+                    <td className="admin-table-summary-cell">
+                      <span className="admin-table-summary-value">{inventoryTableSummary.stock}</span>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td className="admin-table-summary-cell is-count">
+                      <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
+                    </td>
+                    <td className="admin-table-summary-cell is-empty" />
+                    <td className="admin-table-summary-cell is-empty" />
+                    <td className="admin-table-summary-cell is-empty" />
+                    <td className="admin-table-summary-cell">
+                      <span className="admin-table-summary-value">
+                        {formatMoney(
+                          inventoryTableSummary.count
+                            ? inventoryTableSummary.price / inventoryTableSummary.count
+                            : 0
+                        )}
+                      </span>
+                    </td>
+                    <td className="admin-table-summary-cell">
+                      <span className="admin-table-summary-value">{inventoryTableSummary.stock}</span>
+                    </td>
+                  </tr>
+                )}
+              </tfoot>
+            )}
           </table>
         </div>
       ) : null}
@@ -373,7 +424,7 @@ function StoreModeCustomerPanel({
   customersError,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--customer">
+    <section className="glass-card store-builder-panel store-builder-panel--customer">
       <div className="store-builder-section-head">
         <span>Customer</span>
         <h3>Walk-in details</h3>
@@ -486,7 +537,7 @@ function StoreModeOrderPanel({
   orderCurrency,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--order">
+    <section className="glass-card store-builder-panel store-builder-panel--order">
       <div className="store-builder-summary">
         <div>
           <span className="store-builder-summary-label">Order items</span>
@@ -603,7 +654,7 @@ function StoreModeCartPanel({
   clearOrder,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--cart">
+    <section className="glass-card store-builder-panel store-builder-panel--cart">
       <div className="store-builder-section-head">
         <h3>Checkout</h3>
       </div>

@@ -757,7 +757,7 @@ function OrdersList() {
           }
         />
 
-        <section className="orders-panel">
+        <section className="glass-card orders-panel">
           <div className="orders-panel-header">
             <div>
               <h3>All orders</h3>
@@ -821,6 +821,7 @@ function OrdersList() {
               <table className="orders-table">
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>
                       <button type="button" className="sort-header" onClick={() => requestSort("orderNumber")}>
                         Order <span className="sort-indicator">{sortIndicator("orderNumber")}</span>
@@ -865,7 +866,7 @@ function OrdersList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedOrders.map((order) => (
+                  {paginatedOrders.map((order, index) => (
                     <tr
                       key={order.id}
                       onClick={() => setDetailOrder(order)}
@@ -878,6 +879,7 @@ function OrdersList() {
                         }
                       }}
                     >
+                      <td className="table-row-index">{clampedPage * pageSize + index}</td>
                       <td>{order.orderNumber || `#${order.id}`}</td>
                       <td>{order.customerName || "-"}</td>
                       <td>{formatUser(order.assignedUserName)}</td>
@@ -928,19 +930,32 @@ function OrdersList() {
                   ))}
                   {!filteredOrders.length && (
                     <tr>
-                      <td colSpan={8} className="orders-empty">
+                      <td colSpan={10} className="orders-empty">
                         No orders match your search.
                       </td>
                     </tr>
                   )}
                 </tbody>
-                <tfoot>
-                  <tr className="orders-total-row">
-                    <td colSpan={7}>Total</td>
-                    <td>{formatCurrency(totalAmount)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
+                {sortedOrders.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr className="orders-total-row">
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{sortedOrders.length} orders</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{formatCurrency(totalAmount)}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
               <div className="table-pagination">
                 <span>
@@ -970,7 +985,7 @@ function OrdersList() {
                 {paginatedOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="orders-card"
+                    className="glass-card orders-card"
                     role="button"
                     tabIndex={0}
                     onClick={() => setDetailOrder(order)}
@@ -1071,7 +1086,7 @@ function OrdersList() {
                       <button
                         key={order.id}
                         type="button"
-                        className="orders-kanban-card"
+                        className="glass-card orders-kanban-card"
                         onClick={() => setDetailOrder(order)}
                       >
                         <div className="orders-kanban-card-head">

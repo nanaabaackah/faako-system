@@ -567,6 +567,10 @@ function AdminBookings() {
     const start = clampedPage * pageSize;
     return sortedBookings.slice(start, start + pageSize);
   }, [sortedBookings, clampedPage, pageSize]);
+  const bookingsTableTotal = useMemo(
+    () => sortedBookings.reduce((sum, booking) => sum + toNumber(booking.totalAmount, 0) / 100, 0),
+    [sortedBookings]
+  );
 
   const requestSort = (key) => {
     setSortConfig((prev) => {
@@ -1006,7 +1010,7 @@ function AdminBookings() {
           }
         />
 
-        <section className="bookings-panel">
+        <section className="glass-card bookings-panel">
           <div className="bookings-panel-header">
             <div>
               <h3>All bookings</h3>
@@ -1076,6 +1080,7 @@ function AdminBookings() {
               <table className="bookings-table">
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>
                       <button type="button" className="sort-header" onClick={() => requestSort("id")}>
                         Booking <span className="sort-indicator">{sortIndicator("id")}</span>
@@ -1120,7 +1125,7 @@ function AdminBookings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedBookings.map((booking) => {
+                  {paginatedBookings.map((booking, index) => {
                     const timeWindow = booking.startTime || booking.endTime
                       ? `${booking.startTime || ""}${booking.endTime ? ` – ${booking.endTime}` : ""}`
                       : "-";
@@ -1128,6 +1133,7 @@ function AdminBookings() {
 
                     return (
                       <tr key={booking.id} className="bookings-row" onClick={() => setDetailBooking(booking)}>
+                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
                         <td>#{booking.id}</td>
                         <td>{booking.customerName || "-"}</td>
                         <td>{formatUser(booking.assignedUserName)}</td>
@@ -1198,6 +1204,26 @@ function AdminBookings() {
                     </tr>
                   )}
                 </tbody>
+                {sortedBookings.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{sortedBookings.length} bookings</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
               <div className="table-pagination">
                 <span>
@@ -1233,7 +1259,7 @@ function AdminBookings() {
                   <button
                     type="button"
                     key={booking.id}
-                    className="bookings-card"
+                    className="glass-card bookings-card"
                     onClick={() => setDetailBooking(booking)}
                   >
                     <div className="bookings-card-head">
@@ -1336,7 +1362,7 @@ function AdminBookings() {
                         <button
                           type="button"
                           key={booking.id}
-                          className="bookings-kanban-card"
+                          className="glass-card bookings-kanban-card"
                           onClick={() => setDetailBooking(booking)}
                         >
                           <div className="bookings-kanban-card-head">

@@ -157,17 +157,17 @@ function AdminHR() {
         />
 
         <section className="hr-kpis">
-          <div className="hr-card">
+          <div className="glass-card hr-card">
             <p className="hr-label">Total users</p>
             <h3>{employees.length}</h3>
             <p className="hr-sub">Verified team members</p>
           </div>
-          <div className="hr-card">
+          <div className="glass-card hr-card">
             <p className="hr-label">Active sessions</p>
             <h3>Coming soon</h3>
             <p className="hr-sub">Login activity tracking</p>
           </div>
-          <div className="hr-card">
+          <div className="glass-card hr-card">
             <p className="hr-label">Role distribution</p>
             <div className="hr-legend">
               {Object.keys(roleCounts).length === 0 ? (
@@ -183,7 +183,7 @@ function AdminHR() {
           </div>
         </section>
 
-        <section className="hr-panel">
+        <section className="glass-card hr-panel">
           <div className="hr-panel-head">
             <div>
               <h3>Employee directory</h3>
@@ -228,7 +228,7 @@ function AdminHR() {
               {filteredEmployees.map((employee) => {
                 const roleKey = (employee.role || "staff").toLowerCase();
                 return (
-                  <article key={employee.id} className="hr-employee-card">
+                  <article key={employee.id} className="glass-card hr-employee-card">
                     <div className="hr-employee-head">
                       <div className="hr-avatar">{initialsFromName(employee)}</div>
                       <span className={`pill ${roleColors[roleKey] || "blue"}`}>

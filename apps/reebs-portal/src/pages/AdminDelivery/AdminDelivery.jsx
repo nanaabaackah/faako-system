@@ -353,7 +353,7 @@ function AdminDelivery() {
         </div>
 
         <div className="delivery-grid">
-          <section className="delivery-panel">
+          <section className="glass-card delivery-panel">
             <div className="delivery-panel-head">
               <h3>
                 <AppIcon icon={faTruck} /> Active routes
@@ -363,7 +363,7 @@ function AdminDelivery() {
 
             <div className="delivery-routes">
               {routeGroups.map((route) => (
-                <div key={route.name} className="delivery-route-card">
+                <div key={route.name} className="glass-card delivery-route-card">
                   <div>
                     <strong>{route.name}</strong>
                     <span>{route.count} stops</span>
@@ -408,7 +408,7 @@ function AdminDelivery() {
             </div>
           </section>
 
-          <aside className="delivery-panel delivery-detail">
+          <aside className="glass-card delivery-panel delivery-detail">
             {!selected ? (
               <p className="delivery-muted">Select a delivery to view details.</p>
             ) : (

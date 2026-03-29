@@ -195,22 +195,22 @@ function AdminTimesheets() {
         </section>
 
         <section className="timesheet-kpis">
-          <div className="timesheet-card">
+          <div className="glass-card timesheet-card">
             <p className="timesheet-card-label">Weekly hours</p>
             <h3>{totals.weeklyHours}</h3>
             <span>{totals.weeklyShifts} shifts logged</span>
           </div>
-          <div className="timesheet-card">
+          <div className="glass-card timesheet-card">
             <p className="timesheet-card-label">Monthly hours</p>
             <h3>{totals.monthlyHours}</h3>
             <span>{totals.monthlyShifts} shifts logged</span>
           </div>
-          <div className="timesheet-card">
+          <div className="glass-card timesheet-card">
             <p className="timesheet-card-label">Avg shift</p>
             <h3>{completedShiftCount ? formatDuration(averageShiftMinutes) : "--"}</h3>
             <span>{completedShiftCount} completed shifts</span>
           </div>
-          <div className="timesheet-card">
+          <div className="glass-card timesheet-card">
             <p className="timesheet-card-label">Geo-tagged</p>
             <h3>{geoTaggedCount}</h3>
             <span>{history.length} entries recorded</span>

@@ -293,7 +293,7 @@ function AdminExpenses() {
           eyebrow="Operating Expenses"
           title="Expense Tracker"
           subtitle="Keep every expense inside the fixed company categories so reporting stays clean and accounting totals stay consistent."
-          actionsClassName="expenses-total-card"
+          actionsClassName="glass-card expenses-total-card"
           actions={
             <>
               <p className="expenses-card-label">Total in view</p>
@@ -372,7 +372,7 @@ function AdminExpenses() {
         </section>
 
         <div className="expenses-grid">
-          <section className="expenses-card">
+          <section className="glass-card expenses-card">
             <div className="expenses-card-head">
               <h2>
                 <AppIcon icon={faPlus} /> Log expense
@@ -511,6 +511,7 @@ function AdminExpenses() {
               <table className="expenses-ledger-table">
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>Date</th>
                     <th>Category</th>
                     <th>Linked</th>
@@ -521,19 +522,20 @@ function AdminExpenses() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="expenses-empty">
+                      <td colSpan={6} className="expenses-empty">
                         Loading expenses...
                       </td>
                     </tr>
                   ) : expenses.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="expenses-empty">
+                      <td colSpan={6} className="expenses-empty">
                         No expenses logged yet.
                       </td>
                     </tr>
                   ) : (
-                    expenses.map((expense) => (
+                    expenses.map((expense, index) => (
                       <tr key={expense.id}>
+                        <td className="table-row-index" data-label="#">{index}</td>
                         <td data-label="Date">{formatDate(expense.date)}</td>
                         <td data-label="Category">
                           <span className="expenses-tag" style={getExpenseCategoryStyle(expense.category)}>
@@ -547,6 +549,22 @@ function AdminExpenses() {
                     ))
                   )}
                 </tbody>
+                {!loading && expenses.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{expenses.length} expenses</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{formatCurrency(totalExpenses)}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </section>

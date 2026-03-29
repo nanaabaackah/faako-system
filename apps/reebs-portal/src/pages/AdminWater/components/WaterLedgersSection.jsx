@@ -28,6 +28,34 @@ export default function WaterLedgersSection({
   openExpenseEditor,
   handleExpenseDelete,
 }) {
+  const orderSummary = filteredSales.reduce(
+    (accumulator, sale) => {
+      accumulator.count += 1;
+      accumulator.quantity += Number(sale.quantity) || 0;
+      accumulator.price += Number(sale.unitPrice) || 0;
+      accumulator.total += Number(sale.totalAmount) || 0;
+      return accumulator;
+    },
+    { count: 0, quantity: 0, price: 0, total: 0 }
+  );
+  const stockSummary = stockTimeline.reduce(
+    (accumulator, entry) => {
+      accumulator.count += 1;
+      accumulator.quantity += Number(entry.quantity) || 0;
+      accumulator.value += entry.amount === null ? 0 : Number(entry.amount) || 0;
+      return accumulator;
+    },
+    { count: 0, quantity: 0, value: 0 }
+  );
+  const expenseSummary = expenses.reduce(
+    (accumulator, expense) => {
+      accumulator.count += 1;
+      accumulator.amount += Number(expense.amount) || 0;
+      return accumulator;
+    },
+    { count: 0, amount: 0 }
+  );
+
   return (
     <section className="water-module-ledgers">
       <article className="admin-card water-module-table-card water-module-table-card--orders">
@@ -75,6 +103,7 @@ export default function WaterLedgersSection({
                 <table className="water-module-table water-module-table--orders">
                   <thead>
                     <tr>
+                      <th>#</th>
                       <th>Date</th>
                       <th>Customer</th>
                       <th>Status</th>
@@ -85,7 +114,7 @@ export default function WaterLedgersSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSales.map((sale) => {
+                    {filteredSales.map((sale, index) => {
                       const paymentStatus = normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod);
                       const isActive = Number(activeOrderId) === Number(sale.id);
                       return (
@@ -102,6 +131,7 @@ export default function WaterLedgersSection({
                           tabIndex={0}
                           aria-label={`Edit water order ${sale.id}`}
                         >
+                          <td data-label="#">{index}</td>
                           <td data-label="Date">{formatDate(sale.date)}</td>
                           <td data-label="Customer">
                             <div className="water-module-order-primary">
@@ -128,7 +158,7 @@ export default function WaterLedgersSection({
                               className="water-module-row-delete"
                               onClick={(event) => handleOrderDelete(sale, event)}
                               onKeyDown={(event) => event.stopPropagation()}
-                              aria-label={`Delete water order ${sale.id}`}
+                              aria-label={`Archive water order ${sale.id}`}
                               disabled={saving || loading}
                             >
                               <AppIcon icon={faTrash} />
@@ -138,6 +168,28 @@ export default function WaterLedgersSection({
                       );
                     })}
                   </tbody>
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{orderSummary.count} orders</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{orderSummary.quantity}</span>
+                      </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatCurrency(orderSummary.count ? orderSummary.price / orderSummary.count : 0)}
+                        </span>
+                      </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{formatCurrency(orderSummary.total)}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             ) : (
@@ -163,6 +215,7 @@ export default function WaterLedgersSection({
             <table className="water-module-table water-module-table--stock">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Date</th>
                   <th>Type</th>
                   <th>Details</th>
@@ -172,7 +225,7 @@ export default function WaterLedgersSection({
                 </tr>
               </thead>
               <tbody>
-                {stockTimeline.map((entry) => {
+                {stockTimeline.map((entry, index) => {
                   const isActive =
                     activeLedgerItem?.type === entry.type &&
                     Number(activeLedgerItem?.id) === Number(entry.sourceId);
@@ -190,6 +243,7 @@ export default function WaterLedgersSection({
                       tabIndex={0}
                       aria-label={`Edit ${entry.label.toLowerCase()} ${entry.sourceId || ""}`}
                     >
+                      <td data-label="#">{index}</td>
                       <td data-label="Date">{formatDate(entry.date)}</td>
                       <td data-label="Type">{entry.label}</td>
                       <td data-label="Details">{entry.detail}</td>
@@ -213,6 +267,25 @@ export default function WaterLedgersSection({
                   );
                 })}
               </tbody>
+              <tfoot className="admin-table-footer">
+                <tr>
+                  <td className="admin-table-summary-cell is-count">
+                    <span className="admin-table-summary-value">{stockSummary.count} entries</span>
+                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell">
+                    <span className="admin-table-summary-value">
+                      {stockSummary.quantity > 0 ? `+${stockSummary.quantity}` : stockSummary.quantity}
+                    </span>
+                  </td>
+                  <td className="admin-table-summary-cell">
+                    <span className="admin-table-summary-value">{formatCurrency(stockSummary.value)}</span>
+                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
+                </tr>
+              </tfoot>
             </table>
           </div>
         ) : (
@@ -233,6 +306,7 @@ export default function WaterLedgersSection({
             <table className="water-module-table water-module-table--expenses">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Date</th>
                   <th>Category</th>
                   <th>Description</th>
@@ -241,7 +315,7 @@ export default function WaterLedgersSection({
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((expense) => {
+                {expenses.map((expense, index) => {
                   const isActive =
                     activeLedgerItem?.type === "expense" &&
                     Number(activeLedgerItem?.id) === Number(expense.id);
@@ -259,6 +333,7 @@ export default function WaterLedgersSection({
                       tabIndex={0}
                       aria-label={`Edit water expense ${expense.id}`}
                     >
+                      <td data-label="#">{index}</td>
                       <td data-label="Date">{formatDate(expense.date)}</td>
                       <td data-label="Category">{expense.category}</td>
                       <td data-label="Details">{expense.description}</td>
@@ -269,7 +344,7 @@ export default function WaterLedgersSection({
                           className="water-module-row-delete"
                           onClick={(event) => handleExpenseDelete(expense, event)}
                           onKeyDown={(event) => event.stopPropagation()}
-                          aria-label={`Delete water expense ${expense.id}`}
+                          aria-label={`Archive water expense ${expense.id}`}
                           disabled={saving || loading}
                         >
                           <AppIcon icon={faTrash} />
@@ -279,6 +354,20 @@ export default function WaterLedgersSection({
                   );
                 })}
               </tbody>
+              <tfoot className="admin-table-footer">
+                <tr>
+                  <td className="admin-table-summary-cell is-count">
+                    <span className="admin-table-summary-value">{expenseSummary.count} expenses</span>
+                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell">
+                    <span className="admin-table-summary-value">{formatCurrency(expenseSummary.amount)}</span>
+                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
+                </tr>
+              </tfoot>
             </table>
           </div>
         ) : (

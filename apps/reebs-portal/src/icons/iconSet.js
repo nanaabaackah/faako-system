@@ -86,6 +86,7 @@ export const faBagShopping = ShoppingBag;
 export const faBars = Menu;
 export const faBell = Notification;
 export const faBolt = Flash;
+export const faBoxArchive = Box;
 export const faBoxOpen = Box;
 export const faBoxesStacked = Box;
 export const faBullhorn = Notification;

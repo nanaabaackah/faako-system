@@ -172,10 +172,16 @@ body.admin-readonly .customers-search-input input {
 }
 
 body.admin-theme .portal-app-content .bubble-card {
+  background: var(--admin-portal-surface) !important;
+  border: 1px solid var(--admin-portal-border) !important;
   border-top-left-radius: var(--admin-portal-top-radius) !important;
   border-top-right-radius: var(--admin-portal-top-radius) !important;
   border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
   border-bottom-right-radius: var(--admin-portal-top-radius) !important;
+  box-shadow: var(--admin-portal-shadow) !important;
+  backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  --admin-portal-head-offset: var(--bubble-card-head-offset, 16px);
 }
 
 .admin-cards {
@@ -184,10 +190,13 @@ body.admin-theme .portal-app-content .bubble-card {
   gap: 16px;
 }
 
-.admin-card {
-  
+.admin-card,
+.glass-card {
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-top-left-radius: var(--admin-portal-top-radius);
+  border-top-right-radius: var(--admin-portal-top-radius);
+  border-bottom-left-radius: var(--admin-portal-bottom-radius);
+  border-bottom-right-radius: var(--admin-portal-bottom-radius);
   padding: 20px 24px;
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.15);
   background: transparent;
@@ -529,6 +538,10 @@ body.admin-theme .portal-app-content .bubble-card {
   overflow-x: auto;
 }
 
+.admin-table-scroll.inventory-table-scroll {
+  --inventory-table-border-color: color-mix(in oklab, var(--admin-portal-border), #475569 38%);
+}
+
 .admin-table table {
   width: 100%;
   border-collapse: separate;
@@ -571,6 +584,45 @@ body.admin-theme .portal-app-content .bubble-card {
 .admin-table tbody tr td:last-child {
   border-top-right-radius: 16px;
   border-bottom-right-radius: 16px;
+}
+
+.table-row-index {
+  width: 3.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.admin-table-footer .admin-table-summary-cell {
+  padding: 12px 18px;
+  border-top: 1px solid color-mix(in oklab, var(--admin-portal-border), transparent 18%);
+  background: color-mix(in oklab, var(--admin-card, #fff), transparent 10%);
+  text-align: center;
+  vertical-align: top;
+}
+
+.admin-table-footer .admin-table-summary-cell:first-child {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.admin-table-footer .admin-table-summary-cell:last-child {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.admin-table-footer .admin-table-summary-cell.is-count {
+  text-align: left;
+}
+
+.admin-table-footer .admin-table-summary-cell.is-empty {
+  background: transparent;
+}
+
+.admin-table-summary-value {
+  display: block;
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .admin-product {
@@ -1409,8 +1461,49 @@ body.admin-theme .portal-app-content .bubble-card {
 
 .admin-view-toggle {
   display: inline-flex;
-  gap: 8px;
   align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  flex-wrap: wrap;
+}
+
+.admin-view-toggle .admin-chip {
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  opacity: 0.78;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.admin-view-toggle .admin-chip:hover,
+.admin-view-toggle .admin-chip:focus-visible {
+  background: rgba(255, 255, 255, 0.4);
+  opacity: 1;
+  outline: none;
+}
+
+.admin-view-toggle .admin-chip.is-active {
+  background: rgba(12, 106, 96, 0.14);
+  color: #0c6a60;
+  opacity: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(12, 106, 96, 0.18),
+    0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .admin-chip {
@@ -3672,18 +3765,48 @@ button.admin-kpi-card {
 }
 
 .crm-board {
+  --crm-column-divider: color-mix(in srgb, var(--admin-border) 84%, rgba(148, 163, 184, 0.22));
+  --crm-column-head-bg: color-mix(in srgb, var(--admin-surface) 84%, var(--accent) 16%);
+  --crm-column-head-border: color-mix(in srgb, var(--admin-border) 68%, var(--accent) 32%);
+  --crm-column-count-bg: color-mix(in srgb, var(--admin-surface) 70%, var(--accent) 30%);
+  --crm-column-height: clamp(520px, 68vh, 760px);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .crm-column {
-  border-right: none;
+  position: relative;
   padding: 0;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
+  height: var(--crm-column-height);
   min-height: 0;
+}
+
+.crm-column::after {
+  content: none;
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: -8px;
+  width: 1px;
+  background: var(--crm-column-divider);
+  pointer-events: none;
+}
+
+.crm-column:not(:nth-child(4n)) {
+  padding-right: 16px;
+}
+
+.crm-column:not(:nth-child(4n))::after {
+  content: "";
+}
+
+.crm-column:not(:nth-child(4n + 1)) {
+  padding-left: 16px;
 }
 
 .crm-column-head {
@@ -3691,7 +3814,11 @@ button.admin-kpi-card {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--crm-column-head-border);
+  background: var(--crm-column-head-bg);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .crm-column-head h3 {
@@ -3710,6 +3837,8 @@ button.admin-kpi-card {
   min-height: 42px;
   padding: 0 0.6rem;
   border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--crm-column-head-border) 78%, rgba(255, 255, 255, 0.12));
+  background: var(--crm-column-count-bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3720,6 +3849,12 @@ button.admin-kpi-card {
 .crm-column-list {
   display: grid;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  align-content: start;
+  padding-right: 6px;
 }
 
 .crm-card {
@@ -4296,6 +4431,27 @@ button.admin-kpi-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .crm-column {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .crm-column:not(:nth-child(2n)) {
+    padding-right: 16px;
+  }
+
+  .crm-column::after {
+    content: none;
+  }
+
+  .crm-column:not(:nth-child(2n))::after {
+    content: "";
+  }
+
+  .crm-column:not(:nth-child(2n + 1)) {
+    padding-left: 16px;
+  }
+
   .crm-list-stats,
   .crm-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4308,6 +4464,21 @@ button.admin-kpi-card {
   .crm-list-stats,
   .crm-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .crm-column {
+    height: auto;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .crm-column::after {
+    content: none;
+  }
+
+  .crm-column-list {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .crm-header-actions,
@@ -8574,30 +8745,34 @@ button.admin-kpi-card {
   }
 
   .maintenance-table td:nth-child(1)::before {
-    content: "Asset";
+    content: "#";
   }
 
   .maintenance-table td:nth-child(2)::before {
-    content: "Issue";
+    content: "Asset";
   }
 
   .maintenance-table td:nth-child(3)::before {
-    content: "Status";
+    content: "Issue";
   }
 
   .maintenance-table td:nth-child(4)::before {
-    content: "Cost";
+    content: "Status";
   }
 
   .maintenance-table td:nth-child(5)::before {
-    content: "Logged";
-  }
-
-  .maintenance-table td:nth-child(6) {
-    grid-template-columns: 1fr;
+    content: "Cost";
   }
 
   .maintenance-table td:nth-child(6)::before {
+    content: "Logged";
+  }
+
+  .maintenance-table td:nth-child(7) {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-table td:nth-child(7)::before {
     content: none;
   }
 
@@ -10571,7 +10746,7 @@ body.admin-readonly .delivery-form .delivery-primary {
   outline: none;
 }
 
-.orders-kanban-card-head {
+.orders-d-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -12096,6 +12271,77 @@ body.admin-theme .admin-table table {
   overflow: hidden;
 }
 
+body.admin-theme .admin-table-scroll.inventory-table-scroll {
+  border: 1px solid var(--inventory-table-border-color);
+  border-top-right-radius: 1rem;
+  border-top-left-radius: 1rem;
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--inventory-table-border-color);
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll table {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll thead tr {
+  background: color-mix(in oklab, #94a3b8 22%, white 78%);
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll thead th {
+  text-align: center;
+  background: transparent;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--inventory-table-border-color);
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(3) {
+  text-align: left;
+  padding-left: 1rem;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(3) .sort-header {
+  justify-content: flex-start;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(3) {
+  text-align: left;
+  padding-left: 1rem;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-text,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .admin-product,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-category,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-stock,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-value,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-updated {
+  margin-inline: auto;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(3) > .admin-product {
+  margin-inline: 0;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .admin-product,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-category,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-stock,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-value,
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-updated {
+  display: inline-grid;
+  width: max-content;
+  max-width: 100%;
+  text-align: left;
+  justify-items: start;
+  align-content: center;
+}
+
 body.admin-theme .admin-table thead th {
   color: var(--muted);
   text-align: left;
@@ -12192,6 +12438,68 @@ body.admin-theme .admin-chip.is-active {
   color: var(--ink);
   border-color: var(--border);
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+body.admin-theme .admin-view-toggle {
+  background: var(--surface);
+  padding: 0.2rem;
+  gap: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+body.admin-theme .admin-view-toggle .admin-chip {
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.9rem;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+body.admin-theme .admin-view-toggle .admin-chip:hover,
+body.admin-theme .admin-view-toggle .admin-chip:focus-visible {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--ink);
+}
+
+body.admin-theme .admin-view-toggle .admin-chip.is-active {
+  background: rgba(12, 106, 96, 0.16);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(12, 106, 96, 0.24),
+    0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-view-toggle {
+  background: rgba(15, 23, 42, 0.46);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-view-toggle .admin-chip:hover,
+[data-admin-theme="dark"] body.admin-theme .admin-view-toggle .admin-chip:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-view-toggle .admin-chip.is-active {
+  background: rgba(45, 212, 191, 0.18);
+  color: #f8fafc;
+  box-shadow:
+    inset 0 0 0 1px rgba(45, 212, 191, 0.28),
+    0 10px 22px rgba(2, 6, 23, 0.22);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table-scroll.inventory-table-scroll {
+  --inventory-table-border-color: var(--admin-portal-border);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--inventory-table-border-color);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table-scroll.inventory-table-scroll thead tr {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+[data-admin-theme="dark"] body.admin-theme .admin-table-scroll.inventory-table-scroll thead th {
+  background: transparent;
 }
 
 body.admin-theme .admin-progress,
@@ -13621,85 +13929,21 @@ body.admin-theme button.inventory-card-quick:focus-visible {
 }
 
 /* Shared admin surfaces: glass panels across portal pages. */
-body.admin-theme .portal-app-content :is(
-  .admin-card,
-  .admin-kpi,
-  .admin-kpi-note,
-  .admin-kpi-detail,
-  .admin-kpi-detail-item,
-  .inventory-kpi-card,
-  .inventory-kpi-chart-card,
-  .inventory-scope-card,
-  .inventory-insight-card,
-  .inventory-water-stat,
-  .inventory-card,
-  .admin-focus-card,
-  .admin-analytics-card,
-  .admin-kpi-card,
-  .admin-kpi-link-card,
-  .template-editor-preview-card,
-  .order-panel,
-  .order-customer-card,
-  .crm-kpi-card,
-  .crm-spotlight-card,
-  .crm-control-panel,
-  .crm-view-panel,
-  .crm-card,
-  .crm-list-card,
-  .crm-detail-card,
-  .crm-address-card,
-  .accounting-kpi-card,
-  .accounting-panel,
-  .accounting-kanban-card,
-  .calendar-panel,
-  .agenda-panel,
-  .map-panel,
-  .agenda-card,
-  .bookings-panel,
-  .bookings-card,
-  .bookings-kanban-card,
-  .expenses-total-card,
-  .expenses-card,
-  .hr-card,
-  .hr-panel,
-  .hr-employee-card,
-  .documents-list-panel,
-  .documents-card,
-  .documents-upload-card,
-  .timesheet-card,
-  .vendors-profile-card,
-  .maintenance-card,
-  .delivery-panel,
-  .delivery-route-card,
-  .roles-card,
-  .roles-panel,
-  .roles-session-panel,
-  .settings-panel,
-  .settings-user-card,
-  .customers-panel,
-  .orders-panel,
-  .orders-card,
-  .orders-kanban-card,
-  .marketing-panel,
-  .water-module-card,
-  .water-module-table-card,
-  .water-module-price-card
-) {
+body.admin-theme .portal-app-content :is(.admin-card, .glass-card) {
   background: var(--admin-portal-surface) !important;
   border: 1px solid var(--admin-portal-border) !important;
+  border-top-left-radius: var(--admin-portal-top-radius) !important;
+  border-top-right-radius: var(--admin-portal-top-radius) !important;
+  border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
+  border-bottom-right-radius: var(--admin-portal-bottom-radius) !important;
   box-shadow: var(--admin-portal-shadow) !important;
   backdrop-filter: blur(var(--admin-portal-blur)) !important;
   -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
-  --admin-portal-head-offset: 16px;
+  --admin-portal-head-offset: var(--glass-card-head-offset, 24px);
 }
 
-body.admin-theme .portal-app-content :is(
-  .bookings-panel,
-  .bookings-card,
-  .bookings-kanban-card,
-  .documents-upload-card
-) {
-  --admin-portal-head-offset: 18px;
+body.admin-theme .portal-app-content .order-panel {
+  --glass-card-head-offset: 22px;
 }
 
 body.admin-theme .portal-app-content .inventory-card.is-low {
@@ -13722,18 +13966,11 @@ body.admin-theme .portal-app-content .inventory-card.is-out {
   border-color: rgba(248, 113, 113, 0.34) !important;
 }
 
-body.admin-theme .portal-app-content :is(
-  .customers-panel,
-  .orders-panel
-) {
-  --admin-portal-head-offset: 24px;
-}
-
 body.admin-theme .portal-app-content .settings-panel {
-  --admin-portal-head-offset: 20px;
+  --glass-card-head-offset: 20px;
 }
 
-body.admin-theme .portal-app-content :is(
+body.admin-theme .portal-app-content :is(.admin-card, .glass-card) :is(
   [class$="-panel-header"],
   [class$="-panel-head"],
   [class$="-card-head"],
@@ -13753,7 +13990,7 @@ body.admin-theme .portal-app-content :is(
   padding-bottom: clamp(0.75rem, 1.4vw, 0.95rem);
 }
 
-body.admin-theme .portal-app-content :is(
+body.admin-theme .portal-app-content :is(.admin-card, .glass-card) :is(
   [class$="-panel-header"],
   [class$="-panel-head"],
   [class$="-card-head"],

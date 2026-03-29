@@ -407,7 +407,7 @@ export default function WaterLedgerEditorModal({
                 onClick={(event) => handleExpenseDelete(activeLedgerRecord, event)}
                 disabled={saving || loading}
               >
-                <AppIcon icon={faTrash} /> Delete
+                <AppIcon icon={faTrash} /> Archive
               </button>
             ) : null}
             <button type="button" className="admin-secondary" onClick={closeLedgerEditor}>

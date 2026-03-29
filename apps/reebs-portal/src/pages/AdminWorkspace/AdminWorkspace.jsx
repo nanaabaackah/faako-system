@@ -2603,7 +2603,7 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderInventory = () => (
     <section className="aw-section-grid">
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-toolbar">
           <SearchField
             className="aw-search"
@@ -2676,7 +2676,7 @@ function AdminWorkspace({ section = "home" }) {
               const quantity = getQuantity(item);
               const isLow = quantity <= LOW_STOCK_THRESHOLD;
               return (
-                <article key={item.id} className="aw-stock-card">
+                <article key={item.id} className="glass-card aw-stock-card">
                   <div className="aw-stock-meta">
                     <h3>{item.name}</h3>
                     <p>{item.sku || "No SKU"}</p>
@@ -2715,7 +2715,7 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderPurchases = () => (
     <section className="aw-section-grid">
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Quick Purchase</h2>
         </div>
@@ -2745,7 +2745,7 @@ function AdminWorkspace({ section = "home" }) {
         {customerError && <p className="aw-muted">{customerError}</p>}
       </div>
 
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Products</h2>
           <span className="aw-count-pill">{purchaseCatalog.length}</span>
@@ -2765,7 +2765,7 @@ function AdminWorkspace({ section = "home" }) {
         </div>
       </div>
 
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Basket</h2>
           <span className="aw-count-pill">{purchaseCount}</span>
@@ -2828,7 +2828,7 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderOffline = () => (
     <section className="aw-section-grid">
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Queue</h2>
           <span className="aw-count-pill">{pendingQueue.length}</span>
@@ -2878,7 +2878,7 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderAdvanced = () => (
     <section className="aw-section-grid">
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Admin Controls</h2>
         </div>
@@ -2904,7 +2904,7 @@ function AdminWorkspace({ section = "home" }) {
         )}
       </div>
 
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Legacy Modules</h2>
         </div>
@@ -2913,7 +2913,7 @@ function AdminWorkspace({ section = "home" }) {
             <button
               key={item.path}
               type="button"
-              className="aw-link-card"
+              className="glass-card aw-link-card"
               onClick={() => navigate(item.path)}
             >
               {item.label}
@@ -2922,7 +2922,7 @@ function AdminWorkspace({ section = "home" }) {
         </div>
       </div>
 
-      <div className="aw-panel">
+      <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>System Health</h2>
         </div>

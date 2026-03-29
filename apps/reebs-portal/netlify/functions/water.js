@@ -107,6 +107,9 @@ const tableStatements = [
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedByUserId" INTEGER`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedByName" TEXT`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "archivedByUserId" INTEGER`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "archivedByName" TEXT`,
   `CREATE TABLE IF NOT EXISTS "waterExpense" (
     "id" SERIAL PRIMARY KEY,
     "organizationId" INTEGER NOT NULL,
@@ -119,6 +122,9 @@ const tableStatements = [
     "createdByName" TEXT,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedByUserId" INTEGER`,
+  `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedByName" TEXT`,
   `CREATE TABLE IF NOT EXISTS "waterAdjustment" (
     "id" SERIAL PRIMARY KEY,
     "organizationId" INTEGER NOT NULL,
@@ -516,11 +522,12 @@ const findOrCreateCustomerByName = async (client, organizationId, name, phone = 
   }
 };
 
-const selectRows = async (client, queryRef, columns, organizationId) => {
+const selectRows = async (client, queryRef, columns, organizationId, extraWhere = "") => {
   const result = await client.query(
     `SELECT ${columns.join(", ")}
      FROM ${queryRef}
      WHERE "organizationId" = $1
+     ${extraWhere ? `AND ${extraWhere}` : ""}
      ORDER BY date DESC, id DESC`,
     [organizationId]
   );
@@ -740,7 +747,8 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"updatedByUserId\"",
         "\"updatedByName\"",
       ],
-      organizationId
+      organizationId,
+      `"archivedAt" IS NULL`
     ),
     selectRows(
       client,
@@ -756,7 +764,8 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByName\"",
         "\"createdAt\"",
       ],
-      organizationId
+      organizationId,
+      `"archivedAt" IS NULL`
     ),
     selectRows(
       client,
@@ -1208,7 +1217,7 @@ export async function handler(event = {}) {
            date,
            "paidAt"
          FROM "waterSale"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
          LIMIT 1`,
         [saleId, organizationId]
       );
@@ -1333,7 +1342,7 @@ export async function handler(event = {}) {
              "updatedAt" = NOW(),
              "updatedByUserId" = $18,
              "updatedByName" = $19
-         WHERE id = $1 AND "organizationId" = $2`,
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
         [
           saleId,
           organizationId,
@@ -1378,7 +1387,7 @@ export async function handler(event = {}) {
       const existingRes = await client.query(
         `SELECT id
          FROM "waterSale"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
          LIMIT 1`,
         [saleId, organizationId]
       );
@@ -1388,9 +1397,15 @@ export async function handler(event = {}) {
       }
 
       await client.query(
-        `DELETE FROM "waterSale"
-         WHERE id = $1 AND "organizationId" = $2`,
-        [saleId, organizationId]
+        `UPDATE "waterSale"
+         SET "archivedAt" = NOW(),
+             "archivedByUserId" = $3,
+             "archivedByName" = $4,
+             "updatedAt" = NOW(),
+             "updatedByUserId" = $3,
+             "updatedByName" = $4
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
+        [saleId, organizationId, createdByUserId, createdByName]
       );
 
       return json(200, await buildDashboard(client, organizationId));
@@ -1440,7 +1455,7 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterExpense"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
          LIMIT 1`,
         [expenseId, organizationId]
       );
@@ -1482,7 +1497,7 @@ export async function handler(event = {}) {
              "description" = $5,
              "notes" = $6,
              "date" = $7
-         WHERE id = $1 AND "organizationId" = $2`,
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
         [expenseId, organizationId, category, amount, description, notes, date]
       );
 
@@ -1498,7 +1513,7 @@ export async function handler(event = {}) {
       const existingRes = await client.query(
         `SELECT id
          FROM "waterExpense"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
          LIMIT 1`,
         [expenseId, organizationId]
       );
@@ -1508,9 +1523,12 @@ export async function handler(event = {}) {
       }
 
       await client.query(
-        `DELETE FROM "waterExpense"
-         WHERE id = $1 AND "organizationId" = $2`,
-        [expenseId, organizationId]
+        `UPDATE "waterExpense"
+         SET "archivedAt" = NOW(),
+             "archivedByUserId" = $3,
+             "archivedByName" = $4
+         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
+        [expenseId, organizationId, createdByUserId, createdByName]
       );
 
       return json(200, await buildDashboard(client, organizationId));

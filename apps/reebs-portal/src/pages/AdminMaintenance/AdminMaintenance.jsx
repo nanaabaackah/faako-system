@@ -138,6 +138,10 @@ function AdminMaintenance() {
       return fields.some((field) => String(field || "").toLowerCase().includes(needle));
     });
   }, [logs, filter, searchTerm]);
+  const filteredLogCostTotal = useMemo(
+    () => filteredLogs.reduce((sum, log) => sum + toNumber(log.cost), 0),
+    [filteredLogs]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -230,7 +234,7 @@ function AdminMaintenance() {
         </section>
 
         <div className="maintenance-grid">
-          <section className="maintenance-card">
+          <section className="glass-card maintenance-card">
             <div className="maintenance-card-head">
               <h2>
                 <AppIcon icon={faWrench} /> Log maintenance
@@ -336,6 +340,7 @@ function AdminMaintenance() {
               <table>
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>Asset</th>
                     <th>Issue</th>
                     <th>Status</th>
@@ -347,15 +352,16 @@ function AdminMaintenance() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="maintenance-empty">Loading maintenance logs...</td>
+                      <td colSpan={7} className="maintenance-empty">Loading maintenance logs...</td>
                     </tr>
                   ) : filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="maintenance-empty">No maintenance logs found.</td>
+                      <td colSpan={7} className="maintenance-empty">No maintenance logs found.</td>
                     </tr>
                   ) : (
-                    filteredLogs.map((log) => (
+                    filteredLogs.map((log, index) => (
                       <tr key={log.id}>
+                        <td className="table-row-index">{index}</td>
                         <td>
                           <div className="maintenance-asset">
                             <strong>{log.productName || "Unknown"}</strong>
@@ -395,6 +401,23 @@ function AdminMaintenance() {
                     ))
                   )}
                 </tbody>
+                {filteredLogs.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{filteredLogs.length} logs</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{formatCurrency(filteredLogCostTotal)}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </section>

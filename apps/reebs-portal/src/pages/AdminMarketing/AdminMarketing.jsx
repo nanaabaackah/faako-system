@@ -150,6 +150,17 @@ function AdminMarketing() {
     () => discounts.filter((discount) => !discount.isActive || isExpired(discount.expiryDate)).length,
     [discounts]
   );
+  const campaignSummary = useMemo(() => {
+    return discounts.reduce(
+      (accumulator, discount) => {
+        accumulator.count += 1;
+        accumulator.minOrderTotal += Number(discount.minOrderValue) || 0;
+        accumulator.usageTotal += Number(discount.usageCount) || 0;
+        return accumulator;
+      },
+      { count: 0, minOrderTotal: 0, usageTotal: 0 }
+    );
+  }, [discounts]);
 
   const segments = useMemo(() => {
     const totals = customers.map((customer) => ({
@@ -432,6 +443,7 @@ function AdminMarketing() {
               <table className="marketing-table">
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>Code</th>
                     <th>Offer</th>
                     <th>Scope</th>
@@ -445,16 +457,17 @@ function AdminMarketing() {
                 <tbody>
                   {!loading && discounts.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="marketing-empty">
+                      <td colSpan={9} className="marketing-empty">
                         No campaigns yet.
                       </td>
                     </tr>
                   )}
-                  {discounts.map((discount) => {
+                  {discounts.map((discount, index) => {
                     const expired = isExpired(discount.expiryDate);
                     const isActive = discount.isActive && !expired;
                     return (
                       <tr key={discount.id}>
+                        <td className="table-row-index">{index}</td>
                         <td>
                           <strong>{discount.code}</strong>
                           {discount.reward && <p className="marketing-reward">{discount.reward}</p>}
@@ -482,6 +495,29 @@ function AdminMarketing() {
                     );
                   })}
                 </tbody>
+                {discounts.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{campaignSummary.count} campaigns</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatCurrency(campaignSummary.minOrderTotal)}
+                        </span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{campaignSummary.usageTotal}</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </section>

@@ -539,7 +539,7 @@ function AdminSettings({ profileOnly = false }) {
 
         {activeTab === "profile" && (
           <>
-            <section className="settings-panel">
+            <section className="glass-card settings-panel">
               <form className="settings-form" onSubmit={saveProfile}>
                 {profileLoading && <p className="settings-muted">Loading profile...</p>}
                 <div className="settings-profile-media">
@@ -675,7 +675,7 @@ function AdminSettings({ profileOnly = false }) {
               </form>
             </section>
 
-            <section className="settings-panel">
+            <section className="glass-card settings-panel">
               <div className="settings-panel-head">
                 <div>
                   <h3>System preferences</h3>
@@ -742,7 +742,7 @@ function AdminSettings({ profileOnly = false }) {
         )}
 
         {activeTab === "users" && (
-          <section className="settings-panel">
+          <section className="glass-card settings-panel">
             <div className="settings-panel-head">
               <div>
                 <h3>User management</h3>
@@ -760,7 +760,7 @@ function AdminSettings({ profileOnly = false }) {
             <div className="settings-users">
               <div className="settings-users-list">
                 {users.map((member) => (
-                  <div key={member.id} className="settings-user-card">
+                  <div key={member.id} className="glass-card settings-user-card">
                     <div>
                       <strong>{member.fullName || member.name || "Unnamed"}</strong>
                       <p className="settings-muted">{member.email}</p>
@@ -832,7 +832,7 @@ function AdminSettings({ profileOnly = false }) {
         )}
 
         {activeTab === "config" && (
-          <section className="settings-panel">
+          <section className="glass-card settings-panel">
             <div className="settings-panel-head">
               <div>
                 <h3>ERP configuration</h3>
@@ -920,7 +920,7 @@ function AdminSettings({ profileOnly = false }) {
 
         {activeTab === "advanced" && (
           <>
-            <section className="settings-panel">
+            <section className="glass-card settings-panel">
               <div className="settings-panel-head">
                 <div>
                   <h3>Admin controls</h3>
@@ -958,7 +958,7 @@ function AdminSettings({ profileOnly = false }) {
               )}
             </section>
 
-            <section className="settings-panel">
+            <section className="glass-card settings-panel">
               <div className="settings-panel-head">
                 <div>
                   <h3>Legacy modules</h3>
@@ -981,7 +981,7 @@ function AdminSettings({ profileOnly = false }) {
               </div>
             </section>
 
-            <section className="settings-panel">
+            <section className="glass-card settings-panel">
               <div className="settings-panel-head settings-panel-head--split">
                 <div>
                   <h3>System health</h3>

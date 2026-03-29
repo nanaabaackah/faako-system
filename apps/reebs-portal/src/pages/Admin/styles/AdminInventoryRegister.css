@@ -441,15 +441,27 @@ body.admin-theme .inventory-table-scroll thead th {
   border-bottom: 1px solid var(--inventory-table-border-color);
 }
 
+body.admin-theme .inventory-table-scroll thead th:nth-child(3) {
+  text-align: left;
+}
+
 body.admin-theme .inventory-table-scroll thead .sort-header {
   width: 100%;
   justify-content: center;
   background: transparent;
 }
 
+body.admin-theme .inventory-table-scroll thead th:nth-child(3) .sort-header {
+  justify-content: flex-start;
+}
+
 body.admin-theme .inventory-table-scroll tbody td {
   text-align: center;
   vertical-align: middle;
+}
+
+body.admin-theme .inventory-table-scroll tbody td:nth-child(3) {
+  text-align: left;
 }
 
 .inventory-table-text {
@@ -466,6 +478,10 @@ body.admin-theme .inventory-table-scroll tbody td > .inventory-table-value,
 body.admin-theme .inventory-table-scroll tbody td > .inventory-table-updated,
 body.admin-theme .inventory-table-scroll tbody td > .bookings-menu.inventory-menu {
   margin-inline: auto;
+}
+
+body.admin-theme .inventory-table-scroll tbody td:nth-child(3) > .admin-product {
+  margin-inline: 0;
 }
 
 body.admin-theme .inventory-table-scroll tbody td > .admin-product,

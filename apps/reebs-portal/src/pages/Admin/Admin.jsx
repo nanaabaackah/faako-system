@@ -738,29 +738,6 @@ function Admin() {
     }
   };
 
-  const deleteItem = async (item) => {
-    if (!item?.id) return;
-    if (!window.confirm(`Delete "${formatInventoryItemName(item.name, "This Item")}"? This cannot be undone.`)) return;
-    setActionItemId(item.id);
-    try {
-      const response = await fetch("/.netlify/functions/inventory", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, ...buildActorPayload() }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Failed to delete item.");
-      setItems((prev) => prev.filter((row) => row.id !== item.id));
-      setDeletedItems((prev) => [data, ...prev]);
-      setSuccess(`${formatInventoryItemName(item.name, "Item")} deleted.`);
-    } catch (err) {
-      console.error("Delete failed", err);
-      setSubmitError(err.message || "Delete failed.");
-    } finally {
-      setActionItemId(null);
-    }
-  };
-
   const restoreSelectedArchived = async () => {
     if (!archivedSelected.size) return;
     if (!window.confirm(`Restore ${archivedSelected.size} archived item(s)?`)) return;
@@ -956,6 +933,23 @@ function Admin() {
     const start = clampedPage * pageSize;
     return inventory.slice(start, start + pageSize);
   }, [inventory, clampedPage, pageSize]);
+  const inventoryTableSummary = useMemo(() => {
+    const totals = inventory.reduce(
+      (accumulator, item) => {
+        accumulator.count += 1;
+        accumulator.stockTotal += getQuantity(item);
+        accumulator.priceTotal += Math.max(0, toNumber(item?.price, 0));
+        accumulator.inventoryValueTotal += getInventoryStockValue(item);
+        return accumulator;
+      },
+      { count: 0, stockTotal: 0, priceTotal: 0, inventoryValueTotal: 0 }
+    );
+
+    return {
+      ...totals,
+      averagePrice: totals.count ? totals.priceTotal / totals.count : 0,
+    };
+  }, [inventory]);
   const paginationStart = inventory.length === 0 ? 0 : clampedPage * pageSize + 1;
   const paginationEnd = Math.min(inventory.length, (clampedPage + 1) * pageSize);
   const paginationDisplayPage = inventory.length === 0 ? 0 : clampedPage + 1;
@@ -2073,7 +2067,7 @@ function Admin() {
           })}
         </section>
 
-        <section className="inventory-kpi-panel" aria-label="Inventory hub KPIs">
+        <section className="glass-card inventory-kpi-panel" aria-label="Inventory hub KPIs">
           <div className="inventory-kpi-panel-head">
             <div className="inventory-kpi-panel-aside">
             </div>
@@ -2410,6 +2404,7 @@ function Admin() {
               <table>
                 <thead>
                   <tr>
+                    <th className="table-row-index">#</th>
                     <th>
                       <button type="button" className="sort-header" onClick={() => requestSort("id")}>
                         ID <span className="sort-indicator">{sortIndicator("id")}</span>
@@ -2458,12 +2453,12 @@ function Admin() {
                 <tbody>
                   {!loading && inventory.length === 0 && (
                     <tr>
-                      <td colSpan={shouldShowUpdatedColumn ? 9 : 8} className="admin-empty">
+                      <td colSpan={shouldShowUpdatedColumn ? 10 : 9} className="admin-empty">
                         No items found in inventory.
                       </td>
                     </tr>
                   )}
-                  {paginatedInventory.map((item) => {
+                  {paginatedInventory.map((item, index) => {
                     const quantity = getQuantity(item);
                     const isOut = quantity <= 0;
                     const isLow = isLowStockItem(item);
@@ -2486,6 +2481,9 @@ function Admin() {
                           }
                         }}
                       >
+                        <td className="table-row-index">
+                          <span className="inventory-table-text">{clampedPage * pageSize + index}</span>
+                        </td>
                         <td>
                           <span className="inventory-table-text">{item.id}</span>
                         </td>
@@ -2594,19 +2592,6 @@ function Admin() {
                                   >
                                     Archive item
                                   </button>
-                                  {isSystemAdmin && (
-                                    <button
-                                      type="button"
-                                      className="inventory-menu-delete"
-                                      onClick={() => {
-                                        closeMenu();
-                                        deleteItem(item);
-                                      }}
-                                      disabled={actionItemId === item.id}
-                                    >
-                                      Delete item
-                                    </button>
-                                  )}
                                   <button
                                     type="button"
                                     className="inventory-menu-copy"
@@ -2639,6 +2624,34 @@ function Admin() {
                     );
                   })}
                 </tbody>
+                {inventory.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    <tr>
+                      <td className="admin-table-summary-cell is-count">
+                        <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
+                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">{inventoryTableSummary.stockTotal}</span>
+                      </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatMoney(inventoryTableSummary.averagePrice)}
+                        </span>
+                      </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatMoney(inventoryTableSummary.inventoryValueTotal)}
+                        </span>
+                      </td>
+                      {shouldShowUpdatedColumn && <td className="admin-table-summary-cell is-empty" />}
+                      <td className="admin-table-summary-cell is-empty" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
               {inventoryPagination}
             </div>
@@ -2742,19 +2755,6 @@ function Admin() {
 	                              >
 	                                Archive item
 	                              </button>
-	                              {isSystemAdmin && (
-	                                <button
-	                                  type="button"
-	                                  className="inventory-menu-delete"
-	                                  onClick={() => {
-	                                    closeMenu();
-	                                    deleteItem(item);
-	                                  }}
-	                                  disabled={actionItemId === item.id}
-	                                >
-	                                  Delete item
-	                                </button>
-	                              )}
 	                              <button
 	                                type="button"
 	                                className="inventory-menu-copy"

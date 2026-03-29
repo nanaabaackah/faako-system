@@ -430,12 +430,12 @@ function AdminVendors() {
                   </div>
 
                   <div className="vendors-profile-grid">
-                    <div className="vendors-profile-card">
+                    <div className="glass-card vendors-profile-card">
                       <p className="vendors-label">Lead time</p>
                       <h3>{formatLeadTime(selectedVendor.leadTimeDays)}</h3>
                       <p className="vendors-sub">{toNumber(selectedVendor.products)} linked items</p>
                     </div>
-                    <div className="vendors-profile-card">
+                    <div className="glass-card vendors-profile-card">
                       <p className="vendors-label">Contact</p>
                       <h3>{selectedVendor.email || "No email"}</h3>
                       <p className="vendors-sub">{selectedVendor.phone || "No phone"}</p>

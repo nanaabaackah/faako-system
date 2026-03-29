@@ -809,7 +809,7 @@ function AdminScheduler() {
 
         {!loading && !error && view === "month" && (
           <div className="scheduler-grid">
-            <section className="calendar-panel">
+            <section className="glass-card calendar-panel">
               <div className="calendar-header">
                 <div className="calendar-nav-group" ref={monthPickerRef}>
                   <button
@@ -942,7 +942,7 @@ function AdminScheduler() {
               ) : (
                 <div className="agenda-list">
                   {activeDayBookings.map((booking) => (
-                    <div key={booking.id} className="agenda-card">
+                    <div key={booking.id} className="glass-card agenda-card">
                       <div>
                         <h4>#{booking.id} · {booking.customerName}</h4>
                         <p>
@@ -965,7 +965,7 @@ function AdminScheduler() {
         )}
 
         {!loading && !error && view === "agenda" && (
-          <section className="agenda-panel">
+          <section className="glass-card agenda-panel">
             <h2>Upcoming bookings</h2>
             {bookings.length === 0 ? (
               <p className="scheduler-muted">No bookings found.</p>
@@ -975,7 +975,7 @@ function AdminScheduler() {
                   .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate))
                   .slice(0, 50)
                   .map((booking) => (
-                    <div key={booking.id} className="agenda-card">
+                    <div key={booking.id} className="glass-card agenda-card">
                       <div>
                         <h4>#{booking.id} · {booking.customerName}</h4>
                         <p>
@@ -1000,7 +1000,7 @@ function AdminScheduler() {
         )}
 
         {!loading && !error && view === "map" && (
-          <section className="map-panel">
+          <section className="glass-card map-panel">
             <div className="map-header">
               <h2>Delivery map</h2>
               <p className="scheduler-muted">

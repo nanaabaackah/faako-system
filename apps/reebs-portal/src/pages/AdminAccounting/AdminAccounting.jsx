@@ -558,6 +558,24 @@ function AdminAccounting() {
     [filteredBookings]
   );
   const combinedTotal = receiptsTotal + invoicesTotal;
+  const financeTransactionSummary = useMemo(() => {
+    const totals = financeTransactions.reduce(
+      (accumulator, item) => {
+        accumulator.count += 1;
+        accumulator.revenue += toNumber(item.revenue);
+        accumulator.unitCost += toNumber(item.unitCost);
+        accumulator.marginPct += toNumber(item.marginPct);
+        return accumulator;
+      },
+      { count: 0, revenue: 0, unitCost: 0, marginPct: 0 }
+    );
+
+    return {
+      ...totals,
+      averageUnitCost: totals.count ? totals.unitCost / totals.count : 0,
+      averageMarginPct: totals.count ? totals.marginPct / totals.count : 0,
+    };
+  }, [financeTransactions]);
   const cashflowSpark = useMemo(() => {
     if (!cashflowTrend.length) return { points: "", max: 0 };
     const max = Math.max(...cashflowTrend.map((d) => d.revenue || 0), 0);
@@ -1068,7 +1086,7 @@ function AdminAccounting() {
 
         {!loading && !error && data && (
           <section className="accounting-panels accounting-panels-stack">
-            <div className="accounting-panel">
+            <div className="glass-card accounting-panel">
               <div className="accounting-panel-head">
                 <div>
                   <p className="accounting-panel-label">Historical carry-over</p>
@@ -1166,17 +1184,17 @@ function AdminAccounting() {
         {!loading && !error && data && viewMode === "overview" && (
           <>
             <section className="accounting-kpis">
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Gross revenue</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(grossRevenue)}</h3>
                 <p className="accounting-kpi-sub">Orders: {data.orders || 0}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Units sold</p>
                 <h3 className="accounting-kpi-value">{data.units || 0}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Cash flow trend</p>
                 <h3 className="accounting-kpi-value">
                   {cashflowTrend.length
@@ -1187,19 +1205,19 @@ function AdminAccounting() {
                 </h3>
                 <p className="accounting-kpi-sub">{cashflowWindowLabel}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Bookings revenue</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(data.bookingRevenue || 0)}</h3>
                 <p className="accounting-kpi-sub">{data.bookings || 0} bookings</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Operating expenses</p>
                 <h3 className="accounting-kpi-value">
                   {formatCurrency(financeSummary?.operatingExpenses || 0)}
                 </h3>
                 <p className="accounting-kpi-sub">{expenseWindowLabel}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Net profit</p>
                 <h3 className="accounting-kpi-value">
                   {formatCurrency(financeSummary?.netProfit || 0)}
@@ -1209,7 +1227,7 @@ function AdminAccounting() {
             </section>
 
             <section className="accounting-panels accounting-panels-stack">
-              <div className="accounting-panel accounting-panel--margins">
+              <div className="glass-card accounting-panel accounting-panel--margins">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Automated reconciliation</p>
@@ -1272,7 +1290,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Sales reconciliation</p>
@@ -1291,6 +1309,7 @@ function AdminAccounting() {
                     <table>
                       <thead>
                         <tr>
+                          <th className="table-row-index">#</th>
                           <th>Product</th>
                           <th>Revenue</th>
                           <th>Unit cost</th>
@@ -1298,8 +1317,9 @@ function AdminAccounting() {
                         </tr>
                       </thead>
                       <tbody>
-                        {financeTransactions.map((item) => (
+                        {financeTransactions.map((item, index) => (
                           <tr key={item.id}>
+                            <td className="table-row-index">{index}</td>
                             <td>
                               <div className="accounting-table-title">
                                 <strong>{item.name || "Untitled"}</strong>
@@ -1314,6 +1334,31 @@ function AdminAccounting() {
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot className="admin-table-footer">
+                        <tr>
+                          <td className="admin-table-summary-cell is-count">
+                            <span className="admin-table-summary-value">
+                              {financeTransactionSummary.count} products
+                            </span>
+                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell">
+                            <span className="admin-table-summary-value">
+                              {formatCurrency(financeTransactionSummary.revenue)}
+                            </span>
+                          </td>
+                          <td className="admin-table-summary-cell">
+                            <span className="admin-table-summary-value">
+                              {formatCurrency(financeTransactionSummary.averageUnitCost)}
+                            </span>
+                          </td>
+                          <td className="admin-table-summary-cell">
+                            <span className="admin-table-summary-value">
+                              {financeTransactionSummary.averageMarginPct.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 )}
@@ -1321,7 +1366,7 @@ function AdminAccounting() {
             </section>
 
             <section className="accounting-panels">
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Income diversification</p>
@@ -1368,7 +1413,7 @@ function AdminAccounting() {
                 </p>
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Top selling products</p>
@@ -1408,7 +1453,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Top booked rentals</p>
@@ -1448,7 +1493,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Cash flow trend</p>
@@ -1498,24 +1543,24 @@ function AdminAccounting() {
         {!loading && !error && data && viewMode === "statements" && (
           <>
             <section className="accounting-kpis accounting-kpis-tight">
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Cash + bank</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(cashOnHand + bankBalance)}</h3>
                 <p className="accounting-kpi-sub">Working capital {formatCurrency(workingCapital)}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Current ratio</p>
                 <h3 className="accounting-kpi-value">
                   {currentRatio ? currentRatio.toFixed(2) : "N/A"}
                 </h3>
                 <p className="accounting-kpi-sub">Quick ratio {quickRatio ? quickRatio.toFixed(2) : "N/A"}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Period net profit</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(periodNetProfit)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Taxable sales</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(taxableSales)}</h3>
                 <p className="accounting-kpi-sub">VAT rate {Math.round(vatTotalRate * 1000) / 10}%</p>
@@ -1523,7 +1568,7 @@ function AdminAccounting() {
             </section>
 
             <section className="accounting-panels accounting-panels-stack">
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Statement</p>
@@ -1572,7 +1617,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Statement</p>
@@ -1684,7 +1729,7 @@ function AdminAccounting() {
                 </div>
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Automation</p>
@@ -1710,7 +1755,7 @@ function AdminAccounting() {
                 </ul>
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Inputs</p>
@@ -1877,7 +1922,7 @@ function AdminAccounting() {
                 </div>
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Checklist</p>
@@ -1902,12 +1947,12 @@ function AdminAccounting() {
         {!loading && !error && data && viewMode === "charts" && (
           <>
             <section className="accounting-kpis">
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Gross revenue</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(grossRevenue)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="accounting-kpi-card">
+              <div className="glass-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Retail vs Rentals</p>
                 <h3 className="accounting-kpi-value">
                   {revenueSplit.retailPct}% / {revenueSplit.rentalPct}%
@@ -1917,7 +1962,7 @@ function AdminAccounting() {
             </section>
 
             <section className="accounting-panels charts-only">
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Revenue mix</p>
@@ -1959,7 +2004,7 @@ function AdminAccounting() {
                 </div>
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Cash flow</p>
@@ -1986,7 +2031,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Top products</p>
@@ -2023,7 +2068,7 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="accounting-panel">
+              <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <p className="accounting-panel-label">Top rentals</p>
@@ -2067,16 +2112,16 @@ function AdminAccounting() {
           <section className="accounting-kanban">
             <div className="accounting-kanban-column">
               <h4>Revenue</h4>
-              <div className="accounting-kanban-card">
+              <div className="glass-card accounting-kanban-card">
                 <p className="accounting-muted">{data.windowLabel || ""}</p>
                 <h3>{formatCurrency(grossRevenue)}</h3>
                 <p className="accounting-panel-sub">Orders {data.orders || 0}</p>
               </div>
-              <div className="accounting-kanban-card">
+              <div className="glass-card accounting-kanban-card">
                 <p className="accounting-muted">Retail</p>
                 <h3>{formatCurrency(revenueSplit.retail)}</h3>
               </div>
-              <div className="accounting-kanban-card">
+              <div className="glass-card accounting-kanban-card">
                 <p className="accounting-muted">Rentals</p>
                 <h3>{formatCurrency(revenueSplit.rental)}</h3>
               </div>
@@ -2087,7 +2132,7 @@ function AdminAccounting() {
                 <p className="accounting-muted">No products sold.</p>
               ) : (
                 topProducts.map((product) => (
-                  <div key={product.id} className="accounting-kanban-card">
+                  <div key={product.id} className="glass-card accounting-kanban-card">
                     <strong>{product.name || "Untitled"}</strong>
                     <p className="accounting-muted">{product.sku ? `SKU ${product.sku}` : "No SKU"}</p>
                     <div className="accounting-list-bar">
@@ -2112,7 +2157,7 @@ function AdminAccounting() {
               {cashflowTrend.length === 0 ? (
                 <p className="accounting-muted">No orders in this window.</p>
               ) : (
-                <div className="accounting-kanban-card">
+                <div className="glass-card accounting-kanban-card">
                   {cashflowSpark.points && (
                     <div className="accounting-spark small">
                       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -2149,7 +2194,7 @@ function AdminAccounting() {
                 <p className="accounting-muted">No rentals booked.</p>
               ) : (
                 topRentals.map((rental) => (
-                  <div key={rental.id} className="accounting-kanban-card">
+                  <div key={rental.id} className="glass-card accounting-kanban-card">
                     <strong>{rental.name || "Untitled"}</strong>
                     <p className="accounting-muted">{rental.sku ? `SKU ${rental.sku}` : "No SKU"}</p>
                     <div className="accounting-list-bar">
@@ -2186,6 +2231,7 @@ function AdminAccounting() {
                 <table>
                   <thead>
                     <tr>
+                      <th className="table-row-index">#</th>
                       <th>Type</th>
                       <th>Number</th>
                       <th>Customer</th>
@@ -2197,13 +2243,14 @@ function AdminAccounting() {
                   <tbody>
                     {listRows.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="accounting-empty">
+                        <td colSpan={7} className="accounting-empty">
                           No receipts or invoices in this window.
                         </td>
                       </tr>
                     )}
-                    {listRows.map((row) => (
+                    {listRows.map((row, index) => (
                       <tr key={row.id}>
+                        <td className="table-row-index">{index}</td>
                         <td>{row.type}</td>
                         <td>{row.number}</td>
                         <td>{row.customer}</td>
@@ -2213,20 +2260,27 @@ function AdminAccounting() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={5}>Receipts total</td>
-                      <td>{formatCurrency(receiptsTotal)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={5}>Invoices total</td>
-                      <td>{formatCurrency(invoicesTotal)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={5}>Combined total</td>
-                      <td>{formatCurrency(combinedTotal)}</td>
-                    </tr>
-                  </tfoot>
+                  {listRows.length > 0 && (
+                    <tfoot className="admin-table-footer">
+                      <tr>
+                        <td className="admin-table-summary-cell is-count">
+                          <span className="admin-table-summary-value">{listRows.length} documents</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">
+                            {filteredOrders.length} receipts · {filteredBookings.length} invoices
+                          </span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{formatCurrency(combinedTotal)}</span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}
@@ -2235,7 +2289,7 @@ function AdminAccounting() {
 
         {!loading && !error && data && viewMode === "taxes" && (
           <section className="accounting-panels accounting-panels-stack">
-            <div className="accounting-panel">
+            <div className="glass-card accounting-panel">
               <div className="accounting-panel-head">
                 <h3>Ghana tax summary</h3>
                 <span className="accounting-panel-label">{data.windowLabel || ""}</span>
@@ -2321,7 +2375,7 @@ function AdminAccounting() {
               </p>
             </div>
 
-            <div className="accounting-panel">
+            <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <h3>Tax inputs</h3>
@@ -2395,7 +2449,7 @@ function AdminAccounting() {
               </div>
             </div>
 
-            <div className="accounting-panel">
+            <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
                     <h3>Ghana tax rates</h3>

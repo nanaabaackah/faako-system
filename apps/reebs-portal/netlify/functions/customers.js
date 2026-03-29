@@ -11,12 +11,28 @@ import { requireUser } from "./_shared/userAuth.js";
 const publicLookupHeaders = (event) => ({
   "Content-Type": "application/json",
   ...buildResponseHeaders(event, {
-    methods: "GET,POST,PUT,OPTIONS",
+    methods: "GET,POST,PUT,DELETE,OPTIONS",
     allowHeaders: "Content-Type, Authorization",
   }),
 });
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CUSTOMER_SEGMENTS = new Set(["prospect", "active", "loyal", "risk"]);
+const customerStatusStatements = [
+  `ALTER TABLE "customer" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "customer" ADD COLUMN IF NOT EXISTS "deletedByUserId" INTEGER`,
+  `ALTER TABLE "customer" ADD COLUMN IF NOT EXISTS "segmentOverride" TEXT`,
+];
+
+const ensureCustomerStatusColumns = async (client) => {
+  for (const statement of customerStatusStatements) {
+    try {
+      await client.query(statement);
+    } catch (err) {
+      console.warn("Customer status column check failed:", err?.message || err);
+    }
+  }
+};
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -25,7 +41,7 @@ export async function handler(event) {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
       },
       body: "",
     };
@@ -38,6 +54,7 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    await ensureCustomerStatusColumns(client);
     const authUser = await requireUser(client, event);
     if (!authUser && isCrossSiteBrowserRequest(event)) {
       return {
@@ -47,7 +64,7 @@ export async function handler(event) {
       };
     }
     let data = null;
-    if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
+    if (event.httpMethod === "POST" || event.httpMethod === "PUT" || event.httpMethod === "DELETE") {
       try {
         data = JSON.parse(event.body || "{}");
       } catch (err) {
@@ -77,6 +94,13 @@ export async function handler(event) {
 
     if (!authUser) {
       if (event.httpMethod === "PUT") {
+        return {
+          statusCode: 401,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({ error: "Unauthorized" }),
+        };
+      }
+      if (event.httpMethod === "DELETE") {
         return {
           statusCode: 401,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -128,6 +152,22 @@ export async function handler(event) {
         body: JSON.stringify(row),
       });
 
+      const restoreCustomer = async (row) => {
+        const restored = await client.query(
+          `UPDATE "customer"
+           SET "name" = $1,
+               "email" = $2,
+               "phone" = $3,
+               "deletedAt" = NULL,
+               "deletedByUserId" = NULL,
+               "updatedAt" = NOW()
+           WHERE id = $4 AND "organizationId" = $5
+           RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
+          [name, email, phone, row.id, organizationId]
+        );
+        return restored.rows[0];
+      };
+
       const insertCustomer = async () =>
         email
           ? client.query(
@@ -137,20 +177,20 @@ export async function handler(event) {
              SET "name" = EXCLUDED."name",
                  "phone" = COALESCE(EXCLUDED."phone", "customer"."phone"),
                  "updatedAt" = NOW()
-             RETURNING id, name, email, phone, "createdAt", "updatedAt"`,
+             RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
             [organizationId, name, email, phone]
           )
           : client.query(
             `INSERT INTO "customer" ("organizationId", "name", "email", "phone", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, NOW(), NOW())
-             RETURNING id, name, email, phone, "createdAt", "updatedAt"`,
+             RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
             [organizationId, name, email, phone]
           );
 
       try {
         if (email || phone || name) {
           const existingRes = await client.query(
-            `SELECT id, name, email, phone, "createdAt", "updatedAt"
+            `SELECT id, name, email, phone, "segmentOverride", "createdAt", "updatedAt", "deletedAt"
              FROM "customer"
              WHERE "organizationId" = $1
                AND (
@@ -166,7 +206,11 @@ export async function handler(event) {
             [organizationId, email || "", phoneVariants, name || ""]
           );
           if (existingRes.rowCount > 0) {
-            return respondWith(existingRes.rows[0]);
+            const existingRow = existingRes.rows[0];
+            if (existingRow.deletedAt) {
+              return respondWith(await restoreCustomer(existingRow));
+            }
+            return respondWith(existingRow);
           }
         }
 
@@ -205,26 +249,67 @@ export async function handler(event) {
         };
       }
 
+      const hasName = Object.prototype.hasOwnProperty.call(data, "name");
+      const hasEmail = Object.prototype.hasOwnProperty.call(data, "email");
+      const hasPhone = Object.prototype.hasOwnProperty.call(data, "phone");
       const name = typeof data.name === "string" ? data.name.trim() : null;
       const email =
         typeof data.email === "string" && data.email.trim() ? data.email.trim() : null;
       const phone =
         typeof data.phone === "string" && data.phone.trim() ? data.phone.trim() : null;
+      const hasSegmentOverride = Object.prototype.hasOwnProperty.call(data, "segmentOverride");
 
       const updates = [];
       const values = [];
       let index = 1;
 
-      if (name !== null) {
+      if (hasName) {
         updates.push(`"name" = $${index++}`);
         values.push(name || "");
       }
 
-      updates.push(`"email" = $${index++}`);
-      values.push(email);
+      if (hasEmail) {
+        updates.push(`"email" = $${index++}`);
+        values.push(email);
+      }
 
-      updates.push(`"phone" = $${index++}`);
-      values.push(phone);
+      if (hasPhone) {
+        updates.push(`"phone" = $${index++}`);
+        values.push(phone);
+      }
+
+      if (hasSegmentOverride) {
+        let segmentOverride = null;
+        if (data.segmentOverride !== null && data.segmentOverride !== "") {
+          if (typeof data.segmentOverride !== "string") {
+            return {
+              statusCode: 400,
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+              body: JSON.stringify({ error: "Invalid customer segment." }),
+            };
+          }
+
+          segmentOverride = data.segmentOverride.trim().toLowerCase();
+          if (!CUSTOMER_SEGMENTS.has(segmentOverride)) {
+            return {
+              statusCode: 400,
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+              body: JSON.stringify({ error: "Invalid customer segment." }),
+            };
+          }
+        }
+
+        updates.push(`"segmentOverride" = $${index++}`);
+        values.push(segmentOverride);
+      }
+
+      if (!updates.length) {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({ error: "No customer updates provided." }),
+        };
+      }
 
       updates.push(`"updatedAt" = NOW()`);
 
@@ -234,8 +319,8 @@ export async function handler(event) {
       try {
         const result = await client.query(
           `UPDATE "customer" SET ${updates.join(", ")}
-           WHERE id = $${index} AND "organizationId" = $${index + 1}
-           RETURNING id, name, email, phone, "createdAt", "updatedAt"`,
+           WHERE id = $${index} AND "organizationId" = $${index + 1} AND "deletedAt" IS NULL
+           RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
           values
         );
 
@@ -264,13 +349,50 @@ export async function handler(event) {
       }
     }
 
+    if (event.httpMethod === "DELETE") {
+      const id = Number(data?.id);
+      if (!Number.isFinite(id)) {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({ error: "Customer id is required." }),
+        };
+      }
+
+      const result = await client.query(
+        `UPDATE "customer"
+         SET "deletedAt" = NOW(),
+             "deletedByUserId" = $1,
+             "updatedAt" = NOW()
+         WHERE id = $2
+           AND "organizationId" = $3
+           AND "deletedAt" IS NULL
+         RETURNING id, name, email, phone, "deletedAt"`,
+        [Number(authUser.id) || null, id, organizationId]
+      );
+
+      if (result.rowCount === 0) {
+        return {
+          statusCode: 404,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          body: JSON.stringify({ error: "Customer not found." }),
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify(result.rows[0]),
+      };
+    }
+
     if (event.httpMethod !== "GET") {
       return {
         statusCode: 405,
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
         body: JSON.stringify({ error: "Method Not Allowed" }),
       };
@@ -278,9 +400,9 @@ export async function handler(event) {
 
     if (hasId) {
       const customerRes = await client.query(
-        `SELECT id, name, email, phone, "createdAt", "updatedAt"
+        `SELECT id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"
          FROM "customer"
-         WHERE id = $1 AND "organizationId" = $2`,
+         WHERE id = $1 AND "organizationId" = $2 AND "deletedAt" IS NULL`,
         [id, organizationId]
       );
       if (customerRes.rowCount === 0) {
@@ -385,6 +507,7 @@ export async function handler(event) {
            FROM "customer"
            WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
              AND "organizationId" = $2
+             AND "deletedAt" IS NULL
            LIMIT 1`,
           [lookupEmail, organizationId]
         );
@@ -396,6 +519,7 @@ export async function handler(event) {
            FROM "customer"
            WHERE regexp_replace(phone, '[^0-9]+', '', 'g') = ANY($1)
              AND "organizationId" = $2
+             AND "deletedAt" IS NULL
            LIMIT 1`,
           [lookupPhoneVariants, organizationId]
         );
@@ -408,6 +532,7 @@ export async function handler(event) {
            WHERE LOWER(regexp_replace(TRIM(name), '\\s+', ' ', 'g'))
                  = LOWER(regexp_replace(TRIM($1), '\\s+', ' ', 'g'))
               AND "organizationId" = $2
+              AND "deletedAt" IS NULL
            LIMIT 1`,
           [lookupName, organizationId]
         );
@@ -445,6 +570,7 @@ export async function handler(event) {
          c.name,
          c.email,
          c.phone,
+         c."segmentOverride",
          c."createdAt",
          c."updatedAt",
          COALESCE(o.orders, 0)::int AS orders,
@@ -482,6 +608,7 @@ export async function handler(event) {
          GROUP BY "customerId"
        ) b ON b."customerId" = c.id
        WHERE c."organizationId" = $1
+         AND c."deletedAt" IS NULL
        ORDER BY c.name ASC`,
       [organizationId]
     );

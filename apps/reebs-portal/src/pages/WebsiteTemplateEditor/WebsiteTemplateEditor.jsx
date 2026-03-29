@@ -193,7 +193,7 @@ function WebsiteTemplateEditor() {
         </form>
 
         <div className="template-editor-preview">
-          <div className="template-editor-preview-card" style={{ borderColor: previewAccent }}>
+          <div className="glass-card template-editor-preview-card" style={{ borderColor: previewAccent }}>
             <p className="hero-kicker">{draft.heroKicker}</p>
             <h2>{draft.heroHeading}</h2>
             <p className="template-editor-preview-tagline">{draft.heroTagline}</p>

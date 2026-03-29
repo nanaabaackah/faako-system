@@ -591,7 +591,7 @@ function AdminDocuments() {
         </section>
 
         <div className="documents-layout">
-          <section className="documents-list-panel">
+          <section className="glass-card documents-list-panel">
             <div className="documents-panel-head">
               <div>
                 <p className="documents-card-label">Library</p>
@@ -608,7 +608,7 @@ function AdminDocuments() {
             ) : (
               <div className="documents-list">
                 {filteredDocs.map((doc) => (
-                  <article key={doc.id} className="documents-card">
+                  <article key={doc.id} className="glass-card documents-card">
                     <div className="documents-card-top">
                       <div>
                         <p className="documents-card-type">{doc.label}</p>
@@ -651,7 +651,7 @@ function AdminDocuments() {
           </section>
 
           <aside className="documents-upload">
-            <div className="documents-upload-card">
+            <div className="glass-card documents-upload-card">
               <div className="documents-upload-head">
                 <AppIcon icon={faFolderOpen} />
                 <div>

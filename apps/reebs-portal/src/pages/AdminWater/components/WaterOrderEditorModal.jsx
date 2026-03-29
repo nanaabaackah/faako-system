@@ -206,7 +206,7 @@ export default function WaterOrderEditorModal({
               onClick={(event) => handleOrderDelete(activeOrder, event)}
               disabled={saving || loading}
             >
-              <AppIcon icon={faTrash} /> Delete
+              <AppIcon icon={faTrash} /> Archive
             </button>
             <button type="button" className="admin-secondary" onClick={closeOrderEditor}>
               Cancel

@@ -73,7 +73,7 @@ export default function WaterKpiGrid({
         <span>Net profit {formatCurrency(summary.netProfit)}</span>
       </article>
       <article className="water-module-kpi bubble-card">
-        <p className="water-module-kpi-label">Pending cash</p>
+        <p className="water-module-kpi-label">Cash</p>
         <div className="water-module-kpi-value">
           <AppIcon icon={faMoneyCheckDollar} />
           <strong>{formatCurrency(summary.cashSalesTotal)}</strong>
@@ -81,7 +81,7 @@ export default function WaterKpiGrid({
         <span>{formatCurrency(summary.pendingCash)} pending</span>
       </article>
       <article className="water-module-kpi bubble-card">
-        <p className="water-module-kpi-label">Pending MoMo</p>
+        <p className="water-module-kpi-label">MoMo</p>
         <div className="water-module-kpi-value">
           <AppIcon icon={faMoneyCheckDollar} />
           <strong>{formatCurrency(summary.momoSalesTotal)}</strong>

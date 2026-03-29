@@ -208,6 +208,43 @@ function AdminDirectory() {
     const start = clampedPage * pageSize;
     return currentList.slice(start, start + pageSize);
   }, [currentList, clampedPage, pageSize]);
+  const directoryTableSummary = useMemo(() => {
+    if (activeTab === "customers") {
+      return currentList.reduce(
+        (accumulator, row) => {
+          accumulator.count += 1;
+          accumulator.orders += toNumber(row.orders);
+          accumulator.bookings += toNumber(row.bookings);
+          accumulator.lifetime += toNumber(row.total_spent) + toNumber(row.total_rented);
+          return accumulator;
+        },
+        { count: 0, orders: 0, bookings: 0, lifetime: 0 }
+      );
+    }
+
+    if (activeTab === "vendors") {
+      const totals = currentList.reduce(
+        (accumulator, row) => {
+          accumulator.count += 1;
+          accumulator.products += toNumber(row.products);
+          const leadTime = toNumber(row.leadTimeDays);
+          if (leadTime > 0) {
+            accumulator.leadTimeTotal += leadTime;
+            accumulator.leadTimeCount += 1;
+          }
+          return accumulator;
+        },
+        { count: 0, products: 0, leadTimeTotal: 0, leadTimeCount: 0 }
+      );
+
+      return {
+        ...totals,
+        averageLeadTime: totals.leadTimeCount ? totals.leadTimeTotal / totals.leadTimeCount : 0,
+      };
+    }
+
+    return { count: currentList.length };
+  }, [activeTab, currentList]);
 
   const openCreateModal = () => {
     setEditing(null);
@@ -376,7 +413,7 @@ function AdminDirectory() {
         : "Manage staff, admin accounts, and roles.";
 
   const canMutate = activeTab !== "vendors";
-  const columnCount = activeTab === "customers" ? 7 : activeTab === "vendors" ? 7 : 5;
+  const columnCount = activeTab === "customers" ? 9 : activeTab === "vendors" ? 8 : 6;
   const searchPlaceholder =
     activeTab === "customers"
       ? "Search name, email, phone"
@@ -480,7 +517,7 @@ function AdminDirectory() {
           }
         />
 
-        <section className="customers-panel">
+        <section className="glass-card customers-panel">
           <div className="customers-panel-header">
             <div>
               <h3>Directory</h3>
@@ -520,6 +557,7 @@ function AdminDirectory() {
                 <thead>
                   {activeTab === "customers" ? (
                     <tr>
+                      <th className="table-row-index">#</th>
                       <th>Name</th>
                       <th>Email</th>
                       <th>Phone</th>
@@ -531,6 +569,7 @@ function AdminDirectory() {
                     </tr>
                   ) : activeTab === "vendors" ? (
                     <tr>
+                      <th className="table-row-index">#</th>
                       <th>Name</th>
                       <th>Contact</th>
                       <th>Email</th>
@@ -541,6 +580,7 @@ function AdminDirectory() {
                     </tr>
                   ) : (
                     <tr>
+                      <th className="table-row-index">#</th>
                       <th>Email</th>
                       <th>Name</th>
                       <th>Role</th>
@@ -550,9 +590,10 @@ function AdminDirectory() {
                   )}
                 </thead>
                 <tbody>
-                  {paginatedList.map((row) => {
+                  {paginatedList.map((row, index) => {
                     return (
                       <tr key={`${activeTab}-${row.id}`}>
+                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
                         {activeTab === "customers" ? (
                           <>
                             <td>{row.name || "-"}</td>
@@ -646,6 +687,63 @@ function AdminDirectory() {
                     </tr>
                   )}
                 </tbody>
+                {currentList.length > 0 && (
+                  <tfoot className="admin-table-footer">
+                    {activeTab === "customers" ? (
+                      <tr>
+                        <td className="admin-table-summary-cell is-count">
+                          <span className="admin-table-summary-value">{directoryTableSummary.count} customers</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{directoryTableSummary.orders}</span>
+                        </td>
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{directoryTableSummary.bookings}</span>
+                        </td>
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{formatMoney(directoryTableSummary.lifetime)}</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                      </tr>
+                    ) : activeTab === "vendors" ? (
+                      <tr>
+                        <td className="admin-table-summary-cell is-count">
+                          <span className="admin-table-summary-value">{directoryTableSummary.count} vendors</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{directoryTableSummary.products}</span>
+                        </td>
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">
+                            {directoryTableSummary.averageLeadTime
+                              ? formatLeadTime(Math.round(directoryTableSummary.averageLeadTime))
+                              : "Not set"}
+                          </span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td className="admin-table-summary-cell is-count">
+                          <span className="admin-table-summary-value">{directoryTableSummary.count} users</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                      </tr>
+                    )}
+                  </tfoot>
+                )}
               </table>
               <div className="table-pagination">
                 <span>
@@ -837,14 +935,14 @@ function AdminDirectory() {
             {!detailLoading && detailError && <p className="crm-error">{detailError}</p>}
             {!detailLoading && !detailError && detailTab === "customers" && detailRecord && (
               <div className="crm-detail-grid">
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Customer summary</h4>
                   <p>Orders: {detailRecord.totals?.orders ?? 0}</p>
                   <p>Bookings: {detailRecord.totals?.bookings ?? 0}</p>
                   <p>Retail spent: {formatMoney(detailRecord.totals?.totalSpent ?? 0)}</p>
                   <p>Rental spent: {formatMoney(detailRecord.totals?.totalRented ?? 0)}</p>
                 </div>
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Recent orders</h4>
                   {detailRecord.orders?.length ? (
                     <ul>
@@ -859,7 +957,7 @@ function AdminDirectory() {
                     <p className="crm-muted">No orders yet.</p>
                   )}
                 </div>
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Recent bookings</h4>
                   {detailRecord.bookings?.length ? (
                     <ul>
@@ -878,14 +976,14 @@ function AdminDirectory() {
             )}
             {!detailLoading && !detailError && detailTab === "vendors" && detailRecord && (
               <div className="crm-detail-grid">
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Vendor summary</h4>
                   <p>Contact: {detailRecord.contactName || "Not set"}</p>
                   <p>Email: {detailRecord.email || "Not set"}</p>
                   <p>Phone: {detailRecord.phone || "Not set"}</p>
                   <p>Lead time: {formatLeadTime(detailRecord.leadTimeDays)}</p>
                 </div>
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Products</h4>
                   {detailRecord.productNames?.length ? (
                     <ul>
@@ -897,7 +995,7 @@ function AdminDirectory() {
                     <p className="crm-muted">No products linked yet.</p>
                   )}
                 </div>
-                <div className="crm-detail-card">
+                <div className="glass-card crm-detail-card">
                   <h4>Payments & notes</h4>
                   <p>Mobile money: {detailRecord.mobileMoneyNumber || "Not set"}</p>
                   <p>Bank: {detailRecord.bankName || "Not set"}</p>

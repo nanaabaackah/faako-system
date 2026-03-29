@@ -4,7 +4,7 @@ import { faArrowRight, faMinus, faPlus, faRotateRight } from "/src/icons/iconSet
 
 function PanelShell({ title, subtitle, actions = null, className = "", children }) {
   return (
-    <div className={`aw-panel${className ? ` ${className}` : ""}`}>
+    <div className={`glass-card aw-panel${className ? ` ${className}` : ""}`}>
       <div className="aw-panel-header">
         <div>
           <h2>{title}</h2>
@@ -36,7 +36,7 @@ function SummaryCard({ card, onNavigate }) {
   return (
     <button
       type="button"
-      className={`aw-home-summary-card aw-home-summary-card--link${card.isActive ? " is-active" : ""}`}
+      className={`glass-card aw-home-summary-card aw-home-summary-card--link${card.isActive ? " is-active" : ""}`}
       onClick={handleClick}
       aria-pressed={typeof card.isActive === "boolean" ? card.isActive : undefined}
     >
@@ -313,7 +313,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               <button
                 key={card.key}
                 type="button"
-                className="aw-home-kpi-card aw-home-kpi-card-hero"
+                className="glass-card aw-home-kpi-card aw-home-kpi-card-hero"
                 onClick={() => onNavigate(card.path)}
               >
                 <p className="aw-home-kpi-label">{card.label}</p>
@@ -331,7 +331,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
           <div className="aw-home-kpi-chart-grid">
             <button
               type="button"
-              className="aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(revenueMix.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -382,7 +382,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(revenueTrend.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -417,7 +417,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(stockMovement.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -478,7 +478,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(operationalLoad.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -609,7 +609,12 @@ function CustomerHealthPanel({ panel, onNavigate }) {
     <PanelShell title="Customer Health">
       <div className="aw-home-kpi-grid aw-home-kpi-grid-tight">
         {summaryCards.map((card) => (
-          <button key={card.key} type="button" className="aw-home-kpi-card" onClick={() => onNavigate(card.path)}>
+          <button
+            key={card.key}
+            type="button"
+            className="glass-card aw-home-kpi-card"
+            onClick={() => onNavigate(card.path)}
+          >
             <p className="aw-home-kpi-label">{card.label}</p>
             <strong>{card.value}</strong>
             <span>{card.meta}</span>

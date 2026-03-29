@@ -372,7 +372,7 @@ function OrderBuilder() {
 
         {!loading && !error && (
           <div className="order-grid">
-            <section className="order-panel">
+            <section className="glass-card order-panel">
               <div className="order-panel-header">
                 <h3>Customer</h3>
                 <span>{customers.length} profiles</span>
@@ -402,7 +402,7 @@ function OrderBuilder() {
                 </select>
               </label>
               {selectedCustomer && (
-                <div className="order-customer-card">
+                <div className="glass-card order-customer-card">
                   <h4>{selectedCustomer.name}</h4>
                   <p>{selectedCustomer.email || "No email on file"}</p>
                   <p>{selectedCustomer.phone || "No phone on file"}</p>
@@ -410,7 +410,7 @@ function OrderBuilder() {
               )}
             </section>
 
-            <section className="order-panel order-products">
+            <section className="glass-card order-panel order-products">
               <div className="order-panel-header">
                 <h3>Products</h3>
                 <span>{products.length} items</span>
@@ -465,7 +465,7 @@ function OrderBuilder() {
               </div>
             </section>
 
-            <section className="order-panel order-summary">
+            <section className="glass-card order-panel order-summary">
               <div className="order-panel-header">
                 <h3>Order summary</h3>
                 <span>{cartItems.length} items</span>

@@ -820,6 +820,14 @@ body.admin-theme .store-mode-page {
   min-width: 0;
 }
 
+.store-mode-col--index,
+.store-mode-cell--index {
+  width: 3.25rem;
+  text-align: center;
+  color: var(--admin-muted);
+  font-weight: 700;
+}
+
 .store-mode-table thead th {
   position: sticky;
   top: 0;
@@ -2341,6 +2349,22 @@ body.admin-theme .store-mode-page {
   .store-mode-col--category,
   .store-mode-col--price {
     display: none;
+  }
+
+  .store-mode-cell--index,
+  .store-mode-col--index {
+    display: block;
+    width: auto;
+  }
+
+  .store-mode-cell--index {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
+    padding: 0;
+    font-size: 0.74rem;
+    opacity: 0.72;
   }
 
   .store-mode-product {

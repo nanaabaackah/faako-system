@@ -1117,13 +1117,13 @@ function AdminWater() {
     const shouldDelete =
       typeof window === "undefined"
         ? true
-        : window.confirm(`Delete order #${saleId} for ${customerLabel}? This cannot be undone.`);
+        : window.confirm(`Archive order #${saleId} for ${customerLabel}?`);
     if (!shouldDelete) return;
     setOrderError("");
-    const deleted = await handleAction("delete_sale", { saleId }, "Water order deleted.");
+    const deleted = await handleAction("delete_sale", { saleId }, "Water order archived.");
     if (!deleted) {
       if (Number(activeOrderId) === saleId) {
-        setOrderError("Delete failed. Check the message above.");
+        setOrderError("Archive failed. Check the message above.");
       }
       return;
     }
@@ -1449,13 +1449,13 @@ function AdminWater() {
     const shouldDelete =
       typeof window === "undefined"
         ? true
-        : window.confirm(`Delete expense #${expenseId} for ${expenseLabel}? This cannot be undone.`);
+        : window.confirm(`Archive expense #${expenseId} for ${expenseLabel}?`);
     if (!shouldDelete) return;
     setLedgerError("");
-    const deleted = await handleAction("delete_expense", { expenseId }, "Water expense deleted.");
+    const deleted = await handleAction("delete_expense", { expenseId }, "Water expense archived.");
     if (!deleted) {
       if (activeLedgerItem?.type === "expense" && Number(activeLedgerItem?.id) === expenseId) {
-        setLedgerError("Delete failed. Check the message above.");
+        setLedgerError("Archive failed. Check the message above.");
       }
       return;
     }
