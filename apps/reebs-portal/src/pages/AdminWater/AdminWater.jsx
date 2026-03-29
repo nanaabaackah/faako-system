@@ -78,6 +78,7 @@ const buildDefaultDashboard = () => ({
     netProfit: 0,
     cashCollected: 0,
     outstandingCredit: 0,
+    pendingCash: 0,
     pendingMomo: 0,
     cashPosition: 0,
     inventoryValue: 0,
@@ -258,6 +259,73 @@ const normalizeSalePaymentStatus = (value, paymentMethod = "cash") => {
   const method = normalizeSalePaymentMethod(paymentMethod);
   if (method === "credit") return "unpaid";
   return "paid";
+};
+
+const buildWaterSummary = ({
+  restocks = [],
+  sales = [],
+  expenses = [],
+  adjustments = [],
+  purchaseCost = DEFAULT_PURCHASE_COST,
+}) => {
+  const resolvedPurchaseCost = Math.max(0, toNumber(purchaseCost, DEFAULT_PURCHASE_COST));
+  const unitsRestocked = restocks.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
+  const unitsSold = sales.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
+  const adjustmentUnits = adjustments.reduce((sum, row) => sum + toNumber(row?.quantityDelta), 0);
+  const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
+  const restockSpend = restocks.reduce(
+    (sum, row) => sum + (toNumber(row?.quantity) * toNumber(row?.unitCost, resolvedPurchaseCost)),
+    0
+  );
+  const revenue = sales.reduce((sum, row) => sum + toNumber(row?.totalAmount), 0);
+  const cashCollected = sales.reduce((sum, row) => {
+    return normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid"
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
+  const outstandingCredit = sales.reduce((sum, row) => {
+    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
+    return normalizeSalePaymentMethod(row?.paymentMethod) === "credit" && !isCollected
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
+  const pendingCash = sales.reduce((sum, row) => {
+    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
+    return normalizeSalePaymentMethod(row?.paymentMethod) === "cash" && !isCollected
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
+  const pendingMomo = sales.reduce((sum, row) => {
+    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
+    return normalizeSalePaymentMethod(row?.paymentMethod) === "momo" && !isCollected
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
+  const extraExpenses = expenses.reduce((sum, row) => sum + toNumber(row?.amount), 0);
+  const costOfGoodsSold = unitsSold * resolvedPurchaseCost;
+  const grossProfit = revenue - costOfGoodsSold;
+  const netProfit = grossProfit - extraExpenses;
+  const cashPosition = cashCollected - restockSpend - extraExpenses;
+  const inventoryValue = stockOnHand * resolvedPurchaseCost;
+
+  return {
+    stockOnHand,
+    unitsRestocked,
+    unitsSold,
+    adjustmentUnits,
+    revenue,
+    restockSpend,
+    extraExpenses,
+    costOfGoodsSold,
+    grossProfit,
+    netProfit,
+    cashCollected,
+    outstandingCredit,
+    pendingCash,
+    pendingMomo,
+    cashPosition,
+    inventoryValue,
+  };
 };
 
 const getSalePaymentStatusLabel = (value, paymentMethod = "cash") => {
@@ -460,7 +528,6 @@ function AdminWater() {
   };
 
   const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
-  const summary = dashboard?.summary || buildDefaultDashboard().summary;
   const dashboardRestocks = Array.isArray(dashboard?.restocks) ? dashboard.restocks : [];
   const dashboardSales = Array.isArray(dashboard?.sales) ? dashboard.sales : [];
   const dashboardExpenses = Array.isArray(dashboard?.expenses) ? dashboard.expenses : [];
@@ -480,6 +547,21 @@ function AdminWater() {
   const adjustments = useMemo(
     () => dashboardAdjustments.filter((entry) => !removedRecordIds.adjustment.includes(Number(entry.id))),
     [dashboardAdjustments, removedRecordIds.adjustment]
+  );
+  const productPurchaseCost = Math.max(
+    0,
+    toNumber(dashboard?.product?.purchaseCost, buildDefaultDashboard().product.purchaseCost)
+  );
+  const summary = useMemo(
+    () =>
+      buildWaterSummary({
+        restocks,
+        sales,
+        expenses,
+        adjustments,
+        purchaseCost: productPurchaseCost,
+      }),
+    [adjustments, expenses, productPurchaseCost, restocks, sales]
   );
   const restockById = useMemo(
     () =>
@@ -517,10 +599,6 @@ function AdminWater() {
       .map((value) => Number(value))
       .filter((value) => Number.isFinite(value) && value > 0);
   }, [dashboard?.product?.linkedVendorIds]);
-  const hardLinkedVendorIdSet = useMemo(
-    () => new Set(hardLinkedVendorIds),
-    [hardLinkedVendorIds]
-  );
   const hardLinkedVendors = useMemo(() => {
     if (!vendors.length || !hardLinkedVendorIds.length) return [];
     const vendorById = new Map(
@@ -574,108 +652,17 @@ function AdminWater() {
       });
     });
   }, [customerById, deferredOrderQuery, orderStatusFilter, sales]);
-  const vendorConnections = useMemo(() => {
-    const vendorById = new Map(
-      vendors.map((vendor) => [Number(vendor.id), vendor]).filter(([id]) => Number.isFinite(id) && id > 0)
-    );
-    const registry = new Map();
-    const ensureRow = ({ vendorId = null, vendorName = "" } = {}) => {
-      const numericVendorId = Number(vendorId);
-      const linkedVendor = Number.isFinite(numericVendorId) && numericVendorId > 0 ? vendorById.get(numericVendorId) : null;
-      const resolvedName = linkedVendor?.name || vendorName || "Unknown vendor";
-      const key =
-        Number.isFinite(numericVendorId) && numericVendorId > 0
-          ? `vendor-${numericVendorId}`
-          : `name-${normalizeVendorMatchText(resolvedName) || resolvedName.toLowerCase()}`;
-      if (!registry.has(key)) {
-        registry.set(key, {
-          key,
-          vendorId: Number.isFinite(numericVendorId) && numericVendorId > 0 ? numericVendorId : null,
-          name: resolvedName,
-          linked: Number.isFinite(numericVendorId) && hardLinkedVendorIdSet.has(numericVendorId),
-          suggested: Number.isFinite(numericVendorId) && suggestedVendorIds.has(numericVendorId),
-          restocks: 0,
-          quantity: 0,
-          spend: 0,
-          lastDate: null,
-        });
-      }
-      return registry.get(key);
-    };
-
-    hardLinkedVendors.forEach((vendor) => {
-      ensureRow({ vendorId: vendor.id, vendorName: vendor.name }).linked = true;
-    });
-
-    suggestedVendors.forEach((vendor) => {
-      ensureRow({ vendorId: vendor.id, vendorName: vendor.name }).suggested = true;
-    });
-
-    restocks.forEach((restock) => {
-      const row = ensureRow({ vendorId: restock.vendorId, vendorName: restock.vendorName });
-      row.restocks += 1;
-      row.quantity += toNumber(restock.quantity);
-      row.spend += toNumber(restock.quantity) * toNumber(restock.unitCost);
-      const rowTime = new Date(restock.date || 0).getTime();
-      const currentTime = new Date(row.lastDate || 0).getTime();
-      if (!row.lastDate || rowTime > currentTime) row.lastDate = restock.date;
-    });
-
-    return Array.from(registry.values()).sort((a, b) => {
-      if (b.linked !== a.linked) return Number(b.linked) - Number(a.linked);
-      const dateA = new Date(a.lastDate || 0).getTime();
-      const dateB = new Date(b.lastDate || 0).getTime();
-      if (dateB !== dateA) return dateB - dateA;
-      if (b.spend !== a.spend) return b.spend - a.spend;
-      return a.name.localeCompare(b.name);
-    });
-  }, [hardLinkedVendorIdSet, hardLinkedVendors, restocks, suggestedVendorIds, suggestedVendors, vendors]);
-  const customerConnections = useMemo(() => {
-    const registry = new Map();
-    sales.forEach((sale) => {
-      const saleCustomerId = Number(sale.customerId);
-      const linkedCustomer =
-        Number.isFinite(saleCustomerId) && saleCustomerId > 0 ? customerById.get(saleCustomerId) : null;
-      const resolvedName = linkedCustomer?.name || sale.customerName || "Unknown customer";
-      const key =
-        Number.isFinite(saleCustomerId) && saleCustomerId > 0
-          ? `customer-${saleCustomerId}`
-          : `name-${normalizeCustomerName(resolvedName)}`;
-      if (!registry.has(key)) {
-        registry.set(key, {
-          key,
-          customerId: Number.isFinite(saleCustomerId) && saleCustomerId > 0 ? saleCustomerId : null,
-          name: resolvedName,
-          phone: linkedCustomer?.phone || "",
-          orders: 0,
-          quantity: 0,
-          revenue: 0,
-          outstanding: 0,
-          lastDate: null,
-        });
-      }
-      const row = registry.get(key);
-      row.orders += 1;
-      row.quantity += toNumber(sale.quantity);
-      row.revenue += toNumber(sale.totalAmount);
-      row.phone = row.phone || linkedCustomer?.phone || "";
-      if (normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid") {
-        row.outstanding += toNumber(sale.totalAmount);
-      }
-      const rowTime = new Date(sale.date || 0).getTime();
-      const currentTime = new Date(row.lastDate || 0).getTime();
-      if (!row.lastDate || rowTime > currentTime) row.lastDate = sale.date;
-    });
-    return Array.from(registry.values()).sort((a, b) => {
-      const dateA = new Date(a.lastDate || 0).getTime();
-      const dateB = new Date(b.lastDate || 0).getTime();
-      if (dateB !== dateA) return dateB - dateA;
-      if (b.revenue !== a.revenue) return b.revenue - a.revenue;
-      return a.name.localeCompare(b.name);
-    });
-  }, [customerById, sales]);
   const unpaidOrderCount = useMemo(
     () => sales.filter((sale) => normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid").length,
+    [sales]
+  );
+  const totalCreditCount = useMemo(
+    () =>
+      sales.filter(
+        (sale) =>
+          normalizeSalePaymentMethod(sale.paymentMethod) === "credit" &&
+          normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid"
+      ).length,
     [sales]
   );
   const pendingMomoCount = useMemo(
@@ -683,6 +670,15 @@ function AdminWater() {
       sales.filter(
         (sale) =>
           normalizeSalePaymentMethod(sale.paymentMethod) === "momo" &&
+          normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) === "pending"
+      ).length,
+    [sales]
+  );
+  const pendingCashCount = useMemo(
+    () =>
+      sales.filter(
+        (sale) =>
+          normalizeSalePaymentMethod(sale.paymentMethod) === "cash" &&
           normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) === "pending"
       ).length,
     [sales]
@@ -1639,14 +1635,12 @@ function AdminWater() {
       <div className="water-module-shell">
         <AdminBreadcrumb items={[{ label: "Water" }]} />
 
-        <header className="water-module-header bubble-card">
+        <header className="water-module-header">
           <div>
-            <p className="water-module-eyebrow">Water Hub</p>
-            <h1>Water</h1>
-            <p className="water-module-subtitle">Central water data.</p>
+            <h1>GWater</h1>
           </div>
           <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
-            <AppIcon icon={faRotateRight} /> Refresh
+            <AppIcon icon={faRotateRight} /> 
           </button>
         </header>
 
@@ -1670,33 +1664,6 @@ function AdminWater() {
               : null,
           ]}
         />
-
-        <section className="water-module-hero bubble-card">
-          <div className="water-module-hero-copy">
-            <h2>{productName || "15pk Gwater"}</h2>
-            <div className="water-module-hero-meta">
-              <span className="water-module-pill">
-                Inventory {dashboard?.product?.inventoryProductId ? `#${dashboard.product.inventoryProductId}` : "Not linked"}
-              </span>
-              <span className="water-module-pill">Vendors {vendorConnections.length}</span>
-              <span className="water-module-pill">Customers {customerConnections.length}</span>
-            </div>
-          </div>
-          <div className="water-module-price-grid">
-            <div className="water-module-price-card bubble-card">
-              <span>Retail under {pricing.bulkThreshold}</span>
-              <strong>{formatCurrency(pricing.retailSingle)}</strong>
-            </div>
-            <div className="water-module-price-card bubble-card">
-              <span>Retail {pricing.bulkThreshold}+</span>
-              <strong>{formatCurrency(pricing.retailBulk)}</strong>
-            </div>
-            <div className="water-module-price-card bubble-card">
-              <span>Company price</span>
-              <strong>{formatCurrency(pricing.company)}</strong>
-            </div>
-          </div>
-        </section>
 
         <section className="water-module-kpis">
           <article className="water-module-kpi bubble-card">
@@ -1739,7 +1706,15 @@ function AdminWater() {
               <AppIcon icon={faMoneyCheckDollar} />
               <strong>{formatCurrency(summary.cashPosition)}</strong>
             </div>
-            <span>{formatCurrency(summary.outstandingCredit)} on credit</span>
+            <span>{formatCurrency(summary.cashCollected)} collected</span>
+          </article>
+          <article className="water-module-kpi bubble-card">
+            <p className="water-module-kpi-label">Total credit</p>
+            <div className="water-module-kpi-value">
+              <AppIcon icon={faMoneyCheckDollar} />
+              <strong>{formatCurrency(summary.outstandingCredit)}</strong>
+            </div>
+            <span>{totalCreditCount} credit orders</span>
           </article>
           <article className="water-module-kpi bubble-card">
             <p className="water-module-kpi-label">Extra expenses</p>
@@ -1748,6 +1723,14 @@ function AdminWater() {
               <strong>{formatCurrency(summary.extraExpenses)}</strong>
             </div>
             <span>Net profit {formatCurrency(summary.netProfit)}</span>
+          </article>
+          <article className="water-module-kpi bubble-card">
+            <p className="water-module-kpi-label">Pending cash</p>
+            <div className="water-module-kpi-value">
+              <AppIcon icon={faMoneyCheckDollar} />
+              <strong>{pendingCashCount}</strong>
+            </div>
+            <span>{formatCurrency(summary.pendingCash)} pending</span>
           </article>
           <article className="water-module-kpi bubble-card">
             <p className="water-module-kpi-label">Pending MoMo</p>
@@ -2593,7 +2576,7 @@ function AdminWater() {
             )}
           </article>
 
-          <article className="admin-card water-module-table-card ">
+          <article className="admin-card water-module-table-card">
             <div className="water-module-card-head">
               <div>
                 <h3>Expenses</h3>

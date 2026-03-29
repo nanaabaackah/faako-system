@@ -517,6 +517,11 @@ const buildSummary = ({ restocks, sales, expenses, adjustments }) => {
       ? sum + toAmount(row.totalAmount)
       : sum;
   }, 0);
+  const pendingCash = sales.reduce((sum, row) => {
+    return normalizePaymentMethod(row.paymentMethod) === "cash" && !isSaleCollected(row)
+      ? sum + toAmount(row.totalAmount)
+      : sum;
+  }, 0);
   const pendingMomo = sales.reduce((sum, row) => {
     return normalizePaymentMethod(row.paymentMethod) === "momo" && !isSaleCollected(row)
       ? sum + toAmount(row.totalAmount)
@@ -542,6 +547,7 @@ const buildSummary = ({ restocks, sales, expenses, adjustments }) => {
     netProfit,
     cashCollected,
     outstandingCredit,
+    pendingCash,
     pendingMomo,
     cashPosition,
     inventoryValue,
