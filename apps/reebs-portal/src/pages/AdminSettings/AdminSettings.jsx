@@ -1,10 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./AdminSettings.css";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
+import { ADMIN_QUICK_ACTIONS } from "../../utils/adminQuickActions";
 import {
   ADMIN_FONT_SIZE_OPTIONS,
   ADMIN_THEME_OPTIONS,
@@ -12,6 +14,11 @@ import {
   readAdminPreferences,
   writeAdminPreferences,
 } from "../../utils/adminPreferences";
+import {
+  loadCustomerSnapshot,
+  loadInventorySnapshot,
+  loadOfflineQueue,
+} from "../../utils/offlineQueue";
 
 const defaultConfig = {
   currency: "GHS",
@@ -30,6 +37,7 @@ const PROFILE_IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+const LOW_STOCK_THRESHOLD = 3;
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -120,6 +128,7 @@ const getInitials = (firstName, lastName, fallback = "") => {
 function AdminSettings({ profileOnly = false }) {
   const { user, updateUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("profile");
   const [profileForm, setProfileForm] = useState({
     firstName: "",
@@ -147,6 +156,14 @@ function AdminSettings({ profileOnly = false }) {
 
   const [configForm, setConfigForm] = useState(defaultConfig);
   const [configStatus, setConfigStatus] = useState("");
+  const [advancedViewMode, setAdvancedViewMode] = useState("simple");
+  const [advancedHealth, setAdvancedHealth] = useState({
+    queuePending: 0,
+    queueFailed: 0,
+    inventorySnapshotItems: 0,
+    customerSnapshotItems: 0,
+    lowStockItems: 0,
+  });
 
   const roleKey = (user?.role || "staff").toLowerCase();
   const isAdmin = roleKey === "admin";
@@ -154,8 +171,13 @@ function AdminSettings({ profileOnly = false }) {
   const pageTitle = profileOnly ? "My Profile" : "Settings";
   const pageSubtitle = profileOnly
     ? "Update your name, username, delivery email, password, photo, and system preferences."
-    : "Manage your profile, staff access, and global ERP configuration.";
+    : "Manage your profile, staff access, ERP configuration, and admin controls.";
   const breadcrumbItems = [{ label: profileOnly ? "Profile" : "Settings" }];
+  const viewModeStorageKey = useMemo(
+    () => `reebs_admin_view_mode_${user?.id || "guest"}`,
+    [user?.id]
+  );
+  const legacyModuleLinks = useMemo(() => ADMIN_QUICK_ACTIONS, []);
 
   const syncUserProfile = (data) => {
     const nextFirstName = String(data?.firstName || "").trim();
@@ -187,7 +209,7 @@ function AdminSettings({ profileOnly = false }) {
     }
     const params = new URLSearchParams(location.search);
     const requestedTab = params.get("tab");
-    const allowedTabs = new Set(["profile", "users", "config"]);
+    const allowedTabs = new Set(["profile", "users", "config", "advanced"]);
     if (!allowedTabs.has(requestedTab)) return;
     if (requestedTab === "users" && !isAdmin) {
       setActiveTab("profile");
@@ -239,6 +261,30 @@ function AdminSettings({ profileOnly = false }) {
   }, [user?.id]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !isAdmin) {
+      setAdvancedViewMode("simple");
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem(viewModeStorageKey);
+      if (stored === "advanced" || stored === "simple") {
+        setAdvancedViewMode(stored);
+      }
+    } catch {
+      setAdvancedViewMode("simple");
+    }
+  }, [isAdmin, viewModeStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isAdmin) return;
+    try {
+      window.localStorage.setItem(viewModeStorageKey, advancedViewMode);
+    } catch {
+      // ignore storage failures
+    }
+  }, [advancedViewMode, isAdmin, viewModeStorageKey]);
+
+  useEffect(() => {
     if (activeTab !== "profile") return;
     let ignore = false;
 
@@ -279,6 +325,29 @@ function AdminSettings({ profileOnly = false }) {
       ignore = true;
     };
   }, [activeTab]);
+
+  const refreshAdvancedHealth = useCallback(() => {
+    const queue = loadOfflineQueue();
+    const inventorySnapshot = loadInventorySnapshot();
+    const customerSnapshot = loadCustomerSnapshot();
+    const lowStockItems = inventorySnapshot.filter((item) => {
+      const quantity = Number(item?.quantity ?? item?.stock ?? item?.stockOnHand ?? 0);
+      return Number.isFinite(quantity) && quantity <= LOW_STOCK_THRESHOLD;
+    }).length;
+
+    setAdvancedHealth({
+      queuePending: queue.filter((item) => item?.status === "pending").length,
+      queueFailed: queue.filter((item) => item?.status === "failed").length,
+      inventorySnapshotItems: inventorySnapshot.length,
+      customerSnapshotItems: customerSnapshot.length,
+      lowStockItems,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "advanced") return;
+    refreshAdvancedHealth();
+  }, [activeTab, refreshAdvancedHealth]);
 
   const profileInitials = useMemo(
     () =>
@@ -424,12 +493,7 @@ function AdminSettings({ profileOnly = false }) {
       <div className="settings-shell">
         <AdminBreadcrumb items={breadcrumbItems} />
 
-        <header className="settings-header">
-          <div>
-            <h1>{pageTitle}</h1>
-            <p className="settings-subtitle">{pageSubtitle}</p>
-          </div>
-        </header>
+        <AdminPageHeader title={pageTitle} subtitle={pageSubtitle} />
 
         {showTabs && (
           <div className="settings-tabs" role="tablist" aria-label="Settings sections">
@@ -460,6 +524,15 @@ function AdminSettings({ profileOnly = false }) {
               onClick={() => setActiveTab("config")}
             >
               ERP Config
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "advanced"}
+              className={activeTab === "advanced" ? "is-active" : ""}
+              onClick={() => setActiveTab("advanced")}
+            >
+              Advanced
             </button>
           </div>
         )}
@@ -615,35 +688,39 @@ function AdminSettings({ profileOnly = false }) {
                 <div className="settings-grid settings-grid--preferences">
                   <label>
                     Theme mode
-                    <select
-                      value={preferencesForm.theme}
-                      onChange={(e) => {
-                        setPreferencesStatus("");
-                        setPreferencesForm((prev) => ({ ...prev, theme: e.target.value }));
-                      }}
-                    >
-                      {ADMIN_THEME_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="settings-select">
+                      <select
+                        value={preferencesForm.theme}
+                        onChange={(e) => {
+                          setPreferencesStatus("");
+                          setPreferencesForm((prev) => ({ ...prev, theme: e.target.value }));
+                        }}
+                      >
+                        {ADMIN_THEME_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
                   </label>
                   <label>
                     Font size
-                    <select
-                      value={preferencesForm.fontSize}
-                      onChange={(e) => {
-                        setPreferencesStatus("");
-                        setPreferencesForm((prev) => ({ ...prev, fontSize: e.target.value }));
-                      }}
-                    >
-                      {ADMIN_FONT_SIZE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="settings-select">
+                      <select
+                        value={preferencesForm.fontSize}
+                        onChange={(e) => {
+                          setPreferencesStatus("");
+                          setPreferencesForm((prev) => ({ ...prev, fontSize: e.target.value }));
+                        }}
+                      >
+                        {ADMIN_FONT_SIZE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
                   </label>
                 </div>
                 <p className="settings-muted settings-preferences-note">
@@ -718,16 +795,18 @@ function AdminSettings({ profileOnly = false }) {
                   </label>
                   <label>
                     Role
-                    <select
-                      value={inviteForm.role}
-                      onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
-                    >
-                      <option value="Admin">Admin</option>
-                      <option value="Manager">Manager</option>
-                      <option value="Staff">Staff</option>
-                      <option value="Water">Water</option>
-                      <option value="Warehouse">Warehouse</option>
-                    </select>
+                    <span className="settings-select">
+                      <select
+                        value={inviteForm.role}
+                        onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
+                      >
+                        <option value="Admin">Admin</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Staff">Staff</option>
+                        <option value="Water">Water</option>
+                        <option value="Warehouse">Warehouse</option>
+                      </select>
+                    </span>
                   </label>
                   <label>
                     Temporary password
@@ -763,13 +842,15 @@ function AdminSettings({ profileOnly = false }) {
             <form className="settings-form" onSubmit={saveConfig}>
               <label>
                 Base currency
-                <select
-                  value={configForm.currency}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, currency: e.target.value }))}
-                >
-                  <option value="GHS">GHS</option>
-                  <option value="GBP">GBP</option>
-                </select>
+                <span className="settings-select">
+                  <select
+                    value={configForm.currency}
+                    onChange={(e) => setConfigForm((prev) => ({ ...prev, currency: e.target.value }))}
+                  >
+                    <option value="GHS">GHS</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </span>
               </label>
               <label>
                 Tax rate (%)
@@ -835,6 +916,116 @@ function AdminSettings({ profileOnly = false }) {
               </div>
             </form>
           </section>
+        )}
+
+        {activeTab === "advanced" && (
+          <>
+            <section className="settings-panel">
+              <div className="settings-panel-head">
+                <div>
+                  <h3>Admin controls</h3>
+                  <p className="settings-muted">
+                    Advanced controls now live inside Settings instead of a separate module.
+                  </p>
+                </div>
+              </div>
+              {isAdmin ? (
+                <>
+                  <div className="settings-advanced-toggle" role="group" aria-label="Admin view mode">
+                    <button
+                      type="button"
+                      className={advancedViewMode === "simple" ? "is-active" : ""}
+                      onClick={() => setAdvancedViewMode("simple")}
+                    >
+                      Simple
+                    </button>
+                    <button
+                      type="button"
+                      className={advancedViewMode === "advanced" ? "is-active" : ""}
+                      onClick={() => setAdvancedViewMode("advanced")}
+                    >
+                      Advanced
+                    </button>
+                  </div>
+                  <p className="settings-muted settings-advanced-note">
+                    This sets which dashboard control view is used for your account.
+                  </p>
+                </>
+              ) : (
+                <p className="settings-muted">
+                  Managers can review system shortcuts and local health data here.
+                </p>
+              )}
+            </section>
+
+            <section className="settings-panel">
+              <div className="settings-panel-head">
+                <div>
+                  <h3>Legacy modules</h3>
+                  <p className="settings-muted">
+                    Quick access to modules that still use the older flow.
+                  </p>
+                </div>
+              </div>
+              <div className="settings-advanced-links">
+                {legacyModuleLinks.map((item) => (
+                  <button
+                    key={item.path}
+                    type="button"
+                    className="settings-advanced-link"
+                    onClick={() => navigate(item.path)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="settings-panel">
+              <div className="settings-panel-head settings-panel-head--split">
+                <div>
+                  <h3>System health</h3>
+                  <p className="settings-muted">
+                    Local queue and saved fallback data on this device.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="settings-advanced-refresh"
+                  onClick={refreshAdvancedHealth}
+                >
+                  Refresh
+                </button>
+              </div>
+              <div className="settings-advanced-kpis">
+                <article className="settings-advanced-kpi">
+                  <p>Queue pending</p>
+                  <strong>{advancedHealth.queuePending}</strong>
+                  <span>Waiting to sync</span>
+                </article>
+                <article className="settings-advanced-kpi">
+                  <p>Queue failed</p>
+                  <strong>{advancedHealth.queueFailed}</strong>
+                  <span>Need retry</span>
+                </article>
+                <article className="settings-advanced-kpi">
+                  <p>Inventory snapshot</p>
+                  <strong>{advancedHealth.inventorySnapshotItems}</strong>
+                  <span>Saved stock rows</span>
+                </article>
+                <article className="settings-advanced-kpi">
+                  <p>Customer snapshot</p>
+                  <strong>{advancedHealth.customerSnapshotItems}</strong>
+                  <span>Saved customer rows</span>
+                </article>
+                <article className="settings-advanced-kpi">
+                  <p>Low stock in snapshot</p>
+                  <strong>{advancedHealth.lowStockItems}</strong>
+                  <span>{LOW_STOCK_THRESHOLD} units or less</span>
+                </article>
+              </div>
+            </section>
+          </>
         )}
       </div>
     </div>

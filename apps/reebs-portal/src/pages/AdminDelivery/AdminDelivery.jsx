@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminDelivery.css";
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faTruck, faRotateRight, faLocationDot } from "/src/icons/iconSet";
+import { faTruck, faRotateRight } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const STATUS_OPTIONS = [
@@ -287,20 +288,17 @@ function AdminDelivery() {
       <div className="delivery-shell">
         <AdminBreadcrumb items={[{ label: "Delivery" }]} />
 
-        <header className="delivery-header">
-          <div>
-            <p className="delivery-eyebrow">Logistics</p>
-            <h1>Delivery Command</h1>
-            <p className="delivery-subtitle">
-              Track routes, update delivery stages, and keep rental drop-offs on schedule.
-            </p>
-          </div>
-          <div className="delivery-actions">
+        <AdminPageHeader
+          eyebrow="Logistics"
+          title="Delivery Command"
+          subtitle="Track routes, update delivery stages, and keep rental drop-offs on schedule."
+          actionsClassName="admin-header-actions"
+          actions={
             <button type="button" className="delivery-secondary" onClick={fetchDeliveries} disabled={loading}>
               <AppIcon icon={faRotateRight} /> Refresh
             </button>
-          </div>
-        </header>
+          }
+        />
 
         {error && <p className="delivery-error">{error}</p>}
         {status && <p className="delivery-success">{status}</p>}

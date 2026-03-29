@@ -30,20 +30,25 @@
   min-width: 0;
 }
 
-.water-module-header {
-  display: flex;
-  justify-content: space-between;
+.water-module-shell > .admin-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 1rem;
-  align-items: flex-start;
+  align-items: center;
   padding: 2rem 0;
 }
 
-.water-module-header > div {
+.water-module-shell > .admin-header > div:first-child {
+  grid-column: 2;
   min-width: 0;
+  justify-self: center;
+  text-align: center;
 }
 
-.water-module-header .admin-secondary {
-  margin-left: auto;
+.water-module-shell > .admin-header > :last-child:not(:first-child) {
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
   flex: 0 0 auto;
 }
 
@@ -58,7 +63,7 @@
   color: var(--admin-muted);
 }
 
-.water-module-header h1,
+.water-module-shell > .admin-header h1,
 .water-module-hero h2,
 .water-module-card h3,
 .water-module-network-card h3 {
@@ -224,7 +229,7 @@
   padding: 1rem;
 }
 
-.water-module-header,
+.water-module-shell > .admin-header,
 .water-module-hero,
 .water-module-network-grid > .water-module-card--full,
 .water-module-order-section > .water-module-card,
@@ -1152,18 +1157,33 @@
 
 @media (max-width: 720px) {
   .water-module-page {
-    padding: 0.75rem;
+    padding: 1rem;
   }
 
   .water-module-shell {
     gap: 0.85rem;
   }
 
-  .water-module-header {
+  .water-module-shell > .admin-header {
     padding: 0.35rem 0 0;
-    flex-direction: row;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
     gap: 0.75rem;
+  }
+
+  .water-module-shell > .admin-header > div:first-child,
+  .water-module-shell > .admin-header > :last-child:not(:first-child) {
+    grid-column: 1;
+  }
+
+  .water-module-shell > .admin-header > div:first-child {
+    justify-self: stretch;
+    text-align: center;
+  }
+
+  .water-module-shell > .admin-header > :last-child:not(:first-child) {
+    width: 100%;
+    justify-self: center;
   }
 
   .water-module-kpis {
@@ -1246,6 +1266,109 @@
 
   .water-module-table {
     min-width: 320px;
+  }
+
+  .water-module-table-wrap:not(.water-module-table-wrap--stock) {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .water-module-table--orders,
+  .water-module-table--expenses {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .water-module-table--orders thead,
+  .water-module-table--expenses thead {
+    display: none;
+  }
+
+  .water-module-table--orders tbody,
+  .water-module-table--expenses tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .water-module-table--orders tbody tr,
+  .water-module-table--expenses tbody tr {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.8rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .water-module-table--orders .water-module-order-row:hover,
+  .water-module-table--orders .water-module-order-row:focus-visible,
+  .water-module-table--orders .water-module-order-row.is-active,
+  .water-module-table--expenses .water-module-click-row:hover,
+  .water-module-table--expenses .water-module-click-row:focus-visible,
+  .water-module-table--expenses .water-module-click-row.is-active {
+    border-color: rgba(12, 106, 96, 0.24);
+    background: rgba(12, 106, 96, 0.12);
+  }
+
+  .water-module-table--orders tbody td,
+  .water-module-table--expenses tbody td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+    font-size: 0.86rem;
+  }
+
+  .water-module-table--orders tbody td::before,
+  .water-module-table--expenses tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 4.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .water-module-table--orders .water-module-order-row:hover td,
+  .water-module-table--orders .water-module-order-row:focus-visible td,
+  .water-module-table--orders .water-module-order-row.is-active td,
+  .water-module-table--expenses .water-module-click-row:hover td,
+  .water-module-table--expenses .water-module-click-row:focus-visible td,
+  .water-module-table--expenses .water-module-click-row.is-active td {
+    background: transparent;
+  }
+
+  .water-module-table--orders tbody td > *,
+  .water-module-table--expenses tbody td > * {
+    min-width: 0;
+  }
+
+  .water-module-table--orders .water-module-order-primary,
+  .water-module-table--orders .water-module-order-status,
+  .water-module-table--orders .water-module-order-total {
+    justify-items: end;
+    text-align: right;
+  }
+
+  .water-module-table--orders .water-module-order-actions,
+  .water-module-table--expenses .water-module-order-actions {
+    width: auto;
+  }
+
+  .water-module-table--orders .water-module-order-actions::before,
+  .water-module-table--expenses .water-module-order-actions::before {
+    flex-basis: 4.75rem;
+  }
+
+  .water-module-table--orders .water-module-order-actions button,
+  .water-module-table--expenses .water-module-order-actions button {
+    margin-left: auto;
   }
 
   .water-module-table-wrap--stock {

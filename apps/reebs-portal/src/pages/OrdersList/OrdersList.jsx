@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./OrdersList.css";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 
@@ -742,18 +743,19 @@ function OrdersList() {
     <div className="orders-page">
       <div className="orders-shell">
         <AdminBreadcrumb items={[{ label: "Orders" }]} />
-        <header className="orders-header">
-          <div>
-            <p className="orders-eyebrow">Orders</p>
-            <h1>Order Ledger</h1>
-            <p className="orders-subtitle">Review recent orders and jump into creation.</p>
-          </div>
-          {!isMobileView && (
-            <Link to="/admin/orders/new" className="orders-create">
-              Create order
-            </Link>
-          )}
-        </header>
+        <AdminPageHeader
+          eyebrow="Orders"
+          title="Order Ledger"
+          subtitle="Review recent orders and jump into creation."
+          actionsClassName="admin-header-actions"
+          actions={
+            !isMobileView ? (
+              <Link to="/admin/orders/new" className="orders-create">
+                Create order
+              </Link>
+            ) : null
+          }
+        />
 
         <section className="orders-panel">
           <div className="orders-panel-header">

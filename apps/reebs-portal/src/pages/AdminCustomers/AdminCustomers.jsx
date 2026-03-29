@@ -15,6 +15,7 @@ import {
 } from "/src/icons/iconSet";
 import { faWhatsapp } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const formatMoney = (value, currency = "GHS") => {
@@ -331,34 +332,36 @@ function AdminCustomers() {
         <AdminBreadcrumb items={[{ label: "Customers" }]} />
 
         <section className="crm-hero">
-          <header className="crm-header">
-            <div className="crm-header-copy">
-              <p className="crm-eyebrow">Customer CRM</p>
-              <h1>Customer Relationship Management</h1>
-              <div className="crm-segment-strip" aria-label="Customer segment distribution">
-                <span className="crm-segment-pill is-prospect">
-                  {segmentCounts.prospect} {getSegmentLabel("prospect")}
-                </span>
-                <span className="crm-segment-pill is-active">
-                  {segmentCounts.active + segmentCounts.nurture} Active
-                </span>
-                <span className="crm-segment-pill is-loyal">
-                  {segmentCounts.loyal} {getSegmentLabel("loyal")}
-                </span>
-                <span className="crm-segment-pill is-risk">
-                  {segmentCounts.risk} {getSegmentLabel("risk")}
-                </span>
-              </div>
+          <AdminPageHeader
+            copyClassName="crm-header-copy"
+            title="Customer Relationship Management"
+            actionsClassName="admin-header-actions crm-header-actions"
+            actions={
+              <>
+                <button type="button" className="crm-secondary" onClick={fetchCustomers} disabled={loading}>
+                  <AppIcon icon={faRotateRight} /> Refresh
+                </button>
+                <button type="button" className="crm-primary" onClick={() => setCreateOpen(true)}>
+                  <AppIcon icon={faUserPlus} /> Add Customer
+                </button>
+              </>
+            }
+          >
+            <div className="crm-segment-strip" aria-label="Customer segment distribution">
+              <span className="crm-segment-pill is-prospect">
+                {segmentCounts.prospect} {getSegmentLabel("prospect")}
+              </span>
+              <span className="crm-segment-pill is-active">
+                {segmentCounts.active + segmentCounts.nurture} Active
+              </span>
+              <span className="crm-segment-pill is-loyal">
+                {segmentCounts.loyal} {getSegmentLabel("loyal")}
+              </span>
+              <span className="crm-segment-pill is-risk">
+                {segmentCounts.risk} {getSegmentLabel("risk")}
+              </span>
             </div>
-            <div className="crm-header-actions">
-              <button type="button" className="crm-secondary" onClick={fetchCustomers} disabled={loading}>
-                <AppIcon icon={faRotateRight} /> Refresh
-              </button>
-              <button type="button" className="crm-primary" onClick={() => setCreateOpen(true)}>
-                <AppIcon icon={faUserPlus} /> Add Customer
-              </button>
-            </div>
-          </header>
+          </AdminPageHeader>
 
           <div className="crm-hero-grid">
             <section className="crm-kpi-grid">

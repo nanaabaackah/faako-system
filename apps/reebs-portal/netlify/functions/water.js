@@ -6,8 +6,11 @@ import {
   ensureProductVendorLinksTable,
   getProductVendorIdsMap,
 } from "./_shared/productVendors.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { applyWindowRateLimit } from "./_shared/requestRateLimit.js";
 
+const WATER_METHODS = "GET,POST,OPTIONS";
+const WATER_ALLOWED_ROLES = ["owner", "admin", "manager", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = "gwater-15pk";
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
@@ -16,15 +19,40 @@ const RETAIL_PRICE = 2700;
 const BULK_RETAIL_PRICE = 2600;
 const COMPANY_PRICE = 2500;
 const BULK_THRESHOLD = 10;
-
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
-  body: JSON.stringify(body),
-});
+const MAX_WATER_BODY_BYTES = 16 * 1024;
+const MAX_WATER_QUANTITY = 100000;
+const MAX_WATER_AMOUNT_CENTS = 100000000;
+const MAX_ACTION_LENGTH = 40;
+const MAX_NAME_LENGTH = 160;
+const MAX_PHONE_LENGTH = 40;
+const MAX_REFERENCE_LENGTH = 120;
+const MAX_REASON_LENGTH = 120;
+const MAX_CATEGORY_LENGTH = 80;
+const MAX_DESCRIPTION_LENGTH = 240;
+const MAX_NOTES_LENGTH = 500;
+const MAX_VENDOR_NAME_LENGTH = 160;
+const WATER_READ_RATE_LIMIT = {
+  limit: 180,
+  windowMs: 60_000,
+};
+const WATER_WRITE_RATE_LIMIT = {
+  limit: 45,
+  windowMs: 60_000,
+};
+const WATER_ACTIONS = new Set([
+  "restock",
+  "update_restock",
+  "delete_restock",
+  "sale",
+  "update_sale",
+  "delete_sale",
+  "expense",
+  "update_expense",
+  "delete_expense",
+  "adjustment",
+  "update_adjustment",
+  "delete_adjustment",
+]);
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "waterRestock" (
@@ -157,7 +185,22 @@ const ensureProductLinkColumns = async (client) => {
   }
 };
 
-const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
+const stripControlCharacters = (value) =>
+  Array.from(String(value || ""))
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code >= 32 && code !== 127;
+    })
+    .join("");
+
+const cleanText = (value, maxLength = MAX_NOTES_LENGTH) => {
+  if (typeof value !== "string") return "";
+  return stripControlCharacters(value)
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, Math.max(0, Number(maxLength) || 0))
+    .trim();
+};
 
 const normalizeComparableText = (value) =>
   cleanText(value)
@@ -167,30 +210,32 @@ const normalizeComparableText = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const parsePositiveInteger = (value) => {
+const parsePositiveInteger = (value, max = MAX_WATER_QUANTITY) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   const rounded = Math.round(parsed);
-  return rounded > 0 ? rounded : null;
+  return rounded > 0 && rounded <= max ? rounded : null;
 };
 
-const parseSignedInteger = (value) => {
+const parseSignedInteger = (value, max = MAX_WATER_QUANTITY) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   const rounded = Math.round(parsed);
-  return rounded !== 0 ? rounded : null;
+  return rounded !== 0 && Math.abs(rounded) <= max ? rounded : null;
 };
 
-const parseMoney = (value) => {
+const parseMoney = (value, maxCents = MAX_WATER_AMOUNT_CENTS) => {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.round(value * 100);
+    const cents = Math.round(value * 100);
+    return cents > 0 && cents <= maxCents ? cents : null;
   }
   if (typeof value !== "string") return null;
   const normalized = value.replace(/,/g, "").trim();
   if (!normalized) return null;
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return Math.round(parsed * 100);
+  const cents = Math.round(parsed * 100);
+  return cents > 0 && cents <= maxCents ? cents : null;
 };
 
 const parseDate = (value) => {
@@ -314,6 +359,81 @@ const resolveSaleDiscount = (discountType, rawValue, subtotalAmount) => {
 
 const buildPaymentReference = (organizationId, saleId) => `WATER-${organizationId}-${saleId}`;
 
+const getHeaderValue = (event, key) => {
+  const headers = event?.headers;
+  if (!headers || typeof headers !== "object") return "";
+  return String(headers[key] || headers[key.toLowerCase()] || headers[key.toUpperCase()] || "").trim();
+};
+
+const getRequesterIp = (event) => {
+  const forwarded = String(
+    getHeaderValue(event, "x-forwarded-for")
+      || getHeaderValue(event, "client-ip")
+      || getHeaderValue(event, "x-nf-client-connection-ip")
+      || ""
+  )
+    .split(",")[0]
+    .trim();
+  return forwarded ? forwarded.slice(0, 64) : null;
+};
+
+const buildUserRateLimitIdentifier = (organizationId, authUser) => {
+  const safeOrganizationId =
+    Number.isInteger(Number(organizationId)) && Number(organizationId) > 0
+      ? Number(organizationId)
+      : "unknown";
+  const safeUserId =
+    Number.isInteger(Number(authUser?.id)) && Number(authUser?.id) > 0
+      ? Number(authUser.id)
+      : "anonymous";
+  const safeRole = cleanText(authUser?.role, 32).toLowerCase() || "unknown";
+  return `org:${safeOrganizationId}|user:${safeUserId}|role:${safeRole}`;
+};
+
+const buildIpRateLimitIdentifier = (event, organizationId) => {
+  const safeOrganizationId =
+    Number.isInteger(Number(organizationId)) && Number(organizationId) > 0
+      ? Number(organizationId)
+      : "unknown";
+  const ipAddress = getRequesterIp(event) || "unknown";
+  return `org:${safeOrganizationId}|ip:${ipAddress}`;
+};
+
+const enforceWaterRateLimit = async (
+  client,
+  event,
+  { organizationId, authUser, method = "GET", action = "" } = {}
+) => {
+  const normalizedMethod = String(method || "GET").toUpperCase();
+  const safeAction = cleanText(action, MAX_ACTION_LENGTH).toLowerCase() || "default";
+  const scope = normalizedMethod === "GET" ? "water:read" : `water:write:${safeAction}`;
+  const limitConfig = normalizedMethod === "GET" ? WATER_READ_RATE_LIMIT : WATER_WRITE_RATE_LIMIT;
+  const [userLimit, ipLimit] = await Promise.all([
+    applyWindowRateLimit(client, {
+      scope,
+      identifier: buildUserRateLimitIdentifier(organizationId, authUser),
+      ...limitConfig,
+    }),
+    applyWindowRateLimit(client, {
+      scope,
+      identifier: buildIpRateLimitIdentifier(event, organizationId),
+      ...limitConfig,
+    }),
+  ]);
+
+  if (!userLimit.allowed) return userLimit;
+  if (!ipLimit.allowed) return ipLimit;
+
+  return {
+    ...userLimit,
+    remaining: Math.min(userLimit.remaining, ipLimit.remaining),
+    retryAfterSeconds: Math.max(userLimit.retryAfterSeconds, ipLimit.retryAfterSeconds),
+    resetAt: new Date(
+      Math.max(Date.parse(userLimit.resetAt) || 0, Date.parse(ipLimit.resetAt) || 0)
+    ).toISOString(),
+  };
+};
+
 const isSaleCollected = (row) =>
   normalizePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
 
@@ -323,7 +443,7 @@ const resolveSalePrice = (quantity, saleChannel) => {
 };
 
 const findCustomerByName = async (client, organizationId, name) => {
-  const normalizedName = cleanText(name);
+  const normalizedName = cleanText(name, MAX_NAME_LENGTH);
   if (!normalizedName) return null;
   const result = await client.query(
     `SELECT id, name, phone
@@ -338,7 +458,7 @@ const findCustomerByName = async (client, organizationId, name) => {
 };
 
 const updateCustomerPhone = async (client, organizationId, customerId, phone) => {
-  const normalizedPhone = cleanText(phone);
+  const normalizedPhone = cleanText(phone, MAX_PHONE_LENGTH);
   if (!normalizedPhone) return null;
   const result = await client.query(
     `UPDATE "customer"
@@ -352,19 +472,21 @@ const updateCustomerPhone = async (client, organizationId, customerId, phone) =>
 };
 
 const insertCustomerByName = async (client, organizationId, name, phone = null) => {
-  const normalizedPhone = cleanText(phone) || null;
+  const normalizedName = cleanText(name, MAX_NAME_LENGTH);
+  const normalizedPhone = cleanText(phone, MAX_PHONE_LENGTH) || null;
+  if (!normalizedName) return null;
   const result = await client.query(
     `INSERT INTO "customer" ("organizationId", "name", "phone", "createdAt", "updatedAt")
      VALUES ($1, $2, $3, NOW(), NOW())
      RETURNING id, name, phone`,
-    [organizationId, name, normalizedPhone]
+    [organizationId, normalizedName, normalizedPhone]
   );
   return result.rows?.[0] || null;
 };
 
 const findOrCreateCustomerByName = async (client, organizationId, name, phone = null) => {
-  const normalizedName = cleanText(name);
-  const normalizedPhone = cleanText(phone);
+  const normalizedName = cleanText(name, MAX_NAME_LENGTH);
+  const normalizedPhone = cleanText(phone, MAX_PHONE_LENGTH);
   if (!normalizedName) return null;
 
   const existing = await findCustomerByName(client, organizationId, normalizedName);
@@ -517,6 +639,16 @@ const buildSummary = ({ restocks, sales, expenses, adjustments }) => {
       ? sum + toAmount(row.totalAmount)
       : sum;
   }, 0);
+  const cashSalesTotal = sales.reduce((sum, row) => {
+    return normalizePaymentMethod(row.paymentMethod) === "cash"
+      ? sum + toAmount(row.totalAmount)
+      : sum;
+  }, 0);
+  const momoSalesTotal = sales.reduce((sum, row) => {
+    return normalizePaymentMethod(row.paymentMethod) === "momo"
+      ? sum + toAmount(row.totalAmount)
+      : sum;
+  }, 0);
   const pendingCash = sales.reduce((sum, row) => {
     return normalizePaymentMethod(row.paymentMethod) === "cash" && !isSaleCollected(row)
       ? sum + toAmount(row.totalAmount)
@@ -547,6 +679,8 @@ const buildSummary = ({ restocks, sales, expenses, adjustments }) => {
     netProfit,
     cashCollected,
     outstandingCredit,
+    cashSalesTotal,
+    momoSalesTotal,
     pendingCash,
     pendingMomo,
     cashPosition,
@@ -676,16 +810,24 @@ const getStoredDiscountInputValue = (discountType, discountValue) => {
 };
 
 export async function handler(event = {}) {
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      },
-      body: "",
-    };
+  const method = String(event.httpMethod || "GET").toUpperCase();
+  const json = (statusCode, body, options = {}) =>
+    respond(event, statusCode, body, { methods: WATER_METHODS, ...options });
+
+  if (method === "OPTIONS") {
+    return json(204, {});
+  }
+
+  if (method !== "GET" && method !== "POST") {
+    return json(405, { error: "Method Not Allowed" });
+  }
+
+  if (
+    method === "POST"
+    && Buffer.byteLength(typeof event.body === "string" ? event.body : "", "utf8")
+      > MAX_WATER_BODY_BYTES
+  ) {
+    return json(413, { error: "Water request body exceeds the 16 KB limit." });
   }
 
   const client = new Client({
@@ -695,20 +837,32 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(401, { error: "Unauthorized" });
+    const authResult = await requireInternalUser(client, event, {
+      methods: WATER_METHODS,
+      roles: WATER_ALLOWED_ROLES,
+      roleError: "Only water operators, owners, admins, and managers can access the water module.",
+    });
+    if (authResult.errorResponse) {
+      return authResult.errorResponse;
     }
+    const { authUser, organizationId } = authResult;
 
-    await ensureTables(client);
-    const organizationId = Number(authUser.organizationId);
+    if (method === "GET") {
+      const readRateLimit = await enforceWaterRateLimit(client, event, {
+        organizationId,
+        authUser,
+        method,
+      });
+      if (!readRateLimit.allowed) {
+        return json(
+          429,
+          { error: "Too many water requests. Try again shortly." },
+          { extraHeaders: { "Retry-After": String(readRateLimit.retryAfterSeconds) } }
+        );
+      }
 
-    if (event.httpMethod === "GET") {
+      await ensureTables(client);
       return json(200, await buildDashboard(client, organizationId));
-    }
-
-    if (event.httpMethod !== "POST") {
-      return json(405, { error: "Method Not Allowed" });
     }
 
     let payload = {};
@@ -718,13 +872,35 @@ export async function handler(event = {}) {
       return json(400, { error: "Invalid JSON body." });
     }
 
-    const action = cleanText(payload.action).toLowerCase();
-    const createdByUserId = Number.isFinite(Number(authUser.id)) ? Number(authUser.id) : null;
-    const createdByName = cleanText(authUser.fullName) || cleanText(authUser.email) || "Water user";
+    const action = cleanText(payload.action, MAX_ACTION_LENGTH).toLowerCase();
+    const normalizedAction = WATER_ACTIONS.has(action) ? action : "unknown";
+    const writeRateLimit = await enforceWaterRateLimit(client, event, {
+      organizationId,
+      authUser,
+      method,
+      action: normalizedAction,
+    });
+    if (!writeRateLimit.allowed) {
+      return json(
+        429,
+        { error: "Too many water updates. Try again shortly." },
+        { extraHeaders: { "Retry-After": String(writeRateLimit.retryAfterSeconds) } }
+      );
+    }
 
     if (!action) {
       return json(400, { error: "Action is required." });
     }
+    if (!WATER_ACTIONS.has(action)) {
+      return json(400, { error: "Unsupported action." });
+    }
+
+    await ensureTables(client);
+    const createdByUserId = Number.isFinite(Number(authUser.id)) ? Number(authUser.id) : null;
+    const createdByName =
+      cleanText(authUser.fullName, MAX_NAME_LENGTH)
+      || cleanText(authUser.email, MAX_NAME_LENGTH)
+      || "Water user";
 
     if (action === "restock") {
       const quantity = parsePositiveInteger(payload.quantity);
@@ -732,8 +908,8 @@ export async function handler(event = {}) {
       const vendorIdCandidate = Number(payload.vendorId);
       const vendorId =
         Number.isFinite(vendorIdCandidate) && vendorIdCandidate > 0 ? vendorIdCandidate : null;
-      const vendorName = cleanText(payload.vendorName) || null;
-      const notes = cleanText(payload.notes) || null;
+      const vendorName = cleanText(payload.vendorName, MAX_VENDOR_NAME_LENGTH) || null;
+      const notes = cleanText(payload.notes, MAX_NOTES_LENGTH) || null;
 
       if (!quantity) return json(400, { error: "Restock quantity must be greater than zero." });
       if (!date) return json(400, { error: "A valid restock date is required." });
@@ -805,11 +981,12 @@ export async function handler(event = {}) {
       const vendorName = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "vendorName")
           ? payload.vendorName
-          : existingRestock.vendorName
+          : existingRestock.vendorName,
+        MAX_VENDOR_NAME_LENGTH
       ) || null;
       const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
-        ? cleanText(payload.notes) || null
-        : cleanText(existingRestock.notes) || null;
+        ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
+        : cleanText(existingRestock.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date || existingRestock.date);
 
       if (!quantity) return json(400, { error: "Restock quantity must be greater than zero." });
@@ -885,10 +1062,10 @@ export async function handler(event = {}) {
       const requestedCustomerId = Number(payload.customerId);
       let customerId =
         Number.isFinite(requestedCustomerId) && requestedCustomerId > 0 ? requestedCustomerId : null;
-      let customerName = cleanText(payload.customerName) || null;
-      const customerPhone = cleanText(payload.customerPhone) || null;
-      const notes = cleanText(payload.notes) || null;
-      const providerReference = cleanText(payload.providerReference) || null;
+      let customerName = cleanText(payload.customerName, MAX_NAME_LENGTH) || null;
+      const customerPhone = cleanText(payload.customerPhone, MAX_PHONE_LENGTH) || null;
+      const notes = cleanText(payload.notes, MAX_NOTES_LENGTH) || null;
+      const providerReference = cleanText(payload.providerReference, MAX_REFERENCE_LENGTH) || null;
       const date = parseDate(payload.date);
       const paidAt = paymentStatus === "paid" ? parseDate(payload.paidAt || payload.date) : null;
 
@@ -910,8 +1087,8 @@ export async function handler(event = {}) {
           return json(404, { error: "Linked REEBS customer not found." });
         }
         const linkedCustomer = customerRes.rows[0] || null;
-        customerName = cleanText(linkedCustomer?.name) || customerName;
-        if (customerPhone && cleanText(linkedCustomer?.phone) !== customerPhone) {
+        customerName = cleanText(linkedCustomer?.name, MAX_NAME_LENGTH) || customerName;
+        if (customerPhone && cleanText(linkedCustomer?.phone, MAX_PHONE_LENGTH) !== customerPhone) {
           await updateCustomerPhone(client, organizationId, customerId, customerPhone);
         }
       } else if (customerName) {
@@ -922,7 +1099,7 @@ export async function handler(event = {}) {
           customerPhone
         );
         customerId = Number(resolvedCustomer?.id) || null;
-        customerName = cleanText(resolvedCustomer?.name) || customerName;
+        customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
       const dashboard = await buildDashboard(client, organizationId, {
@@ -1067,17 +1244,19 @@ export async function handler(event = {}) {
       let customerName = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "customerName")
           ? payload.customerName
-          : existingSale.customerName
+          : existingSale.customerName,
+        MAX_NAME_LENGTH
       ) || null;
-      const customerPhone = cleanText(payload.customerPhone) || null;
+      const customerPhone = cleanText(payload.customerPhone, MAX_PHONE_LENGTH) || null;
       const providerReference = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "providerReference")
           ? payload.providerReference
-          : existingSale.providerReference
+          : existingSale.providerReference,
+        MAX_REFERENCE_LENGTH
       ) || null;
       const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
-        ? cleanText(payload.notes) || null
-        : cleanText(existingSale.notes) || null;
+        ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
+        : cleanText(existingSale.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date || existingSale.date);
       const paidAt =
         paymentStatus === "paid"
@@ -1103,8 +1282,8 @@ export async function handler(event = {}) {
           return json(404, { error: "Linked REEBS customer not found." });
         }
         const linkedCustomer = customerRes.rows?.[0] || null;
-        customerName = cleanText(linkedCustomer?.name) || customerName;
-        if (customerPhone && cleanText(linkedCustomer?.phone) !== customerPhone) {
+        customerName = cleanText(linkedCustomer?.name, MAX_NAME_LENGTH) || customerName;
+        if (customerPhone && cleanText(linkedCustomer?.phone, MAX_PHONE_LENGTH) !== customerPhone) {
           await updateCustomerPhone(client, organizationId, customerId, customerPhone);
         }
       } else if (customerName) {
@@ -1115,7 +1294,7 @@ export async function handler(event = {}) {
           customerPhone
         );
         customerId = Number(resolvedCustomer?.id) || null;
-        customerName = cleanText(resolvedCustomer?.name) || customerName;
+        customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
       const dashboard = await buildDashboard(client, organizationId, {
@@ -1178,7 +1357,7 @@ export async function handler(event = {}) {
         ]
       );
 
-      if (!cleanText(existingSale.paymentReference)) {
+      if (!cleanText(existingSale.paymentReference, MAX_REFERENCE_LENGTH)) {
         await client.query(
           `UPDATE "waterSale"
            SET "paymentReference" = $2
@@ -1218,10 +1397,10 @@ export async function handler(event = {}) {
     }
 
     if (action === "expense") {
-      const category = cleanText(payload.category);
-      const description = cleanText(payload.description);
+      const category = cleanText(payload.category, MAX_CATEGORY_LENGTH);
+      const description = cleanText(payload.description, MAX_DESCRIPTION_LENGTH);
       const amount = parseMoney(payload.amount);
-      const notes = cleanText(payload.notes) || null;
+      const notes = cleanText(payload.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date);
 
       if (!category) return json(400, { error: "Expense category is required." });
@@ -1274,19 +1453,21 @@ export async function handler(event = {}) {
       const category = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "category")
           ? payload.category
-          : existingExpense.category
+          : existingExpense.category,
+        MAX_CATEGORY_LENGTH
       );
       const description = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "description")
           ? payload.description
-          : existingExpense.description
+          : existingExpense.description,
+        MAX_DESCRIPTION_LENGTH
       );
       const amount = Object.prototype.hasOwnProperty.call(payload, "amount")
         ? parseMoney(payload.amount)
         : Math.max(0, Number(existingExpense.amount) || 0);
       const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
-        ? cleanText(payload.notes) || null
-        : cleanText(existingExpense.notes) || null;
+        ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
+        : cleanText(existingExpense.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date || existingExpense.date);
 
       if (!category) return json(400, { error: "Expense category is required." });
@@ -1337,8 +1518,8 @@ export async function handler(event = {}) {
 
     if (action === "adjustment") {
       const quantityDelta = parseSignedInteger(payload.quantityDelta);
-      const reason = cleanText(payload.reason);
-      const notes = cleanText(payload.notes) || null;
+      const reason = cleanText(payload.reason, MAX_REASON_LENGTH);
+      const notes = cleanText(payload.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date);
 
       if (!quantityDelta) return json(400, { error: "Stock correction cannot be zero." });
@@ -1410,11 +1591,12 @@ export async function handler(event = {}) {
       const reason = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "reason")
           ? payload.reason
-          : existingAdjustment.reason
+          : existingAdjustment.reason,
+        MAX_REASON_LENGTH
       );
       const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
-        ? cleanText(payload.notes) || null
-        : cleanText(existingAdjustment.notes) || null;
+        ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
+        : cleanText(existingAdjustment.notes, MAX_NOTES_LENGTH) || null;
       const date = parseDate(payload.date || existingAdjustment.date);
 
       if (!quantityDelta) return json(400, { error: "Stock correction cannot be zero." });
@@ -1479,7 +1661,6 @@ export async function handler(event = {}) {
       return json(200, await buildDashboard(client, organizationId));
     }
 
-    return json(400, { error: "Unsupported action." });
   } catch (err) {
     console.error("Water module error", err);
     return json(500, { error: "Failed to process water module request." });

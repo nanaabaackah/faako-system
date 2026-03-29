@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./AdminMarketing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
-  faTags,
-  faBullhorn,
   faPaperPlane,
   faRotateRight,
   faPlus,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 
 const TYPE_OPTIONS = [
   { value: "PERCENTAGE", label: "% Off" },
@@ -276,23 +275,22 @@ function AdminMarketing() {
       <div className="admin-shell marketing-shell">
         <AdminBreadcrumb items={[{ label: "Marketing" }]} />
 
-        <header className="admin-header marketing-header">
-          <div>
-            <p className="marketing-eyebrow">Revenue drivers</p>
-            <h1>Marketing & Promotions</h1>
-            <p className="marketing-subtitle">
-              Launch coupon campaigns, segment customers, and push rental or retail promotions.
-            </p>
-          </div>
-          <div className="marketing-actions">
-            <button type="button" className="admin-secondary" onClick={seedCampaigns}>
-              <AppIcon icon={faPlus} /> Seed campaigns
-            </button>
-            <button type="button" className="admin-secondary" onClick={fetchDiscounts}>
-              <AppIcon icon={faRotateRight} /> Refresh
-            </button>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Revenue drivers"
+          title="Marketing & Promotions"
+          subtitle="Launch coupon campaigns, segment customers, and push rental or retail promotions."
+          actionsClassName="admin-header-actions marketing-actions"
+          actions={
+            <>
+              <button type="button" className="admin-secondary" onClick={seedCampaigns}>
+                <AppIcon icon={faPlus} /> Seed campaigns
+              </button>
+              <button type="button" className="admin-secondary" onClick={fetchDiscounts}>
+                <AppIcon icon={faRotateRight} /> Refresh
+              </button>
+            </>
+          }
+        />
 
         <section className="admin-cards marketing-kpis">
           <div className="admin-card">

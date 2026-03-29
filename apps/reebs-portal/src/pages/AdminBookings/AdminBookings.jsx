@@ -11,9 +11,13 @@ import {
   faChevronRight,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
+
+const SHOW_LEGACY_BOOKINGS_TABLE = false;
+const SHOW_LEGACY_BOOKINGS_KANBAN = false;
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -981,25 +985,26 @@ function AdminBookings() {
       <div className="bookings-shell">
         <AdminBreadcrumb items={[{ label: "Bookings" }]} />
 
-        <header className="bookings-header">
-          <div>
-            <p className="bookings-eyebrow">Bookings</p>
-            <h1>Rental bookings</h1>
-            <p className="bookings-subtitle">Review upcoming events, track statuses, and create bookings.</p>
-          </div>
-          {!isMobileView && (
-            <div className="bookings-actions">
-              <button type="button" className="bookings-secondary" onClick={fetchAll}>
-                <AppIcon icon={faRotateRight} />
-                Refresh
-              </button>
-              <button type="button" className="bookings-primary" onClick={openCreate}>
-                <AppIcon icon={faPlus} />
-                Add booking
-              </button>
-            </div>
-          )}
-        </header>
+        <AdminPageHeader
+          eyebrow="Bookings"
+          title="Rental bookings"
+          subtitle="Review upcoming events, track statuses, and create bookings."
+          actionsClassName="admin-header-actions"
+          actions={
+            !isMobileView ? (
+              <>
+                <button type="button" className="bookings-secondary" onClick={fetchAll}>
+                  <AppIcon icon={faRotateRight} />
+                  Refresh
+                </button>
+                <button type="button" className="bookings-primary" onClick={openCreate}>
+                  <AppIcon icon={faPlus} />
+                  Add booking
+                </button>
+              </>
+            ) : null
+          }
+        />
 
         <section className="bookings-panel">
           <div className="bookings-panel-header">
@@ -1066,7 +1071,7 @@ function AdminBookings() {
             </div>
           )}
 
-          {!loading && !error && false && (
+          {!loading && !error && SHOW_LEGACY_BOOKINGS_TABLE && (
             <div className="bookings-table-wrapper">
               <table className="bookings-table">
                 <thead>
@@ -1316,7 +1321,7 @@ function AdminBookings() {
             </>
           )}
 
-          {!loading && !error && false && (
+          {!loading && !error && SHOW_LEGACY_BOOKINGS_KANBAN && (
             <div className="bookings-kanban">
               {kanbanColumns.map((column) => (
                 <div key={column.id} className="bookings-kanban-column">

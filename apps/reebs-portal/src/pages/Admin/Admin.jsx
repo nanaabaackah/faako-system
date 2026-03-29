@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Admin.css";
 import { Link, useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
@@ -1991,64 +1992,66 @@ function Admin() {
     <div className="admin-page inventory-page">
       <div className="admin-shell">
         <AdminBreadcrumb items={[{ label: "Inventory" }]} />
-        <header className="admin-header inventory-hub-header">
-          <div className="inventory-hub-copy">
-            <h1>Stock Management</h1>
-          </div>
-          <div className="admin-header-actions inventory-header-actions">
-            <button
-              type="button"
-              className="admin-chip inventory-header-action"
-              aria-label={newItemOpen ? "Close add items" : "Add items"}
-              title={newItemOpen ? "Close add items" : "Add items"}
-              onClick={() => {
-                setNewItemError("");
-                setSuccess("");
-                setNewItemOpen((open) => !open);
-              }}
-            >
-              <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
-              <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
-            </button>
-            <button
-              type="button"
-              className="admin-chip inventory-header-action"
-              aria-label="Open archived items"
-              title="Archived items"
-              onClick={() => {
-                setArchivedOpen(true);
-                clearArchivedSelection();
-                loadStatusItems("archived");
-              }}
-            >
-              <AppIcon icon={faFolderOpen} size={16} />
-              <span className="sr-only">Archived</span>
-            </button>
-            <button
-              type="button"
-              className="admin-chip inventory-header-action"
-              aria-label="Open recently deleted items"
-              title="Recently deleted"
-              onClick={() => {
-                setDeletedOpen(true);
-                loadStatusItems("deleted");
-              }}
-            >
-              <AppIcon icon={faTrash} size={16} />
-              <span className="sr-only">Recently deleted</span>
-            </button>
-            <button
-              type="button"
-              className="admin-refresh inventory-header-action"
-              aria-label="Refresh inventory"
-              title="Refresh inventory"
-              onClick={refreshInventorySurface}
-            >
-              <AppIcon icon={faRotateRight} size={16} />
-              <span className="sr-only">Refresh</span>
-            </button>
-          </div>
-        </header>
+        <AdminPageHeader
+          copyClassName="inventory-hub-copy"
+          actionsClassName="admin-header-actions inventory-header-actions"
+          title="Stock Management"
+          actions={
+            <>
+              <button
+                type="button"
+                className="admin-chip inventory-header-action"
+                aria-label={newItemOpen ? "Close add items" : "Add items"}
+                title={newItemOpen ? "Close add items" : "Add items"}
+                onClick={() => {
+                  setNewItemError("");
+                  setSuccess("");
+                  setNewItemOpen((open) => !open);
+                }}
+              >
+                <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
+                <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-chip inventory-header-action"
+                aria-label="Open archived items"
+                title="Archived items"
+                onClick={() => {
+                  setArchivedOpen(true);
+                  clearArchivedSelection();
+                  loadStatusItems("archived");
+                }}
+              >
+                <AppIcon icon={faFolderOpen} size={16} />
+                <span className="sr-only">Archived</span>
+              </button>
+              <button
+                type="button"
+                className="admin-chip inventory-header-action"
+                aria-label="Open recently deleted items"
+                title="Recently deleted"
+                onClick={() => {
+                  setDeletedOpen(true);
+                  loadStatusItems("deleted");
+                }}
+              >
+                <AppIcon icon={faTrash} size={16} />
+                <span className="sr-only">Recently deleted</span>
+              </button>
+              <button
+                type="button"
+                className="admin-refresh inventory-header-action"
+                aria-label="Refresh inventory"
+                title="Refresh inventory"
+                onClick={refreshInventorySurface}
+              >
+                <AppIcon icon={faRotateRight} size={16} />
+                <span className="sr-only">Refresh</span>
+              </button>
+            </>
+          }
+        />
 
         <section className="inventory-scope-grid" aria-label="Inventory type scope">
           {scopeSummaries.map((summary) => {

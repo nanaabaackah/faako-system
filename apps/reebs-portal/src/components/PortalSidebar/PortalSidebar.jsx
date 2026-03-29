@@ -23,7 +23,6 @@ import {
   faGlobe,
   faHome,
   faMoneyCheckDollar,
-  faPenToSquare,
   faReceipt,
   faShieldAlt,
   faSliders,
@@ -190,13 +189,7 @@ const DEFAULT_APPS = [
     label: "Settings",
     path: "/admin/settings",
     icon: faSliders,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Advanced",
-    path: "/admin/advanced",
-    icon: faPenToSquare,
-    matchPaths: ["/admin/advanced", "/admin/website-template"],
+    matchPaths: ["/admin/settings", "/admin/advanced", "/admin/website-template"],
     roles: ["admin", "manager"],
   },
 ];
@@ -206,6 +199,17 @@ const normalizePath = (pathname) => {
   const trimmed = pathname.replace(/\/+$/, "");
   return trimmed || "/admin";
 };
+
+const sortPortalApps = (list = []) =>
+  [...list].sort((left, right) => {
+    const leftIsDashboard = normalizePath(left?.path) === "/admin";
+    const rightIsDashboard = normalizePath(right?.path) === "/admin";
+    if (leftIsDashboard && !rightIsDashboard) return -1;
+    if (!leftIsDashboard && rightIsDashboard) return 1;
+    return String(left?.label || "").localeCompare(String(right?.label || ""), undefined, {
+      sensitivity: "base",
+    });
+  });
 
 const buildPathWithParams = (basePath, params = {}) => {
   const [pathname, baseSearch = ""] = String(basePath || "").split("?");
@@ -611,7 +615,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const visibleApps = useMemo(
-    () => apps.filter((app) => canSeeApp(app)),
+    () => sortPortalApps(apps.filter((app) => canSeeApp(app))),
     [apps, isAuthenticated, isWaterUser, userRole]
   );
 

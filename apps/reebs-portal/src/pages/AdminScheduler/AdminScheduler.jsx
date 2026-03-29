@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AdminScheduler.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 import { GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from "@react-google-maps/api";
@@ -398,20 +399,6 @@ function AdminScheduler() {
     }, 0);
   }, [bookingForm.items, productMap]);
 
-  const focusBookingDate = (booking) => {
-    if (!booking?.eventDate) return;
-    const target = new Date(booking.eventDate);
-    if (Number.isNaN(target.getTime())) return;
-    setActiveDay(target);
-    setMonthCursor(new Date(target.getFullYear(), target.getMonth(), 1));
-    setUserSelectedDay(true);
-    setView("month");
-    const agenda = document.querySelector(".calendar-detail");
-    if (agenda?.scrollIntoView) {
-      agenda.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
   const openBookingModal = async () => {
     setBookingError("");
     setProductQuery("");
@@ -774,14 +761,13 @@ function AdminScheduler() {
       <div className="scheduler-shell">
         <AdminBreadcrumb items={[{ label: "Scheduler" }]} />
 
-        <header className="scheduler-header">
-          <div>
-            <p className="scheduler-eyebrow">Planning</p>
-            <h1>Scheduler</h1>
-            <p className="scheduler-subtitle">View bookings by date, agenda, or on a map.</p>
-          </div>
-
-          <div className="scheduler-actions">
+        <AdminPageHeader
+          eyebrow="Planning"
+          title="Scheduler"
+          subtitle="View bookings by date, agenda, or on a map."
+          actionsClassName="scheduler-actions"
+          actions={
+            <>
             <button type="button" className="scheduler-secondary" onClick={fetchBookings}>
               Refresh
             </button>
@@ -814,8 +800,9 @@ function AdminScheduler() {
                 Map
               </button>
             </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         {loading && <p className="scheduler-status">Loading bookings...</p>}
         {!loading && error && <p className="scheduler-error">{error}</p>}

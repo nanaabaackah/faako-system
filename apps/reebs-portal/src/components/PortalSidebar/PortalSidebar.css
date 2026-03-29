@@ -894,8 +894,9 @@
 
   .portal-app-content {
     --portal-modal-inline-offset: 0px;
-    padding: 0;
+    padding: 0 0 calc(var(--portal-bottom-nav-clearance) + 1rem);
     margin-left: 0;
+    scroll-padding-bottom: calc(var(--portal-bottom-nav-clearance) + 1rem);
   }
 
   .portal-sidebar {

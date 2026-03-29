@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminHR.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
 
@@ -143,20 +144,17 @@ function AdminHR() {
       <div className="hr-shell">
         <AdminBreadcrumb items={[{ label: "HR" }]} />
 
-        <header className="hr-header">
-          <div>
-            <p className="hr-eyebrow">Operations & Logistics</p>
-            <h1>Human Resources</h1>
-            <p className="hr-subtitle">
-              Track employee profiles, accountability, and performance across orders, bookings, and inventory.
-            </p>
-          </div>
-          <div className="hr-actions">
+        <AdminPageHeader
+          eyebrow="Operations & Logistics"
+          title="Human Resources"
+          subtitle="Track employee profiles, accountability, and performance across orders, bookings, and inventory."
+          actionsClassName="admin-header-actions"
+          actions={
             <button type="button" className="bookings-secondary" onClick={fetchEmployees}>
               Refresh
             </button>
-          </div>
-        </header>
+          }
+        />
 
         <section className="hr-kpis">
           <div className="hr-card">

@@ -7,6 +7,7 @@ import { faFilePdf, faPrint, faPaperPlane, faSearch, faFolderOpen } from "/src/i
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const formatCurrency = (amount) => {
@@ -1001,15 +1002,13 @@ function AdminInvoicing() {
       <div className="invoicing-shell">
         <AdminBreadcrumb items={[{ label: "Invoicing" }]} />
 
-        <header className="invoicing-header">
-          <div>
-            <p className="invoicing-eyebrow">Document Center</p>
-            <h1>Invoicing</h1>
-            <p className="invoicing-subtitle">
-              Generate branded invoices, track deposits, and keep a clear paid/unpaid workflow.
-            </p>
-          </div>
-          <div className="invoicing-controls no-print">
+        <AdminPageHeader
+          eyebrow="Document Center"
+          title="Invoicing"
+          subtitle="Generate branded invoices, track deposits, and keep a clear paid/unpaid workflow."
+          actionsClassName="invoicing-controls no-print"
+          actions={
+            <>
             <div className="invoicing-tabs" role="tablist" aria-label="Invoice types">
               <button
                 type="button"
@@ -1071,8 +1070,9 @@ function AdminInvoicing() {
             </div>
             {saveError && <p className="invoicing-error">{saveError}</p>}
             {saveStatus && <p className="invoicing-success">{saveStatus}</p>}
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <section className="invoicing-overview no-print" aria-label="Invoicing summary">
           <article className="invoicing-feature-card">

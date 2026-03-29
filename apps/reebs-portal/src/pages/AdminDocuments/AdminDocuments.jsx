@@ -13,6 +13,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const COMPANY = {
@@ -533,15 +534,13 @@ function AdminDocuments() {
       <div className="documents-shell">
         <AdminBreadcrumb items={[{ label: "Documents" }]} />
 
-        <header className="documents-header">
-          <div>
-            <p className="documents-eyebrow">Document Hub</p>
-            <h1>Documents</h1>
-            <p className="documents-subtitle">
-              Track generated receipts, rental invoices, and any uploaded operational files in one place.
-            </p>
-          </div>
-          <div className="documents-summary">
+        <AdminPageHeader
+          eyebrow="Document Hub"
+          title="Documents"
+          subtitle="Track generated receipts, rental invoices, and any uploaded operational files in one place."
+          actionsClassName="documents-summary"
+          actions={
+            <>
             <div>
               <span>Generated</span>
               <strong>{generatedDocs.length}</strong>
@@ -558,8 +557,9 @@ function AdminDocuments() {
               <span>Last activity</span>
               <strong>{documentsStats.latestLabel}</strong>
             </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <section className="documents-toolbar">
           <div className="documents-tabs" role="tablist" aria-label="Document filter">

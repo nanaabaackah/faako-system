@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faRotateRight, faXmark, faPen, faEye } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
 
@@ -14,7 +15,7 @@ const formatMoney = (value, currency = "GHS") => {
       currency,
       maximumFractionDigits: 0,
     }).format(value || 0);
-  } catch (err) {
+  } catch {
     return `${currency} ${Math.round(value || 0)}`;
   }
 };
@@ -460,23 +461,24 @@ function AdminDirectory() {
     <div className="customers-page">
       <div className="customers-shell">
         <AdminBreadcrumb items={[{ label: "Directory" }]} />
-        <header className="customers-header">
-          <div>
-            <p className="customers-eyebrow">Directory</p>
-            <h1>{title}</h1>
-            <p className="customers-subtitle">{subtitle}</p>
-          </div>
-          <div className="customers-actions">
-            <button type="button" className="customers-secondary" onClick={fetchAll}>
-              <AppIcon icon={faRotateRight} />
-              Refresh
-            </button>
-            <button type="button" className="customers-primary" onClick={openCreateModal} disabled={!canMutate}>
-              <AppIcon icon={faPlus} />
-              Add
-            </button>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Directory"
+          title={title}
+          subtitle={subtitle}
+          actionsClassName="admin-header-actions customers-actions"
+          actions={
+            <>
+              <button type="button" className="customers-secondary" onClick={fetchAll}>
+                <AppIcon icon={faRotateRight} />
+                Refresh
+              </button>
+              <button type="button" className="customers-primary" onClick={openCreateModal} disabled={!canMutate}>
+                <AppIcon icon={faPlus} />
+                Add
+              </button>
+            </>
+          }
+        />
 
         <section className="customers-panel">
           <div className="customers-panel-header">

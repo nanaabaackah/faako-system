@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminRoles.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEllipsisVertical } from "/src/icons/iconSet";
@@ -125,7 +126,7 @@ function AdminRoles() {
   const togglePermission = (key) => {
     setDetailPermissions((prev) => ({
       ...prev,
-      [key]: !Boolean(prev[key]),
+      [key]: !prev[key],
     }));
   };
 
@@ -351,31 +352,30 @@ function AdminRoles() {
       <div className="roles-shell">
         <AdminBreadcrumb items={[{ label: "Staff & Permissions" }]} />
 
-        <header className="roles-header">
-          <div>
-            <p className="roles-eyebrow">Security Command Center</p>
-            <h1>Staff & Permissions</h1>
-            <p className="roles-subtitle">
-              Monitor access, roles, and permissions across your ERP.
-            </p>
-          </div>
-          <div className="roles-actions">
-            <button type="button" className="bookings-secondary" onClick={fetchUsers}>
-              Refresh
-            </button>
-            <button
-              type="button"
-              className="bookings-primary"
-              onClick={() => {
-                setInviteError("");
-                setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
-                setInviteOpen(true);
-              }}
-            >
-              Add user
-            </button>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Security Command Center"
+          title="Staff & Permissions"
+          subtitle="Monitor access, roles, and permissions across your ERP."
+          actionsClassName="admin-header-actions roles-actions"
+          actions={
+            <>
+              <button type="button" className="bookings-secondary" onClick={fetchUsers}>
+                Refresh
+              </button>
+              <button
+                type="button"
+                className="bookings-primary"
+                onClick={() => {
+                  setInviteError("");
+                  setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
+                  setInviteOpen(true);
+                }}
+              >
+                Add user
+              </button>
+            </>
+          }
+        />
 
         <section className="roles-kpis">
           <div className="roles-card">

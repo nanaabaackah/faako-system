@@ -3,6 +3,7 @@ import "./AdminAccounting.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faWandMagicSparkles } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import {
   EXPENSE_CATEGORY_LABELS,
@@ -910,15 +911,13 @@ function AdminAccounting() {
       <div className="accounting-shell accounting-shell--redesign">
         <AdminBreadcrumb items={[{ label: "Accounting" }]} />
 
-        <header className="accounting-header">
-          <div>
-            <p className="accounting-eyebrow">Financial Intelligence</p>
-            <h1>Accounting</h1>
-            <p className="accounting-subtitle">
-              Mostly automated for non-accountants: statements, reconciliations, and tax estimates refresh from live records.
-            </p>
-          </div>
-          <div className="accounting-filters">
+        <AdminPageHeader
+          eyebrow="Financial Intelligence"
+          title="Accounting"
+          subtitle="Mostly automated for non-accountants: statements, reconciliations, and tax estimates refresh from live records."
+          actionsClassName="accounting-filters"
+          actions={
+            <>
             <div className="accounting-filters-left">
               <label className="accounting-filter">
                 Date filter
@@ -1029,8 +1028,9 @@ function AdminAccounting() {
                 </button>
               </div>
             </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         {loading && <p className="accounting-status">Loading financial metrics…</p>}
         {!loading && isFetching && data && (

@@ -28,6 +28,10 @@ body.admin-theme {
   body.admin-theme {
     background-attachment: scroll;
   }
+
+  .admin-shell{
+    padding: 1rem;
+  }
 }
 h1{ 
   font-weight: 700;
@@ -3341,7 +3345,7 @@ button.admin-kpi-card {
   pointer-events: none;
 }
 
-.crm-header {
+.crm-hero > .admin-header {
   position: relative;
   z-index: 1;
 }
@@ -4334,7 +4338,7 @@ button.admin-kpi-card {
     border-radius: 24px;
   }
 
-  .crm-header {
+  .crm-hero > .admin-header {
     gap: 14px;
   }
 
@@ -12012,11 +12016,29 @@ body.admin-theme .template-editor-page.admin-shell {
 
 body.admin-theme .admin-header {
   padding: 1.5rem 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.5rem;
 }
 
 body.admin-theme .admin-header h1 {
   margin: 0.4rem 0 0.6rem;
   font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+body.admin-theme .admin-header > :first-child {
+  grid-column: 2;
+  min-width: 0;
+  justify-self: center;
+  text-align: center;
+}
+
+body.admin-theme .admin-header > :last-child:not(:first-child) {
+  grid-column: 3;
+  min-width: 0;
+  width: auto;
+  justify-self: end;
 }
 
 body.admin-theme .admin-eyebrow {
@@ -12381,32 +12403,6 @@ body.admin-theme :is(
   margin: 0 auto;
   display: grid;
   gap: 1.5rem;
-}
-
-body.admin-theme :is(
-  .settings-header,
-  .expenses-header,
-  .crm-header,
-  .customers-header,
-  .orders-header,
-  .invoicing-header,
-  .timesheet-header,
-  .scheduler-header,
-  .hr-header,
-  .delivery-header,
-  .vendors-header,
-  .maintenance-header,
-  .roles-header,
-  .documents-header,
-  .accounting-header,
-  .bookings-header
-) {
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
 }
 
 body.admin-theme [class$="-eyebrow"] {
@@ -12834,20 +12830,20 @@ body.admin-theme :is(
   gap: 22px;
 }
 
-.accounting-page--redesign .accounting-header,
-.expenses-page--redesign .expenses-header {
+.accounting-page--redesign .admin-header,
+.expenses-page--redesign .admin-header {
   padding: 22px;
 }
 
-.accounting-page--redesign .accounting-header h1,
-.expenses-page--redesign .expenses-header h1 {
+.accounting-page--redesign .admin-header h1,
+.expenses-page--redesign .admin-header h1 {
   margin: 0;
   font-size: clamp(1.8rem, 3vw, 2.45rem);
   letter-spacing: -0.03em;
 }
 
-.accounting-page--redesign .accounting-subtitle,
-.expenses-page--redesign .expenses-subtitle {
+.accounting-page--redesign .admin-subtitle,
+.expenses-page--redesign .admin-subtitle {
   max-width: 740px;
   color: rgba(41, 53, 69, 0.88);
 }
@@ -13105,14 +13101,14 @@ body.admin-theme :is(
   color: var(--mix-ink);
 }
 
-.accounting-page--redesign .accounting-header,
-.expenses-page--redesign .expenses-header {
+.accounting-page--redesign .admin-header,
+.expenses-page--redesign .admin-header {
   position: relative;
   border: none;
 }
 
-.accounting-page--redesign .accounting-header::before,
-.expenses-page--redesign .expenses-header::before {
+.accounting-page--redesign .admin-header::before,
+.expenses-page--redesign .admin-header::before {
   content: "";
   position: absolute;
   left: 18px;
@@ -13121,8 +13117,8 @@ body.admin-theme :is(
   height: 3px;
 }
 
-.accounting-page--redesign .accounting-header h1,
-.expenses-page--redesign .expenses-header h1,
+.accounting-page--redesign .admin-header h1,
+.expenses-page--redesign .admin-header h1,
 .accounting-page--redesign .accounting-panel-head h3,
 .expenses-page--redesign .expenses-card-head h2 {
   font-family: var(--mix-display-font);
@@ -13131,8 +13127,8 @@ body.admin-theme :is(
   color: var(--mix-ink);
 }
 
-.accounting-page--redesign .accounting-eyebrow,
-.expenses-page--redesign .expenses-eyebrow {
+.accounting-page--redesign .admin-eyebrow,
+.expenses-page--redesign .admin-eyebrow {
   font-size: 0.68rem;
   letter-spacing: 0.24em;
   font-weight: 700;
@@ -13590,14 +13586,33 @@ body.admin-theme button.inventory-card-quick:focus-visible {
     gap: 20px;
   }
 
-  .admin-header {
-    flex-direction: column;
-    align-items: flex-start;
+  body.admin-theme .admin-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
   }
 
-  .admin-header-actions {
+  body.admin-theme .admin-header > :first-child,
+  body.admin-theme .admin-header > :last-child:not(:first-child) {
+    grid-column: 1;
+  }
+
+  body.admin-theme .admin-header > :first-child {
+    justify-self: stretch;
+    text-align: center;
+  }
+
+  body.admin-theme .admin-header > :last-child:not(:first-child) {
     width: 100%;
-    justify-content: flex-start;
+    justify-self: stretch;
+  }
+
+  body.admin-theme .admin-header-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body.admin-theme .admin-refresh {
+    width: auto;
   }
 
   .admin-card {
@@ -13796,7 +13811,7 @@ body.admin-theme .portal-app-content :is(
   -webkit-backdrop-filter: none !important;
 }
 
-.expenses-page--redesign .expenses-header {
+.expenses-page--redesign .admin-header {
   gap: 24px;
 }
 

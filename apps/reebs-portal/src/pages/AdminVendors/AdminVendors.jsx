@@ -11,6 +11,7 @@ import {
   faEnvelope,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const emptyForm = {
@@ -277,33 +278,32 @@ function AdminVendors() {
       <div className="vendors-shell">
         <AdminBreadcrumb items={[{ label: "Vendors" }]} />
 
-        <header className="vendors-header">
-          <div>
-            <p className="vendors-eyebrow">Supply Chain</p>
-            <h1>Vendor Command Center</h1>
-            <p className="vendors-subtitle">
-              Build a reliable supplier network with lead times, contacts, and coverage insights.
-            </p>
-          </div>
-          {!isMobileView && (
-            <div className="vendors-actions">
-              <button type="button" className="vendors-secondary" onClick={fetchVendors}>
-                <AppIcon icon={faRotateRight} /> Refresh
-              </button>
-              <button
-                type="button"
-                className="vendors-secondary"
-                onClick={() => handleAutoLink()}
-                disabled={autoLinking}
-              >
-                {autoLinking ? "Linking..." : "Auto-link stock"}
-              </button>
-              <button type="button" className="vendors-primary" onClick={openCreateForm}>
-                <AppIcon icon={faPlus} /> Add Vendor
-              </button>
-            </div>
-          )}
-        </header>
+        <AdminPageHeader
+          eyebrow="Supply Chain"
+          title="Vendor Command Center"
+          subtitle="Build a reliable supplier network with lead times, contacts, and coverage insights."
+          actionsClassName="admin-header-actions vendors-actions"
+          actions={
+            !isMobileView ? (
+              <>
+                <button type="button" className="vendors-secondary" onClick={fetchVendors}>
+                  <AppIcon icon={faRotateRight} /> Refresh
+                </button>
+                <button
+                  type="button"
+                  className="vendors-secondary"
+                  onClick={() => handleAutoLink()}
+                  disabled={autoLinking}
+                >
+                  {autoLinking ? "Linking..." : "Auto-link stock"}
+                </button>
+                <button type="button" className="vendors-primary" onClick={openCreateForm}>
+                  <AppIcon icon={faPlus} /> Add Vendor
+                </button>
+              </>
+            ) : null
+          }
+        />
 
         {error && <p className="vendors-error">{error}</p>}
         {status && <p className="vendors-success">{status}</p>}

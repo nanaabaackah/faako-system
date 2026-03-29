@@ -4,6 +4,7 @@ import "./AdminExpenses.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faReceipt } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import {
   EXPENSE_CATEGORY_LABELS,
@@ -288,20 +289,19 @@ function AdminExpenses() {
       <div className="expenses-shell expenses-shell--redesign">
         <AdminBreadcrumb items={[{ label: "Expenses" }]} />
 
-        <header className="expenses-header">
-          <div>
-            <p className="expenses-eyebrow">Operating Expenses</p>
-            <h1>Expense Tracker</h1>
-            <p className="expenses-subtitle">
-              Keep every expense inside the fixed company categories so reporting stays clean and accounting totals stay consistent.
-            </p>
-          </div>
-          <div className="expenses-total-card">
-            <p className="expenses-card-label">Total in view</p>
-            <h3>{formatCurrency(totalExpenses)}</h3>
-            <p>{periodLabel}</p>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Operating Expenses"
+          title="Expense Tracker"
+          subtitle="Keep every expense inside the fixed company categories so reporting stays clean and accounting totals stay consistent."
+          actionsClassName="expenses-total-card"
+          actions={
+            <>
+              <p className="expenses-card-label">Total in view</p>
+              <h3>{formatCurrency(totalExpenses)}</h3>
+              <p>{periodLabel}</p>
+            </>
+          }
+        />
 
         <section className="expenses-overview" aria-label="Expense summary">
           <article className="expenses-overview-metric">

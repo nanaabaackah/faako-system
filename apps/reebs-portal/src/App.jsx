@@ -163,11 +163,7 @@ function AppRoutes() {
       <Route
         path="/admin/advanced"
         element={
-          <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
-              <AdminWorkspace section="advanced" />
-            </RequireRole>
-          </RequireAuth>
+          <Navigate to="/admin/settings?tab=advanced" replace />
         }
       />
 
@@ -212,7 +208,7 @@ function AppRoutes() {
           </RequireAuth>
         }
       />
-      <Route path="/admin/website-template" element={<Navigate to="/admin/advanced" replace />} />
+      <Route path="/admin/website-template" element={<Navigate to="/admin/settings?tab=advanced" replace />} />
 
       <Route
         path="/admin/directory"
@@ -246,7 +242,9 @@ function AppRoutes() {
         path="/admin/water"
         element={
           <RequireAuth>
-            <AdminWater />
+            <RequireRole allowedRoles={['owner', 'admin', 'manager', 'water']}>
+              <AdminWater />
+            </RequireRole>
           </RequireAuth>
         }
       />

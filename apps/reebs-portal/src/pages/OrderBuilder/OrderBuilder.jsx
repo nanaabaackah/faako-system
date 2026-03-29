@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./OrderBuilder.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
@@ -337,29 +338,28 @@ function OrderBuilder() {
     <div className="order-builder">
       <div className="order-shell">
         <AdminBreadcrumb items={[{ label: "Orders", to: "/admin/orders" }, { label: "New" }]} />
-        <header className="order-header">
-          <div>
-            <p className="order-eyebrow">Order builder</p>
-            <h1>Create Order</h1>
-            <p className="order-subtitle">
-              Select a customer, add products, and confirm stock updates in one flow.
-            </p>
-          </div>
-          <div className="order-status">
-            <a className="order-back-link" href="/admin/orders">
-              View orders
-            </a>
-            <label>
-              Status
-              <select value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="fulfilled">Fulfilled</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </label>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Order builder"
+          title="Create Order"
+          subtitle="Select a customer, add products, and confirm stock updates in one flow."
+          actionsClassName="order-status"
+          actions={
+            <>
+              <a className="order-back-link" href="/admin/orders">
+                View orders
+              </a>
+              <label>
+                Status
+                <select value={status} onChange={(event) => setStatus(event.target.value)}>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="fulfilled">Fulfilled</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+            </>
+          }
+        />
 
         {loading && <p className="order-status-text">Loading customers and products...</p>}
         {!loading && error && (

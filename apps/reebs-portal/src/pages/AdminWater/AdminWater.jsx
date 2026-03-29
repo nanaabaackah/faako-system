@@ -2,21 +2,17 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import "./AdminWater.css";
 import { AppIcon } from "/src/components/Icon/Icon";
-import {
-  faBoxesStacked,
-  faChartLine,
-  faMinus,
-  faMoneyCheckDollar,
-  faPlus,
-  faReceipt,
-  faRotateRight,
-  faStore,
-  faTrash,
-  faXmark,
-} from "/src/icons/iconSet";
+import { faRotateRight } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { InlineNoticeStack } from "../../components/InlineNotice/InlineNotice";
-import SearchField from "../../components/SearchField/SearchField";
+import WaterKpiGrid from "./components/WaterKpiGrid";
+import WaterLedgersSection from "./components/WaterLedgersSection";
+import WaterLedgerEditorModal from "./components/WaterLedgerEditorModal";
+import WaterOperationsGrid from "./components/WaterOperationsGrid";
+import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
+import WaterOrderFormCard from "./components/WaterOrderFormCard";
+import WaterRestockCard from "./components/WaterRestockCard";
 
 const DEFAULT_PURCHASE_COST = 2200;
 const DEFAULT_RETAIL_PRICE = 2700;
@@ -78,6 +74,8 @@ const buildDefaultDashboard = () => ({
     netProfit: 0,
     cashCollected: 0,
     outstandingCredit: 0,
+    cashSalesTotal: 0,
+    momoSalesTotal: 0,
     pendingCash: 0,
     pendingMomo: 0,
     cashPosition: 0,
@@ -289,6 +287,16 @@ const buildWaterSummary = ({
       ? sum + toNumber(row?.totalAmount)
       : sum;
   }, 0);
+  const cashSalesTotal = sales.reduce((sum, row) => {
+    return normalizeSalePaymentMethod(row?.paymentMethod) === "cash"
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
+  const momoSalesTotal = sales.reduce((sum, row) => {
+    return normalizeSalePaymentMethod(row?.paymentMethod) === "momo"
+      ? sum + toNumber(row?.totalAmount)
+      : sum;
+  }, 0);
   const pendingCash = sales.reduce((sum, row) => {
     const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
     return normalizeSalePaymentMethod(row?.paymentMethod) === "cash" && !isCollected
@@ -321,6 +329,8 @@ const buildWaterSummary = ({
     netProfit,
     cashCollected,
     outstandingCredit,
+    cashSalesTotal,
+    momoSalesTotal,
     pendingCash,
     pendingMomo,
     cashPosition,
@@ -665,25 +675,6 @@ function AdminWater() {
       ).length,
     [sales]
   );
-  const pendingMomoCount = useMemo(
-    () =>
-      sales.filter(
-        (sale) =>
-          normalizeSalePaymentMethod(sale.paymentMethod) === "momo" &&
-          normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) === "pending"
-      ).length,
-    [sales]
-  );
-  const pendingCashCount = useMemo(
-    () =>
-      sales.filter(
-        (sale) =>
-          normalizeSalePaymentMethod(sale.paymentMethod) === "cash" &&
-          normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) === "pending"
-      ).length,
-    [sales]
-  );
-
   const salePreview = useMemo(() => {
     const quantity = Math.max(0, Math.round(toNumber(saleForm.quantity, 0)));
     const suggestedUnitPrice = getPreviewUnitPrice(quantity, pricing, saleForm.saleChannel);
@@ -1630,1688 +1621,266 @@ function AdminWater() {
     }
   };
 
+  const notices = [
+    error
+      ? {
+          key: "water-error",
+          tone: "error",
+          title: "Water update failed",
+          message: error,
+        }
+      : null,
+    status
+      ? {
+          key: "water-success",
+          tone: "success",
+          title: "Water update saved",
+          message: status,
+        }
+      : null,
+  ];
+
+  const saleCustomerPickerProps = {
+    value: saleForm.customerName,
+    onChange: (event) => handleSaleCustomerInputChange(event.target.value),
+    onClear: () => {
+      setSaleForm((prev) => ({
+        ...prev,
+        customerId: "",
+        customerName: "",
+        customerPhone: "",
+      }));
+      setSaleCustomerMenuOpen(false);
+    },
+    onFocus: () => setSaleCustomerMenuOpen(true),
+    onBlur: () => {
+      setTimeout(() => {
+        setSaleCustomerMenuOpen(false);
+      }, 120);
+    },
+    onKeyDown: handleSaleCustomerInputKeyDown,
+    placeholder: `Search or add ${saleCustomerLabel.toLowerCase()}`,
+    ariaLabel: `Search or add ${saleCustomerLabel.toLowerCase()}`,
+    menuOpen: saleCustomerMenuOpen,
+    options: filteredSaleCustomerOptions,
+    selectedCustomerId: saleForm.customerId,
+    onSelectCustomer: handleSaleCustomerChange,
+    typedCustomerName: typedSaleCustomerName,
+    matchedTypedCustomer: matchedTypedSaleCustomer,
+    onCreateCustomer: commitSaleCustomerInput,
+    selectedCustomer: selectedSaleCustomer,
+    directoryError: customerError,
+    showDirectoryError: !customers.length,
+  };
+
+  const orderCustomerPickerProps = {
+    value: orderForm?.customerName || "",
+    onChange: (event) => handleOrderCustomerInputChange(event.target.value),
+    onClear: () => {
+      setOrderForm((prev) =>
+        prev
+          ? {
+              ...prev,
+              customerId: "",
+              customerName: "",
+              customerPhone: "",
+            }
+          : prev
+      );
+      setOrderCustomerMenuOpen(false);
+    },
+    onFocus: () => setOrderCustomerMenuOpen(true),
+    onBlur: () => {
+      setTimeout(() => {
+        setOrderCustomerMenuOpen(false);
+      }, 120);
+    },
+    onKeyDown: handleOrderCustomerInputKeyDown,
+    placeholder: "Search or add customer",
+    ariaLabel: "Search or add customer",
+    menuOpen: orderCustomerMenuOpen,
+    options: filteredOrderCustomerOptions,
+    selectedCustomerId: orderForm?.customerId || "",
+    onSelectCustomer: handleOrderCustomerChange,
+    typedCustomerName: typedOrderCustomerName,
+    matchedTypedCustomer: matchedTypedOrderCustomer,
+    onCreateCustomer: commitOrderCustomerInput,
+    selectedCustomer: selectedOrderCustomer,
+  };
+
+  const saleUnitPriceInputValue = saleForm.unitPrice || toMoneyInputValue(salePreview.suggestedUnitPrice);
+  const netMovement = summary.unitsRestocked + summary.adjustmentUnits;
+
   return (
     <div className="water-module-page">
       <div className="water-module-shell">
         <AdminBreadcrumb items={[{ label: "Water" }]} />
 
-        <header className="water-module-header">
-          <div>
-            <h1>GWater</h1>
-          </div>
-          <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
-            <AppIcon icon={faRotateRight} /> 
-          </button>
-        </header>
-
-        <InlineNoticeStack
-          notices={[
-            error
-              ? {
-                  key: "water-error",
-                  tone: "error",
-                  title: "Water update failed",
-                  message: error,
-                }
-              : null,
-            status
-              ? {
-                  key: "water-success",
-                  tone: "success",
-                  title: "Water update saved",
-                  message: status,
-                }
-              : null,
-          ]}
+        <AdminPageHeader
+          title="GWater"
+          actionsClassName="admin-header-actions"
+          actions={
+            <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
+              <AppIcon icon={faRotateRight} />
+            </button>
+          }
         />
 
-        <section className="water-module-kpis">
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">In stock</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faBoxesStacked} />
-              <strong>{summary.stockOnHand}</strong>
-            </div>
-            <span>Inventory value {formatCurrency(summary.inventoryValue)}</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Orders</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faReceipt} />
-              <strong>{sales.length}</strong>
-            </div>
-            <span>{unpaidOrderCount} open</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Revenue</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faReceipt} />
-              <strong>{formatCurrency(summary.revenue)}</strong>
-            </div>
-            <span>
-              {summary.unitsSold} packs sold, {formatCurrency(summary.cashCollected)} collected
-            </span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Gross profit</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faChartLine} />
-              <strong>{formatCurrency(summary.grossProfit)}</strong>
-            </div>
-            <span>After {formatCurrency(summary.costOfGoodsSold)} COGS</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Cash position</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faMoneyCheckDollar} />
-              <strong>{formatCurrency(summary.cashPosition)}</strong>
-            </div>
-            <span>{formatCurrency(summary.cashCollected)} collected</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Total credit</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faMoneyCheckDollar} />
-              <strong>{formatCurrency(summary.outstandingCredit)}</strong>
-            </div>
-            <span>{totalCreditCount} credit orders</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Extra expenses</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faStore} />
-              <strong>{formatCurrency(summary.extraExpenses)}</strong>
-            </div>
-            <span>Net profit {formatCurrency(summary.netProfit)}</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Pending cash</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faMoneyCheckDollar} />
-              <strong>{pendingCashCount}</strong>
-            </div>
-            <span>{formatCurrency(summary.pendingCash)} pending</span>
-          </article>
-          <article className="water-module-kpi bubble-card">
-            <p className="water-module-kpi-label">Pending MoMo</p>
-            <div className="water-module-kpi-value">
-              <AppIcon icon={faMoneyCheckDollar} />
-              <strong>{pendingMomoCount}</strong>
-            </div>
-            <span>{formatCurrency(summary.pendingMomo)} pending</span>
-          </article>
-        </section>
+        <InlineNoticeStack notices={notices} />
 
-        <section className="water-module-network-grid">
-          <article className="admin-card water-module-card water-module-card--full bubble-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Restock</h3>
-              </div>
-            </div>
-            <form className="water-module-form" onSubmit={handleRestockSubmit}>
-              <div className="water-module-sale-block">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Quantity</span>
-                </div>
-                <div className="water-module-quick-actions">
-                  {RESTOCK_QUICK_QUANTITIES.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`water-module-quick-btn ${restockQuantity === value ? "is-active" : ""}`}
-                      onClick={() => setRestockQuantityValue(value)}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <div className="water-module-stepper" aria-label="Restock quantity control">
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustRestockQuantity(-1)}
-                    aria-label="Reduce restock quantity"
-                  >
-                    <AppIcon icon={faMinus} />
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    inputMode="numeric"
-                    value={restockForm.quantity}
-                    onChange={(event) => setRestockQuantityValue(event.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustRestockQuantity(1)}
-                    aria-label="Increase restock quantity"
-                  >
-                    <AppIcon icon={faPlus} />
-                  </button>
-                </div>
-              </div>
-              <div className="water-module-inline-summary">
-                <span>{restockSupplierLabel}</span>
-                <strong>Cost: {formatCurrency(restockCost)}</strong>
-              </div>
-              <button
-                type="submit"
-                className="admin-primary water-module-sale-submit"
-                disabled={saving || loading}
-              >
-                <AppIcon icon={faPlus} />{" "}
-                {saving
-                  ? "Saving..."
-                  : restockQuantity > 0
-                    ? `Add ${restockQuantity} pack${restockQuantity === 1 ? "" : "s"}`
-                    : "Add stock"}
-              </button>
-            </form>
-          </article>
-        </section>
+        <WaterKpiGrid
+          summary={summary}
+          salesCount={sales.length}
+          unpaidOrderCount={unpaidOrderCount}
+          totalCreditCount={totalCreditCount}
+          formatCurrency={formatCurrency}
+        />
 
-        <section className="water-module-order-section">
-          <article className="admin-card water-module-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>New order</h3>
-              </div>
-            </div>
-            <form className="water-module-form water-module-order-form" onSubmit={handleSaleSubmit}>
-              <div className="water-module-sale-block water-module-order-form-block water-module-order-form-block--customer">
-                <label>
-                  <div className="water-module-inline-head">
-                    <span className="water-module-field-label">{saleCustomerLabel}</span>
-                  </div>
-                  <div className="water-module-customer-picker water-order-customer-picker">
-                    <SearchField
-                      value={saleForm.customerName}
-                      onChange={(event) => handleSaleCustomerInputChange(event.target.value)}
-                      onClear={() => {
-                        setSaleForm((prev) => ({
-                          ...prev,
-                          customerId: "",
-                          customerName: "",
-                          customerPhone: "",
-                        }));
-                        setSaleCustomerMenuOpen(false);
-                      }}
-                      onFocus={() => setSaleCustomerMenuOpen(true)}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          setSaleCustomerMenuOpen(false);
-                        }, 120);
-                      }}
-                      onKeyDown={handleSaleCustomerInputKeyDown}
-                      placeholder={`Search or add ${saleCustomerLabel.toLowerCase()}`}
-                      aria-label={`Search or add ${saleCustomerLabel.toLowerCase()}`}
-                      inputClassName="water-order-customer-search"
-                      required
-                    />
-                    {saleCustomerMenuOpen ? (
-                      customers.length || typedSaleCustomerName ? (
-                        <div className="water-module-customer-options" role="listbox" aria-label="Customer directory">
-                          {filteredSaleCustomerOptions.map((customer) => {
-                            const isActive = String(customer.id) === String(saleForm.customerId);
-                            return (
-                              <button
-                                key={customer.id}
-                                type="button"
-                                className={`water-module-customer-option ${isActive ? "is-active" : ""}`}
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => handleSaleCustomerChange(String(customer.id))}
-                              >
-                                <span>{customer.name}</span>
-                                <small>{customer.phone ? customer.phone : `#${customer.id}`}</small>
-                              </button>
-                            );
-                          })}
-                          {typedSaleCustomerName && !matchedTypedSaleCustomer ? (
-                            <button
-                              type="button"
-                              className="water-module-customer-option water-order-customer-option--create"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={commitSaleCustomerInput}
-                            >
-                              <span>Create "{typedSaleCustomerName}"</span>
-                              <small>Press Enter</small>
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null
-                    ) : null}
-                    {selectedSaleCustomer ? (
-                      <p className="water-module-inline-note">
-                        REEBS #{selectedSaleCustomer.id}
-                        {selectedSaleCustomer.phone ? ` · ${selectedSaleCustomer.phone}` : ""}
-                      </p>
-                    ) : typedSaleCustomerName && !matchedTypedSaleCustomer ? (
-                      <p className="water-module-inline-note">New customer on save.</p>
-                    ) : null}
-                    {customerError && !customers.length ? (
-                      <p className="water-module-inline-note">{customerError}</p>
-                    ) : null}
-                  </div>
-                </label>
-                <div className="water-module-sale-inline-grid">
-                  <label>
-                  <div className="water-module-inline-head">
-                    <span className="water-module-field-label">Phone Number (Optional)</span>
-                  </div>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      value={saleForm.customerPhone}
-                      onChange={(event) =>
-                        setSaleForm((prev) => ({ ...prev, customerPhone: event.target.value }))
-                      }
-                      placeholder="024 000 0000"
-                    />
-                  </label>
-                  <label>
-                    <div className="water-module-inline-head">
-                      <span className="water-module-field-label">Date</span>
-                    </div>
-                    <input
-                      type="date"
-                      value={saleForm.date}
-                      onChange={(event) =>
-                        setSaleForm((prev) => ({ ...prev, date: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                </div>
-              </div>
-              <div className="water-module-order-form-columns">
-                <div className="water-module-order-form-column">
-                  <div className="water-module-sale-block water-module-order-form-block">
-                    <span className="water-module-field-label">Customer type</span>
-                    <div className="water-module-toggle-row" role="radiogroup" aria-label="Customer type">
-                      <button
-                        type="button"
-                        className={`water-module-toggle-btn ${saleForm.saleChannel === "retail" ? "is-active" : ""}`}
-                        onClick={() => setSaleForm((prev) => ({ ...prev, saleChannel: "retail" }))}
-                        aria-pressed={saleForm.saleChannel === "retail"}
-                      >
-                        Retail
-                      </button>
-                      <button
-                        type="button"
-                        className={`water-module-toggle-btn ${saleForm.saleChannel === "company" ? "is-active" : ""}`}
-                        onClick={() => setSaleForm((prev) => ({ ...prev, saleChannel: "company" }))}
-                        aria-pressed={saleForm.saleChannel === "company"}
-                      >
-                        Company
-                      </button>
-                    </div>
-                  </div>
-                  <div className="water-module-sale-block water-module-order-form-block">
-                    <div className="water-module-inline-head">
-                      <span className="water-module-field-label">Payment</span>
-                    </div>
-                    <div className="water-module-quick-actions" role="radiogroup" aria-label="Payment method">
-                      {SALE_PAYMENT_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`water-module-quick-btn ${
-                            saleForm.paymentMethod === option.value ? "is-active" : ""
-                          }`}
-                          onClick={() =>
-                            setSaleForm((prev) => ({
-                              ...prev,
-                              paymentMethod: option.value,
-                            }))
-                          }
-                          aria-pressed={saleForm.paymentMethod === option.value}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="water-module-order-form-column water-module-order-form-column--divided">
-                  <div className="water-module-sale-block water-module-order-form-block">
-                    <div className="water-module-inline-head">
-                      <span className="water-module-field-label">Quantity</span>
-                    </div>
-                    <div className="water-module-stepper" aria-label="Sale quantity control">
-                      <button
-                        type="button"
-                        className="water-module-stepper-btn"
-                        onClick={() => adjustSaleQuantity(-1)}
-                        aria-label="Reduce quantity"
-                      >
-                        <AppIcon icon={faMinus} />
-                      </button>
-                      <input
-                        type="number"
-                        min="1"
-                        inputMode="numeric"
-                        value={saleForm.quantity}
-                        onChange={(event) => setSaleQuantityValue(event.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        className="water-module-stepper-btn"
-                        onClick={() => adjustSaleQuantity(1)}
-                        aria-label="Increase quantity"
-                      >
-                        <AppIcon icon={faPlus} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="water-module-sale-block water-module-order-form-block">
-                    <label>
-                      <span className="water-module-field-label">Price Per Pack</span>
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={saleForm.unitPrice || toMoneyInputValue(salePreview.suggestedUnitPrice)}
-                        onChange={(event) =>
-                          setSaleForm((prev) => ({ ...prev, unitPrice: event.target.value }))
-                        }
-                        placeholder="0.00"
-                        required
-                      />
-                    </label>
-                    {salePreview.usesCustomUnitPrice ? (
-                      <p className="water-module-inline-note">
-                        Default {formatCurrency(salePreview.suggestedUnitPrice)}.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              <div className="water-module-sale-block water-module-order-form-block water-module-order-form-block--full">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Discount</span>
-                </div>
-                <div className="water-module-quick-actions" role="radiogroup" aria-label="Discount type">
-                  {SALE_DISCOUNT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`water-module-quick-btn ${
-                        saleDiscountType === option.value ? "is-active" : ""
-                      }`}
-                      onClick={() =>
-                        setSaleForm((prev) => ({
-                          ...prev,
-                          discountType: option.value,
-                          discountValue: option.value === "none" ? "" : prev.discountValue,
-                        }))
-                      }
-                      aria-pressed={saleDiscountType === option.value}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                {saleDiscountType !== "none" ? (
-                  <label>
-                    {saleDiscountType === "amount" ? "Discount amount (GHS)" : "Discount percent"}
-                    <input
-                      type="number"
-                      min="0.01"
-                      max={saleDiscountType === "percent" ? "99.99" : undefined}
-                      step="0.01"
-                      inputMode="decimal"
-                      value={saleForm.discountValue}
-                      onChange={(event) => setSaleDiscountValue(event.target.value)}
-                      placeholder={saleDiscountType === "amount" ? "0.00" : "5"}
-                      required
-                    />
-                  </label>
-                ) : null}
-              </div>
-              <div className="water-module-order-form-actions">
-                <div className="water-module-order-form-summary">
-                  <div>
-                    <span>{saleRateLabel}</span>
-                    <strong>{formatCurrency(salePreview.unitPrice)}</strong>
-                  </div>
-                  <div>
-                    <span>Payment</span>
-                    <strong>{salePaymentLabel}</strong>
-                  </div>
-                  <div>
-                    <span>Subtotal</span>
-                    <strong>{formatCurrency(salePreview.subtotal)}</strong>
-                  </div>
-                  <div>
-                    <span>Total</span>
-                    <strong>{formatCurrency(salePreview.total)}</strong>
-                  </div>
-                  {salePreview.discountAmount > 0 ? (
-                    <div className="water-module-order-form-summary-item--full">
-                      <span>Discount</span>
-                      <strong>{formatCurrency(salePreview.discountAmount)}</strong>
-                    </div>
-                  ) : null}
-                </div>
-                
-                <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
-                  <AppIcon icon={faReceipt} /> {saving ? "Saving..." : `Record ${formatCurrency(salePreview.total)}`}
-                </button>
-              </div>
-            </form>
-          </article>
-        </section>
+        <WaterRestockCard
+          onSubmit={handleRestockSubmit}
+          quickQuantities={RESTOCK_QUICK_QUANTITIES}
+          restockQuantity={restockQuantity}
+          quantityValue={restockForm.quantity}
+          onSelectQuickQuantity={setRestockQuantityValue}
+          onAdjustQuantity={adjustRestockQuantity}
+          onQuantityChange={setRestockQuantityValue}
+          supplierLabel={restockSupplierLabel}
+          restockCost={restockCost}
+          saving={saving}
+          loading={loading}
+          formatCurrency={formatCurrency}
+        />
 
-        <section className="water-module-grid">
-          <article className="admin-card water-module-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Expenses</h3>
-              </div>
-            </div>
-            <form className="water-module-form" onSubmit={handleExpenseSubmit}>
-              <div className="water-module-sale-block">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Category</span>
-                </div>
-                <div className="water-module-quick-actions">
-                  {EXPENSE_CATEGORY_OPTIONS.map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      className={`water-module-quick-btn ${expenseForm.category === category ? "is-active" : ""}`}
-                      onClick={() =>
-                        setExpenseForm((prev) => ({
-                          ...prev,
-                          category,
-                          customCategory: "",
-                        }))
-                      }
-                    >
-                      {category}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className={`water-module-quick-btn ${
-                      expenseForm.category === CUSTOM_EXPENSE_CATEGORY ? "is-active" : ""
-                    }`}
-                    onClick={() =>
-                      setExpenseForm((prev) => ({
-                        ...prev,
-                        category: CUSTOM_EXPENSE_CATEGORY,
-                      }))
-                    }
-                  >
-                    Other
-                  </button>
-                </div>
-                {expenseForm.category === CUSTOM_EXPENSE_CATEGORY ? (
-                  <label>
-                    Custom category
-                    <input
-                      type="text"
-                      value={expenseForm.customCategory}
-                      onChange={(event) =>
-                        setExpenseForm((prev) => ({ ...prev, customCategory: event.target.value }))
-                      }
-                      placeholder="Delivery, airtime, loading fee..."
-                      required
-                    />
-                  </label>
-                ) : null}
-              </div>
+        <WaterOrderFormCard
+          onSubmit={handleSaleSubmit}
+          saleForm={saleForm}
+          setSaleForm={setSaleForm}
+          saleCustomerLabel={saleCustomerLabel}
+          customerPickerProps={saleCustomerPickerProps}
+          unitPriceInputValue={saleUnitPriceInputValue}
+          salePreview={salePreview}
+          saleRateLabel={saleRateLabel}
+          salePaymentLabel={salePaymentLabel}
+          saleDiscountType={saleDiscountType}
+          salePaymentOptions={SALE_PAYMENT_OPTIONS}
+          saleDiscountOptions={SALE_DISCOUNT_OPTIONS}
+          onQuantityChange={setSaleQuantityValue}
+          onAdjustQuantity={adjustSaleQuantity}
+          onDiscountChange={setSaleDiscountValue}
+          formatCurrency={formatCurrency}
+          saving={saving}
+          loading={loading}
+        />
 
-              <div className="water-module-sale-block">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Amount</span>
-                </div>
-                <div className="water-module-quick-actions">
-                  {EXPENSE_QUICK_AMOUNTS.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`water-module-quick-btn ${expenseAmountValue === value ? "is-active" : ""}`}
-                      onClick={() => setExpenseAmountValue(value)}
-                    >
-                      {formatCurrency(value * 100)}
-                    </button>
-                  ))}
-                </div>
-                <div className="water-module-stepper" aria-label="Expense amount control">
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustExpenseAmount(-1)}
-                    aria-label="Reduce expense amount"
-                  >
-                    <AppIcon icon={faMinus} />
-                  </button>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={expenseForm.amount}
-                    onChange={(event) => setExpenseAmountValue(event.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustExpenseAmount(1)}
-                    aria-label="Increase expense amount"
-                  >
-                    <AppIcon icon={faPlus} />
-                  </button>
-                </div>
-              </div>
+        <WaterOperationsGrid
+          expenseCategoryOptions={EXPENSE_CATEGORY_OPTIONS}
+          customExpenseCategory={CUSTOM_EXPENSE_CATEGORY}
+          expenseQuickAmounts={EXPENSE_QUICK_AMOUNTS}
+          expenseForm={expenseForm}
+          setExpenseForm={setExpenseForm}
+          expenseAmountValue={expenseAmountValue}
+          setExpenseAmountValue={setExpenseAmountValue}
+          adjustExpenseAmount={adjustExpenseAmount}
+          expenseSummaryLabel={expenseSummaryLabel}
+          expenseSummaryAmount={expenseSummaryAmount}
+          onExpenseSubmit={handleExpenseSubmit}
+          adjustmentQuickQuantities={ADJUSTMENT_QUICK_QUANTITIES}
+          adjustmentForm={adjustmentForm}
+          setAdjustmentForm={setAdjustmentForm}
+          adjustmentQuantity={adjustmentQuantity}
+          setAdjustmentQuantityValue={setAdjustmentQuantityValue}
+          adjustAdjustmentQuantity={adjustAdjustmentQuantity}
+          adjustmentReasonOptions={adjustmentReasonOptions}
+          adjustmentReasonOptionsByMode={ADJUSTMENT_REASON_OPTIONS}
+          customAdjustmentReason={CUSTOM_ADJUSTMENT_REASON}
+          adjustmentHasCustomReason={adjustmentHasCustomReason}
+          adjustmentSummaryLabel={adjustmentSummaryLabel}
+          onAdjustmentSubmit={handleAdjustmentSubmit}
+          formatCurrency={formatCurrency}
+          saving={saving}
+          loading={loading}
+        />
 
-              <div className="water-module-inline-summary">
-                <span>{expenseSummaryLabel}</span>
-                <strong>{formatCurrency(expenseSummaryAmount)}</strong>
-              </div>
-              
-              <button
-                type="submit"
-                className="admin-primary water-module-sale-submit"
-                disabled={saving || loading}
-              >
-                <AppIcon icon={faMoneyCheckDollar} />{" "}
-                {saving ? "Saving..." : `Log ${formatCurrency(expenseSummaryAmount)}`}
-              </button>
-            </form>
-          </article>
+        <WaterLedgersSection
+          loading={loading}
+          saving={saving}
+          filteredSales={filteredSales}
+          sales={sales}
+          orderQuery={orderQuery}
+          setOrderQuery={setOrderQuery}
+          orderStatusFilter={orderStatusFilter}
+          setOrderStatusFilter={setOrderStatusFilter}
+          orderStatusOptions={ORDER_STATUS_FILTER_OPTIONS}
+          activeOrderId={activeOrderId}
+          openOrderEditor={openOrderEditor}
+          handleOrderDelete={handleOrderDelete}
+          formatDate={formatDate}
+          formatCurrency={formatCurrency}
+          normalizeSalePaymentStatus={normalizeSalePaymentStatus}
+          getSalePaymentStatusLabel={getSalePaymentStatusLabel}
+          stockTimeline={stockTimeline}
+          netMovement={netMovement}
+          activeLedgerItem={activeLedgerItem}
+          openStockEntryEditor={openStockEntryEditor}
+          handleStockEntryUndo={handleStockEntryUndo}
+          expenses={expenses}
+          openExpenseEditor={openExpenseEditor}
+          handleExpenseDelete={handleExpenseDelete}
+        />
 
-          <article className="admin-card water-module-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Correction</h3>
-              </div>
-            </div>
-            <form className="water-module-form" onSubmit={handleAdjustmentSubmit}>
-              <div className="water-module-adjustment-block">
-                <div className="water-module-toggle-row" role="radiogroup" aria-label="Correction type">
-                  <button
-                    type="button"
-                    className={`water-module-toggle-btn ${adjustmentForm.mode === "remove" ? "is-active is-danger" : ""}`}
-                    onClick={() =>
-                      setAdjustmentForm((prev) => ({
-                        ...prev,
-                        mode: "remove",
-                        reason:
-                          prev.reason === CUSTOM_ADJUSTMENT_REASON ||
-                          ADJUSTMENT_REASON_OPTIONS.remove.includes(prev.reason)
-                            ? prev.reason
-                            : "",
-                      }))
-                    }
-                    aria-pressed={adjustmentForm.mode === "remove"}
-                  >
-                    Remove
-                  </button>
-                  <button
-                    type="button"
-                    className={`water-module-toggle-btn ${adjustmentForm.mode === "add" ? "is-active is-success" : ""}`}
-                    onClick={() =>
-                      setAdjustmentForm((prev) => ({
-                        ...prev,
-                        mode: "add",
-                        reason:
-                          prev.reason === CUSTOM_ADJUSTMENT_REASON ||
-                          ADJUSTMENT_REASON_OPTIONS.add.includes(prev.reason)
-                            ? prev.reason
-                            : "",
-                      }))
-                    }
-                    aria-pressed={adjustmentForm.mode === "add"}
-                  >
-                    Add back
-                  </button>
-                </div>
-              </div>
-              <div className="water-module-adjustment-block">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Quantity</span>
-                </div>
-                <div className="water-module-quick-actions">
-                  {ADJUSTMENT_QUICK_QUANTITIES.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`water-module-quick-btn ${adjustmentQuantity === value ? "is-active" : ""}`}
-                      onClick={() => setAdjustmentQuantityValue(value)}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <div className="water-module-stepper" aria-label="Correction quantity control">
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustAdjustmentQuantity(-1)}
-                    aria-label="Reduce correction quantity"
-                  >
-                    <AppIcon icon={faMinus} />
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    inputMode="numeric"
-                    value={adjustmentForm.quantityDelta}
-                    onChange={(event) => setAdjustmentQuantityValue(event.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="water-module-stepper-btn"
-                    onClick={() => adjustAdjustmentQuantity(1)}
-                    aria-label="Increase correction quantity"
-                  >
-                    <AppIcon icon={faPlus} />
-                  </button>
-                </div>
-              </div>
-              <div className="water-module-adjustment-block">
-                <div className="water-module-inline-head">
-                  <span className="water-module-field-label">Reason</span>
-                </div>
-                <div className="water-module-quick-actions">
-                  {adjustmentReasonOptions.map((reason) => (
-                    <button
-                      key={reason}
-                      type="button"
-                      className={`water-module-quick-btn ${adjustmentForm.reason === reason ? "is-active" : ""}`}
-                      onClick={() => setAdjustmentForm((prev) => ({ ...prev, reason }))}
-                    >
-                      {reason}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className={`water-module-quick-btn ${
-                      adjustmentForm.reason === CUSTOM_ADJUSTMENT_REASON ? "is-active" : ""
-                    }`}
-                    onClick={() =>
-                      setAdjustmentForm((prev) => ({
-                        ...prev,
-                        reason: CUSTOM_ADJUSTMENT_REASON,
-                      }))
-                    }
-                  >
-                    Other
-                  </button>
-                </div>
-                {adjustmentHasCustomReason ? (
-                  <label>
-                    Custom reason
-                    <input
-                      type="text"
-                      value={adjustmentForm.customReason}
-                      onChange={(event) =>
-                        setAdjustmentForm((prev) => ({ ...prev, customReason: event.target.value }))
-                      }
-                      placeholder="Breakage, count fix, returned packs..."
-                      required
-                    />
-                  </label>
-                ) : null}
-              </div>
-              <div className="water-module-inline-summary">
-                <span>{adjustmentForm.mode === "add" ? "Stock increase" : "Stock decrease"}</span>
-                <strong>{adjustmentSummaryLabel}</strong>
-              </div>
-              <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
-                <AppIcon icon={faBoxesStacked} /> {saving ? "Saving..." : "Save correction"}
-              </button>
-            </form>
-          </article>
-        </section>
+        <WaterLedgerEditorModal
+          activeLedgerItem={activeLedgerItem}
+          activeLedgerRecord={activeLedgerRecord}
+          ledgerForm={ledgerForm}
+          setLedgerForm={setLedgerForm}
+          ledgerError={ledgerError}
+          orderedVendorOptions={orderedVendorOptions}
+          selectedLedgerVendor={selectedLedgerVendor}
+          ledgerSelectedVendorName={ledgerSelectedVendorName}
+          ledgerRestockQuantity={ledgerRestockQuantity}
+          ledgerRestockCost={ledgerRestockCost}
+          ledgerAdjustmentReasonOptions={ledgerAdjustmentReasonOptions}
+          ledgerAdjustmentHasCustomReason={ledgerAdjustmentHasCustomReason}
+          ledgerAdjustmentQuantity={ledgerAdjustmentQuantity}
+          ledgerAdjustmentSummaryLabel={ledgerAdjustmentSummaryLabel}
+          resolvedLedgerExpenseCategory={resolvedLedgerExpenseCategory}
+          ledgerExpenseSummaryAmount={ledgerExpenseSummaryAmount}
+          customAdjustmentReason={CUSTOM_ADJUSTMENT_REASON}
+          customExpenseCategory={CUSTOM_EXPENSE_CATEGORY}
+          expenseCategoryOptions={EXPENSE_CATEGORY_OPTIONS}
+          adjustmentReasonOptionsByMode={ADJUSTMENT_REASON_OPTIONS}
+          formatDateTime={formatDateTime}
+          formatCurrency={formatCurrency}
+          closeLedgerEditor={closeLedgerEditor}
+          handleLedgerSubmit={handleLedgerSubmit}
+          handleStockEntryUndo={handleStockEntryUndo}
+          handleExpenseDelete={handleExpenseDelete}
+          saving={saving}
+          loading={loading}
+        />
 
-        <section className="water-module-ledgers">
-          <article className="admin-card water-module-table-card water-module-table-card--orders">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Orders</h3>
-              </div>
-              <span className="water-module-card-tag">
-                {filteredSales.length}/{sales.length}
-              </span>
-            </div>
-            {loading ? (
-              <p className="water-module-empty">Loading orders...</p>
-            ) : sales.length ? (
-              <>
-                <div className="water-module-orders-toolbar">
-                  <SearchField
-                    value={orderQuery}
-                    onChange={(event) => setOrderQuery(event.target.value)}
-                    onClear={() => setOrderQuery("")}
-                    placeholder="Search customer, phone, order #"
-                    aria-label="Search orders"
-                    className="water-module-orders-search"
-                  />
-                  <div className="water-module-status-filters" aria-label="Order status filters">
-                    {ORDER_STATUS_FILTER_OPTIONS.map((option) => {
-                      const isActive = orderStatusFilter === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`water-module-status-filter ${isActive ? "is-active" : ""}`}
-                          onClick={() => setOrderStatusFilter(option.value)}
-                          aria-pressed={isActive}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {filteredSales.length ? (
-                  <div className="water-module-table-wrap">
-                    <table className="water-module-table">
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Customer</th>
-                          <th>Status</th>
-                          <th>Qty</th>
-                          <th>Price</th>
-                          <th>Total</th>
-                          <th aria-label="Actions" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredSales.map((sale) => {
-                          const paymentStatus = normalizeSalePaymentStatus(
-                            sale.paymentStatus,
-                            sale.paymentMethod
-                          );
-                          const isActive = Number(activeOrderId) === Number(sale.id);
-                          return (
-                            <tr
-                              key={sale.id}
-                              className={`water-module-order-row ${isActive ? "is-active" : ""}`}
-                              onClick={() => openOrderEditor(sale)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  openOrderEditor(sale);
-                                }
-                              }}
-                              tabIndex={0}
-                              aria-label={`Edit water order ${sale.id}`}
-                            >
-                              <td>{formatDate(sale.date)}</td>
-                              <td>
-                                <div className="water-module-order-primary">
-                                  <strong>{sale.customerName || "Walk-in"}</strong>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="water-module-order-status">
-                                  <span className={`water-module-order-pill is-${paymentStatus}`}>
-                                    {getSalePaymentStatusLabel(sale.paymentStatus, sale.paymentMethod)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td>{toNumber(sale.quantity)}</td>
-                              <td>{formatCurrency(sale.unitPrice)}</td>
-                              <td>
-                                <div className="water-module-order-total">
-                                  <strong>{formatCurrency(sale.totalAmount)}</strong>
-                                </div>
-                              </td>
-                              <td className="water-module-order-actions">
-                                <button
-                                  type="button"
-                                  className="water-module-row-delete"
-                                  onClick={(event) => handleOrderDelete(sale, event)}
-                                  onKeyDown={(event) => event.stopPropagation()}
-                                  aria-label={`Delete water order ${sale.id}`}
-                                  disabled={saving || loading}
-                                >
-                                  <AppIcon icon={faTrash} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="water-module-empty">No orders match this filter.</p>
-                )}
-              </>
-            ) : (
-              <p className="water-module-empty">No orders yet.</p>
-            )}
-          </article>
-
-          <article className="admin-card water-module-table-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Stock Movement</h3>
-              </div>
-              <span className="water-module-card-tag">
-                Net movement {summary.unitsRestocked + summary.adjustmentUnits}
-              </span>
-            </div>
-            {loading ? (
-              <p className="water-module-empty">Loading stock history...</p>
-            ) : stockTimeline.length ? (
-              <div className="water-module-table-wrap water-module-table-wrap--stock">
-                <table className="water-module-table water-module-table--stock">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Details</th>
-                      <th>Qty</th>
-                      <th>Value</th>
-                      <th aria-label="Actions" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stockTimeline.map((entry) => {
-                      const isActive =
-                        activeLedgerItem?.type === entry.type &&
-                        Number(activeLedgerItem?.id) === Number(entry.sourceId);
-                      return (
-                      <tr
-                        key={entry.id}
-                        className={`water-module-click-row ${isActive ? "is-active" : ""}`}
-                        onClick={() => openStockEntryEditor(entry)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            openStockEntryEditor(entry);
-                          }
-                        }}
-                        tabIndex={0}
-                        aria-label={`Edit ${entry.label.toLowerCase()} ${entry.sourceId || ""}`}
-                      >
-                        <td data-label="Date">{formatDate(entry.date)}</td>
-                        <td data-label="Type">{entry.label}</td>
-                        <td data-label="Details">{entry.detail}</td>
-                        <td
-                          data-label="Qty"
-                          className={entry.quantity < 0 ? "is-negative" : "is-positive"}
-                        >
-                          {entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}
-                        </td>
-                        <td data-label="Value">
-                          {entry.amount === null ? "—" : formatCurrency(entry.amount)}
-                        </td>
-                        <td className="water-module-order-actions">
-                          <button
-                            type="button"
-                            className="water-module-row-undo"
-                            onClick={(event) => handleStockEntryUndo(entry, event)}
-                            onKeyDown={(event) => event.stopPropagation()}
-                            aria-label={`Undo ${entry.label.toLowerCase()} ${entry.sourceId || ""}`}
-                            disabled={saving || loading}
-                          >
-                            <AppIcon icon={faRotateRight} />
-                          </button>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="water-module-empty">No stock movement recorded yet.</p>
-            )}
-          </article>
-
-          <article className="admin-card water-module-table-card">
-            <div className="water-module-card-head">
-              <div>
-                <h3>Expenses</h3>
-              </div>
-            </div>
-            {loading ? (
-              <p className="water-module-empty">Loading expenses...</p>
-            ) : expenses.length ? (
-              <div className="water-module-table-wrap">
-                <table className="water-module-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Amount</th>
-                      <th aria-label="Actions" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expenses.map((expense) => {
-                      const isActive =
-                        activeLedgerItem?.type === "expense" &&
-                        Number(activeLedgerItem?.id) === Number(expense.id);
-                      return (
-                      <tr
-                        key={expense.id}
-                        className={`water-module-click-row ${isActive ? "is-active" : ""}`}
-                        onClick={() => openExpenseEditor(expense)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            openExpenseEditor(expense);
-                          }
-                        }}
-                        tabIndex={0}
-                        aria-label={`Edit water expense ${expense.id}`}
-                      >
-                        <td>{formatDate(expense.date)}</td>
-                        <td>{expense.category}</td>
-                        <td>{expense.description}</td>
-                        <td>{formatCurrency(expense.amount)}</td>
-                        <td className="water-module-order-actions">
-                          <button
-                            type="button"
-                            className="water-module-row-delete"
-                            onClick={(event) => handleExpenseDelete(expense, event)}
-                            onKeyDown={(event) => event.stopPropagation()}
-                            aria-label={`Delete water expense ${expense.id}`}
-                            disabled={saving || loading}
-                          >
-                            <AppIcon icon={faTrash} />
-                          </button>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="water-module-empty">No extra expenses logged yet.</p>
-            )}
-          </article>
-        </section>
-
-        {activeLedgerItem && ledgerForm ? (
-          <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-ledger-modal-title">
-            <div className="admin-modal-panel water-order-modal bubble-card">
-              <header>
-                <div>
-                  <p className="water-module-eyebrow">
-                    {activeLedgerItem.type === "restock"
-                      ? "Edit restock"
-                      : activeLedgerItem.type === "adjustment"
-                        ? "Edit correction"
-                        : "Edit expense"}
-                  </p>
-                  <h2 id="water-ledger-modal-title">
-                    {activeLedgerItem.type === "restock"
-                      ? `Restock #${activeLedgerItem.id}`
-                      : activeLedgerItem.type === "adjustment"
-                        ? `Correction #${activeLedgerItem.id}`
-                        : `Expense #${activeLedgerItem.id}`}
-                  </h2>
-                  {activeLedgerRecord?.createdAt ? (
-                    <div className="water-order-modal-meta">
-                      <span className="admin-modal-meta">Created {formatDateTime(activeLedgerRecord.createdAt)}</span>
-                    </div>
-                  ) : null}
-                </div>
-                <button type="button" className="admin-close" onClick={closeLedgerEditor} aria-label="Close">
-                  <AppIcon icon={faXmark} />
-                </button>
-              </header>
-
-              <form className="water-module-form water-order-modal-form" onSubmit={handleLedgerSubmit}>
-                {ledgerForm.type === "restock" ? (
-                  <>
-                    <div className="water-order-modal-grid">
-                      <label>
-                        Link vendor
-                        <select
-                          value={ledgerForm.vendorId}
-                          onChange={(event) => {
-                            const nextVendorId = event.target.value;
-                            const nextVendor =
-                              orderedVendorOptions.find(
-                                (vendor) => String(vendor.id) === String(nextVendorId)
-                              ) || null;
-                            setLedgerForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    vendorId: nextVendorId,
-                                    vendorName: nextVendor?.name || prev.vendorName,
-                                  }
-                                : prev
-                            );
-                          }}
-                        >
-                          <option value="">No link</option>
-                          {orderedVendorOptions.map((vendor) => (
-                            <option key={vendor.id} value={vendor.id}>
-                              {vendor.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Vendor
-                        <input
-                          type="text"
-                          value={ledgerForm.vendorName}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, vendorName: event.target.value } : prev
-                            )
-                          }
-                          placeholder="Vendor name"
-                          disabled={Boolean(selectedLedgerVendor)}
-                        />
-                      </label>
-                      <label>
-                        Qty
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
-                          value={ledgerForm.quantity}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, quantity: event.target.value } : prev
-                            )
-                          }
-                          required
-                        />
-                      </label>
-                      <label>
-                        Date
-                        <input
-                          type="date"
-                          value={ledgerForm.date}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
-                          }
-                          required
-                        />
-                      </label>
-                      <label className="water-order-modal-field--wide">
-                        Notes
-                        <textarea
-                          rows="3"
-                          value={ledgerForm.notes}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
-                          }
-                          placeholder="Optional"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="water-order-modal-summary bubble-card">
-                      <div>
-                        <span>Qty</span>
-                        <strong>{ledgerRestockQuantity}</strong>
-                      </div>
-                      <div>
-                        <span>Cost</span>
-                        <strong>{formatCurrency(ledgerRestockCost)}</strong>
-                      </div>
-                      <div>
-                        <span>Vendor</span>
-                        <strong>{ledgerSelectedVendorName || ledgerForm.vendorName || "Unassigned"}</strong>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {ledgerForm.type === "adjustment" ? (
-                  <>
-                    <div className="water-order-modal-grid">
-                      <label>
-                        Type
-                        <select
-                          value={ledgerForm.mode}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    mode: event.target.value,
-                                    reason:
-                                      prev.reason === CUSTOM_ADJUSTMENT_REASON ||
-                                      (ADJUSTMENT_REASON_OPTIONS[event.target.value] || []).includes(prev.reason)
-                                        ? prev.reason
-                                        : "",
-                                  }
-                                : prev
-                            )
-                          }
-                        >
-                          <option value="remove">Remove</option>
-                          <option value="add">Add back</option>
-                        </select>
-                      </label>
-                      <label>
-                        Qty
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          inputMode="numeric"
-                          value={ledgerForm.quantityDelta}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, quantityDelta: event.target.value } : prev
-                            )
-                          }
-                          required
-                        />
-                      </label>
-                      <label>
-                        Reason
-                        <select
-                          value={ledgerForm.reason}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, reason: event.target.value } : prev
-                            )
-                          }
-                        >
-                          <option value="">Choose reason</option>
-                          {ledgerAdjustmentReasonOptions.map((reason) => (
-                            <option key={reason} value={reason}>
-                              {reason}
-                            </option>
-                          ))}
-                          <option value={CUSTOM_ADJUSTMENT_REASON}>Custom</option>
-                        </select>
-                      </label>
-                      <label>
-                        Date
-                        <input
-                          type="date"
-                          value={ledgerForm.date}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
-                          }
-                          required
-                        />
-                      </label>
-                      {ledgerAdjustmentHasCustomReason ? (
-                        <label className="water-order-modal-field--wide">
-                          Custom reason
-                          <input
-                            type="text"
-                            value={ledgerForm.customReason}
-                            onChange={(event) =>
-                              setLedgerForm((prev) =>
-                                prev ? { ...prev, customReason: event.target.value } : prev
-                              )
-                            }
-                            placeholder="Breakage, count fix..."
-                            required
-                          />
-                        </label>
-                      ) : null}
-                      <label className="water-order-modal-field--wide">
-                        Notes
-                        <textarea
-                          rows="3"
-                          value={ledgerForm.notes}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
-                          }
-                          placeholder="Optional"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="water-order-modal-summary bubble-card">
-                      <div>
-                        <span>Effect</span>
-                        <strong>{ledgerForm.mode === "add" ? "Stock in" : "Stock out"}</strong>
-                      </div>
-                      <div>
-                        <span>Qty</span>
-                        <strong>{ledgerAdjustmentQuantity}</strong>
-                      </div>
-                      <div>
-                        <span>Summary</span>
-                        <strong>{ledgerAdjustmentSummaryLabel || "Set correction"}</strong>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {ledgerForm.type === "expense" ? (
-                  <>
-                    <div className="water-order-modal-grid">
-                      <label>
-                        Category
-                        <select
-                          value={ledgerForm.category}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, category: event.target.value } : prev
-                            )
-                          }
-                        >
-                          <option value="">Choose category</option>
-                          {EXPENSE_CATEGORY_OPTIONS.map((category) => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                          <option value={CUSTOM_EXPENSE_CATEGORY}>Other</option>
-                        </select>
-                      </label>
-                      <label>
-                        Amount
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          inputMode="decimal"
-                          value={ledgerForm.amount}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, amount: event.target.value } : prev))
-                          }
-                          required
-                        />
-                      </label>
-                      {ledgerForm.category === CUSTOM_EXPENSE_CATEGORY ? (
-                        <label className="water-order-modal-field--wide">
-                          Custom category
-                          <input
-                            type="text"
-                            value={ledgerForm.customCategory}
-                            onChange={(event) =>
-                              setLedgerForm((prev) =>
-                                prev ? { ...prev, customCategory: event.target.value } : prev
-                              )
-                            }
-                            placeholder="Transport, labour..."
-                            required
-                          />
-                        </label>
-                      ) : null}
-                      <label className="water-order-modal-field--wide">
-                        Description
-                        <input
-                          type="text"
-                          value={ledgerForm.description}
-                          onChange={(event) =>
-                            setLedgerForm((prev) =>
-                              prev ? { ...prev, description: event.target.value } : prev
-                            )
-                          }
-                          placeholder="Expense detail"
-                          required
-                        />
-                      </label>
-                      <label>
-                        Date
-                        <input
-                          type="date"
-                          value={ledgerForm.date}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
-                          }
-                          required
-                        />
-                      </label>
-                      <label className="water-order-modal-field--wide">
-                        Notes
-                        <textarea
-                          rows="3"
-                          value={ledgerForm.notes}
-                          onChange={(event) =>
-                            setLedgerForm((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
-                          }
-                          placeholder="Optional"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="water-order-modal-summary bubble-card">
-                      <div>
-                        <span>Category</span>
-                        <strong>{resolvedLedgerExpenseCategory || "Expense"}</strong>
-                      </div>
-                      <div>
-                        <span>Amount</span>
-                        <strong>{formatCurrency(ledgerExpenseSummaryAmount)}</strong>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {ledgerError ? <p className="water-module-feedback water-module-feedback--error">{ledgerError}</p> : null}
-
-                <div className="water-order-modal-actions">
-                  {ledgerForm.type === "restock" || ledgerForm.type === "adjustment" ? (
-                    <button
-                      type="button"
-                      className="admin-secondary water-order-undo-btn"
-                      onClick={(event) =>
-                        handleStockEntryUndo(
-                          {
-                            type: ledgerForm.type,
-                            sourceId: activeLedgerRecord?.id ?? activeLedgerItem?.id,
-                            label: ledgerForm.type === "restock" ? "Restock" : "Correction",
-                            detail:
-                              ledgerForm.type === "restock"
-                                ? ledgerSelectedVendorName || ledgerForm.vendorName
-                                : ledgerAdjustmentSummaryLabel || ledgerForm.reason,
-                          },
-                          event
-                        )
-                      }
-                      disabled={saving || loading}
-                    >
-                      <AppIcon icon={faRotateRight} /> Undo
-                    </button>
-                  ) : null}
-                  {ledgerForm.type === "expense" ? (
-                    <button
-                      type="button"
-                      className="admin-secondary water-order-delete-btn"
-                      onClick={(event) => handleExpenseDelete(activeLedgerRecord, event)}
-                      disabled={saving || loading}
-                    >
-                      <AppIcon icon={faTrash} /> Delete
-                    </button>
-                  ) : null}
-                  <button type="button" className="admin-secondary" onClick={closeLedgerEditor}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="admin-primary" disabled={saving || loading}>
-                    {saving ? "Saving..." : "Save changes"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : null}
-
-        {activeOrderId && orderForm ? (
-          <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-order-modal-title">
-            <div className="admin-modal-panel water-order-modal water-order-editor-modal bubble-card">
-              <header>
-                <div>
-                  <p className="water-module-eyebrow">Edit order</p>
-                  <h2 id="water-order-modal-title">Order #{activeOrderId}</h2>
-                  <div className="water-order-modal-meta">
-                    <span
-                      className={`water-module-order-pill is-${normalizeSalePaymentStatus(
-                        orderForm.paymentStatus,
-                        orderForm.paymentMethod
-                      )}`}
-                    >
-                      {getSalePaymentStatusLabel(orderForm.paymentStatus, orderForm.paymentMethod)}
-                    </span>
-                    {activeOrder?.createdAt ? (
-                      <span className="admin-modal-meta">Created {formatDateTime(activeOrder.createdAt)}</span>
-                    ) : null}
-                    {orderForm.updatedAt ? (
-                      <span className="admin-modal-meta">
-                        Edited {formatDateTime(orderForm.updatedAt)}
-                        {orderForm.updatedByName ? ` by ${orderForm.updatedByName}` : ""}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <button type="button" className="admin-close" onClick={closeOrderEditor} aria-label="Close">
-                  <AppIcon icon={faXmark} />
-                </button>
-              </header>
-
-              <form className="water-module-form water-order-modal-form water-order-editor-form" onSubmit={handleOrderSubmit}>
-                <div className="water-order-modal-grid">
-                  <label className="water-order-modal-field--wide">
-                    Customer
-                    <div className="water-module-customer-picker water-order-customer-picker">
-                      <SearchField
-                      value={orderForm.customerName}
-                        onChange={(event) => handleOrderCustomerInputChange(event.target.value)}
-                        onClear={() => {
-                          setOrderForm((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  customerId: "",
-                                  customerName: "",
-                                  customerPhone: "",
-                                }
-                              : prev
-                          );
-                          setOrderCustomerMenuOpen(false);
-                        }}
-                        onFocus={() => setOrderCustomerMenuOpen(true)}
-                        onBlur={() => {
-                          setTimeout(() => {
-                            setOrderCustomerMenuOpen(false);
-                          }, 120);
-                        }}
-                        onKeyDown={handleOrderCustomerInputKeyDown}
-                        placeholder="Search or add customer"
-                        aria-label="Search or add customer"
-                        inputClassName="water-order-customer-search"
-                        required
-                      />
-                      {orderCustomerMenuOpen ? (
-                        customers.length || typedOrderCustomerName ? (
-                          <div className="water-module-customer-options" role="listbox" aria-label="Customer directory">
-                            {filteredOrderCustomerOptions.map((customer) => {
-                              const isActive = String(customer.id) === String(orderForm.customerId);
-                              return (
-                                <button
-                                  key={customer.id}
-                                  type="button"
-                                  className={`water-module-customer-option ${isActive ? "is-active" : ""}`}
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onClick={() => handleOrderCustomerChange(String(customer.id))}
-                                >
-                                  <span>{customer.name}</span>
-                                  <small>
-                                    {customer.phone ? customer.phone : `#${customer.id}`}
-                                  </small>
-                                </button>
-                              );
-                            })}
-                            {typedOrderCustomerName && !matchedTypedOrderCustomer ? (
-                              <button
-                                type="button"
-                                className="water-module-customer-option water-order-customer-option--create"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={commitOrderCustomerInput}
-                              >
-                                <span>Create "{typedOrderCustomerName}"</span>
-                                <small>Press Enter</small>
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null
-                      ) : null}
-                      {selectedOrderCustomer ? (
-                        <p className="water-module-inline-note">
-                          REEBS #{selectedOrderCustomer.id}
-                          {selectedOrderCustomer.phone ? ` · ${selectedOrderCustomer.phone}` : ""}
-                        </p>
-                      ) : typedOrderCustomerName && !matchedTypedOrderCustomer ? (
-                        <p className="water-module-inline-note">New customer on save.</p>
-                      ) : null}
-                    </div>
-                  </label>
-                  <label>
-                    Phone
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      value={orderForm.customerPhone}
-                      onChange={(event) =>
-                        setOrderForm((prev) => (prev ? { ...prev, customerPhone: event.target.value } : prev))
-                      }
-                      placeholder="024 000 0000"
-                    />
-                  </label>
-                  <label>
-                    Type
-                    <select
-                      value={orderForm.saleChannel}
-                      onChange={(event) =>
-                        setOrderForm((prev) =>
-                          prev ? { ...prev, saleChannel: normalizeChannel(event.target.value) } : prev
-                        )
-                      }
-                    >
-                      <option value="retail">Retail</option>
-                      <option value="company">Company</option>
-                    </select>
-                  </label>
-                  <label>
-                    Qty
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      inputMode="numeric"
-                      value={orderForm.quantity}
-                      onChange={(event) =>
-                        setOrderForm((prev) => (prev ? { ...prev, quantity: event.target.value } : prev))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Sale price
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={orderForm.unitPrice}
-                      onChange={(event) =>
-                        setOrderForm((prev) => (prev ? { ...prev, unitPrice: event.target.value } : prev))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Payment
-                    <select
-                      value={orderForm.paymentMethod}
-                      onChange={(event) => handleOrderPaymentMethodChange(event.target.value)}
-                    >
-                      {SALE_PAYMENT_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Status
-                    <select
-                      value={orderForm.paymentStatus}
-                      onChange={(event) =>
-                        setOrderForm((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                paymentStatus: normalizeSalePaymentStatus(event.target.value, prev.paymentMethod),
-                              }
-                            : prev
-                        )
-                      }
-                    >
-                      {ORDER_STATUS_FILTER_OPTIONS.filter((option) => option.value !== "all").map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Date
-                    <input
-                      type="date"
-                      value={orderForm.date}
-                      onChange={(event) =>
-                        setOrderForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
-                      }
-                      required
-                    />
-                  </label>
-                  <label className="water-order-modal-field--wide">
-                    Notes
-                    <textarea
-                      rows="3"
-                      value={orderForm.notes}
-                      onChange={(event) =>
-                        setOrderForm((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
-                      }
-                      placeholder="Optional"
-                    />
-                  </label>
-                </div>
-
-                <div className="water-order-modal-summary bubble-card">
-                  <div>
-                    <span>Reference</span>
-                    <strong>{orderForm.paymentReference || `WATER-${orderForm.id}`}</strong>
-                  </div>
-                  <div>
-                    <span>Subtotal</span>
-                    <strong>{formatCurrency(orderPreview?.subtotal)}</strong>
-                  </div>
-                  {orderPreview?.discountAmount ? (
-                    <div>
-                      <span>Discount</span>
-                      <strong>{formatCurrency(orderPreview.discountAmount)}</strong>
-                    </div>
-                  ) : null}
-                  <div>
-                    <span>Total</span>
-                    <strong>{formatCurrency(orderPreview?.total)}</strong>
-                  </div>
-                </div>
-
-                {orderError ? <p className="water-module-feedback water-module-feedback--error">{orderError}</p> : null}
-
-                <div className="water-order-modal-actions">
-                  <button
-                    type="button"
-                    className="admin-secondary water-order-delete-btn"
-                    onClick={(event) => handleOrderDelete(activeOrder, event)}
-                    disabled={saving || loading}
-                  >
-                    <AppIcon icon={faTrash} /> Delete
-                  </button>
-                  <button type="button" className="admin-secondary" onClick={closeOrderEditor}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="admin-primary" disabled={saving || loading}>
-                    {saving ? "Saving..." : "Save order"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : null}
+        <WaterOrderEditorModal
+          activeOrderId={activeOrderId}
+          activeOrder={activeOrder}
+          orderForm={orderForm}
+          setOrderForm={setOrderForm}
+          orderPreview={orderPreview}
+          orderError={orderError}
+          customerPickerProps={orderCustomerPickerProps}
+          closeOrderEditor={closeOrderEditor}
+          handleOrderSubmit={handleOrderSubmit}
+          handleOrderDelete={handleOrderDelete}
+          handleOrderPaymentMethodChange={handleOrderPaymentMethodChange}
+          normalizeChannel={normalizeChannel}
+          normalizeSalePaymentStatus={normalizeSalePaymentStatus}
+          getSalePaymentStatusLabel={getSalePaymentStatusLabel}
+          salePaymentOptions={SALE_PAYMENT_OPTIONS}
+          orderStatusOptions={ORDER_STATUS_FILTER_OPTIONS}
+          formatDateTime={formatDateTime}
+          formatCurrency={formatCurrency}
+          saving={saving}
+          loading={loading}
+        />
       </div>
     </div>
   );

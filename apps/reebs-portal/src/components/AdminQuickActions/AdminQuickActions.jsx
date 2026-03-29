@@ -11,7 +11,6 @@ const WORKSPACE_ROUTES = new Set([
   "/admin/inventory",
   "/admin/purchases",
   "/admin/offline",
-  "/admin/advanced",
 ]);
 
 const normalizePath = (pathname) => {

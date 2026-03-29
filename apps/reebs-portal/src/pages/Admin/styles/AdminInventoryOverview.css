@@ -1,7 +1,3 @@
-.inventory-hub-header {
-  align-items: flex-start;
-}
-
 body.admin-theme .inventory-page .admin-shell {
   max-width: none;
   width: 100%;
@@ -23,11 +19,14 @@ body.admin-theme .inventory-page .admin-shell {
 .inventory-header-actions .inventory-header-action {
   width: 2.75rem;
   height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  border-radius: 50%;
 }
 
 .inventory-hub-tags span,

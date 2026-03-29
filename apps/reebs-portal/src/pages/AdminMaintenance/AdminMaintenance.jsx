@@ -3,6 +3,7 @@ import "./AdminMaintenance.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faWrench, faPlus, faRotateRight } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 
 const defaultForm = {
@@ -195,20 +196,17 @@ function AdminMaintenance() {
       <div className="maintenance-shell">
         <AdminBreadcrumb items={[{ label: "Maintenance" }]} />
 
-        <header className="maintenance-header">
-          <div>
-            <p className="maintenance-eyebrow">Asset Health</p>
-            <h1>Maintenance Tracker</h1>
-            <p className="maintenance-subtitle">
-              Flag rental assets for repairs or cleanings and keep the booking catalog safe.
-            </p>
-          </div>
-          <div className="maintenance-actions">
+        <AdminPageHeader
+          eyebrow="Asset Health"
+          title="Maintenance Tracker"
+          subtitle="Flag rental assets for repairs or cleanings and keep the booking catalog safe."
+          actionsClassName="admin-header-actions"
+          actions={
             <button type="button" className="maintenance-secondary" onClick={fetchLogs}>
               <AppIcon icon={faRotateRight} /> Refresh
             </button>
-          </div>
-        </header>
+          }
+        />
 
         {error && <p className="maintenance-error">{error}</p>}
         {status && <p className="maintenance-success">{status}</p>}

@@ -9,6 +9,7 @@ import {
   faLocationDot,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
+import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 
 const formatTime = (value) => {
@@ -123,7 +124,7 @@ function AdminTimesheets() {
           lng: location.coords.longitude,
         };
         setGeoStatus("Location captured.");
-      } catch (err) {
+      } catch {
         setGeoStatus("Location unavailable.");
       }
     }
@@ -150,15 +151,11 @@ function AdminTimesheets() {
       <div className="timesheet-shell">
         <AdminBreadcrumb items={[{ label: "Timesheets" }]} />
 
-        <header className="timesheet-header">
-          <div>
-            <p className="timesheet-eyebrow">Digital Punch Card</p>
-            <h1>Timesheets</h1>
-            <p className="timesheet-subtitle">
-              Log attendance, verify work locations, and prep payroll automatically.
-            </p>
-          </div>
-        </header>
+        <AdminPageHeader
+          eyebrow="Digital Punch Card"
+          title="Timesheets"
+          subtitle="Log attendance, verify work locations, and prep payroll automatically."
+        />
 
         <section className="timesheet-hero">
           <div className="timesheet-now">
