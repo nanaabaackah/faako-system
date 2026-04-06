@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { UiSystemProvider } from '@faako/ui'
 import App from './App.jsx'
+import appSystem from '../appSystem.js'
 import './index.css'
 import {
   clearStoredSession,
@@ -147,6 +149,8 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <UiSystemProvider appSystem={appSystem}>
+      <App />
+    </UiSystemProvider>
   </React.StrictMode>,
 )

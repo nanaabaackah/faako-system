@@ -11,6 +11,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
+    Content-Security-Policy = "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"

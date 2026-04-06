@@ -1,3 +1,10 @@
+import {
+  buildApiSecurityHeaders,
+  isAllowedOrigin,
+  mergeAllowedOrigins,
+  normalizeOrigin,
+} from "@faako/security";
+
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.reebspartythemes.com",
   "https://reebspartythemes.com",
@@ -21,16 +28,6 @@ const getHeaderValue = (event, key) => {
   ).trim();
 };
 
-const normalizeOrigin = (value) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return null;
-  try {
-    return new URL(trimmed).origin;
-  } catch {
-    return null;
-  }
-};
-
 const getAllowedOrigins = () => {
   const configured = [
     process.env.URL,
@@ -38,29 +35,16 @@ const getAllowedOrigins = () => {
     process.env.SITE_URL,
     process.env.APP_URL,
   ];
-  return new Set(
-    [...DEFAULT_ALLOWED_ORIGINS, ...configured]
-      .map((origin) => normalizeOrigin(origin))
-      .filter(Boolean)
-  );
+  return mergeAllowedOrigins(DEFAULT_ALLOWED_ORIGINS, configured);
 };
 
 export const isAllowedAppOrigin = (origin) => {
-  const normalized = normalizeOrigin(origin);
-  if (!normalized) return false;
-  return getAllowedOrigins().has(normalized);
+  return isAllowedOrigin(origin, getAllowedOrigins());
 };
 
 export const isCrossSiteBrowserRequest = (event) => {
   const fetchSite = getHeaderValue(event, "sec-fetch-site").toLowerCase();
   return fetchSite === "cross-site";
-};
-
-const SECURITY_HEADERS = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
 };
 
 export const buildResponseHeaders = (
@@ -72,23 +56,24 @@ export const buildResponseHeaders = (
     extraHeaders = {},
   } = {}
 ) => {
-  const headers = {
-    ...SECURITY_HEADERS,
-    "Access-Control-Allow-Headers": allowHeaders,
-    "Access-Control-Allow-Methods": methods,
-    ...extraHeaders,
-  };
-
   const requestOrigin = normalizeOrigin(getHeaderValue(event, "origin"));
-  if (requestOrigin && isAllowedAppOrigin(requestOrigin)) {
-    headers["Access-Control-Allow-Origin"] = requestOrigin;
-    headers["Access-Control-Allow-Credentials"] = "true";
-    headers.Vary = "Origin";
-  }
+  const requestProtocol =
+    String(getHeaderValue(event, "x-forwarded-proto") || getHeaderValue(event, "x-forwarded-protocol")).toLowerCase() === "https"
+      ? "https"
+      : "";
+  const headers = buildApiSecurityHeaders({
+    profileId: "authenticated-workspace",
+    origin: requestOrigin,
+    allowedOrigins: getAllowedOrigins(),
+    methods,
+    allowHeaders,
+    requestProtocol,
+    cacheControl,
+    extraHeaders,
+  });
 
-  if (cacheControl) {
-    headers["Cache-Control"] = cacheControl;
-  }
+  headers["Access-Control-Allow-Headers"] = allowHeaders;
+  headers["Access-Control-Allow-Methods"] = methods;
 
   return headers;
 };
