@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import "./AdminInvoicing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faArrowLeft,
   faBoxArchive,
+  faChevronLeft,
+  faChevronRight,
   faEnvelope,
   faFileInvoice,
   faFilePdf,
@@ -24,8 +26,8 @@ import SearchField from "../../components/SearchField/SearchField";
 const COMPANY = {
   name: "REEBS Party Themes",
   location: "Sakumono Broadway, Tema, Ghana",
-  phone: "+233 24 423 8419",
-  email: "info@reebs.com",
+  phone: "+233 24 478 1819",
+  email: "info@reebspartythemes.com",
   logo: "/imgs/brand/reebs_logo.png",
 };
 
@@ -57,9 +59,31 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
+const DUE_DATE_OPTIONS = [
+  { value: "immediately", label: "Immediately" },
+  { value: "two_weeks", label: "Two weeks" },
+  { value: "thirty_days", label: "30 days" },
+  { value: "custom", label: "Custom" },
+  { value: "none", label: "No due date" },
+];
+
 const MANUAL_SOURCE_LABEL = "Invoicing";
 const MANUAL_LINKED_LABEL = "Built here";
 const MANUAL_LINKED_NOTE = "Built from template";
+const DOCUMENT_QUERY_PARAM = "document";
+const DEFAULT_LINE_ITEM_UNIT = "Per item";
+const INVOICE_DRAFT_STORAGE_PREFIX = "reebs_invoice_draft_";
+const INVENTORY_MANAGED_SOURCE_TYPES = new Set(["manual", "bookings"]);
+const SHOP_POLICY_TERMS =
+  "All shop items are final sale. No returns or exchanges apply unless there are extreme circumstances approved by management.";
+const SHOP_POLICY_NOTE = "Shop policy: all shop items are final sale.";
+const BOOKING_POLICY_TERMS =
+  "Rental dates and inventory are held against the confirmed booking schedule, and any balance is due before delivery or pickup unless noted.";
+const BOOKING_POLICY_NOTE = "Booking policy: rental dates lock to the confirmed schedule.";
+const MIXED_POLICY_TERMS =
+  "All shop items are final sale. No returns or exchanges apply unless there are extreme circumstances approved by management. Rental items follow the confirmed booking schedule, and any balance is due before delivery or pickup unless noted.";
+const MIXED_POLICY_NOTE =
+  "Mixed policy: shop items are final sale, and rental items follow the confirmed booking schedule.";
 
 const loadConfig = () => {
   try {
@@ -69,6 +93,29 @@ const loadConfig = () => {
     return { ...defaultConfig, ...parsed };
   } catch {
     return defaultConfig;
+  }
+};
+
+const buildInvoiceDraftStorageKey = (entryKey) => `${INVOICE_DRAFT_STORAGE_PREFIX}${entryKey}`;
+
+const readInvoiceDraft = (entryKey) => {
+  if (!entryKey) return null;
+  try {
+    const raw = window.sessionStorage.getItem(buildInvoiceDraftStorageKey(entryKey));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeInvoiceDraft = (entryKey, document) => {
+  if (!entryKey || !document) return;
+  try {
+    window.sessionStorage.setItem(buildInvoiceDraftStorageKey(entryKey), JSON.stringify(document));
+  } catch {
+    // Ignore storage quota issues; autosave still persists to the server.
   }
 };
 
@@ -120,15 +167,97 @@ const formatDateStamp = (value) => {
 
 const todayValue = () => new Date().toISOString().slice(0, 10);
 
+const defaultDueDateOptionForType = (documentType) =>
+  documentType === "invoice" ? "thirty_days" : "none";
+
+const normalizeCustomerName = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const normalizeSearchText = (value) =>
+  normalizeCustomerName(
+    String(value || "")
+      .replace(/[_-]+/g, " ")
+      .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+  );
+
 const toNumber = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+};
+
+const normalizeLineQuantity = (value, fallback = 1) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
 };
 
 const parseTaxRate = (value) => {
   const raw = Number(value);
   if (!Number.isFinite(raw) || raw <= 0) return 0;
   return raw > 1 ? raw / 100 : raw;
+};
+
+const addDaysToDate = (value, days) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+};
+
+const subtractDaysFromDate = (value, days) => addDaysToDate(value, -Math.abs(days));
+
+const resolveDueDateReference = (document) => {
+  const eventDate = normalizeDateInput(document?.event?.eventDate);
+  if (eventDate) {
+    return { date: eventDate, mode: "before_event" };
+  }
+  const issueDate = normalizeDateInput(document?.issueDate);
+  return { date: issueDate, mode: "after_issue" };
+};
+
+const computeDueDate = (document, dueDateOption) => {
+  const option = String(dueDateOption || "none");
+  const { date: referenceDate, mode } = resolveDueDateReference(document);
+  if (option === "custom") return normalizeDateInput(document?.dueDate);
+  if (!referenceDate || option === "none") return "";
+  if (option === "immediately") return referenceDate;
+  if (option === "two_weeks") {
+    return mode === "before_event" ? subtractDaysFromDate(referenceDate, 14) : addDaysToDate(referenceDate, 14);
+  }
+  if (option === "thirty_days") {
+    return mode === "before_event" ? subtractDaysFromDate(referenceDate, 30) : addDaysToDate(referenceDate, 30);
+  }
+  return "";
+};
+
+const inferDueDateOption = (document, dueDate) => {
+  const normalizedDueDate = normalizeDateInput(dueDate);
+  if (!normalizedDueDate) return "none";
+  if (normalizedDueDate === computeDueDate(document, "immediately")) return "immediately";
+  if (normalizedDueDate === computeDueDate(document, "two_weeks")) return "two_weeks";
+  if (normalizedDueDate === computeDueDate(document, "thirty_days")) return "thirty_days";
+  return "custom";
+};
+
+const syncDueDateFlow = (document) => {
+  const dueDateOption =
+    document?.dueDateOption || defaultDueDateOptionForType(document?.documentType);
+  if (dueDateOption === "custom") {
+    return {
+      ...document,
+      dueDateOption,
+      dueDate: normalizeDateInput(document?.dueDate),
+    };
+  }
+  return {
+    ...document,
+    dueDateOption,
+    dueDate: computeDueDate(document, dueDateOption),
+  };
 };
 
 const loadImageData = async (url) => {
@@ -141,6 +270,18 @@ const loadImageData = async (url) => {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+};
+
+let companyLogoDataPromise = null;
+
+const getCompanyLogoData = async () => {
+  if (!companyLogoDataPromise) {
+    companyLogoDataPromise = loadImageData(COMPANY.logo).catch((error) => {
+      companyLogoDataPromise = null;
+      throw error;
+    });
+  }
+  return companyLogoDataPromise;
 };
 
 const readResponseError = async (response, fallbackMessage) => {
@@ -157,23 +298,245 @@ const buildDocumentNumber = (documentType) => {
   return `${prefix}-${formatDateStamp()}-${String(Date.now()).slice(-5)}`;
 };
 
+const getDocumentKindLabel = (documentType) => (documentType === "receipt" ? "Receipt" : "Invoice");
+
+const getDocumentNumberValue = (invoiceNumber) => String(invoiceNumber || "").trim();
+
+const getDocumentDisplayHeading = (document) => {
+  const invoiceNumber = getDocumentNumberValue(document?.invoiceNumber);
+  if (!invoiceNumber) return "Draft";
+  const label = document?.docLabel || getDocumentKindLabel(document?.documentType);
+  return `${label} #${invoiceNumber}`;
+};
+
+const getDocumentTableReference = (document) => getDocumentNumberValue(document?.invoiceNumber) || "Draft";
+
+const getDocumentArchiveLabel = (document) => {
+  const invoiceNumber = getDocumentNumberValue(document?.invoiceNumber);
+  if (!invoiceNumber) return "Draft";
+  const label = document?.docLabel || getDocumentKindLabel(document?.documentType);
+  return `${label} ${invoiceNumber}`;
+};
+
+const getDocumentFileLabel = (document) => {
+  const prefix = document?.documentType === "receipt" ? "receipt" : "invoice";
+  return `${prefix}-${getDocumentNumberValue(document?.invoiceNumber) || "draft"}`;
+};
+
+const isUnsentDraftDocument = (document) =>
+  !document?.sentAt && !getDocumentNumberValue(document?.invoiceNumber);
+
+const classifyInvoiceProductPolicy = (product) => {
+  const sku = String(product?.sku || "").trim().toUpperCase();
+  const source = String(product?.sourceCategoryCode || product?.sourcecategorycode || "")
+    .trim()
+    .toUpperCase();
+  const name = String(product?.name || "").trim().toLowerCase();
+  const isPump = sku.startsWith("PUM") || name.includes("motor pump");
+  if ((source === "RENTAL" || sku.startsWith("RENT")) && !isPump) return "booking";
+  return "shop";
+};
+
+const resolveDocumentPolicyScope = (document, productById = new Map()) => {
+  const sourceType = String(document?.sourceType || "").trim().toLowerCase();
+  if (sourceType === "orders") return "shop";
+  if (sourceType === "bookings") return "booking";
+
+  const scopes = new Set(
+    normalizeLineItems(document?.lineItems)
+      .filter((item) => !isHeadingLineItem(item) && !isNoteLineItem(item))
+      .map((item) => productById.get(Number(item.productId)))
+      .filter(Boolean)
+      .map(classifyInvoiceProductPolicy)
+  );
+
+  if (scopes.size > 1) return "mixed";
+  if (scopes.has("booking")) return "booking";
+  if (scopes.has("shop")) return "shop";
+  return document?.documentType === "receipt" ? "shop" : "booking";
+};
+
+const getPolicyCopyForScope = (scope) => {
+  if (scope === "mixed") {
+    return {
+      terms: MIXED_POLICY_TERMS,
+      notes: MIXED_POLICY_NOTE,
+    };
+  }
+  if (scope === "booking") {
+    return {
+      terms: BOOKING_POLICY_TERMS,
+      notes: BOOKING_POLICY_NOTE,
+    };
+  }
+  return {
+    terms: SHOP_POLICY_TERMS,
+    notes: SHOP_POLICY_NOTE,
+  };
+};
+
 const defaultTermsForType = (documentType) =>
-  documentType === "receipt"
-    ? "Returns or exchanges require the original receipt."
-    : "Balance is due before delivery or pickup unless noted.";
+  getPolicyCopyForScope(documentType === "receipt" ? "shop" : "booking").terms;
 
 const defaultNotesForType = (documentType) =>
-  documentType === "receipt"
-    ? "Thank you for your purchase."
-    : "Thank you for your booking.";
+  getPolicyCopyForScope(documentType === "receipt" ? "shop" : "booking").notes;
+
+const defaultPolicyCopyForDocument = (document, productById = new Map()) =>
+  getPolicyCopyForScope(resolveDocumentPolicyScope(document, productById));
+
+const MANAGED_POLICY_TEXTS = new Set([
+  "",
+  SHOP_POLICY_TERMS,
+  SHOP_POLICY_NOTE,
+  BOOKING_POLICY_TERMS,
+  BOOKING_POLICY_NOTE,
+  MIXED_POLICY_TERMS,
+  MIXED_POLICY_NOTE,
+  "Shop items can only be returned or exchanged with the original receipt and manager approval.",
+  "Shop policy: returns need the original receipt.",
+  "Returns or exchanges require the original receipt.",
+  "Balance is due before delivery or pickup unless noted.",
+  "Thank you for your purchase.",
+  "Thank you for your booking.",
+]);
+
+const isManagedPolicyText = (value) => MANAGED_POLICY_TEXTS.has(String(value || ""));
+
+const syncManagedPolicyCopy = (currentDocument, nextDocument, productById = new Map()) => {
+  const policyCopy = defaultPolicyCopyForDocument(nextDocument, productById);
+  const next = { ...nextDocument };
+
+  if (currentDocument) {
+    if (next.notes === currentDocument.notes && isManagedPolicyText(currentDocument.notes)) {
+      next.notes = policyCopy.notes;
+    }
+    if (next.terms === currentDocument.terms && isManagedPolicyText(currentDocument.terms)) {
+      next.terms = policyCopy.terms;
+    }
+    return next;
+  }
+
+  if (!next.notes || isManagedPolicyText(next.notes)) {
+    next.notes = policyCopy.notes;
+  }
+  if (!next.terms || isManagedPolicyText(next.terms)) {
+    next.terms = policyCopy.terms;
+  }
+  return next;
+};
+
+const normalizeLineRowType = (value) => {
+  const normalized = String(value || "item").toLowerCase();
+  if (normalized === "heading") return "heading";
+  if (normalized === "note") return "note";
+  return "item";
+};
+
+const isHeadingLineItem = (item) => normalizeLineRowType(item?.rowType) === "heading";
+const isNoteLineItem = (item) => normalizeLineRowType(item?.rowType) === "note";
+
+const normalizeLineUnitLabel = (value) => {
+  const normalized = String(value || "").trim();
+  return normalized || DEFAULT_LINE_ITEM_UNIT;
+};
+
+const isPerHeadRateLabel = (value) => /\bhead\b/i.test(String(value || ""));
+
+const resolveProductUnitLabel = (product) => normalizeLineUnitLabel(product?.rate || product?.unitLabel);
+
+const isRentalProduct = (product) =>
+  String(product?.sourceCategoryCode || product?.sourcecategorycode || "")
+    .trim()
+    .toUpperCase() === "RENTAL";
+
+const shouldManageInvoiceInventory = (sourceType) =>
+  INVENTORY_MANAGED_SOURCE_TYPES.has(String(sourceType || "").trim().toLowerCase());
+
+const hasSourceManagedInventory = (document) => String(document?.sourceType || "").trim().toLowerCase() === "orders";
+
+const isDocumentInventoryCommitted = (document) =>
+  shouldManageInvoiceInventory(document?.sourceType) && Boolean(document?.stockCommittedAt);
+
+const shouldReuseCommittedInventory = (document) =>
+  isDocumentInventoryCommitted(document) || hasSourceManagedInventory(document);
+
+const getProductStockQuantity = (product) =>
+  Math.max(0, normalizeLineQuantity(product?.quantity ?? product?.stock, 0));
+
+const buildProductSearchBlob = (product) =>
+  normalizeSearchText(
+    [
+      product?.name,
+      product?.sku,
+      product?.barcode,
+      product?.description,
+      product?.specificCategory,
+      product?.sourceCategoryCode,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+const matchesProductSearch = (product, query) => {
+  const tokens = normalizeSearchText(query)
+    .split(" ")
+    .filter(Boolean);
+  if (!tokens.length) return true;
+  const blob = buildProductSearchBlob(product);
+  return tokens.every((token) => blob.includes(token));
+};
+
+const extractInventoryItems = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.products)) return payload.products;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  return [];
+};
 
 const createLineItem = (overrides = {}) => ({
-  id: overrides.id || `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-  name: overrides.name || "",
-  quantity: Math.max(0, toNumber(overrides.quantity, 1)),
-  unitPrice: Math.max(0, toNumber(overrides.unitPrice, 0)),
-  total: 0,
+  ...(() => {
+    const rowType = normalizeLineRowType(overrides.rowType);
+    const id = overrides.id || `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    if (rowType === "heading") {
+      return {
+        id,
+        rowType: "heading",
+        productId: null,
+        name: overrides.name || "",
+        unitLabel: "",
+        quantity: 0,
+        unitPrice: 0,
+        total: 0,
+      };
+    }
+    if (rowType === "note") {
+      return {
+        id,
+        rowType: "note",
+        productId: null,
+        name: overrides.name || "",
+        unitLabel: "",
+        quantity: 0,
+        unitPrice: 0,
+        total: 0,
+      };
+    }
+    return {
+      id,
+      rowType: "item",
+      productId: Number.isFinite(Number(overrides.productId)) ? Number(overrides.productId) : null,
+      name: overrides.name || "",
+      unitLabel: normalizeLineUnitLabel(overrides.unitLabel),
+      quantity: normalizeLineQuantity(overrides.quantity, 1),
+      unitPrice: Math.max(0, toNumber(overrides.unitPrice, 0)),
+      total: 0,
+    };
+  })(),
 });
+
+const createHeadingLine = (overrides = {}) => createLineItem({ ...overrides, rowType: "heading" });
+const createNoteLine = (overrides = {}) => createLineItem({ ...overrides, rowType: "note" });
 
 const normalizeLineItems = (items) => {
   if (!Array.isArray(items)) return [];
@@ -181,9 +544,116 @@ const normalizeLineItems = (items) => {
     .map((item) => createLineItem(item))
     .map((item) => ({
       ...item,
-      total: Number((item.quantity * item.unitPrice).toFixed(2)),
+      total: isHeadingLineItem(item) || isNoteLineItem(item) ? 0 : Number((item.quantity * item.unitPrice).toFixed(2)),
     }));
 };
+
+const ensureEditableLineItems = (items) => {
+  const normalized = normalizeLineItems(items);
+  return normalized.length ? normalized : [createLineItem()];
+};
+
+const buildDocumentSourceLineItems = (items, mapItem) => {
+  if (!Array.isArray(items)) return [];
+
+  const nextItems = [];
+  items.forEach((item, index) => {
+    const mappedItem = mapItem(item, index);
+    if (!mappedItem) return;
+
+    const baseLine = createLineItem(mappedItem);
+    nextItems.push(baseLine);
+
+    if (isHeadingLineItem(baseLine) || isNoteLineItem(baseLine)) return;
+
+    const attendantsPerUnit = Math.max(0, toNumber(item?.attendantsNeeded, 0));
+    if (attendantsPerUnit <= 0) return;
+
+    const totalAttendants = attendantsPerUnit * Math.max(1, normalizeLineQuantity(item?.quantity, 1));
+    nextItems.push(
+      createNoteLine({
+        id: `${baseLine.id}-attendants`,
+        name: `Attendants needed: ${totalAttendants}`,
+      })
+    );
+  });
+
+  return normalizeLineItems(nextItems);
+};
+
+const buildLineItemProductQuantityMap = (items) =>
+  normalizeLineItems(items).reduce((map, item) => {
+    if (isHeadingLineItem(item) || isNoteLineItem(item) || !Number(item.productId)) return map;
+    const productId = Number(item.productId);
+    const quantity = isPerHeadRateLabel(item.unitLabel)
+      ? normalizeLineQuantity(item.quantity, 0) > 0
+        ? 1
+        : 0
+      : normalizeLineQuantity(item.quantity, 0);
+    if (quantity <= 0) return map;
+    map.set(productId, (map.get(productId) || 0) + quantity);
+    return map;
+  }, new Map());
+
+const resolveProductRemainingStock = (document, item, product) => {
+  const productId = Number(product?.id ?? item?.productId);
+  if (!Number.isFinite(productId) || productId <= 0) return null;
+  const documentQuantities = buildLineItemProductQuantityMap(document?.lineItems);
+  const currentProductQuantity = documentQuantities.get(productId) || 0;
+  const currentLineQuantity =
+    Number(item?.productId) === productId
+      ? isPerHeadRateLabel(item?.unitLabel || resolveProductUnitLabel(product))
+        ? normalizeLineQuantity(item?.quantity, 0) > 0
+          ? 1
+          : 0
+        : normalizeLineQuantity(item?.quantity, 0)
+      : 0;
+  const siblingQuantity = Math.max(0, currentProductQuantity - currentLineQuantity);
+  const reusableCommittedQuantity = shouldReuseCommittedInventory(document) ? currentProductQuantity : 0;
+  return Math.max(0, getProductStockQuantity(product) + reusableCommittedQuantity - siblingQuantity);
+};
+
+const resolveLineItemMaxQuantity = (document, item, productById) => {
+  const productId = Number(item?.productId);
+  if (!Number.isFinite(productId) || productId <= 0) return null;
+  const product = productById.get(productId);
+  if (!product) return null;
+  if (isPerHeadRateLabel(item?.unitLabel || resolveProductUnitLabel(product))) {
+    return null;
+  }
+  return resolveProductRemainingStock(document, item, product);
+};
+
+const clearLegacyDraftLineItemPlaceholders = (items, sourceType) => {
+  if (sourceType !== "manual") return items;
+  return items.map((item) => {
+    if (isHeadingLineItem(item) || isNoteLineItem(item)) return item;
+    const isLegacyBlankRow =
+      !item.productId &&
+      normalizeSearchText(item.name) === "item" &&
+      Number(item.quantity || 0) === 1 &&
+      Number(item.unitPrice || 0) === 0;
+    return isLegacyBlankRow ? { ...item, name: "" } : item;
+  });
+};
+
+const summarizeLineItems = (items) =>
+  normalizeLineItems(items).reduce(
+    (accumulator, item) => {
+      accumulator.rows += 1;
+      if (isHeadingLineItem(item)) {
+        accumulator.headingCount += 1;
+        return accumulator;
+      }
+      if (isNoteLineItem(item)) return accumulator;
+      accumulator.count += 1;
+      accumulator.quantity += Number(item.quantity) || 0;
+      accumulator.priceTotal += Number(item.unitPrice) || 0;
+      accumulator.total += Number(item.total) || 0;
+      return accumulator;
+    },
+    { rows: 0, count: 0, headingCount: 0, quantity: 0, priceTotal: 0, total: 0 }
+  );
 
 const normalizeExpenses = (expenses) => {
   if (!Array.isArray(expenses)) return [];
@@ -210,8 +680,76 @@ const normalizeExpenseList = (payload) => {
   return { expenses: normalized, total };
 };
 
+const parseStoredArrayField = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeAdditionalItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((item, index) => {
+    const quantity = Math.max(0, normalizeLineQuantity(item?.quantity, 1));
+    const unitPrice = Math.max(0, toNumber(item?.unitPrice, 0));
+    return {
+      id: item?.id || `extra-${index + 1}`,
+      description: String(item?.description || ""),
+      quantity,
+      unitLabel: normalizeLineUnitLabel(item?.unitLabel),
+      unitPrice,
+      total: Number((quantity * unitPrice).toFixed(2)),
+    };
+  });
+};
+
+const createAdditionalItem = (overrides = {}) => {
+  const id = overrides.id || `extra-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const quantity = Math.max(0, normalizeLineQuantity(overrides.quantity, 1));
+  const unitPrice = Math.max(0, toNumber(overrides.unitPrice, 0));
+  return {
+    id,
+    description: String(overrides.description || ""),
+    quantity,
+    unitLabel: normalizeLineUnitLabel(overrides.unitLabel),
+    unitPrice,
+    total: Number((quantity * unitPrice).toFixed(2)),
+  };
+};
+
 const buildEntryKey = (sourceType, sourceId, id = null) =>
   sourceType === "manual" ? `manual-${id}` : `${sourceType}-${sourceId}`;
+
+const parseEntryKey = (entryKey) => {
+  const raw = String(entryKey || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("manual-")) {
+    return {
+      sourceType: "manual",
+      sourceId: null,
+      id: Number(raw.slice("manual-".length)) || null,
+    };
+  }
+  if (raw.startsWith("orders-")) {
+    return {
+      sourceType: "orders",
+      sourceId: Number(raw.slice("orders-".length)) || null,
+      id: null,
+    };
+  }
+  if (raw.startsWith("bookings-")) {
+    return {
+      sourceType: "bookings",
+      sourceId: Number(raw.slice("bookings-".length)) || null,
+      id: null,
+    };
+  }
+  return null;
+};
 
 const buildSourceLabel = (sourceType, sourceId) => {
   if (sourceType === "manual") return MANUAL_SOURCE_LABEL;
@@ -219,64 +757,93 @@ const buildSourceLabel = (sourceType, sourceId) => {
   return `Order #${sourceId}`;
 };
 
-const buildEmptyDocument = (documentType, taxRate = 0) => ({
-  id: null,
-  sourceType: "manual",
-  sourceId: null,
-  documentType,
-  title: "",
-  invoiceNumber: buildDocumentNumber(documentType),
-  issueDate: todayValue(),
-  paymentStatus: "draft",
-  depositAmount: 0,
-  customer: {
-    name: "",
-    email: "",
-    phone: "",
-  },
-  event: {
-    eventDate: "",
-    startTime: "",
-    endTime: "",
-    venueAddress: "",
-  },
-  lineItems: [createLineItem()],
-  expenses: [],
-  notes: defaultNotesForType(documentType),
-  terms: defaultTermsForType(documentType),
-  taxRate,
-  docLabel: documentType === "receipt" ? "Receipt" : "Invoice",
-  sourceLabel: MANUAL_SOURCE_LABEL,
-  linkedLabel: MANUAL_LINKED_LABEL,
-  createdAt: null,
-  updatedAt: null,
-});
+const buildEmptyDocument = (documentType, taxRate = 0) =>
+  syncDueDateFlow({
+    id: null,
+    sourceType: "manual",
+    sourceId: null,
+    customerId: null,
+    documentType,
+    title: "",
+    invoiceNumber: "",
+    issueDate: todayValue(),
+    dueDate: "",
+    dueDateOption: defaultDueDateOptionForType(documentType),
+    paymentStatus: "draft",
+    depositAmount: 0,
+    discountAmount: 0,
+    customer: {
+      name: "",
+      email: "",
+      phone: "",
+    },
+    event: {
+      eventDate: "",
+      startTime: "",
+      endTime: "",
+      venueAddress: "",
+    },
+    lineItems: [createLineItem(), createLineItem()],
+    expenses: [],
+    additionalItems: [],
+    notes: defaultNotesForType(documentType),
+    terms: defaultTermsForType(documentType),
+    taxRate,
+    docLabel: documentType === "receipt" ? "Receipt" : "Invoice",
+    sourceLabel: MANUAL_SOURCE_LABEL,
+    linkedLabel: MANUAL_LINKED_LABEL,
+    stockCommittedAt: null,
+    sentAt: null,
+    sentToEmail: "",
+    createdAt: null,
+    updatedAt: null,
+  });
 
 const normalizeStoredDocument = (record) => {
   const documentType = record?.documentType === "receipt" ? "receipt" : "invoice";
+  const issueDate = normalizeDateInput(record?.issueDate) || todayValue();
+  const dueDate = normalizeDateInput(record?.dueDate);
+  const event = {
+    eventDate: normalizeDateInput(record?.eventDate),
+    startTime: String(record?.startTime || ""),
+    endTime: String(record?.endTime || ""),
+    venueAddress: String(record?.venueAddress || ""),
+  };
+  const dueDateReference = {
+    documentType,
+    issueDate,
+    event,
+  };
   return {
     id: Number(record?.id) || null,
     sourceType: record?.sourceType || "manual",
     sourceId: Number(record?.sourceId) || null,
+    customerId: Number(record?.customerId) || null,
     documentType,
     title: String(record?.title || ""),
-    invoiceNumber: String(record?.invoiceNumber || buildDocumentNumber(documentType)),
-    issueDate: normalizeDateInput(record?.issueDate) || todayValue(),
-    paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
+    invoiceNumber: getDocumentNumberValue(record?.invoiceNumber),
+    issueDate,
+    dueDate,
+    dueDateOption: inferDueDateOption(dueDateReference, dueDate),
+    paymentStatus:
+      !record?.sentAt && !getDocumentNumberValue(record?.invoiceNumber)
+        ? "draft"
+        : String(record?.paymentStatus || "draft").toLowerCase(),
     depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
+    discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
+
     customer: {
       name: String(record?.customerName || ""),
       email: String(record?.customerEmail || ""),
       phone: String(record?.customerPhone || ""),
     },
-    event: {
-      eventDate: normalizeDateInput(record?.eventDate),
-      startTime: String(record?.startTime || ""),
-      endTime: String(record?.endTime || ""),
-      venueAddress: String(record?.venueAddress || ""),
-    },
-    lineItems: normalizeLineItems(record?.lineItems),
-    expenses: normalizeExpenses(record?.expenses),
+    event,
+    lineItems: clearLegacyDraftLineItemPlaceholders(
+      ensureEditableLineItems(parseStoredArrayField(record?.lineItems)),
+      record?.sourceType || "manual"
+    ),
+    expenses: normalizeExpenses(parseStoredArrayField(record?.expenses)),
+    additionalItems: normalizeAdditionalItems(parseStoredArrayField(record?.additionalItems)),
     notes: String(record?.notes || ""),
     terms: String(record?.terms || ""),
     taxRate: parseTaxRate(record?.taxRate),
@@ -286,6 +853,9 @@ const normalizeStoredDocument = (record) => {
       record?.sourceType === "manual"
         ? MANUAL_LINKED_LABEL
         : buildSourceLabel(record?.sourceType, record?.sourceId),
+    stockCommittedAt: record?.stockCommittedAt || null,
+    sentAt: record?.sentAt || null,
+    sentToEmail: String(record?.sentToEmail || ""),
     archivedAt: record?.archivedAt || null,
     createdAt: record?.createdAt || null,
     updatedAt: record?.updatedAt || null,
@@ -304,13 +874,17 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
     id: null,
     sourceType: "orders",
     sourceId: payload?.id || null,
+    customerId: Number(payload?.customerId || payload?.customer?.id) || null,
     documentType: "receipt",
     title: payload?.orderNumber ? `Receipt ${payload.orderNumber}` : "",
-    invoiceNumber:
-      payload?.invoiceNumber || (payload?.orderNumber ? `REC-${payload.orderNumber}` : buildDocumentNumber("receipt")),
+    invoiceNumber: getDocumentNumberValue(payload?.invoiceNumber),
     issueDate: normalizeDateInput(payload?.date || payload?.orderDate || payload?.createdAt) || todayValue(),
-    paymentStatus: "unpaid",
+    dueDate: "",
+    dueDateOption: defaultDueDateOptionForType("receipt"),
+    paymentStatus: "draft",
     depositAmount: 0,
+    discountAmount: 0,
+
     customer: {
       name: payload?.customer?.name || payload?.customerName || "",
       email: payload?.customer?.email || "",
@@ -322,9 +896,8 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
       endTime: "",
       venueAddress: "",
     },
-    lineItems: normalizeLineItems(
-      items.map((item, index) => {
-        const quantity = toNumber(item.quantity, 1);
+    lineItems: ensureEditableLineItems(buildDocumentSourceLineItems(items, (item, index) => {
+        const quantity = normalizeLineQuantity(item.quantity, 1);
         const unitPriceRaw = toNumber(item.unitPriceCents ?? item.unit_price ?? item.unitPrice, 0);
         const totalRaw = toNumber(item.totalCents ?? item.total_amount ?? item.total, unitPriceRaw * quantity);
         const isCents =
@@ -335,20 +908,23 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
           item.total_amount != null;
         return {
           id: item.id || `${item.productId || "item"}-${index}`,
+          productId: item.productId || null,
           name: item.name || item.Product?.name || "Item",
+          unitLabel: resolveProductUnitLabel(item),
           quantity,
           unitPrice: isCents ? unitPriceRaw / 100 : unitPriceRaw,
           total: isCents ? totalRaw / 100 : totalRaw,
         };
-      })
-    ),
+      })),
     expenses: expenseInfo.expenses,
+    additionalItems: [],
     notes: defaultNotesForType("receipt"),
     terms: defaultTermsForType("receipt"),
     taxRate: defaultTaxRate,
     docLabel: "Receipt",
     sourceLabel: "Order",
     linkedLabel: payload?.orderNumber ? `Order ${payload.orderNumber}` : `Order #${payload?.id || ""}`,
+    stockCommittedAt: null,
     createdAt: payload?.createdAt || payload?.orderDate || null,
     updatedAt: payload?.lastModifiedAt || payload?.updatedAt || null,
   };
@@ -361,43 +937,58 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
   }
   const subtotal = toNumber(payload?.totalAmount, 0) / 100;
   const expenseInfo = normalizeExpenseList(payload);
+  const issueDate = normalizeDateInput(payload?.eventDate) || todayValue();
+  const event = {
+    eventDate: normalizeDateInput(payload?.eventDate),
+    startTime: payload?.startTime || "",
+    endTime: payload?.endTime || "",
+    venueAddress: payload?.venueAddress || "",
+  };
   return {
     id: null,
     sourceType: "bookings",
     sourceId: payload?.id || null,
+    customerId: Number(payload?.customerId || payload?.customer?.id) || null,
     documentType: "invoice",
     title: payload?.id ? `Invoice Booking #${payload.id}` : "",
-    invoiceNumber: payload?.invoiceNumber || `INV-${formatDateStamp(payload?.eventDate)}-${payload?.id}`,
-    issueDate: normalizeDateInput(payload?.eventDate) || todayValue(),
-    paymentStatus: "unpaid",
+    invoiceNumber: getDocumentNumberValue(payload?.invoiceNumber),
+    issueDate,
+    dueDate: computeDueDate(
+      {
+        issueDate,
+        event,
+      },
+      defaultDueDateOptionForType("invoice")
+    ),
+    dueDateOption: defaultDueDateOptionForType("invoice"),
+    paymentStatus: "draft",
     depositAmount: Number((subtotal * 0.7).toFixed(2)),
+    discountAmount: 0,
+
     customer: {
       name: payload?.customerName || "Customer",
       email: payload?.customerEmail || "",
       phone: payload?.customerPhone || "",
     },
-    event: {
-      eventDate: normalizeDateInput(payload?.eventDate),
-      startTime: payload?.startTime || "",
-      endTime: payload?.endTime || "",
-      venueAddress: payload?.venueAddress || "",
-    },
-    lineItems: normalizeLineItems(
-      items.map((item, index) => ({
+    event,
+      lineItems: ensureEditableLineItems(buildDocumentSourceLineItems(items, (item, index) => ({
         id: item.id || `${item.productId || "item"}-${index}`,
+        productId: item.productId || null,
         name: item.productName || item.name || "Item",
-        quantity: toNumber(item.quantity, 1),
+        unitLabel: resolveProductUnitLabel(item),
+        quantity: normalizeLineQuantity(item.quantity, 1),
         unitPrice: toNumber(item.price ?? item.unitPrice, 0) / 100,
-        total: (toNumber(item.price ?? item.unitPrice, 0) / 100) * toNumber(item.quantity, 1),
-      }))
-    ),
+        total: (toNumber(item.price ?? item.unitPrice, 0) / 100) * normalizeLineQuantity(item.quantity, 1),
+      }))),
     expenses: expenseInfo.expenses,
+    additionalItems: [],
     notes: defaultNotesForType("invoice"),
     terms: defaultTermsForType("invoice"),
     taxRate: defaultTaxRate,
     docLabel: "Invoice",
     sourceLabel: "Booking",
     linkedLabel: payload?.id ? `Booking #${payload.id}` : "Booking",
+    stockCommittedAt: null,
     createdAt: payload?.createdAt || payload?.eventDate || null,
     updatedAt: payload?.lastModifiedAt || payload?.updatedAt || null,
   };
@@ -409,12 +1000,16 @@ const mergeDocument = (baseDocument, savedDocument) => {
     ...baseDocument,
     ...savedDocument,
     id: savedDocument.id || null,
+    customerId: Number(savedDocument.customerId ?? baseDocument.customerId) || null,
     documentType: savedDocument.documentType || baseDocument.documentType,
     title: savedDocument.title || baseDocument.title,
     invoiceNumber: savedDocument.invoiceNumber || baseDocument.invoiceNumber,
     issueDate: savedDocument.issueDate || baseDocument.issueDate,
+    dueDate: savedDocument.dueDate ?? baseDocument.dueDate,
+    dueDateOption: savedDocument.dueDateOption || baseDocument.dueDateOption,
     paymentStatus: savedDocument.paymentStatus || baseDocument.paymentStatus,
     depositAmount: toNumber(savedDocument.depositAmount, baseDocument.depositAmount),
+    discountAmount: toNumber(savedDocument.discountAmount, baseDocument.discountAmount),
     customer: {
       ...baseDocument.customer,
       ...(savedDocument.customer || {}),
@@ -423,26 +1018,60 @@ const mergeDocument = (baseDocument, savedDocument) => {
       ...baseDocument.event,
       ...(savedDocument.event || {}),
     },
-    lineItems: normalizeLineItems(savedDocument.lineItems),
+    lineItems: ensureEditableLineItems(savedDocument.lineItems),
     expenses: normalizeExpenses(savedDocument.expenses),
+    additionalItems: normalizeAdditionalItems(savedDocument.additionalItems ?? baseDocument.additionalItems),
     notes: savedDocument.notes ?? baseDocument.notes,
     terms: savedDocument.terms ?? baseDocument.terms,
     taxRate: parseTaxRate(savedDocument.taxRate ?? baseDocument.taxRate),
     updatedAt: savedDocument.updatedAt || baseDocument.updatedAt,
     createdAt: savedDocument.createdAt || baseDocument.createdAt,
+    stockCommittedAt: savedDocument.stockCommittedAt || baseDocument.stockCommittedAt || null,
+    sentAt: savedDocument.sentAt || baseDocument.sentAt || null,
+    sentToEmail: savedDocument.sentToEmail || baseDocument.sentToEmail || "",
     sourceLabel: baseDocument.sourceLabel,
     linkedLabel: baseDocument.linkedLabel,
     docLabel: savedDocument.documentType === "receipt" ? "Receipt" : savedDocument.documentType === "invoice" ? "Invoice" : baseDocument.docLabel,
   };
 };
 
+const clampDocumentLineItemsToStock = (document, productById = new Map()) => {
+  const lineItems = normalizeLineItems(document?.lineItems);
+  let didClamp = false;
+  const nextLineItems = lineItems.map((item) => {
+    if (isHeadingLineItem(item) || isNoteLineItem(item) || !item.productId) return item;
+    const maxQuantity = resolveLineItemMaxQuantity({ ...document, lineItems }, item, productById);
+    if (maxQuantity == null || item.quantity <= maxQuantity) return item;
+    didClamp = true;
+    return {
+      ...item,
+      quantity: maxQuantity,
+    };
+  });
+
+  if (!didClamp) {
+    return {
+      ...document,
+      lineItems,
+    };
+  }
+
+  return {
+    ...document,
+    lineItems: nextLineItems,
+  };
+};
+
 const computeDocumentSummary = (document) => {
   const lineItems = normalizeLineItems(document?.lineItems);
   const expenses = normalizeExpenses(document?.expenses);
+  const additionalItems = normalizeAdditionalItems(document?.additionalItems);
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const additionalTotal = Number(additionalItems.reduce((sum, item) => sum + item.total, 0).toFixed(2));
   const taxRate = parseTaxRate(document?.taxRate);
-  const taxTotal = Number((subtotal * taxRate).toFixed(2));
-  const grandTotal = Number((subtotal + taxTotal).toFixed(2));
+  const discountTotal = Number(document?.discountAmount)
+  const taxTotal = Number(((subtotal + additionalTotal) * taxRate).toFixed(2));
+  const grandTotal = Number((subtotal + additionalTotal + taxTotal - discountTotal).toFixed(2));
   const rawDeposit = document?.documentType === "invoice" ? Math.max(0, toNumber(document?.depositAmount, 0)) : 0;
   const depositAmount = Math.min(rawDeposit, grandTotal);
   const amountPaid = document?.paymentStatus === "paid" ? grandTotal : depositAmount;
@@ -454,12 +1083,15 @@ const computeDocumentSummary = (document) => {
     docLabel: document?.documentType === "receipt" ? "Receipt" : "Invoice",
     lineItems,
     expenses,
+    additionalItems,
     summary: {
       subtotal,
+      additionalTotal,
       taxRate,
       taxTotal,
       grandTotal,
       depositAmount,
+      discountTotal,
       amountPaid,
       balanceDue,
       expensesTotal,
@@ -467,16 +1099,24 @@ const computeDocumentSummary = (document) => {
   };
 };
 
+const normalizeSavedDocumentRecord = (record) =>
+  computeDocumentSummary(normalizeStoredDocument(record));
+
 const buildStoredPayload = (document) => ({
   id: document.id,
   sourceType: document.sourceType,
   sourceId: document.sourceId,
+  customerId: document.customerId || null,
   documentType: document.documentType,
-  title: document.title || `${document.docLabel} ${document.invoiceNumber}`.trim(),
-  invoiceNumber: document.invoiceNumber,
+  title: getDocumentDisplayHeading(document),
+  invoiceNumber: getDocumentNumberValue(document.invoiceNumber),
   issueDate: document.issueDate,
-  paymentStatus: document.paymentStatus,
+  dueDate: document.dueDate || computeDueDate(document, document.dueDateOption),
+  paymentStatus: isUnsentDraftDocument(document) ? "draft" : document.paymentStatus,
+  sentAt: document.sentAt || null,
+  sentToEmail: document.sentToEmail || "",
   depositAmount: document.documentType === "invoice" ? toNumber(document.depositAmount, 0) : 0,
+  discountAmount: document.documentType === "invoice" ? toNumber(document.discountAmount, 0) : 0,
   customerName: document.customer?.name || "",
   customerEmail: document.customer?.email || "",
   customerPhone: document.customer?.phone || "",
@@ -486,6 +1126,7 @@ const buildStoredPayload = (document) => ({
   venueAddress: document.event?.venueAddress || "",
   lineItems: normalizeLineItems(document.lineItems),
   expenses: normalizeExpenses(document.expenses),
+  additionalItems: normalizeAdditionalItems(document.additionalItems),
   notes: document.notes || "",
   terms: document.terms || "",
   taxRate: parseTaxRate(document.taxRate),
@@ -497,163 +1138,181 @@ function DocumentPill({ value }) {
   return <span className={`invoice-pill ${statusClass}`}>{normalized}</span>;
 }
 
-function DocumentPreview({ document, companyConfig }) {
-  const summary = document.summary;
-  const lineItemSummary = document.lineItems.reduce(
-    (accumulator, item) => {
-      accumulator.count += 1;
-      accumulator.quantity += Number(item.quantity) || 0;
-      accumulator.unitPrice += Number(item.unitPrice) || 0;
-      accumulator.total += Number(item.total) || 0;
-      return accumulator;
-    },
-    { count: 0, quantity: 0, unitPrice: 0, total: 0 }
+function DocumentSentBanner({ sentAt }) {
+  if (!sentAt) return null;
+  return (
+    <div className="invoice-sent-banner" aria-label="Document sent status">
+      <strong>Sent</strong>
+    </div>
+  );
+}
+
+function InvoiceCustomerPicker({
+  value,
+  onChange,
+  onClear,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  menuOpen,
+  options,
+  selectedCustomerId,
+  onSelectCustomer,
+  customerError = "",
+}) {
+  return (
+    <div className="invoice-customer-picker">
+      <SearchField
+        value={value}
+        onChange={onChange}
+        onClear={onClear}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        placeholder="Search customer"
+        aria-label="Search customer"
+        inputClassName="invoice-customer-picker-input"
+      />
+      {menuOpen ? (
+        options.length ? (
+          <div className="invoice-customer-picker-menu" role="listbox" aria-label="Customer directory">
+            {options.map((customer) => {
+              const isActive = String(customer.id) === String(selectedCustomerId);
+              return (
+                <button
+                  key={customer.id}
+                  type="button"
+                  className={`invoice-customer-picker-option ${isActive ? "is-active" : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => onSelectCustomer(String(customer.id))}
+                >
+                  <span>{customer.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null
+      ) : null}
+      {customerError ? <p className="invoice-customer-picker-note">{customerError}</p> : null}
+    </div>
+  );
+}
+
+function InvoiceProductPicker({
+  value,
+  onChange,
+  onSelectProduct,
+  products,
+  document,
+  currentItem,
+  selectedProductId,
+  disabled = false,
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const normalizedQuery = normalizeSearchText(value);
+  const availableProducts = useMemo(
+    () =>
+      Array.isArray(products)
+        ? products.filter((product) => {
+            if (getProductStockQuantity(product) <= 0) return false;
+            if (!document || !currentItem) return true;
+            if (String(product.id) === String(selectedProductId)) return true;
+            if (!isRentalProduct(product)) return true;
+            return (resolveProductRemainingStock(document, currentItem, product) || 0) > 0;
+          })
+        : [],
+    [currentItem, document, products, selectedProductId]
   );
 
+  const filteredOptions = useMemo(() => {
+    if (!availableProducts.length) return [];
+    const source = normalizedQuery
+      ? availableProducts.filter((product) => matchesProductSearch(product, normalizedQuery))
+      : availableProducts;
+    return source.slice(0, normalizedQuery ? 12 : 8);
+  }, [availableProducts, normalizedQuery]);
+
+  const commitTypedProduct = useCallback(() => {
+    const typedValue = String(value || "").trim();
+    if (!typedValue) {
+      setMenuOpen(false);
+      return;
+    }
+    const lowered = typedValue.toLowerCase();
+    const matchedProduct =
+      availableProducts.find((product) => {
+        const nameMatch = normalizeSearchText(product.name) === normalizeSearchText(typedValue);
+        const skuMatch = String(product.sku || "").trim().toLowerCase() === lowered;
+        const barcodeMatch = String(product.barcode || "").trim().toLowerCase() === lowered;
+        return nameMatch || skuMatch || barcodeMatch;
+      }) || null;
+    if (matchedProduct) {
+      onSelectProduct(matchedProduct);
+    }
+    setMenuOpen(false);
+  }, [availableProducts, onSelectProduct, value]);
+
   return (
-    <div className="invoice-paper invoice-hub-paper">
-      <div className="invoice-header">
-        <div className="invoice-brand">
-          <img className="invoice-logo" src={COMPANY.logo} alt="Reebs logo" />
-          <div>
-            <h2>{companyConfig.storeName || COMPANY.name}</h2>
-            <p>{companyConfig.storeAddress || COMPANY.location}</p>
-            <p>{companyConfig.storePhone || COMPANY.phone}</p>
-            <p>{companyConfig.storeEmail || COMPANY.email}</p>
+    <div className="invoice-product-picker">
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setMenuOpen(true);
+        }}
+        onFocus={() => {
+          if (!disabled) setMenuOpen(true);
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setMenuOpen(false);
+          }, 120);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commitTypedProduct();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setMenuOpen(false);
+          }
+        }}
+        className="invoice-product-picker-input"
+        placeholder="Search product, SKU or barcode"
+        disabled={disabled}
+        aria-label="Search product"
+      />
+      {menuOpen && !disabled ? (
+        filteredOptions.length ? (
+          <div className="invoice-product-picker-menu" role="listbox" aria-label="Product directory">
+            {filteredOptions.map((product) => {
+              const isActive = String(product.id) === String(selectedProductId);
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  className={`invoice-product-picker-option ${isActive ? "is-active" : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onSelectProduct(product);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span>{product.name}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
-        <div className="invoice-meta">
-          <p className="invoicing-label">{document.docLabel}</p>
-          <h3>#{document.invoiceNumber}</h3>
-          <p>{formatShortDate(document.issueDate)}</p>
-        </div>
-      </div>
-
-      <div className="invoice-chip-row">
-        <DocumentPill value={document.paymentStatus} />
-        <span className="invoice-chip-detail">{document.linkedLabel}</span>
-        {document.documentType === "invoice" ? (
-          <span className="invoice-chip-detail">
-            Balance {formatCurrency(summary.balanceDue, companyConfig.currency)}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="invoice-hub-preview-grid">
-        <article className="bubble-card invoice-hub-mini-card">
-          <p className="invoicing-label">Bill to</p>
-          <strong>{document.customer?.name || "Customer"}</strong>
-          <span>{document.customer?.phone || "No phone"}</span>
-          <span>{document.customer?.email || "No email"}</span>
-        </article>
-
-        {document.sourceType === "bookings" || document.event?.eventDate || document.event?.venueAddress ? (
-          <article className="bubble-card invoice-hub-mini-card">
-            <p className="invoicing-label">Event</p>
-            <strong>{formatShortDate(document.event?.eventDate)}</strong>
-            <span>
-              {[document.event?.startTime, document.event?.endTime].filter(Boolean).join(" - ") || "Time pending"}
+        ) : (
+          <div className="invoice-product-picker-menu invoice-product-picker-menu--empty">
+            <span className="invoice-product-picker-empty">
+              {availableProducts.length ? "No matching in-stock product" : "No in-stock products"}
             </span>
-            <span>{document.event?.venueAddress || "Venue pending"}</span>
-          </article>
-        ) : null}
-      </div>
-
-      <div className="invoice-table-wrapper">
-        <table className="invoice-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Unit</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {document.lineItems.map((item, index) => (
-              <tr key={item.id}>
-                <td data-label="#">{index}</td>
-                <td data-label="Description">{item.name || "Item"}</td>
-                <td data-label="Qty">{item.quantity}</td>
-                <td data-label="Unit">{formatCurrency(item.unitPrice, companyConfig.currency)}</td>
-                <td data-label="Total">{formatCurrency(item.total, companyConfig.currency)}</td>
-              </tr>
-            ))}
-          </tbody>
-          {document.lineItems.length > 0 && (
-            <tfoot className="admin-table-footer">
-              <tr>
-                <td className="admin-table-summary-cell is-count">
-                  <span className="admin-table-summary-value">{lineItemSummary.count} items</span>
-                </td>
-                <td className="admin-table-summary-cell is-empty" />
-                <td className="admin-table-summary-cell">
-                  <span className="admin-table-summary-value">{lineItemSummary.quantity}</span>
-                </td>
-                <td className="admin-table-summary-cell">
-                  <span className="admin-table-summary-value">
-                    {formatCurrency(
-                      lineItemSummary.count ? lineItemSummary.unitPrice / lineItemSummary.count : 0,
-                      companyConfig.currency
-                    )}
-                  </span>
-                </td>
-                <td className="admin-table-summary-cell">
-                  <span className="admin-table-summary-value">
-                    {formatCurrency(lineItemSummary.total, companyConfig.currency)}
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-
-      <div className="invoice-hub-preview-footer">
-        <div className="invoice-note-block">
-          <h4>Note</h4>
-          <div className="invoice-terms">
-            <p>{document.notes || "No note added."}</p>
           </div>
-          <h4>Terms</h4>
-          <div className="invoice-terms">
-            <p>{document.terms || defaultTermsForType(document.documentType)}</p>
-          </div>
-        </div>
-
-        <div className="bubble-card invoice-summary-panel">
-          <p className="invoicing-label">Summary</p>
-          <div className="invoice-totals">
-            <div className="invoice-total-row">
-              <span>Subtotal</span>
-              <span>{formatCurrency(summary.subtotal, companyConfig.currency)}</span>
-            </div>
-            {(summary.taxRate || 0) > 0 ? (
-              <div className="invoice-total-row">
-                <span>Tax</span>
-                <span>{formatCurrency(summary.taxTotal, companyConfig.currency)}</span>
-              </div>
-            ) : null}
-            <div className="invoice-total-row grand">
-              <strong>Total</strong>
-              <strong>{formatCurrency(summary.grandTotal, companyConfig.currency)}</strong>
-            </div>
-            {document.documentType === "invoice" ? (
-              <>
-                <div className="invoice-total-row">
-                  <span>Deposit</span>
-                  <span>{formatCurrency(summary.depositAmount, companyConfig.currency)}</span>
-                </div>
-                <div className="invoice-total-row">
-                  <span>Balance</span>
-                  <span>{formatCurrency(summary.balanceDue, companyConfig.currency)}</span>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </div>
+        )
+      ) : null}
     </div>
   );
 }
@@ -663,29 +1322,72 @@ function EditableDocumentTemplate({
   companyConfig,
   onDocumentChange,
   onCustomerChange,
+  customerPickerProps,
+  productOptions,
+  productById,
+  productLoading,
+  productError,
   onEventChange,
   onLineItemChange,
+  onLineItemDescriptionChange,
+  onLineItemSelectProduct,
   onAddLineItem,
+  onAddHeadingLine,
+  onAddNoteLine,
+  onMoveLineItem,
   onRemoveLineItem,
+  onAdditionalItemChange,
+  onAddAdditionalItem,
+  onRemoveAdditionalItem,
 }) {
   const summary = document.summary;
-  const lineItemSummary = document.lineItems.reduce(
-    (accumulator, item) => {
-      accumulator.count += 1;
-      accumulator.quantity += Number(item.quantity) || 0;
-      accumulator.unitPrice += Number(item.unitPrice) || 0;
-      accumulator.total += Number(item.total) || 0;
-      return accumulator;
-    },
-    { count: 0, quantity: 0, unitPrice: 0, total: 0 }
-  );
+  const lineItemSummary = summarizeLineItems(document.lineItems);
+  const [draggedRowId, setDraggedRowId] = useState(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
   const showEventCard =
-    document.sourceType === "bookings" ||
-    document.sourceType === "manual" ||
+    document.documentType === "invoice" ||
     document.event?.eventDate ||
     document.event?.venueAddress ||
     document.event?.startTime ||
     document.event?.endTime;
+
+  const handleRowDragStart = useCallback((event, itemId) => {
+    setDraggedRowId(itemId);
+    setDropTargetId(itemId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", itemId);
+  }, []);
+
+  const handleRowDragEnd = useCallback(() => {
+    setDraggedRowId(null);
+    setDropTargetId(null);
+  }, []);
+
+  const handleRowDragOver = useCallback(
+    (event, targetId) => {
+      if (!draggedRowId || draggedRowId === targetId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTargetId(targetId);
+    },
+    [draggedRowId]
+  );
+
+  const handleRowDrop = useCallback(
+    (event, targetId) => {
+      event.preventDefault();
+      const sourceId = draggedRowId || event.dataTransfer.getData("text/plain");
+      if (!sourceId || sourceId === targetId) {
+        setDraggedRowId(null);
+        setDropTargetId(null);
+        return;
+      }
+      onMoveLineItem(sourceId, targetId);
+      setDraggedRowId(null);
+      setDropTargetId(null);
+    },
+    [draggedRowId, onMoveLineItem]
+  );
 
   return (
     <div className="invoice-paper invoice-hub-paper invoice-editable-paper">
@@ -700,88 +1402,98 @@ function EditableDocumentTemplate({
           </div>
         </div>
 
-        <div className="invoice-meta invoice-editable-meta">
-          <label className="invoice-editable-meta-field">
-            <span className="invoicing-label">Type</span>
-            <select
-              value={document.documentType}
-              onChange={(event) =>
-                onDocumentChange((current) => ({
-                  ...current,
-                  documentType: event.target.value,
-                  docLabel: event.target.value === "receipt" ? "Receipt" : "Invoice",
-                  terms:
-                    current.terms === defaultTermsForType(current.documentType)
-                      ? defaultTermsForType(event.target.value)
-                      : current.terms,
-                  notes:
-                    current.notes === defaultNotesForType(current.documentType)
-                      ? defaultNotesForType(event.target.value)
-                      : current.notes,
-                }))
-              }
-              disabled={document.sourceType !== "manual"}
-            >
-              <option value="receipt">Receipt</option>
-              <option value="invoice">Invoice</option>
-            </select>
-          </label>
+        <div className="invoice-editable-meta-wrap">
+          <DocumentSentBanner sentAt={document.sentAt} />
+          <div className="invoice-meta invoice-editable-meta">
+            <label className="invoice-editable-meta-field">
+              <span className="invoicing-label">Type</span>
+              <select
+                value={document.documentType}
+                onChange={(event) =>
+                  onDocumentChange((current) => ({
+                    ...current,
+                    documentType: event.target.value,
+                    docLabel: event.target.value === "receipt" ? "Receipt" : "Invoice",
+                  }))
+                }
+                disabled={document.sourceType !== "manual"}
+              >
+                <option value="receipt">Receipt</option>
+                <option value="invoice">Invoice</option>
+              </select>
+            </label>
 
-          <label className="invoice-editable-meta-field">
-            <span className="invoicing-label">No.</span>
-            <div className="invoice-editable-static-field">{document.invoiceNumber}</div>
-          </label>
+            <label className="invoice-editable-meta-field">
+              <span className="invoicing-label">Date</span>
+              <input
+                type="date"
+                value={document.issueDate}
+                onChange={(event) => onDocumentChange({ issueDate: event.target.value })}
+              />
+            </label>
+            <label className="invoice-editable-meta-field">
+              <span className="invoicing-label">Status</span>
+              <select
+                value={document.paymentStatus}
+                onChange={(event) => onDocumentChange({ paymentStatus: event.target.value })}
+                disabled={isUnsentDraftDocument(document)}
+              >
+                {PAYMENT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="invoice-editable-meta-field">
-            <span className="invoicing-label">Date</span>
-            <input
-              type="date"
-              value={document.issueDate}
-              onChange={(event) => onDocumentChange({ issueDate: event.target.value })}
-            />
-          </label>
+            <label className="invoice-editable-meta-field invoice-editable-field-full">
+              <span className="invoicing-label">Due date</span>
+              <div className="invoice-editable-due-date-row">
+                <select
+                  value={document.dueDateOption || defaultDueDateOptionForType(document.documentType)}
+                  onChange={(event) => onDocumentChange({ dueDateOption: event.target.value })}
+                >
+                  {DUE_DATE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={document.dueDate || ""}
+                  aria-label="Actual due date"
+                  onChange={(event) =>
+                    onDocumentChange({
+                      dueDate: event.target.value,
+                      dueDateOption: event.target.value ? "custom" : "none",
+                    })
+                  }
+                />
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 
+      {document.documentType === "invoice" ? (
       <div className="invoice-chip-row invoice-editable-chip-row">
-        <label className="invoice-editable-status">
-          <span className="invoicing-label">Status</span>
-          <select
-            value={document.paymentStatus}
-            onChange={(event) => onDocumentChange({ paymentStatus: event.target.value })}
-          >
-            {PAYMENT_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
 
-        <span className="invoice-chip-detail">
-          {document.sourceType === "manual" ? MANUAL_LINKED_NOTE : document.linkedLabel}
-        </span>
-
-        {document.documentType === "invoice" ? (
           <span className="invoice-chip-detail">
             Balance {formatCurrency(summary.balanceDue, companyConfig.currency)}
           </span>
-        ) : null}
+        
       </div>
-
+      ) : null}
       <div className="invoice-hub-preview-grid invoice-editable-top-grid">
-        <article className="bubble-card invoice-hub-mini-card invoice-editable-card">
+        <article className="invoice-hub-mini-card invoice-editable-card">
           <p className="invoicing-label">Bill to</p>
           <div className="invoice-editable-card-grid">
             <label className="invoice-editable-field invoice-editable-field-full">
               <span>Customer</span>
-              <input
-                type="text"
-                value={document.customer?.name || ""}
-                onChange={(event) => onCustomerChange("name", event.target.value)}
-              />
+              <InvoiceCustomerPicker {...customerPickerProps} />
             </label>
-            <label className="invoice-editable-field">
+            <label className="invoice-editable-field invoice-editable-field-full">
               <span>Phone</span>
               <input
                 type="text"
@@ -801,10 +1513,10 @@ function EditableDocumentTemplate({
         </article>
 
         {showEventCard ? (
-          <article className="bubble-card invoice-hub-mini-card invoice-editable-card">
+          <article className="invoice-hub-mini-card invoice-editable-card">
             <p className="invoicing-label">Event</p>
             <div className="invoice-editable-card-grid">
-              <label className="invoice-editable-field">
+              <label className="invoice-editable-field invoice-editable-field-full">
                 <span>Date</span>
                 <input
                   type="date"
@@ -846,120 +1558,369 @@ function EditableDocumentTemplate({
       <section className="invoice-editable-lines-panel">
         <div className="invoice-editable-lines-head">
           <div>
-            <p className="invoicing-label">Lines</p>
-            <h4>Items on this document</h4>
+            <h4>Product Items</h4>
+            {productLoading ? <p className="invoice-editable-lines-helper">Loading products...</p> : null}
+            {!productLoading && productError ? (
+              <p className="invoice-editable-lines-helper">{productError}</p>
+            ) : null}
           </div>
 
           <div className="invoice-editable-actions">
-            <span className="invoice-editable-lines-count">{document.lineItems.length} lines</span>
+            <span className="invoice-editable-lines-count">{lineItemSummary.rows} rows</span>
             <button
               type="button"
               className="admin-secondary invoice-hub-inline-action"
-              onClick={onAddLineItem}
+              onClick={onAddHeadingLine}
             >
-              <AppIcon icon={faPlus} />
-              Add line
+              Heading
+            </button>
+            <button
+              type="button"
+              className="admin-secondary invoice-hub-inline-action"
+              onClick={onAddNoteLine}
+            >
+              Note
             </button>
           </div>
         </div>
 
-        <div className="invoice-table-wrapper invoice-editable-table-wrapper">
-          <table className="invoice-table invoice-editable-table">
+        <div className="admin-table invoice-editable-table-shell">
+          <div className="admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
+          <table className="invoice-editable-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit</th>
-                <th>Total</th>
-                <th />
+                <th className="invoice-editable-col-add" data-column="add" aria-label="Add row" />
+                <th className="invoice-editable-col-description" data-column="description">Description</th>
+                <th className="invoice-editable-col-qty" data-column="quantity">Qty</th>
+                <th className="invoice-editable-col-price" data-column="price">Price</th>
+                <th className="invoice-editable-col-unit" data-column="unit">Rate</th>
+                <th className="invoice-editable-col-total" data-column="total">Total</th>
+                <th className="invoice-editable-col-actions" data-column="actions" />
               </tr>
             </thead>
             <tbody>
               {document.lineItems.map((item, index) => (
-                <tr key={item.id}>
-                  <td data-label="#">{index}</td>
-                  <td data-label="Description">
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(event) => onLineItemChange(item.id, "name", event.target.value)}
-                      aria-label={`Line ${index} description`}
-                    />
-                  </td>
-                  <td data-label="Qty">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.quantity}
-                      onChange={(event) => onLineItemChange(item.id, "quantity", event.target.value)}
-                      aria-label={`Line ${index} quantity`}
-                    />
-                  </td>
-                  <td data-label="Unit">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(event) => onLineItemChange(item.id, "unitPrice", event.target.value)}
-                      aria-label={`Line ${index} unit price`}
-                    />
-                  </td>
-                  <td data-label="Total">
-                    <strong>{formatCurrency(item.total, companyConfig.currency)}</strong>
-                  </td>
-                  <td data-label="">
-                    <button
-                      type="button"
-                      className="invoice-hub-line-remove"
-                      onClick={() => onRemoveLineItem(item.id)}
-                      disabled={document.lineItems.length <= 1}
-                      aria-label={`Remove line ${index}`}
-                    >
-                      <AppIcon icon={faXmark} />
-                    </button>
-                  </td>
-                </tr>
+                isHeadingLineItem(item) ? (
+                  <tr
+                    key={item.id}
+                    className={`invoice-editable-table-row is-heading${dropTargetId === item.id && draggedRowId !== item.id ? " is-drop-target" : ""}`}
+                    draggable="true"
+                    onDragStart={(event) => handleRowDragStart(event, item.id)}
+                    onDragEnd={handleRowDragEnd}
+                    onDragOver={(event) => handleRowDragOver(event, item.id)}
+                    onDrop={(event) => handleRowDrop(event, item.id)}
+                  >
+                    <td className="invoice-editable-col-add" data-column="add" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-editable-row-add"
+                        onClick={() => onAddLineItem(item.id)}
+                        aria-label={`Add row below heading ${index}`}
+                      >
+                        <AppIcon icon={faPlus} />
+                      </button>
+                    </td>
+                    <td className="invoice-editable-col-description invoice-editable-col-merged" data-column="description" data-label="Heading" colSpan={5}>
+                      <div className="invoice-heading-builder">
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(event) =>
+                            onLineItemDescriptionChange(item.id, event.target.value, "heading")
+                          }
+                          placeholder="Rental items"
+                          aria-label={`Heading ${index}`}
+                        />
+                      </div>
+                    </td>
+                    <td className="invoice-editable-col-actions" data-column="actions" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-hub-line-remove"
+                        onClick={() => onRemoveLineItem(item.id)}
+                        disabled={document.lineItems.length <= 1}
+                        aria-label={`Remove heading ${index}`}
+                      >
+                        <AppIcon icon={faXmark} />
+                      </button>
+                    </td>
+                  </tr>
+                ) : isNoteLineItem(item) ? (
+                  <tr
+                    key={item.id}
+                    className={`invoice-editable-table-row is-note${dropTargetId === item.id && draggedRowId !== item.id ? " is-drop-target" : ""}`}
+                    draggable="true"
+                    onDragStart={(event) => handleRowDragStart(event, item.id)}
+                    onDragEnd={handleRowDragEnd}
+                    onDragOver={(event) => handleRowDragOver(event, item.id)}
+                    onDrop={(event) => handleRowDrop(event, item.id)}
+                  >
+                    <td className="invoice-editable-col-add" data-column="add" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-editable-row-add"
+                        onClick={() => onAddLineItem(item.id)}
+                        aria-label={`Add row below note ${index}`}
+                      >
+                        <AppIcon icon={faPlus} />
+                      </button>
+                    </td>
+                    <td className="invoice-editable-col-description invoice-editable-col-merged" data-column="description" data-label="Note" colSpan={5}>
+                      <div className="invoice-note-builder">
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(event) =>
+                            onLineItemDescriptionChange(item.id, event.target.value, "note")
+                          }
+                          placeholder="Pickup note"
+                          aria-label={`Note ${index}`}
+                        />
+                      </div>
+                    </td>
+                    <td className="invoice-editable-col-actions" data-column="actions" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-hub-line-remove"
+                        onClick={() => onRemoveLineItem(item.id)}
+                        disabled={document.lineItems.length <= 1}
+                        aria-label={`Remove note ${index}`}
+                      >
+                        <AppIcon icon={faXmark} />
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={item.id}
+                    className={`invoice-editable-table-row${dropTargetId === item.id ? " is-drop-target" : ""}`}
+                    onDragOver={(event) => handleRowDragOver(event, item.id)}
+                    onDrop={(event) => handleRowDrop(event, item.id)}
+                  >
+                    <td className="invoice-editable-col-add" data-column="add" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-editable-row-add"
+                        onClick={() => onAddLineItem(item.id)}
+                        aria-label={`Add row below line ${index}`}
+                      >
+                        <AppIcon icon={faPlus} />
+                      </button>
+                    </td>
+                    <td className="invoice-editable-col-description" data-column="description" data-label="Description">
+                      <InvoiceProductPicker
+                        value={item.name}
+                        onChange={(nextValue) => onLineItemDescriptionChange(item.id, nextValue, "item")}
+                        onSelectProduct={(product) => onLineItemSelectProduct(item.id, product)}
+                        products={productOptions}
+                        document={document}
+                        currentItem={item}
+                        selectedProductId={item.productId}
+                      />
+                    </td>
+                    <td className="invoice-editable-col-qty" data-column="quantity" data-label="Qty">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={item.quantity}
+                        max={resolveLineItemMaxQuantity(document, item, productById) ?? undefined}
+                        onChange={(event) => onLineItemChange(item.id, "quantity", event.target.value)}
+                        aria-label={`Line ${index} quantity`}
+                        title={
+                          resolveLineItemMaxQuantity(document, item, productById) != null
+                            ? `${resolveLineItemMaxQuantity(document, item, productById)} available in stock`
+                            : "Quantity"
+                        }
+                      />
+                    </td>
+                    <td className="invoice-editable-col-price" data-column="price" data-label="Price">
+                      <div
+                        className="invoice-editable-static-field"
+                        aria-label={`Line ${index} price`}
+                      >
+                        {formatCurrency(item.unitPrice, companyConfig.currency)}
+                      </div>
+                    </td>
+                    <td className="invoice-editable-col-unit" data-column="unit" data-label="Rate">
+                      <div
+                        className="invoice-editable-static-field"
+                        aria-label={`Line ${index} rate`}
+                      >
+                        {item.unitLabel || DEFAULT_LINE_ITEM_UNIT}
+                      </div>
+                    </td>
+                    <td className="invoice-editable-col-total" data-column="total" data-label="Total">
+                      <strong>{formatCurrency(item.total, companyConfig.currency)}</strong>
+                    </td>
+                    <td className="invoice-editable-col-actions" data-column="actions" data-label="">
+                      <button
+                        type="button"
+                        className="invoice-hub-line-remove"
+                        onClick={() => onRemoveLineItem(item.id)}
+                        disabled={document.lineItems.length <= 1}
+                        aria-label={`Remove line ${index}`}
+                      >
+                        <AppIcon icon={faXmark} />
+                      </button>
+                    </td>
+                  </tr>
+                )
               ))}
             </tbody>
+            <tfoot className="admin-table-footer">
             {document.lineItems.length > 0 ? (
-              <tfoot className="admin-table-footer">
                 <tr>
-                  <td className="admin-table-summary-cell is-count">
-                    <span className="admin-table-summary-value">{lineItemSummary.count} items</span>
+                  <td className="admin-table-summary-cell is-empty invoice-editable-col-add" />
+                  <td className="admin-table-summary-cell invoice-editable-col-description">
+                    <span className="admin-table-summary-value">Totals</span>
                   </td>
-                  <td className="admin-table-summary-cell is-empty" />
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell invoice-editable-col-qty">
                     <span className="admin-table-summary-value">{lineItemSummary.quantity}</span>
                   </td>
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell invoice-editable-col-price">
                     <span className="admin-table-summary-value">
-                      {formatCurrency(
-                        lineItemSummary.count ? lineItemSummary.unitPrice / lineItemSummary.count : 0,
-                        companyConfig.currency
-                      )}
+                      {formatCurrency(lineItemSummary.priceTotal, companyConfig.currency)}
                     </span>
                   </td>
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell is-empty invoice-editable-col-unit" />
+                  <td className="admin-table-summary-cell invoice-editable-col-total">
                     <span className="admin-table-summary-value">
                       {formatCurrency(lineItemSummary.total, companyConfig.currency)}
                     </span>
                   </td>
-                  <td className="admin-table-summary-cell is-empty" />
+                  <td className="admin-table-summary-cell is-empty invoice-editable-col-actions" />
                 </tr>
-              </tfoot>
             ) : null}
+              </tfoot>
           </table>
+          </div>
         </div>
       </section>
 
-      <div className="invoice-hub-preview-footer invoice-editable-footer">
+      <section className="invoice-editable-lines-panel invoice-editable-extras-panel">
+        <div className="invoice-editable-lines-head">
+          <div>
+            <h4>Expenses</h4>
+            <p className="invoice-editable-lines-helper">Transportation, attendant fees and other charges</p>
+          </div>
+          <div className="invoice-editable-actions">
+            <span className="invoice-editable-lines-count">{(document.additionalItems || []).length} rows</span>
+            <button
+              type="button"
+              className="admin-secondary invoice-hub-inline-action"
+              onClick={onAddAdditionalItem}
+            >
+              Add row
+            </button>
+          </div>
+        </div>
+
+        <div className="admin-table invoice-editable-table-shell">
+          <div className="admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
+            <table className="invoice-editable-table invoice-extras-table">
+              <thead>
+                <tr>
+                  <th className="invoice-editable-col-description" data-column="description">Description</th>
+                  <th className="invoice-editable-col-qty" data-column="quantity">Qty</th>
+                  <th className="invoice-editable-col-unit" data-column="unit">Rate</th>
+                  <th className="invoice-editable-col-price" data-column="price">Price</th>
+                  <th className="invoice-editable-col-total" data-column="total">Total</th>
+                  <th className="invoice-editable-col-actions" data-column="actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {(document.additionalItems || []).length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="invoice-extras-empty">
+                      No expense rows yet — use &ldquo;Add row&rdquo; to add transportation, attendant fees, etc.
+                    </td>
+                  </tr>
+                ) : (
+                  (document.additionalItems || []).map((item, index) => (
+                    <tr key={item.id} className="invoice-editable-table-row">
+                      <td className="invoice-editable-col-description" data-column="description" data-label="Description">
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(event) => onAdditionalItemChange(item.id, "description", event.target.value)}
+                          placeholder="e.g. Transportation to venue"
+                          aria-label={`Expense ${index + 1} description`}
+                          className="invoice-extras-description-input"
+                        />
+                      </td>
+                      <td className="invoice-editable-col-qty" data-column="quantity" data-label="Qty">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(event) => onAdditionalItemChange(item.id, "quantity", event.target.value)}
+                          aria-label={`Expense ${index + 1} quantity`}
+                        />
+                      </td>
+                      <td className="invoice-editable-col-unit" data-column="unit" data-label="Rate">
+                        <input
+                          type="text"
+                          value={item.unitLabel}
+                          onChange={(event) => onAdditionalItemChange(item.id, "unitLabel", event.target.value)}
+                          placeholder="Per item"
+                          aria-label={`Expense ${index + 1} rate label`}
+                          className="invoice-extras-unit-input"
+                        />
+                      </td>
+                      <td className="invoice-editable-col-price" data-column="price" data-label="Price">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={(event) => onAdditionalItemChange(item.id, "unitPrice", event.target.value)}
+                          aria-label={`Expense ${index + 1} unit price`}
+                        />
+                      </td>
+                      <td className="invoice-editable-col-total" data-column="total" data-label="Total">
+                        <strong>{formatCurrency(item.total, companyConfig.currency)}</strong>
+                      </td>
+                      <td className="invoice-editable-col-actions" data-column="actions" data-label="">
+                        <button
+                          type="button"
+                          className="invoice-hub-line-remove"
+                          onClick={() => onRemoveAdditionalItem(item.id)}
+                          aria-label={`Remove expense ${index + 1}`}
+                        >
+                          <AppIcon icon={faXmark} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {(document.additionalItems || []).length > 0 ? (
+                <tfoot className="admin-table-footer">
+                  <tr>
+                    <td className="admin-table-summary-cell invoice-editable-col-description">
+                      <span className="admin-table-summary-value">Expenses total</span>
+                    </td>
+                    <td className="admin-table-summary-cell invoice-editable-col-qty" />
+                    <td className="admin-table-summary-cell invoice-editable-col-unit" />
+                    <td className="admin-table-summary-cell invoice-editable-col-price" />
+                    <td className="admin-table-summary-cell invoice-editable-col-total">
+                      <span className="admin-table-summary-value">
+                        {formatCurrency(summary.additionalTotal, companyConfig.currency)}
+                      </span>
+                    </td>
+                    <td className="admin-table-summary-cell invoice-editable-col-actions is-empty" />
+                  </tr>
+                </tfoot>
+              ) : null}
+            </table>
+          </div>
+        </div>
+      </section>
         <div className="invoice-note-block invoice-editable-note-block">
           <div className="invoice-editable-section-head">
             <p className="invoicing-label">Message</p>
-            <h4>Closing copy</h4>
           </div>
 
           <h4>Note</h4>
@@ -977,29 +1938,15 @@ function EditableDocumentTemplate({
           />
         </div>
 
-        <div className="bubble-card invoice-summary-panel invoice-editable-summary">
+        <div className="invoice-summary-panel invoice-editable-summary">
           <div className="invoice-editable-section-head">
             <p className="invoicing-label">Summary</p>
-            <h4>Totals</h4>
           </div>
 
-          <div className="invoice-editable-summary-grid">
-            <label className="invoice-editable-field">
-              <span>Tax %</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={Number((document.taxRate || 0) * 100).toFixed(2)}
-                onChange={(event) =>
-                  onDocumentChange({ taxRate: toNumber(event.target.value, 0) / 100 })
-                }
-              />
-            </label>
+          <div className="invoice-totals">
 
             {document.documentType === "invoice" ? (
-              <label className="invoice-editable-field">
+              <div className="invoice-total-row">
                 <span>Deposit</span>
                 <input
                   type="number"
@@ -1010,7 +1957,25 @@ function EditableDocumentTemplate({
                     onDocumentChange({ depositAmount: toNumber(event.target.value, 0) })
                   }
                 />
-              </label>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="invoice-totals">
+
+            {document.documentType === "invoice" ? (
+              <div className="invoice-total-row">
+                <span>Discount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={document.discountAmount}
+                  onChange={(event) =>
+                    onDocumentChange({ discountAmount: toNumber(event.target.value, 0) })
+                  }
+                />
+              </div>
             ) : null}
           </div>
 
@@ -1019,10 +1984,10 @@ function EditableDocumentTemplate({
               <span>Subtotal</span>
               <span>{formatCurrency(summary.subtotal, companyConfig.currency)}</span>
             </div>
-            {(summary.taxRate || 0) > 0 ? (
+            {summary.additionalTotal > 0 ? (
               <div className="invoice-total-row">
-                <span>Tax</span>
-                <span>{formatCurrency(summary.taxTotal, companyConfig.currency)}</span>
+                <span>Expenses</span>
+                <span>{formatCurrency(summary.additionalTotal, companyConfig.currency)}</span>
               </div>
             ) : null}
             <div className="invoice-total-row grand">
@@ -1034,6 +1999,10 @@ function EditableDocumentTemplate({
                 <div className="invoice-total-row">
                   <span>Deposit</span>
                   <span>{formatCurrency(summary.depositAmount, companyConfig.currency)}</span>
+                </div>
+                <div className="invoice-total-row">
+                  <span>Discount</span>
+                  <span>-{formatCurrency(summary.discountTotal, companyConfig.currency)}</span>
                 </div>
                 <div className="invoice-total-row">
                   <span>Balance</span>
@@ -1049,7 +2018,6 @@ function EditableDocumentTemplate({
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
@@ -1064,6 +2032,12 @@ function AdminInvoicing() {
   const [savedDocuments, setSavedDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [documentsError, setDocumentsError] = useState("");
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productError, setProductError] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [customerError, setCustomerError] = useState("");
+  const [invoiceCustomerMenuOpen, setInvoiceCustomerMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [documentFilter, setDocumentFilter] = useState("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
@@ -1074,12 +2048,24 @@ function AdminInvoicing() {
   const [saveError, setSaveError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [savingDocument, setSavingDocument] = useState(false);
+  const [autosavingDocument, setAutosavingDocument] = useState(false);
   const [creatingDocument, setCreatingDocument] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [savingPdfDocument, setSavingPdfDocument] = useState(false);
   const [emailingDocument, setEmailingDocument] = useState(false);
   const [archivingDocument, setArchivingDocument] = useState(false);
+  const [restoredEditorFromUrl, setRestoredEditorFromUrl] = useState(false);
+  const autosaveTimerRef = useRef(null);
+  const lastPersistedPayloadRef = useRef("");
+  const latestDraftPayloadRef = useRef("");
+  const currentSelectedKeyRef = useRef("");
+  const skipNextSelectedLoadKeyRef = useRef("");
+  const hasLoadedCustomersRef = useRef(false);
+  const hasLoadedProductsRef = useRef(false);
+  // Always holds the latest finalizeWorkingDocument without forcing persistDocument
+  // to re-create every time productById changes (which would re-trigger the autosave effect).
+  const finalizeWorkingDocumentRef = useRef(null);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -1103,7 +2089,7 @@ function AdminInvoicing() {
     setOrdersLoading(true);
     setOrdersError("");
     try {
-      const response = await fetch("/.netlify/functions/orders");
+      const response = await fetch("/.netlify/functions/orders?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load orders.");
@@ -1121,7 +2107,7 @@ function AdminInvoicing() {
     setBookingsLoading(true);
     setBookingsError("");
     try {
-      const response = await fetch("/.netlify/functions/bookings");
+      const response = await fetch("/.netlify/functions/bookings?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load bookings.");
@@ -1144,7 +2130,7 @@ function AdminInvoicing() {
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load invoice documents.");
       }
-      setSavedDocuments(Array.isArray(data) ? data.map(normalizeStoredDocument) : []);
+      setSavedDocuments(Array.isArray(data) ? data.map(normalizeSavedDocumentRecord) : []);
     } catch (err) {
       console.error("Invoice documents fetch failed", err);
       setDocumentsError(err.message || "Unable to load invoice documents.");
@@ -1153,13 +2139,95 @@ function AdminInvoicing() {
     }
   }, []);
 
+  const fetchCustomers = useCallback(async () => {
+    setCustomerError("");
+    try {
+      const response = await fetch("/.netlify/functions/customers");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to load customers.");
+      }
+      setCustomers(Array.isArray(data) ? data : []);
+      hasLoadedCustomersRef.current = true;
+    } catch (err) {
+      console.error("Customer fetch failed", err);
+      setCustomerError(err.message || "Customer directory is unavailable right now.");
+      setCustomers([]);
+      hasLoadedCustomersRef.current = false;
+    }
+  }, []);
+
+  const fetchProducts = useCallback(async () => {
+    setProductsLoading(true);
+    setProductError("");
+    try {
+      const response = await fetch("/.netlify/functions/inventory");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to load products.");
+      }
+      setProducts(extractInventoryItems(data));
+      hasLoadedProductsRef.current = true;
+    } catch (err) {
+      console.error("Product fetch failed", err);
+      setProductError(err.message || "Product directory is unavailable right now.");
+      setProducts([]);
+      hasLoadedProductsRef.current = false;
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([fetchOrders(), fetchBookings(), fetchSavedDocuments()]);
   }, [fetchBookings, fetchOrders, fetchSavedDocuments]);
 
+  const readDocumentKeyFromUrl = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    const searchParams = new URLSearchParams(window.location.search);
+    const documentKey = searchParams.get(DOCUMENT_QUERY_PARAM) || "";
+    if (documentKey) return documentKey;
+
+    const sourceType = String(searchParams.get("type") || "")
+      .trim()
+      .toLowerCase();
+    const sourceId = Number(searchParams.get("id"));
+    if (!Number.isFinite(sourceId) || sourceId <= 0) return "";
+    if (sourceType === "orders" || sourceType === "order") {
+      return buildEntryKey("orders", sourceId);
+    }
+    if (sourceType === "bookings" || sourceType === "booking") {
+      return buildEntryKey("bookings", sourceId);
+    }
+    return "";
+  }, []);
+
+  const syncDocumentKeyToUrl = useCallback((entryKey) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (entryKey) {
+      url.searchParams.set(DOCUMENT_QUERY_PARAM, entryKey);
+    } else {
+      url.searchParams.delete(DOCUMENT_QUERY_PARAM);
+    }
+    url.searchParams.delete("type");
+    url.searchParams.delete("id");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  useEffect(() => {
+    if (!editorOpen) return;
+    if (!hasLoadedCustomersRef.current) {
+      fetchCustomers();
+    }
+    if (!hasLoadedProductsRef.current) {
+      fetchProducts();
+    }
+  }, [editorOpen, fetchCustomers, fetchProducts]);
 
   const archivedLinkedKeys = useMemo(() => {
     const keys = new Set();
@@ -1170,6 +2238,71 @@ function AdminInvoicing() {
     });
     return keys;
   }, [savedDocuments]);
+
+  const customerById = useMemo(
+    () =>
+      new Map(
+        customers
+          .map((customer) => [Number(customer.id), customer])
+          .filter(([id]) => Number.isFinite(id) && id > 0)
+      ),
+    [customers]
+  );
+
+  const productById = useMemo(
+    () =>
+      new Map(
+        products
+          .map((product) => [Number(product.id), product])
+          .filter(([id]) => Number.isFinite(id) && id > 0)
+      ),
+    [products]
+  );
+
+  const finalizeWorkingDocument = useCallback(
+    (nextDocument, currentDocument = null) => {
+      if (!nextDocument) return null;
+      const hydratedDocument = {
+        ...nextDocument,
+        lineItems: clearLegacyDraftLineItemPlaceholders(
+          ensureEditableLineItems(nextDocument.lineItems),
+          nextDocument.sourceType
+        ),
+        expenses: normalizeExpenses(nextDocument.expenses),
+        additionalItems: normalizeAdditionalItems(nextDocument.additionalItems),
+      };
+      const policySyncedDocument = syncManagedPolicyCopy(currentDocument, hydratedDocument, productById);
+      const dueDateSyncedDocument = syncDueDateFlow(policySyncedDocument);
+      const stockClampedDocument = clampDocumentLineItemsToStock(dueDateSyncedDocument, productById);
+      return computeDocumentSummary(stockClampedDocument);
+    },
+    [productById]
+  );
+  // Keep the ref pointing at the latest version so persistDocument can call it
+  // without being re-created (and re-triggering the autosave effect) every time
+  // productById changes.
+  finalizeWorkingDocumentRef.current = finalizeWorkingDocument;
+
+  const openDocumentEditor = useCallback(
+    (entryKey, document, { saveMessage = "" } = {}) => {
+      const payloadString = JSON.stringify(buildStoredPayload(document));
+      skipNextSelectedLoadKeyRef.current = entryKey;
+      currentSelectedKeyRef.current = entryKey;
+      lastPersistedPayloadRef.current = payloadString;
+      latestDraftPayloadRef.current = payloadString;
+      writeInvoiceDraft(entryKey, document);
+      setSaveError("");
+      setSelectedError("");
+      setSelectedLoading(false);
+      setSelectedDocument(document);
+      setEditorOpen(true);
+      setSelectedKey(entryKey);
+      if (saveMessage) {
+        setSaveStatus(saveMessage);
+      }
+    },
+    []
+  );
 
   const savedLinkedMap = useMemo(() => {
     const map = new Map();
@@ -1193,20 +2326,17 @@ function AdminInvoicing() {
       const key = buildEntryKey("orders", order.id);
       if (archivedLinkedKeys.has(key)) return;
       const override = savedLinkedMap.get(key);
-      const amount =
-        override
-          ? computeDocumentSummary(override).summary.grandTotal
-          : toNumber(order.total, 0);
+      const amount = override ? override.summary?.grandTotal ?? 0 : toNumber(order.total, 0);
       entries.push({
         key,
         id: override?.id || null,
         sourceType: "orders",
         sourceId: order.id,
         documentType: override?.documentType || "receipt",
-        invoiceNumber: override?.invoiceNumber || (order.orderNumber ? `REC-${order.orderNumber}` : buildDocumentNumber("receipt")),
+        invoiceNumber: getDocumentNumberValue(override?.invoiceNumber),
         customerName: override?.customer?.name || order.customerName || "Customer",
         issueDate: override?.issueDate || normalizeDateInput(order.date || order.orderDate || order.createdAt) || todayValue(),
-        paymentStatus: override?.paymentStatus || "unpaid",
+        paymentStatus: override?.paymentStatus || "draft",
         total: amount,
         linkedLabel: order.orderNumber ? `Order ${order.orderNumber}` : `Order #${order.id}`,
         sourceLabel: "Order",
@@ -1219,20 +2349,17 @@ function AdminInvoicing() {
       const key = buildEntryKey("bookings", booking.id);
       if (archivedLinkedKeys.has(key)) return;
       const override = savedLinkedMap.get(key);
-      const amount =
-        override
-          ? computeDocumentSummary(override).summary.grandTotal
-          : toNumber(booking.totalAmount, 0) / 100;
+      const amount = override ? override.summary?.grandTotal ?? 0 : toNumber(booking.totalAmount, 0) / 100;
       entries.push({
         key,
         id: override?.id || null,
         sourceType: "bookings",
         sourceId: booking.id,
         documentType: override?.documentType || "invoice",
-        invoiceNumber: override?.invoiceNumber || `INV-${formatDateStamp(booking.eventDate)}-${booking.id}`,
+        invoiceNumber: getDocumentNumberValue(override?.invoiceNumber),
         customerName: override?.customer?.name || booking.customerName || "Customer",
         issueDate: override?.issueDate || normalizeDateInput(booking.eventDate) || todayValue(),
-        paymentStatus: override?.paymentStatus || "unpaid",
+        paymentStatus: override?.paymentStatus || "draft",
         total: amount,
         linkedLabel: `Booking #${booking.id}`,
         sourceLabel: "Booking",
@@ -1242,18 +2369,17 @@ function AdminInvoicing() {
     });
 
     manualDocuments.forEach((document) => {
-      const computed = computeDocumentSummary(document);
       entries.push({
         key: buildEntryKey("manual", null, document.id),
         id: document.id,
         sourceType: "manual",
         sourceId: null,
         documentType: document.documentType,
-        invoiceNumber: document.invoiceNumber,
+        invoiceNumber: getDocumentNumberValue(document.invoiceNumber),
         customerName: document.customer?.name || "Customer",
         issueDate: document.issueDate,
         paymentStatus: document.paymentStatus,
-        total: computed.summary.grandTotal,
+        total: document.summary?.grandTotal ?? 0,
         linkedLabel: document.linkedLabel || MANUAL_LINKED_LABEL,
         sourceLabel: document.sourceLabel || MANUAL_SOURCE_LABEL,
         isManual: true,
@@ -1268,15 +2394,16 @@ function AdminInvoicing() {
     });
   }, [orders, bookings, manualDocuments, savedLinkedMap, archivedLinkedKeys]);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const visibleEntries = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = deferredSearchTerm.trim().toLowerCase();
     return documentEntries.filter((entry) => {
       if (documentFilter === "receipt" && entry.documentType !== "receipt") return false;
       if (documentFilter === "invoice" && entry.documentType !== "invoice") return false;
       if (paymentStatusFilter !== "all" && entry.paymentStatus !== paymentStatusFilter) return false;
       if (!term) return true;
       const blob = [
-        entry.invoiceNumber,
+        getDocumentTableReference(entry),
         entry.customerName,
         entry.linkedLabel,
         entry.sourceLabel,
@@ -1287,7 +2414,134 @@ function AdminInvoicing() {
         .toLowerCase();
       return blob.includes(term);
     });
-  }, [documentEntries, documentFilter, paymentStatusFilter, searchTerm]);
+  }, [deferredSearchTerm, documentEntries, documentFilter, paymentStatusFilter]);
+
+  const upsertSavedDocument = useCallback((saved) => {
+    setSavedDocuments((current) => {
+      const next = current.filter((document) => {
+        if (document.id === saved.id) return false;
+        if (
+          saved.sourceType !== "manual" &&
+          document.sourceType === saved.sourceType &&
+          document.sourceId === saved.sourceId
+        ) {
+          return false;
+        }
+        return true;
+      });
+      return [saved, ...next];
+    });
+  }, []);
+
+  const persistDocument = useCallback(
+    async (documentToPersist, { autosave = false, documentKey = "" } = {}) => {
+      if (!documentToPersist) return null;
+      const payload = buildStoredPayload(documentToPersist);
+      const payloadString = JSON.stringify(payload);
+
+      if (autosave) {
+        setAutosavingDocument(true);
+      } else {
+        setSavingDocument(true);
+        setSaveError("");
+        setSaveStatus("");
+      }
+
+      try {
+        const response = await fetch("/.netlify/functions/invoice-documents", {
+          method: documentToPersist.id ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payloadString,
+        });
+        if (!response.ok) {
+          throw new Error(await readResponseError(response, "Failed to save document."));
+        }
+        const data = await response.json();
+        const saved = normalizeSavedDocumentRecord(data);
+        const nextKey = buildEntryKey(saved.sourceType, saved.sourceId, saved.id);
+        const canApplyToEditor = !documentKey || currentSelectedKeyRef.current === documentKey;
+
+        if (canApplyToEditor) {
+          skipNextSelectedLoadKeyRef.current = nextKey;
+          currentSelectedKeyRef.current = nextKey;
+        }
+
+        upsertSavedDocument(saved);
+
+        if (saved.stockCommittedAt || documentToPersist.stockCommittedAt) {
+          await fetchProducts();
+        }
+
+        if (canApplyToEditor) {
+          setSelectedKey(nextKey);
+
+          if (autosave) {
+            // For autosave: only patch in server-assigned metadata so that any
+            // keystrokes the user made while the request was in flight are kept.
+            // Never overwrite user-editable content fields with the stale copy
+            // that was sent to the server 700 ms ago.
+            setSelectedDocument((current) => {
+              if (!current) {
+                // No live document — fall back to a full merge.
+                return finalizeWorkingDocumentRef.current(
+                  mergeDocument(documentToPersist, saved),
+                  documentToPersist
+                );
+              }
+              const withServerMeta = {
+                ...current,
+                id: saved.id || current.id,
+                invoiceNumber: saved.invoiceNumber || current.invoiceNumber,
+                updatedAt: saved.updatedAt || current.updatedAt,
+                createdAt: saved.createdAt || current.createdAt,
+                stockCommittedAt: saved.stockCommittedAt || current.stockCommittedAt || null,
+                sentAt: saved.sentAt || current.sentAt || null,
+                sentToEmail: saved.sentToEmail || current.sentToEmail || "",
+              };
+              return finalizeWorkingDocumentRef.current(withServerMeta, current);
+            });
+          } else {
+            // Manual save: the user explicitly clicked Save, so a full merge is safe.
+            const nextDocument = finalizeWorkingDocumentRef.current(
+              mergeDocument(documentToPersist, saved),
+              documentToPersist
+            );
+            const nextPayloadString = JSON.stringify(buildStoredPayload(nextDocument));
+            lastPersistedPayloadRef.current = nextPayloadString;
+            setSelectedDocument((current) =>
+              finalizeWorkingDocumentRef.current(
+                mergeDocument(current || documentToPersist, saved),
+                current || documentToPersist
+              )
+            );
+            writeInvoiceDraft(nextKey, nextDocument);
+          }
+
+          setSaveStatus(autosave ? "" : "Saved.");
+        }
+
+        // Always update the persisted payload ref so the autosave guard works.
+        lastPersistedPayloadRef.current = JSON.stringify(buildStoredPayload(
+          mergeDocument(documentToPersist, saved)
+        ));
+
+        return saved;
+      } catch (err) {
+        console.error("Save document failed", err);
+        setSaveError(err.message || "Failed to save document.");
+        return null;
+      } finally {
+        if (autosave) {
+          setAutosavingDocument(false);
+        } else {
+          setSavingDocument(false);
+        }
+      }
+    },
+    // finalizeWorkingDocument intentionally excluded — accessed via ref so that
+    // productById changes don't recreate this callback and re-fire the autosave effect.
+    [fetchProducts, upsertSavedDocument]  
+  );
 
   useEffect(() => {
     if (!visibleEntries.length) {
@@ -1313,11 +2567,66 @@ function AdminInvoicing() {
   );
 
   useEffect(() => {
+    currentSelectedKeyRef.current = selectedKey;
+  }, [selectedKey]);
+
+  useEffect(() => {
+    if (restoredEditorFromUrl) return;
+    const urlDocumentKey = readDocumentKeyFromUrl();
+    if (!urlDocumentKey) {
+      setRestoredEditorFromUrl(true);
+      return;
+    }
+    const parsedUrlDocumentKey = parseEntryKey(urlDocumentKey);
+    const waitingForLinkedSource =
+      parsedUrlDocumentKey?.sourceType === "orders"
+        ? ordersLoading
+        : parsedUrlDocumentKey?.sourceType === "bookings"
+          ? bookingsLoading
+          : false;
+    if (documentsLoading || waitingForLinkedSource) return;
+    const matchingEntry = documentEntries.find((entry) => entry.key === urlDocumentKey) || null;
+    if (!matchingEntry) {
+      syncDocumentKeyToUrl("");
+      setRestoredEditorFromUrl(true);
+      return;
+    }
+    setSaveError("");
+    setSaveStatus("");
+    setSelectedError("");
+    setSelectedDocument(null);
+    setSelectedLoading(true);
+    setEditorOpen(true);
+    setSelectedKey(urlDocumentKey);
+    setRestoredEditorFromUrl(true);
+  }, [
+    restoredEditorFromUrl,
+    readDocumentKeyFromUrl,
+    syncDocumentKeyToUrl,
+    documentsLoading,
+    documentEntries,
+    bookingsLoading,
+    ordersLoading,
+  ]);
+
+  useEffect(() => {
+    if (!restoredEditorFromUrl) return;
+    syncDocumentKeyToUrl(editorOpen && selectedKey ? selectedKey : "");
+  }, [editorOpen, restoredEditorFromUrl, selectedKey, syncDocumentKeyToUrl]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadSelectedDocument = async () => {
       if (!selectedEntry) {
         setSelectedDocument(null);
+        setSelectedError("");
+        return;
+      }
+
+      if (skipNextSelectedLoadKeyRef.current === selectedEntry.key) {
+        skipNextSelectedLoadKeyRef.current = "";
+        setSelectedLoading(false);
         setSelectedError("");
         return;
       }
@@ -1332,7 +2641,16 @@ function AdminInvoicing() {
             throw new Error("Document not found.");
           }
           if (!cancelled) {
-            setSelectedDocument(computeDocumentSummary(manualDocument));
+            const resolvedDocument = finalizeWorkingDocument(manualDocument);
+            const restoredDraft = readInvoiceDraft(selectedEntry.key);
+            const draftDocument = restoredDraft
+              ? finalizeWorkingDocument(restoredDraft, resolvedDocument)
+              : null;
+            lastPersistedPayloadRef.current = JSON.stringify(buildStoredPayload(resolvedDocument));
+            latestDraftPayloadRef.current = JSON.stringify(
+              buildStoredPayload(draftDocument || resolvedDocument)
+            );
+            setSelectedDocument(draftDocument || resolvedDocument);
           }
           return;
         }
@@ -1358,9 +2676,17 @@ function AdminInvoicing() {
         }
 
         const override = savedLinkedMap.get(selectedEntry.key) || null;
-        const merged = computeDocumentSummary(mergeDocument(baseDocument, override));
+        const merged = finalizeWorkingDocument(mergeDocument(baseDocument, override), baseDocument);
         if (!cancelled) {
-          setSelectedDocument(merged);
+          const restoredDraft = readInvoiceDraft(selectedEntry.key);
+          const draftDocument = restoredDraft
+            ? finalizeWorkingDocument(restoredDraft, merged)
+            : null;
+          lastPersistedPayloadRef.current = JSON.stringify(buildStoredPayload(merged));
+          latestDraftPayloadRef.current = JSON.stringify(
+            buildStoredPayload(draftDocument || merged)
+          );
+          setSelectedDocument(draftDocument || merged);
         }
       } catch (err) {
         console.error("Selected document load failed", err);
@@ -1379,12 +2705,102 @@ function AdminInvoicing() {
     return () => {
       cancelled = true;
     };
-  }, [selectedEntry, orders, bookings, savedLinkedMap, manualDocuments, defaultTaxRate]);
+  }, [
+    bookings,
+    defaultTaxRate,
+    finalizeWorkingDocument,
+    manualDocuments,
+    orders,
+    savedLinkedMap,
+    selectedEntry,
+  ]);
 
-  const activeDocument = useMemo(
-    () => (selectedDocument ? computeDocumentSummary(selectedDocument) : null),
-    [selectedDocument]
+  const activeDocument = selectedDocument;
+
+  useEffect(() => {
+    if (!editorOpen || productsLoading) return;
+    setSelectedDocument((current) => {
+      if (!current) return current;
+      const finalized = finalizeWorkingDocument(current, current);
+      const currentPayload = JSON.stringify(buildStoredPayload(current));
+      const nextPayload = JSON.stringify(buildStoredPayload(finalized));
+      return currentPayload === nextPayload ? current : finalized;
+    });
+  }, [editorOpen, finalizeWorkingDocument, productsLoading]);
+
+  useEffect(() => {
+    if (!editorOpen || !selectedKey || !activeDocument) return;
+    const payloadString = JSON.stringify(buildStoredPayload(activeDocument));
+    latestDraftPayloadRef.current = payloadString;
+    writeInvoiceDraft(selectedKey, activeDocument);
+  }, [activeDocument, editorOpen, selectedKey]);
+
+  useEffect(() => {
+    if (!editorOpen || !selectedKey || !activeDocument || selectedLoading || selectedError) return;
+    if (savingDocument || archivingDocument) return;
+    const payloadString = JSON.stringify(buildStoredPayload(activeDocument));
+    latestDraftPayloadRef.current = payloadString;
+    if (payloadString === lastPersistedPayloadRef.current) return;
+    window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setTimeout(() => {
+      persistDocument(activeDocument, { autosave: true, documentKey: selectedKey });
+    }, 2000);
+    return () => {
+      window.clearTimeout(autosaveTimerRef.current);
+    };
+  }, [
+    activeDocument,
+    archivingDocument,
+    editorOpen,
+    persistDocument,
+    savingDocument,
+    selectedError,
+    selectedKey,
+    selectedLoading,
+  ]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(autosaveTimerRef.current);
+    },
+    []
   );
+
+  const selectedEntryIndex = useMemo(
+    () => visibleEntries.findIndex((entry) => entry.key === selectedKey),
+    [selectedKey, visibleEntries]
+  );
+  const documentPagerLabel = useMemo(() => {
+    if (!visibleEntries.length) return "0 of 0";
+    return `${Math.max(0, selectedEntryIndex) + 1} of ${visibleEntries.length}`;
+  }, [selectedEntryIndex, visibleEntries.length]);
+  const selectedInvoiceCustomer = useMemo(() => {
+    const customerId = Number(activeDocument?.customerId);
+    if (!Number.isFinite(customerId) || customerId <= 0) return null;
+    return customerById.get(customerId) || null;
+  }, [activeDocument?.customerId, customerById]);
+  const deferredInvoiceCustomerQuery = useDeferredValue(activeDocument?.customer?.name || "");
+  const filteredInvoiceCustomerOptions = useMemo(() => {
+    if (!customers.length) return [];
+    const nameQuery = normalizeCustomerName(deferredInvoiceCustomerQuery);
+    const phoneQuery = String(activeDocument?.customer?.name || "")
+      .replace(/\D/g, "")
+      .trim();
+    const source =
+      nameQuery || phoneQuery
+        ? customers.filter((customer) => {
+            const matchesName = normalizeCustomerName(customer.name).includes(nameQuery);
+            const matchesPhone = phoneQuery
+              ? String(customer.phone || "").replace(/\D/g, "").includes(phoneQuery)
+              : false;
+            const matchesEmail = nameQuery
+              ? String(customer.email || "").toLowerCase().includes(nameQuery)
+              : false;
+            return matchesName || matchesPhone || matchesEmail;
+          })
+        : customers;
+    return source.slice(0, nameQuery || phoneQuery ? 12 : 8);
+  }, [activeDocument?.customer?.name, customers, deferredInvoiceCustomerQuery]);
 
   const summaryCards = useMemo(() => {
     const total = visibleEntries.reduce((sum, entry) => sum + toNumber(entry.total, 0), 0);
@@ -1393,32 +2809,15 @@ function AdminInvoicing() {
     return { total, paid, open, count: visibleEntries.length };
   }, [visibleEntries]);
 
-  const upsertSavedDocument = (saved) => {
-    setSavedDocuments((current) => {
-      const next = current.filter((document) => {
-        if (document.id === saved.id) return false;
-        if (
-          saved.sourceType !== "manual" &&
-          document.sourceType === saved.sourceType &&
-          document.sourceId === saved.sourceId
-        ) {
-          return false;
-        }
-        return true;
-      });
-      return [saved, ...next];
-    });
-  };
-
-  const handleDocumentChange = (updater) => {
+  const handleDocumentChange = useCallback((updater) => {
     setSaveError("");
     setSaveStatus("");
     setSelectedDocument((current) => {
       if (!current) return current;
       const next = typeof updater === "function" ? updater(current) : { ...current, ...updater };
-      return computeDocumentSummary(next);
+      return finalizeWorkingDocument(next, current);
     });
-  };
+  }, [finalizeWorkingDocument]);
 
   const handleCustomerChange = (field, value) => {
     handleDocumentChange((current) => ({
@@ -1428,6 +2827,89 @@ function AdminInvoicing() {
         [field]: value,
       },
     }));
+  };
+
+  const handleInvoiceCustomerSelection = (nextValue) => {
+    const customerId = Number(nextValue);
+    if (!Number.isFinite(customerId) || customerId <= 0) {
+      handleDocumentChange({ customerId: null });
+      return;
+    }
+    const customer = customerById.get(customerId);
+    handleDocumentChange((current) => ({
+      ...current,
+      customerId,
+      customer: {
+        ...current.customer,
+        name: customer?.name || current.customer?.name || "",
+        phone: customer?.phone || current.customer?.phone || "",
+        email: customer?.email || current.customer?.email || "",
+      },
+    }));
+    setInvoiceCustomerMenuOpen(false);
+  };
+
+  const handleInvoiceCustomerInputChange = (nextValue) => {
+    setInvoiceCustomerMenuOpen(true);
+    handleDocumentChange((current) => {
+      const normalizedValue = normalizeCustomerName(nextValue);
+      const normalizedSelectedName = normalizeCustomerName(selectedInvoiceCustomer?.name);
+      const keepLinkedCustomer = normalizedValue && normalizedValue === normalizedSelectedName;
+      const selectedPhone = String(selectedInvoiceCustomer?.phone || "").trim();
+      const selectedEmail = String(selectedInvoiceCustomer?.email || "").trim().toLowerCase();
+      const currentPhone = String(current.customer?.phone || "").trim();
+      const currentEmail = String(current.customer?.email || "").trim().toLowerCase();
+
+      return {
+        ...current,
+        customerId: keepLinkedCustomer ? current.customerId : null,
+        customer: {
+          ...current.customer,
+          name: nextValue,
+          phone: !keepLinkedCustomer && current.customerId && selectedPhone && currentPhone === selectedPhone ? "" : current.customer?.phone || "",
+          email: !keepLinkedCustomer && current.customerId && selectedEmail && currentEmail === selectedEmail ? "" : current.customer?.email || "",
+        },
+      };
+    });
+  };
+
+  const commitInvoiceCustomerInput = () => {
+    const typedName = String(activeDocument?.customer?.name || "").trim();
+    if (!typedName) {
+      handleDocumentChange((current) => ({
+        ...current,
+        customerId: null,
+        customer: {
+          ...current.customer,
+          name: "",
+          phone: "",
+          email: "",
+        },
+      }));
+      setInvoiceCustomerMenuOpen(false);
+      return;
+    }
+    const normalizedName = normalizeCustomerName(typedName);
+    const matchedCustomer =
+      customers.find((customer) => normalizeCustomerName(customer.name) === normalizedName) || null;
+    if (matchedCustomer?.id) {
+      handleInvoiceCustomerSelection(String(matchedCustomer.id));
+      return;
+    }
+    handleDocumentChange({ customerId: null });
+    setInvoiceCustomerMenuOpen(false);
+  };
+
+  const handleInvoiceCustomerInputKeyDown = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitInvoiceCustomerInput();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setInvoiceCustomerMenuOpen(false);
+    }
   };
 
   const handleEventChange = (field, value) => {
@@ -1445,29 +2927,188 @@ function AdminInvoicing() {
       ...current,
       lineItems: current.lineItems.map((item) =>
         item.id === itemId
-          ? {
-            ...item,
-            [field]:
-              field === "quantity" || field === "unitPrice"
-                ? Math.max(0, toNumber(value, 0))
-                : value,
-          }
+          ? (() => {
+              if (field !== "quantity") {
+                return {
+                  ...item,
+                  [field]: value,
+                };
+              }
+              const requestedQuantity = normalizeLineQuantity(value, 0);
+              const maxQuantity = resolveLineItemMaxQuantity(current, item, productById);
+              return {
+                ...item,
+                quantity: maxQuantity == null ? requestedQuantity : Math.min(requestedQuantity, maxQuantity),
+              };
+            })()
           : item
       ),
     }));
   };
 
-  const handleAddLineItem = () => {
+  const handleLineItemDescriptionChange = (itemId, value, rowType = "item") => {
     handleDocumentChange((current) => ({
       ...current,
-      lineItems: [...current.lineItems, createLineItem()],
+      lineItems: current.lineItems.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              name: value,
+              productId: rowType === "item" ? null : item.productId,
+              unitLabel: rowType === "item" ? DEFAULT_LINE_ITEM_UNIT : item.unitLabel,
+              unitPrice: rowType === "item" ? 0 : item.unitPrice,
+            }
+          : item
+      ),
     }));
+  };
+
+  const handleLineItemSelectProduct = (itemId, product) => {
+    handleDocumentChange((current) => ({
+      ...current,
+      lineItems: current.lineItems.map((item) =>
+        item.id === itemId
+          ? (() => {
+              const nextProductId = Number(product?.id) || null;
+              const hasChangedProduct = nextProductId !== (Number(item?.productId) || null);
+              const nextBaseItem = {
+                ...item,
+                rowType: "item",
+                productId: nextProductId,
+                name: product?.name || item.name,
+                unitLabel: resolveProductUnitLabel(product),
+                unitPrice: Math.max(0, toNumber(product?.price, item.unitPrice)),
+              };
+              const draftDocument = {
+                ...current,
+                lineItems: current.lineItems.map((line) =>
+                  line.id === itemId
+                    ? {
+                        ...nextBaseItem,
+                        quantity: hasChangedProduct ? 0 : item.quantity,
+                      }
+                    : line
+                ),
+              };
+              const selectableStock = resolveProductRemainingStock(
+                draftDocument,
+                {
+                  ...nextBaseItem,
+                  quantity: hasChangedProduct ? 0 : item.quantity,
+                },
+                product
+              );
+              const maxQuantity = resolveLineItemMaxQuantity(
+                draftDocument,
+                {
+                  ...nextBaseItem,
+                  quantity: hasChangedProduct ? 0 : item.quantity,
+                },
+                productById
+              );
+              return {
+                ...nextBaseItem,
+                quantity: hasChangedProduct
+                  ? selectableStock && selectableStock > 0
+                    ? 1
+                    : 0
+                  : maxQuantity == null
+                    ? normalizeLineQuantity(item.quantity, 0)
+                    : Math.min(normalizeLineQuantity(item.quantity, 0), maxQuantity),
+              };
+            })()
+          : item
+      ),
+    }));
+  };
+
+  const handleAddLineItem = (afterItemId = null) => {
+    handleDocumentChange((current) => {
+      const nextItem = createLineItem();
+      if (!afterItemId) {
+        return {
+          ...current,
+          lineItems: [...current.lineItems, nextItem],
+        };
+      }
+
+      const currentItems = Array.isArray(current.lineItems) ? current.lineItems : [];
+      const insertIndex = currentItems.findIndex((item) => item.id === afterItemId);
+      if (insertIndex < 0) {
+        return {
+          ...current,
+          lineItems: [...currentItems, nextItem],
+        };
+      }
+
+      return {
+        ...current,
+        lineItems: [
+          ...currentItems.slice(0, insertIndex + 1),
+          nextItem,
+          ...currentItems.slice(insertIndex + 1),
+        ],
+      };
+    });
+  };
+
+  const handleAddHeadingLine = () => {
+    handleDocumentChange((current) => ({
+      ...current,
+      lineItems: [...current.lineItems, createHeadingLine()],
+    }));
+  };
+
+  const handleAddNoteLine = () => {
+    handleDocumentChange((current) => ({
+      ...current,
+      lineItems: [...current.lineItems, createNoteLine()],
+    }));
+  };
+
+  const handleMoveLineItem = (itemId, targetItemId) => {
+    handleDocumentChange((current) => {
+      const currentItems = Array.isArray(current.lineItems) ? [...current.lineItems] : [];
+      const sourceIndex = currentItems.findIndex((item) => item.id === itemId);
+      const targetIndex = currentItems.findIndex((item) => item.id === targetItemId);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current;
+      const [movedItem] = currentItems.splice(sourceIndex, 1);
+      const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      currentItems.splice(insertIndex, 0, movedItem);
+      return {
+        ...current,
+        lineItems: currentItems,
+      };
+    });
   };
 
   const handleRemoveLineItem = (itemId) => {
     handleDocumentChange((current) => ({
       ...current,
       lineItems: current.lineItems.filter((item) => item.id !== itemId),
+    }));
+  };
+
+  const handleAdditionalItemChange = (itemId, field, value) => {
+    handleDocumentChange((current) => ({
+      ...current,
+      additionalItems: (current.additionalItems || []).map((item) =>
+        item.id === itemId ? { ...item, [field]: field === "quantity" || field === "unitPrice" ? toNumber(value, 0) : value } : item
+      ),
+    }));
+  };
+
+  const handleAddAdditionalItem = () => {
+    handleDocumentChange((current) => ({
+      ...current,
+      additionalItems: [...(current.additionalItems || []), createAdditionalItem()],
+    }));
+  };
+
+  const handleRemoveAdditionalItem = (itemId) => {
+    handleDocumentChange((current) => ({
+      ...current,
+      additionalItems: (current.additionalItems || []).filter((item) => item.id !== itemId),
     }));
   };
 
@@ -1478,6 +3119,7 @@ function AdminInvoicing() {
   }, []);
 
   const handleSelectEntry = useCallback((entryKey) => {
+    if (currentSelectedKeyRef.current === entryKey && editorOpen) return;
     setSaveError("");
     setSaveStatus("");
     setSelectedError("");
@@ -1485,7 +3127,7 @@ function AdminInvoicing() {
     setSelectedLoading(true);
     setEditorOpen(true);
     setSelectedKey(entryKey);
-  }, []);
+  }, [editorOpen]);
 
   const handleEntryKeyDown = useCallback((event, entryKey) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -1493,6 +3135,17 @@ function AdminInvoicing() {
       handleSelectEntry(entryKey);
     }
   }, [handleSelectEntry]);
+
+  const handleDocumentPager = useCallback(
+    (direction) => {
+      const nextIndex = selectedEntryIndex + direction;
+      if (nextIndex < 0 || nextIndex >= visibleEntries.length) return;
+      const nextEntry = visibleEntries[nextIndex];
+      if (!nextEntry?.key) return;
+      handleSelectEntry(nextEntry.key);
+    },
+    [handleSelectEntry, selectedEntryIndex, visibleEntries]
+  );
 
   const createDraftDocument = async (documentType) => {
     setCreatingDocument(documentType);
@@ -1509,15 +3162,11 @@ function AdminInvoicing() {
         throw new Error(await readResponseError(response, "Failed to create document."));
       }
       const data = await response.json();
-      const saved = normalizeStoredDocument(data);
+      const saved = normalizeSavedDocumentRecord(data);
+      const entryKey = buildEntryKey("manual", null, saved.id);
       upsertSavedDocument(saved);
-      setSelectedDocument(null);
-      setSelectedLoading(true);
-      setSelectedError("");
-      setEditorOpen(true);
-      setSelectedKey(buildEntryKey("manual", null, saved.id));
       setDocumentFilter("all");
-      setSaveStatus(`${saved.docLabel} created.`);
+      openDocumentEditor(entryKey, saved, { saveMessage: "Draft created." });
     } catch (err) {
       console.error("Create draft document failed", err);
       setSaveError(err.message || "Failed to create document.");
@@ -1528,32 +3177,8 @@ function AdminInvoicing() {
 
   const saveSelectedDocument = async () => {
     if (!activeDocument) return;
-    setSavingDocument(true);
-    setSaveError("");
-    setSaveStatus("");
-
-    try {
-      const payload = buildStoredPayload(activeDocument);
-      const response = await fetch("/.netlify/functions/invoice-documents", {
-        method: activeDocument.id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(await readResponseError(response, "Failed to save document."));
-      }
-      const data = await response.json();
-      const saved = normalizeStoredDocument(data);
-      upsertSavedDocument(saved);
-      setSelectedKey(buildEntryKey(saved.sourceType, saved.sourceId, saved.id));
-      setSelectedDocument((current) => computeDocumentSummary(mergeDocument(current || activeDocument, saved)));
-      setSaveStatus("Saved.");
-    } catch (err) {
-      console.error("Save document failed", err);
-      setSaveError(err.message || "Failed to save document.");
-    } finally {
-      setSavingDocument(false);
-    }
+    window.clearTimeout(autosaveTimerRef.current);
+    await persistDocument(activeDocument, { documentKey: selectedKey });
   };
 
   const createPdfDoc = async () => {
@@ -1561,132 +3186,427 @@ function AdminInvoicing() {
     const document = activeDocument;
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    const headerTop = 16;
-    let logoLoaded = false;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 16;
+    const contentWidth = pageWidth - margin * 2;
+    const currency = config.currency || "GHS";
+
+    // ─── Colour palette ───────────────────────────────────────────────
+    const navy      = [15,  23,  42];   // header band bg / table heads
+    const slate     = [71,  85, 105];   // secondary text / subheadings
+    const silver    = [241, 245, 249];  // alternating row / totals bg
+    const divider   = [203, 213, 225];  // horizontal rules
+    const white     = [255, 255, 255];
+    const accent    = [251, 191,  36];  // amber accent — status pill
+
+    // ─── Helper: draw a thin horizontal rule ──────────────────────────
+    const hRule = (y, color = divider) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageWidth - margin, y);
+    };
+    const footerY = pageHeight - 10;
+    const contentBottomY = footerY - 7;
+    const renderFooter = () => {
+      hRule(footerY - 3);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...slate);
+      doc.text(config.storeName || COMPANY.name, margin, footerY);
+      doc.text(config.storeEmail || COMPANY.email, pageWidth / 2, footerY, { align: "center" });
+      doc.text(config.storePhone || COMPANY.phone, pageWidth - margin, footerY, { align: "right" });
+    };
+    const reservePageSpace = (startY, requiredHeight, resetY = margin) => {
+      if (startY + requiredHeight <= contentBottomY) return startY;
+      renderFooter();
+      doc.addPage();
+      return resetY;
+    };
+    const measureTextHeight = (text, width, fontSize, lineHeight) => {
+      if (!text) return 0;
+      doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(text, width);
+      return lines.length * lineHeight;
+    };
+
+    // ─── HEADER BAND ─────────────────────────────────────────────────
+    // Full-width navy band at the very top
+    const bandH = 42;
+    doc.setFillColor(...navy);
+    doc.rect(0, 0, pageWidth, bandH, "F");
+
+    // Left column: logo (stacked above company text), full-width proportional
+    const logoColW   = 52;   // width reserved for the logo block
+    const logoPad    = 6;    // padding inside band
+    const logoMaxW   = logoColW - logoPad * 2;
+    const logoMaxH   = 18;
+    let   logoH      = 0;
+    let   logoLoaded = false;
 
     try {
-      const logoData = await loadImageData(COMPANY.logo);
-      doc.addImage(logoData, "PNG", margin, headerTop - 4, 24, 24);
+      const logoData = await getCompanyLogoData();
+
+      const imgProps = doc.getImageProperties(logoData);
+      const widthScale = logoMaxW / imgProps.width;
+      const heightScale = logoMaxH / imgProps.height;
+      const scale = Math.min(widthScale, heightScale);
+      const drawW = imgProps.width * scale;
+      const drawH = imgProps.height * scale;
+      const logoX = logoPad + (logoMaxW - drawW) / 2;
+      const logoY = logoPad + (logoMaxH - drawH) / 2;
+
+      doc.addImage(logoData, "PNG", logoX, logoY, drawW, drawH);
+      logoH      = drawH;
       logoLoaded = true;
     } catch (err) {
       console.warn("Logo load failed", err);
     }
 
-    const textX = logoLoaded ? margin + 30 : margin;
-    doc.setFontSize(16);
-    doc.text(config.storeName || COMPANY.name, textX, headerTop + 4);
+    // Company name + details stacked below logo (or at top if no logo)
+    const companyTextX = logoPad;
+    let   companyTextY = logoLoaded ? logoPad + logoH + 3 : logoPad + 5;
+
+    doc.setTextColor(...white);
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(config.storeAddress || COMPANY.location, textX, headerTop + 10);
-    doc.text(config.storePhone || COMPANY.phone, textX, headerTop + 15);
-    doc.text(config.storeEmail || COMPANY.email, textX, headerTop + 20);
+    doc.text(config.storeName || COMPANY.name, companyTextX, companyTextY);
 
-    doc.setFontSize(18);
-    doc.text(document.docLabel.toUpperCase(), pageWidth - margin, headerTop + 2, { align: "right" });
-    doc.setFontSize(11);
-    doc.text(`#${document.invoiceNumber}`, pageWidth - margin, headerTop + 9, { align: "right" });
-    doc.text(`Date: ${formatShortDate(document.issueDate)}`, pageWidth - margin, headerTop + 15, {
-      align: "right",
-    });
-
-    let cursorY = headerTop + 30;
-    doc.setDrawColor(220);
-    doc.line(margin, cursorY, pageWidth - margin, cursorY);
-    cursorY += 10;
-
-    doc.setFontSize(12);
-    doc.text("Bill To", margin, cursorY);
-    doc.setFontSize(10);
-    const billLines = [
-      document.customer?.name || "-",
-      document.customer?.phone,
-      document.customer?.email,
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(203, 213, 225); // lighter for sub-info
+    const companyLines = [
+      config.storeAddress || COMPANY.location,
+      config.storePhone   || COMPANY.phone,
+      config.storeEmail   || COMPANY.email,
     ].filter(Boolean);
-    billLines.forEach((line, index) => {
-      doc.text(String(line), margin, cursorY + 6 + index * 5);
+    companyLines.forEach((line, i) => {
+      doc.text(line, companyTextX, companyTextY + 4.5 + i * 4);
     });
 
-    let detailY = cursorY + 8 + billLines.length * 5;
-    if (document.event?.eventDate || document.event?.venueAddress) {
-      doc.setFontSize(11);
-      doc.text("Event", margin, detailY);
-      doc.setFontSize(10);
-      const eventLine = `${formatShortDate(document.event?.eventDate)} ${document.event?.startTime || ""}${
-        document.event?.endTime ? ` - ${document.event.endTime}` : ""
-      }`.trim();
-      doc.text(eventLine || "-", margin, detailY + 6);
+    // Right column: document type + number + dates
+    const documentNumber = getDocumentNumberValue(document.invoiceNumber);
+    const rightX = pageWidth - margin;
+
+    doc.setTextColor(...white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    const typeLabel = documentNumber ? document.docLabel.toUpperCase() : "DRAFT";
+    doc.text(typeLabel, rightX, logoPad + 10, { align: "right" });
+
+    if (documentNumber) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(203, 213, 225);
+      doc.text(`#${documentNumber}`, rightX, logoPad + 16, { align: "right" });
+    }
+
+    // Status pill (amber badge)
+    const status = String(document.paymentStatus || "draft").toUpperCase();
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    const pillW = 20, pillH = 5.5, pillX = rightX - pillW, pillY = logoPad + 19;
+    const pillColor = status === "PAID" ? [34, 197, 94] : status === "DRAFT" ? [148, 163, 184] : accent;
+    doc.setFillColor(...pillColor);
+    doc.roundedRect(pillX, pillY, pillW, pillH, 1.2, 1.2, "F");
+    doc.setTextColor(...(status === "PAID" ? white : navy));
+    doc.text(status, pillX + pillW / 2, pillY + 3.8, { align: "center" });
+
+    // Date and due date
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(203, 213, 225);
+    doc.text(`Issued: ${formatShortDate(document.issueDate)}`, rightX, logoPad + 29, { align: "right" });
+    if (document.dueDate) {
+      doc.text(`Due: ${formatShortDate(document.dueDate)}`, rightX, logoPad + 34, { align: "right" });
+    }
+
+    // ─── BILL TO + EVENT ─────────────────────────────────────────────
+    let cursorY = bandH + 10;
+    doc.setTextColor(...slate);
+
+    // "BILL TO" label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...slate);
+    doc.text("BILL TO", margin, cursorY);
+
+    // Customer details
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...navy);
+    cursorY += 5;
+    doc.text(document.customer?.name || "—", margin, cursorY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...slate);
+    const contactLines = [document.customer?.phone, document.customer?.email].filter(Boolean);
+    contactLines.forEach((line) => {
+      cursorY += 4.5;
+      doc.text(String(line), margin, cursorY);
+    });
+
+    // Event details (right column, same band)
+    const hasEvent = document.event?.eventDate || document.event?.venueAddress;
+    if (hasEvent) {
+      const eventX = margin + contentWidth * 0.5;
+      let eventY   = bandH + 10;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(...slate);
+      doc.text("EVENT", eventX, eventY);
+
+      eventY += 5;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...navy);
+      doc.text(formatShortDate(document.event.eventDate), eventX, eventY);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...slate);
+
+      const timeStr = [document.event?.startTime, document.event?.endTime]
+        .filter(Boolean)
+        .join(" – ");
+      if (timeStr) {
+        eventY += 4.5;
+        doc.text(timeStr, eventX, eventY);
+      }
       if (document.event?.venueAddress) {
-        doc.text(document.event.venueAddress, margin, detailY + 12);
-        detailY += 18;
+        eventY += 4.5;
+        const wrappedVenue = doc.splitTextToSize(document.event.venueAddress, contentWidth * 0.48);
+        doc.text(wrappedVenue, eventX, eventY);
+        const extraLines = wrappedVenue.length - 1;
+        cursorY = Math.max(cursorY, eventY + extraLines * 4);
       } else {
-        detailY += 12;
+        cursorY = Math.max(cursorY, eventY);
       }
     }
 
-    const body = document.lineItems.map((item) => [
-      item.name || "Item",
-      item.quantity || 0,
-      formatPdfCurrency(item.unitPrice || 0, config.currency || "GHS"),
-      formatPdfCurrency(item.total || 0, config.currency || "GHS"),
-    ]);
+    cursorY += 8;
+    hRule(cursorY);
+    cursorY += 8;
 
-    const tableConfig = {
-      startY: detailY + 8,
-      head: [["Description", "Qty", "Unit", "Total"]],
-      body,
-      styles: { fontSize: 10, cellPadding: 4 },
-      headStyles: { fillColor: [31, 37, 48], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
+    // ─── ITEMS TABLE ─────────────────────────────────────────────────
+    const tableStyles = {
+      fontSize: 9,
+      cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
+      font: "helvetica",
+      textColor: navy,
+    };
+    const headStyles = {
+      fillColor: navy,
+      textColor: white,
+      fontStyle: "bold",
+      fontSize: 8.5,
+      cellPadding: { top: 5, bottom: 5, left: 4, right: 4 },
+    };
+    const colStyles = {
+      0: { cellWidth: "auto" },                          // Description — flexible
+      1: { cellWidth: 14, halign: "center" },            // Qty
+      2: { cellWidth: 22, halign: "center" },            // Unit
+      3: { cellWidth: 30, halign: "right" },             // Price
+      4: { cellWidth: 30, halign: "right" },             // Total
     };
 
-    if (typeof doc.autoTable === "function") {
-      doc.autoTable(tableConfig);
+    const body = document.lineItems.map((item) =>
+      isHeadingLineItem(item)
+        ? [{
+            content: item.name || "Section",
+            colSpan: 5,
+            styles: { fontStyle: "bold", fillColor: silver, textColor: navy, fontSize: 8.5 },
+          }]
+        : isNoteLineItem(item)
+          ? [{
+              content: item.name || "",
+              colSpan: 5,
+              styles: { fontStyle: "italic", fontSize: 8, textColor: slate },
+            }]
+          : [
+              item.name || "",
+              { content: String(item.quantity || 0), styles: { halign: "center" } },
+              { content: item.unitLabel || DEFAULT_LINE_ITEM_UNIT, styles: { halign: "center" } },
+              { content: formatPdfCurrency(item.unitPrice || 0, currency), styles: { halign: "right" } },
+              { content: formatPdfCurrency(item.total    || 0, currency), styles: { halign: "right" } },
+            ]
+    );
+
+    const runTable = (cfg) => {
+      if (typeof doc.autoTable === "function") doc.autoTable(cfg);
+      else autoTable(doc, cfg);
+      return doc.lastAutoTable?.finalY ?? cfg.startY + 20;
+    };
+
+    let tableEndY = runTable({
+      startY: cursorY,
+      head: [["Description", "Qty", "Unit", "Price", "Total"]],
+      body,
+      styles: tableStyles,
+      headStyles,
+      columnStyles: colStyles,
+      alternateRowStyles: { fillColor: silver },
+      margin: { left: margin, right: margin },
+      tableWidth: contentWidth,
+    });
+
+    // ─── EXPENSES TABLE (conditional) ────────────────────────────────
+    const additionalItems = normalizeAdditionalItems(document.additionalItems);
+
+    if (additionalItems.length > 0) {
+      // Small section label above the table
+      tableEndY += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...slate);
+      doc.text("ADDITIONAL ITEMS", margin, tableEndY);
+      tableEndY += 4;
+
+      const expensesColStyles = {
+        0: { cellWidth: "auto" },
+        1: { cellWidth: 14, halign: "center" },
+        2: { cellWidth: 22, halign: "center" },
+        3: { cellWidth: 30, halign: "right" },
+        4: { cellWidth: 30, halign: "right" },
+      };
+
+      tableEndY = runTable({
+        startY: tableEndY,
+        head: [["Description", "Qty", "Unit", "Price", "Total"]],
+        body: additionalItems.map((item) => [
+          item.description || "",
+          { content: String(item.quantity || 0),  styles: { halign: "center" } },
+          { content: item.unitLabel || DEFAULT_LINE_ITEM_UNIT, styles: { halign: "center" } },
+          { content: formatPdfCurrency(item.unitPrice || 0, currency), styles: { halign: "right" } },
+          { content: formatPdfCurrency(item.total    || 0, currency), styles: { halign: "right" } },
+        ]),
+        styles: { ...tableStyles, fontSize: 8.5 },
+        headStyles: { ...headStyles, fillColor: slate },
+        columnStyles: expensesColStyles,
+        alternateRowStyles: { fillColor: silver },
+        margin: { left: margin, right: margin },
+        tableWidth: contentWidth,
+      });
+    }
+
+    // ─── TOTALS BOX ───────────────────────────────────────────────────
+    const hasTax      = (document.summary.taxRate      || 0) > 0;
+    const hasDiscount = (document.summary.discountTotal || 0) > 0;
+    const hasExpenses = (document.summary.additionalTotal || 0) > 0;
+    const isInvoice   = document.documentType === "invoice";
+    const notesText = document.notes?.trim() || "";
+    const termsText = document.terms?.trim() || "";
+    const hasNotes = Boolean(notesText || termsText);
+
+    const rowH = 7;
+    let totalsRows = 2; // subtotal + grand total
+    if (hasExpenses)  totalsRows += 1;
+    if (hasTax)       totalsRows += 1;
+    if (isInvoice)    totalsRows += 2; // deposit + balance due
+    if (isInvoice && hasDiscount) totalsRows += 1;
+
+    const boxW  = 80;
+    const boxH  = totalsRows * rowH + 14; // extra padding top/bottom
+    const boxX  = pageWidth - margin - boxW;
+    let   boxY  = reservePageSpace(tableEndY + 8, boxH + 4, margin + 8);
+
+    // Light fill
+    doc.setFillColor(...silver);
+    doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...slate);
+
+    let ry = boxY + 8; // first row baseline
+    const labelX  = boxX + 6;
+    const valueX  = boxX + boxW - 6;
+
+    const totalsRow = (label, value, opts = {}) => {
+      if (opts.bold) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...navy);
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...slate);
+      }
+      doc.setFontSize(opts.large ? 9.5 : 8.5);
+      doc.text(label, labelX, ry);
+      doc.text(value, valueX, ry, { align: "right" });
+      ry += rowH;
+    };
+
+    totalsRow("Subtotal", formatPdfCurrency(document.summary.subtotal, currency));
+    if (hasExpenses) totalsRow("Expenses", formatPdfCurrency(document.summary.additionalTotal, currency));
+    if (hasTax)      totalsRow(`Tax (${(document.summary.taxRate * 100).toFixed(0)}%)`, formatPdfCurrency(document.summary.taxTotal, currency));
+
+    // Divider above Grand Total
+    doc.setDrawColor(...divider);
+    doc.setLineWidth(0.3);
+    doc.line(boxX + 4, ry - 3, boxX + boxW - 4, ry - 3);
+
+    totalsRow("Grand Total", formatPdfCurrency(document.summary.grandTotal, currency), { bold: true, large: true });
+
+    if (isInvoice) {
+      totalsRow("Deposit Paid", formatPdfCurrency(document.summary.depositAmount, currency));
+      if (hasDiscount) totalsRow("Discount", `-${formatPdfCurrency(document.summary.discountTotal, currency)}`);
+
+      // Divider above Balance Due
+      doc.setDrawColor(...divider);
+      doc.line(boxX + 4, ry - 3, boxX + boxW - 4, ry - 3);
+
+      totalsRow("Balance Due", formatPdfCurrency(document.summary.balanceDue, currency), { bold: true, large: true });
     } else {
-      autoTable(doc, tableConfig);
+      totalsRow("Amount Paid", formatPdfCurrency(document.summary.amountPaid, currency), { bold: true });
     }
 
-    const finalY = doc.lastAutoTable?.finalY || tableConfig.startY + 20;
-    const totalsX = pageWidth - margin - 72;
-    let totalsY = finalY + 10;
+    // ─── NOTES & TERMS ────────────────────────────────────────────────
+    if (hasNotes) {
+      const notesWidth = contentWidth * 0.65;
+      const estimatedNotesHeight =
+        8 +
+        (notesText ? 9.5 + measureTextHeight(notesText, notesWidth, 8, 4) : 0) +
+        (termsText ? 9.5 + measureTextHeight(termsText, notesWidth, 7.5, 3.8) : 0);
+      let notesY = reservePageSpace(boxY + boxH + 10, estimatedNotesHeight, margin + 8);
 
-    doc.setFillColor(245, 245, 245);
-    doc.rect(totalsX, totalsY - 4, 72, document.documentType === "invoice" ? 36 : 24, "F");
-    doc.setFontSize(10);
-    doc.text("Subtotal", totalsX + 4, totalsY + 4);
-    doc.text(formatPdfCurrency(document.summary.subtotal, config.currency || "GHS"), pageWidth - margin, totalsY + 4, {
-      align: "right",
-    });
-    if ((document.summary.taxRate || 0) > 0) {
-      doc.text("Tax", totalsX + 4, totalsY + 10);
-      doc.text(formatPdfCurrency(document.summary.taxTotal, config.currency || "GHS"), pageWidth - margin, totalsY + 10, {
-        align: "right",
-      });
-    }
-    doc.setFontSize(11);
-    doc.text("Total", totalsX + 4, totalsY + 18);
-    doc.text(formatPdfCurrency(document.summary.grandTotal, config.currency || "GHS"), pageWidth - margin, totalsY + 18, {
-      align: "right",
-    });
+      // Light band
+      doc.setFillColor(...silver);
+      doc.rect(margin, notesY - 4, contentWidth, 4, "F"); // top strip
+      hRule(notesY - 4, divider);
 
-    if (document.documentType === "invoice") {
-      doc.setFontSize(10);
-      doc.text("Deposit", totalsX + 4, totalsY + 24);
-      doc.text(formatPdfCurrency(document.summary.depositAmount, config.currency || "GHS"), pageWidth - margin, totalsY + 24, {
-        align: "right",
-      });
-      doc.text("Balance", totalsX + 4, totalsY + 30);
-      doc.text(formatPdfCurrency(document.summary.balanceDue, config.currency || "GHS"), pageWidth - margin, totalsY + 30, {
-        align: "right",
-      });
-      totalsY += 14;
+      let ny = notesY + 4;
+
+      if (notesText) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...slate);
+        doc.text("NOTE", margin, ny);
+        ny += 4.5;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(...navy);
+        const wrappedNote = doc.splitTextToSize(notesText, notesWidth);
+        doc.text(wrappedNote, margin, ny);
+        ny += wrappedNote.length * 4 + 4;
+      }
+
+      if (termsText) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...slate);
+        doc.text("TERMS & CONDITIONS", margin, ny);
+        ny += 4.5;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...slate);
+        const wrappedTerms = doc.splitTextToSize(termsText, notesWidth);
+        doc.text(wrappedTerms, margin, ny);
+      }
     }
 
-    const notesText = [document.notes, document.terms].filter(Boolean).join(" ");
-    if (notesText) {
-      const noteLines = doc.splitTextToSize(notesText, pageWidth - margin * 2);
-      doc.setFontSize(9);
-      doc.text(noteLines, margin, totalsY + 20);
-    }
+    // ─── PAGE FOOTER ─────────────────────────────────────────────────
+    renderFooter();
 
     return doc;
   };
@@ -1698,8 +3618,7 @@ function AdminInvoicing() {
     try {
       const doc = await createPdfDoc();
       if (!doc) return;
-      const prefix = activeDocument.documentType === "receipt" ? "receipt" : "invoice";
-      doc.save(`${prefix}-${activeDocument.invoiceNumber}.pdf`);
+      doc.save(`${getDocumentFileLabel(activeDocument)}.pdf`);
     } catch (err) {
       console.error("PDF generation failed", err);
       setSaveError("Failed to generate PDF.");
@@ -1722,14 +3641,14 @@ function AdminInvoicing() {
         throw new Error("Unable to prepare PDF data.");
       }
 
-      const prefix = activeDocument.documentType === "receipt" ? "receipt" : "invoice";
+      const fileLabel = getDocumentFileLabel(activeDocument);
       const response = await fetch("/.netlify/functions/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `${activeDocument.docLabel} ${activeDocument.invoiceNumber}`,
+          title: getDocumentDisplayHeading(activeDocument),
           category: activeDocument.docLabel,
-          fileName: `${prefix}-${activeDocument.invoiceNumber}.pdf`,
+          fileName: `${fileLabel}.pdf`,
           mimeType: "application/pdf",
           data: base64,
           source: "generated",
@@ -1759,30 +3678,49 @@ function AdminInvoicing() {
     setSaveError("");
     setSaveStatus("");
     try {
+      const sentAt = new Date().toISOString();
+      const sentToEmail = activeDocument.customer?.email || "";
+      const invoiceNumber = getDocumentNumberValue(activeDocument.invoiceNumber) || buildDocumentNumber(activeDocument.documentType);
+      const paymentStatus = activeDocument.paymentStatus === "draft" ? "unpaid" : activeDocument.paymentStatus;
+      const documentToSend = finalizeWorkingDocument({
+        ...activeDocument,
+        invoiceNumber,
+        paymentStatus,
+        sentAt,
+        sentToEmail,
+      }, activeDocument);
       const response = await fetch("/.netlify/functions/invoice-document-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          documentType: activeDocument.documentType,
-          docLabel: activeDocument.docLabel,
-          invoiceNumber: activeDocument.invoiceNumber,
-          issueDate: activeDocument.issueDate,
-          paymentStatus: activeDocument.paymentStatus,
-          customerName: activeDocument.customer?.name || "",
-          customerEmail: activeDocument.customer?.email || "",
-          linkedLabel: activeDocument.linkedLabel || "",
-          lineItems: activeDocument.lineItems,
-          notes: activeDocument.notes || "",
-          terms: activeDocument.terms || "",
-          taxRate: activeDocument.taxRate,
-          depositAmount: activeDocument.depositAmount,
+          documentType: documentToSend.documentType,
+          docLabel: documentToSend.docLabel,
+          invoiceNumber: documentToSend.invoiceNumber,
+          issueDate: documentToSend.issueDate,
+          dueDate: documentToSend.dueDate,
+          paymentStatus: documentToSend.paymentStatus,
+          customerName: documentToSend.customer?.name || "",
+          customerEmail: documentToSend.customer?.email || "",
+          linkedLabel: documentToSend.linkedLabel || "",
+          lineItems: documentToSend.lineItems,
+          notes: documentToSend.notes || "",
+          terms: documentToSend.terms || "",
+          taxRate: documentToSend.taxRate,
+          depositAmount: documentToSend.depositAmount,
+          discountAmount: documentToSend.discountAmount,
+          additionalItems: documentToSend.additionalItems,
           currency: config.currency,
         }),
       });
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to send document email."));
       }
-      setSaveStatus(`Sent to ${activeDocument.customer.email}.`);
+      setSelectedDocument(documentToSend);
+      const saved = await persistDocument(documentToSend, { documentKey: selectedKey });
+      if (!saved) {
+        setSaveError("Email sent, but the sent banner could not be saved yet.");
+      }
+      setSaveStatus(`Sent to ${documentToSend.customer.email}.`);
     } catch (err) {
       console.error("Send document email failed", err);
       setSaveError(err.message || "Failed to send document email.");
@@ -1804,7 +3742,8 @@ function AdminInvoicing() {
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to archive document."));
       }
-      await fetchSavedDocuments();
+      const archived = normalizeSavedDocumentRecord(await response.json());
+      upsertSavedDocument(archived);
       if (selectedKey && payload?.id && activeDocument?.id === payload.id) {
         setSelectedKey("");
       }
@@ -1817,6 +3756,7 @@ function AdminInvoicing() {
       ) {
         setSelectedKey("");
       }
+      await fetchProducts();
       if (closeEditor) {
         setSelectedDocument(null);
         setSelectedError("");
@@ -1834,7 +3774,7 @@ function AdminInvoicing() {
 
   const archiveSelectedDocument = async () => {
     if (!activeDocument) return;
-    const label = `${activeDocument.docLabel} ${activeDocument.invoiceNumber}`.trim();
+    const label = getDocumentArchiveLabel(activeDocument);
     if (!window.confirm(`Archive ${label}?`)) return;
     await archiveDocument(
       {
@@ -1849,7 +3789,7 @@ function AdminInvoicing() {
   const archiveEntryFromList = async (entry, event) => {
     event.preventDefault();
     event.stopPropagation();
-    const label = `${entry.documentType === "receipt" ? "Receipt" : "Invoice"} ${entry.invoiceNumber}`.trim();
+    const label = getDocumentArchiveLabel(entry);
     if (!window.confirm(`Archive ${label}?`)) return;
 
     await archiveDocument(
@@ -1871,17 +3811,44 @@ function AdminInvoicing() {
         terms: "",
         taxRate: 0,
         depositAmount: 0,
+        discountAmount: 0,
       },
       label
     );
   };
 
   const workspaceError = selectedError || documentsError || ordersError || bookingsError;
-  const documentTitle = selectedLoading
-    ? "Opening document"
-    : activeDocument
-      ? `${activeDocument.docLabel} #${activeDocument.invoiceNumber}`
-      : "Document";
+  const documentTitle = selectedLoading ? "Opening document" : activeDocument ? getDocumentDisplayHeading(activeDocument) : "Document";
+  const invoiceCustomerPickerProps = {
+    value: activeDocument?.customer?.name || "",
+    onChange: (event) => handleInvoiceCustomerInputChange(event.target.value),
+    onClear: () => {
+      handleDocumentChange((current) => ({
+        ...current,
+        customerId: null,
+        customer: {
+          ...current.customer,
+          name: "",
+          phone: "",
+          email: "",
+        },
+      }));
+      setInvoiceCustomerMenuOpen(false);
+    },
+    onFocus: () => setInvoiceCustomerMenuOpen(true),
+    onBlur: () => {
+      setTimeout(() => {
+        setInvoiceCustomerMenuOpen(false);
+      }, 120);
+    },
+    onKeyDown: handleInvoiceCustomerInputKeyDown,
+    menuOpen: invoiceCustomerMenuOpen,
+    options: filteredInvoiceCustomerOptions,
+    selectedCustomerId: activeDocument?.customerId || "",
+    onSelectCustomer: handleInvoiceCustomerSelection,
+    selectedCustomer: selectedInvoiceCustomer,
+    customerError,
+  };
 
   if (editorOpen) {
     return (
@@ -1909,12 +3876,14 @@ function AdminInvoicing() {
                   type="button"
                   className="admin-secondary invoice-hub-action"
                   onClick={saveSelectedDocument}
-                  disabled={savingDocument || !activeDocument}
-                  aria-label={savingDocument ? "Saving document" : "Save document"}
-                  title={savingDocument ? "Saving document" : "Save document"}
+                  disabled={savingDocument || autosavingDocument || !activeDocument}
+                  aria-label={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
+                  title={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
                 >
                   <AppIcon icon={faFloppyDisk} />
-                  <span className="sr-only">{savingDocument ? "Saving document" : "Save document"}</span>
+                  <span className="sr-only">
+                    {savingDocument || autosavingDocument ? "Saving document" : "Save document"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -2004,19 +3973,57 @@ function AdminInvoicing() {
                 <div className="invoice-hub-editor-head">
                   <div>
                     <p className="invoicing-label">Builder</p>
-                    <h2>{activeDocument.docLabel} template</h2>
+                    <h2>{getDocumentDisplayHeading(activeDocument)}</h2>
                   </div>
                   <DocumentPill value={activeDocument.paymentStatus} />
+                </div>
+                <div className="invoice-document-pagination" aria-label="Document pagination">
+                  <div className="invoice-document-pagination-nav">
+                    <button
+                      type="button"
+                      className="admin-secondary invoice-document-pagination-button"
+                      onClick={() => handleDocumentPager(-1)}
+                      disabled={selectedEntryIndex <= 0}
+                      aria-label="Previous document"
+                      title="Previous document"
+                    >
+                      <AppIcon icon={faChevronLeft} />
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-secondary invoice-document-pagination-button"
+                      onClick={() => handleDocumentPager(1)}
+                      disabled={selectedEntryIndex < 0 || selectedEntryIndex >= visibleEntries.length - 1}
+                      aria-label="Next document"
+                      title="Next document"
+                    >
+                      <AppIcon icon={faChevronRight} />
+                    </button>
+                  </div>
+                  <strong className="invoice-document-pagination-label">{documentPagerLabel}</strong>
                 </div>
                 <EditableDocumentTemplate
                   document={activeDocument}
                   companyConfig={config}
                   onDocumentChange={handleDocumentChange}
                   onCustomerChange={handleCustomerChange}
+                  customerPickerProps={invoiceCustomerPickerProps}
+                  productOptions={products}
+                  productById={productById}
+                  productLoading={productsLoading}
+                  productError={productError}
                   onEventChange={handleEventChange}
                   onLineItemChange={handleLineItemChange}
+                  onLineItemDescriptionChange={handleLineItemDescriptionChange}
+                  onLineItemSelectProduct={handleLineItemSelectProduct}
                   onAddLineItem={handleAddLineItem}
+                  onAddHeadingLine={handleAddHeadingLine}
+                  onAddNoteLine={handleAddNoteLine}
+                  onMoveLineItem={handleMoveLineItem}
                   onRemoveLineItem={handleRemoveLineItem}
+                  onAdditionalItemChange={handleAdditionalItemChange}
+                  onAddAdditionalItem={handleAddAdditionalItem}
+                  onRemoveAdditionalItem={handleRemoveAdditionalItem}
                 />
               </section>
             </div>
@@ -2171,7 +4178,7 @@ function AdminInvoicing() {
                       <td className="table-row-index">{index}</td>
                       <td>
                         <div className="admin-product invoice-hub-table-document">
-                          <span className="admin-product-name">{entry.invoiceNumber}</span>
+                          <span className="admin-product-name">{getDocumentTableReference(entry)}</span>
                         </div>
                       </td>
                       <td>{entry.customerName || "-"}</td>
@@ -2191,8 +4198,8 @@ function AdminInvoicing() {
                           onClick={(event) => archiveEntryFromList(entry, event)}
                           onKeyDown={(event) => event.stopPropagation()}
                           disabled={archivingDocument}
-                          aria-label={`Archive ${entry.invoiceNumber}`}
-                          title={`Archive ${entry.invoiceNumber}`}
+                          aria-label={`Archive ${getDocumentArchiveLabel(entry)}`}
+                          title={`Archive ${getDocumentArchiveLabel(entry)}`}
                         >
                           <AppIcon icon={faBoxArchive} />
                         </button>

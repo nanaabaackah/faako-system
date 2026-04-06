@@ -225,6 +225,7 @@ body.admin-theme .portal-app-content .bubble-card {
 }
 
 .inventory-kpi-panel {
+  border-top: 1px solid (--glass-border);
   display: grid;
   gap: 16px;
 }
@@ -621,7 +622,7 @@ body.admin-theme .portal-app-content .bubble-card {
 .admin-table-summary-value {
   display: block;
   color: var(--text-main);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -11356,6 +11357,7 @@ body.admin-readonly .delivery-form .delivery-primary {
 
 .invoice-brand {
   display: flex;
+  flex-direction: column;
   gap: 12px;
   align-items: flex-start;
 }
@@ -11367,9 +11369,12 @@ body.admin-readonly .delivery-form .delivery-primary {
 }
 
 .invoice-logo {
-  width: 150px;
-  height: 150px;
+  width: auto;
+  height: auto;
+  max-width: 150px;
+  max-height: 68px;
   object-fit: contain;
+  display: block;
 }
 
 .invoice-brand h2 {
@@ -11787,8 +11792,8 @@ body.admin-readonly .delivery-form .delivery-primary {
   }
 
   .invoice-logo {
-    width: 110px;
-    height: 110px;
+    max-width: 110px;
+    max-height: 50px;
   }
 
   .invoice-table-wrapper {
@@ -11863,8 +11868,8 @@ body.admin-readonly .delivery-form .delivery-primary {
   }
 
   .invoice-logo {
-    width: 90px;
-    height: 90px;
+    max-width: 90px;
+    max-height: 41px;
   }
 
 }
@@ -12297,11 +12302,6 @@ body.admin-theme .admin-table-scroll.inventory-table-scroll thead th {
   border-bottom: 1px solid var(--inventory-table-border-color);
 }
 
-body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(3) {
-  text-align: left;
-  padding-left: 1rem;
-}
-
 body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(3) .sort-header {
   justify-content: flex-start;
 }
@@ -12313,7 +12313,6 @@ body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td {
 
 body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(3) {
   text-align: left;
-  padding-left: 1rem;
 }
 
 body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventory-table-text,

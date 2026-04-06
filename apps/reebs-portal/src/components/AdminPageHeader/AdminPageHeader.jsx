@@ -1,4 +1,4 @@
-const joinClasses = (...values) => values.filter(Boolean).join(" ");
+import { PageHeader } from "@faako/ui";
 
 export default function AdminPageHeader({
   className = "",
@@ -14,14 +14,19 @@ export default function AdminPageHeader({
   actions = null,
 }) {
   return (
-    <header className={joinClasses("admin-header", className)}>
-      <div className={copyClassName || undefined}>
-        {eyebrow ? <p className={eyebrowClassName}>{eyebrow}</p> : null}
-        {title ? <h1 className={titleClassName || undefined}>{title}</h1> : null}
-        {subtitle ? <p className={subtitleClassName}>{subtitle}</p> : null}
-        {children}
-      </div>
-      {actions ? <div className={actionsClassName || undefined}>{actions}</div> : null}
-    </header>
+    <PageHeader
+      className={`admin-header${className ? ` ${className}` : ""}`}
+      copyClassName={copyClassName}
+      actionsClassName={actionsClassName}
+      eyebrow={eyebrow}
+      eyebrowClassName={eyebrowClassName}
+      title={title}
+      titleClassName={titleClassName}
+      subtitle={subtitle}
+      subtitleClassName={subtitleClassName}
+      actions={actions}
+    >
+      {children}
+    </PageHeader>
   );
 }

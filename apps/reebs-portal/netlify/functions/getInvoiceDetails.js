@@ -134,7 +134,7 @@ export async function handler(event = {}) {
 
       if (pumpQty > 0 && !hasPump) {
         const pumpRes = await client.query(
-          `SELECT id, name, price
+          `SELECT id, name, price, rate
            FROM "product"
            WHERE "organizationId" = $1
              AND (UPPER(sku) LIKE 'PUM-%' OR LOWER(name) LIKE '%motor pump%')
@@ -152,6 +152,7 @@ export async function handler(event = {}) {
             price: Number(pumpProduct?.price || 0),
             productName: pumpProduct?.name || "Motor Pump",
             attendantsNeeded: 0,
+            rate: pumpProduct?.rate || "",
           },
         ];
       }

@@ -425,10 +425,6 @@ function StoreModeCustomerPanel({
 }) {
   return (
     <section className="glass-card store-builder-panel store-builder-panel--customer">
-      <div className="store-builder-section-head">
-        <span>Customer</span>
-        <h3>Walk-in details</h3>
-      </div>
       <div className="store-builder-controls">
         <div className="store-builder-inline-fields">
           <label className="store-builder-field">
@@ -540,8 +536,7 @@ function StoreModeOrderPanel({
     <section className="glass-card store-builder-panel store-builder-panel--order">
       <div className="store-builder-summary">
         <div>
-          <span className="store-builder-summary-label">Order items</span>
-          <h2>{itemCount}</h2>
+          <h2>{itemCount} items</h2>
         </div>
         <button
           type="button"

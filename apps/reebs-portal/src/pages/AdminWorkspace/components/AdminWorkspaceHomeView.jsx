@@ -36,7 +36,7 @@ function SummaryCard({ card, onNavigate }) {
   return (
     <button
       type="button"
-      className={`glass-card aw-home-summary-card aw-home-summary-card--link${card.isActive ? " is-active" : ""}`}
+      className={`bubble-card aw-home-summary-card aw-home-summary-card--link${card.isActive ? " is-active" : ""}`}
       onClick={handleClick}
       aria-pressed={typeof card.isActive === "boolean" ? card.isActive : undefined}
     >
@@ -313,7 +313,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               <button
                 key={card.key}
                 type="button"
-                className="glass-card aw-home-kpi-card aw-home-kpi-card-hero"
+                className="button-card aw-home-kpi-card aw-home-kpi-card-hero"
                 onClick={() => onNavigate(card.path)}
               >
                 <p className="aw-home-kpi-label">{card.label}</p>
@@ -331,7 +331,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
           <div className="aw-home-kpi-chart-grid">
             <button
               type="button"
-              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(revenueMix.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -382,7 +382,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(revenueTrend.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -417,7 +417,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(stockMovement.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -478,7 +478,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
             <button
               type="button"
-              className="glass-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
+              className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
               onClick={() => onNavigate(operationalLoad.path)}
             >
               <div className="aw-home-kpi-chart-head">
@@ -612,7 +612,7 @@ function CustomerHealthPanel({ panel, onNavigate }) {
           <button
             key={card.key}
             type="button"
-            className="glass-card aw-home-kpi-card"
+            className="bubble-card aw-home-kpi-card"
             onClick={() => onNavigate(card.path)}
           >
             <p className="aw-home-kpi-label">{card.label}</p>

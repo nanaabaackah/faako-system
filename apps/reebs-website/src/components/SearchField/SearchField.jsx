@@ -1,9 +1,8 @@
 import React, { useRef } from "react";
+import { SearchField as SharedSearchField } from "@faako/ui";
 import "./SearchField.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faSearch, faXmark } from "/src/icons/iconSet";
-
-const joinClasses = (...values) => values.filter(Boolean).join(" ");
 
 function SearchField({
   className = "",
@@ -47,29 +46,20 @@ function SearchField({
   };
 
   return (
-    <div className={joinClasses("search-field", hasValue && "has-value", className)}>
-      <span className={joinClasses("search-field__icon", iconClassName)} aria-hidden="true">
-        <AppIcon icon={icon} />
-      </span>
-      <input
-        {...inputProps}
-        ref={assignInputRef}
-        type={inputProps.type || "search"}
-        value={value}
-        onChange={onChange}
-        className={joinClasses("search-field__input", inputClassName)}
-      />
-      {hasValue ? (
-        <button
-          type="button"
-          className={joinClasses("search-field__clear", clearClassName)}
-          onClick={handleClear}
-          aria-label={clearAriaLabel}
-        >
-          <AppIcon icon={faXmark} />
-        </button>
-      ) : null}
-    </div>
+    <SharedSearchField
+      {...inputProps}
+      inputRef={assignInputRef}
+      value={value}
+      onChange={onChange}
+      onClear={handleClear}
+      clearAriaLabel={clearAriaLabel}
+      className={`search-field${hasValue ? " has-value" : ""}${className ? ` ${className}` : ""}`}
+      inputClassName={`search-field__input${inputClassName ? ` ${inputClassName}` : ""}`}
+      iconClassName={`search-field__icon${iconClassName ? ` ${iconClassName}` : ""}`}
+      clearClassName={`search-field__clear${clearClassName ? ` ${clearClassName}` : ""}`}
+      renderSearchIcon={() => <AppIcon icon={icon} />}
+      renderClearIcon={() => <AppIcon icon={faXmark} />}
+    />
   );
 }
 

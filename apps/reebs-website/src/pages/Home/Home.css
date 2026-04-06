@@ -1057,6 +1057,14 @@
     right: 0.9rem;
   }
 
+  .process-step{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+  }
+
   .services-rail {
     grid-template-columns: 1fr;
   }
@@ -1065,8 +1073,15 @@
     --services-swirl-size: clamp(8.5rem, 16vw, 13rem);
   }
 
+  .home-services-swirl-tail {
+    position: absolute;
+    left: 0;
+    bottom: -5.2%;
+  }
+
   .service-row {
     gap: 0;
+    height: 380px;
   }
 
   .service-media {

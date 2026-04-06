@@ -2,11 +2,13 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { ensureAuditColumns } from "./auditHelpers.js";
 
 const INVOICE_DOCUMENT_METHODS = "GET,POST,PUT,DELETE,OPTIONS";
 const SOURCE_TYPES = new Set(["manual", "orders", "bookings"]);
 const DOCUMENT_TYPES = new Set(["invoice", "receipt"]);
 const PAYMENT_STATUSES = new Set(["draft", "unpaid", "paid"]);
+const INVENTORY_MANAGED_SOURCE_TYPES = new Set(["manual", "bookings"]);
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "invoiceDocument" (
@@ -14,11 +16,16 @@ const tableStatements = [
     "organizationId" INTEGER NOT NULL,
     "sourceType" TEXT NOT NULL DEFAULT 'manual',
     "sourceId" INTEGER,
+    "customerId" INTEGER,
     "documentType" TEXT NOT NULL DEFAULT 'invoice',
     "title" TEXT,
     "invoiceNumber" TEXT NOT NULL,
     "issueDate" DATE,
+    "dueDate" DATE,
     "paymentStatus" TEXT NOT NULL DEFAULT 'draft',
+    "sentAt" TIMESTAMPTZ,
+    "sentToEmail" TEXT,
+    "stockCommittedAt" TIMESTAMPTZ,
     "depositAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
     "customerName" TEXT,
     "customerEmail" TEXT,
@@ -29,9 +36,11 @@ const tableStatements = [
     "venueAddress" TEXT,
     "lineItems" JSONB NOT NULL DEFAULT '[]'::jsonb,
     "expenses" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "additionalItems" JSONB NOT NULL DEFAULT '[]'::jsonb,
     "notes" TEXT,
     "terms" TEXT,
     "taxRate" NUMERIC(8,4) NOT NULL DEFAULT 0,
+    "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
     "createdByUserId" INTEGER,
     "updatedByUserId" INTEGER,
     "archivedAt" TIMESTAMPTZ,
@@ -42,11 +51,16 @@ const tableStatements = [
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "sourceType" TEXT NOT NULL DEFAULT 'manual'`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "sourceId" INTEGER`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "customerId" INTEGER`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "documentType" TEXT NOT NULL DEFAULT 'invoice'`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "title" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "invoiceNumber" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "issueDate" DATE`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "dueDate" DATE`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'draft'`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "sentAt" TIMESTAMPTZ`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "sentToEmail" TEXT`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "stockCommittedAt" TIMESTAMPTZ`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "depositAmount" NUMERIC(12,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "customerName" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "customerEmail" TEXT`,
@@ -57,9 +71,11 @@ const tableStatements = [
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "venueAddress" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "lineItems" JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "expenses" JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "additionalItems" JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "notes" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "terms" TEXT`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "taxRate" NUMERIC(8,4) NOT NULL DEFAULT 0`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "createdByUserId" INTEGER`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "updatedByUserId" INTEGER`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
@@ -106,6 +122,8 @@ const normalizePaymentStatus = (value) => {
   return PAYMENT_STATUSES.has(normalized) ? normalized : "draft";
 };
 
+const shouldManageInventory = (value) => INVENTORY_MANAGED_SOURCE_TYPES.has(normalizeSourceType(value));
+
 const normalizeId = (value) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -124,6 +142,26 @@ const normalizeTaxRate = (value) => {
   return Math.min(Math.max(normalized, 0), 1);
 };
 
+const normalizeLineQuantity = (value, fallback = 1) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
+};
+
+const normalizeLineRowType = (value) => {
+  const normalized = String(value || "item").toLowerCase();
+  if (normalized === "heading") return "heading";
+  if (normalized === "note") return "note";
+  return "item";
+};
+
+const normalizeLineUnitLabel = (value) => {
+  const cleaned = cleanText(value, 80);
+  return cleaned || "Per item";
+};
+
+const isPerHeadRateLabel = (value) => /\bhead\b/i.test(String(value || ""));
+
 const normalizeDateValue = (value) => {
   const cleaned = cleanText(value, 32);
   if (!cleaned) return null;
@@ -132,23 +170,216 @@ const normalizeDateValue = (value) => {
   return parsed.toISOString().slice(0, 10);
 };
 
+const normalizeTimestampValue = (value) => {
+  const cleaned = cleanText(value, 80);
+  if (!cleaned) return null;
+  const parsed = new Date(cleaned);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+};
+
+const formatDateStamp = (value = new Date()) => {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  return parsed.toISOString().slice(0, 10).replaceAll("-", "");
+};
+
+const buildDocumentNumber = (documentType) => {
+  const prefix = documentType === "receipt" ? "REC" : "INV";
+  return `${prefix}-${formatDateStamp()}-${String(Date.now()).slice(-5)}`;
+};
+
+const getDocumentKindLabel = (documentType) => (documentType === "receipt" ? "Receipt" : "Invoice");
+
+const getDocumentAuditLabel = (record) => {
+  const invoiceNumber = cleanText(record?.invoiceNumber, 120);
+  if (!invoiceNumber) return "Draft";
+  return `${getDocumentKindLabel(record?.documentType)} #${invoiceNumber}`;
+};
+
+const applySentDocumentDefaults = (record) => {
+  const normalized = { ...record };
+  if (!normalized.sentAt) {
+    normalized.invoiceNumber = "";
+    normalized.paymentStatus = "draft";
+    return normalized;
+  }
+  if (!normalized.invoiceNumber) {
+    normalized.invoiceNumber = buildDocumentNumber(normalized.documentType);
+  }
+  if (normalized.paymentStatus === "draft") {
+    normalized.paymentStatus = "unpaid";
+  }
+  return normalized;
+};
+
 const normalizeLineItems = (items) => {
   if (!Array.isArray(items)) return [];
   return items
     .slice(0, 200)
     .map((item, index) => {
-      const quantity = Math.max(0, normalizeMoney(item?.quantity, 1));
+      const rowType = normalizeLineRowType(item?.rowType);
+      const quantity = normalizeLineQuantity(item?.quantity, 1);
       const unitPrice = Math.max(0, normalizeMoney(item?.unitPrice, 0));
-      const name = cleanText(item?.name, 240) || `Item ${index + 1}`;
+      const name = cleanText(item?.name, 240);
       return {
         id: cleanText(item?.id, 80) || `line-${index + 1}`,
+        rowType,
+        productId: normalizeId(item?.productId),
         name,
-        quantity,
-        unitPrice,
-        total: Math.round(quantity * unitPrice * 100) / 100,
+        unitLabel: rowType === "item" ? normalizeLineUnitLabel(item?.unitLabel) : "",
+        quantity: rowType === "item" ? quantity : 0,
+        unitPrice: rowType === "item" ? unitPrice : 0,
+        total: rowType === "item" ? Math.round(quantity * unitPrice * 100) / 100 : 0,
       };
-    })
-    .filter((item) => item.name);
+    });
+};
+
+const addProductQuantity = (map, productId, quantity) => {
+  if (!Number.isInteger(productId) || productId <= 0) return;
+  const normalizedQuantity = normalizeLineQuantity(quantity, 0);
+  if (normalizedQuantity <= 0) return;
+  map.set(productId, (map.get(productId) || 0) + normalizedQuantity);
+};
+
+const buildLineItemProductQuantityMap = (lineItems) => {
+  const quantities = new Map();
+  normalizeLineItems(lineItems).forEach((item) => {
+    if (item.rowType !== "item") return;
+    const quantity = isPerHeadRateLabel(item.unitLabel)
+      ? normalizeLineQuantity(item.quantity, 0) > 0
+        ? 1
+        : 0
+      : item.quantity;
+    addProductQuantity(quantities, normalizeId(item.productId), quantity);
+  });
+  return quantities;
+};
+
+const collectProductIdsFromMaps = (...maps) =>
+  [...new Set(maps.flatMap((map) => (map instanceof Map ? [...map.keys()] : [])))];
+
+const isInventoryCommittedDocument = (document) =>
+  shouldManageInventory(document?.sourceType) && Boolean(document?.stockCommittedAt) && !document?.archivedAt;
+
+const selectProductsForInventory = async (client, organizationId, productIds = []) => {
+  if (!productIds.length) return new Map();
+  const result = await client.query(
+    `SELECT
+       id,
+       name,
+       stock,
+       COALESCE("isActive", true) AS "isActive"
+     FROM "product"
+     WHERE id = ANY($1::int[])
+       AND "organizationId" = $2
+     FOR UPDATE`,
+    [productIds, organizationId]
+  );
+  return new Map((result.rows || []).map((row) => [Number(row.id), row]));
+};
+
+const validateCommittedInventory = ({ requestedQuantities, previouslyCommittedQuantities, productMap }) => {
+  for (const [productId, requestedQuantity] of requestedQuantities.entries()) {
+    const product = productMap.get(productId);
+    if (!product) {
+      return `Product ${productId} was not found.`;
+    }
+    if (product.isActive === false) {
+      return `${product.name || `Product ${productId}`} is unavailable.`;
+    }
+    const currentStock = Math.max(0, normalizeLineQuantity(product.stock, 0));
+    const previouslyCommitted = previouslyCommittedQuantities.get(productId) || 0;
+    const availableToDocument = currentStock + previouslyCommitted;
+    if (requestedQuantity > availableToDocument) {
+      return `${product.name || `Product ${productId}`} only has ${availableToDocument} in stock.`;
+    }
+  }
+  return "";
+};
+
+const buildInventoryDeltaMap = (previouslyCommittedQuantities, nextCommittedQuantities) => {
+  const delta = new Map();
+  collectProductIdsFromMaps(previouslyCommittedQuantities, nextCommittedQuantities).forEach((productId) => {
+    const difference =
+      (nextCommittedQuantities.get(productId) || 0) - (previouslyCommittedQuantities.get(productId) || 0);
+    if (difference !== 0) {
+      delta.set(productId, difference);
+    }
+  });
+  return delta;
+};
+
+const applyInventoryDelta = async (
+  client,
+  { organizationId, deltaMap, productMap, authUser, documentLabel, reference }
+) => {
+  for (const [productId, delta] of deltaMap.entries()) {
+    const quantity = Math.abs(Number.parseInt(String(delta ?? ""), 10) || 0);
+    if (quantity <= 0) continue;
+    const product = productMap.get(productId);
+    const stockType = delta > 0 ? "StockOut" : "StockIn";
+    const updateResult =
+      delta > 0
+        ? await client.query(
+            `UPDATE "product"
+             SET stock = stock - $1,
+                 "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+                 "lastUpdatedAt" = NOW(),
+                 "updatedAt" = NOW()
+             WHERE id = $2
+               AND "organizationId" = $4
+               AND COALESCE("isActive", true) = true
+               AND stock >= $1`,
+            [quantity, productId, authUser.id, organizationId]
+          )
+        : await client.query(
+            `UPDATE "product"
+             SET stock = stock + $1,
+                 "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+                 "lastUpdatedAt" = NOW(),
+                 "updatedAt" = NOW()
+             WHERE id = $2
+               AND "organizationId" = $4`,
+            [quantity, productId, authUser.id, organizationId]
+          );
+
+    if (updateResult.rowCount === 0) {
+      throw new Error(
+        delta > 0
+          ? `${product?.name || `Product ${productId}`} no longer has enough stock.`
+          : `Failed to restore ${product?.name || `Product ${productId}`} stock.`
+      );
+    }
+
+    await client.query(
+      `INSERT INTO "stockMovement" (
+         "organizationId",
+         "productId",
+         "type",
+         "quantity",
+         "notes",
+         "reference",
+         "date",
+         "performedByUserId",
+         "performedByName",
+         "performedByEmail",
+         "createdAt"
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, NOW())`,
+      [
+        organizationId,
+        productId,
+        stockType,
+        quantity,
+        delta > 0 ? `Committed to ${documentLabel}` : `Released from ${documentLabel}`,
+        reference,
+        authUser.id,
+        authUser.fullName || authUser.name || authUser.email || "Internal user",
+        authUser.email || null,
+      ]
+    );
+  }
 };
 
 const normalizeExpenses = (items) => {
@@ -164,16 +395,38 @@ const normalizeExpenses = (items) => {
     }));
 };
 
+const normalizeAdditionalItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .slice(0, 100)
+    .map((item, index) => {
+      const quantity = normalizeLineQuantity(item?.quantity, 1);
+      const unitPrice = Math.max(0, normalizeMoney(item?.unitPrice, 0));
+      return {
+        id: cleanText(item?.id, 80) || `additional-${index + 1}`,
+        description: cleanText(item?.description, 240),
+        quantity,
+        unitLabel: normalizeLineUnitLabel(item?.unitLabel),
+        unitPrice,
+        total: Math.round(quantity * unitPrice * 100) / 100,
+      };
+    });
+};
+
 const normalizePayload = (payload = {}) => {
   const sourceType = normalizeSourceType(payload.sourceType);
-  return {
+  return applySentDocumentDefaults({
     sourceType,
     sourceId: sourceType === "manual" ? null : normalizeId(payload.sourceId),
+    customerId: normalizeId(payload.customerId),
     documentType: normalizeDocumentType(payload.documentType),
     title: cleanNullableText(payload.title, 200),
     invoiceNumber: cleanText(payload.invoiceNumber, 120),
     issueDate: normalizeDateValue(payload.issueDate),
+    dueDate: normalizeDateValue(payload.dueDate),
     paymentStatus: normalizePaymentStatus(payload.paymentStatus),
+    sentAt: normalizeTimestampValue(payload.sentAt),
+    sentToEmail: cleanNullableText(payload.sentToEmail, 200),
     depositAmount: Math.max(0, normalizeMoney(payload.depositAmount, 0)),
     customerName: cleanNullableText(payload.customerName, 200),
     customerEmail: cleanNullableText(payload.customerEmail, 200),
@@ -184,14 +437,15 @@ const normalizePayload = (payload = {}) => {
     venueAddress: cleanNullableText(payload.venueAddress, 240),
     lineItems: normalizeLineItems(payload.lineItems),
     expenses: normalizeExpenses(payload.expenses),
+    additionalItems: normalizeAdditionalItems(payload.additionalItems),
     notes: cleanNullableText(payload.notes, 4000),
     terms: cleanNullableText(payload.terms, 4000),
     taxRate: normalizeTaxRate(payload.taxRate),
-  };
+    discountAmount: Math.max(0, normalizeMoney(payload.discountAmount, 0)),
+  });
 };
 
 const validatePayload = (record) => {
-  if (!record.invoiceNumber) return "Invoice number is required.";
   if (record.sourceType !== "manual" && !record.sourceId) return "Linked document source is required.";
   if (!DOCUMENT_TYPES.has(record.documentType)) return "Invalid document type.";
   if (!PAYMENT_STATUSES.has(record.paymentStatus)) return "Invalid payment status.";
@@ -204,11 +458,16 @@ const selectDocuments = async (client, organizationId) => {
        id,
        "sourceType",
        "sourceId",
+       "customerId",
        "documentType",
        title,
        "invoiceNumber",
        "issueDate",
+       "dueDate",
        "paymentStatus",
+       "sentAt",
+       "sentToEmail",
+       "stockCommittedAt",
        "depositAmount",
        "customerName",
        "customerEmail",
@@ -219,9 +478,11 @@ const selectDocuments = async (client, organizationId) => {
        "venueAddress",
        "lineItems",
        "expenses",
+       "additionalItems",
        notes,
        terms,
        "taxRate",
+       "discountAmount",
        "archivedAt",
        "createdAt",
        "updatedAt"
@@ -239,11 +500,16 @@ const selectDocumentById = async (client, organizationId, id) => {
        id,
        "sourceType",
        "sourceId",
+       "customerId",
        "documentType",
        title,
        "invoiceNumber",
        "issueDate",
+       "dueDate",
        "paymentStatus",
+       "sentAt",
+       "sentToEmail",
+       "stockCommittedAt",
        "depositAmount",
        "customerName",
        "customerEmail",
@@ -254,9 +520,11 @@ const selectDocumentById = async (client, organizationId, id) => {
        "venueAddress",
        "lineItems",
        "expenses",
+       "additionalItems",
        notes,
        terms,
        "taxRate",
+       "discountAmount",
        "archivedAt",
        "createdAt",
        "updatedAt"
@@ -277,6 +545,7 @@ export async function handler(event = {}) {
     connectionString: process.env.DATABASE_URL,
     ssl: resolvePgSslConfig(),
   });
+  let transactionOpen = false;
 
   try {
     await client.connect();
@@ -289,6 +558,7 @@ export async function handler(event = {}) {
     const { authUser, organizationId } = authResult;
 
     await ensureInvoiceDocumentTable(client);
+    await ensureAuditColumns(client);
 
     if (event.httpMethod === "GET") {
       const documents = await selectDocuments(client, organizationId);
@@ -315,7 +585,13 @@ export async function handler(event = {}) {
         );
       }
 
+      await client.query("BEGIN");
+      transactionOpen = true;
+
       let archivedId = id;
+      let existingDocument = archivedId
+        ? await selectDocumentById(client, organizationId, archivedId)
+        : null;
       if (!archivedId && normalized.sourceType !== "manual" && normalized.sourceId) {
         const existing = await client.query(
           `SELECT id
@@ -335,11 +611,16 @@ export async function handler(event = {}) {
                "organizationId",
                "sourceType",
                "sourceId",
+               "customerId",
                "documentType",
                title,
                "invoiceNumber",
                "issueDate",
+               "dueDate",
                "paymentStatus",
+               "sentAt",
+               "sentToEmail",
+               "stockCommittedAt",
                "depositAmount",
                "customerName",
                "customerEmail",
@@ -350,9 +631,11 @@ export async function handler(event = {}) {
                "venueAddress",
                "lineItems",
                "expenses",
+               "additionalItems",
                notes,
                terms,
                "taxRate",
+               "discountAmount",
                "createdByUserId",
                "updatedByUserId",
                "archivedAt",
@@ -361,18 +644,23 @@ export async function handler(event = {}) {
                "updatedAt"
              )
              VALUES (
-               $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22,$22,NOW(),$22,NOW(),NOW()
+               $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24::jsonb,$25,$26,$27,$28,$29,$29,NOW(),$29,NOW(),NOW()
              )
              RETURNING id`,
             [
               organizationId,
               normalized.sourceType,
               normalized.sourceId,
+              normalized.customerId,
               normalized.documentType,
               normalized.title,
               normalized.invoiceNumber,
               normalized.issueDate,
+              normalized.dueDate,
               normalized.paymentStatus,
+              normalized.sentAt,
+              normalized.sentToEmail,
+              null,
               normalized.depositAmount,
               normalized.customerName,
               normalized.customerEmail,
@@ -383,24 +671,50 @@ export async function handler(event = {}) {
               normalized.venueAddress,
               JSON.stringify(normalized.lineItems),
               JSON.stringify(normalized.expenses),
+              JSON.stringify(normalized.additionalItems),
               normalized.notes,
               normalized.terms,
               normalized.taxRate,
+              normalized.discountAmount,
               authUser.id,
             ]
           );
           archivedId = inserted.rows[0]?.id || null;
+          existingDocument = archivedId
+            ? await selectDocumentById(client, organizationId, archivedId)
+            : null;
         }
       }
 
-      if (!archivedId) {
+      if (!existingDocument && archivedId) {
+        existingDocument = await selectDocumentById(client, organizationId, archivedId);
+      }
+
+      if (!archivedId || !existingDocument) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
         return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+
+      if (isInventoryCommittedDocument(existingDocument)) {
+        const committedQuantities = buildLineItemProductQuantityMap(existingDocument.lineItems);
+        const productIds = collectProductIdsFromMaps(committedQuantities);
+        const productMap = await selectProductsForInventory(client, organizationId, productIds);
+        await applyInventoryDelta(client, {
+          organizationId,
+          deltaMap: buildInventoryDeltaMap(committedQuantities, new Map()),
+          productMap,
+          authUser,
+          documentLabel: getDocumentAuditLabel(existingDocument),
+          reference: cleanText(existingDocument.invoiceNumber, 120) || "Draft",
+        });
       }
 
       await client.query(
         `UPDATE "invoiceDocument"
          SET "archivedAt" = NOW(),
              "archivedByUserId" = $1,
+             "stockCommittedAt" = NULL,
              "updatedByUserId" = $1,
              "updatedAt" = NOW()
          WHERE id = $2
@@ -409,6 +723,8 @@ export async function handler(event = {}) {
       );
 
       const archivedDocument = await selectDocumentById(client, organizationId, archivedId);
+      await client.query("COMMIT");
+      transactionOpen = false;
       return respond(event, 200, archivedDocument, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
@@ -417,6 +733,7 @@ export async function handler(event = {}) {
     if (validationError) {
       return respond(event, 400, { error: validationError }, { methods: INVOICE_DOCUMENT_METHODS });
     }
+    const documentLabel = getDocumentAuditLabel(normalized);
 
     if (event.httpMethod === "POST") {
       if (normalized.sourceType !== "manual") {
@@ -437,16 +754,52 @@ export async function handler(event = {}) {
       if (payload.id) {
         event.httpMethod = "PUT";
       } else {
+        await client.query("BEGIN");
+        transactionOpen = true;
+        const requestedQuantities = shouldManageInventory(normalized.sourceType)
+          ? buildLineItemProductQuantityMap(normalized.lineItems)
+          : new Map();
+        const nextCommittedQuantities =
+          shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
+        const productIds = collectProductIdsFromMaps(requestedQuantities, nextCommittedQuantities);
+        const productMap = await selectProductsForInventory(client, organizationId, productIds);
+        const inventoryValidationError = validateCommittedInventory({
+          requestedQuantities,
+          previouslyCommittedQuantities: new Map(),
+          productMap,
+        });
+        if (inventoryValidationError) {
+          await client.query("ROLLBACK");
+          transactionOpen = false;
+          return respond(event, 409, { error: inventoryValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
+        }
+        await applyInventoryDelta(client, {
+          organizationId,
+          deltaMap: buildInventoryDeltaMap(new Map(), nextCommittedQuantities),
+          productMap,
+          authUser,
+          documentLabel,
+          reference: normalized.invoiceNumber,
+        });
+        const stockCommittedAt =
+          shouldManageInventory(normalized.sourceType) && normalized.sentAt
+            ? new Date().toISOString()
+            : null;
         const inserted = await client.query(
           `INSERT INTO "invoiceDocument" (
              "organizationId",
              "sourceType",
              "sourceId",
+             "customerId",
              "documentType",
              title,
              "invoiceNumber",
              "issueDate",
+             "dueDate",
              "paymentStatus",
+             "sentAt",
+             "sentToEmail",
+             "stockCommittedAt",
              "depositAmount",
              "customerName",
              "customerEmail",
@@ -457,27 +810,34 @@ export async function handler(event = {}) {
              "venueAddress",
              "lineItems",
              "expenses",
+             "additionalItems",
              notes,
              terms,
              "taxRate",
+             "discountAmount",
              "createdByUserId",
              "updatedByUserId",
              "createdAt",
              "updatedAt"
-           )
-           VALUES (
-             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22,$22,NOW(),NOW()
+             )
+             VALUES (
+             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24::jsonb,$25,$26,$27,$28,$29,$29,NOW(),NOW()
            )
            RETURNING id`,
           [
             organizationId,
             normalized.sourceType,
             normalized.sourceId,
+            normalized.customerId,
             normalized.documentType,
             normalized.title,
             normalized.invoiceNumber,
             normalized.issueDate,
+            normalized.dueDate,
             normalized.paymentStatus,
+            normalized.sentAt,
+            normalized.sentToEmail,
+            stockCommittedAt,
             normalized.depositAmount,
             normalized.customerName,
             normalized.customerEmail,
@@ -488,14 +848,18 @@ export async function handler(event = {}) {
             normalized.venueAddress,
             JSON.stringify(normalized.lineItems),
             JSON.stringify(normalized.expenses),
+            JSON.stringify(normalized.additionalItems),
             normalized.notes,
             normalized.terms,
             normalized.taxRate,
+            normalized.discountAmount,
             authUser.id,
           ]
         );
 
         const document = await selectDocumentById(client, organizationId, inserted.rows[0].id);
+        await client.query("COMMIT");
+        transactionOpen = false;
         return respond(event, 200, document, { methods: INVOICE_DOCUMENT_METHODS });
       }
     }
@@ -509,46 +873,95 @@ export async function handler(event = {}) {
       return respond(event, 400, { error: "Document id is required." }, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
+    await client.query("BEGIN");
+    transactionOpen = true;
     const existingDocument = await selectDocumentById(client, organizationId, id);
     if (!existingDocument) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
       return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
+    const previouslyCommittedQuantities = isInventoryCommittedDocument(existingDocument)
+      ? buildLineItemProductQuantityMap(existingDocument.lineItems)
+      : new Map();
+    const requestedQuantities = shouldManageInventory(normalized.sourceType)
+      ? buildLineItemProductQuantityMap(normalized.lineItems)
+      : new Map();
+    const nextCommittedQuantities =
+      shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
+    const productIds = collectProductIdsFromMaps(previouslyCommittedQuantities, requestedQuantities, nextCommittedQuantities);
+    const productMap = await selectProductsForInventory(client, organizationId, productIds);
+    const inventoryValidationError = validateCommittedInventory({
+      requestedQuantities,
+      previouslyCommittedQuantities,
+      productMap,
+    });
+    if (inventoryValidationError) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
+      return respond(event, 409, { error: inventoryValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
+    }
+    await applyInventoryDelta(client, {
+      organizationId,
+      deltaMap: buildInventoryDeltaMap(previouslyCommittedQuantities, nextCommittedQuantities),
+      productMap,
+      authUser,
+      documentLabel,
+      reference: normalized.invoiceNumber,
+    });
+    const nextStockCommittedAt =
+      shouldManageInventory(normalized.sourceType) && normalized.sentAt
+        ? existingDocument.stockCommittedAt || new Date().toISOString()
+        : null;
+
     await client.query(
       `UPDATE "invoiceDocument"
-       SET
+        SET
          "sourceType" = $1,
          "sourceId" = $2,
-         "documentType" = $3,
-         title = $4,
-         "invoiceNumber" = $5,
-         "issueDate" = $6,
-         "paymentStatus" = $7,
-         "depositAmount" = $8,
-         "customerName" = $9,
-         "customerEmail" = $10,
-         "customerPhone" = $11,
-         "eventDate" = $12,
-         "startTime" = $13,
-         "endTime" = $14,
-         "venueAddress" = $15,
-         "lineItems" = $16::jsonb,
-         "expenses" = $17::jsonb,
-         notes = $18,
-         terms = $19,
-         "taxRate" = $20,
-         "updatedByUserId" = $21,
+         "customerId" = $3,
+         "documentType" = $4,
+         title = $5,
+         "invoiceNumber" = $6,
+         "issueDate" = $7,
+         "dueDate" = $8,
+         "paymentStatus" = $9,
+         "sentAt" = $10,
+         "sentToEmail" = $11,
+         "stockCommittedAt" = $12,
+         "depositAmount" = $13,
+         "customerName" = $14,
+         "customerEmail" = $15,
+         "customerPhone" = $16,
+         "eventDate" = $17,
+         "startTime" = $18,
+         "endTime" = $19,
+         "venueAddress" = $20,
+         "lineItems" = $21::jsonb,
+         "expenses" = $22::jsonb,
+         "additionalItems" = $23::jsonb,
+         notes = $24,
+         terms = $25,
+         "taxRate" = $26,
+         "discountAmount" = $27,
+         "updatedByUserId" = $28,
          "updatedAt" = NOW()
-       WHERE id = $22
-         AND "organizationId" = $23`,
+       WHERE id = $29
+         AND "organizationId" = $30`,
       [
         normalized.sourceType,
         normalized.sourceId,
+        normalized.customerId,
         normalized.documentType,
         normalized.title,
         normalized.invoiceNumber,
         normalized.issueDate,
+        normalized.dueDate,
         normalized.paymentStatus,
+        normalized.sentAt,
+        normalized.sentToEmail,
+        nextStockCommittedAt,
         normalized.depositAmount,
         normalized.customerName,
         normalized.customerEmail,
@@ -559,9 +972,11 @@ export async function handler(event = {}) {
         normalized.venueAddress,
         JSON.stringify(normalized.lineItems),
         JSON.stringify(normalized.expenses),
+        JSON.stringify(normalized.additionalItems),
         normalized.notes,
         normalized.terms,
         normalized.taxRate,
+        normalized.discountAmount,
         authUser.id,
         id,
         organizationId,
@@ -569,8 +984,13 @@ export async function handler(event = {}) {
     );
 
     const updatedDocument = await selectDocumentById(client, organizationId, id);
+    await client.query("COMMIT");
+    transactionOpen = false;
     return respond(event, 200, updatedDocument, { methods: INVOICE_DOCUMENT_METHODS });
   } catch (err) {
+    if (typeof transactionOpen !== "undefined" && transactionOpen) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
     console.error("invoice-documents error:", err);
     return respond(event, 500, { error: "Failed to process invoice documents." }, {
       methods: INVOICE_DOCUMENT_METHODS,

@@ -962,9 +962,6 @@ function Admin() {
         </strong>
       </div>
       <div className="inventory-register-pagination-meta">
-        <span className="inventory-register-pagination-page">
-          Page {paginationDisplayPage} of {paginationDisplayCount}
-        </span>
         <div className="table-pagination-controls inventory-register-pagination-controls">
           <button
             type="button"
@@ -973,6 +970,9 @@ function Admin() {
           >
             Previous
           </button>
+          <span className="inventory-register-pagination-page">
+            Page {paginationDisplayPage} of {paginationDisplayCount}
+          </span>
           <button
             type="button"
             onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
@@ -2067,7 +2067,7 @@ function Admin() {
           })}
         </section>
 
-        <section className="glass-card inventory-kpi-panel" aria-label="Inventory hub KPIs">
+        <section className="inventory-kpi-panel" aria-label="Inventory hub KPIs">
           <div className="inventory-kpi-panel-head">
             <div className="inventory-kpi-panel-aside">
             </div>
@@ -2627,9 +2627,7 @@ function Admin() {
                 {inventory.length > 0 && (
                   <tfoot className="admin-table-footer">
                     <tr>
-                      <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
-                      </td>
+                      <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />

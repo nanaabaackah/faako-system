@@ -2358,7 +2358,7 @@ body.admin-theme.aw-theme .aw-quick-action-btn {
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(18px);
   font-weight: 500;
   font-size: 0.85rem;
   color: var(--aw-ink);
@@ -2367,6 +2367,8 @@ body.admin-theme.aw-theme .aw-quick-action-btn {
 body.admin-theme.aw-theme .aw-quick-action-btn:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   background: linear-gradient(135deg, var(--aw-card-strong), var(--aw-card));
 }
 

@@ -206,54 +206,78 @@ export async function handler(event) {
     }
 
     if (event.httpMethod === "GET") {
-      const result = await client.query(
-        `SELECT
-           b.id,
-           b."customerId",
-           c.name AS "customerName",
-           c.email AS "customerEmail",
-           c.phone AS "customerPhone",
-           b."eventDate",
-           b."startTime",
-           b."endTime",
-           b."venueAddress",
-           b."totalAmount",
-           b.status,
-           b."createdAt",
-           b."lastModifiedAt",
-           b."updatedAt",
-           b."assignedUserId",
-           b."createdByUserId",
-           b."updatedByUserId",
-           assignee."fullName" AS "assignedUserName",
-           updater."fullName" AS "updatedByName",
-           creator."fullName" AS "createdByName",
-            COALESCE(
-              json_agg(
-                json_build_object(
-                 'id', bi.id,
-                 'productId', bi."productId",
-                 'quantity', bi.quantity,
-                 'price', bi.price,
-                 'productName', p.name,
-                 'productImage', p."imageUrl"
-               )
-               ORDER BY bi.id
-             ) FILTER (WHERE bi.id IS NOT NULL),
-             '[]'::json
-           ) AS items
-         FROM "booking" b
-         JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
-         LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
-         LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
-         LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
-         LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
-         LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
-         WHERE b."organizationId" = $1
-         GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
-         ORDER BY b."eventDate" DESC, b.id DESC`,
-        [organizationId]
-      );
+      const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
+      const result = compact
+        ? await client.query(
+            `SELECT
+               b.id,
+               b."customerId",
+               c.name AS "customerName",
+               c.email AS "customerEmail",
+               c.phone AS "customerPhone",
+               b."eventDate",
+               b."startTime",
+               b."endTime",
+               b."venueAddress",
+               b."totalAmount",
+               b.status,
+               b."createdAt",
+               b."lastModifiedAt",
+               b."updatedAt"
+             FROM "booking" b
+             JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
+             WHERE b."organizationId" = $1
+             ORDER BY b."eventDate" DESC, b.id DESC`,
+            [organizationId]
+          )
+        : await client.query(
+            `SELECT
+               b.id,
+               b."customerId",
+               c.name AS "customerName",
+               c.email AS "customerEmail",
+               c.phone AS "customerPhone",
+               b."eventDate",
+               b."startTime",
+               b."endTime",
+               b."venueAddress",
+               b."totalAmount",
+               b.status,
+               b."createdAt",
+               b."lastModifiedAt",
+               b."updatedAt",
+               b."assignedUserId",
+               b."createdByUserId",
+               b."updatedByUserId",
+               assignee."fullName" AS "assignedUserName",
+               updater."fullName" AS "updatedByName",
+               creator."fullName" AS "createdByName",
+                COALESCE(
+                  json_agg(
+                    json_build_object(
+                     'id', bi.id,
+                     'productId', bi."productId",
+                     'quantity', bi.quantity,
+                     'price', bi.price,
+                     'productName', p.name,
+                     'productImage', p."imageUrl"
+                   )
+                   ORDER BY bi.id
+                 ) FILTER (WHERE bi.id IS NOT NULL),
+                 '[]'::json
+               ) AS items
+             FROM "booking" b
+             JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
+             LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
+             LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
+             LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
+             LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
+             LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
+             WHERE b."organizationId" = $1
+             GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
+             ORDER BY b."eventDate" DESC, b.id DESC`,
+            [organizationId]
+          );
 
       return json(200, result.rows);
     }

@@ -1895,6 +1895,7 @@ body.admin-theme .store-mode-page {
   .store-builder-panel--order,
   .store-builder-panel--cart {
     display: grid;
+    padding: 2rem 0;
   }
 
   .store-builder-panel {
@@ -1928,7 +1929,7 @@ body.admin-theme .store-mode-page {
 
   .store-builder-left {
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 0.7rem;
+    gap: 1.5rem;
   }
 
   .store-builder-main {
@@ -2076,11 +2077,6 @@ body.admin-theme .store-mode-page {
     max-height: none;
     overflow: visible;
     scrollbar-gutter: auto;
-  }
-
-  .store-builder-left {
-    display: block;
-    min-height: auto;
   }
 
   .store-builder-panel--cart {

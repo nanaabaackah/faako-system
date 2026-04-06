@@ -1,4 +1,5 @@
 import React from "react";
+import { InlineNotice as SharedInlineNotice } from "@faako/ui";
 import { AppIcon } from "../Icon/Icon";
 import { faCircleCheck, faClock, faRotateRight, faXmark } from "../../icons/iconSet";
 import "./InlineNotice.css";
@@ -38,22 +39,20 @@ export function InlineNotice({
   compact = false,
 }) {
   const meta = NOTICE_META[tone] || NOTICE_META.info;
-  const resolvedTitle = title || meta.title;
 
   return (
-    <div
-      className={`inline-notice inline-notice--${tone}${compact ? " is-compact" : ""}${className ? ` ${className}` : ""}`}
-      role={meta.role}
-      aria-live={meta.live}
-    >
-      <span className={`inline-notice__icon${tone === "loading" ? " is-spinning" : ""}`} aria-hidden="true">
-        <AppIcon icon={meta.icon} />
-      </span>
-      <div className="inline-notice__body">
-        <p className="inline-notice__title">{resolvedTitle}</p>
-        {message ? <p className="inline-notice__message">{message}</p> : null}
-      </div>
-    </div>
+    <SharedInlineNotice
+      tone={tone}
+      title={title || meta.title}
+      message={message}
+      compact={compact}
+      className={`inline-notice inline-notice--${tone}${className ? ` ${className}` : ""}`}
+      iconClassName="inline-notice__icon"
+      bodyClassName="inline-notice__body"
+      titleClassName="inline-notice__title"
+      messageClassName="inline-notice__message"
+      renderIcon={() => <AppIcon icon={meta.icon} />}
+    />
   );
 }
 

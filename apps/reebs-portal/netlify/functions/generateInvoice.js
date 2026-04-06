@@ -74,11 +74,17 @@ export async function handler(event = {}) {
          oi.unit_price,
          oi.total_amount,
          p.name,
-         p.sku
+         p.sku,
+         p.rate,
+         p."attendantsNeeded",
+         p."sourceCategoryCode",
+         bc."motorsToPump"
        FROM "orderItem" oi
        JOIN "product" p
          ON p.id = oi."productId"
         AND p."organizationId" = oi."organizationId"
+       LEFT JOIN "bouncy_castles" bc
+         ON bc."productId" = oi."productId"
        WHERE oi."orderId" = $1
          AND oi."organizationId" = $2
        ORDER BY oi.id ASC`,
@@ -98,12 +104,56 @@ export async function handler(event = {}) {
       id: row.id,
       name: row.name,
       sku: row.sku,
+      rate: row.rate || "",
+      attendantsNeeded: Number(row.attendantsNeeded || 0),
+      sourceCategoryCode: row.sourceCategoryCode || "",
+      motorsToPump: Number(row.motorsToPump || 0),
       quantity: row.quantity,
       unitPriceCents: Number(row.unit_price || 0),
       totalCents: Number(row.total_amount || 0),
       unitPrice: Number(row.unit_price || 0) / 100,
       total: Number(row.total_amount || 0) / 100,
     }));
+
+    const hasPump = items.some((item) => {
+      const name = String(item?.name || "").toLowerCase();
+      const sku = String(item?.sku || "").toUpperCase();
+      return name.includes("pump") || sku.startsWith("PUM");
+    });
+
+    const pumpQuantity = items.reduce((sum, item) => {
+      const motors = Math.max(0, Number(item?.motorsToPump || 0));
+      if (!motors) return sum;
+      const quantity = Math.max(1, parseInt(item?.quantity, 10) || 1);
+      return sum + motors * quantity;
+    }, 0);
+
+    if (pumpQuantity > 0 && !hasPump) {
+      const pumpRes = await client.query(
+        `SELECT id, name, sku, price, rate, "sourceCategoryCode"
+         FROM "product"
+         WHERE "organizationId" = $1
+           AND (UPPER(sku) LIKE 'PUM-%' OR LOWER(name) LIKE '%motor pump%')
+         ORDER BY id
+         LIMIT 1`,
+        [organizationId]
+      );
+      const pumpProduct = pumpRes.rows[0] || null;
+      items.push({
+        id: "order-pump",
+        name: pumpProduct?.name || "Motor Pump",
+        sku: pumpProduct?.sku || "PUM",
+        rate: pumpProduct?.rate || "",
+        attendantsNeeded: 0,
+        sourceCategoryCode: pumpProduct?.sourceCategoryCode || "RENTAL",
+        motorsToPump: 0,
+        quantity: pumpQuantity,
+        unitPriceCents: Number(pumpProduct?.price || 0),
+        totalCents: Number(pumpProduct?.price || 0) * pumpQuantity,
+        unitPrice: Number(pumpProduct?.price || 0) / 100,
+        total: (Number(pumpProduct?.price || 0) * pumpQuantity) / 100,
+      });
+    }
 
     const itemsSubtotalCents = itemsRes.rows.reduce(
       (acc, row) => acc + Number(row.total_amount || 0),
@@ -117,6 +167,7 @@ export async function handler(event = {}) {
         id: "order-adjustment",
         name: adjustmentCents < 0 ? "Discount" : "Adjustment",
         sku: null,
+        rate: "",
         quantity: 1,
         unitPriceCents: adjustmentCents,
         totalCents: adjustmentCents,
@@ -134,6 +185,7 @@ export async function handler(event = {}) {
         id: "delivery-fee",
         name: `Delivery fee (${distanceKm} km @ GHS ${deliveryRate.toFixed(2)}/km)`,
         sku: null,
+        rate: "",
         quantity: distanceKm,
         unitPriceCents: deliveryRateCents,
         totalCents: deliveryFeeCents,

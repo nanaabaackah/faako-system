@@ -89,54 +89,72 @@ export async function handler(event = {}) {
     if (event.httpMethod === "GET") {
       const orderId = Number(event.queryStringParameters?.orderId);
       const hasOrderId = Number.isFinite(orderId) && orderId > 0;
+      const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
       const params = [organizationId];
       if (hasOrderId) params.push(orderId);
-      const result = await client.query(
-        `SELECT
-           o.id,
-           o."orderNumber",
-           o."customerName",
-           o.status,
-           o."deliveryMethod",
-           o."deliveryDetails",
-           o."pickupDetails",
-           (o."total_amount"::numeric / 100) AS total,
-           o."orderDate",
-           o."deliveryDate",
-           o."lastModifiedAt",
-           o."assignedUserId",
-           o."updatedByUserId",
-           assignee."fullName" AS "assignedUserName",
-           updater."fullName" AS "updatedByName",
-           (
-             SELECT COALESCE(json_agg(json_build_object(
-               'id', oi.id,
-               'productId', oi."productId",
-               'productName', p.name,
-               'sku', p.sku,
-               'quantity', oi.quantity,
-               'unitPrice', oi.unit_price,
-               'total', oi.total_amount,
-               'imageUrl', p."imageUrl"
-             )), '[]'::json)
-             FROM "orderItem" oi
-             LEFT JOIN "product" p ON p.id = oi."productId" AND p."organizationId" = o."organizationId"
-             WHERE oi."orderId" = o.id
-               AND oi."organizationId" = o."organizationId"
-           ) AS items
-         FROM "order" o
-         LEFT JOIN "user" assignee
-           ON assignee.id = o."assignedUserId"
-          AND assignee."organizationId" = o."organizationId"
-         LEFT JOIN "user" updater
-           ON updater.id = o."updatedByUserId"
-          AND updater."organizationId" = o."organizationId"
-         WHERE o."organizationId" = $1
-         ${hasOrderId ? `AND o.id = $2` : ""}
-         ORDER BY o."orderDate" DESC, o."id" DESC`
-      ,
-        params
-      );
+      const result = compact && !hasOrderId
+        ? await client.query(
+            `SELECT
+               o.id,
+               o."orderNumber",
+               o."customerName",
+               o.status,
+               o."deliveryMethod",
+               o."deliveryDetails",
+               (o."total_amount"::numeric / 100) AS total,
+               o."orderDate",
+               o."deliveryDate",
+               o."lastModifiedAt"
+             FROM "order" o
+             WHERE o."organizationId" = $1
+             ORDER BY o."orderDate" DESC, o."id" DESC`,
+            params
+          )
+        : await client.query(
+            `SELECT
+               o.id,
+               o."orderNumber",
+               o."customerName",
+               o.status,
+               o."deliveryMethod",
+               o."deliveryDetails",
+               o."pickupDetails",
+               (o."total_amount"::numeric / 100) AS total,
+               o."orderDate",
+               o."deliveryDate",
+               o."lastModifiedAt",
+               o."assignedUserId",
+               o."updatedByUserId",
+               assignee."fullName" AS "assignedUserName",
+               updater."fullName" AS "updatedByName",
+               (
+                 SELECT COALESCE(json_agg(json_build_object(
+                   'id', oi.id,
+                   'productId', oi."productId",
+                   'productName', p.name,
+                   'sku', p.sku,
+                   'quantity', oi.quantity,
+                   'unitPrice', oi.unit_price,
+                   'total', oi.total_amount,
+                   'imageUrl', p."imageUrl"
+                 )), '[]'::json)
+                 FROM "orderItem" oi
+                 LEFT JOIN "product" p ON p.id = oi."productId" AND p."organizationId" = o."organizationId"
+                 WHERE oi."orderId" = o.id
+                   AND oi."organizationId" = o."organizationId"
+               ) AS items
+             FROM "order" o
+             LEFT JOIN "user" assignee
+               ON assignee.id = o."assignedUserId"
+              AND assignee."organizationId" = o."organizationId"
+             LEFT JOIN "user" updater
+               ON updater.id = o."updatedByUserId"
+              AND updater."organizationId" = o."organizationId"
+             WHERE o."organizationId" = $1
+             ${hasOrderId ? `AND o.id = $2` : ""}
+             ORDER BY o."orderDate" DESC, o."id" DESC`,
+            params
+          );
 
       if (hasOrderId) {
         if (result.rowCount === 0) {

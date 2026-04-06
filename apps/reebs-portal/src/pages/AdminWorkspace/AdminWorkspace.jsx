@@ -286,7 +286,7 @@ const formatCompactCount = (value) => {
 };
 
 const getCustomerTotalValue = (customer) =>
-  toNumber(customer?.total_spent) + toNumber(customer?.total_rented);
+  (toNumber(customer?.total_spent) + toNumber(customer?.total_rented))/100;
 
 const buildSparkline = (items, getValue) => {
   const values = (Array.isArray(items) ? items : []).map((item) =>

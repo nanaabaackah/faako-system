@@ -1,10 +1,23 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import emailKit from "../../../../packages/email-kit/src/index.cjs";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { sendNotificationEmail } from "./_shared/email.js";
 
+const {
+  EMAIL_THEMES,
+  renderDataTable,
+  renderEmailLayout,
+  renderKeyValueTable,
+  renderMetricGrid,
+  renderNotice,
+  renderPanel,
+  renderParagraphs,
+} = emailKit;
+
 const INVOICE_DOCUMENT_EMAIL_METHODS = "POST,OPTIONS";
+const FAAKO_THEME = EMAIL_THEMES.faako;
 
 const cleanText = (value, maxLength = 400) => {
   if (typeof value !== "string") return "";
@@ -31,23 +44,59 @@ const normalizeTaxRate = (value) => {
   return Math.min(Math.max(normalized, 0), 1);
 };
 
+const normalizeLineRowType = (value) => {
+  const normalized = String(value || "item").toLowerCase();
+  if (normalized === "heading") return "heading";
+  if (normalized === "note") return "note";
+  return "item";
+};
+
+const isHeadingLineItem = (item) => normalizeLineRowType(item?.rowType) === "heading";
+const isNoteLineItem = (item) => normalizeLineRowType(item?.rowType) === "note";
+
+const normalizeLineUnitLabel = (value) => {
+  const cleaned = cleanText(value, 80);
+  return cleaned || "Per item";
+};
+
 const normalizeLineItems = (items) => {
   if (!Array.isArray(items)) return [];
   return items
     .slice(0, 200)
     .map((item, index) => {
+      const rowType = normalizeLineRowType(item?.rowType);
       const quantity = Math.max(0, normalizeMoney(item?.quantity, 1));
       const unitPrice = Math.max(0, normalizeMoney(item?.unitPrice, 0));
-      const total = Math.round(quantity * unitPrice * 100) / 100;
+      const name = cleanText(item?.name, 240);
       return {
         id: cleanText(item?.id, 80) || `line-${index + 1}`,
-        name: cleanText(item?.name, 240) || `Item ${index + 1}`,
-        quantity,
-        unitPrice,
-        total,
+        rowType,
+        name: rowType === "item" ? name || `Item ${index + 1}` : name,
+        unitLabel: rowType === "item" ? normalizeLineUnitLabel(item?.unitLabel) : "",
+        quantity: rowType === "item" ? quantity : 0,
+        unitPrice: rowType === "item" ? unitPrice : 0,
+        total: rowType === "item" ? Math.round(quantity * unitPrice * 100) / 100 : 0,
       };
     })
-    .filter((item) => item.name);
+    .filter((item) => item.rowType === "item" || item.name);
+};
+
+const normalizeAdditionalItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .slice(0, 100)
+    .map((item, index) => {
+      const quantity = Math.max(0, normalizeMoney(item?.quantity, 1));
+      const unitPrice = Math.max(0, normalizeMoney(item?.unitPrice, 0));
+      return {
+        id: cleanText(item?.id, 80) || `additional-${index + 1}`,
+        description: cleanText(item?.description, 240) || `Additional item ${index + 1}`,
+        quantity,
+        unitLabel: normalizeLineUnitLabel(item?.unitLabel),
+        unitPrice,
+        total: Math.round(quantity * unitPrice * 100) / 100,
+      };
+    });
 };
 
 const formatCurrency = (amount, currency = "GHS") => {
@@ -74,33 +123,140 @@ const formatDate = (value) => {
   });
 };
 
-const escapeHtml = (value) =>
+const titleCase = (value) =>
   String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const formatDocumentIdentity = (document) => {
+  const number = cleanText(document?.invoiceNumber, 120);
+  if (!number) return cleanText(document?.docLabel, 40) || "Document";
+  return `${cleanText(document?.docLabel, 40) || "Document"} ${number}`;
+};
+
+const buildDocumentIntro = (document, summary, currency) => {
+  const customerName = document?.customerName || "there";
+  const documentIdentity = formatDocumentIdentity(document);
+  const balanceLabel =
+    document?.documentType === "invoice"
+      ? formatCurrency(summary.balanceDue, currency)
+      : formatCurrency(summary.grandTotal, currency);
+
+  return [
+    `Hello ${customerName},`,
+    document?.documentType === "receipt"
+      ? `Your receipt is ready. ${documentIdentity} is attached below for your records.`
+      : `Your invoice is ready. ${documentIdentity} is prepared with a current balance of ${balanceLabel}.`,
+    document?.dueDate
+      ? `Please review the due date of ${formatDate(document.dueDate)} and the item breakdown below.`
+      : "Please review the document details and item breakdown below.",
+  ];
+};
+
+const buildDocumentDetailRows = (document) =>
+  [
+    ["Document", formatDocumentIdentity(document)],
+    ["Customer", document?.customerName || "Customer"],
+    ["Status", titleCase(document?.paymentStatus || "draft")],
+    ["Issue date", formatDate(document?.issueDate)],
+    ...(document?.dueDate ? [["Due date", formatDate(document.dueDate)]] : []),
+    ...(document?.linkedLabel ? [["Source", document.linkedLabel]] : []),
+  ].filter(([, value]) => String(value || "").trim());
+
+const buildSummaryRows = (document, summary, currency) => [
+  ["Subtotal", formatCurrency(summary.subtotal, currency)],
+  ...(summary.additionalTotal > 0 ? [["Additional items", formatCurrency(summary.additionalTotal, currency)]] : []),
+  ...(summary.taxRate > 0 ? [["Tax", formatCurrency(summary.taxTotal, currency)]] : []),
+  ...(summary.discountTotal > 0 ? [["Discount", `-${formatCurrency(summary.discountTotal, currency)}`]] : []),
+  ["Total", formatCurrency(summary.grandTotal, currency)],
+  ...(document?.documentType === "invoice"
+    ? [
+        ["Deposit", formatCurrency(summary.depositAmount, currency)],
+        ["Balance due", formatCurrency(summary.balanceDue, currency)],
+      ]
+    : []),
+];
+
+const buildLineItemTableRows = (summary, currency) => {
+  let billableIndex = 0;
+  const rows = [];
+
+  summary.lineItems.forEach((item) => {
+    if (isHeadingLineItem(item)) {
+      rows.push([`Section: ${item.name}`, "", "", "", ""]);
+      return;
+    }
+
+    if (isNoteLineItem(item)) {
+      rows.push([`Note: ${item.name}`, "", "", "", ""]);
+      return;
+    }
+
+    billableIndex += 1;
+    rows.push([
+      `${billableIndex}. ${item.name}`,
+      String(item.quantity),
+      item.unitLabel || "Per item",
+      formatCurrency(item.unitPrice, currency),
+      formatCurrency(item.total, currency),
+    ]);
+  });
+
+  summary.additionalItems.forEach((item, index) => {
+    rows.push([
+      `Extra ${index + 1}. ${item.description}`,
+      String(item.quantity),
+      item.unitLabel || "Per item",
+      formatCurrency(item.unitPrice, currency),
+      formatCurrency(item.total, currency),
+    ]);
+  });
+
+  return rows;
+};
 
 const buildSummary = (document) => {
   const lineItems = normalizeLineItems(document?.lineItems);
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const additionalItems = normalizeAdditionalItems(document?.additionalItems);
+  const billableLineItems = lineItems.filter((item) => !isHeadingLineItem(item) && !isNoteLineItem(item));
+  const subtotal = billableLineItems.reduce((sum, item) => sum + item.total, 0);
+  const additionalTotal = additionalItems.reduce((sum, item) => sum + item.total, 0);
   const taxRate = normalizeTaxRate(document?.taxRate);
-  const taxTotal = Math.round(subtotal * taxRate * 100) / 100;
-  const grandTotal = Math.round((subtotal + taxTotal) * 100) / 100;
+  const taxTotal = Math.round((subtotal + additionalTotal) * taxRate * 100) / 100;
+  const rawDiscount = Math.max(0, normalizeMoney(document?.discountAmount, 0));
+  const discountTotal = Math.min(rawDiscount, subtotal + additionalTotal + taxTotal);
+  const grandTotal = Math.max(
+    0,
+    Math.round((subtotal + additionalTotal + taxTotal - discountTotal) * 100) / 100
+  );
   const rawDeposit = document?.documentType === "invoice" ? Math.max(0, normalizeMoney(document?.depositAmount, 0)) : 0;
   const depositAmount = Math.min(rawDeposit, grandTotal);
   const balanceDue = Math.max(0, Math.round((grandTotal - depositAmount) * 100) / 100);
-  return { lineItems, subtotal, taxRate, taxTotal, grandTotal, depositAmount, balanceDue };
+  return {
+    lineItems,
+    additionalItems,
+    billableLineItems,
+    subtotal,
+    additionalTotal,
+    taxRate,
+    taxTotal,
+    discountTotal,
+    grandTotal,
+    depositAmount,
+    balanceDue,
+  };
 };
 
 const buildEmailText = (document, summary, currency) => {
+  const documentIdentity = formatDocumentIdentity(document);
   const lines = [
-    `${document.docLabel} ${document.invoiceNumber}`,
+    documentIdentity,
     "",
-    `Date: ${formatDate(document.issueDate)}`,
-    `Status: ${document.paymentStatus || "draft"}`,
     `Customer: ${document.customerName || "Customer"}`,
+    `Status: ${titleCase(document.paymentStatus || "draft")}`,
+    `Issue date: ${formatDate(document.issueDate)}`,
+    ...(document.dueDate ? [`Due: ${formatDate(document.dueDate)}`] : []),
   ];
 
   if (document.linkedLabel) {
@@ -108,16 +264,37 @@ const buildEmailText = (document, summary, currency) => {
   }
 
   lines.push("", "Items:");
-  summary.lineItems.forEach((item, index) => {
+  let billableIndex = 0;
+  summary.lineItems.forEach((item) => {
+    if (isHeadingLineItem(item)) {
+      lines.push(`-- ${item.name} --`);
+      return;
+    }
+    if (isNoteLineItem(item)) {
+      lines.push(`* ${item.name}`);
+      return;
+    }
+    billableIndex += 1;
     lines.push(
-      `${index}. ${item.name} | Qty ${item.quantity} | Unit ${formatCurrency(item.unitPrice, currency)} | Total ${formatCurrency(item.total, currency)}`
+      `${billableIndex}. ${item.name} | Qty ${item.quantity} | Rate ${item.unitLabel || "Per item"} | Price ${formatCurrency(item.unitPrice, currency)} | Total ${formatCurrency(item.total, currency)}`
+    );
+  });
+  summary.additionalItems.forEach((item, index) => {
+    lines.push(
+      `Extra ${index + 1}. ${item.description} | Qty ${item.quantity} | Rate ${item.unitLabel || "Per item"} | Price ${formatCurrency(item.unitPrice, currency)} | Total ${formatCurrency(item.total, currency)}`
     );
   });
 
   lines.push("");
   lines.push(`Subtotal: ${formatCurrency(summary.subtotal, currency)}`);
+  if (summary.additionalTotal > 0) {
+    lines.push(`Additional items: ${formatCurrency(summary.additionalTotal, currency)}`);
+  }
   if (summary.taxRate > 0) {
     lines.push(`Tax: ${formatCurrency(summary.taxTotal, currency)}`);
+  }
+  if (summary.discountTotal > 0) {
+    lines.push(`Discount: -${formatCurrency(summary.discountTotal, currency)}`);
   }
   lines.push(`Total: ${formatCurrency(summary.grandTotal, currency)}`);
   if (document.documentType === "invoice") {
@@ -134,69 +311,118 @@ const buildEmailText = (document, summary, currency) => {
 };
 
 const buildEmailHtml = (document, summary, currency) => {
-  const rows = summary.lineItems
-    .map(
-      (item, index) => `
-        <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;">${index}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;">${escapeHtml(item.name)}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${escapeHtml(item.quantity)}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${escapeHtml(formatCurrency(item.unitPrice, currency))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${escapeHtml(formatCurrency(item.total, currency))}</td>
-        </tr>`
-    )
-    .join("");
+  const documentIdentity = formatDocumentIdentity(document);
+  const metricCards = [
+    { label: "Total", value: formatCurrency(summary.grandTotal, currency) },
+    { label: "Status", value: titleCase(document.paymentStatus || "draft") },
+    {
+      label: document.documentType === "invoice" ? "Balance due" : "Items",
+      value:
+        document.documentType === "invoice"
+          ? formatCurrency(summary.balanceDue, currency)
+          : String(summary.billableLineItems.length || 0),
+    },
+    {
+      label: document.dueDate ? "Due date" : "Issue date",
+      value: formatDate(document.dueDate || document.issueDate),
+    },
+  ];
 
-  return `
-    <div style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#0f172a;line-height:1.5;">
-      <h2 style="margin:0 0 8px;">${escapeHtml(document.docLabel)} ${escapeHtml(document.invoiceNumber)}</h2>
-      <p style="margin:0 0 16px;color:#475569;">Date ${escapeHtml(formatDate(document.issueDate))}</p>
-      <div style="margin:0 0 16px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
-        <div><strong>Customer:</strong> ${escapeHtml(document.customerName || "Customer")}</div>
-        ${document.linkedLabel ? `<div><strong>Source:</strong> ${escapeHtml(document.linkedLabel)}</div>` : ""}
-        <div><strong>Status:</strong> ${escapeHtml(document.paymentStatus || "draft")}</div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">
-        <thead>
-          <tr style="background:#f8fafc;">
-            <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;">#</th>
-            <th style="padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;">Item</th>
-            <th style="padding:10px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">Qty</th>
-            <th style="padding:10px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">Unit</th>
-            <th style="padding:10px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">Total</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div style="margin-left:auto;max-width:320px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;">
-        <div style="display:flex;justify-content:space-between;gap:12px;"><span>Subtotal</span><strong>${escapeHtml(formatCurrency(summary.subtotal, currency))}</strong></div>
-        ${
-          summary.taxRate > 0
-            ? `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;"><span>Tax</span><strong>${escapeHtml(formatCurrency(summary.taxTotal, currency))}</strong></div>`
-            : ""
-        }
-        <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;"><span>Total</span><strong>${escapeHtml(formatCurrency(summary.grandTotal, currency))}</strong></div>
-        ${
-          document.documentType === "invoice"
-            ? `
-              <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;"><span>Deposit</span><strong>${escapeHtml(formatCurrency(summary.depositAmount, currency))}</strong></div>
-              <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;"><span>Balance</span><strong>${escapeHtml(formatCurrency(summary.balanceDue, currency))}</strong></div>
-            `
-            : ""
-        }
-      </div>
-      ${
-        document.notes
-          ? `<div style="margin-top:16px;"><strong>Note</strong><p style="margin:6px 0 0;">${escapeHtml(document.notes)}</p></div>`
-          : ""
-      }
-      ${
-        document.terms
-          ? `<div style="margin-top:16px;"><strong>Terms</strong><p style="margin:6px 0 0;">${escapeHtml(document.terms)}</p></div>`
-          : ""
-      }
-    </div>
-  `;
+  const bodyBlocks = [
+    renderMetricGrid(metricCards, { theme: FAAKO_THEME }),
+    renderPanel({
+      theme: FAAKO_THEME,
+      eyebrow: "Document details",
+      title: documentIdentity,
+      bodyHtml: renderKeyValueTable(buildDocumentDetailRows(document), {
+        theme: FAAKO_THEME,
+        labelWidth: "32%",
+      }),
+    }),
+    renderPanel({
+      theme: FAAKO_THEME,
+      eyebrow: "Product items",
+      title: "Document breakdown",
+      bodyHtml: renderDataTable({
+        headers: ["Description", "Qty", "Rate", "Price", "Total"],
+        rows: buildLineItemTableRows(summary, currency),
+        aligns: ["left", "right", "left", "right", "right"],
+        theme: FAAKO_THEME,
+      }),
+    }),
+    renderPanel({
+      theme: FAAKO_THEME,
+      eyebrow: "Amounts",
+      title: document.documentType === "invoice" ? "Balance summary" : "Receipt summary",
+      bodyHtml: renderKeyValueTable(buildSummaryRows(document, summary, currency), {
+        theme: FAAKO_THEME,
+        labelWidth: "42%",
+      }),
+    }),
+  ];
+
+  if (document.documentType === "invoice" && summary.balanceDue > 0) {
+    bodyBlocks.splice(
+      1,
+      0,
+      renderNotice({
+        theme: FAAKO_THEME,
+        title: "Payment due",
+        lines: document.dueDate
+          ? [
+              `Balance due: ${formatCurrency(summary.balanceDue, currency)}`,
+              `Please settle this invoice by ${formatDate(document.dueDate)}.`,
+            ]
+          : [`Balance due: ${formatCurrency(summary.balanceDue, currency)}`],
+      })
+    );
+  }
+
+  if (document.notes) {
+    bodyBlocks.push(
+      renderPanel({
+        theme: FAAKO_THEME,
+        eyebrow: "Notes",
+        title: "Additional note",
+        bodyHtml: renderParagraphs(document.notes, {
+          theme: FAAKO_THEME,
+          spacing: "0",
+        }),
+      })
+    );
+  }
+
+  if (document.terms) {
+    bodyBlocks.push(
+      renderPanel({
+        theme: FAAKO_THEME,
+        eyebrow: "Terms",
+        title: "Document terms",
+        bodyHtml: renderParagraphs(document.terms, {
+          theme: FAAKO_THEME,
+          spacing: "0",
+        }),
+      })
+    );
+  }
+
+  return renderEmailLayout({
+    theme: FAAKO_THEME,
+    preheader: `${documentIdentity} for ${document.customerName || "your account"} totals ${formatCurrency(summary.grandTotal, currency)}.`,
+    brandName: "REEBS Party Themes",
+    brandTagline: "Delivered through Faako Systems",
+    eyebrow: `${titleCase(document.documentType)} ready`,
+    title: documentIdentity,
+    subtitle:
+      document.documentType === "receipt"
+        ? "A themed copy of your receipt is ready for your records."
+        : "A themed copy of your invoice is ready for review and payment.",
+    introHtml: renderParagraphs(buildDocumentIntro(document, summary, currency), {
+      theme: FAAKO_THEME,
+    }),
+    bodyHtml: bodyBlocks.join(""),
+    footerHtml: `<p style="margin:0;color:${FAAKO_THEME.muted};font:400 13px/1.65 Arial,sans-serif;">This document was sent from REEBS Party Themes using the Faako Systems email service.</p>`,
+  });
 };
 
 export async function handler(event = {}) {
@@ -240,12 +466,15 @@ export async function handler(event = {}) {
     const linkedLabel = cleanText(payload.linkedLabel, 120);
     const currency = cleanText(payload.currency, 12) || "GHS";
     const issueDate = cleanText(payload.issueDate, 40);
+    const dueDate = cleanText(payload.dueDate, 40);
     const documentType = cleanText(payload.documentType, 20).toLowerCase() === "receipt" ? "receipt" : "invoice";
     const notes = cleanText(payload.notes, 4000);
     const terms = cleanText(payload.terms, 4000);
     const taxRate = normalizeTaxRate(payload.taxRate);
     const depositAmount = Math.max(0, normalizeMoney(payload.depositAmount, 0));
+    const discountAmount = Math.max(0, normalizeMoney(payload.discountAmount, 0));
     const lineItems = normalizeLineItems(payload.lineItems);
+    const additionalItems = normalizeAdditionalItems(payload.additionalItems);
 
     if (!to) {
       return respond(event, 400, { error: "Customer email is required." }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
@@ -253,7 +482,7 @@ export async function handler(event = {}) {
     if (!invoiceNumber) {
       return respond(event, 400, { error: "Document number is required." }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
     }
-    if (!lineItems.length) {
+    if (!lineItems.some((item) => !isHeadingLineItem(item) && !isNoteLineItem(item))) {
       return respond(event, 400, { error: "Add at least one line before sending." }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
     }
 
@@ -264,12 +493,15 @@ export async function handler(event = {}) {
       paymentStatus,
       linkedLabel,
       issueDate,
+      dueDate,
       documentType,
       notes,
       terms,
       taxRate,
       depositAmount,
+      discountAmount,
       lineItems,
+      additionalItems,
     };
     const summary = buildSummary(document);
     const result = await sendNotificationEmail({
