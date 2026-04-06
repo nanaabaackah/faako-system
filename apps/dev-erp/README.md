@@ -15,6 +15,18 @@ This app was moved into the monorepo without flattening its business logic. It s
 
 ## Local Dev
 
+Full stack:
+
+```bash
+pnpm --filter @faako/dev-erp run dev:with-backend
+```
+
+Or from the repo root:
+
+```bash
+pnpm run dev:dev-erp
+```
+
 Frontend only:
 
 ```bash
@@ -36,6 +48,7 @@ pnpm --filter @faako/dev-erp run server:dev:with-migrate
 Useful commands:
 
 ```bash
+pnpm --filter @faako/dev-erp run dev:with-backend
 pnpm --filter @faako/dev-erp run build
 pnpm --filter @faako/dev-erp run test
 pnpm --filter @faako/dev-erp run db:status:dev
@@ -43,7 +56,7 @@ pnpm --filter @faako/dev-erp run db:deploy:dev
 pnpm --filter @faako/dev-erp run db:migrate:dev -- --name <migration-name>
 ```
 
-The frontend uses the normal Vite dev port. Local API requests can go through `VITE_API_PROXY_TARGET` when you want `/api/*` routed to a local or remote backend.
+The frontend runs on `http://localhost:5173`. Local API requests can go through `VITE_API_PROXY_TARGET` when you want `/api/*` routed to a local or remote backend.
 
 ## Environment
 

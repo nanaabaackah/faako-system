@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
       include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     },
     server: {
+      host: '0.0.0.0',
+      port: 5173,
       proxy: {
         '/api': {
           target: apiProxyTarget,

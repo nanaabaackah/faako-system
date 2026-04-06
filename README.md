@@ -40,9 +40,9 @@ docs/
 | `@faako/faako-api` | `apps/faako-api` | Faako Netlify Functions API | `pnpm --filter @faako/faako-api run dev:backend` | `8889` |
 | `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` | `5175` |
 | `@faako/faako-erp` | `apps/faako-erp` | Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` | `5176` |
-| `@faako/reebs-portal` | `apps/reebs-portal` | Reebs admin portal plus Netlify backend | `pnpm --filter @faako/reebs-portal run dev:frontend` and `pnpm --filter @faako/reebs-portal run dev:backend` | `5174` and `8888` |
-| `@faako/reebs-website` | `apps/reebs-website` | Reebs public website | `pnpm --filter @faako/reebs-website run dev:frontend` | `5173` |
-| `@faako/dev-erp` | `apps/dev-erp` | Standalone KPI dashboard and backend | `pnpm --filter @faako/dev-erp run dev` | Vite default |
+| `@faako/reebs-portal` | `apps/reebs-portal` | Reebs admin portal plus Netlify backend | `pnpm run dev:reebs` | `5174` and `8888` |
+| `@faako/reebs-website` | `apps/reebs-website` | Reebs public website | `pnpm --filter @faako/reebs-website run dev:with-backend` | `5173` |
+| `@faako/dev-erp` | `apps/dev-erp` | Standalone KPI dashboard and backend | `pnpm --filter @faako/dev-erp run dev:with-backend` | `5173` and `8080` |
 | `@faako/bynana-portfolio` | `apps/bynana-portfolio` | Nana's portfolio site | `pnpm --filter @faako/bynana-portfolio run dev` | Vite default |
 
 ## Shared Packages
@@ -73,10 +73,33 @@ Common root commands:
 ```bash
 pnpm dev
 pnpm dev:faako
+pnpm dev:dev-erp
 pnpm dev:reebs
 pnpm build
 pnpm lint
 pnpm test
+```
+
+Quick app cheat sheet:
+
+```bash
+# Faako full stack
+pnpm dev:faako
+
+# Reebs full stack
+pnpm dev:reebs
+
+# Dev ERP full stack
+pnpm dev:dev-erp
+
+# ByNana portfolio
+pnpm --filter @faako/bynana-portfolio run dev
+
+# UI workbench
+pnpm dev:workbench
+
+# System starter
+pnpm dev:starter
 ```
 
 Useful scoped commands:
@@ -84,6 +107,7 @@ Useful scoped commands:
 ```bash
 pnpm --filter @faako/faako-website run dev:frontend
 pnpm --filter @faako/faako-api run dev:backend
+pnpm --filter @faako/dev-erp run dev:with-backend
 pnpm --filter @faako/faako-erp run build
 pnpm --filter @faako/reebs-portal run db:migrate:dev
 ```
