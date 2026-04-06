@@ -7,6 +7,7 @@
   "scripts": {
     "start": "pnpm run server:with-migrate",
     "dev": "vite",
+    "dev:with-backend": "node ../../scripts/dev-dev-erp.mjs",
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
     "test": "node --test",
@@ -29,6 +30,8 @@
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); if (!process.env.NETLIFY && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },
   "dependencies": {
+    "@faako/security": "workspace:*",
+    "@faako/ui": "workspace:*",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.6",

@@ -3,8 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "dependencies": {
+    "@faako/types": "workspace:*"
+  },
   "exports": {
     ".": "./src/index.ts",
-    "./erp-shell.css": "./src/erp-shell.css"
+    "./erp-shell.css": "./src/erp-shell.css",
+    "./system.css": "./src/system.css"
   }
 }

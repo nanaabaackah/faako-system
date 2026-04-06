@@ -2,6 +2,7 @@
   "name": "@faako/faako-website",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "prebuild": "node ./scripts/sync-netlify-functions.mjs",
     "dev": "pnpm run dev:frontend",
@@ -12,6 +13,7 @@
     "netlify": "APP_ENV=development pnpm exec netlify dev"
   },
   "dependencies": {
+    "@faako/ui": "workspace:*",
     "@lottiefiles/react-lottie-player": "^3.6.0",
     "animejs": "^4.3.5",
     "iconsax-react": "^0.0.8",

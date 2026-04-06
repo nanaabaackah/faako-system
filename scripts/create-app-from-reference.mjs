@@ -182,14 +182,15 @@ const replaceInTextFile = (filePath, replacements) => {
 const rootDir = findWorkspaceRoot();
 const options = parseArgs(process.argv.slice(2));
 
-if (!options.sourceApp || !options.packageName) {
-  console.error(
-    "Usage: pnpm create:app -- --source <existing-app-dir> --package <workspace-package-name> [--target <new-app-dir>]",
+  if (!options.packageName) {
+    console.error(
+    "Usage: pnpm create:app -- --package <workspace-package-name> [--target <new-app-dir>] [--source <existing-app-dir>] (defaults to system-starter)",
   );
-  process.exit(1);
-}
+    process.exit(1);
+  }
 
 try {
+  options.sourceApp = options.sourceApp || "system-starter";
   assertSafeAppDirName(options.sourceApp, "Source app");
   assertSafeWorkspacePackageName(options.packageName);
 

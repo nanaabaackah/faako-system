@@ -24,6 +24,7 @@
   "dependencies": {
     "@faako/config": "workspace:*",
     "@faako/core": "workspace:*",
+    "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",
     "@prisma/adapter-pg": "^7.1.0",

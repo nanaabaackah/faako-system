@@ -38,3 +38,88 @@ export interface ErpShellConfig {
 export type RoleValue = string | null | undefined;
 
 export type IconRenderer = (iconKey: string | undefined, label: string) => ReactNode;
+
+export type AuthMode = "none" | "cookie" | "bearer";
+
+export type SecurityProfileId =
+  | "public-static"
+  | "public-interactive"
+  | "authenticated-workspace"
+  | "api-serverless";
+
+export interface UiThemePreset {
+  id: string;
+  label?: string;
+  description?: string;
+  tokens: Record<string, string>;
+}
+
+export interface UiThemeConfig {
+  presetId: string;
+  tokenOverrides?: Record<string, string>;
+}
+
+export interface SecurityPolicyConfig {
+  profileId: SecurityProfileId;
+  authMode: AuthMode;
+  allowedOrigins?: string[];
+  notes?: string;
+}
+
+export interface AppSystemBranding {
+  name: string;
+  shortName?: string;
+  browserChromeColor?: string;
+}
+
+export interface AppSystemConfig {
+  appId: string;
+  brand: AppSystemBranding;
+  theme: UiThemeConfig;
+  security: SecurityPolicyConfig;
+}
+
+export interface SelectOption {
+  value: string;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}
+
+export type FeedbackTone = "success" | "error" | "warning" | "info" | "loading";
+
+export interface FeedbackItem {
+  id?: string;
+  tone?: FeedbackTone;
+  title?: string;
+  message?: string;
+  durationMs?: number;
+}
+
+export type SecurityStateId =
+  | "session-expired"
+  | "unauthorized"
+  | "forbidden"
+  | "rate-limited"
+  | "blocked-action"
+  | "verification-sent"
+  | "password-reset-required"
+  | "secure-download-failed";
+
+export interface DataTableColumn<Row> {
+  id: string;
+  header: ReactNode;
+  accessor?: keyof Row;
+  align?: "left" | "center" | "right";
+  sortable?: boolean;
+  width?: string;
+  render?: (row: Row, rowIndex: number) => ReactNode;
+  sortValue?: (row: Row) => string | number;
+}
+
+export interface DataTableSummaryCell {
+  id: string;
+  align?: "left" | "center" | "right";
+  content: ReactNode;
+  empty?: boolean;
+}

@@ -1,0 +1,35 @@
+:root {
+  background: var(--sys-bg);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, rgba(109, 94, 252, 0.08), transparent 32%), var(--sys-bg);
+  color: var(--sys-text);
+  font-family: var(--sys-font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.starter-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.starter-grid.is-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .starter-grid.is-two {
+    grid-template-columns: 1fr;
+  }
+}

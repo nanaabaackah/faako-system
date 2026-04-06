@@ -2,6 +2,7 @@
   "name": "@faako/faako-api",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "dev": "pnpm run dev:backend",
     "dev:backend": "node ../../scripts/run-with-env-file.mjs .env.dev -- pnpm exec netlify functions:serve --offline --functions netlify/functions --port 8889",

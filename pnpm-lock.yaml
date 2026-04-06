@@ -18,6 +18,9 @@ importers:
 
   apps/bynana-portfolio:
     dependencies:
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -106,6 +109,12 @@ importers:
       '@faako/email-kit':
         specifier: workspace:*
         version: link:../../packages/email-kit
+      '@faako/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@fortawesome/free-brands-svg-icons':
         specifier: ^6.7.2
         version: 6.7.2
@@ -307,6 +316,9 @@ importers:
 
   apps/faako-website:
     dependencies:
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@lottiefiles/react-lottie-player':
         specifier: ^3.6.0
         version: 3.6.0(react@18.3.1)
@@ -386,6 +398,9 @@ importers:
       '@faako/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@faako/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@faako/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -758,6 +773,53 @@ importers:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
 
+  apps/system-starter:
+    dependencies:
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: ^19.1.1
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.2.4(react@19.2.4)
+      react-router-dom:
+        specifier: ^7.9.3
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: ^4.4.1
+        version: 4.7.0(vite@6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2))
+      vite:
+        specifier: ^6.3.6
+        version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
+
+  apps/ui-workbench:
+    dependencies:
+      '@faako/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: ^19.1.1
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.2.4(react@19.2.4)
+      react-router-dom:
+        specifier: ^7.9.3
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: ^4.4.1
+        version: 4.7.0(vite@6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2))
+      vite:
+        specifier: ^6.3.6
+        version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
+
   packages/config:
     dependencies:
       '@faako/types':
@@ -772,12 +834,21 @@ importers:
 
   packages/email-kit: {}
 
-  packages/theme: {}
+  packages/security: {}
+
+  packages/theme:
+    dependencies:
+      '@faako/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/types: {}
 
   packages/ui:
     dependencies:
+      '@faako/security':
+        specifier: workspace:*
+        version: link:../security
       '@faako/theme':
         specifier: workspace:*
         version: link:../theme
@@ -790,6 +861,9 @@ importers:
       react:
         specifier: '>=18'
         version: 19.2.4
+      react-dom:
+        specifier: '>=18'
+        version: 19.2.4(react@19.2.4)
       react-router-dom:
         specifier: '>=6'
         version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -13640,14 +13714,14 @@ snapshots:
 
   ini@4.1.1: {}
 
-  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-link@1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
       prop-types: 15.8.1
       react: 16.14.0
       terminal-link: 2.1.1
 
-  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-select-input@4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       arr-rotate: 1.0.0
       figures: 3.2.0
@@ -13655,7 +13729,7 @@ snapshots:
       lodash.isequal: 4.5.0
       react: 16.14.0
 
-  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0):
+  ink-text-input@4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0):
     dependencies:
       chalk: 4.1.2
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
@@ -15883,9 +15957,9 @@ snapshots:
       get-port: 5.1.1
       has-yarn: 2.1.0
       ink: 3.2.0(@types/react@19.2.14)(react@16.14.0)
-      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
-      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
-      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@16.14.0))(react@16.14.0)
+      ink-link: 1.1.0(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
+      ink-select-input: 4.2.2(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
+      ink-text-input: 4.0.3(ink@3.2.0(@types/react@19.2.14)(react@19.2.4))(react@16.14.0)
       meow: 7.1.1
       node-fetch: 2.7.0
       open: 7.4.2
