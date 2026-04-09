@@ -1,33 +1,35 @@
-import React, { useEffect, useMemo, useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import "./AdminBookings.css";
+import { SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faPlus,
   faRotateRight,
-  faXmark,
-  faPen,
-  faFileInvoice,
-  faChevronLeft,
-  faChevronRight,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
-
-const SHOW_LEGACY_BOOKINGS_TABLE = false;
-const SHOW_LEGACY_BOOKINGS_KANBAN = false;
+import BookingEditorModal from "./components/BookingEditorModal";
+import BookingDetailModal from "./components/BookingDetailModal";
 
 const formatDate = (value) => {
   if (!value) return "-";
+  if (typeof value === "string") {
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return `${day}-${month}-${year.slice(-2)}`;
+    }
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
 };
 
 const normalizeCurrency = (currency) => {
@@ -76,6 +78,14 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(num) ? num : fallback;
 };
 
+const normalizeCustomerName = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+const normalizePhoneDigits = (value) => String(value || "").replace(/\D/g, "");
+
 const formatAttendantsNeeded = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return "Attendants: -";
@@ -107,6 +117,166 @@ const normalizeIdFilter = (value) => {
   if (!normalized) return "";
   const parsed = Number(normalized);
   return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
+};
+
+const BOOKING_VIEW_FILTERS = new Set(["list", "map"]);
+const BOOKINGS_UI_STORAGE_KEY = "reebs_portal_bookings_ui_state";
+const BOOKING_STATUS_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+const BOOKING_TIMING_OPTIONS = [
+  { value: "all", label: "All dates" },
+  { value: "today", label: "Today" },
+  { value: "next7", label: "Next 7 days" },
+  { value: "overdue", label: "Overdue" },
+];
+const BOOKING_EDITOR_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+const BOOKING_TIME_OPTIONS = [
+  { value: "", label: "No time" },
+  ...Array.from({ length: 48 }, (_, index) => {
+    const hour = Math.floor(index / 2);
+    const minute = index % 2 === 0 ? "00" : "30";
+    const value = `${String(hour).padStart(2, "0")}:${minute}`;
+    return { value, label: value };
+  }),
+];
+
+const normalizeBookingView = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (BOOKING_VIEW_FILTERS.has(normalized)) return normalized;
+  return "list";
+};
+
+const readStoredBookingsUiState = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.sessionStorage.getItem(BOOKINGS_UI_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+function BookingCustomerPicker({
+  value,
+  onChange,
+  onClear,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  menuOpen,
+  options,
+  selectedCustomerId,
+  onSelectCustomer,
+  typedCustomerName,
+  matchedTypedCustomer,
+  onCreateCustomer,
+  createBusy = false,
+  disabled = false,
+  directoryError = "",
+}) {
+  return (
+    <div className="bookings-customer-picker">
+      <SearchField
+        value={value}
+        onChange={onChange}
+        onClear={onClear}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        placeholder="Search or add customer"
+        aria-label="Search or add customer"
+        disabled={disabled}
+        required
+      />
+      {menuOpen ? (
+        options.length || typedCustomerName ? (
+          <div className="bookings-customer-options" role="listbox" aria-label="Customer directory">
+            {options.map((customer) => {
+              const isActive = String(customer.id) === String(selectedCustomerId);
+              return (
+                <button
+                  key={customer.id}
+                  type="button"
+                  className={`bookings-customer-option${isActive ? " is-active" : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => onSelectCustomer(String(customer.id))}
+                  disabled={disabled}
+                >
+                  <span>{customer.name}</span>
+                  <small>{customer.phone ? customer.phone : `#${customer.id}`}</small>
+                </button>
+              );
+            })}
+            {typedCustomerName && !matchedTypedCustomer ? (
+              <button
+                type="button"
+                className="bookings-customer-option bookings-customer-option--create"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={onCreateCustomer}
+                disabled={disabled || createBusy}
+              >
+                <span>{createBusy ? `Creating "${typedCustomerName}"...` : `Create "${typedCustomerName}"`}</span>
+                <small>{createBusy ? "Please wait" : "Press Enter"}</small>
+              </button>
+            ) : null}
+          </div>
+        ) : null
+      ) : null}
+      {typedCustomerName && !matchedTypedCustomer ? (
+        <p className="bookings-inline-note">New customer will be created on save.</p>
+      ) : null}
+      {directoryError ? <p className="bookings-inline-note">{directoryError}</p> : null}
+    </div>
+  );
+}
+
+const getInitialBookingsUiState = () => {
+  if (typeof window === "undefined") {
+      return {
+        status: "all",
+        assigned: "",
+        timing: "all",
+        query: "",
+        view: "list",
+      };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const hasUrlUiState = ["q", "status", "assigned", "timing", "view"].some((key) => params.has(key));
+  const stored = readStoredBookingsUiState();
+
+  if (hasUrlUiState) {
+    return {
+      status: normalizeBookingStatusFilter(params.get("status")),
+      assigned: normalizeIdFilter(params.get("assigned")),
+      timing: normalizeBookingTimingFilter(params.get("timing")),
+      query: params.get("q") || "",
+      view: normalizeBookingView(params.get("view")),
+    };
+  }
+
+  return {
+    status: normalizeBookingStatusFilter(stored?.status),
+    assigned: normalizeIdFilter(stored?.assigned),
+    timing: normalizeBookingTimingFilter(stored?.timing),
+    query: String(stored?.query || ""),
+    view: normalizeBookingView(stored?.view),
+  };
 };
 
 const isClosedBooking = (booking) => {
@@ -143,12 +313,43 @@ const matchesBookingTiming = (booking, timingFilter) => {
   return true;
 };
 
-const buildBookingsSearch = ({ query = "", status = "all", assigned = "", timing = "all" } = {}) => {
+const normalizeBookingTimeInput = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const twentyFourHourMatch = raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (twentyFourHourMatch) {
+    const [, hour, minute] = twentyFourHourMatch;
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  }
+  const meridiemMatch = raw.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (!meridiemMatch) return raw;
+  const [, hourText, minute, meridiem] = meridiemMatch;
+  let hour = Number(hourText);
+  if (!Number.isFinite(hour)) return raw;
+  const normalizedMeridiem = meridiem.toUpperCase();
+  if (normalizedMeridiem === "AM") {
+    if (hour === 12) hour = 0;
+  } else if (hour < 12) {
+    hour += 12;
+  }
+  return `${String(hour).padStart(2, "0")}:${minute}`;
+};
+
+const buildBookingsSearch = ({
+  query = "",
+  status = "all",
+  assigned = "",
+  timing = "all",
+  view,
+  action = "",
+  id = "",
+} = {}) => {
   const params = new URLSearchParams();
   const trimmedQuery = String(query || "").trim();
   const normalizedStatus = normalizeBookingStatusFilter(status);
   const normalizedAssigned = normalizeIdFilter(assigned);
   const normalizedTiming = normalizeBookingTimingFilter(timing);
+  const normalizedView = normalizeBookingView(view);
   if (trimmedQuery) {
     params.set("q", trimmedQuery);
   }
@@ -161,16 +362,17 @@ const buildBookingsSearch = ({ query = "", status = "all", assigned = "", timing
   if (normalizedTiming !== "all") {
     params.set("timing", normalizedTiming);
   }
+  if (normalizedView) {
+    params.set("view", normalizedView);
+  }
+  if (action) {
+    params.set("action", String(action).trim().toLowerCase());
+  }
+  if (id) {
+    params.set("id", String(id).trim());
+  }
   const next = params.toString();
   return next ? `?${next}` : "";
-};
-
-const getBookingStage = (booking) => {
-  const status = normalizeStatus(booking?.status);
-  if (status === "cancelled") return "cancelled";
-  if (status === "completed") return "completed";
-  if (status === "confirmed") return "confirmed";
-  return "received";
 };
 
 const buildMapUrl = (address) => {
@@ -178,35 +380,109 @@ const buildMapUrl = (address) => {
   return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 };
 
+const formatBookingTimeWindow = (booking) => {
+  const start = String(booking?.startTime || "").trim().toUpperCase();
+  const end = String(booking?.endTime || "").trim().toUpperCase();
+  if (!start && !end) return "TIME TBD";
+  return start || end;
+};
+
+const getBookingDocumentTitle = (document) => {
+  if (!document) return "Draft";
+  const reference = String(document.invoiceNumber || "").trim();
+  if (reference) return reference;
+  return "Draft";
+};
+
+const getBookingDocumentStatus = (document) => {
+  if (!document) return "Open in invoicing";
+  if (document.sentAt) return "Sent";
+  const paymentStatus = String(document.paymentStatus || "draft").trim().toLowerCase();
+  return paymentStatus || "draft";
+};
+
+const getDeliveryStatusLabel = (delivery) => {
+  if (!delivery) return "No stop";
+  return normalizeStatus(delivery.deliveryStatus || delivery.status || "scheduled").replace(/_/g, " ");
+};
+
+const getDeliveryMeta = (delivery) => {
+  if (!delivery) return "Open delivery";
+  return delivery.driverName || delivery.assignedUserName || "Unassigned";
+};
+
+const BOOKING_VIEW_OPTIONS = [
+  { key: "list", label: "List" },
+  { key: "map", label: "Map" },
+];
+
+const sumBookingExpenses = (rows = []) =>
+  rows.reduce((sum, row) => sum + toNumber(row?.amount, 0) / 100, 0);
+
+const parseJsonResponse = async (response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const buildBookingEditorState = (booking, currentUserId = "") => ({
+  customerId: booking?.customerId ? String(booking.customerId) : "",
+  customerName: booking?.customerName || "",
+  eventDate: booking?.eventDate ? String(booking.eventDate).slice(0, 10) : "",
+  startTime: normalizeBookingTimeInput(booking?.startTime),
+  endTime: normalizeBookingTimeInput(booking?.endTime),
+  venueAddress: booking?.venueAddress || "",
+  status: booking?.status || "pending",
+  assignedUserId: booking?.assignedUserId ? String(booking.assignedUserId) : currentUserId,
+  items: Array.isArray(booking?.items)
+    ? booking.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: Number.isFinite(item.price) ? (item.price / 100).toFixed(2) : "",
+      }))
+    : [],
+  discount: "",
+  discountType: "amount",
+});
+
 function AdminBookings() {
   const location = useLocation();
+  const initialUiState = getInitialBookingsUiState();
   const [bookings, setBookings] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [users, setUsers] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [assignedFilter, setAssignedFilter] = useState("");
-  const [timingFilter, setTimingFilter] = useState("all");
-  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialUiState.status);
+  const [assignedFilter, setAssignedFilter] = useState(initialUiState.assigned);
+  const [timingFilter, setTimingFilter] = useState(initialUiState.timing);
+  const [query, setQuery] = useState(initialUiState.query);
+  const [viewMode, setViewMode] = useState(initialUiState.view);
   const [page, setPage] = useState(0);
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
+  const [mapSelectionId, setMapSelectionId] = useState(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const pageSize = 10;
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [detailBooking, setDetailBooking] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [menuPosition, setMenuPosition] = useState(null);
 
   const [productQuery, setProductQuery] = useState("");
+  const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
+  const [customerCreating, setCustomerCreating] = useState(false);
   const [form, setForm] = useState({
     customerId: "",
+    customerName: "",
     eventDate: "",
     startTime: "",
     endTime: "",
@@ -221,13 +497,14 @@ function AdminBookings() {
   const { user } = useAuth();
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = roleKey === "admin" || roleKey === "manager";
-  const viewStorageKey = useMemo(
-    () => `reebs_bookings_views_${user?.id || "guest"}`,
-    [user?.id]
-  );
-  const [savedViews, setSavedViews] = useState([]);
-  const [activeViewId, setActiveViewId] = useState("all");
   const navigate = useNavigate();
+  const supportLoadStateRef = useRef({
+    products: { loaded: false, promise: null },
+    customers: { loaded: false, promise: null },
+    bouncyCastles: { loaded: false, promise: null },
+    deliveries: { loaded: false, promise: null },
+    expenses: { loaded: false, promise: null },
+  });
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -243,6 +520,7 @@ function AdminBookings() {
       if (matches) {
         setModalOpen(false);
         setEditing(null);
+        setViewMode((current) => normalizeBookingView(current));
       }
     };
     handleChange();
@@ -254,121 +532,161 @@ function AdminBookings() {
     return () => mediaQuery.removeListener(handleChange);
   }, []);
 
-  useEffect(() => {
-    const handleClickAway = (event) => {
-      if (!event.target.closest(".bookings-menu")) {
-        setOpenMenuId(null);
-        setMenuPosition(null);
+  const runSupportLoader = (key, loader, { force = false } = {}) => {
+    const entry = supportLoadStateRef.current[key];
+    if (entry.promise) return entry.promise;
+    if (!force && entry.loaded) return Promise.resolve();
+    entry.promise = (async () => {
+      try {
+        await loader();
+        entry.loaded = true;
+      } catch (err) {
+        entry.loaded = false;
+        throw err;
+      } finally {
+        entry.promise = null;
       }
-    };
-    document.addEventListener("mousedown", handleClickAway);
-    return () => document.removeEventListener("mousedown", handleClickAway);
+    })();
+    return entry.promise;
+  };
+
+  const loadProducts = ({ force = false } = {}) =>
+    runSupportLoader(
+      "products",
+      async () => {
+        const response = await fetch("/.netlify/functions/inventory");
+        const payload = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Failed to fetch products (${response.status}).`);
+        }
+        const rentalProducts = (Array.isArray(payload) ? payload : []).filter((item) => {
+          const sku = (item.sku || "").toString().toUpperCase();
+          const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toUpperCase();
+          const name = (item.name || "").toString().toLowerCase();
+          const isPump = sku.startsWith("PUM") || name.includes("motor pump");
+          return (source === "RENTAL" || sku.startsWith("RENT")) && !isPump;
+        });
+        setProducts(rentalProducts);
+      },
+      { force }
+    );
+
+  const loadCustomers = ({ force = false } = {}) =>
+    runSupportLoader(
+      "customers",
+      async () => {
+        const response = await fetch("/.netlify/functions/customers");
+        const payload = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Failed to fetch customers (${response.status}).`);
+        }
+        setCustomers(Array.isArray(payload) ? payload : []);
+      },
+      { force }
+    );
+
+  const loadBouncyCastles = ({ force = false } = {}) =>
+    runSupportLoader(
+      "bouncyCastles",
+      async () => {
+        const response = await fetch("/.netlify/functions/bouncy_castles");
+        const payload = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Failed to fetch bouncy castles (${response.status}).`);
+        }
+        setBouncyCastles(Array.isArray(payload) ? payload : []);
+      },
+      { force }
+    );
+
+  const loadDeliveries = ({ force = false } = {}) =>
+    runSupportLoader(
+      "deliveries",
+      async () => {
+        const response = await fetch("/.netlify/functions/deliveries");
+        const payload = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Failed to fetch deliveries (${response.status}).`);
+        }
+        setDeliveries(Array.isArray(payload) ? payload : []);
+      },
+      { force }
+    );
+
+  const loadExpenses = ({ force = false } = {}) =>
+    runSupportLoader(
+      "expenses",
+      async () => {
+        const response = await fetch("/.netlify/functions/expenses");
+        const payload = await parseJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Failed to fetch expenses (${response.status}).`);
+        }
+        setExpenses(Array.isArray(payload) ? payload : []);
+      },
+      { force }
+    );
+
+  const fetchBookingById = useCallback(async (bookingId) => {
+    const response = await fetch(`/.netlify/functions/bookings?id=${bookingId}`);
+    const payload = await parseJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(payload?.error || `Failed to fetch booking (${response.status}).`);
+    }
+    return payload;
   }, []);
 
-  useEffect(() => {
-    if (!openMenuId) return undefined;
-
-    const closeOnLayoutChange = () => {
-      setOpenMenuId(null);
-      setMenuPosition(null);
-    };
-
-    window.addEventListener("resize", closeOnLayoutChange);
-    window.addEventListener("scroll", closeOnLayoutChange, true);
-
-    return () => {
-      window.removeEventListener("resize", closeOnLayoutChange);
-      window.removeEventListener("scroll", closeOnLayoutChange, true);
-    };
-  }, [openMenuId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(viewStorageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(parsed)) {
-        setSavedViews(parsed);
-      }
-    } catch (err) {
-      console.warn("Failed to load booking views", err);
-    }
-  }, [viewStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(viewStorageKey, JSON.stringify(savedViews));
-    } catch (err) {
-      console.warn("Failed to save booking views", err);
-    }
-  }, [savedViews, viewStorageKey]);
+  const ensureSupportData = async (
+    {
+      products: shouldLoadProducts = false,
+      customers: shouldLoadCustomers = false,
+      bouncyCastles: shouldLoadBouncyCastles = false,
+      deliveries: shouldLoadDeliveries = false,
+      expenses: shouldLoadExpenses = false,
+    } = {},
+    options = {}
+  ) => {
+    const tasks = [];
+    if (shouldLoadProducts) tasks.push(loadProducts(options));
+    if (shouldLoadCustomers) tasks.push(loadCustomers(options));
+    if (shouldLoadBouncyCastles) tasks.push(loadBouncyCastles(options));
+    if (shouldLoadDeliveries) tasks.push(loadDeliveries(options));
+    if (shouldLoadExpenses) tasks.push(loadExpenses(options));
+    await Promise.all(tasks);
+  };
 
   const fetchAll = async () => {
     setLoading(true);
     setError("");
     try {
-      const [bookingsRes, inventoryRes, customersRes, usersRes, bouncyRes] = await Promise.all([
-        fetch("/.netlify/functions/bookings"),
-        fetch("/.netlify/functions/inventory"),
-        fetch("/.netlify/functions/customers"),
+      const [bookingsRes, usersRes, documentsRes] = await Promise.all([
+        fetch("/.netlify/functions/bookings?compact=1"),
         fetch("/.netlify/functions/users"),
-        fetch("/.netlify/functions/bouncy_castles"),
+        fetch("/.netlify/functions/invoice-documents?compact=1"),
       ]);
 
-      const [bookingsText, inventoryText, customersText, usersText, bouncyText] = await Promise.all([
-        bookingsRes.text(),
-        inventoryRes.text(),
-        customersRes.text(),
-        usersRes.text(),
-        bouncyRes.text(),
+      const [bookingsPayload, usersPayload, documentsPayload] = await Promise.all([
+        parseJsonResponse(bookingsRes),
+        parseJsonResponse(usersRes),
+        parseJsonResponse(documentsRes),
       ]);
-
-      const tryJson = (text) => {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return null;
-        }
-      };
-
-      const bookingsPayload = tryJson(bookingsText);
-      const inventoryPayload = tryJson(inventoryText);
-      const customersPayload = tryJson(customersText);
-      const usersPayload = tryJson(usersText);
-      const bouncyPayload = tryJson(bouncyText);
 
       if (!bookingsRes.ok) {
         throw new Error(bookingsPayload?.error || `Failed to fetch bookings (${bookingsRes.status}).`);
       }
-      if (!inventoryRes.ok) {
-        throw new Error(inventoryPayload?.error || `Failed to fetch products (${inventoryRes.status}).`);
-      }
-      if (!customersRes.ok) {
-        throw new Error(customersPayload?.error || `Failed to fetch customers (${customersRes.status}).`);
-      }
       if (!usersRes.ok) {
         throw new Error(usersPayload?.error || `Failed to fetch team members (${usersRes.status}).`);
       }
-
-      setBookings(Array.isArray(bookingsPayload) ? bookingsPayload : []);
-      setCustomers(Array.isArray(customersPayload) ? customersPayload : []);
-      setUsers(Array.isArray(usersPayload) ? usersPayload : []);
-      if (bouncyRes.ok) {
-        setBouncyCastles(Array.isArray(bouncyPayload) ? bouncyPayload : []);
-      } else {
-        setBouncyCastles([]);
+      if (!documentsRes.ok) {
+        throw new Error(documentsPayload?.error || `Failed to fetch invoice documents (${documentsRes.status}).`);
       }
 
-      const rentalProducts = (Array.isArray(inventoryPayload) ? inventoryPayload : []).filter((item) => {
-        const sku = (item.sku || "").toString().toUpperCase();
-        const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toUpperCase();
-        const name = (item.name || "").toString().toLowerCase();
-        const isPump = sku.startsWith("PUM") || name.includes("motor pump");
-        return (source === "RENTAL" || sku.startsWith("RENT")) && !isPump;
+      setBookings(Array.isArray(bookingsPayload) ? bookingsPayload : []);
+      setUsers(Array.isArray(usersPayload) ? usersPayload : []);
+      setDocuments(Array.isArray(documentsPayload) ? documentsPayload : []);
+      void ensureSupportData({ deliveries: true, expenses: true }, { force: true }).catch((err) => {
+        console.warn("Failed to hydrate booking support data", err);
       });
-
-      setProducts(rentalProducts);
     } catch (err) {
       console.error("Failed to load bookings", err);
       setError(err.message || "We couldn't load bookings right now.");
@@ -379,24 +697,45 @@ function AdminBookings() {
 
   useEffect(() => {
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const hasUrlUiState = ["q", "status", "assigned", "timing", "view"].some((key) => params.has(key));
+    if (!hasUrlUiState) return;
     const nextQuery = params.get("q") || "";
     const nextStatus = normalizeBookingStatusFilter(params.get("status"));
     const nextAssigned = normalizeIdFilter(params.get("assigned"));
     const nextTiming = normalizeBookingTimingFilter(params.get("timing"));
+    const nextView = normalizeBookingView(params.get("view"));
     setQuery((current) => (current === nextQuery ? current : nextQuery));
     setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
     setAssignedFilter((current) => (current === nextAssigned ? current : nextAssigned));
     setTimingFilter((current) => (current === nextTiming ? current : nextTiming));
+    setViewMode((current) => (current === nextView ? current : nextView));
   }, [location.search]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        BOOKINGS_UI_STORAGE_KEY,
+        JSON.stringify({
+          status: statusFilter,
+          assigned: assignedFilter,
+          timing: timingFilter,
+          query,
+          view: viewMode,
+        })
+      );
+    } catch {
+      // Ignore storage failures and keep the page usable.
+    }
+  }, [assignedFilter, query, statusFilter, timingFilter, viewMode]);
+
+  useEffect(() => {
     setPage(0);
-  }, [assignedFilter, statusFilter, query, timingFilter, bookings.length]);
+  }, [assignedFilter, statusFilter, query, timingFilter, bookings.length, viewMode]);
 
   const productMap = useMemo(() => {
     const map = new Map();
@@ -416,6 +755,49 @@ function AdminBookings() {
     }
     return map;
   }, [bouncyCastles]);
+
+  const customerById = useMemo(() => {
+    const map = new Map();
+    customers.forEach((customer) => {
+      const customerId = Number(customer?.id);
+      if (!Number.isFinite(customerId)) return;
+      map.set(customerId, customer);
+    });
+    return map;
+  }, [customers]);
+
+  const deliveryByBookingId = useMemo(() => {
+    const map = new Map();
+    deliveries.forEach((delivery) => {
+      const bookingId = Number(delivery?.bookingId || delivery?.id);
+      if (!Number.isFinite(bookingId)) return;
+      map.set(bookingId, delivery);
+    });
+    return map;
+  }, [deliveries]);
+
+  const expensesByBookingId = useMemo(() => {
+    const map = new Map();
+    expenses.forEach((expense) => {
+      const bookingId = Number(expense?.bookingId);
+      if (!Number.isFinite(bookingId)) return;
+      const current = map.get(bookingId) || [];
+      current.push(expense);
+      map.set(bookingId, current);
+    });
+    return map;
+  }, [expenses]);
+
+  const documentByBookingId = useMemo(() => {
+    const map = new Map();
+    documents.forEach((document) => {
+      const sourceType = String(document?.sourceType || "").trim().toLowerCase();
+      const sourceId = Number(document?.sourceId);
+      if (sourceType !== "bookings" || !Number.isFinite(sourceId)) return;
+      map.set(sourceId, document);
+    });
+    return map;
+  }, [documents]);
 
   const detailItems = useMemo(() => {
     if (!detailBooking || !Array.isArray(detailBooking.items)) return [];
@@ -472,76 +854,57 @@ function AdminBookings() {
     return list;
   }, [assignedFilter, bookings, query, statusFilter, timingFilter]);
 
-  const sortValue = (booking, key) => {
-    switch (key) {
-      case "id":
-        return Number(booking.id) || 0;
-      case "customerName":
-        return (booking.customerName || "").toLowerCase();
-      case "assignedUserName":
-        return (booking.assignedUserName || "").toLowerCase();
-      case "eventDate":
-        return new Date(booking.eventDate || 0).getTime();
-      case "timeWindow":
-        return (booking.startTime || booking.endTime || "").toLowerCase();
-      case "venueAddress":
-        return (booking.venueAddress || "").toLowerCase();
-      case "items":
-        return Array.isArray(booking.items) ? booking.items.length : 0;
-      case "totalAmount":
-        return toNumber(booking.totalAmount);
-      case "status":
-        return (booking.status || "").toLowerCase();
-      default:
-        return booking[key] ?? "";
-    }
-  };
-
   const sortedBookings = useMemo(() => {
     const list = [...filteredBookings];
-    const { key, direction } = sortConfig;
     list.sort((a, b) => {
-      const va = sortValue(a, key);
-      const vb = sortValue(b, key);
-      if (va < vb) return direction === "asc" ? -1 : 1;
-      if (va > vb) return direction === "asc" ? 1 : -1;
-      return 0;
+      const aClosed = isClosedBooking(a) ? 1 : 0;
+      const bClosed = isClosedBooking(b) ? 1 : 0;
+      if (aClosed !== bClosed) return aClosed - bClosed;
+
+      const aEvent = new Date(a.eventDate || 0).getTime();
+      const bEvent = new Date(b.eventDate || 0).getTime();
+      if (aEvent !== bEvent) return aEvent - bEvent;
+
+      return Number(b.id || 0) - Number(a.id || 0);
     });
     return list;
-  }, [filteredBookings, sortConfig]);
+  }, [filteredBookings]);
 
-  const kanbanColumns = useMemo(() => {
-    const columns = [
-      { id: "received", label: "Booking received", items: [] },
-      { id: "confirmed", label: "Confirmed", items: [] },
-      { id: "event", label: "Event date", items: [] },
-      { id: "completed", label: "Completed", items: [] },
-      { id: "cancelled", label: "Cancelled", items: [] },
-    ];
-    const columnMap = new Map(columns.map((col) => [col.id, col]));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const activeViewMode = viewMode;
 
-    sortedBookings.forEach((booking) => {
-      const stage = getBookingStage(booking);
-      if (stage === "confirmed" && booking?.eventDate) {
-        const eventDate = new Date(booking.eventDate);
-        if (!Number.isNaN(eventDate.getTime()) && eventDate >= today) {
-          columnMap.get("event")?.items.push(booking);
-          return;
-        }
+  const availableViewOptions = BOOKING_VIEW_OPTIONS;
+
+  useEffect(() => {
+    if (loading) return;
+    if (activeViewMode === "map") {
+      void ensureSupportData({ deliveries: true }).catch((err) => {
+        console.warn("Failed to load delivery data", err);
+      });
+    }
+  }, [activeViewMode, loading]);
+
+  const bookingsWithAddress = useMemo(
+    () => sortedBookings.filter((booking) => String(booking?.venueAddress || "").trim()),
+    [sortedBookings]
+  );
+
+  useEffect(() => {
+    if (!bookingsWithAddress.length) {
+      setMapSelectionId(null);
+      return;
+    }
+    setMapSelectionId((current) => {
+      if (bookingsWithAddress.some((booking) => String(booking.id) === String(current))) {
+        return current;
       }
-      columnMap.get(stage)?.items.push(booking);
+      return bookingsWithAddress[0].id;
     });
+  }, [bookingsWithAddress]);
 
-    columns.forEach((col) => {
-      col.items.sort(
-        (a, b) => new Date(b.eventDate || 0).getTime() - new Date(a.eventDate || 0).getTime()
-      );
-    });
-
-    return columns;
-  }, [sortedBookings]);
+  const selectedMapBooking = useMemo(() => {
+    if (!bookingsWithAddress.length) return null;
+    return bookingsWithAddress.find((booking) => String(booking.id) === String(mapSelectionId)) || bookingsWithAddress[0];
+  }, [bookingsWithAddress, mapSelectionId]);
 
   const detailIndex = useMemo(() => {
     if (!detailBooking) return -1;
@@ -553,13 +916,38 @@ function AdminBookings() {
 
   const goPrevDetail = () => {
     if (!canGoPrevDetail) return;
-    setDetailBooking(sortedBookings[detailIndex - 1]);
+    openBookingDetail(sortedBookings[detailIndex - 1]);
   };
 
   const goNextDetail = () => {
     if (!canGoNextDetail) return;
-    setDetailBooking(sortedBookings[detailIndex + 1]);
+    openBookingDetail(sortedBookings[detailIndex + 1]);
   };
+
+  const detailCustomer = useMemo(
+    () => (detailBooking ? customerById.get(Number(detailBooking.customerId)) || null : null),
+    [customerById, detailBooking]
+  );
+
+  const detailDelivery = useMemo(
+    () => (detailBooking ? deliveryByBookingId.get(Number(detailBooking.id)) || null : null),
+    [deliveryByBookingId, detailBooking]
+  );
+
+  const detailDocument = useMemo(
+    () => (detailBooking ? documentByBookingId.get(Number(detailBooking.id)) || null : null),
+    [detailBooking, documentByBookingId]
+  );
+
+  const detailExpenses = useMemo(
+    () => (detailBooking ? expensesByBookingId.get(Number(detailBooking.id)) || [] : []),
+    [detailBooking, expensesByBookingId]
+  );
+
+  const detailExpenseTotal = useMemo(
+    () => sumBookingExpenses(detailExpenses),
+    [detailExpenses]
+  );
 
   const pageCount = Math.max(1, Math.ceil(sortedBookings.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
@@ -572,19 +960,39 @@ function AdminBookings() {
     [sortedBookings]
   );
 
-  const requestSort = (key) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      }
-      return { key, direction: "asc" };
-    });
-  };
+  const upcomingBookingsCount = useMemo(
+    () => sortedBookings.filter((booking) => matchesBookingTiming(booking, "next7")).length,
+    [sortedBookings]
+  );
 
-  const sortIndicator = (key) => {
-    if (sortConfig.key !== key) return "↕";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
-  };
+  const confirmedBookingsCount = useMemo(
+    () => sortedBookings.filter((booking) => normalizeStatus(booking.status) === "confirmed").length,
+    [sortedBookings]
+  );
+
+  const linkedDeliveryCount = useMemo(
+    () => sortedBookings.filter((booking) => deliveryByBookingId.has(Number(booking.id))).length,
+    [deliveryByBookingId, sortedBookings]
+  );
+
+  const linkedDocumentCount = useMemo(
+    () => sortedBookings.filter((booking) => documentByBookingId.has(Number(booking.id))).length,
+    [documentByBookingId, sortedBookings]
+  );
+
+  const linkedExpenseTotal = useMemo(
+    () =>
+      sortedBookings.reduce(
+        (sum, booking) => sum + sumBookingExpenses(expensesByBookingId.get(Number(booking.id)) || []),
+        0
+      ),
+    [expensesByBookingId, sortedBookings]
+  );
+
+  const unassignedBookingsCount = useMemo(
+    () => sortedBookings.filter((booking) => !Number.isFinite(Number(booking.assignedUserId))).length,
+    [sortedBookings]
+  );
 
   const filteredProducts = useMemo(() => {
     const needle = productQuery.trim().toLowerCase();
@@ -595,12 +1003,66 @@ function AdminBookings() {
     });
   }, [productQuery, products]);
 
+  const selectedFormCustomer = useMemo(() => {
+    const customerId = Number(form.customerId);
+    if (!Number.isFinite(customerId) || customerId <= 0) return null;
+    return customerById.get(customerId) || null;
+  }, [customerById, form.customerId]);
+
+  const deferredCustomerQuery = useDeferredValue(form.customerName || "");
+  const typedBookingCustomerName = String(form.customerName || "").trim();
+
+  const matchedTypedBookingCustomer = useMemo(() => {
+    if (!typedBookingCustomerName) return null;
+    const normalizedName = normalizeCustomerName(typedBookingCustomerName);
+    return customers.find((customer) => normalizeCustomerName(customer.name) === normalizedName) || null;
+  }, [customers, typedBookingCustomerName]);
+
+  const filteredBookingCustomerOptions = useMemo(() => {
+    if (!customers.length) return [];
+    const normalizedQuery = normalizeCustomerName(deferredCustomerQuery);
+    const phoneQuery = normalizePhoneDigits(deferredCustomerQuery);
+    const hasQuery = Boolean(normalizedQuery || phoneQuery);
+    const next = hasQuery
+      ? customers.filter((customer) => {
+          const matchesName =
+            normalizedQuery && normalizeCustomerName(customer.name).includes(normalizedQuery);
+          const matchesPhone =
+            phoneQuery && normalizePhoneDigits(customer.phone).includes(phoneQuery);
+          return Boolean(matchesName || matchesPhone);
+        })
+      : customers;
+    return [...next].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  }, [customers, deferredCustomerQuery]);
+
   const bookingCurrency = useMemo(() => {
     const firstItem = form.items[0];
     if (!firstItem) return "GHS";
     const product = productMap.get(Number(firstItem.productId));
     return normalizeCurrency(product?.currency || "GHS");
   }, [form.items, productMap]);
+
+  const assignedFilterOptions = useMemo(
+    () => [
+      { value: "", label: "Everyone" },
+      ...users.map((member) => ({
+        value: String(member.id),
+        label: member.fullName || [member.firstName, member.lastName].filter(Boolean).join(" "),
+      })),
+    ],
+    [users],
+  );
+
+  const assignedUserOptions = useMemo(
+    () => [
+      { value: "", label: "Unassigned" },
+      ...users.map((member) => ({
+        value: String(member.id),
+        label: member.fullName || [member.firstName, member.lastName].filter(Boolean).join(" "),
+      })),
+    ],
+    [users],
+  );
 
   const bookingDiscountAmount = useMemo(() => {
     const subtotal = form.items.reduce((sum, item) => {
@@ -639,6 +1101,31 @@ function AdminBookings() {
   const viewInvoice = (booking) => {
     if (!booking?.id || !canAccessInvoicing) return;
     navigate(`/admin/invoicing?type=bookings&id=${booking.id}`);
+  };
+
+  const viewDelivery = (booking) => {
+    if (!booking?.id) return;
+    navigate(`/admin/delivery?bookingId=${booking.id}`);
+  };
+
+  const viewCustomer = (booking) => {
+    const customerId = Number(booking?.customerId);
+    setDetailBooking(null);
+    if (Number.isFinite(customerId) && customerId > 0) {
+      navigate(`/admin/customers?id=${customerId}`);
+      return;
+    }
+    navigate("/admin/customers");
+  };
+
+  const viewExpenses = (booking) => {
+    if (!booking?.id) {
+      setDetailBooking(null);
+      navigate("/admin/expenses");
+      return;
+    }
+    setDetailBooking(null);
+    navigate(`/admin/expenses?bookingId=${booking.id}`);
   };
 
   const addItem = (product) => {
@@ -696,94 +1183,167 @@ function AdminBookings() {
     }));
   };
 
-  const buildMenuPosition = (rect) => {
-    const width = 320;
-    const gutter = 12;
-    const initialTop = rect.bottom + 8;
-    const maxBelow = window.innerHeight - initialTop - gutter;
-    const maxAbove = rect.top - gutter - 8;
-    let maxHeight = Math.min(420, Math.max(160, maxBelow));
-    let top = initialTop;
-    if (maxBelow < 160 && maxAbove > maxBelow) {
-      maxHeight = Math.min(420, Math.max(160, maxAbove));
-      top = Math.max(gutter, rect.top - maxHeight - 8);
-    }
-    let left = rect.left;
-    if (left + width > window.innerWidth - gutter) {
-      left = rect.right - width;
-    }
-    left = Math.min(Math.max(gutter, left), window.innerWidth - width - gutter);
-    return { top, left, maxHeight };
-  };
-
-  const toggleBookingMenu = (bookingId, event) => {
-    const rect = event?.currentTarget?.getBoundingClientRect();
-    if (openMenuId === bookingId) {
-      setOpenMenuId(null);
-      setMenuPosition(null);
+  const handleBookingCustomerChange = (nextValue) => {
+    const customerId = Number(nextValue);
+    if (!Number.isFinite(customerId) || customerId <= 0) {
+      setForm((prev) => ({ ...prev, customerId: "" }));
       return;
     }
-    setOpenMenuId(bookingId);
-    setMenuPosition(rect ? buildMenuPosition(rect) : null);
+    const customer = customerById.get(customerId);
+    setForm((prev) => ({
+      ...prev,
+      customerId: String(customerId),
+      customerName: customer?.name || prev.customerName,
+    }));
+    setCustomerMenuOpen(false);
   };
 
-  const closeMenu = () => {
-    setOpenMenuId(null);
-    setMenuPosition(null);
+  const handleBookingCustomerInputChange = (nextValue) => {
+    setCustomerMenuOpen(true);
+    setForm((prev) => {
+      const normalizedValue = normalizeCustomerName(nextValue);
+      const normalizedSelectedName = normalizeCustomerName(selectedFormCustomer?.name);
+      const keepLinkedCustomer = normalizedValue && normalizedValue === normalizedSelectedName;
+      return {
+        ...prev,
+        customerName: nextValue,
+        customerId: keepLinkedCustomer ? prev.customerId : "",
+      };
+    });
+  };
+
+  const createBookingCustomer = async (providedName = "") => {
+    const customerName = String(providedName || form.customerName || "").trim();
+    if (!customerName) {
+      setSaveError("Enter a customer name.");
+      return null;
+    }
+
+    setCustomerCreating(true);
+    setSaveError("");
+    try {
+      const response = await fetch("/.netlify/functions/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: customerName }),
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create customer.");
+      }
+      if (!payload?.id) {
+        throw new Error("Customer could not be created.");
+      }
+      setCustomers((current) => [payload, ...current.filter((customer) => Number(customer.id) !== Number(payload.id))]);
+      setForm((prev) => ({
+        ...prev,
+        customerId: String(payload.id),
+        customerName: payload.name || customerName,
+      }));
+      setCustomerMenuOpen(false);
+      return payload;
+    } catch (err) {
+      console.error("Failed to create booking customer", err);
+      setSaveError(err.message || "Failed to create customer.");
+      return null;
+    } finally {
+      setCustomerCreating(false);
+    }
+  };
+
+  const ensureBookingCustomer = async () => {
+    const existingCustomerId = Number(form.customerId);
+    if (Number.isFinite(existingCustomerId) && existingCustomerId > 0) {
+      return existingCustomerId;
+    }
+    if (matchedTypedBookingCustomer?.id) {
+      handleBookingCustomerChange(String(matchedTypedBookingCustomer.id));
+      return Number(matchedTypedBookingCustomer.id);
+    }
+    const createdCustomer = await createBookingCustomer();
+    const createdCustomerId = Number(createdCustomer?.id);
+    return Number.isFinite(createdCustomerId) && createdCustomerId > 0 ? createdCustomerId : null;
+  };
+
+  const commitBookingCustomerInput = async () => {
+    const typedName = typedBookingCustomerName;
+    if (!typedName) {
+      setForm((prev) => ({ ...prev, customerId: "", customerName: "" }));
+      setCustomerMenuOpen(false);
+      return;
+    }
+    if (matchedTypedBookingCustomer?.id) {
+      handleBookingCustomerChange(String(matchedTypedBookingCustomer.id));
+      return;
+    }
+    await createBookingCustomer(typedName);
+  };
+
+  const handleBookingCustomerInputKeyDown = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void commitBookingCustomerInput();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setCustomerMenuOpen(false);
+    }
   };
 
   const openCreate = () => {
     if (isMobileView) return;
-    setEditing(null);
-    setSaveError("");
-    setProductQuery("");
-    setForm({
-      customerId: customers[0]?.id ? String(customers[0].id) : "",
-      eventDate: "",
-      startTime: "",
-      endTime: "",
-      venueAddress: "",
-      status: "pending",
-      assignedUserId: user?.id ? String(user.id) : "",
-      items: [],
-      discount: "",
-      discountType: "amount",
-    });
-    setModalOpen(true);
+    ensureSupportData({ customers: true, products: true, bouncyCastles: true })
+      .then(() => {
+        setEditing(null);
+        setSaveError("");
+        setProductQuery("");
+        setCustomerMenuOpen(false);
+        setForm({
+          customerId: "",
+          customerName: "",
+          eventDate: "",
+          startTime: "",
+          endTime: "",
+          venueAddress: "",
+          status: "pending",
+          assignedUserId: user?.id ? String(user.id) : "",
+          items: [],
+          discount: "",
+          discountType: "amount",
+        });
+        setModalOpen(true);
+      })
+      .catch((err) => {
+        console.error("Failed to load booking form data", err);
+        setError(err.message || "We couldn't load the booking form right now.");
+      });
   };
 
   const openEdit = (booking) => {
     if (isMobileView) return;
-    setEditing(booking);
-    setSaveError("");
-    setProductQuery("");
-
-    setForm({
-      customerId: booking.customerId ? String(booking.customerId) : "",
-      eventDate: booking.eventDate ? String(booking.eventDate).slice(0, 10) : "",
-      startTime: booking.startTime || "",
-      endTime: booking.endTime || "",
-      venueAddress: booking.venueAddress || "",
-      status: booking.status || "pending",
-      assignedUserId: booking.assignedUserId ? String(booking.assignedUserId) : "",
-      items: Array.isArray(booking.items)
-        ? booking.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: Number.isFinite(item.price) ? (item.price / 100).toFixed(2) : "",
-          }))
-        : [],
-      discount: "",
-      discountType: "amount",
-    });
-
-    setModalOpen(true);
+    ensureSupportData({ customers: true, products: true, bouncyCastles: true })
+      .then(async () => {
+        const fullBooking = await fetchBookingById(booking.id);
+        setBookings((current) => current.map((row) => (row.id === fullBooking.id ? { ...row, ...fullBooking } : row)));
+        setEditing(fullBooking);
+        setSaveError("");
+        setProductQuery("");
+        setCustomerMenuOpen(false);
+        setForm(buildBookingEditorState(fullBooking, user?.id ? String(user.id) : ""));
+        setModalOpen(true);
+      })
+      .catch((err) => {
+        console.error("Failed to load booking edit data", err);
+        setError(err.message || "We couldn't load this booking right now.");
+      });
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditing(null);
     setSaveError("");
+    setCustomerMenuOpen(false);
   };
 
   useEffect(() => {
@@ -792,12 +1352,13 @@ function AdminBookings() {
     const bookingId = params.get("id");
     if ((!action && !bookingId) || loading) return;
 
-      const nextSearch = buildBookingsSearch({
-        query: params.get("q") || "",
-        status: params.get("status") || "all",
-        assigned: params.get("assigned") || "",
-        timing: params.get("timing") || "all",
-      });
+    const nextSearch = buildBookingsSearch({
+      query: params.get("q") || "",
+      status: params.get("status") || "all",
+      assigned: params.get("assigned") || "",
+      timing: params.get("timing") || "all",
+      view: params.get("view") || viewMode,
+    });
     const finish = () =>
       navigate(
         {
@@ -834,28 +1395,31 @@ function AdminBookings() {
       return;
     }
 
-    setDetailBooking(targetBooking);
+    openBookingDetail(targetBooking);
     finish();
-  }, [bookings, isMobileView, loading, location.pathname, location.search, navigate]);
+  }, [bookings, isMobileView, loading, location.pathname, location.search, navigate, viewMode]);
 
   const save = async (event) => {
     event.preventDefault();
     setSaveError("");
 
-    if (!form.customerId) return setSaveError("Select a customer.");
     if (!form.eventDate) return setSaveError("Event date is required.");
     if (!form.venueAddress.trim()) return setSaveError("Venue address is required.");
     if (!form.items.length) return setSaveError("Add at least one item to the booking.");
 
     setSaving(true);
     try {
+      const customerId = await ensureBookingCustomer();
+      if (!Number.isFinite(Number(customerId)) || Number(customerId) <= 0) {
+        throw new Error("Select or create a customer.");
+      }
       const isEdit = Boolean(editing?.id);
       const response = await fetch("/.netlify/functions/bookings", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: isEdit ? editing.id : undefined,
-          customerId: Number(form.customerId),
+          customerId: Number(customerId),
           eventDate: form.eventDate,
           startTime: form.startTime || null,
           endTime: form.endTime || null,
@@ -893,29 +1457,20 @@ function AdminBookings() {
 
   const updateBookingStatus = async (booking, nextStatus) => {
     if (!booking?.id) return;
+    if (normalizeStatus(booking.status) === normalizeStatus(nextStatus)) return;
     setStatusUpdatingId(booking.id);
     setError("");
+    setBookings((prev) =>
+      prev.map((row) => (row.id === booking.id ? { ...row, status: nextStatus } : row))
+    );
+    setDetailBooking((prev) => (prev && prev.id === booking.id ? { ...prev, status: nextStatus } : prev));
     try {
       const response = await fetch("/.netlify/functions/bookings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: booking.id,
-          customerId: booking.customerId,
-          eventDate: booking.eventDate,
-          startTime: booking.startTime || null,
-          endTime: booking.endTime || null,
-          venueAddress: booking.venueAddress || "",
           status: nextStatus,
-          assignedUserId: booking.assignedUserId ?? null,
-          discount: 0,
-          items: Array.isArray(booking.items)
-            ? booking.items.map((item) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                price: Number.isFinite(item.price) ? item.price / 100 : undefined,
-              }))
-            : [],
           userId: user?.id,
           userName:
             user?.fullName ||
@@ -933,859 +1488,510 @@ function AdminBookings() {
       setDetailBooking((prev) => (prev && prev.id === payload.id ? payload : prev));
     } catch (err) {
       console.error("Booking status update failed", err);
+      setBookings((prev) =>
+        prev.map((row) => (row.id === booking.id ? booking : row))
+      );
+      setDetailBooking((prev) => (prev && prev.id === booking.id ? booking : prev));
       setError(err.message || "Failed to update booking.");
     } finally {
       setStatusUpdatingId(null);
     }
   };
 
-  const applySavedView = (view) => {
-    setQuery(view?.query || "");
-    setStatusFilter(view?.statusFilter || "all");
-  };
-
-  const handleViewChange = (event) => {
-    const nextId = event.target.value;
-    setActiveViewId(nextId);
-    if (nextId === "all") {
-      applySavedView({ query: "", statusFilter: "all" });
-      return;
-    }
-    const view = savedViews.find((item) => item.id === nextId);
-    if (view) applySavedView(view);
-  };
-
-  const handleSaveView = () => {
-    if (typeof window === "undefined") return;
-    const name = window.prompt("Name this view");
-    if (!name) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setSavedViews((prev) => {
-      const existing = prev.find((item) => item.name.toLowerCase() === trimmed.toLowerCase());
-      if (existing) {
-        const next = prev.map((item) =>
-          item.id === existing.id ? { ...item, query, statusFilter } : item
-        );
-        setActiveViewId(existing.id);
-        return next;
-      }
-      const nextId = `view-${Date.now()}`;
-      setActiveViewId(nextId);
-      return [...prev, { id: nextId, name: trimmed, query, statusFilter }];
+  const openBookingDetail = (booking) => {
+    void ensureSupportData({
+      customers: true,
+      products: true,
+      bouncyCastles: true,
+      deliveries: true,
+      expenses: true,
+    }).catch((err) => {
+      console.warn("Failed to load booking detail data", err);
     });
+    setDetailBooking(booking);
+    void fetchBookingById(booking.id)
+      .then((fullBooking) => {
+        setBookings((current) =>
+          current.map((row) => (row.id === fullBooking.id ? { ...row, ...fullBooking } : row))
+        );
+        setDetailBooking((current) => (current && current.id === fullBooking.id ? fullBooking : current));
+      })
+      .catch((err) => {
+        console.error("Failed to hydrate booking detail", err);
+        setError(err.message || "We couldn't load this booking right now.");
+      });
   };
 
-  const handleDeleteView = () => {
-    if (activeViewId === "all") return;
-    setSavedViews((prev) => prev.filter((item) => item.id !== activeViewId));
-    setActiveViewId("all");
-    applySavedView({ query: "", statusFilter: "all" });
+  const handleBookingRowKeyDown = (event, booking) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openBookingDetail(booking);
   };
-
 
   return (
-    <div className="bookings-page">
-      <div className="bookings-shell">
+    <div className="admin-page bookings-page">
+      <div className="admin-shell bookings-shell">
         <AdminBreadcrumb items={[{ label: "Bookings" }]} />
 
         <AdminPageHeader
-          eyebrow="Bookings"
-          title="Rental bookings"
-          subtitle="Review upcoming events, track statuses, and create bookings."
-          actionsClassName="admin-header-actions"
-          actions={
-            !isMobileView ? (
-              <>
-                <button type="button" className="bookings-secondary" onClick={fetchAll}>
-                  <AppIcon icon={faRotateRight} />
-                  Refresh
-                </button>
+          className="bookings-header"
+          copyClassName="bookings-header-copy"
+          actionsClassName="bookings-header-actions admin-header-actions"
+          title="Bookings"
+          actions={(
+            <>
+              <button type="button" className="bookings-secondary" onClick={fetchAll}>
+                <AppIcon icon={faRotateRight} />
+              </button>
+              {!isMobileView ? (
                 <button type="button" className="bookings-primary" onClick={openCreate}>
                   <AppIcon icon={faPlus} />
-                  Add booking
                 </button>
-              </>
-            ) : null
-          }
-        />
-
-        <section className="glass-card bookings-panel">
-          <div className="bookings-panel-header">
-            <div>
-              <h3>All bookings</h3>
-              <span>{bookings.length} total</span>
-            </div>
-            <div className="bookings-view">
-              <label className="bookings-filter">
-                Status
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="all">All</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </label>
-              <label className="bookings-filter">
-                Saved view
-                <select value={activeViewId} onChange={handleViewChange}>
-                  <option value="all">All bookings</option>
-                  {savedViews.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="bookings-search">
-                Search
-                <SearchField
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onClear={() => setQuery("")}
-                  placeholder="Id, customer, status"
-                  aria-label="Search bookings"
-                />
-              </label>
-              <div className="bookings-view-actions">
-                <button type="button" className="bookings-action" onClick={handleSaveView}>
-                  Save view
-                </button>
-                {activeViewId !== "all" && (
-                  <button
-                    type="button"
-                    className="bookings-action bookings-action-ghost"
-                    onClick={handleDeleteView}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {loading && <p className="bookings-status">Loading bookings...</p>}
-          {!loading && error && (
-            <div className="bookings-inline">
-              <p className="bookings-error">{error}</p>
-              <button type="button" className="bookings-secondary" onClick={fetchAll}>
-                <AppIcon icon={faRotateRight} /> Retry
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && SHOW_LEGACY_BOOKINGS_TABLE && (
-            <div className="bookings-table-wrapper">
-              <table className="bookings-table">
-                <thead>
-                  <tr>
-                    <th className="table-row-index">#</th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("id")}>
-                        Booking <span className="sort-indicator">{sortIndicator("id")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("customerName")}>
-                        Customer <span className="sort-indicator">{sortIndicator("customerName")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("assignedUserName")}>
-                        Assigned to <span className="sort-indicator">{sortIndicator("assignedUserName")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("eventDate")}>
-                        Event <span className="sort-indicator">{sortIndicator("eventDate")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("timeWindow")}>
-                        Time <span className="sort-indicator">{sortIndicator("timeWindow")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("venueAddress")}>
-                        Venue <span className="sort-indicator">{sortIndicator("venueAddress")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("totalAmount")}>
-                        Total <span className="sort-indicator">{sortIndicator("totalAmount")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("status")}>
-                        Status <span className="sort-indicator">{sortIndicator("status")}</span>
-                      </button>
-                    </th>
-                    <th aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedBookings.map((booking, index) => {
-                    const timeWindow = booking.startTime || booking.endTime
-                      ? `${booking.startTime || ""}${booking.endTime ? ` – ${booking.endTime}` : ""}`
-                      : "-";
-                    const totalValue = toNumber(booking.totalAmount, 0) / 100;
-
-                    return (
-                      <tr key={booking.id} className="bookings-row" onClick={() => setDetailBooking(booking)}>
-                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
-                        <td>#{booking.id}</td>
-                        <td>{booking.customerName || "-"}</td>
-                        <td>{formatUser(booking.assignedUserName)}</td>
-                        <td>{formatDate(booking.eventDate)}</td>
-                        <td>{timeWindow}</td>
-                        <td className="bookings-venue">{booking.venueAddress || "-"}</td>
-                        <td>{formatMoney(totalValue, "GHS")}</td>
-                        <td>
-                          <span className={`bookings-pill ${booking.status || "pending"}`}>
-                            {booking.status || "pending"}
-                          </span>
-                        </td>
-                        <td>
-                          {!isMobileView && (
-                            <div className="bookings-actions-col" onClick={(e) => e.stopPropagation()}>
-                              <div className="bookings-menu">
-                                <button
-                                  type="button"
-                                  className="bookings-edit"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleBookingMenu(booking.id, e);
-                                  }}
-                                >
-                                  ⋮
-                                </button>
-                                <div
-                                  className={`bookings-menu-list ${openMenuId === booking.id ? "open" : ""}`}
-                                  style={openMenuId === booking.id ? menuPosition : undefined}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <div className="bookings-menu-actions">
-                                    {canAccessInvoicing && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          closeMenu();
-                                          viewInvoice(booking);
-                                        }}
-                                      >
-                                        Generate invoice
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        closeMenu();
-                                        openEdit(booking);
-                                      }}
-                                    >
-                                      Edit details
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {!sortedBookings.length && (
-                    <tr>
-                      <td colSpan={10} className="bookings-empty">
-                        No bookings found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                {sortedBookings.length > 0 && (
-                  <tfoot className="admin-table-footer">
-                    <tr>
-                      <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{sortedBookings.length} bookings</span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell">
-                        <span className="admin-table-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-              <div className="table-pagination">
-                <span>
-                  Showing {sortedBookings.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(sortedBookings.length, (clampedPage + 1) * pageSize)} of {sortedBookings.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && (
-            <>
-              <div className="bookings-card-grid">
-                {paginatedBookings.map((booking) => {
-                  const timeWindow = booking.startTime || booking.endTime
-                    ? `${booking.startTime || ""}${booking.endTime ? ` – ${booking.endTime}` : ""}`
-                    : "-";
-                  const itemsCount = Array.isArray(booking.items) ? booking.items.length : 0;
-                  const totalValue = toNumber(booking.totalAmount, 0) / 100;
-                return (
-                  <button
-                    type="button"
-                    key={booking.id}
-                    className="glass-card bookings-card"
-                    onClick={() => setDetailBooking(booking)}
-                  >
-                    <div className="bookings-card-head">
-                      <span className="bookings-pill small">{booking.status || "pending"}</span>
-                      <span className="bookings-amount">{formatMoney(totalValue, "GHS")}</span>
-                    </div>
-                    <h4>#{booking.id} · {booking.customerName || "-"}</h4>
-                    <p className="bookings-card-meta">
-                      {formatDate(booking.eventDate)} · {timeWindow}
-                    </p>
-                    <p className="bookings-card-meta">{booking.venueAddress || "-"}</p>
-                    <p className="bookings-card-meta">{itemsCount} item{itemsCount === 1 ? "" : "s"}</p>
-                    <p className="bookings-card-meta">
-                      Assigned to: {formatUser(booking.assignedUserName)}
-                    </p>
-                    {!isMobileView && (
-                      <div className="bookings-card-actions">
-                        <div className="bookings-menu">
-                          <button
-                            type="button"
-                            className="bookings-edit"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleBookingMenu(booking.id, e);
-                            }}
-                          >
-                            ⋮
-                          </button>
-                          <div
-                            className={`bookings-menu-list ${openMenuId === booking.id ? "open" : ""}`}
-                            style={openMenuId === booking.id ? menuPosition : undefined}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="bookings-menu-actions">
-                              {canAccessInvoicing && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    closeMenu();
-                                    viewInvoice(booking);
-                                  }}
-                                >
-                                  <AppIcon icon={faFileInvoice} />
-                                  Generate invoice
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  closeMenu();
-                                  openEdit(booking);
-                                }}
-                              >
-                                <AppIcon icon={faPen} />
-                                Edit details
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-              {!sortedBookings.length && <p className="bookings-muted">No bookings found.</p>}
-              </div>
-              <div className="table-pagination">
-                <span>
-                  Showing {sortedBookings.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(sortedBookings.length, (clampedPage + 1) * pageSize)} of {sortedBookings.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              ) : null}
             </>
           )}
+        />
 
-          {!loading && !error && SHOW_LEGACY_BOOKINGS_KANBAN && (
-            <div className="bookings-kanban">
-              {kanbanColumns.map((column) => (
-                <div key={column.id} className="bookings-kanban-column">
-                  <div className="bookings-kanban-header">
-                    <h4>{column.label}</h4>
-                    <span>{column.items.length}</span>
-                  </div>
-                  {column.items.length ? (
-                    column.items.map((booking) => {
+        {loading && <p className="bookings-status">Loading bookings...</p>}
+        {!loading && error && (
+          <div className="bookings-inline">
+            <p className="bookings-error">{error}</p>
+            <button type="button" className="bookings-secondary" onClick={fetchAll}>
+              <AppIcon icon={faRotateRight} /> Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <section className="bookings-summary-grid">
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Upcoming</p>
+              <strong className="bookings-summary-value">{upcomingBookingsCount}</strong>
+            </article>
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Confirmed</p>
+              <strong className="bookings-summary-value">{confirmedBookingsCount}</strong>
+            </article>
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Delivery</p>
+              <strong className="bookings-summary-value">{linkedDeliveryCount}</strong>
+            </article>
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Invoices</p>
+              <strong className="bookings-summary-value">{linkedDocumentCount}</strong>
+            </article>
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Expenses</p>
+              <strong className="bookings-summary-value">{formatMoney(linkedExpenseTotal, "GHS")}</strong>
+            </article>
+            <article className="bubble-card bookings-summary-card">
+              <p className="bookings-summary-label">Booked value</p>
+              <strong className="bookings-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</strong>
+              <span className="bookings-summary-sub">{unassignedBookingsCount} unassigned</span>
+            </article>
+          </section>
+        )}
+
+        {!loading && !error && (
+          <section className="glass-card admin-table bookings-results-panel">
+            <div className="bookings-results-head">
+              <div>
+                <h3>{sortedBookings.length} Bookings</h3>
+              </div>
+              <div className="bookings-results-meta">
+                <span>{formatMoney(bookingsTableTotal, "GHS")}</span>
+              </div>
+            </div>
+
+            <div className="bookings-toolbar bookings-results-toolbar" aria-label="Booking controls">
+              <div className="bookings-toolbar-row">
+                <div className="bookings-toolbar-filters">
+                  <SelectField
+                    fieldClassName="bookings-filter"
+                    label="Status"
+                    value={statusFilter}
+                    options={BOOKING_STATUS_OPTIONS}
+                    onChangeValue={setStatusFilter}
+                    ariaLabel="Filter bookings by status"
+                  />
+                  <SelectField
+                    fieldClassName="bookings-filter"
+                    label="Timing"
+                    value={timingFilter}
+                    options={BOOKING_TIMING_OPTIONS}
+                    onChangeValue={setTimingFilter}
+                    ariaLabel="Filter bookings by timing"
+                  />
+                  <SelectField
+                    fieldClassName="bookings-filter"
+                    label="Assigned"
+                    value={assignedFilter}
+                    options={assignedFilterOptions}
+                    onChangeValue={setAssignedFilter}
+                    ariaLabel="Filter bookings by assignee"
+                  />
+                </div>
+              </div>
+              <div className="bookings-toolbar-search-row">
+                <label className="bookings-search">
+                  Search
+                  <SearchField
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onClear={() => setQuery("")}
+                    placeholder="Booking, customer, venue"
+                    aria-label="Search bookings"
+                  />
+                </label>
+                <div className="admin-view-toggle bookings-view-tabs" role="tablist" aria-label="Booking views">
+                  {availableViewOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeViewMode === option.key}
+                      tabIndex={activeViewMode === option.key ? 0 : -1}
+                      className={`admin-chip ${activeViewMode === option.key ? "is-active" : ""}`}
+                      onClick={() => setViewMode(option.key)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {activeViewMode === "list" ? (
+              isMobileView ? (
+                <div className="bookings-mobile-list" role="list" aria-label="Bookings">
+                  {paginatedBookings.length === 0 ? (
+                    <p className="bookings-empty">No bookings found.</p>
+                  ) : (
+                    paginatedBookings.map((booking, index) => {
                       const totalValue = toNumber(booking.totalAmount, 0) / 100;
+                      const bookingDocument = documentByBookingId.get(Number(booking.id)) || null;
+
+                      return (
+                        <article
+                          key={booking.id}
+                          role="button"
+                          tabIndex={0}
+                          className="glass-card bookings-mobile-card"
+                          onClick={() => openBookingDetail(booking)}
+                          onKeyDown={(event) => handleBookingRowKeyDown(event, booking)}
+                        >
+                          <div className="bookings-mobile-card-head">
+                            <div className="bookings-mobile-card-copy">
+                              <span className="bookings-mobile-card-index">
+                                #{clampedPage * pageSize + index}
+                              </span>
+                              <strong>Booking #{booking.id}</strong>
+                              <p>{booking.customerName || "Customer"}</p>
+                            </div>
+                            <div className="bookings-mobile-card-aside">
+                              <span className={`bookings-pill ${booking.status || "pending"}`}>
+                                {booking.status || "pending"}
+                              </span>
+                              <strong className="bookings-mobile-card-total">
+                                {formatMoney(totalValue, "GHS")}
+                              </strong>
+                            </div>
+                          </div>
+
+                          <div className="bookings-mobile-card-grid">
+                            <div className="bookings-mobile-card-field">
+                              <span>Date</span>
+                              <strong>{formatDate(booking.eventDate)}</strong>
+                            </div>
+                            <div className="bookings-mobile-card-field">
+                              <span>Time</span>
+                              <strong>{formatBookingTimeWindow(booking)}</strong>
+                            </div>
+                            <div className="bookings-mobile-card-field bookings-mobile-card-field--full">
+                              <span>Location</span>
+                              <strong>{booking.venueAddress || "-"}</strong>
+                            </div>
+                            <div className="bookings-mobile-card-field bookings-mobile-card-field--full">
+                              <span>Invoice</span>
+                              <strong>{getBookingDocumentTitle(bookingDocument)}</strong>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                <div className="admin-table-scroll inventory-table-scroll bookings-table-scroll">
+                  <table className="bookings-hub-table">
+                    <thead>
+                      <tr>
+                        <th className="table-row-index">
+                          <span className="bookings-table-heading">ID</span>
+                        </th>
+                        <th className="bookings-col-booking">
+                          <span className="bookings-table-heading">Booking</span>
+                        </th>
+                        <th className="bookings-col-customer">
+                          <span className="bookings-table-heading">Customer</span>
+                        </th>
+                        <th className="bookings-col-date">
+                          <span className="bookings-table-heading">Date</span>
+                        </th>
+                        <th className="bookings-col-address">
+                          <span className="bookings-table-heading">Location</span>
+                        </th>
+                        <th className="bookings-col-time">
+                          <span className="bookings-table-heading">Time</span>
+                        </th>
+                        <th className="bookings-col-invoice">
+                          <span className="bookings-table-heading">Invoice</span>
+                        </th>
+                        <th className="bookings-col-status">
+                          <span className="bookings-table-heading">Status</span>
+                        </th>
+                        <th className="bookings-col-total">
+                          <span className="bookings-table-heading">Total</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedBookings.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="bookings-empty">
+                            No bookings found.
+                          </td>
+                        </tr>
+                      )}
+                      {paginatedBookings.map((booking, index) => {
+                        const totalValue = toNumber(booking.totalAmount, 0) / 100;
+                        const bookingDocument = documentByBookingId.get(Number(booking.id)) || null;
+
+                        return (
+                          <tr
+                            key={booking.id}
+                            className="bookings-row"
+                            onClick={() => openBookingDetail(booking)}
+                            onKeyDown={(event) => handleBookingRowKeyDown(event, booking)}
+                            tabIndex={0}
+                          >
+                            <td className="table-row-index">
+                              <span className="bookings-table-text">{clampedPage * pageSize + index}</span>
+                            </td>
+                            <td className="bookings-col-booking">
+                              <span className="bookings-table-text">#{booking.id}</span>
+                            </td>
+                            <td className="bookings-col-customer">
+                              <span className="bookings-table-text">{booking.customerName || "Customer"}</span>
+                            </td>
+                            <td className="bookings-col-date">
+                              <span className="bookings-table-text">{formatDate(booking.eventDate)}</span>
+                            </td>
+                            <td className="bookings-col-address">
+                              <span className="bookings-table-text">{booking.venueAddress || "-"}</span>
+                            </td>
+                            <td className="bookings-col-time">
+                              <span className="bookings-table-text">{formatBookingTimeWindow(booking)}</span>
+                            </td>
+                            <td className="bookings-col-invoice">
+                              <span className="bookings-table-text">{getBookingDocumentTitle(bookingDocument)}</span>
+                            </td>
+                            <td className="bookings-col-status">
+                              <span className={`bookings-pill ${booking.status || "pending"}`}>
+                                {booking.status || "pending"}
+                              </span>
+                            </td>
+                            <td className="bookings-col-total bookings-total-cell">
+                              {formatMoney(totalValue, "GHS")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {sortedBookings.length > 0 && (
+                      <tfoot className="admin-table-footer">
+                        <tr>
+                          <td className="admin-table-summary-cell is-count">
+                            <span className="admin-table-summary-value">Total</span>
+                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell bookings-total-footer">
+                            <span className="admin-table-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</span>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )
+            ) : null}
+
+            {activeViewMode === "map" ? (
+              <div className="bookings-map-view">
+                <div className="bookings-map-list">
+                  {bookingsWithAddress.length === 0 ? (
+                    <p className="bookings-muted">No bookings with a location in this view.</p>
+                  ) : (
+                    bookingsWithAddress.map((booking) => {
+                      const bookingDelivery = deliveryByBookingId.get(Number(booking.id)) || null;
+                      const isActive = selectedMapBooking?.id === booking.id;
                       return (
                         <button
-                          type="button"
                           key={booking.id}
-                          className="glass-card bookings-kanban-card"
-                          onClick={() => setDetailBooking(booking)}
+                          type="button"
+                          className={`bubble-card bookings-map-item${isActive ? " is-active" : ""}`}
+                          onClick={() => setMapSelectionId(booking.id)}
                         >
-                          <div className="bookings-kanban-card-head">
-                            <span className={`bookings-pill ${booking.status || "pending"}`}>
+                          <div className="bookings-map-item-head">
+                            <strong>#{booking.id} · {booking.customerName || "Customer"}</strong>
+                            <span className={`bookings-pill small ${booking.status || "pending"}`}>
                               {booking.status || "pending"}
                             </span>
-                            <span className="bookings-kanban-amount">{formatMoney(totalValue, "GHS")}</span>
                           </div>
-                          <h5>#{booking.id} · {booking.customerName || "-"}</h5>
-                          <p className="bookings-kanban-meta">{formatDate(booking.eventDate)}</p>
-                          <p className="bookings-kanban-meta">{booking.venueAddress || "-"}</p>
+                          <p>{formatDate(booking.eventDate)} · {formatBookingTimeWindow(booking)}</p>
+                          <p>{booking.venueAddress}</p>
+                          <span className={`bookings-link-pill ${bookingDelivery ? "is-live" : "is-empty"}`}>
+                            {getDeliveryStatusLabel(bookingDelivery)}
+                          </span>
                         </button>
                       );
                     })
-                  ) : (
-                    <p className="bookings-muted">No bookings here.</p>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+
+                <section className="glass-card bookings-map-stage">
+                  {selectedMapBooking ? (
+                    <>
+                      <div className="bookings-map-stage-head">
+                        <div>
+                          <h4>#{selectedMapBooking.id} · {selectedMapBooking.customerName || "Customer"}</h4>
+                          <p>{selectedMapBooking.venueAddress}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="bookings-edit"
+                          onClick={() => openBookingDetail(selectedMapBooking)}
+                        >
+                          Open booking
+                        </button>
+                      </div>
+                      <div className="booking-map bookings-map-stage-frame">
+                        <iframe
+                          title="Selected booking location"
+                          src={buildMapUrl(selectedMapBooking.venueAddress)}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="bookings-muted">Select a booking to view the location.</p>
+                  )}
+                </section>
+              </div>
+            ) : null}
+
+            {activeViewMode === "list" ? (
+              <div className="table-pagination">
+                <span>
+                  Showing {sortedBookings.length === 0 ? 0 : clampedPage * pageSize + 1}-
+                  {Math.min(sortedBookings.length, (clampedPage + 1) * pageSize)} of {sortedBookings.length}
+                </span>
+                <div className="table-pagination-controls">
+                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={clampedPage >= pageCount - 1}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        )}
       </div>
 
-      {modalOpen && (
-        <div className="customers-modal" role="dialog" aria-modal="true">
-          <div className="customers-modal-panel">
-            <header>
-              <div>
-                <p className="customers-eyebrow">{editing ? "Edit" : "New"} booking</p>
-                <h2>{editing ? "Update" : "Add"} booking</h2>
-              </div>
-              <button type="button" className="customers-modal-close" onClick={closeModal} aria-label="Close">
-                <AppIcon icon={faXmark} />
-              </button>
-            </header>
+      <BookingEditorModal
+        open={modalOpen}
+        editing={editing}
+        closeModal={closeModal}
+        save={save}
+        saveError={saveError}
+        saving={saving}
+        form={form}
+        setForm={setForm}
+        customerMenuOpen={customerMenuOpen}
+        setCustomerMenuOpen={setCustomerMenuOpen}
+        handleBookingCustomerInputChange={handleBookingCustomerInputChange}
+        handleBookingCustomerInputKeyDown={handleBookingCustomerInputKeyDown}
+        filteredBookingCustomerOptions={filteredBookingCustomerOptions}
+        typedBookingCustomerName={typedBookingCustomerName}
+        matchedTypedBookingCustomer={matchedTypedBookingCustomer}
+        commitBookingCustomerInput={commitBookingCustomerInput}
+        handleBookingCustomerChange={handleBookingCustomerChange}
+        customerCreating={customerCreating}
+        BookingCustomerPickerComponent={BookingCustomerPicker}
+        BOOKING_TIME_OPTIONS={BOOKING_TIME_OPTIONS}
+        BOOKING_EDITOR_STATUS_OPTIONS={BOOKING_EDITOR_STATUS_OPTIONS}
+        assignedUserOptions={assignedUserOptions}
+        productQuery={productQuery}
+        setProductQuery={setProductQuery}
+        filteredProducts={filteredProducts}
+        addItem={addItem}
+        formItems={form.items}
+        productMap={productMap}
+        updateItemPrice={updateItemPrice}
+        updateItemQuantity={updateItemQuantity}
+        removeItem={removeItem}
+        bookingTotalCents={bookingTotalCents}
+        bookingCurrency={(value) => formatMoney(value, bookingCurrency)}
+      />
 
-            <form className="customers-form" onSubmit={save}>
-              <label>
-                Customer
-                <select
-                  value={form.customerId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, customerId: event.target.value }))}
-                  required
-                >
-                  <option value="">Select a customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} {customer.email ? `- ${customer.email}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Venue address
-                <input
-                  type="text"
-                  value={form.venueAddress}
-                  onChange={(event) => setForm((prev) => ({ ...prev, venueAddress: event.target.value }))}
-                  placeholder="Venue / delivery address"
-                  required
-                />
-              </label>
-
-              <label>
-                Event date
-                <input
-                  type="date"
-                  value={form.eventDate}
-                  onChange={(event) => setForm((prev) => ({ ...prev, eventDate: event.target.value }))}
-                  required
-                />
-              </label>
-
-              <label>
-                Start time (optional)
-                <input
-                  type="text"
-                  value={form.startTime}
-                  onChange={(event) => setForm((prev) => ({ ...prev, startTime: event.target.value }))}
-                  placeholder="10:00 AM"
-                />
-              </label>
-
-              <label>
-                End time (optional)
-                <input
-                  type="text"
-                  value={form.endTime}
-                  onChange={(event) => setForm((prev) => ({ ...prev, endTime: event.target.value }))}
-                  placeholder="04:00 PM"
-                />
-              </label>
-
-              <label>
-                Status
-                <select
-                  value={form.status}
-                  onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </label>
-
-              <label>
-                Assigned to
-                <select
-                  value={form.assignedUserId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, assignedUserId: event.target.value }))}
-                >
-                  <option value="">Unassigned</option>
-                  {users.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.fullName || [member.firstName, member.lastName].filter(Boolean).join(" ")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Add items
-                <SearchField
-                  value={productQuery}
-                  onChange={(event) => setProductQuery(event.target.value)}
-                  onClear={() => setProductQuery("")}
-                  placeholder="Search rentals"
-                  aria-label="Search rentals"
-                />
-              </label>
-
-              <div className="booking-items-picker">
-                <div className="booking-items-list">
-                  {filteredProducts.slice(0, 10).map((product) => (
-                    <button
-                      key={product.id}
-                      type="button"
-                      className="booking-item-add"
-                      onClick={() => addItem(product)}
-                    >
-                      {product.name}
-                    </button>
-                  ))}
-                </div>
-
-                {form.items.length > 0 && (
-                  <div className="booking-items-selected">
-                    {form.items.map((item) => {
-                      const product = productMap.get(Number(item.productId));
-                      return (
-                        <div key={item.productId} className="booking-item-row">
-                          <span>{product?.name || `Product ${item.productId}`}</span>
-                          <div className="booking-item-controls">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.price ?? ""}
-                              onChange={(event) => updateItemPrice(item.productId, event.target.value)}
-                              placeholder={product?.price ? (product.price / 100).toFixed(2) : "0.00"}
-                              aria-label="Override price"
-                            />
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(event) => updateItemQuantity(item.productId, event.target.value)}
-                            />
-                            <button type="button" onClick={() => removeItem(item.productId)}>
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="booking-item-total">
-                      <div className="booking-item-total-left">
-                        <span>Discount</span>
-                        <div className="booking-discount-input">
-                          <select
-                            value={form.discountType}
-                            onChange={(event) =>
-                              setForm((prev) => ({ ...prev, discountType: event.target.value }))
-                            }
-                            aria-label="Discount type"
-                          >
-                            <option value="amount">Amount</option>
-                            <option value="percent">Percent</option>
-                          </select>
-                          <input
-                            type="number"
-                            min="0"
-                            step={form.discountType === "percent" ? "1" : "0.01"}
-                            value={form.discount}
-                            onChange={(event) =>
-                              setForm((prev) => ({ ...prev, discount: event.target.value }))
-                            }
-                            placeholder={form.discountType === "percent" ? "0" : "0.00"}
-                          />
-                        </div>
-                      </div>
-                      <div className="booking-item-total-right">
-                        <span>Total</span>
-                        <strong>{formatMoney(bookingTotalCents / 100, bookingCurrency)}</strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {saveError && <p className="customers-error">{saveError}</p>}
-
-              <div className="customers-form-actions">
-                <button type="button" className="customers-secondary" onClick={closeModal} disabled={saving}>
-                  Cancel
-                </button>
-                <button type="submit" className="customers-primary" disabled={saving}>
-                  {saving ? "Saving..." : "Save booking"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {detailBooking && (
-        <div className="customers-modal" role="dialog" aria-modal="true">
-          <div className="customers-modal-panel bookings-detail-panel">
-            <header>
-              <div>
-                <p className="customers-eyebrow">Booking #{detailBooking.id}</p>
-                <h2>{detailBooking.customerName || "Customer"}</h2>
-                <p className="bookings-card-meta">
-                  {formatDate(detailBooking.eventDate)} · {detailBooking.startTime || ""}{detailBooking.endTime ? ` – ${detailBooking.endTime}` : ""}
-                </p>
-              </div>
-              <div className="booking-detail-actions">
-                <div className="detail-nav">
-                  <button
-                    type="button"
-                    className="detail-nav-button"
-                    onClick={goPrevDetail}
-                    disabled={!canGoPrevDetail}
-                    aria-label="Previous booking"
-                  >
-                    <AppIcon icon={faChevronLeft} />
-                  </button>
-                  <button
-                    type="button"
-                    className="detail-nav-button"
-                    onClick={goNextDetail}
-                    disabled={!canGoNextDetail}
-                    aria-label="Next booking"
-                  >
-                    <AppIcon icon={faChevronRight} />
-                  </button>
-                </div>
-                {!isMobileView && (
-                  <>
-                    <button
-                      type="button"
-                      className="bookings-action"
-                      onClick={() => updateBookingStatus(detailBooking, "confirmed")}
-                      disabled={
-                        statusUpdatingId === detailBooking.id ||
-                        normalizeStatus(detailBooking.status) !== "pending"
-                      }
-                    >
-                      {statusUpdatingId === detailBooking.id ? "Updating..." : "Accept"}
-                    </button>
-                    <button
-                      type="button"
-                      className="bookings-action bookings-action-primary"
-                      onClick={() => updateBookingStatus(detailBooking, "completed")}
-                      disabled={
-                        statusUpdatingId === detailBooking.id ||
-                        normalizeStatus(detailBooking.status) !== "confirmed"
-                      }
-                    >
-                      {statusUpdatingId === detailBooking.id ? "Updating..." : "Confirm"}
-                    </button>
-                  </>
-                )}
-                {!isMobileView && (
-                  <button
-                    type="button"
-                    className="bookings-edit"
-                    onClick={() => {
-                      openEdit(detailBooking);
-                      setDetailBooking(null);
-                    }}
-                  >
-                    <AppIcon icon={faPen} />
-                    Edit
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="customers-modal-close"
-                  onClick={() => setDetailBooking(null)}
-                  aria-label="Close"
-                >
-                  <AppIcon icon={faXmark} />
-                </button>
-              </div>
-            </header>
-
-            <div className="booking-detail-body">
-              <div className="booking-detail-row">
-                <span>Status</span>
-                <span className={`bookings-pill ${detailBooking.status || "pending"}`}>
-                  {detailBooking.status || "pending"}
-                </span>
-              </div>
-              {isMobileView && (
-                <div className="bookings-detail-mobile-actions">
-                  <button
-                    type="button"
-                    className="bookings-action"
-                    onClick={() => updateBookingStatus(detailBooking, "confirmed")}
-                    disabled={
-                      statusUpdatingId === detailBooking.id ||
-                      normalizeStatus(detailBooking.status) !== "pending"
-                    }
-                  >
-                    {statusUpdatingId === detailBooking.id ? "Updating..." : "Accept"}
-                  </button>
-                  <button
-                    type="button"
-                    className="bookings-action bookings-action-primary"
-                    onClick={() => updateBookingStatus(detailBooking, "completed")}
-                    disabled={
-                      statusUpdatingId === detailBooking.id ||
-                      normalizeStatus(detailBooking.status) !== "confirmed"
-                    }
-                  >
-                    {statusUpdatingId === detailBooking.id ? "Updating..." : "Confirm"}
-                  </button>
-                </div>
-              )}
-              <div className="booking-detail-row">
-                <span>Assigned To</span>
-                <span>{formatUser(detailBooking.assignedUserName)}</span>
-              </div>
-              <div className="booking-detail-row">
-                <span>Last updated</span>
-                <span>
-                  {formatDateTime(detailBooking.lastModifiedAt || detailBooking.updatedAt)} · {formatUser(detailBooking.updatedByName)}
-                </span>
-              </div>
-              <div className="booking-detail-row">
-                <span>Venue</span>
-                <span>{detailBooking.venueAddress || "-"}</span>
-              </div>
-              <div className="booking-detail-row">
-                <span>Location</span>
-                <span>
-                  {detailBooking.venueAddress ? (
-                    <div className="booking-map">
-                      <iframe
-                        title="Booking location"
-                        src={buildMapUrl(detailBooking.venueAddress)}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                      />
-                    </div>
-                  ) : (
-                    "No address provided"
-                  )}
-                </span>
-              </div>
-              <div className="booking-detail-row">
-                <span>Total</span>
-                <span>{formatMoney((detailBooking.totalAmount || 0) / 100, "GHS")}</span>
-              </div>
-              <div className="booking-detail-items">
-                <h4>Items</h4>
-                {detailItems.length > 0 ? (
-                  <ul>
-                    {detailItems.map((item) => {
-                      const product = productMap.get(Number(item.productId));
-                      const productName = item.productName || product?.name || `Product ${item.productId}`;
-                      const imageSrc = item.productImage || product?.imageUrl || product?.image || "";
-                      const fallbackLabel = productName.slice(0, 1).toUpperCase();
-                      const attendantsLabel = formatAttendantsNeeded(product?.attendantsNeeded);
-                      return (
-                        <li key={item._key || `${detailBooking.id}-${item.productId}`}>
-                          <div className="booking-detail-item">
-                            {imageSrc ? (
-                              <img
-                                className="booking-detail-item-image"
-                                src={imageSrc}
-                                alt={productName}
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="booking-detail-item-fallback" aria-hidden="true">
-                                {fallbackLabel}
-                              </div>
-                            )}
-                            <div>
-                              <strong>{productName}</strong>
-                            </div>
-                          </div>
-                          <div className="booking-detail-metrics">
-                            <span>x{item.quantity}</span>
-                            <span className="booking-detail-attendants">{attendantsLabel}</span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="bookings-muted">No items listed.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <BookingDetailModal
+        booking={detailBooking}
+        detailCustomer={detailCustomer}
+        detailDelivery={detailDelivery}
+        detailDocument={detailDocument}
+        detailExpenses={detailExpenses}
+        detailExpenseTotal={detailExpenseTotal}
+        detailItems={detailItems}
+        productMap={productMap}
+        isMobileView={isMobileView}
+        canAccessInvoicing={canAccessInvoicing}
+        canGoPrevDetail={canGoPrevDetail}
+        canGoNextDetail={canGoNextDetail}
+        statusUpdatingId={statusUpdatingId}
+        goPrevDetail={goPrevDetail}
+        goNextDetail={goNextDetail}
+        updateBookingStatus={updateBookingStatus}
+        viewInvoice={viewInvoice}
+        viewDelivery={viewDelivery}
+        openEdit={openEdit}
+        closeDetail={() => setDetailBooking(null)}
+        viewCustomer={viewCustomer}
+        viewExpenses={viewExpenses}
+        formatDate={formatDate}
+        formatDateTime={formatDateTime}
+        formatBookingTimeWindow={formatBookingTimeWindow}
+        getDeliveryStatusLabel={getDeliveryStatusLabel}
+        getDeliveryMeta={getDeliveryMeta}
+        getBookingDocumentTitle={getBookingDocumentTitle}
+        getBookingDocumentStatus={getBookingDocumentStatus}
+        formatMoney={formatMoney}
+        formatUser={formatUser}
+        formatAttendantsNeeded={formatAttendantsNeeded}
+        normalizeStatus={normalizeStatus}
+      />
     </div>
   );
 }

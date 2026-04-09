@@ -115,7 +115,7 @@ export default function People() {
 
       <div className="kpi-grid">
         {peopleStats.map((stat) => (
-          <article className="panel kpi-card" key={stat.id}>
+          <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
             <span className={`kpi-delta is-${stat.tone}`}>{stat.delta}</span>
@@ -124,7 +124,7 @@ export default function People() {
       </div>
 
       <div className="page-grid">
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Team roster</h3>
@@ -151,7 +151,7 @@ export default function People() {
         </article>
 
         <div className="stack">
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Time off calendar</h3>
@@ -169,7 +169,7 @@ export default function People() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Hiring pipeline</h3>

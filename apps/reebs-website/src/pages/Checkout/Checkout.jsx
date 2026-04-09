@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Checkout.css";
 import { Link } from "react-router-dom";
+import { DateField, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faBagShopping,
@@ -880,9 +881,10 @@ const Checkout = () => {
                   <div className="checkout-field">
                     <label htmlFor="delivery-contact">Contact number</label>
                     <div className="checkout-phone-row">
-                      <select
+                      <SelectField
                         id="delivery-contact-code"
-                        className="checkout-phone-code"
+                        fieldClassName="checkout-phone-code-field"
+                        inputClassName="checkout-phone-code"
                         value={deliveryDetails.contactCode}
                         onChange={updateDelivery("contactCode")}
                         aria-label="Delivery contact dialing code"
@@ -892,7 +894,7 @@ const Checkout = () => {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                       <input
                         id="delivery-contact"
                         className="checkout-phone-local"
@@ -910,9 +912,8 @@ const Checkout = () => {
                   </div>
                   <div className="checkout-field">
                     <label htmlFor="delivery-date">Preferred delivery date</label>
-                    <input
+                    <DateField
                       id="delivery-date"
-                      type="date"
                       name="deliveryDate"
                       min={today}
                       value={deliveryDetails.date}
@@ -921,7 +922,7 @@ const Checkout = () => {
                   </div>
                   <div className="checkout-field">
                     <label htmlFor="delivery-window">Time window</label>
-                    <select
+                    <SelectField
                       id="delivery-window"
                       name="deliveryWindow"
                       value={deliveryDetails.window}
@@ -937,7 +938,7 @@ const Checkout = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
                   <div className="checkout-field full-width">
                     <label htmlFor="delivery-notes">Delivery notes</label>
@@ -962,9 +963,8 @@ const Checkout = () => {
                 <div className="checkout-form" aria-label="Pickup details">
                   <div className="checkout-field">
                     <label htmlFor="pickup-date">Pickup date</label>
-                    <input
+                    <DateField
                       id="pickup-date"
-                      type="date"
                       name="pickupDate"
                       min={today}
                       value={pickupDetails.date}
@@ -973,7 +973,7 @@ const Checkout = () => {
                   </div>
                   <div className="checkout-field">
                     <label htmlFor="pickup-window">Pickup window</label>
-                    <select
+                    <SelectField
                       id="pickup-window"
                       name="pickupWindow"
                       value={pickupDetails.window}
@@ -989,7 +989,7 @@ const Checkout = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </div>
                   <div className="checkout-field full-width">
                     <label htmlFor="pickup-notes">Pickup notes</label>
@@ -1222,9 +1222,10 @@ const Checkout = () => {
                   <div className="checkout-field">
                     <label htmlFor="payer-phone">Phone</label>
                     <div className="checkout-phone-row">
-                      <select
+                      <SelectField
                         id="payer-phone-code"
-                        className="checkout-phone-code"
+                        fieldClassName="checkout-phone-code-field"
+                        inputClassName="checkout-phone-code"
                         value={paymentDetails.phoneCode}
                         onChange={updatePayment("phoneCode")}
                         aria-label="Phone dialing code"
@@ -1234,7 +1235,7 @@ const Checkout = () => {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                       <input
                         id="payer-phone"
                         className="checkout-phone-local"
@@ -1276,7 +1277,7 @@ const Checkout = () => {
                   {paymentDetails.method === "momo" && (
                     <div className="checkout-field">
                       <label htmlFor="momo-provider">Mobile money type</label>
-                      <select
+                      <SelectField
                         id="momo-provider"
                         value={paymentDetails.momoProvider}
                         onChange={updatePayment("momoProvider")}
@@ -1287,7 +1288,7 @@ const Checkout = () => {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </div>
                   )}
 

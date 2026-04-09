@@ -1,3 +1,4 @@
+import { DateField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMinus, faPlus, faReceipt } from "/src/icons/iconSet";
 import WaterCustomerPicker from "./WaterCustomerPicker";
@@ -57,11 +58,11 @@ export default function WaterOrderFormCard({
                 <div className="water-module-inline-head">
                   <span className="water-module-field-label">Date</span>
                 </div>
-                <input
-                  type="date"
+                <DateField
                   value={saleForm.date}
-                  onChange={(event) => setSaleForm((prev) => ({ ...prev, date: event.target.value }))}
+                  onChangeValue={(nextValue) => setSaleForm((prev) => ({ ...prev, date: nextValue }))}
                   required
+                  ariaLabel="Sale date"
                 />
               </label>
             </div>

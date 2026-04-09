@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./OrderBuilder.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -350,12 +351,12 @@ function OrderBuilder() {
               </a>
               <label>
                 Status
-                <select value={status} onChange={(event) => setStatus(event.target.value)}>
+                <SelectField value={status} onChange={(event) => setStatus(event.target.value)}>
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
                   <option value="fulfilled">Fulfilled</option>
                   <option value="cancelled">Cancelled</option>
-                </select>
+                </SelectField>
               </label>
             </>
           }
@@ -389,7 +390,7 @@ function OrderBuilder() {
               </label>
               <label className="order-field">
                 Select customer
-                <select
+                <SelectField
                   value={selectedCustomerId}
                   onChange={(event) => setSelectedCustomerId(event.target.value)}
                 >
@@ -399,7 +400,7 @@ function OrderBuilder() {
                       {customer.name} {customer.email ? `- ${customer.email}` : ""}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               {selectedCustomer && (
                 <div className="glass-card order-customer-card">
@@ -498,14 +499,14 @@ function OrderBuilder() {
                 <div className="order-total-left">
                   <span>Discount</span>
                   <div className="order-discount-input">
-                    <select
+                    <SelectField
                       value={discountType}
                       onChange={(event) => setDiscountType(event.target.value)}
                       aria-label="Discount type"
                     >
                       <option value="amount">Amount</option>
                       <option value="percent">Percent</option>
-                    </select>
+                    </SelectField>
                     <input
                       type="number"
                       min="0"

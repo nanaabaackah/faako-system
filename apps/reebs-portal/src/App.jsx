@@ -50,6 +50,7 @@ const AdminInvoicing = lazy(() => import("./pages/AdminInvoicing/AdminInvoicing"
 const AdminMarketing = lazy(() => import("./pages/AdminMarketing/AdminMarketing"));
 const AdminScheduler = lazy(() => import("./pages/AdminScheduler/AdminScheduler"));
 const AdminBookings = lazy(() => import("./pages/AdminBookings/AdminBookings"));
+const AdminRentals = lazy(() => import("./pages/AdminRentals/AdminRentals"));
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
@@ -363,6 +364,14 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <AdminBookings />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/rentals"
+        element={
+          <RequireAuth>
+            <AdminRentals />
           </RequireAuth>
         }
       />

@@ -1,16 +1,12 @@
 import React from "react";
-import { AppIcon } from "/src/components/Icon/Icon";
-import { faChevronDown } from "/src/icons/iconSet";
+import { SelectField } from "@faako/ui";
 
 export default function CrmSelectField({ value, onChange, children, ariaLabel }) {
   return (
-    <label className="crm-select-shell">
-      <select value={value} onChange={onChange} aria-label={ariaLabel}>
+    <div className="crm-select-shell">
+      <SelectField value={value} onChange={onChange} ariaLabel={ariaLabel} inputClassName="crm-select-input">
         {children}
-      </select>
-      <span className="crm-select-icon" aria-hidden="true">
-        <AppIcon icon={faChevronDown} />
-      </span>
-    </label>
+      </SelectField>
+    </div>
   );
 }

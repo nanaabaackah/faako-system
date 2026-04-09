@@ -7,6 +7,8 @@
     "dev": "vite",
     "dev:frontend": "VITE_BACKEND_BASE_URL=http://localhost:8888 VITE_REEBS_PORTAL_URL=http://localhost:5174 vite --host 0.0.0.0 --port 5173",
     "dev:with-backend": "concurrently -k -n backend,portal,website -c magenta,cyan,blue \"pnpm --dir ../reebs-portal run dev:backend\" \"pnpm --dir ../reebs-portal run dev:frontend\" \"pnpm run dev:frontend\"",
+    "sitemap": "node scripts/generateSitemap.mjs",
+    "prebuild": "pnpm run sitemap",
     "build": "vite build",
     "netlify": "APP_ENV=development pnpm exec netlify dev",
     "db:generate": "APP_ENV=development prisma generate",

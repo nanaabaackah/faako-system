@@ -197,17 +197,17 @@ const getDocumentAuditLabel = (record) => {
   return `${getDocumentKindLabel(record?.documentType)} #${invoiceNumber}`;
 };
 
-const applySentDocumentDefaults = (record) => {
+const applyDocumentLifecycleDefaults = (record) => {
   const normalized = { ...record };
-  if (!normalized.sentAt) {
-    normalized.invoiceNumber = "";
-    normalized.paymentStatus = "draft";
-    return normalized;
-  }
-  if (!normalized.invoiceNumber) {
+  const paymentStatus = normalizePaymentStatus(normalized.paymentStatus);
+  const invoiceNumber = cleanText(normalized.invoiceNumber, 120);
+  normalized.paymentStatus = paymentStatus;
+  normalized.invoiceNumber = invoiceNumber;
+
+  if ((normalized.sentAt || paymentStatus !== "draft") && !invoiceNumber) {
     normalized.invoiceNumber = buildDocumentNumber(normalized.documentType);
   }
-  if (normalized.paymentStatus === "draft") {
+  if (normalized.sentAt && normalized.paymentStatus === "draft") {
     normalized.paymentStatus = "unpaid";
   }
   return normalized;
@@ -413,9 +413,51 @@ const normalizeAdditionalItems = (items) => {
     });
 };
 
+const computeGrandTotalFromRecord = (record) => {
+  const lineItems = normalizeLineItems(record?.lineItems);
+  const additionalItems = normalizeAdditionalItems(record?.additionalItems);
+  const subtotal = lineItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+  const additionalTotal = additionalItems.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+  const taxRate = normalizeTaxRate(record?.taxRate);
+  const taxTotal = Math.round((subtotal + additionalTotal) * taxRate * 100) / 100;
+  const discountAmount = Math.max(0, normalizeMoney(record?.discountAmount, 0));
+  const discountTotal = Math.min(discountAmount, subtotal + additionalTotal + taxTotal);
+  return Math.max(0, Math.round((subtotal + additionalTotal + taxTotal - discountTotal) * 100) / 100);
+};
+
+const buildCompactDocumentRecord = (record) => ({
+  id: Number(record?.id) || null,
+  sourceType: record?.sourceType || "manual",
+  sourceId: normalizeId(record?.sourceId),
+  customerId: normalizeId(record?.customerId),
+  documentType: normalizeDocumentType(record?.documentType),
+  title: cleanNullableText(record?.title, 200),
+  invoiceNumber: cleanText(record?.invoiceNumber, 120),
+  issueDate: normalizeDateValue(record?.issueDate),
+  dueDate: normalizeDateValue(record?.dueDate),
+  paymentStatus: normalizePaymentStatus(record?.paymentStatus),
+  sentAt: normalizeTimestampValue(record?.sentAt),
+  sentToEmail: cleanNullableText(record?.sentToEmail, 200),
+  stockCommittedAt: normalizeTimestampValue(record?.stockCommittedAt),
+  depositAmount: Math.max(0, normalizeMoney(record?.depositAmount, 0)),
+  customerName: cleanNullableText(record?.customerName, 200),
+  customerEmail: cleanNullableText(record?.customerEmail, 200),
+  customerPhone: cleanNullableText(record?.customerPhone, 80),
+  eventDate: normalizeDateValue(record?.eventDate),
+  startTime: cleanNullableText(record?.startTime, 40),
+  endTime: cleanNullableText(record?.endTime, 40),
+  venueAddress: cleanNullableText(record?.venueAddress, 240),
+  taxRate: normalizeTaxRate(record?.taxRate),
+  discountAmount: Math.max(0, normalizeMoney(record?.discountAmount, 0)),
+  archivedAt: normalizeTimestampValue(record?.archivedAt),
+  createdAt: normalizeTimestampValue(record?.createdAt),
+  updatedAt: normalizeTimestampValue(record?.updatedAt),
+  grandTotal: computeGrandTotalFromRecord(record),
+});
+
 const normalizePayload = (payload = {}) => {
   const sourceType = normalizeSourceType(payload.sourceType);
-  return applySentDocumentDefaults({
+  return applyDocumentLifecycleDefaults({
     sourceType,
     sourceId: sourceType === "manual" ? null : normalizeId(payload.sourceId),
     customerId: normalizeId(payload.customerId),
@@ -452,8 +494,50 @@ const validatePayload = (record) => {
   return "";
 };
 
-const selectDocuments = async (client, organizationId) => {
-  const result = await client.query(
+const selectDocuments = async (client, organizationId, { compact = false } = {}) => {
+  const compactResult = await client.query(
+    `SELECT
+       id,
+       "sourceType",
+       "sourceId",
+       "customerId",
+       "documentType",
+       title,
+       "invoiceNumber",
+       "issueDate",
+       "dueDate",
+       "paymentStatus",
+       "sentAt",
+       "sentToEmail",
+       "stockCommittedAt",
+       "depositAmount",
+       "customerName",
+       "customerEmail",
+       "customerPhone",
+       "eventDate",
+       "startTime",
+       "endTime",
+       "venueAddress",
+       "lineItems",
+       "additionalItems",
+       "taxRate",
+       "discountAmount",
+       "archivedAt",
+       "createdAt",
+       "updatedAt"
+     FROM "invoiceDocument"
+     WHERE "organizationId" = $1
+     ORDER BY "updatedAt" DESC, id DESC`,
+    [organizationId]
+  );
+
+  if (compact) {
+    return (compactResult.rows || []).map(buildCompactDocumentRecord);
+  }
+
+  const fullIds = (compactResult.rows || []).map((row) => Number(row.id)).filter((id) => Number.isInteger(id) && id > 0);
+  if (!fullIds.length) return [];
+  const fullResult = await client.query(
     `SELECT
        id,
        "sourceType",
@@ -487,11 +571,12 @@ const selectDocuments = async (client, organizationId) => {
        "createdAt",
        "updatedAt"
      FROM "invoiceDocument"
-     WHERE "organizationId" = $1
+     WHERE id = ANY($1::int[])
+       AND "organizationId" = $2
      ORDER BY "updatedAt" DESC, id DESC`,
-    [organizationId]
+    [fullIds, organizationId]
   );
-  return result.rows || [];
+  return fullResult.rows || [];
 };
 
 const selectDocumentById = async (client, organizationId, id) => {
@@ -561,7 +646,16 @@ export async function handler(event = {}) {
     await ensureAuditColumns(client);
 
     if (event.httpMethod === "GET") {
-      const documents = await selectDocuments(client, organizationId);
+      const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
+      const id = normalizeId(event.queryStringParameters?.id);
+      if (id) {
+        const document = await selectDocumentById(client, organizationId, id);
+        if (!document) {
+          return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
+        }
+        return respond(event, 200, document, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const documents = await selectDocuments(client, organizationId, { compact });
       return respond(event, 200, documents, { methods: INVOICE_DOCUMENT_METHODS });
     }
 

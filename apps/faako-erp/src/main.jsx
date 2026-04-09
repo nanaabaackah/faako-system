@@ -7,6 +7,7 @@ import appSystem from "../appSystem.js";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import { CurrencyProvider } from "./contexts/CurrencyContext.jsx";
 import "./styles/global.css";
+import "@faako/ui/compat.css";
 import { syncMobileBrowserChrome } from "../../../packages/utils/src/mobileBrowserChrome";
 
 syncMobileBrowserChrome({ fallbackColor: "#f2f4f8" });

@@ -5,6 +5,7 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEllipsisVertical } from "/src/icons/iconSet";
+import { SelectField } from "@faako/ui";
 import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
 
@@ -425,13 +426,17 @@ function AdminRoles() {
               </label>
               <label className="roles-filter">
                 Role
-                <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+                <SelectField
+                  value={roleFilter}
+                  onChangeValue={(nextValue) => setRoleFilter(String(nextValue))}
+                  ariaLabel="Filter by role"
+                >
                   <option value="all">All</option>
                   <option value="admin">Admin</option>
                   <option value="staff">Staff</option>
                   <option value="custodian">Custodian</option>
                   <option value="manager">Manager</option>
-                </select>
+                </SelectField>
               </label>
               <div className="roles-count">
                 {query || roleFilter !== "all"
@@ -605,16 +610,17 @@ function AdminRoles() {
               </label>
               <label>
                 Role
-                <select
+                <SelectField
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
+                  onChangeValue={(nextValue) => setInviteForm((prev) => ({ ...prev, role: String(nextValue) }))}
+                  ariaLabel="Invite role"
                 >
                   <option value="Admin">Admin</option>
                   <option value="Staff">Staff</option>
                   <option value="Custodian">Custodian</option>
                   <option value="Manager">Manager</option>
                   <option value="Water">Water</option>
-                </select>
+                </SelectField>
               </label>
               {inviteError && <p className="customers-error">{inviteError}</p>}
               <div className="customers-form-actions">
@@ -640,17 +646,18 @@ function AdminRoles() {
                  <p className="roles-sub">{detailUser.email}</p>
                 <label className="roles-detail-role">
                   Role
-                  <select
+                  <SelectField
                     value={detailRole}
-                    onChange={(event) => setDetailRole(event.target.value)}
+                    onChangeValue={(nextValue) => setDetailRole(String(nextValue))}
                     disabled={!isSystemAdmin}
+                    ariaLabel="User role"
                   >
                     {ROLE_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                   {!isSystemAdmin && (
                     <p className="roles-note">Only the system administrator can change roles.</p>
                   )}

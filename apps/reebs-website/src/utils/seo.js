@@ -1,4 +1,6 @@
 import { readMobileBrowserChromeColor } from "../../../../packages/utils/src/mobileBrowserChrome";
+import { flattenFaqItems } from "/src/content/faqContent";
+import rentalItems from "/src/data/rentalItems.json";
 
 const SITE_NAME = "REEBS Party Themes";
 const SITE_URL = "https://www.reebspartythemes.com";
@@ -11,6 +13,53 @@ const DEFAULT_LOCALE = "en_GH";
 const DEFAULT_LANGUAGE = "en-GH";
 const DEFAULT_TWITTER = "@reebspartythemes_";
 const DEFAULT_THEME_COLOR = "#ffffff";
+const SAME_AS_LINKS = [
+  "https://www.instagram.com/reebspartythemes_/",
+  "https://www.facebook.com/reebspartythemes",
+  "https://www.tiktok.com/@reebspartythemes_",
+];
+
+const slugify = (value = "") =>
+  value
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+export const toAbsoluteUrl = (value = "") => {
+  const input = `${value || ""}`.trim();
+  if (!input) return DEFAULT_IMAGE;
+  if (/^https?:\/\//i.test(input)) return input;
+  if (input.startsWith("//")) return `https:${input}`;
+  return `${SITE_URL}${input.startsWith("/") ? input : `/${input}`}`;
+};
+
+const buildRentalPath = (item = {}) => {
+  const idSlug = String(item?.id || item?.productId || "").trim().toLowerCase();
+  const pageSlug = slugify(item?.page?.split("/").filter(Boolean).pop() || "");
+  const nameSlug = slugify(item?.name);
+  const slug = pageSlug || idSlug || nameSlug;
+  return slug ? `/rentals/${slug}` : null;
+};
+
+const RENTAL_CATALOG_ENTRIES = Array.from(
+  new Map(
+    (Array.isArray(rentalItems) ? rentalItems : [])
+      .map((item) => {
+        const path = buildRentalPath(item);
+        if (!path) return null;
+        return [
+          path,
+          {
+            name: item?.name || "Party rental",
+            path,
+          },
+        ];
+      })
+      .filter(Boolean)
+  ).values()
+);
 
 const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
@@ -18,12 +67,9 @@ const ORGANIZATION_SCHEMA = {
   "@id": `${SITE_URL}#organization`,
   name: SITE_NAME,
   url: SITE_URL,
-  logo: `${SITE_URL}/imgs/brand/reebs_logo2.png`,
-  sameAs: [
-    "https://www.instagram.com/reebspartythemes_/",
-    "https://www.facebook.com/reebspartythemes",
-    "https://www.tiktok.com/@reebspartythemes_",
-  ],
+  logo: `${SITE_URL}/imgs/brand/reebs_logo2.svg`,
+  email: "info@reebspartythemes.com",
+  sameAs: SAME_AS_LINKS,
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -40,15 +86,35 @@ const LOCAL_BUSINESS_SCHEMA = {
   "@id": `${SITE_URL}#localbusiness`,
   name: SITE_NAME,
   image: DEFAULT_IMAGE,
+  logo: `${SITE_URL}/imgs/brand/reebs_logo2.svg`,
   url: SITE_URL,
   telephone: "+233244238419",
   email: "info@reebspartythemes.com",
+  sameAs: SAME_AS_LINKS,
   address: {
     "@type": "PostalAddress",
     streetAddress: "Sakumono Broadway",
     addressLocality: "Tema",
     addressCountry: "GH",
   },
+  hasMap: "https://maps.app.goo.gl/ykfi2iVEBfEneTx16",
+  currenciesAccepted: "GHS",
+  paymentAccepted: ["Cash", "Mobile Money", "Bank Transfer"],
+  priceRange: "GHS 15-GHS 1500+",
+  areaServed: [
+    {
+      "@type": "City",
+      name: "Tema",
+    },
+    {
+      "@type": "City",
+      name: "Accra",
+    },
+    {
+      "@type": "Country",
+      name: "Ghana",
+    },
+  ],
   openingHoursSpecification: [
     {
       "@type": "OpeningHoursSpecification",
@@ -65,6 +131,7 @@ const WEBSITE_SCHEMA = {
   "@id": `${SITE_URL}#website`,
   name: SITE_NAME,
   url: SITE_URL,
+  inLanguage: DEFAULT_LANGUAGE,
   potentialAction: {
     "@type": "SearchAction",
     target: `${SITE_URL}/shop?search={search_term_string}`,
@@ -108,32 +175,29 @@ const FAQ_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "@id": `${SITE_URL}/faq#faq`,
-  mainEntity: [
-    {
-      "@type": "Question",
-      name: "How do I book rentals or a full setup?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Share your date, venue, and theme with REEBS. We confirm availability, send a clear quote, and lock your booking once payment is complete.",
-      },
+  mainEntity: flattenFaqItems().map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
     },
-    {
-      "@type": "Question",
-      name: "Do you deliver and pick up?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Yes. REEBS delivers and picks up across Accra, Tema, and nearby areas. We confirm timing based on your event schedule.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "Can I reschedule my booking?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Yes, reschedules are available based on item availability. Contact the team quickly so we can secure a new date.",
-      },
-    },
-  ],
+  })),
+};
+
+const RENTAL_ITEM_LIST_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "@id": `${SITE_URL}/rentals#items`,
+  name: "REEBS Party Rentals",
+  itemListOrder: "https://schema.org/ItemListOrderAscending",
+  numberOfItems: RENTAL_CATALOG_ENTRIES.length,
+  itemListElement: RENTAL_CATALOG_ENTRIES.map((item, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: item.name,
+    url: `${SITE_URL}${item.path}`,
+  })),
 };
 
 const PAGE_META = [
@@ -166,7 +230,7 @@ const PAGE_META = [
     description:
       "Browse REEBS rental categories including bouncy castles, games, and event setup essentials for birthdays and celebrations.",
     keywords: "party rentals Accra, kids equipment rental Ghana, bouncy castles Ghana",
-    schema: [RENTAL_SERVICE_SCHEMA],
+    schema: [RENTAL_SERVICE_SCHEMA, RENTAL_ITEM_LIST_SCHEMA],
   },
   {
     match: (path) => path.startsWith("/shop"),
@@ -455,6 +519,7 @@ export const applySeo = ({
   const finalNoIndex = typeof noIndex === "boolean" ? noIndex : routeMeta.noIndex;
   const canonical = normalizedPath === "/" ? SITE_URL : `${SITE_URL}${normalizedPath}`;
   const routeSchema = schema ?? routeMeta.schema ?? null;
+  const finalImage = toAbsoluteUrl(image || DEFAULT_IMAGE);
 
   const finalSchema = finalNoIndex
     ? null
@@ -490,7 +555,7 @@ export const applySeo = ({
   ensureMeta("property", "og:description").setAttribute("content", finalDescription);
   ensureMeta("property", "og:type").setAttribute("content", type);
   ensureMeta("property", "og:url").setAttribute("content", canonical);
-  ensureMeta("property", "og:image").setAttribute("content", image);
+  ensureMeta("property", "og:image").setAttribute("content", finalImage);
   ensureMeta("property", "og:image:alt").setAttribute(
     "content",
     "REEBS Party Themes event setup and rental showcase"
@@ -501,7 +566,7 @@ export const applySeo = ({
   ensureMeta("name", "twitter:card").setAttribute("content", "summary_large_image");
   ensureMeta("name", "twitter:title").setAttribute("content", finalTitle);
   ensureMeta("name", "twitter:description").setAttribute("content", finalDescription);
-  ensureMeta("name", "twitter:image").setAttribute("content", image);
+  ensureMeta("name", "twitter:image").setAttribute("content", finalImage);
   ensureMeta("name", "twitter:site").setAttribute("content", DEFAULT_TWITTER);
   ensureMeta("name", "twitter:url").setAttribute("content", canonical);
 

@@ -2,8 +2,8 @@ import React from "react";
 import "./KPICard.css";
 
 const VARIANT_CLASS_NAMES = {
-  brief: "dashboard-brief-card",
-  panel: "panel kpi-card",
+  brief: "dashboard-brief-card bubble-card",
+  panel: "panel kpi-card bubble-card",
 };
 
 const hasContent = (value) => value !== undefined && value !== null && value !== "";

@@ -13,7 +13,7 @@ exports.handler = async () => ({
   headers,
   body: JSON.stringify({
     ok: true,
-    service: "faako-website",
+    service: "faako-api",
     timestamp: new Date().toISOString()
   })
 });

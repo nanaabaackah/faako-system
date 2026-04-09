@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { UiSystemProvider } from "@faako/ui";
 import "./index.css";
+import "@faako/ui/compat.css";
 import App from "./App.jsx";
 import appSystem from "../appSystem.js";
 import { patchOrganizationFetch } from "./utils/organization.js";

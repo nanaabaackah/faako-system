@@ -56,7 +56,7 @@ export default function Settings() {
       </div>
 
       <div className="page-grid">
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Workspace profile</h3>
@@ -80,7 +80,7 @@ export default function Settings() {
         </article>
 
         <div className="stack">
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Roles and permissions</h3>
@@ -104,7 +104,7 @@ export default function Settings() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Security and data</h3>

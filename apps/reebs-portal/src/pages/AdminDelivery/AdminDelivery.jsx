@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminDelivery.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTruck, faRotateRight } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import { useLocation } from "react-router-dom";
 
 const STATUS_OPTIONS = [
   { value: "scheduled", label: "Scheduled" },
@@ -50,6 +52,7 @@ const buildMapUrl = (address) => {
 };
 
 function AdminDelivery() {
+  const location = useLocation();
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,6 +70,7 @@ function AdminDelivery() {
     eta: "",
     notes: "",
   });
+  const [resolvedBookingId, setResolvedBookingId] = useState("");
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -121,11 +125,35 @@ function AdminDelivery() {
     fetchDrivers();
   }, []);
 
+  const requestedBookingId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get("bookingId") || "").trim();
+  }, [location.search]);
+
   useEffect(() => {
-    if (!selected && deliveries.length) {
+    if (!requestedBookingId) {
+      setResolvedBookingId("");
+    }
+  }, [requestedBookingId]);
+
+  useEffect(() => {
+    if (!deliveries.length) return;
+
+    if (requestedBookingId && resolvedBookingId !== requestedBookingId) {
+      const match = deliveries.find(
+        (delivery) =>
+          String(delivery.id || "") === requestedBookingId ||
+          String(delivery.bookingId || "") === requestedBookingId
+      );
+      setSelected(match || deliveries[0]);
+      setResolvedBookingId(requestedBookingId);
+      return;
+    }
+
+    if (!requestedBookingId && !selected) {
       setSelected(deliveries[0]);
     }
-  }, [deliveries, selected]);
+  }, [deliveries, requestedBookingId, resolvedBookingId, selected]);
 
   useEffect(() => {
     if (!selected) return;
@@ -466,7 +494,7 @@ function AdminDelivery() {
                   <div className="delivery-form-row">
                     <label>
                       Status
-                      <select
+                      <SelectField
                         value={form.status}
                         onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
                       >
@@ -475,7 +503,7 @@ function AdminDelivery() {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </label>
                     <label>
                       ETA
@@ -490,8 +518,8 @@ function AdminDelivery() {
                   <div className="delivery-form-row">
                     <label>
                       Driver
-                      <select
-                        className="delivery-driver-select"
+                      <SelectField
+                        inputClassName="delivery-driver-select"
                         value={form.driverName}
                         onChange={(event) => setForm((prev) => ({ ...prev, driverName: event.target.value }))}
                       >
@@ -501,7 +529,7 @@ function AdminDelivery() {
                             {driver.isLegacy ? `Current: ${driver.name}` : driver.name}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </label>
                     <label>
                       Route

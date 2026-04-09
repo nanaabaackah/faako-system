@@ -105,7 +105,7 @@
 
 .ui-button--danger {
   background: var(--sys-danger);
-  color: #ffffff;
+  color: var(--sys-danger-contrast, var(--sys-accent-contrast));
 }
 
 .ui-icon-button {
@@ -170,11 +170,10 @@
   border: 1px solid var(--sys-border);
   border-radius: 1rem;
   background: var(--sys-surface-strong);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .ui-field.is-error .ui-field__control {
-  border-color: color-mix(in srgb, var(--sys-danger) 65%, white 35%);
+  border-color: var(--sys-danger);
 }
 
 .ui-field__prefix,
@@ -202,6 +201,374 @@
 
 .ui-field__select {
   appearance: none;
+}
+
+.ui-date-field {
+  position: relative;
+}
+
+.ui-date-field__shell,
+.ui-dropdown-field__shell {
+  position: relative;
+}
+
+.ui-date-field__native,
+.ui-dropdown-field__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0.001;
+  pointer-events: none;
+}
+
+.ui-date-field__trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0 0.95rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 1rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui-date-field.is-open .ui-date-field__trigger,
+.ui-date-field__trigger:focus-visible {
+  border-color: var(--sys-accent);
+  box-shadow: 0 0 0 2px var(--sys-accent-soft);
+  outline: none;
+}
+
+.ui-date-field__trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-date-field__trigger.is-placeholder .ui-date-field__value {
+  color: var(--sys-muted);
+}
+
+.ui-date-field__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-date-field__icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: var(--sys-muted);
+}
+
+.ui-date-field__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ui-date-field__popover {
+  z-index: 1100;
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 1.15rem;
+  background: var(--sys-surface-strong);
+  box-shadow: var(--sys-shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ui-date-field__header,
+.ui-date-field__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ui-date-field__title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--sys-text);
+}
+
+.ui-date-field__nav,
+.ui-date-field__action {
+  border: 1px solid var(--sys-border);
+  background: var(--sys-bg-elevated);
+  color: var(--sys-text);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ui-date-field__nav {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.ui-date-field__nav svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.ui-date-field__action {
+  min-height: 2.2rem;
+  padding: 0 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.ui-date-field__action:disabled,
+.ui-date-field__nav:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-date-field__weekdays,
+.ui-date-field__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.ui-date-field__weekdays span {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--sys-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ui-date-field__day {
+  min-height: 2.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--sys-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.ui-date-field__day:hover,
+.ui-date-field__day:focus-visible,
+.ui-date-field__nav:hover,
+.ui-date-field__nav:focus-visible,
+.ui-date-field__action:hover,
+.ui-date-field__action:focus-visible {
+  border-color: var(--sys-border);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.ui-date-field__day.is-outside {
+  color: var(--sys-muted);
+  opacity: 0.58;
+}
+
+.ui-date-field__day.is-today {
+  border-color: var(--sys-accent);
+}
+
+.ui-date-field__day.is-selected {
+  border-color: transparent;
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.ui-date-field__day.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ui-date-field__day.is-disabled:hover,
+.ui-date-field__day.is-disabled:focus-visible {
+  border-color: transparent;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ui-date-field__popover {
+    background: var(--sys-surface);
+  }
+}
+
+.ui-dropdown-field {
+  position: relative;
+}
+
+.ui-dropdown-field__trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0 0.95rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 1rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui-dropdown-field.is-open .ui-dropdown-field__trigger,
+.ui-dropdown-field__trigger:focus-visible {
+  border-color: var(--sys-accent);
+  box-shadow: 0 0 0 2px var(--sys-accent-soft);
+  outline: none;
+}
+
+.ui-dropdown-field__trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-dropdown-field__trigger.is-placeholder .ui-dropdown-field__value {
+  color: var(--sys-muted);
+}
+
+.ui-dropdown-field__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-dropdown-field__caret {
+  flex: 0 0 auto;
+  color: var(--sys-muted);
+  font-size: 0.9rem;
+}
+
+.ui-dropdown-field__popover {
+  z-index: 1100;
+  padding: 0.5rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 1.15rem;
+  background: var(--sys-surface-strong);
+  box-shadow: var(--sys-shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ui-dropdown-field__list {
+  display: grid;
+  gap: 0.35rem;
+  max-height: min(320px, calc(100vh - 120px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-dropdown-field__option {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  background: transparent;
+  color: var(--sys-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.ui-dropdown-field__option:hover,
+.ui-dropdown-field__option:focus-visible {
+  border-color: var(--sys-border);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.ui-dropdown-field__option.is-selected {
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.ui-dropdown-field__option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-dropdown-field__option.is-disabled:hover,
+.ui-dropdown-field__option.is-disabled:focus-visible {
+  border-color: transparent;
+  transform: none;
+}
+
+.ui-dropdown-field__option-mark {
+  flex: 0 0 auto;
+  color: currentColor;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ui-dropdown-field__footer {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--sys-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ui-dropdown-field__footer-copy {
+  color: var(--sys-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ui-dropdown-field__footer-action {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sys-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ui-dropdown-field__footer-action:hover,
+.ui-dropdown-field__footer-action:focus-visible {
+  border-color: var(--sys-accent);
+  color: var(--sys-accent);
+  outline: none;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ui-dropdown-field__popover {
+    background: var(--sys-surface);
+  }
 }
 
 .ui-search-field {
@@ -245,7 +612,6 @@
   background: var(--sys-surface-strong);
   color: var(--sys-text);
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .ui-search-field__clear {
@@ -278,7 +644,7 @@
   font-size: 0.76rem;
   font-weight: 700;
   color: var(--sys-text);
-  background: color-mix(in srgb, var(--sys-muted) 10%, white 90%);
+  background: var(--sys-bg-elevated);
 }
 
 .ui-status-pill--success {
@@ -343,7 +709,7 @@
   border: 1px dashed var(--sys-border-strong);
   border-radius: var(--sys-radius-md);
   padding: 1.25rem;
-  background: color-mix(in srgb, var(--sys-surface) 88%, white 12%);
+  background: var(--sys-surface);
   display: grid;
   gap: 0.45rem;
   text-align: left;
@@ -371,7 +737,7 @@
   padding: 1.5rem;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 42, 0.36);
+  background: var(--sys-overlay);
 }
 
 .ui-modal-frame__panel {
@@ -447,7 +813,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--sys-bg-elevated);
   color: var(--sys-muted);
 }
 
@@ -564,7 +930,7 @@
   padding: 0.95rem 1rem;
   border-radius: 1rem;
   border: 1px solid var(--sys-border);
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--sys-surface-strong);
   box-shadow: var(--sys-shadow-md);
   pointer-events: auto;
 }
@@ -600,7 +966,10 @@
 .ui-data-table__scroll {
   overflow-x: auto;
   border: 1px solid var(--sys-border);
-  border-radius: var(--sys-radius-md);
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-sm) !important;
   background: var(--sys-surface-strong);
   box-shadow: var(--sys-shadow-sm);
 }
@@ -625,13 +994,13 @@
   letter-spacing: 0.08em;
   color: var(--sys-muted);
   border-bottom: 1px solid var(--sys-border);
-  background: color-mix(in srgb, var(--sys-bg-elevated) 70%, white 30%);
+  background: var(--sys-bg-elevated);
 }
 
 .ui-data-table tbody td,
 .ui-data-table tfoot td {
   padding: 0.92rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--sys-border) 75%, white 25%);
+  border-bottom: 1px solid var(--sys-border);
   vertical-align: top;
 }
 
@@ -642,7 +1011,7 @@
 
 .ui-data-table tfoot td {
   font-weight: 700;
-  background: color-mix(in srgb, var(--sys-accent-soft) 38%, white 62%);
+  background: var(--sys-accent-soft);
 }
 
 .ui-data-table tfoot td.is-empty {
@@ -690,12 +1059,65 @@
 
 @media (max-width: 720px) {
   .ui-page-shell {
-    width: min(100% - 1rem, var(--sys-page-max-width));
-    padding-top: 1rem;
+    width: min(100% - 0.9rem, var(--sys-page-max-width));
+    padding-top: 0.9rem;
+    padding-bottom: 2rem;
+    gap: 1rem;
+  }
+
+  .ui-page-header {
+    gap: 0.9rem;
+  }
+
+  .ui-page-header__actions,
+  .ui-filter-bar {
+    width: 100%;
+    gap: 0.65rem;
+  }
+
+  .ui-card,
+  .ui-modal-frame__body {
+    padding: 1rem;
+  }
+
+  .ui-modal-frame {
+    padding: 0.75rem;
+  }
+
+  .ui-modal-frame__panel {
+    border-radius: var(--sys-radius-md);
+  }
+
+  .ui-modal-frame__header {
+    gap: 0.85rem;
+    padding: 0.95rem 1rem;
+  }
+
+  .ui-inline-notice,
+  .ui-notice-banner,
+  .ui-toast {
+    padding-inline: 0.9rem;
+  }
+
+  .ui-inline-notice {
+    gap: 0.75rem;
+  }
+
+  .ui-inline-notice__icon,
+  .ui-notice-banner__icon,
+  .ui-toast__icon {
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.7rem;
+  }
+
+  .ui-data-table {
+    gap: 0.75rem;
   }
 
   .ui-notice-banner {
     grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
   }
 
   .ui-notice-banner__action,

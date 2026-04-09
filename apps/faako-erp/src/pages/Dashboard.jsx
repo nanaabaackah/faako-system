@@ -170,7 +170,7 @@ export default function Dashboard() {
 
   return (
     <section className="page dashboard">
-      <div className="panel dashboard-hero">
+      <div className="panel glass-card dashboard-hero">
         <div>
           <p className="eyebrow">Operations overview</p>
           <h1>Faako Foods — Accra HQ</h1>
@@ -190,7 +190,7 @@ export default function Dashboard() {
 
       <div className="kpi-grid">
         {kpis.map((kpi) => (
-          <article className="panel kpi-card" key={kpi.id}>
+          <article className="panel kpi-card bubble-card" key={kpi.id}>
             <span className="kpi-label">{kpi.label}</span>
             <div className="kpi-value">{kpi.value}</div>
             <span className={`kpi-delta is-${kpi.tone}`}>{kpi.delta}</span>
@@ -199,7 +199,7 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard-grid">
-        <article className="panel panel-span-2">
+        <article className="panel glass-card panel-span-2">
           <div className="panel-header">
             <div>
               <h3>Active orders</h3>
@@ -244,7 +244,7 @@ export default function Dashboard() {
           </div>
         </article>
 
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Inventory watchlist</h3>
@@ -269,7 +269,7 @@ export default function Dashboard() {
           </div>
         </article>
 
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Team schedule</h3>
@@ -290,7 +290,7 @@ export default function Dashboard() {
           </div>
         </article>
 
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Approvals queue</h3>
@@ -314,7 +314,7 @@ export default function Dashboard() {
           </div>
         </article>
 
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Cash flow snapshot</h3>

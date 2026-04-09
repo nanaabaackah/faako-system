@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { DateField, SelectField } from "@faako/ui";
 import { useLocation } from 'react-router-dom';
 import {
   clearExpiringDraft,
@@ -237,20 +238,19 @@ function ContactForm() {
         <div className="contact-form-grid form-section-grid">
           <div className="form-group">
             <label htmlFor="contact-topic">What do you need?</label>
-            <select id="contact-topic" name="topic" value={formValues.topic} onChange={updateField("topic")} required>
+            <SelectField id="contact-topic" name="topic" value={formValues.topic} onChange={updateField("topic")} required>
               <option value="" disabled>Select a service</option>
               <option value="rentals">Party rentals</option>
               <option value="full-setup">Full setup / styling</option>
               <option value="balloons">Balloons &amp; backdrops</option>
               <option value="shop">Party supplies box</option>
               <option value="other">Other</option>
-            </select>
+            </SelectField>
           </div>
           <div className="form-group">
             <label htmlFor="contact-event-date">Event date</label>
-            <input
+            <DateField
               id="contact-event-date"
-              type="date"
               name="eventDate"
               min={today}
               value={formValues.eventDate}

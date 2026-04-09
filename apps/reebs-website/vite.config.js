@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
+import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig({
   plugins: [react()],
@@ -12,6 +13,13 @@ export default defineConfig({
       "@faako/types": fileURLToPath(new URL("../../packages/types/src", import.meta.url)),
       "@faako/ui": fileURLToPath(new URL("../../packages/ui/src", import.meta.url)),
       "@faako/utils": fileURLToPath(new URL("../../packages/utils/src", import.meta.url)),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: createManualChunks(),
+      },
     },
   },
   test: {

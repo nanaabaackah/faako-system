@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminHR.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -205,7 +206,7 @@ function AdminHR() {
             </label>
             <label className="hr-filter">
               Role
-              <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              <SelectField value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
                 <option value="all">All roles</option>
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
@@ -213,7 +214,7 @@ function AdminHR() {
                 <option value="warehouse">Warehouse</option>
                 <option value="driver">Driver</option>
                 <option value="sales">Sales</option>
-              </select>
+              </SelectField>
             </label>
           </div>
 
@@ -307,7 +308,7 @@ function AdminHR() {
               <div className="hr-form-row">
                 <label>
                   Role
-                  <select
+                  <SelectField
                     value={form.role}
                     onChange={(event) => setForm({ ...form, role: event.target.value })}
                   >
@@ -318,7 +319,7 @@ function AdminHR() {
                     <option value="Warehouse">Warehouse</option>
                     <option value="Driver">Driver</option>
                     <option value="Sales">Sales</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Job title

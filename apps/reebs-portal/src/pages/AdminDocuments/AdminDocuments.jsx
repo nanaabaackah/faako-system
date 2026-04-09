@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminDocuments.css";
 import { Link } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -671,7 +672,7 @@ function AdminDocuments() {
                 </label>
                 <label>
                   Category
-                  <select
+                  <SelectField
                     value={uploadForm.category}
                     onChange={(event) => setUploadForm({ ...uploadForm, category: event.target.value })}
                   >
@@ -680,7 +681,7 @@ function AdminDocuments() {
                     <option>Contract</option>
                     <option>Supplier</option>
                     <option>Other</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label className="documents-file">
                   File

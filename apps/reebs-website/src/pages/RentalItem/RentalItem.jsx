@@ -13,7 +13,7 @@ import {
 } from "/src/icons/iconSet";
 import { useCart } from "/src/components/CartContext/CartContext";
 import SiteLoader from "/src/components/SiteLoader/SiteLoader";
-import { applySeo } from "/src/utils/seo";
+import { applySeo, toAbsoluteUrl } from "/src/utils/seo";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
 import { getRentalCartItem } from "/src/utils/cartItems";
 import {
@@ -357,10 +357,11 @@ useEffect(() => {
         "@type": "Product",
         "@id": `${canonicalUrl}#product`,
         name: displayRentalName,
-        image:
+        image: toAbsoluteUrl(
           displayRental.image ||
-          displayRental.imageUrl ||
-          "https://www.reebspartythemes.com/imgs/ui/placeholder.png",
+            displayRental.imageUrl ||
+            "/imgs/ui/placeholder.png"
+        ),
         description: `Book ${displayRentalName} from REEBS Party Themes with setup and delivery options in Ghana.`,
         brand: {
           "@type": "Brand",
@@ -378,6 +379,10 @@ useEffect(() => {
         pathname: normalizedPath,
         title: `${displayRentalName} Rental | REEBS Party Themes`,
         description: `View details, pricing, and booking options for ${displayRentalName} at REEBS Party Themes.`,
+        image:
+          displayRental.image ||
+          displayRental.imageUrl ||
+          "/imgs/promos/banner.jpg",
         type: "product",
         schema: [productSchema],
       });

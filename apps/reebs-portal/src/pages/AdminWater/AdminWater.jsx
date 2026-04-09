@@ -126,6 +126,68 @@ const formatDateTime = (value) => {
   });
 };
 
+const getTimestampValue = (value) => {
+  if (!value) return Number.NaN;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+};
+
+const getWaterRecordTimestamp = (record) => {
+  const datedAt = getTimestampValue(record?.date);
+  if (Number.isFinite(datedAt)) return datedAt;
+  const createdAt = getTimestampValue(record?.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Number.NEGATIVE_INFINITY;
+};
+
+const compareWaterRecords = (left, right) => {
+  const primaryDiff = getWaterRecordTimestamp(left) - getWaterRecordTimestamp(right);
+  if (primaryDiff !== 0) return primaryDiff;
+  const createdDiff = getTimestampValue(left?.createdAt) - getTimestampValue(right?.createdAt);
+  if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
+  return toNumber(left?.id) - toNumber(right?.id);
+};
+
+const formatPackCount = (value) => {
+  const quantity = Math.max(0, Math.round(toNumber(value, 0)));
+  return `${quantity} pack${quantity === 1 ? "" : "s"}`;
+};
+
+const buildRestockPeriods = (restocks = [], formatDateLabel = formatDate) => {
+  const ordered = [...restocks].sort(compareWaterRecords);
+  return ordered
+    .map((restock, index) => {
+      const nextRestock = ordered[index + 1] || null;
+      const restockId = Number(restock?.id);
+      const quantity = Math.max(0, Math.round(toNumber(restock?.quantity, 0)));
+      return {
+        value:
+          Number.isFinite(restockId) && restockId > 0
+            ? `restock:${restockId}`
+            : `restock:index:${index}`,
+        id: Number.isFinite(restockId) && restockId > 0 ? restockId : null,
+        quantity,
+        date: restock?.date || "",
+        startAt: getWaterRecordTimestamp(restock),
+        endAt: nextRestock ? getWaterRecordTimestamp(nextRestock) : null,
+        isCurrent: index === ordered.length - 1,
+        label: `${formatDateLabel(restock?.date)} · ${formatPackCount(quantity)}`,
+      };
+    })
+    .reverse();
+};
+
+const filterEntriesByRestockPeriod = (entries = [], period = null) => {
+  if (!Array.isArray(entries)) return [];
+  if (!period) return entries;
+  return entries.filter((entry) => {
+    const entryTime = getWaterRecordTimestamp(entry);
+    if (!Number.isFinite(entryTime)) return false;
+    if (entryTime < period.startAt) return false;
+    if (Number.isFinite(period.endAt) && entryTime >= period.endAt) return false;
+    return true;
+  });
+};
+
 const toMoneyInputValue = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return "";
@@ -390,6 +452,7 @@ function AdminWater() {
   const [saleCustomerMenuOpen, setSaleCustomerMenuOpen] = useState(false);
   const [orderQuery, setOrderQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [stockPeriodFilter, setStockPeriodFilter] = useState("current");
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [orderForm, setOrderForm] = useState(null);
   const [orderError, setOrderError] = useState("");
@@ -573,6 +636,79 @@ function AdminWater() {
       }),
     [adjustments, expenses, productPurchaseCost, restocks, sales]
   );
+  const restockPeriods = useMemo(() => buildRestockPeriods(restocks, formatDate), [restocks]);
+  const currentStockPeriod = useMemo(
+    () => restockPeriods.find((period) => period.isCurrent) || null,
+    [restockPeriods]
+  );
+  useEffect(() => {
+    if (stockPeriodFilter === "current" || stockPeriodFilter === "all") return;
+    if (!restockPeriods.some((period) => period.value === stockPeriodFilter)) {
+      setStockPeriodFilter("current");
+    }
+  }, [restockPeriods, stockPeriodFilter]);
+  const activeStockPeriod = useMemo(() => {
+    if (stockPeriodFilter === "all") return null;
+    if (stockPeriodFilter === "current") return currentStockPeriod;
+    return restockPeriods.find((period) => period.value === stockPeriodFilter) || currentStockPeriod;
+  }, [currentStockPeriod, restockPeriods, stockPeriodFilter]);
+  const trackedRestocks = useMemo(
+    () => filterEntriesByRestockPeriod(restocks, activeStockPeriod),
+    [activeStockPeriod, restocks]
+  );
+  const trackedSales = useMemo(
+    () => filterEntriesByRestockPeriod(sales, activeStockPeriod),
+    [activeStockPeriod, sales]
+  );
+  const trackedExpenses = useMemo(
+    () => filterEntriesByRestockPeriod(expenses, activeStockPeriod),
+    [activeStockPeriod, expenses]
+  );
+  const trackedAdjustments = useMemo(
+    () => filterEntriesByRestockPeriod(adjustments, activeStockPeriod),
+    [activeStockPeriod, adjustments]
+  );
+  const trackedSummary = useMemo(
+    () =>
+      buildWaterSummary({
+        restocks: trackedRestocks,
+        sales: trackedSales,
+        expenses: trackedExpenses,
+        adjustments: trackedAdjustments,
+        purchaseCost: productPurchaseCost,
+      }),
+    [productPurchaseCost, trackedAdjustments, trackedExpenses, trackedRestocks, trackedSales]
+  );
+  const stockPeriodOptions = useMemo(
+    () => [
+      { value: "current", label: "Current stock" },
+      { value: "all", label: "All time" },
+      ...restockPeriods
+        .filter((period) => !period.isCurrent)
+        .map((period) => ({
+          value: period.value,
+          label: `Previous · ${period.label}`,
+        })),
+    ],
+    [restockPeriods]
+  );
+  const stockPeriodDetail = useMemo(() => {
+    if (stockPeriodFilter === "all") {
+      return "All water activity";
+    }
+    if (!activeStockPeriod) {
+      return "Latest stock activity";
+    }
+    return activeStockPeriod.isCurrent
+      ? `Current stock · ${activeStockPeriod.label}`
+      : `Previous stock · ${activeStockPeriod.label}`;
+  }, [activeStockPeriod, stockPeriodFilter]);
+  const isAllTimeStockView = stockPeriodFilter === "all" || !activeStockPeriod;
+  const stockScopeLabel = isAllTimeStockView
+    ? "all time"
+    : activeStockPeriod?.isCurrent
+      ? "this stock window"
+      : "this previous stock window";
   const restockById = useMemo(
     () =>
       new Map(
@@ -647,7 +783,7 @@ function AdminWater() {
   const deferredOrderQuery = useDeferredValue(orderQuery);
   const filteredSales = useMemo(() => {
     const queryTokens = getOrderSearchTokens(deferredOrderQuery);
-    return sales.filter((sale) => {
+    return trackedSales.filter((sale) => {
       const paymentStatus = normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod);
       if (orderStatusFilter !== "all" && paymentStatus !== orderStatusFilter) return false;
       if (!queryTokens.length) return true;
@@ -661,19 +797,21 @@ function AdminWater() {
         return matchesText || matchesDigits;
       });
     });
-  }, [customerById, deferredOrderQuery, orderStatusFilter, sales]);
+  }, [customerById, deferredOrderQuery, orderStatusFilter, trackedSales]);
   const unpaidOrderCount = useMemo(
-    () => sales.filter((sale) => normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid").length,
-    [sales]
+    () =>
+      trackedSales.filter((sale) => normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid")
+        .length,
+    [trackedSales]
   );
   const totalCreditCount = useMemo(
     () =>
-      sales.filter(
+      trackedSales.filter(
         (sale) =>
           normalizeSalePaymentMethod(sale.paymentMethod) === "credit" &&
           normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod) !== "paid"
       ).length,
-    [sales]
+    [trackedSales]
   );
   const salePreview = useMemo(() => {
     const quantity = Math.max(0, Math.round(toNumber(saleForm.quantity, 0)));
@@ -709,7 +847,7 @@ function AdminWater() {
   }, [pricing, saleForm.discountType, saleForm.discountValue, saleForm.quantity, saleForm.saleChannel, saleForm.unitPrice]);
 
   const stockTimeline = useMemo(() => {
-    const restockRows = restocks.map((item) => ({
+    const restockRows = trackedRestocks.map((item) => ({
       id: `restock-${item.id}`,
       sourceId: Number(item.id) || null,
       type: "restock",
@@ -724,7 +862,7 @@ function AdminWater() {
       createdAt: item.createdAt || "",
       amount: toNumber(item.quantity) * toNumber(item.unitCost),
     }));
-    const adjustmentRows = adjustments.map((item) => ({
+    const adjustmentRows = trackedAdjustments.map((item) => ({
       id: `adjustment-${item.id}`,
       sourceId: Number(item.id) || null,
       type: "adjustment",
@@ -744,7 +882,7 @@ function AdminWater() {
       if (timeB !== timeA) return timeB - timeA;
       return b.id.localeCompare(a.id);
     });
-  }, [adjustments, restocks]);
+  }, [trackedAdjustments, trackedRestocks]);
 
   const fixedWaterVendor = useMemo(() => {
     const normalizedSupplierName = normalizeVendorMatchText(WATER_SUPPLIER_NAME);
@@ -1709,7 +1847,7 @@ function AdminWater() {
   };
 
   const saleUnitPriceInputValue = saleForm.unitPrice || toMoneyInputValue(salePreview.suggestedUnitPrice);
-  const netMovement = summary.unitsRestocked + summary.adjustmentUnits;
+  const netMovement = trackedSummary.unitsRestocked + trackedSummary.adjustmentUnits;
 
   return (
     <div className="water-module-page">
@@ -1717,8 +1855,10 @@ function AdminWater() {
         <AdminBreadcrumb items={[{ label: "Water" }]} />
 
         <AdminPageHeader
+          className="water-module-header"
+          copyClassName="water-module-header-copy"
           title="GWater"
-          actionsClassName="admin-header-actions"
+          actionsClassName="admin-header-actions water-module-header-actions"
           actions={
             <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
               <AppIcon icon={faRotateRight} />
@@ -1729,10 +1869,15 @@ function AdminWater() {
         <InlineNoticeStack notices={notices} />
 
         <WaterKpiGrid
-          summary={summary}
-          salesCount={sales.length}
+          liveSummary={summary}
+          trackingSummary={trackedSummary}
+          salesCount={trackedSales.length}
           unpaidOrderCount={unpaidOrderCount}
           totalCreditCount={totalCreditCount}
+          stockPeriodFilter={stockPeriodFilter}
+          setStockPeriodFilter={setStockPeriodFilter}
+          stockPeriodOptions={stockPeriodOptions}
+          stockPeriodDetail={stockPeriodDetail}
           formatCurrency={formatCurrency}
         />
 
@@ -1805,7 +1950,7 @@ function AdminWater() {
           loading={loading}
           saving={saving}
           filteredSales={filteredSales}
-          sales={sales}
+          sales={trackedSales}
           orderQuery={orderQuery}
           setOrderQuery={setOrderQuery}
           orderStatusFilter={orderStatusFilter}
@@ -1823,7 +1968,9 @@ function AdminWater() {
           activeLedgerItem={activeLedgerItem}
           openStockEntryEditor={openStockEntryEditor}
           handleStockEntryUndo={handleStockEntryUndo}
-          expenses={expenses}
+          expenses={trackedExpenses}
+          stockScopeLabel={stockScopeLabel}
+          isAllTimeStockView={isAllTimeStockView}
           openExpenseEditor={openExpenseEditor}
           handleExpenseDelete={handleExpenseDelete}
         />

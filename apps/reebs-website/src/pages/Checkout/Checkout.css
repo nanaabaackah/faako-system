@@ -6,7 +6,10 @@
 }
 
 .checkout-hero {
-  --page-hero-image: url("/imgs/photos/IMG_5074.JPG");
+  --page-hero-image:
+    radial-gradient(circle at 18% 20%, rgba(255, 145, 44, 0.24), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(177, 250, 99, 0.18), transparent 26%),
+    linear-gradient(145deg, rgba(12, 31, 44, 0.98), rgba(16, 87, 112, 0.92) 48%, rgba(39, 67, 29, 0.84));
   min-height: var(--app-vh);
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.92fr);
@@ -350,6 +353,10 @@
   gap: 0.45rem;
 }
 
+.checkout-field .ui-field {
+  width: 100%;
+}
+
 .checkout-field.full-width {
   grid-column: 1 / -1;
 }
@@ -376,6 +383,7 @@
   overflow: hidden;
 }
 
+.checkout-phone-row .checkout-phone-code-field,
 .checkout-phone-row .checkout-phone-code,
 .checkout-phone-row .checkout-phone-local {
   width: 100%;
@@ -387,6 +395,7 @@
   box-shadow: none;
 }
 
+.checkout-phone-row .checkout-phone-code-field,
 .checkout-phone-row .checkout-phone-code {
   appearance: none;
   -webkit-appearance: none;
@@ -423,7 +432,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.checkout-phone-row :is(.checkout-phone-code, .checkout-phone-local):focus {
+.checkout-phone-row :is(.checkout-phone-code, .checkout-phone-local, .ui-dropdown-field__trigger):focus {
   border-color: transparent;
   box-shadow: none;
   outline: none;
@@ -445,6 +454,8 @@
 
 .checkout-field input,
 .checkout-field select,
+.checkout-field .ui-date-field__trigger,
+.checkout-field .ui-dropdown-field__trigger,
 .checkout-field textarea {
   min-height: 3.4rem;
   border: 1px solid rgba(58, 63, 69, 0.14);
@@ -457,13 +468,14 @@
   min-height: 8.6rem;
 }
 
-.checkout-field :is(input, select, textarea):focus {
+.checkout-field :is(input, select, textarea, .ui-date-field__trigger, .ui-dropdown-field__trigger):focus {
   border-color: rgba(255, 145, 44, 0.38);
   box-shadow:
     0 0 0 4px rgba(255, 145, 44, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
+.checkout-field .checkout-phone-code-field,
 .checkout-field .checkout-phone-code,
 .checkout-field .checkout-phone-local {
   border: 0;
@@ -472,6 +484,7 @@
   box-shadow: none;
 }
 
+.checkout-field .checkout-phone-code-field,
 .checkout-field .checkout-phone-code {
   border-right: 1px solid rgba(58, 63, 69, 0.12);
   background: none;

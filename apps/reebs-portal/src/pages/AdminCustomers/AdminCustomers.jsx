@@ -9,6 +9,7 @@ import CustomerDetailModal from "./components/CustomerDetailModal";
 import CustomerResultsSection from "./components/CustomerResultsSection";
 import CustomerSummaryPanel from "./components/CustomerSummaryPanel";
 import CustomerToolbar from "./components/CustomerToolbar";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   EMPTY_CUSTOMER_FORM,
   CUSTOMER_SEGMENTS,
@@ -26,6 +27,8 @@ import {
 } from "./crmShared";
 
 export default function AdminCustomers() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -482,7 +485,21 @@ export default function AdminCustomers() {
     setDetailLoading(false);
     setDetailSaving(false);
     setDetailForm(EMPTY_CUSTOMER_FORM);
+    const params = new URLSearchParams(location.search);
+    if (params.has("id")) {
+      navigate("/admin/customers", { replace: true });
+    }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedId = Number(params.get("id"));
+    if (!Number.isFinite(requestedId) || requestedId <= 0 || !customers.length) return;
+    if (activeCustomer?.id === requestedId && detailOpen) return;
+    const match = customers.find((customer) => Number(customer?.id) === requestedId);
+    if (!match) return;
+    void openDetail(match);
+  }, [activeCustomer?.id, customers, detailOpen, location.search]);
 
   const handleDetailFormChange = (field, value) => {
     setDetailError("");

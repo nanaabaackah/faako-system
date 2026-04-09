@@ -3,6 +3,7 @@ import {
   buildPaymentInstructionLines,
   sanitizePaymentPreference,
 } from "./paymentInstructions.js";
+import { buildServicePaymentInstructionLines } from "../../../shared/paymentCopy.js";
 
 const {
   EMAIL_THEMES,
@@ -142,6 +143,22 @@ const renderPaymentPanel = ({ paymentPreference, reference, internal = false }) 
       }),
       { theme: REEBS_THEME }
     ),
+  });
+
+const buildBookingPaymentInstructionLines = (reference = "") =>
+  buildServicePaymentInstructionLines({
+    includeHeading: false,
+    reference,
+  });
+
+const renderBookingPaymentPanel = ({ reference = "" }) =>
+  renderPanel({
+    theme: REEBS_THEME,
+    eyebrow: "Payment",
+    title: "Payment instructions",
+    bodyHtml: renderList(buildBookingPaymentInstructionLines(reference), {
+      theme: REEBS_THEME,
+    }),
   });
 
 export const buildInternalOrderEmailText = ({
@@ -383,13 +400,7 @@ export const buildInternalBookingEmailText = (booking) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(
-    ...buildPaymentInstructionLines({
-      paymentPreference: booking?.paymentPreference,
-      reference: bookingReference,
-      internal: true,
-    })
-  );
+  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
 
   lines.push("", "Booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
@@ -422,10 +433,8 @@ export const buildInternalBookingEmailHtml = (booking) =>
         title: booking?.customerName || "Unknown customer",
         bodyHtml: renderKeyValueTable(buildBookingDetailRows(booking), { theme: REEBS_THEME, labelWidth: "34%" }),
       }),
-      renderPaymentPanel({
-        paymentPreference: booking?.paymentPreference,
+      renderBookingPaymentPanel({
         reference: booking?.id ? `#${booking.id}` : "",
-        internal: true,
       }),
       renderListPanel("Booked items", buildBookingItemLines(booking?.items || [])),
     ].join(""),
@@ -436,7 +445,6 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
   const itemLines = buildBookingItemLines(booking?.items || []);
   const start = booking?.startTime ? ` ${booking.startTime}` : "";
   const end = booking?.endTime ? `-${booking.endTime}` : "";
-  const safePaymentPreference = sanitizePaymentPreference(booking?.paymentPreference);
   const bookingReference = booking?.id ? `#${booking.id}` : "";
 
   const lines = [
@@ -453,24 +461,15 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(
-    ...buildPaymentInstructionLines({
-      paymentPreference: safePaymentPreference,
-      reference: bookingReference,
-    })
-  );
+  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
 
   lines.push("", "Your booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
   lines.push(
     "",
     "Next steps:",
-    safePaymentPreference.method === "card"
-      ? "We review each booking manually before collecting payment."
-      : "Review your booking details above and use the payment route you selected.",
-    safePaymentPreference.method === "card"
-      ? "You will receive your invoice and payment instructions after review."
-      : "We will confirm your booking and event timing once payment is reviewed.",
+    "Review your booking details above and arrange the 70% deposit using the payment instructions provided.",
+    "We will confirm your booking and event timing once payment is reviewed.",
     "",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
     "",
@@ -481,14 +480,9 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
 };
 
 export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
-  const safePaymentPreference = sanitizePaymentPreference(booking?.paymentPreference);
   const nextStepLines = [
-    safePaymentPreference.method === "card"
-      ? "We review each booking manually before collecting payment."
-      : "Review your booking details above and use the payment route you selected.",
-    safePaymentPreference.method === "card"
-      ? "You will receive your invoice and payment instructions after review."
-      : "We will confirm your booking and event timing once payment is reviewed.",
+    "Review your booking details above and arrange the 70% deposit using the payment instructions provided.",
+    "We will confirm your booking and event timing once payment is reviewed.",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
   ];
 
@@ -520,8 +514,7 @@ export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
         bodyHtml: renderKeyValueTable(buildBookingDetailRows(booking), { theme: REEBS_THEME, labelWidth: "34%" }),
       }),
       renderListPanel("Your booked items", buildBookingItemLines(booking?.items || [])),
-      renderPaymentPanel({
-        paymentPreference: safePaymentPreference,
+      renderBookingPaymentPanel({
         reference: booking?.id ? `#${booking.id}` : "",
       }),
       renderPanel({

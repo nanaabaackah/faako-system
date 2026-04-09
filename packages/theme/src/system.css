@@ -2,31 +2,12 @@
   color-scheme: light;
   --sys-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
   --sys-font-display: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --sys-bg: #f4f6fb;
-  --sys-bg-elevated: #edf1f7;
-  --sys-surface: rgba(255, 255, 255, 0.9);
-  --sys-surface-strong: #ffffff;
-  --sys-border: rgba(15, 23, 42, 0.11);
-  --sys-border-strong: rgba(15, 23, 42, 0.18);
-  --sys-text: #12212c;
-  --sys-muted: #5b6776;
-  --sys-accent: #2563eb;
-  --sys-accent-contrast: #ffffff;
-  --sys-accent-soft: rgba(37, 99, 235, 0.12);
-  --sys-success: #15803d;
-  --sys-success-soft: rgba(21, 128, 61, 0.12);
-  --sys-warning: #b45309;
-  --sys-warning-soft: rgba(180, 83, 9, 0.12);
-  --sys-danger: #b91c1c;
-  --sys-danger-soft: rgba(185, 28, 28, 0.12);
-  --sys-info: #1d4ed8;
-  --sys-info-soft: rgba(29, 78, 216, 0.12);
-  --sys-shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.06);
-  --sys-shadow-md: 0 18px 38px rgba(15, 23, 42, 0.1);
-  --sys-shadow-lg: 0 30px 64px rgba(15, 23, 42, 0.14);
-  --sys-radius-sm: 12px;
-  --sys-radius-md: 18px;
-  --sys-radius-lg: 26px;
+  --sys-shadow-sm: none;
+  --sys-shadow-md: none;
+  --sys-shadow-lg: none;
+  --sys-radius-sm: 5px;
+  --sys-radius-md: 10px;
+  --sys-radius-lg: 18px;
   --sys-page-max-width: 1180px;
 }
 

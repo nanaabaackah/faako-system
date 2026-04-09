@@ -708,7 +708,11 @@ body.admin-theme .store-mode-page {
   font-size: 0.8rem;
 }
 
-.store-mode-category select,
+.store-mode-category .ui-field {
+  width: 100%;
+}
+
+.store-mode-select,
 .store-builder-field input,
 .store-builder-discount-input {
   width: 100%;
@@ -728,23 +732,7 @@ body.admin-theme .store-mode-page {
     transform 0.18s ease;
 }
 
-.store-mode-category select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 2.8rem;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--admin-muted) 50%),
-    linear-gradient(135deg, var(--admin-muted) 50%, transparent 50%),
-    var(--store-mode-field-bg);
-  background-position:
-    calc(100% - 1.25rem) calc(50% - 0.1rem),
-    calc(100% - 0.95rem) calc(50% - 0.1rem),
-    0 0;
-  background-size:
-    0.42rem 0.42rem,
-    0.42rem 0.42rem,
-    100% 100%;
-  background-repeat: no-repeat;
+.store-mode-select {
   cursor: pointer;
 }
 
@@ -754,27 +742,17 @@ body.admin-theme .store-mode-page {
   background: var(--store-mode-field-bg-hover);
 }
 
-.store-mode-category select:hover {
+.store-mode-select:hover {
   border-color: var(--admin-border-strong);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--admin-muted) 50%),
-    linear-gradient(135deg, var(--admin-muted) 50%, transparent 50%),
-    var(--store-mode-field-bg-hover);
+  background: var(--store-mode-field-bg-hover);
 }
 
-.store-mode-category select:focus,
+.store-mode-select:focus-visible,
 .store-builder-field input:focus,
 .store-builder-discount-input:focus {
   border-color: var(--admin-border-strong);
   box-shadow: var(--store-mode-focus-ring), var(--store-mode-field-shadow);
   outline: none;
-}
-
-.store-mode-category select:focus {
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--admin-muted) 50%),
-    linear-gradient(135deg, var(--admin-muted) 50%, transparent 50%),
-    var(--store-mode-field-bg-hover);
 }
 
 .store-builder-field input::placeholder,

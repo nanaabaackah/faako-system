@@ -822,10 +822,6 @@ const Dashboard = () => {
   const siteStatuses = kpiData?.siteStatus?.sites ?? [];
   const systemStatus = kpiData?.status ?? {};
   const lastSyncedLabel = kpiData?.lastSyncedAt ? formatDateTime(kpiData.lastSyncedAt) : "N/A";
-  const lastCheckedLabel = kpiData?.siteStatus?.checkedAt
-    ? formatDateTime(kpiData.siteStatus.checkedAt)
-    : "N/A";
-
   const systemEntries = [
     { id: "api", label: "API", status: systemStatus.api, note: "Auth + metrics" },
     {
@@ -1058,13 +1054,12 @@ const Dashboard = () => {
       ) : null}
 
       <section
-        className="panel availability-panel dashboard-module-panel dashboard-module-panel--interactive"
+        className="panel glass-card availability-panel dashboard-module-panel dashboard-module-panel--interactive"
         id="availability"
       >
         <div className="panel-header">
           <div>
             <h3>Weekly availability</h3>
-            <p className="muted">Showing the next 7 days across your core meeting hours.</p>
           </div>
           <div className="availability-legend">
             <span className="legend-item">
@@ -1107,7 +1102,7 @@ const Dashboard = () => {
         )}
 
         <div className="availability-scroll availability-desktop">
-          <div className="availability-grid" role="grid">
+          <div className="glass-card availability-grid" role="grid">
             <div className="availability-cell availability-corner" aria-hidden="true" />
             {days.map((day) => {
               const holidayLabels = holidayMap.get(day.key) || [];
@@ -1357,11 +1352,10 @@ const Dashboard = () => {
       ) : null}
 
 
-      <section className="panel stack dashboard-module-panel dashboard-accounting-snapshot">
+      <section className="glass-card panel stack dashboard-module-panel dashboard-accounting-snapshot">
         <div className="panel-header">
           <div>
             <h3>Accounting snapshot</h3>
-            <p className="muted">Window: {ACCOUNTING_RANGE.label} across CAD and GHS.</p>
           </div>
         </div>
 
@@ -1491,7 +1485,7 @@ const Dashboard = () => {
                 hint: `${topLevelOrganizations} top-level • ${childOrganizations} child orgs`,
               },
             ].map((insight) => (
-              <article className="panel metric-card" key={insight.id}>
+              <article className="panel bubble-card metric-card" key={insight.id}>
                 <span className="kpi-label">{insight.label}</span>
                 <div className="kpi-value">{insight.value}</div>
                 <span className="muted">{insight.hint}</span>
@@ -1500,14 +1494,13 @@ const Dashboard = () => {
           </div>
 
           <div className="dashboard-grid">
-            <article className="panel panel-span-2">
+            <article className="glass-card panel panel-span-2">
               <div className="panel-header">
                 <div>
                   <h3>Organization hierarchy</h3>
-                  <p className="muted">Parent-child structure and managed organization counts.</p>
                 </div>
               </div>
-              <div className="data-table">
+              <div className="glass-card data-table">
                 <div className="table-row table-head is-5">
                   <span>Organization</span>
                   <span>Parent</span>
@@ -1530,14 +1523,13 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel">
+            <article className="glass-card panel">
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
-                  <p className="muted">API and database checks.</p>
                 </div>
               </div>
-              <div className="data-table">
+              <div className="glass-card data-table">
                 <div className="table-row table-head is-3">
                   <span>Service</span>
                   <span>Status</span>
@@ -1553,11 +1545,10 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel">
+            <article className="bubble-card panel">
               <div className="panel-header">
                 <div>
                   <h3>Operational snapshot</h3>
-                  <p className="muted">Services, sites, and page uptime.</p>
                 </div>
               </div>
               <div className="stack">
@@ -1591,11 +1582,10 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel">
+            <article className="bubble-card panel">
               <div className="panel-header">
                 <div>
                   <h3>Attention required</h3>
-                  <p className="muted">Items needing a quick check.</p>
                 </div>
               </div>
               <div className="list">
@@ -1615,11 +1605,10 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel">
+            <article className="bubble-card panel">
               <div className="panel-header">
                 <div>
                   <h3>Organization statuses</h3>
-                  <p className="muted">All orgs tracked.</p>
                 </div>
               </div>
               <div className="list">
@@ -1636,11 +1625,10 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel panel-span-3">
+            <article className="glass-card panel panel-span-3">
               <div className="panel-header">
                 <div>
                   <h3>Activity timeline</h3>
-                  <p className="muted">Sync and status checks in the {rangeDescription} window.</p>
                 </div>
               </div>
               <div className="timeline">
@@ -1662,11 +1650,10 @@ const Dashboard = () => {
             </article>
           </div>
 
-          <section className="panel site-status" id="site-status">
+          <section className="glass-card panel site-status" id="site-status">
             <div className="panel-header">
               <div>
                 <h3>Website health</h3>
-                <p className="muted">Window {rangeDescription} | Last refreshed {lastCheckedLabel}.</p>
               </div>
             </div>
             <div className="site-grid">

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Book.css";
 import { Link, useSearchParams } from "react-router-dom";
+import { DateField, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
-  faMagnifyingGlass,
   faShieldHeart,
   faTruckFast,
   faWandMagicSparkles,
@@ -802,9 +802,8 @@ function Book() {
                   <div className="contact-form-grid form-section-grid">
                     <div className="form-group">
                       <label htmlFor="eventDate">Event date</label>
-                      <input
+                      <DateField
                         id="eventDate"
-                        type="date"
                         name="eventDate"
                         min={today}
                         value={formValues.eventDate}
@@ -814,7 +813,7 @@ function Book() {
                     </div>
                     <div className="form-group">
                       <label htmlFor="eventWindow">Setup & pickup window</label>
-                      <select
+                      <SelectField
                         id="eventWindow"
                         name="eventWindow"
                         value={formValues.eventWindow}
@@ -832,7 +831,7 @@ function Book() {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </div>
                     <div className="form-group">
                       <label htmlFor="location">Location / venue</label>
@@ -861,7 +860,7 @@ function Book() {
                     </div>
                     <div className="form-group">
                       <label htmlFor="contactPreference">How should we confirm?</label>
-                      <select
+                      <SelectField
                         id="contactPreference"
                         name="contactPreference"
                         value={formValues.contactPreference}
@@ -873,7 +872,7 @@ function Book() {
                         <option value="Phone call">Phone call</option>
                         <option value="WhatsApp">WhatsApp</option>
                         <option value="Email">Email</option>
-                      </select>
+                      </SelectField>
                     </div>
                   </div>
                 </section>

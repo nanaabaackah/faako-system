@@ -7,7 +7,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: clip;
+  overflow-x: visible;
 }
 
 .water-module-shell {
@@ -16,7 +16,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: clip;
+  overflow-x: visible;
 }
 
 .water-module-kpi,
@@ -30,26 +30,74 @@
   min-width: 0;
 }
 
-.water-module-shell > .admin-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+body.admin-theme .water-module-shell > .admin-header.water-module-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between;
   gap: 1rem;
   align-items: center;
   padding: 2rem 0;
+  flex-wrap: nowrap !important;
 }
 
-.water-module-shell > .admin-header > div:first-child {
-  grid-column: 2;
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
   min-width: 0;
-  justify-self: center;
-  text-align: center;
+  flex: 1 1 auto;
+  text-align: left;
 }
 
-.water-module-shell > .admin-header > :last-child:not(:first-child) {
-  grid-column: 3;
-  justify-self: end;
+body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
   margin-left: 0;
   flex: 0 0 auto;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  width: auto !important;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: 0;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions > * {
+  flex: 0 0 auto;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
+    justify-self: auto;
+    text-align: left;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
+    width: auto !important;
+    justify-self: auto !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    width: auto !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+    width: auto !important;
+  }
 }
 
 .water-module-eyebrow,
@@ -162,6 +210,48 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.9rem;
   min-width: 0;
+}
+
+.water-module-kpi-stack {
+  order: 1;
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 1.25rem;
+  background: var(--card);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar-copy {
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar-copy span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--admin-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.water-module-stock-period-field {
+  width: min(100%, 18rem);
+  min-width: min(100%, 15rem);
+}
+
+.water-module-stock-period-field .ui-dropdown-field__trigger {
+  min-height: 2.9rem;
 }
 
 .water-module-network-grid {
@@ -359,7 +449,13 @@
   font-size: 0.9rem;
 }
 
+.water-module-form .ui-field {
+  width: 100%;
+}
+
 .water-module-form input,
+.water-module-form .ui-dropdown-field__trigger,
+.water-module-form .ui-date-field__trigger,
 .water-module-form select,
 .water-module-form textarea {
   width: 100%;
@@ -391,6 +487,8 @@
 }
 
 .water-module-form input:focus,
+.water-module-form .ui-dropdown-field__trigger:focus-visible,
+.water-module-form .ui-date-field__trigger:focus-visible,
 .water-module-form select:focus,
 .water-module-form textarea:focus {
   outline: 2px solid var(--accent-soft);
@@ -399,6 +497,8 @@
 }
 
 .water-module-form input:disabled,
+.water-module-form .ui-dropdown-field__trigger:disabled,
+.water-module-form .ui-date-field__trigger:disabled,
 .water-module-form select:disabled,
 .water-module-form textarea:disabled {
   opacity: 0.72;
@@ -866,6 +966,7 @@
 .water-module-order-primary strong,
 .water-module-order-total strong {
   font-size: 0.92rem;
+  color: var(--admin-text);
 }
 
 .water-module-order-primary span,
@@ -873,6 +974,11 @@
 .water-module-order-total span {
   font-size: 0.78rem;
   color: var(--admin-muted);
+}
+
+.water-module-table-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .water-module-order-actions {
@@ -1063,41 +1169,24 @@
   border-style: dashed;
 }
 
-.water-order-editor-form select {
-  appearance: none;
-  -webkit-appearance: none;
+.water-order-editor-form .ui-dropdown-field__trigger {
   cursor: pointer;
-  min-height: auto;
-  padding: 0.8rem 2.85rem 0.8rem 0.95rem;
+  min-height: 0;
+  padding: 0.8rem 0.95rem;
   line-height: 1.4;
   border-color: var(--admin-border);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(100, 116, 139, 0.9) 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, rgba(100, 116, 139, 0.9) 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--admin-surface);
+  background: var(--admin-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
-.water-order-editor-form select:hover {
+.water-order-editor-form .ui-dropdown-field__trigger:hover {
   border-color: var(--admin-border);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(71, 85, 105, 0.95) 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, rgba(71, 85, 105, 0.95) 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--admin-surface);
+  background: var(--admin-surface);
 }
 
-.water-order-editor-form select:focus {
+.water-order-editor-form .ui-dropdown-field__trigger:focus-visible {
   border-color: var(--accent);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(12, 106, 96, 0.95) 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, rgba(12, 106, 96, 0.95) 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--card);
+  background: var(--card);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 0 0 3px rgba(12, 106, 96, 0.12);
@@ -1116,6 +1205,14 @@
 @media (max-width: 1180px) {
   .water-module-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .water-module-kpi-toolbar {
+    align-items: stretch;
+  }
+
+  .water-module-stock-period-field {
+    width: 100%;
   }
 
   .water-module-network-grid {
@@ -1164,26 +1261,32 @@
     gap: 0.85rem;
   }
 
-  .water-module-shell > .admin-header {
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
     padding: 0.35rem 0 0;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
     gap: 0.75rem;
   }
 
-  .water-module-shell > .admin-header > div:first-child,
-  .water-module-shell > .admin-header > :last-child:not(:first-child) {
-    grid-column: 1;
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
+    text-align: left;
   }
 
-  .water-module-shell > .admin-header > div:first-child {
-    justify-self: stretch;
-    text-align: center;
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
+    width: auto !important;
+    justify-self: auto !important;
   }
 
-  .water-module-shell > .admin-header > :last-child:not(:first-child) {
-    width: 100%;
-    justify-self: center;
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    align-items: center;
+    width: auto !important;
+    justify-content: flex-end !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+    width: auto !important;
   }
 
   .water-module-kpis {
@@ -1206,6 +1309,13 @@
 
   .water-module-order-section > .water-module-card {
     padding: 0.9rem;
+  }
+
+  .water-module-card,
+  .water-module-table-card,
+  .water-module-network-card {
+    padding: 0.9rem;
+    border-radius: 1rem;
   }
 
   .water-module-order-section .water-module-card-head {
@@ -1262,6 +1372,10 @@
   .water-order-modal-actions .admin-primary,
   .water-order-modal-actions .admin-secondary {
     width: 100%;
+  }
+
+  .water-order-modal {
+    max-width: calc(100vw - 16px);
   }
 
   .water-module-table {
@@ -1349,6 +1463,15 @@
     min-width: 0;
   }
 
+  .water-module-table--orders tbody td > .water-module-table-value,
+  .water-module-table--expenses tbody td > .water-module-table-value,
+  .water-module-table--stock tbody td > .water-module-table-value {
+    flex: 1 1 auto;
+    margin-left: auto;
+    min-width: 0;
+    text-align: right;
+  }
+
   .water-module-table--orders .water-module-order-primary,
   .water-module-table--orders .water-module-order-status,
   .water-module-table--orders .water-module-order-total {
@@ -1413,6 +1536,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
+    min-width: 0;
     padding: 0;
     border-bottom: 0;
     font-size: 0.86rem;
@@ -1431,6 +1555,103 @@
   .water-module-table--stock tbody td:last-child {
     align-items: center;
   }
+
+  .water-module-table--stock tbody td > * {
+    min-width: 0;
+  }
+
+  .water-module-table--stock .water-module-order-actions {
+    display: grid;
+    grid-template-columns: minmax(4.75rem, max-content) auto;
+    align-items: center;
+    justify-content: stretch;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .water-module-table--stock .water-module-order-actions::before {
+    min-width: 4.75rem;
+  }
+
+  .water-module-table--stock .water-module-order-actions .water-module-row-undo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    width: 2.35rem;
+    height: 2.35rem;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    padding: 0;
+    gap: 0;
+  }
+
+  .water-module-table--stock .water-module-order-actions .water-module-row-undo .app-icon {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+  }
+
+  .water-module-table--orders tfoot,
+  .water-module-table--expenses tfoot,
+  .water-module-table--stock tfoot {
+    display: none;
+    margin-top: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .water-module-table--orders tfoot tr,
+  .water-module-table--expenses tfoot tr,
+  .water-module-table--stock tfoot tr {
+    display: flex;
+    align-items: stretch;
+    gap: 0.55rem;
+    min-width: max-content;
+  }
+
+  .water-module-table--orders tfoot td,
+  .water-module-table--expenses tfoot td,
+  .water-module-table--stock tfoot td {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 5.75rem;
+    padding: 0.72rem 0.82rem;
+    border: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border) !important;
+    border-radius: 0.9rem;
+    background: var(--admin-card);
+    font-size: 0.86rem;
+  }
+
+  .water-module-table--orders tfoot td::before,
+  .water-module-table--expenses tfoot td::before,
+  .water-module-table--stock tfoot td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .water-module-table--orders tfoot td.is-empty,
+  .water-module-table--expenses tfoot td.is-empty,
+  .water-module-table--stock tfoot td.is-empty {
+    display: none;
+  }
+
+  .water-module-table--orders tfoot .admin-table-summary-value,
+  .water-module-table--expenses tfoot .admin-table-summary-value,
+  .water-module-table--stock tfoot .admin-table-summary-value {
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1438,8 +1659,37 @@
     grid-template-columns: 1fr;
   }
 
+  .water-module-kpi-toolbar {
+    padding: 0.9rem;
+    border-radius: 1rem;
+  }
+
   .water-module-order-form-summary {
     grid-template-columns: 1fr;
+  }
+
+  .water-module-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-module-quick-actions,
+  .water-module-toggle-row {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-customer-option {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-module-status-filters {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .water-module-status-filter {
+    flex: 1 1 100%;
   }
 }
 
@@ -1505,32 +1755,22 @@
   background: rgba(5, 150, 105, 0.16);
 }
 
-[data-admin-theme="dark"] .water-order-editor-form select {
+[data-admin-theme="dark"] .water-module-order-primary strong,
+[data-admin-theme="dark"] .water-module-order-total strong {
+  color: rgba(248, 250, 252, 0.96);
+}
+
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger {
   border-color: var(--admin-border);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(148, 163, 184, 0.9) 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, rgba(148, 163, 184, 0.9) 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--admin-surface);
+  background: var(--admin-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-[data-admin-theme="dark"] .water-order-editor-form select:hover {
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger:hover {
   border-color: var(--admin-border);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(203, 213, 225, 0.95) 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, rgba(203, 213, 225, 0.95) 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--admin-surface);
+  background: var(--admin-surface);
 }
 
-[data-admin-theme="dark"] .water-order-editor-form select:focus {
-  background:
-    linear-gradient(45deg, transparent 50%, #99f6e4 50%) calc(100% - 1.15rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    linear-gradient(135deg, #99f6e4 50%, transparent 50%) calc(100% - 0.8rem)
-      calc(50% - 0.16rem) / 0.55rem 0.55rem no-repeat,
-    var(--card);
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger:focus-visible {
+  background: var(--card);
 }

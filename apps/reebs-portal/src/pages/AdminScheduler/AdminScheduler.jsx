@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminScheduler.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -1138,7 +1139,7 @@ function AdminScheduler() {
             <form className="customers-form" onSubmit={submitBooking}>
               <label>
                 Customer
-                <select
+                <SelectField
                   value={bookingForm.customerId}
                   onChange={(event) =>
                     setBookingForm((prev) => ({ ...prev, customerId: event.target.value }))
@@ -1151,7 +1152,7 @@ function AdminScheduler() {
                       {customer.name} {customer.email ? `- ${customer.email}` : ""}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
 
               <label>
@@ -1193,7 +1194,7 @@ function AdminScheduler() {
 
               <label>
                 Status
-                <select
+                <SelectField
                   value={bookingForm.status}
                   onChange={(event) =>
                     setBookingForm((prev) => ({ ...prev, status: event.target.value }))
@@ -1203,7 +1204,7 @@ function AdminScheduler() {
                   <option value="confirmed">Confirmed</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
-                </select>
+                </SelectField>
               </label>
 
               <label>

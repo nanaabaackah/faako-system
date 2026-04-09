@@ -1,3 +1,4 @@
+import { DateField, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash, faXmark } from "/src/icons/iconSet";
 
@@ -72,10 +73,10 @@ export default function WaterLedgerEditorModal({
               <div className="water-order-modal-grid">
                 <label>
                   Link vendor
-                  <select
+                  <SelectField
                     value={ledgerForm.vendorId}
-                    onChange={(event) => {
-                      const nextVendorId = event.target.value;
+                    onChangeValue={(nextValue) => {
+                      const nextVendorId = String(nextValue);
                       const nextVendor =
                         orderedVendorOptions.find((vendor) => String(vendor.id) === String(nextVendorId)) || null;
                       setLedgerForm((prev) =>
@@ -88,6 +89,7 @@ export default function WaterLedgerEditorModal({
                           : prev
                       );
                     }}
+                    ariaLabel="Link vendor"
                   >
                     <option value="">No link</option>
                     {orderedVendorOptions.map((vendor) => (
@@ -95,7 +97,7 @@ export default function WaterLedgerEditorModal({
                         {vendor.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Vendor
@@ -125,13 +127,13 @@ export default function WaterLedgerEditorModal({
                 </label>
                 <label>
                   Date
-                  <input
-                    type="date"
+                  <DateField
                     value={ledgerForm.date}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
+                    onChangeValue={(nextValue) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, date: nextValue } : prev))
                     }
                     required
+                    ariaLabel="Restock date"
                   />
                 </label>
                 <label className="water-order-modal-field--wide">
@@ -169,27 +171,28 @@ export default function WaterLedgerEditorModal({
               <div className="water-order-modal-grid">
                 <label>
                   Type
-                  <select
+                  <SelectField
                     value={ledgerForm.mode}
-                    onChange={(event) =>
+                    onChangeValue={(nextValue) =>
                       setLedgerForm((prev) =>
                         prev
                           ? {
                               ...prev,
-                              mode: event.target.value,
+                              mode: String(nextValue),
                               reason:
                                 prev.reason === customAdjustmentReason ||
-                                (adjustmentReasonOptionsByMode[event.target.value] || []).includes(prev.reason)
+                                (adjustmentReasonOptionsByMode[String(nextValue)] || []).includes(prev.reason)
                                   ? prev.reason
                                   : "",
                             }
                           : prev
                       )
                     }
+                    ariaLabel="Adjustment type"
                   >
                     <option value="remove">Remove</option>
                     <option value="add">Add back</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Qty
@@ -207,11 +210,12 @@ export default function WaterLedgerEditorModal({
                 </label>
                 <label>
                   Reason
-                  <select
+                  <SelectField
                     value={ledgerForm.reason}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, reason: event.target.value } : prev))
+                    onChangeValue={(nextValue) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, reason: String(nextValue) } : prev))
                     }
+                    ariaLabel="Adjustment reason"
                   >
                     <option value="">Choose reason</option>
                     {ledgerAdjustmentReasonOptions.map((reason) => (
@@ -220,17 +224,17 @@ export default function WaterLedgerEditorModal({
                       </option>
                     ))}
                     <option value={customAdjustmentReason}>Custom</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Date
-                  <input
-                    type="date"
+                  <DateField
                     value={ledgerForm.date}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
+                    onChangeValue={(nextValue) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, date: nextValue } : prev))
                     }
                     required
+                    ariaLabel="Adjustment date"
                   />
                 </label>
                 {ledgerAdjustmentHasCustomReason ? (
@@ -282,11 +286,12 @@ export default function WaterLedgerEditorModal({
               <div className="water-order-modal-grid">
                 <label>
                   Category
-                  <select
+                  <SelectField
                     value={ledgerForm.category}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, category: event.target.value } : prev))
+                    onChangeValue={(nextValue) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, category: String(nextValue) } : prev))
                     }
+                    ariaLabel="Expense category"
                   >
                     <option value="">Choose category</option>
                     {expenseCategoryOptions.map((category) => (
@@ -295,7 +300,7 @@ export default function WaterLedgerEditorModal({
                       </option>
                     ))}
                     <option value={customExpenseCategory}>Other</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Amount
@@ -339,13 +344,13 @@ export default function WaterLedgerEditorModal({
                 </label>
                 <label>
                   Date
-                  <input
-                    type="date"
+                  <DateField
                     value={ledgerForm.date}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
+                    onChangeValue={(nextValue) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, date: nextValue } : prev))
                     }
                     required
+                    ariaLabel="Expense date"
                   />
                 </label>
                 <label className="water-order-modal-field--wide">

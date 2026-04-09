@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./Admin.css";
 import { Link, useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -2333,23 +2334,35 @@ function Admin() {
             <div className="inventory-register-stock-controls">
               <label className="inventory-register-filter-select">
                 <span className="inventory-register-filter-kicker">Stock</span>
-                <select value={stockFocus} onChange={(event) => applyStockFocus(event.target.value)}>
+                <SelectField
+                  value={stockFocus}
+                  onChangeValue={(nextValue) => applyStockFocus(String(nextValue))}
+                  ariaLabel="Filter stock"
+                  fieldClassName="inventory-register-filter-control"
+                  inputClassName="inventory-register-filter-trigger"
+                >
                   <option value="all">All stock</option>
                   <option value="in">In stock</option>
                   <option value="low">Low stock</option>
                   <option value="out">Out of stock</option>
-                </select>
+                </SelectField>
               </label>
               <label className="inventory-register-filter-select">
                 <span className="inventory-register-filter-kicker">Category</span>
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <SelectField
+                  value={categoryFilter}
+                  onChangeValue={(nextValue) => setCategoryFilter(String(nextValue))}
+                  ariaLabel="Filter category"
+                  fieldClassName="inventory-register-filter-control"
+                  inputClassName="inventory-register-filter-trigger"
+                >
                   <option value="all">All Categories</option>
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
             </div>
           </div>
@@ -3051,22 +3064,28 @@ function Admin() {
                       </label>
                       <label>
                         Type
-                        <select
+                        <SelectField
                           value={row.sourceCategoryCode}
-                          onChange={(e) => handleNewItemSourceCategoryChange(index, e.target.value)}
+                          onChangeValue={(nextValue) =>
+                            handleNewItemSourceCategoryChange(index, String(nextValue))
+                          }
+                          ariaLabel={`Item ${index + 1} source category`}
                         >
                           <option value="CLOTHES">CLOTHES</option>
                           <option value="TOYS">TOYS</option>
                           <option value="RENTAL">RENTAL</option>
                           <option value="WATER">WATER</option>
-                        </select>
+                        </SelectField>
                       </label>
                       <label className="admin-new-item-field--wide">
                         Category
                         <div className="admin-new-item-category-stack">
-                          <select
+                          <SelectField
                             value={row.isAddingCategory ? INVENTORY_ADD_CATEGORY_VALUE : row.specificCategory}
-                            onChange={(e) => handleNewItemCategorySelect(index, e.target.value)}
+                            onChangeValue={(nextValue) =>
+                              handleNewItemCategorySelect(index, String(nextValue))
+                            }
+                            ariaLabel={`Item ${index + 1} specific category`}
                           >
                             <option value="">Select category</option>
                             {rowCategoryOptions.map((category) => (
@@ -3077,7 +3096,7 @@ function Admin() {
                             {canCreateInventoryCategories && (
                               <option value={INVENTORY_ADD_CATEGORY_VALUE}>+ Add category</option>
                             )}
-                          </select>
+                          </SelectField>
 
                           {row.isAddingCategory && canCreateInventoryCategories ? (
                             <div className="admin-new-item-category-creator">
@@ -3381,16 +3400,17 @@ function Admin() {
                 </label>
                 <label>
                   Source category
-                  <select
+                  <SelectField
                     value={detailForm.sourceCategoryCode}
-                    onChange={(event) => updateDetailForm("sourceCategoryCode", event.target.value)}
+                    onChangeValue={(nextValue) => updateDetailForm("sourceCategoryCode", String(nextValue))}
                     disabled={!isDetailFieldEditable("sourceCategoryCode")}
+                    ariaLabel="Source category"
                   >
                     <option value="CLOTHES">CLOTHES</option>
                     <option value="TOYS">TOYS</option>
                     <option value="RENTAL">RENTAL</option>
                     <option value="WATER">WATER</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Specific category
@@ -3403,23 +3423,24 @@ function Admin() {
                 </label>
                 <label>
                   Vendors
-                  <select
+                  <SelectField
                     multiple
                     size={Math.min(Math.max(vendors.length || 2, 2), 6)}
                     value={detailForm.vendorIds}
-                    onChange={(event) => {
-                      const values = Array.from(event.target.selectedOptions, (option) => option.value);
-                      updateDetailForm("vendorIds", values);
-                    }}
+                    onChangeValue={(nextValue) =>
+                      updateDetailForm("vendorIds", Array.isArray(nextValue) ? nextValue : [String(nextValue)])
+                    }
                     disabled={!isDetailFieldEditable("vendorIds")}
+                    placeholder={vendors.length ? "Select vendors" : "No vendors available"}
+                    ariaLabel="Linked vendors"
                   >
-                    {!vendors.length && <option value="">No vendors available</option>}
+                    {!vendors.length && <option value="" disabled>No vendors available</option>}
                     {vendors.map((vendor) => (
                       <option key={vendor.id} value={vendor.id}>
                         {vendor.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                   <span className="admin-field-hint">Select one or more suppliers for this item.</span>
                 </label>
                 <label>
@@ -3637,15 +3658,16 @@ function Admin() {
               </p>
               <label>
                 Stock change
-                <select
+                <SelectField
                   value={formState.type}
-                  onChange={(event) =>
-                    setFormState((prev) => ({ ...prev, type: event.target.value }))
+                  onChangeValue={(nextValue) =>
+                    setFormState((prev) => ({ ...prev, type: String(nextValue) }))
                   }
+                  ariaLabel="Stock change type"
                 >
                   <option value="StockIn">Add stock</option>
                   <option value="StockOut">Remove stock</option>
-                </select>
+                </SelectField>
                 <small className="admin-form-hint">
                   Add for new deliveries, remove for sales or damage.
                 </small>

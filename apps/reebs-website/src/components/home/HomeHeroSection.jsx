@@ -23,7 +23,7 @@ function HomeHeroSection({
           loop
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           disablePictureInPicture
         >
           <source src="/imgs/moving/background18.mp4" type="video/mp4" />

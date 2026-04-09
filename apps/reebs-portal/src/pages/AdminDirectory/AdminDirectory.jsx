@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminDirectory.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -860,7 +861,7 @@ function AdminDirectory() {
 
                   <label>
                     Role
-                    <select
+                    <SelectField
                       value={userForm.role}
                       onChange={(event) =>
                         setUserForm((prev) => ({ ...prev, role: event.target.value }))
@@ -870,7 +871,7 @@ function AdminDirectory() {
                       <option value="Staff">Staff</option>
                       <option value="Water">Water</option>
                       <option value="Viewer">Viewer</option>
-                    </select>
+                    </SelectField>
                   </label>
 
                   <label>

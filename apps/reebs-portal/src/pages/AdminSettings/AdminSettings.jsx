@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -689,7 +690,7 @@ function AdminSettings({ profileOnly = false }) {
                   <label>
                     Theme mode
                     <span className="settings-select">
-                      <select
+                      <SelectField
                         value={preferencesForm.theme}
                         onChange={(e) => {
                           setPreferencesStatus("");
@@ -701,13 +702,13 @@ function AdminSettings({ profileOnly = false }) {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </span>
                   </label>
                   <label>
                     Font size
                     <span className="settings-select">
-                      <select
+                      <SelectField
                         value={preferencesForm.fontSize}
                         onChange={(e) => {
                           setPreferencesStatus("");
@@ -719,7 +720,7 @@ function AdminSettings({ profileOnly = false }) {
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </span>
                   </label>
                 </div>
@@ -796,7 +797,7 @@ function AdminSettings({ profileOnly = false }) {
                   <label>
                     Role
                     <span className="settings-select">
-                      <select
+                      <SelectField
                         value={inviteForm.role}
                         onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
                       >
@@ -805,7 +806,7 @@ function AdminSettings({ profileOnly = false }) {
                         <option value="Staff">Staff</option>
                         <option value="Water">Water</option>
                         <option value="Warehouse">Warehouse</option>
-                      </select>
+                      </SelectField>
                     </span>
                   </label>
                   <label>
@@ -843,13 +844,13 @@ function AdminSettings({ profileOnly = false }) {
               <label>
                 Base currency
                 <span className="settings-select">
-                  <select
+                  <SelectField
                     value={configForm.currency}
                     onChange={(e) => setConfigForm((prev) => ({ ...prev, currency: e.target.value }))}
                   >
                     <option value="GHS">GHS</option>
                     <option value="GBP">GBP</option>
-                  </select>
+                  </SelectField>
                 </span>
               </label>
               <label>

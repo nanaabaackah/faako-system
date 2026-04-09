@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminWorkspace.css";
 import { useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -2728,11 +2729,11 @@ function AdminWorkspace({ section = "home" }) {
             placeholder="Find customer"
             aria-label="Find customer"
           />
-          <select
-            className="aw-select"
+          <SelectField
             value={selectedCustomerId}
-            onChange={(event) => setSelectedCustomerId(event.target.value)}
+            onChangeValue={(nextValue) => setSelectedCustomerId(String(nextValue))}
             aria-label="Select customer"
+            inputClassName="aw-select"
           >
             <option value="">Choose customer</option>
             {filteredCustomers.slice(0, 100).map((customer) => (
@@ -2740,7 +2741,7 @@ function AdminWorkspace({ section = "home" }) {
                 {customer.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
         {customerError && <p className="aw-muted">{customerError}</p>}
       </div>

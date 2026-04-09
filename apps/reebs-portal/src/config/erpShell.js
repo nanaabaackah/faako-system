@@ -23,6 +23,7 @@ export default defineErpShellConfig({
     "/reset-password": "Reset Password",
     "/admin": "Dashboard",
     "/admin/inventory": "Inventory",
+    "/admin/rentals": "Rentals",
     "/admin/store-mode": "Store Mode",
     "/admin/purchases": "Purchases",
     "/admin/offline": "Offline",

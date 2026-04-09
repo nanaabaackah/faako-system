@@ -1,4 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminAccounting.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faWandMagicSparkles } from "/src/icons/iconSet";
@@ -32,6 +34,13 @@ const formatDate = (value) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const isWithinRange = (value, start, end) => {
+  if (!start || !end) return true;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date >= start && date < end;
 };
 
 const toNumber = (value) => {
@@ -122,7 +131,7 @@ const createHistoricalSalesDraftMap = (value = {}) =>
 
 function AdminAccounting() {
   const [windowKey, setWindowKey] = useState("allTime");
-  const [viewMode, setViewMode] = useState("overview"); // overview | statements | charts | kanban | list | taxes
+  const [viewMode, setViewMode] = useState("overview"); // overview | activity | statements | taxes
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -131,6 +140,7 @@ function AdminAccounting() {
   const [isFetching, setIsFetching] = useState(false);
   const [orders, setOrders] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState("");
   const [listLoaded, setListLoaded] = useState(false);
@@ -190,9 +200,6 @@ function AdminAccounting() {
   const [historicalSalesLoaded, setHistoricalSalesLoaded] = useState(false);
   const [historicalSalesSaving, setHistoricalSalesSaving] = useState(false);
   const [historicalSalesError, setHistoricalSalesError] = useState("");
-  const [isMobileView, setIsMobileView] = useState(
-    typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
-  );
   const balanceInputsEditedRef = useRef(false);
   const taxInputsEditedRef = useRef(false);
   const ghanaTaxConfigEditedRef = useRef(false);
@@ -201,25 +208,6 @@ function AdminAccounting() {
     document.body.classList.add("admin-theme");
     return () => document.body.classList.remove("admin-theme");
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const mediaQuery = window.matchMedia("(max-width: 720px)");
-    const handleChange = () => setIsMobileView(mediaQuery.matches);
-    handleChange();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
-    }
-    mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
-  }, []);
-
-  useEffect(() => {
-    if (isMobileView && viewMode === "list") {
-      setViewMode("overview");
-    }
-  }, [isMobileView, viewMode]);
 
   const parsePercent = (value) => {
     const raw = Number(value);
@@ -349,16 +337,18 @@ function AdminAccounting() {
     setListLoading(true);
     setListError("");
     try {
-      const [ordersRes, bookingsRes] = await Promise.all([
+      const [ordersRes, bookingsRes, expensesRes] = await Promise.all([
         fetchJson("/.netlify/functions/orders"),
         fetchJson("/.netlify/functions/bookings"),
+        fetchJson("/.netlify/functions/expenses"),
       ]);
       setOrders(Array.isArray(ordersRes) ? ordersRes : []);
       setBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
+      setExpenses(Array.isArray(expensesRes) ? expensesRes : []);
       setListLoaded(true);
     } catch (err) {
       console.error("List fetch failed", err);
-      setListError(err.message || "Unable to load receipts and invoices.");
+      setListError(err.message || "Unable to load linked financial activity.");
       setListLoaded(false);
     } finally {
       setListLoading(false);
@@ -366,11 +356,10 @@ function AdminAccounting() {
   };
 
   useEffect(() => {
-    if (isMobileView && viewMode === "list") return;
-    if (viewMode !== "list" && viewMode !== "taxes") return;
+    if (viewMode !== "activity") return;
     if (listLoaded) return;
     fetchListData();
-  }, [viewMode, listLoaded, isMobileView]);
+  }, [viewMode, listLoaded]);
 
   const selectedHistoricalInputs = useMemo(
     () => historicalSalesDrafts[selectedHistoricalYear] || { ...MANUAL_SALES_DEFAULTS },
@@ -460,15 +449,11 @@ function AdminAccounting() {
     });
     return Array.from(totals.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [data?.cashflow, historicalSalesInWindow]);
-  const topProducts = useMemo(() => data?.topProducts || [], [data]);
   const totalRevenue = useMemo(() => data?.revenue || 0, [data]);
   const grossRevenue = useMemo(
     () => totalRevenue + historicalSalesWindowTotal,
     [historicalSalesWindowTotal, totalRevenue]
   );
-  const topProductsMax = useMemo(() => Math.max(...topProducts.map((p) => p.revenue || 0), 0), [topProducts]);
-  const topRentals = useMemo(() => data?.topRentals || [], [data]);
-  const topRentalsMax = useMemo(() => Math.max(...topRentals.map((p) => p.revenue || 0), 0), [topRentals]);
   const financeSummary = useMemo(() => data?.summary || null, [data]);
   const expenseWindowLabel = data?.expenseWindowLabel || data?.windowLabel || "";
   const hasHistoricalSalesInWindow = historicalSalesWindowTotal > 0;
@@ -478,10 +463,6 @@ function AdminAccounting() {
     : windowLabel
       ? `Daily revenue in ${windowLabel}`
       : "Daily revenue";
-  const cashflowPanelLabel = hasHistoricalSalesInWindow
-    ? "Live daily sales plus the saved historical carry-over you entered."
-    : "Fast SQL aggregation keeps this chart snappy at scale.";
-  const financeTransactions = useMemo(() => data?.transactions || [], [data]);
   const expenseBreakdown = useMemo(() => {
     const rows = Array.isArray(data?.expenseBreakdown) ? data.expenseBreakdown : [];
     const totals = new Map();
@@ -507,24 +488,33 @@ function AdminAccounting() {
     () => expenseBreakdown.reduce((sum, entry) => sum + toNumber(entry.amount), 0),
     [expenseBreakdown]
   );
+  const topExpenseCategories = useMemo(
+    () => [...expenseBreakdown].sort((a, b) => b.amount - a.amount).slice(0, 5),
+    [expenseBreakdown]
+  );
 
-  const windowStart = data?.startDate ? new Date(data.startDate) : null;
-  const windowEnd = data?.endDate ? new Date(data.endDate) : null;
-  const withinWindow = (value) => {
-    if (!windowStart || !windowEnd) return true;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-    return date >= windowStart && date < windowEnd;
-  };
+  const windowStart = useMemo(
+    () => (data?.startDate ? new Date(data.startDate) : null),
+    [data?.startDate]
+  );
+  const windowEnd = useMemo(
+    () => (data?.endDate ? new Date(data.endDate) : null),
+    [data?.endDate]
+  );
 
   const filteredOrders = useMemo(
-    () => orders.filter((order) => withinWindow(order.orderDate)),
+    () => orders.filter((order) => isWithinRange(order.orderDate, windowStart, windowEnd)),
     [orders, windowStart, windowEnd]
   );
 
   const filteredBookings = useMemo(
-    () => bookings.filter((booking) => withinWindow(booking.eventDate)),
+    () => bookings.filter((booking) => isWithinRange(booking.eventDate, windowStart, windowEnd)),
     [bookings, windowStart, windowEnd]
+  );
+
+  const filteredExpenses = useMemo(
+    () => expenses.filter((expense) => isWithinRange(expense.date, windowStart, windowEnd)),
+    [expenses, windowStart, windowEnd]
   );
 
   const listRows = useMemo(() => {
@@ -534,7 +524,9 @@ function AdminAccounting() {
       number: order.orderNumber || `ORD-${order.id}`,
       customer: order.customerName || "-",
       date: order.orderDate,
-      status: order.status || "pending",
+      status: order.status || "posted",
+      direction: "in",
+      detail: "Order",
       total: Number(order.total || 0),
     }));
     const bookingRows = filteredBookings.map((booking) => ({
@@ -543,11 +535,26 @@ function AdminAccounting() {
       number: `INV-${booking.id}`,
       customer: booking.customerName || "-",
       date: booking.eventDate,
-      status: booking.status || "pending",
+      status: booking.status || "confirmed",
+      direction: "in",
+      detail: "Booking",
       total: Number(booking.totalAmount || 0) / 100,
     }));
-    return [...orderRows, ...bookingRows].sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [filteredOrders, filteredBookings]);
+    const expenseRows = filteredExpenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      type: "Expense",
+      number: expense.category || "Expense",
+      customer: expense.description || "-",
+      date: expense.date,
+      status: expense.maintenanceStatus || "posted",
+      direction: "out",
+      detail: expense.category || "Expense",
+      total: Number(expense.amount || 0),
+    }));
+    return [...orderRows, ...bookingRows, ...expenseRows].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+  }, [filteredBookings, filteredExpenses, filteredOrders]);
 
   const receiptsTotal = useMemo(
     () => filteredOrders.reduce((sum, order) => sum + Number(order.total || 0), 0),
@@ -557,40 +564,14 @@ function AdminAccounting() {
     () => filteredBookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0) / 100, 0),
     [filteredBookings]
   );
+  const expensesTotal = useMemo(
+    () => filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+    [filteredExpenses]
+  );
   const combinedTotal = receiptsTotal + invoicesTotal;
-  const financeTransactionSummary = useMemo(() => {
-    const totals = financeTransactions.reduce(
-      (accumulator, item) => {
-        accumulator.count += 1;
-        accumulator.revenue += toNumber(item.revenue);
-        accumulator.unitCost += toNumber(item.unitCost);
-        accumulator.marginPct += toNumber(item.marginPct);
-        return accumulator;
-      },
-      { count: 0, revenue: 0, unitCost: 0, marginPct: 0 }
-    );
-
-    return {
-      ...totals,
-      averageUnitCost: totals.count ? totals.unitCost / totals.count : 0,
-      averageMarginPct: totals.count ? totals.marginPct / totals.count : 0,
-    };
-  }, [financeTransactions]);
-  const cashflowSpark = useMemo(() => {
-    if (!cashflowTrend.length) return { points: "", max: 0 };
-    const max = Math.max(...cashflowTrend.map((d) => d.revenue || 0), 0);
-    if (max <= 0) return { points: "", max };
-    const n = cashflowTrend.length;
-    const points = cashflowTrend
-      .map((entry, index) => {
-        const x = (index / Math.max(1, n - 1)) * 100;
-        const y = 100 - Math.min(100, (entry.revenue / max) * 100);
-        return `${x},${y}`;
-      })
-      .join(" ");
-    return { points, max };
-  }, [cashflowTrend]);
-
+  const linkedMoneyIn = combinedTotal;
+  const linkedNet = linkedMoneyIn - expensesTotal;
+  const recentLinkedRows = useMemo(() => listRows.slice(0, 8), [listRows]);
   const updateBalance = (field) => (event) => {
     const value = event.target.value;
     balanceInputsEditedRef.current = true;
@@ -925,21 +906,20 @@ function AdminAccounting() {
   };
 
   return (
-    <div className="accounting-page accounting-page--redesign">
-      <div className="accounting-shell accounting-shell--redesign">
+    <div className="accounting-page">
+      <div className="accounting-shell">
         <AdminBreadcrumb items={[{ label: "Accounting" }]} />
 
         <AdminPageHeader
-          eyebrow="Financial Intelligence"
           title="Accounting"
-          subtitle="Mostly automated for non-accountants: statements, reconciliations, and tax estimates refresh from live records."
-          actionsClassName="accounting-filters"
-          actions={
-            <>
+        />
+
+        <section className="glass-card accounting-toolbar" aria-label="Accounting controls">
+          <div className="accounting-filters accounting-toolbar-row">
             <div className="accounting-filters-left">
               <label className="accounting-filter">
                 Date filter
-                <select
+                <SelectField
                   value={windowKey}
                   onChange={(event) => {
                     const next = event.target.value;
@@ -960,23 +940,7 @@ function AdminAccounting() {
                   <option value="lastQuarter">Last quarter</option>
                   <option value="thisYear">This year</option>
                   <option value="lastYear">Last year</option>
-                </select>
-              </label>
-              <label className="accounting-filter">
-                Custom
-                <select
-                  onChange={(event) => {
-                    const preset = event.target.value;
-                    if (!preset) return;
-                    // custom presets reuse existing windows for speed; more can be added here
-                    if (preset === "holiday") fetchData("lastYear");
-                    if (preset === "flash") fetchData("today");
-                  }}
-                >
-                  <option value="">Compare…</option>
-                  <option value="holiday">Holiday season (last year)</option>
-                  <option value="flash">Weekend flash sale (today)</option>
-                </select>
+                </SelectField>
               </label>
             </div>
             <div className="accounting-right">
@@ -994,6 +958,15 @@ function AdminAccounting() {
                   <button
                     type="button"
                     role="tab"
+                    aria-selected={viewMode === "activity"}
+                    className={viewMode === "activity" ? "is-active" : ""}
+                    onClick={() => setViewMode("activity")}
+                  >
+                    Activity
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
                     aria-selected={viewMode === "statements"}
                     className={viewMode === "statements" ? "is-active" : ""}
                     onClick={() => setViewMode("statements")}
@@ -1003,40 +976,11 @@ function AdminAccounting() {
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={viewMode === "charts"}
-                    className={viewMode === "charts" ? "is-active" : ""}
-                    onClick={() => setViewMode("charts")}
-                  >
-                    Charts
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={viewMode === "kanban"}
-                    className={viewMode === "kanban" ? "is-active" : ""}
-                    onClick={() => setViewMode("kanban")}
-                  >
-                    Kanban
-                  </button>
-                  {!isMobileView && (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={viewMode === "list"}
-                      className={viewMode === "list" ? "is-active" : ""}
-                      onClick={() => setViewMode("list")}
-                    >
-                      List
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    role="tab"
                     aria-selected={viewMode === "taxes"}
                     className={viewMode === "taxes" ? "is-active" : ""}
                     onClick={() => setViewMode("taxes")}
                   >
-                    Taxes
+                    Tax
                   </button>
                 </div>
               </div>
@@ -1046,9 +990,8 @@ function AdminAccounting() {
                 </button>
               </div>
             </div>
-            </>
-          }
-        />
+          </div>
+        </section>
 
         {loading && <p className="accounting-status">Loading financial metrics…</p>}
         {!loading && isFetching && data && (
@@ -1084,7 +1027,7 @@ function AdminAccounting() {
           />
         )}
 
-        {!loading && !error && data && (
+        {!loading && !error && data && (viewMode === "statements" || viewMode === "taxes") && (
           <section className="accounting-panels accounting-panels-stack">
             <div className="glass-card accounting-panel">
               <div className="accounting-panel-head">
@@ -1098,7 +1041,7 @@ function AdminAccounting() {
                 <div className="accounting-panel-actions">
                   <label className="accounting-field">
                     Historical year
-                    <select
+                    <SelectField
                       value={selectedHistoricalYear}
                       onChange={(event) => changeHistoricalYear(event.target.value)}
                       disabled={!historicalSalesLoaded || historicalSalesSaving}
@@ -1108,7 +1051,7 @@ function AdminAccounting() {
                           {year}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                   <button
                     type="button"
@@ -1184,45 +1127,35 @@ function AdminAccounting() {
         {!loading && !error && data && viewMode === "overview" && (
           <>
             <section className="accounting-kpis">
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Gross revenue</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(grossRevenue)}</h3>
-                <p className="accounting-kpi-sub">Orders: {data.orders || 0}</p>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Money in</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(linkedMoneyIn)}</h3>
+                <p className="accounting-kpi-sub">{data.orders || 0} receipts · {data.bookings || 0} invoices</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Units sold</p>
-                <h3 className="accounting-kpi-value">{data.units || 0}</h3>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Money out</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(expensesTotal)}</h3>
+                <p className="accounting-kpi-sub">{expenseWindowLabel || data.windowLabel || ""}</p>
+              </div>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Gross profit</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(financeSummary?.grossProfit || 0)}</h3>
+                <p className="accounting-kpi-sub">Before expenses</p>
+              </div>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Net profit</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(financeSummary?.netProfit || 0)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Cash flow trend</p>
-                <h3 className="accounting-kpi-value">
-                  {cashflowTrend.length
-                    ? `${cashflowTrend.length} ${hasHistoricalSalesInWindow ? "point" : "day"}${
-                        cashflowTrend.length > 1 ? "s" : ""
-                      }`
-                    : "No data"}
-                </h3>
-                <p className="accounting-kpi-sub">{cashflowWindowLabel}</p>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Cash + bank</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(cashOnHand + bankBalance)}</h3>
+                <p className="accounting-kpi-sub">Working capital {formatCurrency(workingCapital)}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Bookings revenue</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(data.bookingRevenue || 0)}</h3>
-                <p className="accounting-kpi-sub">{data.bookings || 0} bookings</p>
-              </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Operating expenses</p>
-                <h3 className="accounting-kpi-value">
-                  {formatCurrency(financeSummary?.operatingExpenses || 0)}
-                </h3>
-                <p className="accounting-kpi-sub">{expenseWindowLabel}</p>
-              </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Net profit</p>
-                <h3 className="accounting-kpi-value">
-                  {formatCurrency(financeSummary?.netProfit || 0)}
-                </h3>
-                <p className="accounting-kpi-sub">After operating expenses</p>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Tax due</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(totalTaxDue)}</h3>
+                <p className="accounting-kpi-sub">Receivables {formatCurrency(accountsReceivable)}</p>
               </div>
             </section>
 
@@ -1230,9 +1163,9 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel accounting-panel--margins">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Automated reconciliation</p>
+                    <p className="accounting-panel-label">Snapshot</p>
                     <h3>Profit & loss snapshot</h3>
-                    <p className="accounting-panel-sub">COGS uses purchase prices to reveal true gross profit.</p>
+                    <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
                 {loading && !financeSummary ? (
@@ -1242,11 +1175,11 @@ function AdminAccounting() {
                 ) : financeSummary ? (
                   <div className="accounting-pnl">
                     <div className="accounting-pnl-row">
-                      <span>Retail sales revenue</span>
+                      <span>Receipts</span>
                       <span>{formatCurrency(financeSummary.revenue)}</span>
                     </div>
                     <div className="accounting-pnl-row">
-                      <span>Rental income (events)</span>
+                      <span>Booking invoices</span>
                       <span>{formatCurrency(financeSummary.rentalIncome)}</span>
                     </div>
                     <div className="accounting-pnl-row accounting-negative">
@@ -1293,43 +1226,46 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Sales reconciliation</p>
-                    <h3>Margins by product</h3>
-                    <p className="accounting-panel-sub">Margins show where profit is strongest.</p>
+                    <p className="accounting-panel-label">Activity</p>
+                    <h3>Linked money flow</h3>
+                    <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
-                {loading && !financeTransactions.length ? (
-                  <p className="accounting-muted">Calculating product margins…</p>
-                ) : error && !financeTransactions.length ? (
-                  <p className="accounting-error">{error}</p>
-                ) : financeTransactions.length === 0 ? (
-                  <p className="accounting-muted">No sales items in this window.</p>
+                {listError ? (
+                  <p className="accounting-error">{listError}</p>
+                ) : listLoading && !recentLinkedRows.length ? (
+                  <p className="accounting-muted">Loading linked activity…</p>
+                ) : recentLinkedRows.length === 0 ? (
+                  <p className="accounting-muted">No linked activity in this window.</p>
                 ) : (
-                  <div className="accounting-table">
-                    <table>
+                  <div className="accounting-table accounting-table-shell">
+                    <div className="admin-table-scroll">
+                      <table>
                       <thead>
                         <tr>
                           <th className="table-row-index">#</th>
-                          <th>Product</th>
-                          <th>Revenue</th>
-                          <th>Unit cost</th>
-                          <th>Margin</th>
+                          <th>Type</th>
+                          <th>Reference</th>
+                          <th>Contact</th>
+                          <th>Date</th>
+                          <th>Amount</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {financeTransactions.map((item, index) => (
+                        {recentLinkedRows.map((item, index) => (
                           <tr key={item.id}>
                             <td className="table-row-index">{index}</td>
+                            <td>{item.type}</td>
                             <td>
                               <div className="accounting-table-title">
-                                <strong>{item.name || "Untitled"}</strong>
-                                <span>{item.sku ? `SKU ${item.sku}` : "No SKU"} · {item.qty} units</span>
+                                <strong>{item.number || "—"}</strong>
+                                <span>{item.detail || "Linked"}</span>
                               </div>
                             </td>
-                            <td>{formatCurrency(item.revenue)}</td>
-                            <td>{formatCurrency(item.unitCost)}</td>
-                            <td className={item.marginPct >= 0 ? "accounting-positive" : "accounting-negative"}>
-                              {item.marginPct.toFixed(1)}%
+                            <td>{item.customer || "-"}</td>
+                            <td>{formatDate(item.date)}</td>
+                            <td className={`accounting-activity-amount ${item.direction === "out" ? "is-out" : "is-in"}`}>
+                              {item.direction === "out" ? "-" : ""}{formatCurrency(item.total)}
                             </td>
                           </tr>
                         ))}
@@ -1338,28 +1274,26 @@ function AdminAccounting() {
                         <tr>
                           <td className="admin-table-summary-cell is-count">
                             <span className="admin-table-summary-value">
-                              {financeTransactionSummary.count} products
+                              {listRows.length} records
                             </span>
                           </td>
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell">
                             <span className="admin-table-summary-value">
-                              {formatCurrency(financeTransactionSummary.revenue)}
+                              {filteredOrders.length} receipts · {filteredBookings.length} invoices · {filteredExpenses.length} expenses
                             </span>
                           </td>
-                          <td className="admin-table-summary-cell">
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell accounting-activity-footer-total">
                             <span className="admin-table-summary-value">
-                              {formatCurrency(financeTransactionSummary.averageUnitCost)}
-                            </span>
-                          </td>
-                          <td className="admin-table-summary-cell">
-                            <span className="admin-table-summary-value">
-                              {financeTransactionSummary.averageMarginPct.toFixed(1)}%
+                              {formatCurrency(linkedNet)}
                             </span>
                           </td>
                         </tr>
                       </tfoot>
-                    </table>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1369,157 +1303,125 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Income diversification</p>
-                    <h3>Retail vs. Rentals</h3>
-                    <p className="accounting-panel-sub">
-                      Track mix to decide where to promote. Retail {revenueSplit.retailPct}% / Rentals {revenueSplit.rentalPct}%.
-                    </p>
+                    <p className="accounting-panel-label">Linked totals</p>
+                    <h3>Where the money sits</h3>
+                    <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
-                <div className="accounting-split-bar">
-                  <span
-                    className="accounting-split retail"
-                    style={{ width: `${Math.max(revenueSplit.retailPct, 1)}%` }}
-                    title={`Retail ${formatCurrency(revenueSplit.retail)}`}
-                  />
-                  <span
-                    className="accounting-split rental"
-                    style={{ width: `${Math.max(revenueSplit.rentalPct, 1)}%` }}
-                    title={`Rentals ${formatCurrency(revenueSplit.rental)}`}
-                  />
-                  {revenueSplit.otherPct > 0 && (
-                    <span
-                      className="accounting-split other"
-                      style={{ width: `${Math.max(revenueSplit.otherPct, 1)}%` }}
-                      title={`Other ${formatCurrency(revenueSplit.other)}`}
-                    />
-                  )}
+                <div className="accounting-mini-grid">
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Receipts</p>
+                    <strong className="accounting-mini-value">{formatCurrency(receiptsTotal)}</strong>
+                    <span className="accounting-mini-sub">{filteredOrders.length} orders</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Invoices</p>
+                    <strong className="accounting-mini-value">{formatCurrency(invoicesTotal)}</strong>
+                    <span className="accounting-mini-sub">{filteredBookings.length} bookings</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Expenses</p>
+                    <strong className="accounting-mini-value">{formatCurrency(expensesTotal)}</strong>
+                    <span className="accounting-mini-sub">{filteredExpenses.length} entries</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Net</p>
+                    <strong className="accounting-mini-value">{formatCurrency(linkedNet)}</strong>
+                    <span className="accounting-mini-sub">In minus out</span>
+                  </div>
                 </div>
-                <div className="accounting-split-legend">
+                <div className="accounting-split-legend accounting-split-legend--finance">
                   <div>
                     <span className="dot retail" /> Retail {formatCurrency(revenueSplit.retail)}
                   </div>
                   <div>
                     <span className="dot rental" /> Rentals {formatCurrency(revenueSplit.rental)}
                   </div>
-                  {revenueSplit.other > 0 && (
-                    <div>
-                      <span className="dot other" /> Other {formatCurrency(revenueSplit.other)}
-                    </div>
-                  )}
+                  <div>
+                    <span className="dot other" /> Other {formatCurrency(revenueSplit.other)}
+                  </div>
                 </div>
-                <p className="accounting-hint">
-                  If retail is lagging rentals, consider a shop promotion to balance revenue.
-                </p>
               </div>
 
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Top selling products</p>
-                    <h3>Leaders this period</h3>
-                    <p className="accounting-panel-sub">Shows the highest earners by revenue.</p>
+                    <p className="accounting-panel-label">Expenses</p>
+                    <h3>Expense categories</h3>
+                    <p className="accounting-panel-sub">{expenseWindowLabel || data.windowLabel || ""}</p>
                   </div>
                 </div>
-                {topProducts.length === 0 ? (
-                  <p className="accounting-muted">No products sold in this window.</p>
+                {topExpenseCategories.length === 0 ? (
+                  <p className="accounting-muted">No expenses in this window.</p>
                 ) : (
-                  <ul className="accounting-list">
-                    {topProducts.map((product) => (
-                      <li key={product.id}>
-                        <div>
-                          <strong>{product.name || "Untitled"}</strong>
-                          <p className="accounting-muted">{product.sku ? `SKU ${product.sku}` : "No SKU"}</p>
+                  <div className="accounting-breakdown-list">
+                    {topExpenseCategories.map((entry) => (
+                      <div key={entry.category} className="accounting-breakdown-row">
+                        <div className="accounting-breakdown-meta">
+                          <span className="expenses-tag" style={getExpenseCategoryStyle(entry.category)}>
+                            {entry.category}
+                          </span>
+                          <small>
+                            {expenseBreakdownTotal > 0
+                              ? `${Math.round((entry.amount / expenseBreakdownTotal) * 100)}%`
+                              : "0%"}
+                          </small>
                         </div>
-                        <div className="accounting-list-meta">
-                          <span>{formatCurrency(product.revenue)}</span>
-                          <span>{product.units} units</span>
-                          {topProductsMax > 0 && (
-                            <div className="accounting-list-bar">
-                              <span
-                                style={{
-                                  width: `${Math.max(
-                                    6,
-                                    (product.revenue / Math.max(totalRevenue, topProductsMax || 1)) * 100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </li>
+                        <strong>{formatCurrency(entry.amount)}</strong>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
 
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Top booked rentals</p>
-                    <h3>Rental leaders</h3>
-                    <p className="accounting-panel-sub">Confirmed bookings in this window.</p>
+                    <p className="accounting-panel-label">Balance health</p>
+                    <h3>Cash, receivables, liabilities</h3>
+                    <p className="accounting-panel-sub">
+                      Assets {formatCurrency(totalAssets)} · Liabilities {formatCurrency(totalLiabilities)}
+                    </p>
                   </div>
                 </div>
-                {topRentals.length === 0 ? (
-                  <p className="accounting-muted">No rentals booked in this window.</p>
-                ) : (
-                  <ul className="accounting-list">
-                    {topRentals.map((rental) => (
-                      <li key={rental.id}>
-                        <div>
-                          <strong>{rental.name || "Untitled"}</strong>
-                          <p className="accounting-muted">{rental.sku ? `SKU ${rental.sku}` : "No SKU"}</p>
-                        </div>
-                        <div className="accounting-list-meta">
-                          <span>{formatCurrency(rental.revenue)}</span>
-                          <span>{rental.units} units</span>
-                          {topRentalsMax > 0 && (
-                            <div className="accounting-list-bar">
-                              <span
-                                style={{
-                                  width: `${Math.max(
-                                    6,
-                                    (rental.revenue / Math.max(data.bookingRevenue || 0, topRentalsMax || 1)) * 100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <div className="accounting-mini-grid">
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Current assets</p>
+                    <strong className="accounting-mini-value">{formatCurrency(currentAssets)}</strong>
+                    <span className="accounting-mini-sub">Cash, bank, stock, receivables</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Current liabilities</p>
+                    <strong className="accounting-mini-value">{formatCurrency(currentLiabilities)}</strong>
+                    <span className="accounting-mini-sub">Payables, tax, accrued</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Receivables</p>
+                    <strong className="accounting-mini-value">{formatCurrency(accountsReceivable)}</strong>
+                    <span className="accounting-mini-sub">Outstanding from customers</span>
+                  </div>
+                  <div className="bubble-card accounting-mini-card">
+                    <p className="accounting-mini-label">Working capital</p>
+                    <strong className="accounting-mini-value">{formatCurrency(workingCapital)}</strong>
+                    <span className="accounting-mini-sub">
+                      Current ratio {currentRatio ? currentRatio.toFixed(2) : "N/A"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Cash flow trend</p>
-                    <h3>Revenue trend</h3>
-                    <p className="accounting-panel-sub">{cashflowPanelLabel}</p>
+                    <p className="accounting-panel-label">Movement</p>
+                    <h3>Cash flow trend</h3>
+                    <p className="accounting-panel-sub">{cashflowWindowLabel}</p>
                   </div>
                 </div>
                 {cashflowTrend.length === 0 ? (
-                  <p className="accounting-muted">No orders in this window.</p>
+                  <p className="accounting-muted">No activity in this window.</p>
                 ) : (
                   <div className="accounting-trend">
-                    {cashflowSpark.points && (
-                      <div className="accounting-spark">
-                        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                          <polyline
-                            points={`0,100 ${cashflowSpark.points} 100,100`}
-                            className="accounting-spark-fill"
-                          />
-                          <polyline
-                            points={cashflowSpark.points}
-                            className="accounting-spark-line"
-                            fill="none"
-                          />
-                        </svg>
-                      </div>
-                    )}
                     {cashflowTrend.map((entry) => (
                       <div key={entry.date} className="accounting-trend-row">
                         <span>{new Date(entry.date).toLocaleDateString("en-GB", { month: "short", day: "2-digit" })}</span>
@@ -1543,24 +1445,24 @@ function AdminAccounting() {
         {!loading && !error && data && viewMode === "statements" && (
           <>
             <section className="accounting-kpis accounting-kpis-tight">
-              <div className="glass-card accounting-kpi-card">
+              <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Cash + bank</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(cashOnHand + bankBalance)}</h3>
                 <p className="accounting-kpi-sub">Working capital {formatCurrency(workingCapital)}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
+              <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Current ratio</p>
                 <h3 className="accounting-kpi-value">
                   {currentRatio ? currentRatio.toFixed(2) : "N/A"}
                 </h3>
                 <p className="accounting-kpi-sub">Quick ratio {quickRatio ? quickRatio.toFixed(2) : "N/A"}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
+              <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Period net profit</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(periodNetProfit)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
+              <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Taxable sales</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(taxableSales)}</h3>
                 <p className="accounting-kpi-sub">VAT rate {Math.round(vatTotalRate * 1000) / 10}%</p>
@@ -1944,347 +1846,106 @@ function AdminAccounting() {
           </>
         )}
 
-        {!loading && !error && data && viewMode === "charts" && (
+        {!loading && !error && data && viewMode === "activity" && (
           <>
-            <section className="accounting-kpis">
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Gross revenue</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(grossRevenue)}</h3>
+            <section className="accounting-kpis accounting-kpis-tight accounting-kpis-activity">
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Receipts</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(receiptsTotal)}</h3>
+                <p className="accounting-kpi-sub">{filteredOrders.length} orders</p>
+              </div>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Invoices</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(invoicesTotal)}</h3>
+                <p className="accounting-kpi-sub">{filteredBookings.length} bookings</p>
+              </div>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Expenses</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(expensesTotal)}</h3>
+                <p className="accounting-kpi-sub">{filteredExpenses.length} entries</p>
+              </div>
+              <div className="bubble-card accounting-kpi-card">
+                <p className="accounting-kpi-label">Net</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(linkedNet)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
-              <div className="glass-card accounting-kpi-card">
-                <p className="accounting-kpi-label">Retail vs Rentals</p>
-                <h3 className="accounting-kpi-value">
-                  {revenueSplit.retailPct}% / {revenueSplit.rentalPct}%
-                </h3>
-                <p className="accounting-kpi-sub">Income diversification</p>
-              </div>
             </section>
 
-            <section className="accounting-panels charts-only">
-              <div className="glass-card accounting-panel">
-                <div className="accounting-panel-head">
-                  <div>
-                    <p className="accounting-panel-label">Revenue mix</p>
-                    <h3>Retail vs. Rentals</h3>
-                    <p className="accounting-panel-sub">Spot imbalances and run promotions where needed.</p>
-                  </div>
-                </div>
-                <div className="accounting-split-bar">
-                  <span
-                    className="accounting-split retail"
-                    style={{ width: `${Math.max(revenueSplit.retailPct, 1)}%` }}
-                    title={`Retail ${formatCurrency(revenueSplit.retail)}`}
-                  />
-                  <span
-                    className="accounting-split rental"
-                    style={{ width: `${Math.max(revenueSplit.rentalPct, 1)}%` }}
-                    title={`Rentals ${formatCurrency(revenueSplit.rental)}`}
-                  />
-                  {revenueSplit.otherPct > 0 && (
-                    <span
-                      className="accounting-split other"
-                      style={{ width: `${Math.max(revenueSplit.otherPct, 1)}%` }}
-                      title={`Other ${formatCurrency(revenueSplit.other)}`}
-                    />
-                  )}
-                </div>
-                <div className="accounting-split-legend">
-                  <div>
-                    <span className="dot retail" /> Retail {formatCurrency(revenueSplit.retail)}
-                  </div>
-                  <div>
-                    <span className="dot rental" /> Rentals {formatCurrency(revenueSplit.rental)}
-                  </div>
-                  {revenueSplit.other > 0 && (
-                    <div>
-                      <span className="dot other" /> Other {formatCurrency(revenueSplit.other)}
-                    </div>
-                  )}
-                </div>
+            <section className="glass-card accounting-table accounting-list-table accounting-table-shell">
+              <div className="accounting-table-title">
+                <h3>Linked activity</h3>
+                <span>{data.windowLabel || ""}</span>
               </div>
-
-              <div className="glass-card accounting-panel">
-                <div className="accounting-panel-head">
-                  <div>
-                    <p className="accounting-panel-label">Cash flow</p>
-                    <h3>Sparkline</h3>
-                    <p className="accounting-panel-sub">{cashflowPanelLabel}</p>
-                  </div>
+              {listError && <p className="accounting-error">{listError}</p>}
+              {listLoading ? (
+                <p className="accounting-status">Loading receipts, invoices, and expenses…</p>
+              ) : (
+                <div className="admin-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th className="table-row-index">#</th>
+                        <th>Type</th>
+                        <th>Reference</th>
+                        <th>Contact</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {listRows.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="accounting-empty">
+                            No linked financial activity in this window.
+                          </td>
+                        </tr>
+                      )}
+                      {listRows.map((row, index) => (
+                        <tr key={row.id}>
+                          <td className="table-row-index">{index}</td>
+                          <td>{row.type}</td>
+                          <td>
+                            <div className="accounting-table-title">
+                              <strong>{row.number}</strong>
+                              <span>{row.detail}</span>
+                            </div>
+                          </td>
+                          <td>{row.customer}</td>
+                          <td>{formatDate(row.date)}</td>
+                          <td>{row.status}</td>
+                          <td className={`accounting-activity-amount ${row.direction === "out" ? "is-out" : "is-in"}`}>
+                            {row.direction === "out" ? "-" : ""}{formatCurrency(row.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {listRows.length > 0 && (
+                      <tfoot className="admin-table-footer">
+                        <tr>
+                          <td className="admin-table-summary-cell is-count">
+                            <span className="admin-table-summary-value">{listRows.length} documents</span>
+                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell">
+                            <span className="admin-table-summary-value">
+                              {filteredOrders.length} receipts · {filteredBookings.length} invoices · {filteredExpenses.length} expenses
+                            </span>
+                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell is-empty" />
+                          <td className="admin-table-summary-cell accounting-activity-footer-total">
+                            <span className="admin-table-summary-value">{formatCurrency(linkedNet)}</span>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
                 </div>
-                {cashflowSpark.points ? (
-                  <div className="accounting-spark large">
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <polyline
-                        points={`0,100 ${cashflowSpark.points} 100,100`}
-                        className="accounting-spark-fill"
-                      />
-                      <polyline
-                        points={cashflowSpark.points}
-                        className="accounting-spark-line"
-                        fill="none"
-                      />
-                    </svg>
-                  </div>
-                ) : (
-                  <p className="accounting-muted">No cash flow data this window.</p>
-                )}
-              </div>
-
-              <div className="glass-card accounting-panel">
-                <div className="accounting-panel-head">
-                  <div>
-                    <p className="accounting-panel-label">Top products</p>
-                    <h3>Revenue bars</h3>
-                    <p className="accounting-panel-sub">See leaders at a glance.</p>
-                  </div>
-                </div>
-                {topProducts.length === 0 ? (
-                  <p className="accounting-muted">No products sold in this window.</p>
-                ) : (
-                  <ul className="accounting-list">
-                    {topProducts.map((product) => (
-                      <li key={product.id}>
-                        <div>
-                          <strong>{product.name || "Untitled"}</strong>
-                          <p className="accounting-muted">{product.sku ? `SKU ${product.sku}` : "No SKU"}</p>
-                        </div>
-                        <div className="accounting-list-meta">
-                          <span>{formatCurrency(product.revenue)}</span>
-                          <div className="accounting-list-bar">
-                            <span
-                              style={{
-                                width: `${Math.max(
-                                  6,
-                                  (product.revenue / Math.max(totalRevenue, topProductsMax || 1)) * 100
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="glass-card accounting-panel">
-                <div className="accounting-panel-head">
-                  <div>
-                    <p className="accounting-panel-label">Top rentals</p>
-                    <h3>Booked revenue</h3>
-                    <p className="accounting-panel-sub">Confirmed bookings this window.</p>
-                  </div>
-                </div>
-                {topRentals.length === 0 ? (
-                  <p className="accounting-muted">No rentals booked in this window.</p>
-                ) : (
-                  <ul className="accounting-list">
-                    {topRentals.map((rental) => (
-                      <li key={rental.id}>
-                        <div>
-                          <strong>{rental.name || "Untitled"}</strong>
-                          <p className="accounting-muted">{rental.sku ? `SKU ${rental.sku}` : "No SKU"}</p>
-                        </div>
-                        <div className="accounting-list-meta">
-                          <span>{formatCurrency(rental.revenue)}</span>
-                          <div className="accounting-list-bar">
-                            <span
-                              style={{
-                                width: `${Math.max(
-                                  6,
-                                  (rental.revenue / Math.max(data.bookingRevenue || 0, topRentalsMax || 1)) * 100
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              )}
             </section>
           </>
-        )}
-
-        {!loading && !error && data && viewMode === "kanban" && (
-          <section className="accounting-kanban">
-            <div className="accounting-kanban-column">
-              <h4>Revenue</h4>
-              <div className="glass-card accounting-kanban-card">
-                <p className="accounting-muted">{data.windowLabel || ""}</p>
-                <h3>{formatCurrency(grossRevenue)}</h3>
-                <p className="accounting-panel-sub">Orders {data.orders || 0}</p>
-              </div>
-              <div className="glass-card accounting-kanban-card">
-                <p className="accounting-muted">Retail</p>
-                <h3>{formatCurrency(revenueSplit.retail)}</h3>
-              </div>
-              <div className="glass-card accounting-kanban-card">
-                <p className="accounting-muted">Rentals</p>
-                <h3>{formatCurrency(revenueSplit.rental)}</h3>
-              </div>
-            </div>
-            <div className="accounting-kanban-column">
-              <h4>Top products</h4>
-              {topProducts.length === 0 ? (
-                <p className="accounting-muted">No products sold.</p>
-              ) : (
-                topProducts.map((product) => (
-                  <div key={product.id} className="glass-card accounting-kanban-card">
-                    <strong>{product.name || "Untitled"}</strong>
-                    <p className="accounting-muted">{product.sku ? `SKU ${product.sku}` : "No SKU"}</p>
-                    <div className="accounting-list-bar">
-                      <span
-                        style={{
-                          width: `${Math.max(
-                            6,
-                            (product.revenue / Math.max(totalRevenue, topProductsMax || 1)) * 100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="accounting-panel-sub">
-                      {formatCurrency(product.revenue)} · {product.units} units
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="accounting-kanban-column">
-              <h4>Cash flow</h4>
-              {cashflowTrend.length === 0 ? (
-                <p className="accounting-muted">No orders in this window.</p>
-              ) : (
-                <div className="glass-card accounting-kanban-card">
-                  {cashflowSpark.points && (
-                    <div className="accounting-spark small">
-                      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <polyline
-                          points={`0,100 ${cashflowSpark.points} 100,100`}
-                          className="accounting-spark-fill"
-                        />
-                        <polyline
-                          points={cashflowSpark.points}
-                          className="accounting-spark-line"
-                          fill="none"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                  <ul className="accounting-list compact">
-                    {cashflowTrend.slice(-6).map((entry) => (
-                      <li key={entry.date}>
-                        <div>
-                          <strong>{new Date(entry.date).toLocaleDateString("en-GB", { month: "short", day: "2-digit" })}</strong>
-                        </div>
-                        <div className="accounting-list-meta">
-                          <span>{formatCurrency(entry.revenue)}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="accounting-kanban-column">
-              <h4>Top rentals</h4>
-              {topRentals.length === 0 ? (
-                <p className="accounting-muted">No rentals booked.</p>
-              ) : (
-                topRentals.map((rental) => (
-                  <div key={rental.id} className="glass-card accounting-kanban-card">
-                    <strong>{rental.name || "Untitled"}</strong>
-                    <p className="accounting-muted">{rental.sku ? `SKU ${rental.sku}` : "No SKU"}</p>
-                    <div className="accounting-list-bar">
-                      <span
-                        style={{
-                          width: `${Math.max(
-                            6,
-                            (rental.revenue / Math.max(data.bookingRevenue || 0, topRentalsMax || 1)) * 100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="accounting-panel-sub">
-                      {formatCurrency(rental.revenue)} · {rental.units} units
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        )}
-
-        {!loading && !error && data && viewMode === "list" && (
-          <section className="accounting-table accounting-list-table">
-            <div className="accounting-table-title">
-              <h3>Receipts & invoices</h3>
-              <span>{data.windowLabel || ""}</span>
-            </div>
-            {listError && <p className="accounting-error">{listError}</p>}
-            {listLoading ? (
-              <p className="accounting-status">Loading receipts and invoices…</p>
-            ) : (
-              <div className="admin-table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="table-row-index">#</th>
-                      <th>Type</th>
-                      <th>Number</th>
-                      <th>Customer</th>
-                      <th>Date</th>
-                      <th>Status</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listRows.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="accounting-empty">
-                          No receipts or invoices in this window.
-                        </td>
-                      </tr>
-                    )}
-                    {listRows.map((row, index) => (
-                      <tr key={row.id}>
-                        <td className="table-row-index">{index}</td>
-                        <td>{row.type}</td>
-                        <td>{row.number}</td>
-                        <td>{row.customer}</td>
-                        <td>{formatDate(row.date)}</td>
-                        <td>{row.status}</td>
-                        <td>{formatCurrency(row.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {listRows.length > 0 && (
-                    <tfoot className="admin-table-footer">
-                      <tr>
-                        <td className="admin-table-summary-cell is-count">
-                          <span className="admin-table-summary-value">{listRows.length} documents</span>
-                        </td>
-                        <td className="admin-table-summary-cell is-empty" />
-                        <td className="admin-table-summary-cell">
-                          <span className="admin-table-summary-value">
-                            {filteredOrders.length} receipts · {filteredBookings.length} invoices
-                          </span>
-                        </td>
-                        <td className="admin-table-summary-cell is-empty" />
-                        <td className="admin-table-summary-cell is-empty" />
-                        <td className="admin-table-summary-cell is-empty" />
-                        <td className="admin-table-summary-cell">
-                          <span className="admin-table-summary-value">{formatCurrency(combinedTotal)}</span>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            )}
-          </section>
         )}
 
         {!loading && !error && data && viewMode === "taxes" && (
@@ -2477,7 +2138,7 @@ function AdminAccounting() {
               <div className="accounting-form-grid">
                 <label className="accounting-field">
                   Corporate tax category
-                  <select
+                  <SelectField
                     value={corporateCategory}
                     onChange={updateCorporateCategory}
                   >
@@ -2488,7 +2149,7 @@ function AdminAccounting() {
                     <option value="bankAgriLeasing">Banks lending to agri/leasing (20%)</option>
                     <option value="lottery">Lottery operators (20%)</option>
                     <option value="custom">Custom rate</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label className="accounting-field">
                   Corporate tax rate
@@ -2501,7 +2162,7 @@ function AdminAccounting() {
                 </label>
                 <label className="accounting-field">
                   GSL category
-                  <select
+                  <SelectField
                     value={ghanaTaxConfig.gslCategory}
                     onChange={updateGhanaTax("gslCategory")}
                   >
@@ -2510,7 +2171,7 @@ function AdminAccounting() {
                     <option value="categoryBGold">Category B (gold) · 3% gross production</option>
                     <option value="categoryBOther">Category B (other) · 1% gross production</option>
                     <option value="categoryC">Category C · 2.5% of PBT</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label className="accounting-field accounting-check">
                   Apply FSRL (banks)

@@ -182,7 +182,13 @@ const SideNav = ({
                     onClick={handleSelect}
                   >
                     <span className="nav-link-main">
-                      <Icon size={18} variant="Linear" className="nav-icon" />
+                      <Icon
+                        size={18}
+                        color="currentColor"
+                        variant="Linear"
+                        className="nav-icon"
+                        aria-hidden="true"
+                      />
                       <span>{item.label}</span>
                     </span>
                     {hasNotification ? (

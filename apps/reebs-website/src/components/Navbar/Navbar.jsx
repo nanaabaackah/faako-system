@@ -1,4 +1,5 @@
 import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { SelectField } from "@faako/ui";
 import "./Navbar.css";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../AuthContext/AuthContext";
@@ -527,10 +528,10 @@ const Navbar = ({ scrollContainerRef }) => {
   );
 
   const renderCurrencySelect = (className = '') => (
-    <select
+    <SelectField
       value={currency}
       onChange={(event) => setCurrency(event.target.value)}
-      className={`navbar-currency-select ${className}`.trim()}
+      inputClassName={`navbar-currency-select ${className}`.trim()}
       aria-label="Set global currency"
       title="Set global currency"
     >
@@ -539,7 +540,7 @@ const Navbar = ({ scrollContainerRef }) => {
           {code}
         </option>
       ))}
-    </select>
+    </SelectField>
   );
 
   const renderAuthAction = (onClick) => {

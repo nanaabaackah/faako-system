@@ -101,6 +101,43 @@ const parseEnvBoolean = (value, fallback = false) => {
   return ["true", "1", "yes", "on"].includes(normalized);
 };
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+const scheduleChunkedTimeout = (callback, delayMs) => {
+  const handle = {
+    canceled: false,
+    timerId: null,
+  };
+
+  const scheduleNextChunk = (remainingMs) => {
+    if (handle.canceled) return;
+    const normalizedDelay = Math.max(0, Math.trunc(remainingMs));
+    const nextDelay = Math.min(normalizedDelay, MAX_TIMER_DELAY_MS);
+
+    handle.timerId = setTimeout(async () => {
+      handle.timerId = null;
+      if (handle.canceled) return;
+      if (normalizedDelay > MAX_TIMER_DELAY_MS) {
+        scheduleNextChunk(normalizedDelay - nextDelay);
+        return;
+      }
+      await callback();
+    }, nextDelay);
+  };
+
+  scheduleNextChunk(delayMs);
+  return handle;
+};
+
+const clearChunkedTimeout = (handle) => {
+  if (!handle) return;
+  handle.canceled = true;
+  if (handle.timerId) {
+    clearTimeout(handle.timerId);
+    handle.timerId = null;
+  }
+};
+
 const normalizeSameSite = (value, fallback = "lax") => {
   const normalized = String(value || fallback)
     .trim()
@@ -309,6 +346,8 @@ const devOrigins = isProduction
   ? productionExtraOrigins
   : [
       "http://localhost:5173",
+      "http://localhost:5177",
+      "http://192.168.100.17:5177",
       "http://127.0.0.1:5173",
       "http://localhost:4173",
       "http://localhost:8888",
@@ -3129,7 +3168,7 @@ const scheduleWeeklyReportEmail = () => {
   }
 
   if (weeklyReportState.timeoutId) {
-    clearTimeout(weeklyReportState.timeoutId);
+    clearChunkedTimeout(weeklyReportState.timeoutId);
     weeklyReportState.timeoutId = null;
   }
 
@@ -3150,7 +3189,7 @@ const scheduleWeeklyReportEmail = () => {
     const delay = Math.max(nextRun.getTime() - Date.now(), 0);
     weeklyReportState.lastScheduledFor = nextRun.toISOString();
 
-    weeklyReportState.timeoutId = setTimeout(async () => {
+    weeklyReportState.timeoutId = scheduleChunkedTimeout(async () => {
       weeklyReportState.timeoutId = null;
       await runWeeklyReportEmail();
       scheduleNext().catch((error) => {
@@ -3185,6 +3224,10 @@ const accountingReminderState = {
   timeoutId: null,
 };
 const reportConfigFallbackStore = new Map();
+const reportConfigWarningState = {
+  missingTableWarned: false,
+  fallbackPersistenceWarned: false,
+};
 
 const REPORT_KEYS = {
   WEEKLY_KPI: "weekly_kpi",
@@ -3430,6 +3473,23 @@ const isReportConfigFallbackPersistenceError = (error) =>
   isMissingReportConfigTableError(error) ||
   isPrismaErrorInstance(error, "PrismaClientValidationError");
 
+const warnMissingReportConfigTable = () => {
+  if (reportConfigWarningState.missingTableWarned) return;
+  reportConfigWarningState.missingTableWarned = true;
+  console.warn(
+    "Report config table missing. Falling back to default report settings until the report-config migrations are applied. Run `pnpm --filter @faako/dev-erp run db:deploy:dev` for the local database."
+  );
+};
+
+const warnReportConfigFallbackPersistence = (key, error) => {
+  if (reportConfigWarningState.fallbackPersistenceWarned) return;
+  reportConfigWarningState.fallbackPersistenceWarned = true;
+  console.warn(
+    `Report config persistence is using in-memory fallback for ${key} until the report-config migrations are applied.`,
+    error?.message || error
+  );
+};
+
 const getFallbackReportConfig = (key) => {
   if (!reportConfigFallbackStore.has(key)) return null;
   return reportConfigFallbackStore.get(key);
@@ -3608,7 +3668,7 @@ const getStoredReportConfigMap = async () => {
     return new Map(storedConfigs.map((config) => [config.key, config]));
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Falling back to default report templates.");
+      warnMissingReportConfigTable();
       return new Map(
         keys
           .map((key) => [key, getFallbackReportConfig(key)])
@@ -3629,7 +3689,7 @@ const getResolvedReportTemplate = async (key) => {
     return mergeReportTemplate(definition, storedConfig);
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Using default template values.");
+      warnMissingReportConfigTable();
       return mergeReportTemplate(definition, getFallbackReportConfig(key));
     }
     throw error;
@@ -3646,7 +3706,7 @@ const getResolvedReportSchedule = async (key) => {
     return mergeReportSchedule(definition, storedConfig);
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Using default schedule values.");
+      warnMissingReportConfigTable();
       return mergeReportSchedule(definition, getFallbackReportConfig(key));
     }
     throw error;
@@ -3663,7 +3723,7 @@ const getResolvedReportScheduleType = async (key) => {
     return normalizeReportScheduleType(storedConfig?.scheduleFrequency, definition);
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Using default frequency values.");
+      warnMissingReportConfigTable();
       return normalizeReportScheduleType(getFallbackReportConfig(key)?.scheduleFrequency, definition);
     }
     throw error;
@@ -3680,7 +3740,7 @@ const getResolvedReportContentOptions = async (key) => {
     return mergeReportContentOptions(definition, storedConfig);
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Using default content options.");
+      warnMissingReportConfigTable();
       return mergeReportContentOptions(definition, getFallbackReportConfig(key));
     }
     throw error;
@@ -3697,7 +3757,7 @@ const getResolvedReportEnabled = async (key) => {
     return mergeReportEnabled(definition, storedConfig);
   } catch (error) {
     if (isMissingReportConfigTableError(error)) {
-      console.warn("Report config table missing. Using default enabled state.");
+      warnMissingReportConfigTable();
       return mergeReportEnabled(definition, getFallbackReportConfig(key));
     }
     throw error;
@@ -4194,7 +4254,7 @@ const scheduleRentMonthlyUpdates = () => {
   }
 
   if (rentMonthlyUpdateState.timeoutId) {
-    clearTimeout(rentMonthlyUpdateState.timeoutId);
+    clearChunkedTimeout(rentMonthlyUpdateState.timeoutId);
     rentMonthlyUpdateState.timeoutId = null;
   }
 
@@ -4209,7 +4269,7 @@ const scheduleRentMonthlyUpdates = () => {
     const delay = Math.max(nextRun.getTime() - Date.now(), 0);
     rentMonthlyUpdateState.lastScheduledFor = nextRun.toISOString();
 
-    rentMonthlyUpdateState.timeoutId = setTimeout(async () => {
+    rentMonthlyUpdateState.timeoutId = scheduleChunkedTimeout(async () => {
       rentMonthlyUpdateState.timeoutId = null;
       try {
         await runRentMonthlyTenantUpdates();
@@ -4248,7 +4308,7 @@ const scheduleAccountingReminderEmails = () => {
   }
 
   if (accountingReminderState.timeoutId) {
-    clearTimeout(accountingReminderState.timeoutId);
+    clearChunkedTimeout(accountingReminderState.timeoutId);
     accountingReminderState.timeoutId = null;
   }
 
@@ -4263,7 +4323,7 @@ const scheduleAccountingReminderEmails = () => {
     const delay = Math.max(nextRun.getTime() - Date.now(), 0);
     accountingReminderState.lastScheduledFor = nextRun.toISOString();
 
-    accountingReminderState.timeoutId = setTimeout(async () => {
+    accountingReminderState.timeoutId = scheduleChunkedTimeout(async () => {
       accountingReminderState.timeoutId = null;
       try {
         await runAccountingScheduledPaymentReminders();
@@ -5403,10 +5463,10 @@ app.patch("/api/reports/:key", authMiddleware, requireAdmin, async (req, res) =>
     });
   } catch (error) {
     if (isReportConfigFallbackPersistenceError(error)) {
-      console.warn(
-        `Falling back to in-memory report config storage for ${key}.`,
-        error?.message || error
-      );
+      if (isMissingReportConfigTableError(error)) {
+        warnMissingReportConfigTable();
+      }
+      warnReportConfigFallbackPersistence(key, error);
       reportConfigFallbackStore.set(key, {
         key,
         isEnabled: normalizedEnabled,

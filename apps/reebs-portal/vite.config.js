@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
+import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -23,6 +24,13 @@ export default defineConfig(({ mode }) => {
         "/.netlify/functions": {
           target: backendBaseUrl,
           changeOrigin: true,
+        },
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: createManualChunks(),
         },
       },
     },

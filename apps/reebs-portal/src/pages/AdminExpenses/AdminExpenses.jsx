@@ -1,11 +1,13 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useState } from "react";
+import { DateField, SelectField } from "@faako/ui";
 import "./AdminExpenses.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faReceipt } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { useLocation } from "react-router-dom";
 import {
   EXPENSE_CATEGORY_LABELS,
   getExpenseSpecificOptions,
@@ -64,7 +66,12 @@ const formatExpenseLink = (expense) => {
 };
 
 function AdminExpenses() {
+  const location = useLocation();
   const { user } = useAuth();
+  const requestedBookingId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get("bookingId") || "").trim();
+  }, [location.search]);
   const [expenses, setExpenses] = useState([]);
   const [orders, setOrders] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -82,7 +89,7 @@ function AdminExpenses() {
     description: "",
     date: new Date().toISOString().slice(0, 10),
     orderId: "",
-    bookingId: "",
+    bookingId: requestedBookingId,
   });
 
   useEffect(() => {
@@ -165,32 +172,42 @@ function AdminExpenses() {
     fetchExpenses({ month: monthFilter, allTime: allTimeView });
   }, [monthFilter, allTimeView]);
 
+  useEffect(() => {
+    if (!requestedBookingId) return;
+    setForm((prev) => (prev.bookingId === requestedBookingId ? prev : { ...prev, bookingId: requestedBookingId }));
+  }, [requestedBookingId]);
+
+  const visibleExpenses = useMemo(() => {
+    if (!requestedBookingId) return expenses;
+    return expenses.filter((expense) => String(expense?.bookingId || "") === requestedBookingId);
+  }, [expenses, requestedBookingId]);
+
   const categoryList = EXPENSE_CATEGORY_LABELS;
 
   const totalExpenses = useMemo(
-    () => expenses.reduce((sum, expense) => sum + toNumber(expense.amount) / 100, 0),
-    [expenses]
+    () => visibleExpenses.reduce((sum, expense) => sum + toNumber(expense.amount) / 100, 0),
+    [visibleExpenses]
   );
 
   const linkedExpenseCount = useMemo(
-    () => expenses.filter((expense) => expense?.orderId || expense?.bookingId).length,
-    [expenses]
+    () => visibleExpenses.filter((expense) => expense?.orderId || expense?.bookingId).length,
+    [visibleExpenses]
   );
 
   const averageExpense = useMemo(
-    () => (expenses.length ? totalExpenses / expenses.length : 0),
-    [expenses.length, totalExpenses]
+    () => (visibleExpenses.length ? totalExpenses / visibleExpenses.length : 0),
+    [totalExpenses, visibleExpenses.length]
   );
 
   const totalsByCategory = useMemo(() => {
     return categoryList.reduce((acc, category) => {
-      const total = expenses
+      const total = visibleExpenses
         .filter((item) => normalizeExpenseCategory(item.category) === category)
         .reduce((sum, item) => sum + toNumber(item.amount) / 100, 0);
       acc[category] = total;
       return acc;
     }, {});
-  }, [categoryList, expenses]);
+  }, [categoryList, visibleExpenses]);
 
   const periodLabel = useMemo(
     () => (allTimeView ? "All time" : formatMonthLabel(monthFilter)),
@@ -198,7 +215,7 @@ function AdminExpenses() {
   );
 
   const topCategory = useMemo(() => {
-    if (!expenses.length || !categoryList.length) return null;
+    if (!visibleExpenses.length || !categoryList.length) return null;
     let winner = null;
     for (const category of categoryList) {
       const total = toNumber(totalsByCategory[category], 0);
@@ -207,7 +224,7 @@ function AdminExpenses() {
       }
     }
     return winner?.total > 0 ? winner : null;
-  }, [categoryList, expenses.length, totalsByCategory]);
+  }, [categoryList, totalsByCategory, visibleExpenses.length]);
 
   const specificOptions = useMemo(
     () => getExpenseSpecificOptions(form.category),
@@ -306,13 +323,13 @@ function AdminExpenses() {
         <section className="expenses-overview" aria-label="Expense summary">
           <article className="expenses-overview-metric">
             <p className="expenses-card-label">Entries</p>
-            <strong>{expenses.length}</strong>
-            <span>{periodLabel}</span>
+            <strong>{visibleExpenses.length}</strong>
+            <span>{requestedBookingId ? `Booking #${requestedBookingId}` : periodLabel}</span>
           </article>
           <article className="expenses-overview-metric">
             <p className="expenses-card-label">Linked</p>
             <strong>{linkedExpenseCount}</strong>
-            <span>{Math.max(expenses.length - linkedExpenseCount, 0)} unlinked</span>
+            <span>{Math.max(visibleExpenses.length - linkedExpenseCount, 0)} unlinked</span>
           </article>
           <article className="expenses-overview-metric">
             <p className="expenses-card-label">Average spend</p>
@@ -382,7 +399,7 @@ function AdminExpenses() {
             <form className="expenses-form" onSubmit={handleSubmit}>
               <label>
                 Category
-                <select
+                <SelectField
                   value={form.category}
                   onChange={updateCategory}
                 >
@@ -391,12 +408,12 @@ function AdminExpenses() {
                       {category}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               {requiresSpecificOption && (
                 <label>
                   {specificFieldLabel}
-                  <select
+                  <SelectField
                     value={form.specificType}
                     onChange={(event) => setForm((prev) => ({ ...prev, specificType: event.target.value }))}
                     required
@@ -407,7 +424,7 @@ function AdminExpenses() {
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
               )}
               <label>
@@ -423,8 +440,7 @@ function AdminExpenses() {
               </label>
               <label>
                 Date
-                <input
-                  type="date"
+                <DateField
                   value={form.date}
                   onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))}
                   required
@@ -433,7 +449,7 @@ function AdminExpenses() {
               <div className="expenses-inline">
                 <label>
                   Link order (optional)
-                  <select
+                  <SelectField
                     value={form.orderId}
                     onChange={(event) => setForm((prev) => ({ ...prev, orderId: event.target.value }))}
                   >
@@ -443,11 +459,11 @@ function AdminExpenses() {
                         {`${formatDate(order.orderDate)} - Order #${order.id} - ${order.customerName || "-"}`}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Link booking (optional)
-                  <select
+                  <SelectField
                     value={form.bookingId}
                     onChange={(event) => setForm((prev) => ({ ...prev, bookingId: event.target.value }))}
                   >
@@ -459,7 +475,7 @@ function AdminExpenses() {
                         }`}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
               </div>
               <label>
@@ -485,7 +501,7 @@ function AdminExpenses() {
                 <h3>
                   <AppIcon icon={faReceipt} /> Expense ledger
                 </h3>
-                <span>{expenses.length} records</span>
+                <span>{visibleExpenses.length} records</span>
               </div>
               <div className="expenses-actions">
                 <button
@@ -495,7 +511,7 @@ function AdminExpenses() {
                 >
                   Refresh
                 </button>
-                {expenses.length === 0 && !loading && (
+                {visibleExpenses.length === 0 && !loading && (
                   <button
                     type="button"
                     className="expenses-secondary"
@@ -526,14 +542,14 @@ function AdminExpenses() {
                         Loading expenses...
                       </td>
                     </tr>
-                  ) : expenses.length === 0 ? (
+                  ) : visibleExpenses.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="expenses-empty">
                         No expenses logged yet.
                       </td>
                     </tr>
                   ) : (
-                    expenses.map((expense, index) => (
+                    visibleExpenses.map((expense, index) => (
                       <tr key={expense.id}>
                         <td className="table-row-index" data-label="#">{index}</td>
                         <td data-label="Date">{formatDate(expense.date)}</td>
@@ -549,11 +565,11 @@ function AdminExpenses() {
                     ))
                   )}
                 </tbody>
-                {!loading && expenses.length > 0 && (
+                {!loading && visibleExpenses.length > 0 && (
                   <tfoot className="admin-table-footer">
                     <tr>
                       <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{expenses.length} expenses</span>
+                        <span className="admin-table-summary-value">{visibleExpenses.length} expenses</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />

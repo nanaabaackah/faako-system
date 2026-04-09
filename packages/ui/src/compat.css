@@ -1,0 +1,284 @@
+[data-faako-theme] :where(
+  .panel,
+  .module-card,
+  .dashboard-module-card,
+  .glass-card,
+  .bubble-card,
+  .kpi-card,
+  .metric-card,
+  .dashboard-brief-card
+) {
+  color: var(--sys-text);
+  border: 1px solid var(--sys-border-strong) !important;
+  background-color: transparent !important;
+  box-shadow: var(--sys-shadow-md) !important;
+  backdrop-filter: blur(18px) saturate(1.06) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
+}
+
+[data-faako-theme] :where(.panel, .module-card, .dashboard-module-card, .glass-card) {
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-sm) !important;
+}
+
+[data-faako-theme] :where(.bubble-card, .kpi-card, .metric-card, .dashboard-brief-card) {
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-lg) !important;
+}
+
+[data-faako-theme] :where(.glass-card) {
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-sm) !important;
+}
+
+html[data-faako-theme] body.admin-theme .portal-app-content :where(.bubble-card) {
+  border: 1px solid var(--sys-border-strong) !important;
+  background-color: transparent !important;
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-lg) !important;
+  box-shadow: var(--sys-shadow-md) !important;
+  backdrop-filter: blur(18px) saturate(1.06) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
+}
+
+html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) {
+  border: 1px solid var(--sys-border-strong) !important;
+  background-color: transparent !important;
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-sm) !important;
+  box-shadow: var(--sys-shadow-md) !important;
+  backdrop-filter: blur(18px) saturate(1.06) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
+}
+
+[data-faako-theme] :where(.panel-header, .admin-table-header, .bookings-panel-header) {
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+[data-faako-theme] :where(.panel-header h3, .admin-table-header h3, .bookings-panel-header h3) {
+  margin: 0;
+  color: var(--sys-text);
+  font-family: var(--sys-font-display);
+}
+
+[data-faako-theme] :where(.panel-header p, .admin-table-header p, .admin-table-header span, .bookings-panel-header p) {
+  color: var(--sys-muted);
+}
+
+[data-faako-theme] :where(.panel, .module-card, .dashboard-module-card, .glass-card, .bubble-card) > :is(
+  .panel-header,
+  .admin-table-header,
+  .bookings-panel-header,
+  .module-card-header,
+  .dashboard-module-header,
+  .section-header,
+  [class$="-panel-header"],
+  [class$="-panel-head"],
+  [class$="-card-head"]
+) {
+  width: 100% !important;
+  box-sizing: border-box;
+  padding-bottom: 1rem !important;
+  margin-bottom: 1rem !important;
+  border-bottom: 1px solid var(--sys-border) !important;
+}
+
+[data-faako-theme] :where(.data-table, .admin-table, [class*="table-wrapper"], [class*="table-shell"]) {
+  border: 1px solid var(--sys-border) !important;
+  border-top-left-radius: var(--sys-radius-lg) !important;
+  border-top-right-radius: var(--sys-radius-lg) !important;
+  border-bottom-left-radius: var(--sys-radius-sm) !important;
+  border-bottom-right-radius: var(--sys-radius-sm) !important;
+  background-color: var(--sys-surface-strong) !important;
+  box-shadow: var(--sys-shadow-sm) !important;
+}
+
+[data-faako-theme] :where(.data-table) {
+  gap: 0 !important;
+}
+
+[data-faako-theme] :where(.data-table .table-row, .admin-table tbody tr, table[class*="table"] tbody tr) {
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+[data-faako-theme] :where(.data-table .table-row:not(.table-head)) {
+  background-color: inherit;
+}
+
+[data-faako-theme] :where(.data-table .table-row:not(.table-head):hover, .admin-table tbody tr:hover, .admin-table tbody tr:focus-within, table[class*="table"] tbody tr:hover, table[class*="table"] tbody tr:focus-within) {
+  background-color: var(--sys-accent-soft) !important;
+}
+
+[data-faako-theme] :where(.data-table .table-row:not(.table-head)) {
+  padding-inline: 1rem !important;
+}
+
+[data-faako-theme] :where(.data-table .table-row.table-head, .admin-table thead th, table[class*="table"] thead th) {
+  color: var(--sys-muted) !important;
+  background-color: var(--sys-bg-elevated) !important;
+  font-size: 0.74rem !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--sys-border) !important;
+}
+
+[data-faako-theme] :where(.data-table .table-row.table-head) {
+  padding: 0.95rem 1rem !important;
+}
+
+[data-faako-theme] :where(.admin-table table, table[class*="table"]) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--sys-text);
+}
+
+[data-faako-theme] :where(.admin-table tbody td, .admin-table tfoot td, table[class*="table"] tbody td, table[class*="table"] tfoot td) {
+  color: var(--sys-text) !important;
+  border-bottom: 1px solid var(--sys-border) !important;
+}
+
+[data-faako-theme] :where(.admin-table tfoot td, table[class*="table"] tfoot td, .admin-table-footer .admin-table-summary-cell) {
+  background-color: var(--sys-bg-elevated) !important;
+  color: var(--sys-text) !important;
+  font-weight: 700;
+}
+
+[data-faako-theme] :where(.table-strong, .admin-table-summary-value) {
+  color: var(--sys-text) !important;
+  font-weight: 700;
+}
+
+[data-faako-theme] :where(.status-pill, .ui-status-pill) {
+  color: var(--sys-text) !important;
+  background-color: var(--sys-bg-elevated) !important;
+  border: 1px solid var(--sys-border-strong) !important;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+[data-faako-theme] :where(.status-pill.is-warning) {
+  color: var(--sys-warning) !important;
+  background-color: var(--sys-warning-soft) !important;
+  border-color: var(--sys-warning) !important;
+}
+
+[data-faako-theme] :where(.status-pill.is-danger) {
+  color: var(--sys-danger) !important;
+  background-color: var(--sys-danger-soft) !important;
+  border-color: var(--sys-danger) !important;
+}
+
+[data-faako-theme] :where(.status-pill.is-success) {
+  color: var(--sys-success) !important;
+  background-color: var(--sys-success-soft) !important;
+  border-color: var(--sys-success) !important;
+}
+
+[data-faako-theme] :where(.status-pill.is-info) {
+  color: var(--sys-info) !important;
+  background-color: var(--sys-info-soft) !important;
+  border-color: var(--sys-info) !important;
+}
+
+@media (max-width: 720px) {
+  [data-faako-theme] :where(
+    .panel,
+    .module-card,
+    .dashboard-module-card,
+    .glass-card,
+    .bubble-card,
+    .kpi-card,
+    .metric-card,
+    .dashboard-brief-card
+  ) > :is(
+    .panel-header,
+    .admin-table-header,
+    .bookings-panel-header,
+    .module-card-header,
+    .dashboard-module-header,
+    .section-header,
+    [class$="-panel-header"],
+    [class$="-panel-head"],
+    [class$="-card-head"]
+  ) {
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  [data-faako-theme] :where(.data-table .table-row:not(.table-head)) {
+    padding-inline: 0.75rem !important;
+  }
+
+  [data-faako-theme] :where(.data-table .table-row.table-head) {
+    padding: 0.8rem 0.75rem !important;
+  }
+
+  [data-faako-theme] :where(.admin-table thead th, table[class*="table"] thead th) {
+    font-size: 0.7rem !important;
+  }
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  .ui-card,
+  .ui-empty-state,
+  .ui-date-field__popover,
+  .ui-dropdown-field__popover,
+  .ui-modal-frame__panel,
+  .ui-inline-notice,
+  .ui-notice-banner,
+  .ui-toast,
+  .ui-data-table__scroll,
+  .admin-table-footer .admin-table-summary-cell
+) {
+  background: var(--admin-card) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  .ui-field__control,
+  .ui-date-field__trigger,
+  .ui-dropdown-field__trigger,
+  .ui-search-field__input,
+  .ui-button--secondary,
+  .ui-button--ghost,
+  .ui-icon-button,
+  .ui-date-field__nav,
+  .ui-date-field__action,
+  .ui-dropdown-field__footer-action
+) {
+  background: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(.ui-data-table thead th, .ui-data-table tfoot td) {
+  background-color: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  .ui-field__prefix,
+  .ui-field__suffix,
+  .ui-field__caret,
+  .ui-date-field__icon,
+  .ui-dropdown-field__caret,
+  .ui-search-field__icon,
+  .ui-search-field__clear
+) {
+  color: var(--admin-muted) !important;
+}

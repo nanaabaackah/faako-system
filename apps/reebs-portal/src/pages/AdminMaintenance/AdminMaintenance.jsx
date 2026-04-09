@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./AdminMaintenance.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faWrench, faPlus, faRotateRight } from "/src/icons/iconSet";
+import { SelectField } from "@faako/ui";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
@@ -244,11 +245,12 @@ function AdminMaintenance() {
             <form className="maintenance-form" onSubmit={handleSubmit}>
               <label>
                 Asset
-                <select
+                <SelectField
                   value={form.productId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, productId: event.target.value }))}
+                  onChangeValue={(nextValue) => setForm((prev) => ({ ...prev, productId: String(nextValue) }))}
                   required
                   disabled={productsLoading}
+                  ariaLabel="Select asset"
                 >
                   <option value="">{productsLoading ? "Loading assets..." : "Select a product"}</option>
                   {sortedProducts.map((product) => (
@@ -256,7 +258,7 @@ function AdminMaintenance() {
                       {product.name} {product.sku ? `(${product.sku})` : ""}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label>
                 Issue description
@@ -271,15 +273,16 @@ function AdminMaintenance() {
               <div className="maintenance-row">
                 <label>
                   Type
-                  <select
+                  <SelectField
                     value={form.type}
-                    onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))}
+                    onChangeValue={(nextValue) => setForm((prev) => ({ ...prev, type: String(nextValue) }))}
+                    ariaLabel="Maintenance type"
                   >
                     <option value="repair">Repair</option>
                     <option value="cleaning">Cleaning</option>
                     <option value="inspection">Inspection</option>
                     <option value="replacement">Replacement</option>
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Cost (GHS)

@@ -99,7 +99,7 @@ export default function Vendors() {
 
       <div className="kpi-grid">
         {vendorStats.map((stat) => (
-          <article className="panel kpi-card" key={stat.id}>
+          <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
             <span className={`kpi-delta is-${stat.tone}`}>{stat.delta}</span>
@@ -108,7 +108,7 @@ export default function Vendors() {
       </div>
 
       <div className="page-grid">
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Vendor list</h3>
@@ -142,7 +142,7 @@ export default function Vendors() {
         </article>
 
         <div className="stack">
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Purchase approvals</h3>
@@ -160,7 +160,7 @@ export default function Vendors() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Contract renewals</h3>

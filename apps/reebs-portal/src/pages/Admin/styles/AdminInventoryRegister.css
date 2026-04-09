@@ -127,17 +127,17 @@
   border-color: transparent;
 }
 
-.inventory-register-filter-select select {
+.inventory-register-filter-control {
+  width: 100%;
+}
+
+.inventory-register-filter-control .ui-dropdown-field__trigger {
   display: block;
   width: 100%;
   min-width: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
   border: 0;
   border-radius: 0;
   background: transparent;
-  background-image: none;
   box-shadow: none;
   padding: 0 1.9rem 0 0;
   min-height: 1.35rem;
@@ -153,13 +153,20 @@
   white-space: nowrap;
 }
 
-.inventory-register-filter-select select:focus {
-  outline: none;
-  border-color: transparent;
+.inventory-register-filter-control .ui-dropdown-field__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.inventory-register-filter-select select::-ms-expand {
+.inventory-register-filter-control .ui-dropdown-field__caret {
   display: none;
+}
+
+.inventory-register-filter-control .ui-dropdown-field__trigger:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .inventory-register-filter-select select option {

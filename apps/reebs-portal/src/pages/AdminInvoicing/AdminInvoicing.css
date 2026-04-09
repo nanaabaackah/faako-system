@@ -243,6 +243,82 @@
   color: #b91c1c;
 }
 
+.invoice-hub-mobile-list {
+  display: none;
+}
+
+.invoice-hub-mobile-card {
+  gap: 12px;
+}
+
+.invoice-hub-mobile-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.invoice-hub-mobile-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.invoice-hub-mobile-card-copy strong,
+.invoice-hub-mobile-card-copy p,
+.invoice-hub-mobile-card-source {
+  min-width: 0;
+}
+
+.invoice-hub-mobile-card-copy strong {
+  overflow-wrap: anywhere;
+}
+
+.invoice-hub-mobile-card-copy p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-hub-mobile-card-index {
+  color: var(--text-subtle);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invoice-hub-mobile-card-aside {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  align-items: start;
+  flex: 0 0 auto;
+}
+
+.invoice-hub-mobile-card-total {
+  font-size: 1rem;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.invoice-hub-mobile-card-meta,
+.invoice-hub-mobile-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.invoice-hub-mobile-card-source {
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .invoice-hub-layout {
   display: grid;
   grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
@@ -1615,6 +1691,14 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
 }
 
 @media (max-width: 720px) {
+  .invoice-document-shell {
+    gap: 14px;
+  }
+
+  .invoice-document-layout {
+    gap: 14px;
+  }
+
   .invoice-hub-header-actions {
     width: 100%;
     justify-content: center;
@@ -1630,11 +1714,22 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
 
   .invoice-hub-toolbar-filters {
     width: 100%;
+    justify-content: stretch;
+    gap: 10px;
   }
 
   .invoice-hub-toolbar-filter {
     min-width: 0;
-    flex: 1 1 calc(50% - 6px);
+    flex: 1 1 100%;
+  }
+
+  .invoice-hub-table-scroll {
+    display: none;
+  }
+
+  .invoice-hub-mobile-list {
+    display: grid;
+    gap: 12px;
   }
 
   .invoice-hub-editor,
@@ -1644,6 +1739,10 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
   .invoice-document-preview,
   .invoice-editable-paper {
     padding: 16px;
+  }
+
+  .invoice-hub-editor {
+    gap: 14px;
   }
 
   .invoice-editor-lightbox-panel,
@@ -1671,6 +1770,22 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
     align-items: flex-start;
   }
 
+  .invoice-hub-editor-head > div,
+  .invoice-builder-block-head > div,
+  .invoice-editable-lines-head > div,
+  .invoice-editable-section-head > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .invoice-hub-editor-head h2,
+  .invoice-builder-block-head h3,
+  .invoice-editable-lines-head h4,
+  .invoice-editable-section-head h4,
+  .invoice-document-pagination-label {
+    overflow-wrap: anywhere;
+  }
+
   .invoice-hub-editor-actions {
     width: 100%;
     justify-content: stretch;
@@ -1679,6 +1794,13 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
   .invoice-document-pagination {
     flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 12px;
+  }
+
+  .invoice-document-pagination-nav {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .invoice-editable-actions {
@@ -1702,18 +1824,36 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
     align-items: flex-start;
   }
 
+  .invoice-editable-paper {
+    gap: 16px;
+  }
+
+  .invoice-editable-header {
+    gap: 14px;
+  }
+
   .invoice-editable-meta-wrap {
     width: 100%;
     justify-items: start;
     text-align: left;
+    gap: 10px;
   }
 
   .invoice-sent-banner {
-    top: 0.9rem;
-    right: -1px;
-    min-width: 4.9rem;
+    position: static;
+    top: auto;
+    right: auto;
+    align-self: flex-start;
+    min-width: 0;
     min-height: 2rem;
-    padding-inline: 0.95rem 0.9rem;
+    padding: 0.45rem 0.85rem;
+    border-right: 1px solid rgba(16, 185, 129, 0.28);
+    border-radius: 999px;
+    margin-bottom: 0.1rem;
+  }
+
+  .invoice-sent-banner::after {
+    display: none;
   }
 
   .invoice-editable-meta,
@@ -1727,8 +1867,351 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
     grid-template-columns: 1fr;
   }
 
+  .invoice-editable-status {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .invoice-editable-chip-row {
+    width: 100%;
+    padding: 12px 14px;
+  }
+
   .invoice-editable-table td.invoice-editable-col-actions {
     text-align: left;
+  }
+
+  .invoice-editable-lines-panel {
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .invoice-editable-top-grid,
+  .invoice-editable-card,
+  .invoice-editable-lines-panel,
+  .invoice-editable-table-shell,
+  .invoice-editable-table-wrapper,
+  .invoice-product-picker,
+  .invoice-customer-picker {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .invoice-editable-table-wrapper {
+    overflow: visible;
+    overflow-y: visible;
+    padding-bottom: 0;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table {
+    min-width: 0;
+    width: 100%;
+    table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table thead,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tfoot,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table thead,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tfoot {
+    display: none;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tr,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table td,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tr,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid color-mix(in srgb, var(--admin-border) 86%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--admin-surface, var(--card)) 92%, transparent);
+    padding: 12px;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note),
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    align-items: start;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) td,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) td {
+    display: block;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border-bottom: none;
+    box-sizing: border-box;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-add {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-description {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-description::before {
+    display: none;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-actions {
+    grid-column: 3;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-qty,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-price,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-unit,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-total {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    gap: 6px;
+    text-align: left !important;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-description > *,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-qty > *,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-price > *,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-unit > *,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-total > * {
+    min-width: 0;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-description input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-qty input {
+    width: 100%;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker-input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty input {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker-input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder input,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty input {
+    min-height: 2.7rem;
+    height: 2.7rem;
+    padding-inline: 0.8rem;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-price .invoice-editable-static-field,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-unit .invoice-editable-static-field,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-total strong {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-price .invoice-editable-static-field,
+  .invoice-editable-table tbody tr.invoice-editable-table-row:not(.is-heading):not(.is-note) .invoice-editable-col-unit .invoice-editable-static-field {
+    justify-content: flex-start;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading,
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-note {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading td,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row.is-note td,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading td,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row.is-note td {
+    display: block;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border-bottom: none;
+    box-sizing: border-box;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading td::before,
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-note td::before {
+    display: none;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading .invoice-editable-col-add,
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-note .invoice-editable-col-add {
+    grid-column: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading .invoice-editable-col-merged,
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-note .invoice-editable-col-merged {
+    grid-column: 2;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-heading .invoice-editable-col-actions,
+  .invoice-editable-table tbody tr.invoice-editable-table-row.is-note .invoice-editable-col-actions {
+    grid-column: 3;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    align-items: start;
+  }
+
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-description {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-description::before {
+    display: none;
+  }
+
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-actions {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty,
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-unit,
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-price,
+  .invoice-editable-table.invoice-extras-table tbody tr.invoice-editable-table-row .invoice-editable-col-total {
+    grid-column: 1 / -1;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tr,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table td,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tr,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table td {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-description,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-price,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-unit,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-total,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-merged,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-description,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-price,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-unit,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-total,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-merged {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker-input,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder input,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder input,
+  body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty input,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-product-picker-input,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-heading-builder input,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-note-builder input,
+  body.admin-theme .admin-table-scroll.inventory-table-scroll.invoice-editable-table-wrapper .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-qty input {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-add > .invoice-editable-row-add,
+  .invoice-editable-table tbody tr.invoice-editable-table-row .invoice-editable-col-actions > .invoice-hub-line-remove {
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+  }
+
+  .invoice-editable-note-block {
+    padding-right: 0;
+    border-right: none;
+    padding-bottom: 14px;
+    border-bottom: 1px solid color-mix(in srgb, var(--admin-border) 86%, transparent);
+  }
+
+  .invoice-editable-summary-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .invoice-editable-summary .invoice-totals {
+    width: 100%;
   }
 
   .invoice-hub-line-row {
@@ -1753,5 +2236,47 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
   .invoice-builder-origin {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .invoice-builder-origin span,
+  .invoice-builder-origin strong {
+    overflow-wrap: anywhere;
+  }
+
+  .invoice-customer-picker-menu,
+  .invoice-product-picker-menu {
+    max-height: min(240px, 44vh);
+  }
+}
+
+@media (max-width: 420px) {
+  .invoice-hub-editor,
+  .invoice-hub-preview-card,
+  .invoice-hub-list-card,
+  .invoice-hub-table,
+  .invoice-document-preview,
+  .invoice-editable-paper,
+  .invoice-builder-block {
+    padding: 14px;
+  }
+
+  .invoice-hub-mobile-card-head {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-hub-mobile-card-aside {
+    justify-items: start;
+  }
+
+  .invoice-hub-mobile-card-total {
+    text-align: left;
+  }
+
+  .invoice-document-pagination-button,
+  .invoice-hub-action {
+    width: 2.65rem;
+    height: 2.65rem;
+    min-width: 2.65rem;
+    min-height: 2.65rem;
   }
 }

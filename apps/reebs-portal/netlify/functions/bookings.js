@@ -20,11 +20,20 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import {
+  buildResponseHeaders,
+  isAllowedAppOrigin,
+  isCrossSiteBrowserRequest,
+} from "./_shared/http.js";
+import {
   buildCustomerBookingEmailHtml,
   buildCustomerBookingEmailText,
   buildInternalBookingEmailHtml,
   buildInternalBookingEmailText,
 } from "./_shared/transactionEmailTemplates.js";
+
+const BOOKING_METHODS = "GET,POST,PUT,OPTIONS";
+const MAX_BOOKING_ITEMS = 100;
+const ALLOWED_BOOKING_STATUSES = new Set(["pending", "confirmed", "completed", "cancelled"]);
 
 const formatAmount = (value) => {
   const parsed = Number(value);
@@ -95,15 +104,143 @@ const buildBookingWhatsAppLines = (booking) => {
 const BUNDLE_MIN_ITEMS = 3;
 const BUNDLE_DISCOUNT_RATE = 0.1;
 
-const json = (statusCode, body, extraHeaders = {}) => ({
+const json = (event, statusCode, body, options = {}) => ({
   statusCode,
   headers: {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    ...extraHeaders,
+    ...buildResponseHeaders(event, {
+      methods: BOOKING_METHODS,
+      ...options,
+    }),
   },
   body: JSON.stringify(body),
 });
+
+const getHeaderValue = (event, key) => {
+  const headers = event?.headers;
+  if (!headers || typeof headers !== "object") return "";
+  return String(
+    headers[key]
+      || headers[key.toLowerCase()]
+      || headers[key.toUpperCase()]
+      || ""
+  ).trim();
+};
+
+const cleanText = (value, maxLength = 240) => {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength);
+};
+
+const normalizeBookingStatusValue = (value, fallback = "pending") => {
+  const normalized = cleanText(value, 32).toLowerCase();
+  if (!normalized) return fallback;
+  if (normalized === "canceled") return "cancelled";
+  return ALLOWED_BOOKING_STATUSES.has(normalized) ? normalized : fallback;
+};
+
+const normalizeTimeValue = (value) => {
+  const cleaned = cleanText(value, 32);
+  return cleaned || null;
+};
+
+const compactSelectColumns = `
+  SELECT
+    b.id,
+    b."customerId",
+    c.name AS "customerName",
+    c.email AS "customerEmail",
+    c.phone AS "customerPhone",
+    b."eventDate",
+    b."startTime",
+    b."endTime",
+    b."venueAddress",
+    b."totalAmount",
+    b.status,
+    b."createdAt",
+    b."lastModifiedAt",
+    b."updatedAt"
+  FROM "booking" b
+  JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
+`;
+
+const fullSelectColumns = `
+  SELECT
+    b.id,
+    b."customerId",
+    c.name AS "customerName",
+    c.email AS "customerEmail",
+    c.phone AS "customerPhone",
+    b."eventDate",
+    b."startTime",
+    b."endTime",
+    b."venueAddress",
+    b."totalAmount",
+    b.status,
+    b."createdAt",
+    b."lastModifiedAt",
+    b."updatedAt",
+    b."assignedUserId",
+    b."createdByUserId",
+    b."updatedByUserId",
+    assignee."fullName" AS "assignedUserName",
+    updater."fullName" AS "updatedByName",
+    creator."fullName" AS "createdByName",
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', bi.id,
+          'productId', bi."productId",
+          'quantity', bi.quantity,
+          'price', bi.price,
+          'productName', p.name,
+          'productImage', p."imageUrl"
+        )
+        ORDER BY bi.id
+      ) FILTER (WHERE bi.id IS NOT NULL),
+      '[]'::json
+    ) AS items
+  FROM "booking" b
+  JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
+  LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
+  LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
+  LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
+  LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
+  LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
+`;
+
+const selectBookings = async (client, organizationId, { compact = false } = {}) => {
+  if (compact) {
+    const result = await client.query(
+      `${compactSelectColumns}
+       WHERE b."organizationId" = $1
+       ORDER BY b."eventDate" DESC, b.id DESC`,
+      [organizationId]
+    );
+    return result.rows || [];
+  }
+
+  const result = await client.query(
+    `${fullSelectColumns}
+     WHERE b."organizationId" = $1
+     GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
+     ORDER BY b."eventDate" DESC, b.id DESC`,
+    [organizationId]
+  );
+  return result.rows || [];
+};
+
+const selectBookingById = async (client, organizationId, bookingId) => {
+  const result = await client.query(
+    `${fullSelectColumns}
+     WHERE b.id = $1
+       AND b."organizationId" = $2
+     GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
+     LIMIT 1`,
+    [bookingId, organizationId]
+  );
+  return result.rows[0] || null;
+};
 
 const ensureBookingSequence = async (client) => {
   try {
@@ -166,11 +303,10 @@ export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-      },
+      headers: buildResponseHeaders(event, {
+        methods: BOOKING_METHODS,
+        allowHeaders: "Content-Type, Authorization, X-Organization-Id",
+      }),
       body: "",
     };
   }
@@ -185,14 +321,27 @@ export async function handler(event) {
     const authUser = await requireUser(client, event);
     let data = null;
     if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
+      const contentType = getHeaderValue(event, "content-type").toLowerCase();
+      if (contentType && !contentType.includes("application/json")) {
+        return json(event, 415, { error: "Content-Type must be application/json." });
+      }
       try {
         data = JSON.parse(event.body || "{}");
       } catch {
-        return json(400, { error: "Invalid JSON body." });
+        return json(event, 400, { error: "Invalid JSON body." });
       }
     }
     if (!authUser && event.httpMethod !== "POST") {
-      return json(401, { error: "Unauthorized" });
+      return json(event, 401, { error: "Unauthorized" });
+    }
+    if (!authUser && event.httpMethod === "POST") {
+      const requestOrigin = getHeaderValue(event, "origin");
+      if (requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
+        return json(event, 403, { error: "Untrusted booking origin." });
+      }
+      if (isCrossSiteBrowserRequest(event) && requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
+        return json(event, 403, { error: "Cross-site bookings are not allowed." });
+      }
     }
     const organizationId = authUser
       ? authUser.organizationId
@@ -206,84 +355,21 @@ export async function handler(event) {
     }
 
     if (event.httpMethod === "GET") {
+      const bookingId = Number(event.queryStringParameters?.id);
       const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
-      const result = compact
-        ? await client.query(
-            `SELECT
-               b.id,
-               b."customerId",
-               c.name AS "customerName",
-               c.email AS "customerEmail",
-               c.phone AS "customerPhone",
-               b."eventDate",
-               b."startTime",
-               b."endTime",
-               b."venueAddress",
-               b."totalAmount",
-               b.status,
-               b."createdAt",
-               b."lastModifiedAt",
-               b."updatedAt"
-             FROM "booking" b
-             JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
-             WHERE b."organizationId" = $1
-             ORDER BY b."eventDate" DESC, b.id DESC`,
-            [organizationId]
-          )
-        : await client.query(
-            `SELECT
-               b.id,
-               b."customerId",
-               c.name AS "customerName",
-               c.email AS "customerEmail",
-               c.phone AS "customerPhone",
-               b."eventDate",
-               b."startTime",
-               b."endTime",
-               b."venueAddress",
-               b."totalAmount",
-               b.status,
-               b."createdAt",
-               b."lastModifiedAt",
-               b."updatedAt",
-               b."assignedUserId",
-               b."createdByUserId",
-               b."updatedByUserId",
-               assignee."fullName" AS "assignedUserName",
-               updater."fullName" AS "updatedByName",
-               creator."fullName" AS "createdByName",
-                COALESCE(
-                  json_agg(
-                    json_build_object(
-                     'id', bi.id,
-                     'productId', bi."productId",
-                     'quantity', bi.quantity,
-                     'price', bi.price,
-                     'productName', p.name,
-                     'productImage', p."imageUrl"
-                   )
-                   ORDER BY bi.id
-                 ) FILTER (WHERE bi.id IS NOT NULL),
-                 '[]'::json
-               ) AS items
-             FROM "booking" b
-             JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
-             LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
-             LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
-             LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
-             LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
-             LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
-             WHERE b."organizationId" = $1
-             GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
-             ORDER BY b."eventDate" DESC, b.id DESC`,
-            [organizationId]
-          );
-
-      return json(200, result.rows);
+      if (Number.isFinite(bookingId) && bookingId > 0) {
+        const booking = await selectBookingById(client, organizationId, bookingId);
+        if (!booking) {
+          return json(event, 404, { error: "Booking not found." });
+        }
+        return json(event, 200, booking);
+      }
+      const results = await selectBookings(client, organizationId, { compact });
+      return json(event, 200, results);
     }
 
     if (event.httpMethod !== "POST" && event.httpMethod !== "PUT") {
-      return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS" });
+      return json(event, 405, { error: "Method Not Allowed" });
     }
 
     const parseDate = (value) => {
@@ -292,12 +378,21 @@ export async function handler(event) {
       return Number.isNaN(date.getTime()) ? null : date;
     };
 
-    const customerId = Number(data.customerId);
-    const eventDate = parseDate(data.eventDate);
-    const startTime = typeof data.startTime === "string" ? data.startTime.trim() : null;
-    const endTime = typeof data.endTime === "string" ? data.endTime.trim() : null;
-    const venueAddress = typeof data.venueAddress === "string" ? data.venueAddress.trim() : "";
-    const status = typeof data.status === "string" && data.status.trim() ? data.status.trim() : "pending";
+    const hasItemsPayload = Array.isArray(data.items);
+    const requestedCustomerId = Number(data.customerId);
+    const requestedEventDate = parseDate(data.eventDate);
+    const requestedStartTime = Object.prototype.hasOwnProperty.call(data, "startTime")
+      ? normalizeTimeValue(data.startTime)
+      : undefined;
+    const requestedEndTime = Object.prototype.hasOwnProperty.call(data, "endTime")
+      ? normalizeTimeValue(data.endTime)
+      : undefined;
+    const requestedVenueAddress = Object.prototype.hasOwnProperty.call(data, "venueAddress")
+      ? cleanText(data.venueAddress, 240)
+      : undefined;
+    const requestedStatus = Object.prototype.hasOwnProperty.call(data, "status")
+      ? normalizeBookingStatusValue(data.status)
+      : undefined;
     const assignedUserIdRaw = data.assignedUserId;
     const hasAssignedUser = Object.prototype.hasOwnProperty.call(data, "assignedUserId");
     const items = Array.isArray(data.items) ? data.items : [];
@@ -305,23 +400,53 @@ export async function handler(event) {
     let discountValue = Number.isFinite(Number(data.discount)) ? Math.max(0, Number(data.discount)) : 0;
     const applyBundleDiscount = data.applyBundleDiscount === true;
 
-    if (!Number.isFinite(customerId)) return json(400, { error: "customerId is required." });
-    if (!eventDate) return json(400, { error: "eventDate is required." });
-    if (!venueAddress) return json(400, { error: "venueAddress is required." });
-
     const normalizedItems = items
+      .slice(0, MAX_BOOKING_ITEMS)
       .map((item) => ({
         productId: Number(item.productId),
         quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
         price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price)) : null,
       }))
       .filter((item) => Number.isFinite(item.productId));
+    let bookingId = null;
+    let existingBooking = null;
 
-    if (normalizedItems.length === 0) {
-      return json(400, { error: "At least one booking item is required." });
+    if (event.httpMethod === "PUT") {
+      bookingId = Number(data.id);
+      if (!Number.isFinite(bookingId)) {
+        return json(event, 400, { error: "id is required for update." });
+      }
+      existingBooking = await selectBookingById(client, organizationId, bookingId);
+      if (!existingBooking) {
+        return json(event, 404, { error: "Booking not found." });
+      }
     }
 
-    let bundleEligible = normalizedItems.length >= BUNDLE_MIN_ITEMS;
+    const customerId = Number.isFinite(requestedCustomerId) ? requestedCustomerId : Number(existingBooking?.customerId);
+    const eventDate = requestedEventDate || parseDate(existingBooking?.eventDate);
+    const startTime =
+      requestedStartTime !== undefined ? requestedStartTime : normalizeTimeValue(existingBooking?.startTime);
+    const endTime =
+      requestedEndTime !== undefined ? requestedEndTime : normalizeTimeValue(existingBooking?.endTime);
+    const venueAddress =
+      requestedVenueAddress !== undefined ? requestedVenueAddress : cleanText(existingBooking?.venueAddress, 240);
+    const status = requestedStatus || normalizeBookingStatusValue(existingBooking?.status, "pending");
+    const mergedItems = hasItemsPayload
+      ? normalizedItems
+      : (Array.isArray(existingBooking?.items) ? existingBooking.items : []).map((item) => ({
+          productId: Number(item.productId),
+          quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
+          price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price) / 100) : null,
+        }));
+
+    if (!Number.isFinite(customerId)) return json(event, 400, { error: "customerId is required." });
+    if (!eventDate) return json(event, 400, { error: "eventDate is required." });
+    if (!venueAddress) return json(event, 400, { error: "venueAddress is required." });
+    if (mergedItems.length === 0) {
+      return json(event, 400, { error: "At least one booking item is required." });
+    }
+
+    let bundleEligible = mergedItems.length >= BUNDLE_MIN_ITEMS;
 
     const actor = authUser
       ? { userId: authUser.id, userName: authUser.fullName, userEmail: authUser.email }
@@ -345,10 +470,10 @@ export async function handler(event) {
       );
       if (customerCheck.rowCount === 0) {
         await client.query("ROLLBACK");
-        return json(404, { error: "Customer not found." });
+        return json(event, 404, { error: "Customer not found." });
       }
 
-      const productIds = [...new Set(normalizedItems.map((item) => item.productId))];
+      const productIds = [...new Set(mergedItems.map((item) => item.productId))];
       const productRes = await client.query(
         `SELECT id, price, sku, "sourceCategoryCode"
          FROM "product"
@@ -357,11 +482,11 @@ export async function handler(event) {
       );
       const productMap = new Map(productRes.rows.map((row) => [row.id, row]));
 
-      for (const item of normalizedItems) {
+      for (const item of mergedItems) {
         const product = productMap.get(item.productId);
         if (!product) {
           await client.query("ROLLBACK");
-          return json(404, { error: `Product ${item.productId} not found.` });
+          return json(event, 404, { error: `Product ${item.productId} not found.` });
         }
         const sku = typeof product.sku === "string" ? product.sku.trim().toUpperCase() : "";
         const source = typeof product.sourceCategoryCode === "string"
@@ -369,11 +494,11 @@ export async function handler(event) {
           : "";
         if (source !== "RENTAL" && !sku.startsWith("RENT") && !sku.startsWith("PUM")) {
           await client.query("ROLLBACK");
-          return json(400, { error: `Bookings can only include rental items. Item ${item.productId} is not a rental.` });
+          return json(event, 400, { error: `Bookings can only include rental items. Item ${item.productId} is not a rental.` });
         }
       }
 
-      const pricedItems = normalizedItems.filter((item) => {
+      const pricedItems = mergedItems.filter((item) => {
         const product = productMap.get(item.productId);
         const priceCents = Number.isFinite(item.price)
           ? Math.round(item.price * 100)
@@ -409,8 +534,8 @@ export async function handler(event) {
         motorsRes.rows.map((row) => [Number(row.productId), Number(row.motors) || 0])
       );
 
-      let finalItems = [...normalizedItems];
-      const pumpQuantity = normalizedItems.reduce((sum, item) => {
+      let finalItems = [...mergedItems];
+      const pumpQuantity = mergedItems.reduce((sum, item) => {
         const motors = motorsMap.get(item.productId) || 0;
         return sum + motors * item.quantity;
       }, 0);
@@ -428,7 +553,7 @@ export async function handler(event) {
         const pumpProduct = pumpRes.rows[0];
         if (!pumpProduct) {
           await client.query("ROLLBACK");
-          return json(500, { error: "Motor Pump product is missing. Import motor pumps first." });
+          return json(event, 500, { error: "Motor Pump product is missing. Import motor pumps first." });
         }
         const pumpSku = typeof pumpProduct.sku === "string" ? pumpProduct.sku.trim().toUpperCase() : "";
         const pumpSource = typeof pumpProduct.sourceCategoryCode === "string"
@@ -436,7 +561,7 @@ export async function handler(event) {
           : "";
         if (pumpSource !== "RENTAL" && !pumpSku.startsWith("RENT") && !pumpSku.startsWith("PUM")) {
           await client.query("ROLLBACK");
-          return json(500, { error: "Motor Pump product is not marked as a rental." });
+          return json(event, 500, { error: "Motor Pump product is not marked as a rental." });
         }
         productMap.set(pumpProduct.id, pumpProduct);
         const existingPump = finalItems.find((item) => item.productId === pumpProduct.id);
@@ -457,8 +582,6 @@ export async function handler(event) {
           return sum + priceCents * item.quantity;
         }, 0) - Math.round(discountValue * 100)
       );
-
-      let bookingId;
 
       if (event.httpMethod === "POST") {
         await ensureBookingSequence(client);
@@ -496,21 +619,6 @@ export async function handler(event) {
         );
         bookingId = bookingRes.rows[0].id;
       } else {
-        bookingId = Number(data.id);
-        if (!Number.isFinite(bookingId)) {
-          await client.query("ROLLBACK");
-          return json(400, { error: "id is required for update." });
-        }
-
-        const exists = await client.query(
-          `SELECT id FROM "booking" WHERE id = $1 AND "organizationId" = $2`,
-          [bookingId, organizationId]
-        );
-        if (exists.rowCount === 0) {
-          await client.query("ROLLBACK");
-          return json(404, { error: "Booking not found." });
-        }
-
         await client.query(
           `UPDATE "booking"
            SET "customerId" = $1,
@@ -559,69 +667,23 @@ export async function handler(event) {
 
       await client.query("COMMIT");
 
-      const payload = await client.query(
-        `SELECT
-           b.id,
-           b."customerId",
-           c.name AS "customerName",
-           c.email AS "customerEmail",
-           c.phone AS "customerPhone",
-           b."eventDate",
-           b."startTime",
-           b."endTime",
-           b."venueAddress",
-           b."totalAmount",
-           b.status,
-           b."createdAt",
-           b."lastModifiedAt",
-           b."updatedAt",
-           b."assignedUserId",
-           b."createdByUserId",
-           b."updatedByUserId",
-           assignee."fullName" AS "assignedUserName",
-           updater."fullName" AS "updatedByName",
-           creator."fullName" AS "createdByName",
-            COALESCE(
-              json_agg(
-               json_build_object(
-                 'id', bi.id,
-                 'productId', bi."productId",
-                 'quantity', bi.quantity,
-                 'price', bi.price,
-                 'productName', p.name,
-                 'productImage', p."imageUrl"
-               )
-               ORDER BY bi.id
-             ) FILTER (WHERE bi.id IS NOT NULL),
-             '[]'::json
-           ) AS items
-         FROM "booking" b
-         JOIN "customer" c ON c.id = b."customerId"
-         LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
-         LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
-         LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
-         LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
-         LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
-         WHERE b.id = $1 AND b."organizationId" = $2
-         GROUP BY b.id, c.id, assignee.id, updater.id, creator.id`,
-        [bookingId, organizationId]
-      );
+      const persistedBooking = await selectBookingById(client, organizationId, bookingId);
 
       if (event.httpMethod === "POST") {
         try {
           await sendManagerWhatsApp({
-            lines: buildBookingWhatsAppLines(payload.rows[0]),
+            lines: buildBookingWhatsAppLines(persistedBooking),
           });
         } catch (err) {
           console.warn("WhatsApp notify failed:", err?.message || err);
         }
         try {
-          await notifyManager(client, buildBookingNotification(payload.rows[0]));
+          await notifyManager(client, buildBookingNotification(persistedBooking));
         } catch (err) {
           console.warn("Manager push failed:", err?.message || err);
         }
         const createdBooking = {
-          ...payload.rows[0],
+          ...persistedBooking,
           paymentPreference,
         };
         const emailResults = await Promise.allSettled(
@@ -653,14 +715,14 @@ export async function handler(event) {
         });
       }
 
-      return json(event.httpMethod === "POST" ? 201 : 200, payload.rows[0]);
+      return json(event, event.httpMethod === "POST" ? 201 : 200, persistedBooking);
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {});
       throw err;
     }
   } catch (err) {
     console.error("❌ Database error:", err);
-    return json(500, { error: err.message || "Database error" });
+    return json(event, 500, { error: "Failed to process booking request." });
   } finally {
     await client.end().catch(() => {});
   }

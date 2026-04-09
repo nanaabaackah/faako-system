@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DateField, SelectField } from "@faako/ui";
 import "./AdminMarketing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -345,7 +346,7 @@ function AdminMarketing() {
               <div className="marketing-form-row">
                 <label>
                   Type
-                  <select
+                  <SelectField
                     value={form.type}
                     onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))}
                   >
@@ -354,7 +355,7 @@ function AdminMarketing() {
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Value
@@ -371,8 +372,7 @@ function AdminMarketing() {
               <div className="marketing-form-row">
                 <label>
                   Expiry date
-                  <input
-                    type="date"
+                  <DateField
                     value={form.expiryDate}
                     onChange={(event) => setForm((prev) => ({ ...prev, expiryDate: event.target.value }))}
                   />
@@ -392,7 +392,7 @@ function AdminMarketing() {
               <div className="marketing-form-row">
                 <label>
                   Scope
-                  <select
+                  <SelectField
                     value={form.scope}
                     onChange={(event) => setForm((prev) => ({ ...prev, scope: event.target.value }))}
                   >
@@ -401,11 +401,11 @@ function AdminMarketing() {
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
                 <label>
                   Segment
-                  <select
+                  <SelectField
                     value={form.segment}
                     onChange={(event) => setForm((prev) => ({ ...prev, segment: event.target.value }))}
                   >
@@ -414,7 +414,7 @@ function AdminMarketing() {
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
               </div>
               <label>

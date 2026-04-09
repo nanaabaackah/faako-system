@@ -1,4 +1,4 @@
-@import "./global.css";
+  @import "./global.css";
 
 /**************************************            ADMIN PAGE               *****************************************/
 /*********************************************************************************************************************/
@@ -139,7 +139,7 @@ body.admin-readonly {
   cursor: default;
 }
 
-body.admin-readonly .admin-header-actions, body.admin-readonly .admin-view-toggle, body.admin-readonly .admin-chip, body.admin-readonly .admin-refresh, body.admin-readonly .admin-primary, body.admin-readonly .admin-secondary, body.admin-readonly .admin-stock-btn, body.admin-readonly .bookings-menu, body.admin-readonly .inventory-menu, body.admin-readonly .directory-edit, body.admin-readonly .customers-primary, body.admin-readonly .customers-secondary, body.admin-readonly .customers-form-actions, body.admin-readonly .admin-form-actions, body.admin-readonly .admin-close, body.admin-readonly .vendors-actions, body.admin-readonly .vendors-primary, body.admin-readonly .vendors-secondary, body.admin-readonly .vendors-action, body.admin-readonly .vendors-profile-actions, body.admin-readonly .scheduler-primary, body.admin-readonly .scheduler-secondary, body.admin-readonly .invoicing-primary, body.admin-readonly .invoicing-secondary, body.admin-readonly .expenses-primary, body.admin-readonly .expenses-secondary, body.admin-readonly .settings-primary, body.admin-readonly .crm-primary, body.admin-readonly .crm-secondary, body.admin-readonly .documents-primary, body.admin-readonly .documents-secondary, body.admin-readonly .maintenance-primary, body.admin-readonly .maintenance-secondary, body.admin-readonly .delivery-primary, body.admin-readonly .delivery-secondary, body.admin-readonly .orders-create, body.admin-readonly .orders-view-toggle, body.admin-readonly .orders-chip, body.admin-readonly .bookings-actions, body.admin-readonly .bookings-seg, body.admin-readonly .bookings-primary, body.admin-readonly .bookings-secondary, body.admin-readonly .bookings-edit {
+body.admin-readonly .admin-header-actions, body.admin-readonly .admin-view-toggle, body.admin-readonly .admin-chip, body.admin-readonly .admin-refresh, body.admin-readonly .admin-primary, body.admin-readonly .admin-secondary, body.admin-readonly .admin-stock-btn, body.admin-readonly .bookings-menu, body.admin-readonly .inventory-menu, body.admin-readonly .directory-edit, body.admin-readonly .customers-primary, body.admin-readonly .customers-secondary, body.admin-readonly .customers-form-actions, body.admin-readonly .admin-form-actions, body.admin-readonly .admin-close, body.admin-readonly .vendors-actions, body.admin-readonly .vendors-primary, body.admin-readonly .vendors-secondary, body.admin-readonly .vendors-action, body.admin-readonly .vendors-profile-actions, body.admin-readonly .scheduler-primary, body.admin-readonly .scheduler-secondary, body.admin-readonly .invoicing-primary, body.admin-readonly .invoicing-secondary, body.admin-readonly .expenses-primary, body.admin-readonly .expenses-secondary, body.admin-readonly .settings-primary, body.admin-readonly .crm-primary, body.admin-readonly .crm-secondary, body.admin-readonly .documents-primary, body.admin-readonly .documents-secondary, body.admin-readonly .maintenance-primary, body.admin-readonly .maintenance-secondary, body.admin-readonly .delivery-primary, body.admin-readonly .delivery-secondary, body.admin-readonly .orders-create, body.admin-readonly .orders-view-toggle, body.admin-readonly .orders-chip, body.admin-readonly .bookings-primary, body.admin-readonly .bookings-secondary, body.admin-readonly .bookings-edit {
   display: none !important;
 }
 
@@ -165,13 +165,11 @@ body.admin-readonly .admin-select select,
 body.admin-readonly .orders-search input,
 body.admin-readonly .orders-select select,
 body.admin-readonly .vendors-search input,
-body.admin-readonly .bookings-search input,
-body.admin-readonly .bookings-filter select,
 body.admin-readonly .customers-search-input input {
   pointer-events: auto;
 }
 
-body.admin-theme .portal-app-content .bubble-card {
+body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   background: var(--admin-portal-surface) !important;
   border: 1px solid var(--admin-portal-border) !important;
   border-top-left-radius: var(--admin-portal-top-radius) !important;
@@ -848,6 +846,8 @@ body.admin-theme .portal-app-content .bubble-card {
 }
 
 .admin-form input,
+.admin-form .ui-dropdown-field__trigger,
+.admin-form .ui-date-field__trigger,
 .admin-form select,
 .admin-form textarea {
   border-radius: 14px;
@@ -860,6 +860,8 @@ body.admin-theme .portal-app-content .bubble-card {
 }
 
 .admin-form input:focus,
+.admin-form .ui-dropdown-field__trigger:focus-visible,
+.admin-form .ui-date-field__trigger:focus-visible,
 .admin-form select:focus,
 .admin-form textarea:focus {
   outline: 2px solid var(--accent);
@@ -2717,6 +2719,7 @@ button.admin-kpi-card {
 }
 
 .admin-new-item-row input:not([type="checkbox"]):not([type="radio"]),
+.admin-new-item-row .ui-dropdown-field__trigger,
 .admin-new-item-row select,
 .admin-new-item-row textarea {
   border-radius: 5px;
@@ -2731,6 +2734,7 @@ button.admin-kpi-card {
 }
 
 .admin-new-item-row input:not([type="checkbox"]):not([type="radio"]):disabled,
+.admin-new-item-row .ui-dropdown-field__trigger:disabled,
 .admin-new-item-row select:disabled,
 .admin-new-item-row textarea:disabled {
   background: color-mix(in oklab, var(--card, white), rgba(148, 163, 184, 0.12) 18%);
@@ -2777,6 +2781,7 @@ button.admin-kpi-card {
 }
 
 .admin-new-item-row input:not([type="checkbox"]):not([type="radio"]):focus,
+.admin-new-item-row .ui-dropdown-field__trigger:focus-visible,
 .admin-new-item-row select:focus,
 .admin-new-item-row textarea:focus {
   outline: 2px solid var(--accent);
@@ -5551,316 +5556,6 @@ button.admin-kpi-card {
   }
 }
 
-.bookings-table tbody tr {
-  
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
-  transition: background 0.12s ease, box-shadow 0.12s ease;
-}
-
-.bookings-table tbody td {
-  padding: 12px 16px;
-  vertical-align: middle;
-  font-size: 0.7rem;
-  text-align: center;
-}
-
-.bookings-table tbody tr td:first-child {
-  border-top-left-radius: 14px;
-  border-bottom-left-radius: 14px;
-}
-
-.bookings-table tbody tr td:last-child {
-  border-top-right-radius: 14px;
-  border-bottom-right-radius: 14px;
-}
-
-.bookings-table tbody tr:hover,
-.bookings-table tbody tr:focus-within {
-  background: rgba(255, 255, 255, 0.65);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
-}
-
-.bookings-updated {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.9rem;
-  opacity: 0.85;
-}
-
-.bookings-updated small {
-  font-weight: 600;
-  opacity: 0.75;
-}
-
-.bookings-row {
-  cursor: pointer;
-  text-align: center;
-}
-
-
-
-.bookings-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 999px;
-  color: var(--text-main);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.5rem;
-  min-height: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
-}
-
-.bookings-pill.pending {
-  background: rgba(255, 193, 94, 0.9);
-  color: #fff;
-}
-
-.bookings-pill.confirmed {
-  background: var(--back2);
-  color: #fff;
-}
-
-.bookings-pill.active {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(220, 226, 240, 0.4));
-  color: var(--text-main);
-}
-
-.bookings-pill.completed {
-  background: rgba(72, 199, 116, 0.9);
-  color: #fff;
-}
-
-.bookings-pill.cancelled {
-  background: rgba(210, 74, 74, 0.9);
-  color: #fff;
-}
-
-.bookings-card-grid {
-  margin: 3rem auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-.bookings-card {
-  border: 1px solid var(--glass-border);
-  background: transparent;
-  border-radius: 16px;
-  padding: 12px 14px;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 8px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
-  position: relative;
-}
-
-.bookings-card-head {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 8px;
-  padding-right: 60px; /* leave room for menu */
-}
-
-.bookings-card h4 {
-  margin: 0;
-}
-
-.bookings-card-meta {
-  margin: 0;
-  opacity: 0.75;
-}
-
-.bookings-kanban {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
-  gap: 14px;
-  margin-top: 12px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-}
-
-.bookings-kanban-column {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-}
-
-.bookings-kanban-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.bookings-kanban-header h4 {
-  margin: 0;
-}
-
-.bookings-kanban-card {
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
-  display: grid;
-  gap: 6px;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.bookings-kanban-card:hover,
-.bookings-kanban-card:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--back2);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
-  outline: none;
-}
-
-.bookings-kanban-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.bookings-kanban-card h5 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.bookings-kanban-meta {
-  margin: 0;
-  opacity: 0.8;
-  font-size: 0.85rem;
-}
-
-.bookings-kanban-amount {
-  font-weight: 700;
-}
-
-
-
-
-
-
-
-.bookings-amount {
-  font-weight: 700;
-}
-
-.bookings-pill.small {
-  padding: 4px 10px;
-}
-
-.bookings-card-actions {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
-
-.bookings-detail-panel {
-  max-width: 640px;
-}
-
-.booking-detail-body {
-  display: grid;
-  gap: 10px;
-}
-
-.booking-detail-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-  border-bottom: 1px dashed var(--glass-border);
-  padding-bottom: 6px;
-}
-
-.booking-map {
-  width: 100%;
-  min-height: 180px;
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.booking-map iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-.booking-detail-items ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.booking-detail-items li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.booking-detail-metrics {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  font-size: 0.9rem;
-}
-
-.booking-detail-attendants {
-  font-size: 0.82rem;
-  opacity: 0.7;
-}
-
-.booking-detail-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.booking-detail-item-image,
-.booking-detail-item-fallback {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.booking-detail-item-fallback {
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.bookings-muted {
-  opacity: 0.7;
-}
-
-.booking-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .detail-nav {
   display: inline-flex;
   align-items: center;
@@ -5888,10 +5583,6 @@ button.admin-kpi-card {
 
 .detail-nav-button:hover:not(:disabled) {
   border-color: var(--accent);
-}
-
-.bookings-actions-col {
-  text-align: right;
 }
 
 .bookings-edit {
@@ -6140,19 +5831,6 @@ button.admin-kpi-card {
   color: var(--admin-muted) !important;
 }
 
-.bookings-empty {
-  text-align: center;
-  opacity: 0.7;
-  padding: 20px;
-}
-
-.bookings-venue {
-  max-width: 280px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .booking-items-picker {
   display: flex;
   flex-direction: column;
@@ -6257,69 +5935,9 @@ button.admin-kpi-card {
   width: 84px;
 }
 
-@media (max-width: 900px) {
-  .bookings-actions {
-    width: 100%;
-  }
-
-  .bookings-primary,
-  .bookings-secondary {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
 /*********************************************************************************************************************/
 /**************************************            BOOKINGS                *****************************************/
 /*********************************************************************************************************************/
-.bookings-page {
-  min-height: 100vh;
-  padding: 50px 12px 90px;
-  color: var(--text-main);
-}
-
-.bookings-shell {
-  max-width: 1280px;
-  margin: 5rem auto;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.bookings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.bookings-header h1 {
-  margin: 8px 0 10px;
-  font-size: clamp(2.4rem, 4.4vw, 3.6rem);
-  letter-spacing: -0.02em;
-}
-
-.bookings-eyebrow {
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--back3);
-  margin: 0 0 6px;
-}
-
-.bookings-subtitle {
-  max-width: 520px;
-  opacity: 0.75;
-}
-
-.bookings-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .bookings-primary,
 .bookings-secondary {
   border: none;
@@ -6341,180 +5959,6 @@ button.admin-kpi-card {
   
   border: 1px solid var(--glass-border);
   color: var(--text-main);
-}
-
-.bookings-panel {
-  
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 18px 18px 22px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.12);
-}
-
-.bookings-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.bookings-view {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-
-.bookings-view-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.bookings-action-ghost {
-  background: transparent;
-}
-
-.bookings-seg {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px;
-  border-radius: 999px;
-  
-  border: 1px solid var(--glass-border);
-}
-
-.bookings-seg button {
-  border: none;
-  background: transparent;
-  color: var(--text-main);
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  opacity: 0.75;
-}
-
-.bookings-seg button.is-active {
-  background: rgba(255, 122, 89, 0.18);
-  opacity: 1;
-}
-
-.bookings-panel-header h3 {
-  margin: 0;
-}
-
-.bookings-panel-header span {
-  font-size: 0.85rem;
-  opacity: 0.7;
-}
-
-.bookings-detail-mobile-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.bookings-action {
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.6);
-  color: inherit;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.bookings-action-primary {
-  border: none;
-  background: var(--back);
-  color: #fff;
-}
-
-.bookings-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.bookings-search {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.bookings-search input {
-  border-radius: 12px;
-  border: 1px solid var(--glass-border);
-  padding: 10px 12px;
-  
-  color: var(--text-main);
-  min-width: 220px;
-}
-
-.bookings-search input:focus {
-  outline: 2px solid var(--accent);
-  border-color: var(--accent);
-}
-
-.bookings-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.bookings-filter select {
-  border-radius: 12px;
-  border: 1px solid var(--glass-border);
-  padding: 10px 12px;
-  
-  color: var(--text-main);
-  min-width: 140px;
-}
-
-.bookings-status {
-  font-weight: 600;
-}
-
-.bookings-inline {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.bookings-error {
-  color: var(--back3);
-  font-weight: 600;
-}
-
-.bookings-table-wrapper {
-  margin-top: 18px;
-  overflow-x: auto;
-}
-
-.bookings-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 12px;
-  min-width: 1100px;
-}
-
-.bookings-table thead th {
-  text-align: center;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.65;
-  padding: 0 16px 10px;
-  position: sticky;
-  top: 0;
-  
-  z-index: 1;
 }
 
 /*********************************************************************************************************************/
@@ -8451,7 +7895,12 @@ button.admin-kpi-card {
   min-width: 0;
 }
 
+.maintenance-form .ui-field {
+  width: 100%;
+}
+
 .maintenance-form input,
+.maintenance-form .ui-dropdown-field__trigger,
 .maintenance-form select,
 .maintenance-form textarea {
   border-radius: 12px;
@@ -9256,7 +8705,12 @@ body.admin-readonly .delivery-form .delivery-primary {
   font-weight: 700;
 }
 
+.roles-filter .ui-field {
+  width: 100%;
+}
+
 .roles-search input,
+.roles-filter .ui-dropdown-field__trigger,
 .roles-filter select {
   border-radius: 12px;
   border: 1px solid var(--glass-border);
@@ -9267,6 +8721,7 @@ body.admin-readonly .delivery-form .delivery-primary {
 }
 
 .roles-search input:focus,
+.roles-filter .ui-dropdown-field__trigger:focus-visible,
 .roles-filter select:focus {
   outline: 2px solid var(--accent);
   border-color: var(--accent);
@@ -12409,6 +11864,8 @@ body.admin-theme .admin-kpi-note-action:hover:not(:disabled) {
 body.admin-theme .admin-search input,
 body.admin-theme .admin-select select,
 body.admin-theme .admin-form input,
+body.admin-theme .admin-form .ui-dropdown-field__trigger,
+body.admin-theme .admin-form .ui-date-field__trigger,
 body.admin-theme .admin-form select,
 body.admin-theme .admin-form textarea {
   background: var(--card);
@@ -12420,6 +11877,8 @@ body.admin-theme .admin-form textarea {
 body.admin-theme .admin-search input:focus,
 body.admin-theme .admin-select select:focus,
 body.admin-theme .admin-form input:focus,
+body.admin-theme .admin-form .ui-dropdown-field__trigger:focus-visible,
+body.admin-theme .admin-form .ui-date-field__trigger:focus-visible,
 body.admin-theme .admin-form select:focus,
 body.admin-theme .admin-form textarea:focus {
   outline: 2px solid var(--accent-soft);
@@ -13063,8 +12522,6 @@ body.admin-theme :is(
 }
 
 body.admin-theme :is(
-  .bookings-table tbody tr:hover,
-  .bookings-table tbody tr:focus-within,
   .orders-table tbody tr:hover,
   .orders-table tbody tr:focus-within,
   .marketing-table tbody tr:hover,
@@ -13554,14 +13011,14 @@ body.admin-theme :is(
 /**************************************   GLOBAL ADMIN GLASS THEME   ***********************************************/
 /*********************************************************************************************************************/
 body.admin-theme {
-  --admin-bg: transparent;
-  --admin-card: rgba(255, 255, 255, 0.34);
-  --admin-surface: rgba(255, 255, 255, 0.22);
-  --admin-border: rgba(255, 255, 255, 0.4);
-  --admin-text: #112229;
-  --admin-muted: rgba(17, 34, 41, 0.68);
+  --admin-bg: #f3f6fb;
+  --admin-card: rgba(255, 255, 255, 0.94);
+  --admin-surface: rgba(247, 249, 253, 0.92);
+  --admin-border: rgba(148, 163, 184, 0.36);
+  --admin-text: #111827;
+  --admin-muted: rgba(82, 96, 114, 0.82);
   --admin-overlay: rgba(15, 23, 42, 0.46);
-  background: transparent;
+  background: var(--admin-bg);
   color-scheme: light;
 }
 
@@ -13588,12 +13045,11 @@ body.admin-theme :is(
   .admin-table-scroll,
   [class$="-table-wrapper"],
   .orders-kanban,
-  .bookings-kanban,
   table[class$="-table"],
   .invoice-table,
   .invoice-table-wrapper
 ) {
-  background: transparent;
+  background: var(--admin-card);
   border-color: var(--admin-border);
   box-shadow: none;
 }
@@ -13618,7 +13074,6 @@ body.admin-theme :is(
   .orders-chip,
   .table-pagination-controls button,
   .admin-chip,
-  .bookings-seg,
   .settings-tabs,
   .scheduler-seg,
   .accounting-tabs,
@@ -13681,7 +13136,7 @@ body.admin-theme :is(
   button[class$="-secondary"]:hover,
   a[class$="-secondary"]:hover
 ) {
-  border-color: rgba(255, 255, 255, 0.54);
+  border-color: rgba(148, 163, 184, 0.56);
   box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
 }
 
@@ -13712,7 +13167,6 @@ body.admin-theme :is(
   .orders-chip,
   .table-pagination-controls button,
   .admin-chip,
-  .bookings-seg,
   .settings-tabs,
   .scheduler-seg,
   .accounting-tabs,
@@ -13784,7 +13238,7 @@ body.admin-theme .inventory-card:focus-visible,
 body.admin-theme .inventory-card.menu-open,
 body.admin-theme .inventory-card.menu-open:hover,
 body.admin-theme .inventory-card.menu-open:focus-visible {
-  border-color: rgba(255, 255, 255, 0.46);
+  border-color: rgba(148, 163, 184, 0.56);
   box-shadow:
     0 24px 40px rgba(15, 23, 42, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -13839,7 +13293,7 @@ body.admin-theme button.inventory-card-quick-primary {
 
 body.admin-theme button.inventory-card-quick:hover,
 body.admin-theme button.inventory-card-quick:focus-visible {
-  border-color: rgba(255, 255, 255, 0.46);
+  border-color: rgba(148, 163, 184, 0.56);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
 }
 
@@ -13967,6 +13421,35 @@ body.admin-theme .portal-app-content .inventory-card.is-out {
 
 body.admin-theme .portal-app-content .settings-panel {
   --glass-card-head-offset: 20px;
+}
+
+body.admin-theme .accounting-page .bubble-card {
+  background: var(--admin-portal-surface) !important;
+  border: 1px solid var(--admin-portal-border) !important;
+  border-top-left-radius: var(--admin-portal-top-radius) !important;
+  border-top-right-radius: var(--admin-portal-top-radius) !important;
+  border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
+  border-bottom-right-radius: var(--admin-portal-top-radius) !important;
+  box-shadow: var(--admin-portal-shadow) !important;
+  backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+}
+
+body.admin-theme .accounting-page .glass-card.accounting-list-table,
+body.admin-theme .accounting-page .glass-card.accounting-table-shell .admin-table-scroll {
+  background: var(--admin-portal-surface) !important;
+  border: 1px solid var(--admin-portal-border) !important;
+  box-shadow: var(--admin-portal-shadow) !important;
+  backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+}
+
+body.admin-theme .accounting-page .glass-card.accounting-list-table .admin-table-scroll {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body.admin-theme .portal-app-content :is(.admin-card, .glass-card) :is(

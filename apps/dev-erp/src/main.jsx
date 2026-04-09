@@ -4,6 +4,7 @@ import { UiSystemProvider } from '@faako/ui'
 import App from './App.jsx'
 import appSystem from '../appSystem.js'
 import './index.css'
+import '@faako/ui/compat.css'
 import {
   clearStoredSession,
   hasStoredSession,

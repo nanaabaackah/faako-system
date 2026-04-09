@@ -102,7 +102,7 @@ export default function Expenses() {
 
       <div className="kpi-grid">
         {expenseStats.map((stat) => (
-          <article className="panel kpi-card" key={stat.id}>
+          <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
             <span className={`kpi-delta is-${stat.tone}`}>{stat.delta}</span>
@@ -111,7 +111,7 @@ export default function Expenses() {
       </div>
 
       <div className="page-grid">
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Recent submissions</h3>
@@ -149,7 +149,7 @@ export default function Expenses() {
         </article>
 
         <div className="stack">
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Policy alerts</h3>
@@ -167,7 +167,7 @@ export default function Expenses() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Card spend limits</h3>

@@ -1,3 +1,4 @@
+import { DateField, SelectField } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTrash, faXmark } from "/src/icons/iconSet";
@@ -78,17 +79,18 @@ export default function WaterOrderEditorModal({
             </label>
             <label>
               Type
-              <select
+              <SelectField
                 value={orderForm.saleChannel}
-                onChange={(event) =>
+                onChangeValue={(nextValue) =>
                   setOrderForm((prev) =>
-                    prev ? { ...prev, saleChannel: normalizeChannel(event.target.value) } : prev
+                    prev ? { ...prev, saleChannel: normalizeChannel(String(nextValue)) } : prev
                   )
                 }
+                ariaLabel="Order type"
               >
                 <option value="retail">Retail</option>
                 <option value="company">Company</option>
-              </select>
+              </SelectField>
             </label>
             <label>
               Qty
@@ -120,28 +122,33 @@ export default function WaterOrderEditorModal({
             </label>
             <label>
               Payment
-              <select value={orderForm.paymentMethod} onChange={(event) => handleOrderPaymentMethodChange(event.target.value)}>
+              <SelectField
+                value={orderForm.paymentMethod}
+                onChangeValue={(nextValue) => handleOrderPaymentMethodChange(String(nextValue))}
+                ariaLabel="Payment method"
+              >
                 {salePaymentOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
             <label>
               Status
-              <select
+              <SelectField
                 value={orderForm.paymentStatus}
-                onChange={(event) =>
+                onChangeValue={(nextValue) =>
                   setOrderForm((prev) =>
                     prev
                       ? {
                           ...prev,
-                          paymentStatus: normalizeSalePaymentStatus(event.target.value, prev.paymentMethod),
+                          paymentStatus: normalizeSalePaymentStatus(String(nextValue), prev.paymentMethod),
                         }
                       : prev
                   )
                 }
+                ariaLabel="Payment status"
               >
                 {orderStatusOptions
                   .filter((option) => option.value !== "all")
@@ -150,17 +157,17 @@ export default function WaterOrderEditorModal({
                       {option.label}
                     </option>
                   ))}
-              </select>
+              </SelectField>
             </label>
             <label>
               Date
-              <input
-                type="date"
+              <DateField
                 value={orderForm.date}
-                onChange={(event) =>
-                  setOrderForm((prev) => (prev ? { ...prev, date: event.target.value } : prev))
+                onChangeValue={(nextValue) =>
+                  setOrderForm((prev) => (prev ? { ...prev, date: nextValue } : prev))
                 }
                 required
+                ariaLabel="Order date"
               />
             </label>
             <label className="water-order-modal-field--wide">

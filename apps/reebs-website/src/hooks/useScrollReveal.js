@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useFrontFacingScrollReveal } from "@faako/ui/useFrontFacingScrollReveal";
 
 const REVEAL_SELECTORS = {
   block: [
@@ -79,7 +79,7 @@ const shouldSkipElement = (element, kind) => {
   if (element.classList.contains("party-confetti")) return true;
   if (element.classList.contains("app-icon")) return true;
   if (element.classList.contains("sr-only")) return true;
-  if (element.matches("input, select, textarea, option, source, svg, path, use")) return true;
+  if (element.matches("input, select, textarea, option, source, svg, path, use, .ui-date-field__trigger, .ui-dropdown-field__trigger")) return true;
   if (element.closest(".search-field")) return true;
   if (kind === "text" && !hasMeaningfulText(element)) return true;
   if (
@@ -133,117 +133,16 @@ const collectRevealTargets = () => {
     });
   });
 
-  return Array.from(registry.values()).sort(sortTargets);
-};
-
-const markVisible = (element) => {
-  element.classList.remove("reveal-pending");
-  element.classList.add("is-revealed");
-  element.classList.remove("reveal-text", "reveal-media", "reveal-block");
-  element.dataset.revealState = "visible";
-};
-
-const setRevealState = (element, nextState) => {
-  if (!(element instanceof HTMLElement)) return;
-  if (nextState === "visible") {
-    element.classList.remove("reveal-pending");
-    element.classList.add("is-revealed");
-  } else {
-    element.classList.add("reveal-pending");
-    element.classList.remove("is-revealed");
-  }
-  element.dataset.revealState = nextState;
+  return Array.from(registry.values())
+    .sort(sortTargets)
+    .map(({ element }) => element);
 };
 
 export default function useScrollReveal(pathname, scrollContainerRef) {
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof document === "undefined") return undefined;
-    if (!isPublicPath(pathname)) return undefined;
-
-    const scrollHost = scrollContainerRef?.current || window;
-    const observerRoot = scrollHost === window ? null : scrollHost;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const reduceData = window.matchMedia("(prefers-reduced-data: reduce)").matches;
-    const lowPowerDevice = (window.navigator?.hardwareConcurrency || 8) <= 4;
-    const disableAnimatedReveal = reduceMotion || reduceData || lowPowerDevice;
-    const observedTargets = new WeakSet();
-    let mutationFrame = 0;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const target = entry.target;
-          if (entry.isIntersecting) {
-            if (target.dataset.revealState !== "visible") {
-              setRevealState(target, "visible");
-            }
-            return;
-          }
-
-          if (target.dataset.revealState !== "hidden") {
-            setRevealState(target, "hidden");
-          }
-        });
-      },
-      {
-        threshold: 0.12,
-        root: observerRoot,
-        rootMargin: "-4% 0px -12% 0px",
-      }
-    );
-
-    const registerTargets = () => {
-      const targets = collectRevealTargets();
-      if (!targets.length) return;
-
-      targets.forEach(({ element, kind }) => {
-        if (observedTargets.has(element)) return;
-        observedTargets.add(element);
-
-        if (disableAnimatedReveal) {
-          markVisible(element);
-          return;
-        }
-
-        element.classList.remove("is-revealed");
-        element.classList.add("reveal-pending", `reveal-${kind}`);
-        element.dataset.revealKind = kind;
-        element.dataset.revealState = "hidden";
-        if (kind === "media") {
-          const rect = element.getBoundingClientRect();
-          const midpoint = window.innerWidth / 2;
-          element.dataset.revealSide =
-            rect.left + rect.width / 2 < midpoint ? "left" : "right";
-        }
-        observer.observe(element);
-      });
-    };
-
-    registerTargets();
-
-    if (disableAnimatedReveal) {
-      return () => {
-        observer.disconnect();
-      };
-    }
-
-    const mutationObserver =
-      typeof MutationObserver === "function"
-        ? new MutationObserver(() => {
-            if (mutationFrame) window.cancelAnimationFrame(mutationFrame);
-            mutationFrame = window.requestAnimationFrame(registerTargets);
-          })
-        : null;
-
-    mutationObserver?.observe(scrollHost === window ? document.body : scrollHost, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      mutationObserver?.disconnect();
-      if (mutationFrame) window.cancelAnimationFrame(mutationFrame);
-    };
-  }, [pathname, scrollContainerRef]);
+  useFrontFacingScrollReveal({
+    enabled: isPublicPath(pathname),
+    rootRef: scrollContainerRef,
+    getTargets: collectRevealTargets,
+    getMutationRoot: () => scrollContainerRef?.current || document.body,
+  });
 }

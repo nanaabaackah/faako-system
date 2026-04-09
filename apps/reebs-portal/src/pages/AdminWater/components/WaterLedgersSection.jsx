@@ -25,6 +25,8 @@ export default function WaterLedgersSection({
   openStockEntryEditor,
   handleStockEntryUndo,
   expenses,
+  stockScopeLabel,
+  isAllTimeStockView,
   openExpenseEditor,
   handleExpenseDelete,
 }) {
@@ -131,24 +133,32 @@ export default function WaterLedgersSection({
                           tabIndex={0}
                           aria-label={`Edit water order ${sale.id}`}
                         >
-                          <td data-label="#">{index}</td>
-                          <td data-label="Date">{formatDate(sale.date)}</td>
+                          <td data-label="#">
+                            <span className="water-module-table-value">{index}</span>
+                          </td>
+                          <td data-label="Date">
+                            <span className="water-module-table-value">{formatDate(sale.date)}</span>
+                          </td>
                           <td data-label="Customer">
-                            <div className="water-module-order-primary">
+                            <div className="water-module-order-primary water-module-table-value">
                               <strong>{sale.customerName || "Walk-in"}</strong>
                             </div>
                           </td>
                           <td data-label="Status">
-                            <div className="water-module-order-status">
+                            <div className="water-module-order-status water-module-table-value">
                               <span className={`water-module-order-pill is-${paymentStatus}`}>
                                 {getSalePaymentStatusLabel(sale.paymentStatus, sale.paymentMethod)}
                               </span>
                             </div>
                           </td>
-                          <td data-label="Qty">{Number(sale.quantity) || 0}</td>
-                          <td data-label="Price">{formatCurrency(sale.unitPrice)}</td>
+                          <td data-label="Qty">
+                            <span className="water-module-table-value">{Number(sale.quantity) || 0}</span>
+                          </td>
+                          <td data-label="Price">
+                            <span className="water-module-table-value">{formatCurrency(sale.unitPrice)}</span>
+                          </td>
                           <td data-label="Total">
-                            <div className="water-module-order-total">
+                            <div className="water-module-order-total water-module-table-value">
                               <strong>{formatCurrency(sale.totalAmount)}</strong>
                             </div>
                           </td>
@@ -170,21 +180,21 @@ export default function WaterLedgersSection({
                   </tbody>
                   <tfoot className="admin-table-footer">
                     <tr>
-                      <td className="admin-table-summary-cell is-count">
+                      <td className="admin-table-summary-cell is-count" data-label="Summary">
                         <span className="admin-table-summary-value">{orderSummary.count} orders</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell">
+                      <td className="admin-table-summary-cell" data-label="Qty">
                         <span className="admin-table-summary-value">{orderSummary.quantity}</span>
                       </td>
-                      <td className="admin-table-summary-cell">
+                      <td className="admin-table-summary-cell" data-label="Price">
                         <span className="admin-table-summary-value">
                           {formatCurrency(orderSummary.count ? orderSummary.price / orderSummary.count : 0)}
                         </span>
                       </td>
-                      <td className="admin-table-summary-cell">
+                      <td className="admin-table-summary-cell" data-label="Total">
                         <span className="admin-table-summary-value">{formatCurrency(orderSummary.total)}</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
@@ -193,11 +203,15 @@ export default function WaterLedgersSection({
                 </table>
               </div>
             ) : (
-              <p className="water-module-empty">No orders match this filter.</p>
+              <p className="water-module-empty">
+                {isAllTimeStockView ? "No orders match this filter." : `No orders in ${stockScopeLabel}.`}
+              </p>
             )}
           </>
         ) : (
-          <p className="water-module-empty">No orders yet.</p>
+          <p className="water-module-empty">
+            {isAllTimeStockView ? "No orders yet." : `No orders in ${stockScopeLabel}.`}
+          </p>
         )}
       </article>
 
@@ -243,15 +257,29 @@ export default function WaterLedgersSection({
                       tabIndex={0}
                       aria-label={`Edit ${entry.label.toLowerCase()} ${entry.sourceId || ""}`}
                     >
-                      <td data-label="#">{index}</td>
-                      <td data-label="Date">{formatDate(entry.date)}</td>
-                      <td data-label="Type">{entry.label}</td>
-                      <td data-label="Details">{entry.detail}</td>
-                      <td data-label="Qty" className={entry.quantity < 0 ? "is-negative" : "is-positive"}>
-                        {entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}
+                      <td data-label="#">
+                        <span className="water-module-table-value">{index}</span>
                       </td>
-                      <td data-label="Value">{entry.amount === null ? "—" : formatCurrency(entry.amount)}</td>
-                      <td className="water-module-order-actions">
+                      <td data-label="Date">
+                        <span className="water-module-table-value">{formatDate(entry.date)}</span>
+                      </td>
+                      <td data-label="Type">
+                        <span className="water-module-table-value">{entry.label}</span>
+                      </td>
+                      <td data-label="Details">
+                        <span className="water-module-table-value">{entry.detail}</span>
+                      </td>
+                      <td data-label="Qty" className={entry.quantity < 0 ? "is-negative" : "is-positive"}>
+                        <span className="water-module-table-value">
+                          {entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}
+                        </span>
+                      </td>
+                      <td data-label="Value">
+                        <span className="water-module-table-value">
+                          {entry.amount === null ? "—" : formatCurrency(entry.amount)}
+                        </span>
+                      </td>
+                      <td className="water-module-order-actions" data-label="Action">
                         <button
                           type="button"
                           className="water-module-row-undo"
@@ -267,20 +295,20 @@ export default function WaterLedgersSection({
                   );
                 })}
               </tbody>
-              <tfoot className="admin-table-footer">
-                <tr>
-                  <td className="admin-table-summary-cell is-count">
+            <tfoot className="admin-table-footer">
+              <tr>
+                  <td className="admin-table-summary-cell is-count" data-label="Summary">
                     <span className="admin-table-summary-value">{stockSummary.count} entries</span>
                   </td>
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell" data-label="Qty">
                     <span className="admin-table-summary-value">
                       {stockSummary.quantity > 0 ? `+${stockSummary.quantity}` : stockSummary.quantity}
                     </span>
                   </td>
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell" data-label="Value">
                     <span className="admin-table-summary-value">{formatCurrency(stockSummary.value)}</span>
                   </td>
                   <td className="admin-table-summary-cell is-empty" />
@@ -289,7 +317,11 @@ export default function WaterLedgersSection({
             </table>
           </div>
         ) : (
-          <p className="water-module-empty">No stock movement recorded yet.</p>
+          <p className="water-module-empty">
+            {isAllTimeStockView
+              ? "No stock movement recorded yet."
+              : `No stock movement in ${stockScopeLabel}.`}
+          </p>
         )}
       </article>
 
@@ -333,11 +365,21 @@ export default function WaterLedgersSection({
                       tabIndex={0}
                       aria-label={`Edit water expense ${expense.id}`}
                     >
-                      <td data-label="#">{index}</td>
-                      <td data-label="Date">{formatDate(expense.date)}</td>
-                      <td data-label="Category">{expense.category}</td>
-                      <td data-label="Details">{expense.description}</td>
-                      <td data-label="Amount">{formatCurrency(expense.amount)}</td>
+                      <td data-label="#">
+                        <span className="water-module-table-value">{index}</span>
+                      </td>
+                      <td data-label="Date">
+                        <span className="water-module-table-value">{formatDate(expense.date)}</span>
+                      </td>
+                      <td data-label="Category">
+                        <span className="water-module-table-value">{expense.category}</span>
+                      </td>
+                      <td data-label="Details">
+                        <span className="water-module-table-value">{expense.description}</span>
+                      </td>
+                      <td data-label="Amount">
+                        <span className="water-module-table-value">{formatCurrency(expense.amount)}</span>
+                      </td>
                       <td className="water-module-order-actions" data-label="Action">
                         <button
                           type="button"
@@ -356,13 +398,13 @@ export default function WaterLedgersSection({
               </tbody>
               <tfoot className="admin-table-footer">
                 <tr>
-                  <td className="admin-table-summary-cell is-count">
+                  <td className="admin-table-summary-cell is-count" data-label="Summary">
                     <span className="admin-table-summary-value">{expenseSummary.count} expenses</span>
                   </td>
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
-                  <td className="admin-table-summary-cell">
+                  <td className="admin-table-summary-cell" data-label="Amount">
                     <span className="admin-table-summary-value">{formatCurrency(expenseSummary.amount)}</span>
                   </td>
                   <td className="admin-table-summary-cell is-empty" />
@@ -371,7 +413,11 @@ export default function WaterLedgersSection({
             </table>
           </div>
         ) : (
-          <p className="water-module-empty">No extra expenses logged yet.</p>
+          <p className="water-module-empty">
+            {isAllTimeStockView
+              ? "No extra expenses logged yet."
+              : `No extra expenses in ${stockScopeLabel}.`}
+          </p>
         )}
       </article>
     </section>

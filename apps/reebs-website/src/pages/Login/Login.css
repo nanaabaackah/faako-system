@@ -16,11 +16,15 @@
 
 .login-stage {
   --page-hero-image: var(--login-stage-image);
+  --login-stage-staff-image:
+    radial-gradient(circle at 18% 20%, rgba(var(--other-rgb), 0.28), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(var(--back2-rgb), 0.22), transparent 26%),
+    linear-gradient(145deg, rgba(12, 31, 44, 0.98), rgba(16, 87, 112, 0.92) 48%, rgba(39, 67, 29, 0.88));
   min-height: var(--app-vh);
 }
 
 .staff-login-page .login-stage::before {
-  background-image: url("/imgs/backgrounds/background26.svg");
+  background-image: var(--login-stage-staff-image);
 }
 
 .customer-login-page .login-stage::before {
@@ -435,7 +439,7 @@
 }
 
 .staff-login-page .login-stage {
-  --login-stage-image: url("/imgs/backgrounds/background26.svg");
+  --login-stage-image: var(--login-stage-staff-image);
 }
 
 .customer-login-page .login-stage {

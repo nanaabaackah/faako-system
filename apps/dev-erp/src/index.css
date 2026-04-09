@@ -200,7 +200,7 @@ button {
 .erp-sidebar__close:hover,
 .nav-toggle:hover {
   transform: translateY(-1px);
-  border-color: rgba(39, 221, 229, 0.34);
+  border-color: color-mix(in oklab, var(--accent), var(--border) 58%);
   color: var(--ink);
 }
 
@@ -245,7 +245,7 @@ button {
   flex: 0 0 auto;
   border-radius: 999px;
   padding: 0.2rem 0.55rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in oklab, var(--card), var(--surface) 18%);
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 700;
@@ -284,7 +284,7 @@ button {
   min-width: 2.2rem;
   padding: 0.32rem 0.55rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in oklab, var(--card), var(--surface) 18%);
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
@@ -300,7 +300,7 @@ button {
   overflow-y: auto;
   padding-right: 0.12rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(149, 162, 184, 0.45) transparent;
+  scrollbar-color: color-mix(in oklab, var(--muted), transparent 46%) transparent;
 }
 
 .erp-nav::-webkit-scrollbar {
@@ -308,7 +308,7 @@ button {
 }
 
 .erp-nav::-webkit-scrollbar-thumb {
-  background: rgba(149, 162, 184, 0.45);
+  background: color-mix(in oklab, var(--muted), transparent 46%);
   border-radius: 999px;
 }
 
@@ -339,13 +339,13 @@ button {
 }
 
 .erp-nav a:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in oklab, var(--accent-soft), var(--card) 32%);
   color: var(--ink);
   transform: translateX(2px);
 }
 
 .erp-nav a:focus-visible {
-  outline: 2px solid rgba(39, 221, 229, 0.4);
+  outline: 2px solid color-mix(in oklab, var(--accent), var(--border) 42%);
   outline-offset: 2px;
 }
 
@@ -360,6 +360,10 @@ button {
 }
 
 .nav-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  display: block;
+  flex: 0 0 1.125rem;
   flex-shrink: 0;
   color: currentColor;
 }
@@ -386,8 +390,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(39, 221, 229, 0.22);
-  background: rgba(39, 221, 229, 0.14);
+  border: 1px solid color-mix(in oklab, var(--accent), var(--border) 64%);
+  background: color-mix(in oklab, var(--accent-soft), var(--card) 20%);
   color: var(--accent);
   font-size: 0.68rem;
   font-weight: 700;
@@ -400,7 +404,7 @@ button {
   border-radius: 1rem;
   border: 1px dashed var(--border);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in oklab, var(--card), var(--surface) 24%);
   font-size: 0.9rem;
 }
 
@@ -431,7 +435,7 @@ button {
 
 .erp-sidebar__cta:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(16, 30, 72, 0.34);
+  box-shadow: 0 12px 24px color-mix(in oklab, var(--accent), transparent 68%);
 }
 
 .erp-sidebar__profile {
@@ -447,11 +451,15 @@ button {
   height: 3.45rem;
   flex: 0 0 3.45rem;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  border: 2px solid color-mix(in oklab, var(--card), var(--surface) 36%);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(226, 244, 191, 0.92)),
-    #f5f7ef;
-  color: #0f1b2f;
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--card), var(--surface) 6%),
+      color-mix(in oklab, var(--card), var(--success) 28%)
+    ),
+    var(--card);
+  color: color-mix(in oklab, var(--ink), var(--accent) 18%);
   display: inline-flex;
   align-items: center;
   justify-content: center;

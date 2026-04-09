@@ -236,8 +236,7 @@ body.admin-readonly::after {
   inset: 0;
   border-radius: inherit;
   overflow-y: auto;
-  overflow-x: hidden;
-  overflow-x: clip;
+  overflow-x: visible;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   background: #f8f6f2;

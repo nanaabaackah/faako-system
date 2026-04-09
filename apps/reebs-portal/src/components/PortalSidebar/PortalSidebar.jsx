@@ -81,6 +81,11 @@ const DEFAULT_APPS = [
     icon: faBoxesStacked,
   },
   {
+    label: "Rentals",
+    path: "/admin/rentals",
+    icon: faBoxesStacked,
+  },
+  {
     label: "POS",
     path: "/admin/store-mode",
     icon: faReceipt,

@@ -873,9 +873,13 @@
 .search-bar,
 .checkout-field input,
 .checkout-field select,
+.checkout-field .ui-date-field__trigger,
+.checkout-field .ui-dropdown-field__trigger,
 .checkout-field textarea,
 .form-group input,
 .form-group select,
+.form-group .ui-date-field__trigger,
+.form-group .ui-dropdown-field__trigger,
 .form-group textarea,
 .login-form input,
 .f-search-input {
@@ -1953,6 +1957,8 @@
 
 .form-shell .form-group input,
 .form-shell .form-group select,
+.form-shell .form-group .ui-date-field__trigger,
+.form-shell .form-group .ui-dropdown-field__trigger,
 .form-shell .form-group textarea {
   border: 0;
   border-bottom: 1px solid rgba(var(--ink-rgb), 0.16);
@@ -1990,6 +1996,10 @@
 .form-shell .form-group input:focus-visible,
 .form-shell .form-group select:focus,
 .form-shell .form-group select:focus-visible,
+.form-shell .form-group .ui-date-field__trigger:focus,
+.form-shell .form-group .ui-date-field__trigger:focus-visible,
+.form-shell .form-group .ui-dropdown-field__trigger:focus,
+.form-shell .form-group .ui-dropdown-field__trigger:focus-visible,
 .form-shell .form-group textarea:focus,
 .form-shell .form-group textarea:focus-visible {
   outline: none;
@@ -3438,8 +3448,12 @@
   .search-bar,
   .checkout-field input,
   .checkout-field select,
+  .checkout-field .ui-date-field__trigger,
+  .checkout-field .ui-dropdown-field__trigger,
   .checkout-field textarea,
   .form-group input,
+  .form-group .ui-date-field__trigger,
+  .form-group .ui-dropdown-field__trigger,
   .form-group textarea,
   .form-group select,
   .login-form input,

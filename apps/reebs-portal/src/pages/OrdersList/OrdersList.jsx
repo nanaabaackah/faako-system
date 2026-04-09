@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DateField, SelectField } from "@faako/ui";
 import "./OrdersList.css";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -778,27 +779,27 @@ function OrdersList() {
             <div className="orders-control-group">
               <label className="orders-select">
                 Status
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <SelectField value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                   <option value="all">All</option>
                   <option value="pending">Pending</option>
                   <option value="paid">Paid</option>
                   <option value="fulfilled">Fulfilled</option>
                   <option value="cancelled">Canceled</option>
                   <option value="completed">Completed</option>
-                </select>
+                </SelectField>
               </label>
             </div>
             <div className="orders-view-controls">
               <label className="orders-select">
                 Saved view
-                <select value={activeViewId} onChange={handleViewChange}>
+                <SelectField value={activeViewId} onChange={handleViewChange}>
                   <option value="all">All orders</option>
                   {savedViews.map((view) => (
                     <option key={view.id} value={view.id}>
                       {view.name}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <div className="orders-view-actions">
                 <button type="button" className="orders-view-btn" onClick={handleSaveView}>
@@ -1242,8 +1243,7 @@ function OrdersList() {
                   <div className="orders-detail-edit">
                     <label>
                       Pickup date
-                      <input
-                        type="date"
+                      <DateField
                         value={detailEditForm.date}
                         onChange={(event) =>
                           setDetailEditForm((prev) => ({ ...prev, date: event.target.value }))
@@ -1252,7 +1252,7 @@ function OrdersList() {
                     </label>
                     <label>
                       Pickup window
-                      <select
+                      <SelectField
                         value={detailEditForm.window}
                         onChange={(event) =>
                           setDetailEditForm((prev) => ({ ...prev, window: event.target.value }))
@@ -1264,7 +1264,7 @@ function OrdersList() {
                             {label}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </label>
                     <label>
                       Notes

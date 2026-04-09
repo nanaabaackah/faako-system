@@ -1,4 +1,5 @@
 import React from "react";
+import { SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import { InlineNoticeStack } from "../../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -187,14 +188,19 @@ function StoreModeInventoryPanel({
 
         <label className="store-mode-category">
           <span>Category</span>
-          <select value={categoryFilter} onChange={onCategoryFilterChange}>
+          <SelectField
+            value={categoryFilter}
+            onChangeValue={(nextValue) => onCategoryFilterChange({ target: { value: String(nextValue) } })}
+            ariaLabel="Filter category"
+            inputClassName="store-mode-select"
+          >
             <option value="all">All</option>
             {categories.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
       </div>
 

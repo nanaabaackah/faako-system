@@ -4,6 +4,7 @@ import { Client } from "pg";
 import emailKit from "../../../../packages/email-kit/src/index.cjs";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { sendNotificationEmail } from "./_shared/email.js";
+import { DEFAULT_SERVICE_DEPOSIT_DUE_LABEL } from "../../shared/paymentCopy.js";
 
 const {
   EMAIL_THEMES,
@@ -18,6 +19,10 @@ const {
 
 const INVOICE_DOCUMENT_EMAIL_METHODS = "POST,OPTIONS";
 const FAAKO_THEME = EMAIL_THEMES.faako;
+const SERVICE_DEPOSIT_SUMMARY_LABEL = "Deposit due (70%)";
+const SERVICE_BALANCE_SUMMARY_LABEL = "Remaining balance";
+const SERVICE_DUE_DATE_LABEL = "Deposit due date";
+const INVOICE_DEPOSIT_RATE = 0.7;
 
 const cleanText = (value, maxLength = 400) => {
   if (typeof value !== "string") return "";
@@ -36,6 +41,28 @@ const normalizeMoney = (value, fallback = 0) => {
   if (!Number.isFinite(amount)) return fallback;
   return Math.round(amount * 100) / 100;
 };
+
+const normalizeDateValue = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+};
+
+const todayValue = () => new Date().toISOString().slice(0, 10);
+
+const isInvoiceFullPaymentDue = (document) => {
+  if (document?.documentType !== "invoice") return false;
+  if (String(document?.paymentStatus || "").toLowerCase() === "paid") return false;
+  const dueDate = normalizeDateValue(document?.dueDate);
+  return Boolean(dueDate) && dueDate < todayValue();
+};
+
+const getInvoiceDueDateSummaryLabel = (document) =>
+  document?.documentType === "invoice" && isInvoiceFullPaymentDue(document) ? "Payment due date" : SERVICE_DUE_DATE_LABEL;
+
+const getInvoiceDepositLabel = (document) =>
+  isInvoiceFullPaymentDue(document) ? "Amount due (100%)" : SERVICE_DEPOSIT_SUMMARY_LABEL;
 
 const normalizeTaxRate = (value) => {
   const rate = Number(value);
@@ -140,16 +167,16 @@ const buildDocumentIntro = (document, summary, currency) => {
   const documentIdentity = formatDocumentIdentity(document);
   const balanceLabel =
     document?.documentType === "invoice"
-      ? formatCurrency(summary.balanceDue, currency)
+      ? formatCurrency(summary.fullPaymentDue ? summary.depositAmount : summary.balanceDue, currency)
       : formatCurrency(summary.grandTotal, currency);
 
   return [
     `Hello ${customerName},`,
     document?.documentType === "receipt"
       ? `Your receipt is ready. ${documentIdentity} is attached below for your records.`
-      : `Your invoice is ready. ${documentIdentity} is prepared with a current balance of ${balanceLabel}.`,
+      : `Your invoice is ready. ${documentIdentity} is prepared with a ${summary.fullPaymentDue ? "full amount due" : "remaining balance"} of ${balanceLabel}.`,
     document?.dueDate
-      ? `Please review the due date of ${formatDate(document.dueDate)} and the item breakdown below.`
+      ? `Please review the ${document?.documentType === "invoice" ? getInvoiceDueDateSummaryLabel(document).toLowerCase() : "due date"} of ${formatDate(document.dueDate)} and the item breakdown below.`
       : "Please review the document details and item breakdown below.",
   ];
 };
@@ -160,7 +187,9 @@ const buildDocumentDetailRows = (document) =>
     ["Customer", document?.customerName || "Customer"],
     ["Status", titleCase(document?.paymentStatus || "draft")],
     ["Issue date", formatDate(document?.issueDate)],
-    ...(document?.dueDate ? [["Due date", formatDate(document.dueDate)]] : []),
+    ...(document?.dueDate
+      ? [[document?.documentType === "invoice" ? getInvoiceDueDateSummaryLabel(document) : "Due date", formatDate(document.dueDate)]]
+      : []),
     ...(document?.linkedLabel ? [["Source", document.linkedLabel]] : []),
   ].filter(([, value]) => String(value || "").trim());
 
@@ -172,8 +201,10 @@ const buildSummaryRows = (document, summary, currency) => [
   ["Total", formatCurrency(summary.grandTotal, currency)],
   ...(document?.documentType === "invoice"
     ? [
-        ["Deposit", formatCurrency(summary.depositAmount, currency)],
-        ["Balance due", formatCurrency(summary.balanceDue, currency)],
+        [getInvoiceDepositLabel(document), formatCurrency(summary.depositAmount, currency)],
+        ...(summary.fullPaymentDue
+          ? []
+          : [[SERVICE_BALANCE_SUMMARY_LABEL, formatCurrency(summary.balanceDue, currency)]]),
       ]
     : []),
 ];
@@ -230,9 +261,16 @@ const buildSummary = (document) => {
     0,
     Math.round((subtotal + additionalTotal + taxTotal - discountTotal) * 100) / 100
   );
-  const rawDeposit = document?.documentType === "invoice" ? Math.max(0, normalizeMoney(document?.depositAmount, 0)) : 0;
-  const depositAmount = Math.min(rawDeposit, grandTotal);
-  const balanceDue = Math.max(0, Math.round((grandTotal - depositAmount) * 100) / 100);
+  const depositAmount =
+    document?.documentType === "invoice"
+      ? isInvoiceFullPaymentDue(document)
+        ? grandTotal
+        : Math.round(grandTotal * INVOICE_DEPOSIT_RATE * 100) / 100
+      : 0;
+  const balanceDue =
+    document?.documentType === "invoice" && isInvoiceFullPaymentDue(document)
+      ? 0
+      : Math.max(0, Math.round((grandTotal - depositAmount) * 100) / 100);
   return {
     lineItems,
     additionalItems,
@@ -245,6 +283,7 @@ const buildSummary = (document) => {
     grandTotal,
     depositAmount,
     balanceDue,
+    fullPaymentDue: isInvoiceFullPaymentDue(document),
   };
 };
 
@@ -256,7 +295,9 @@ const buildEmailText = (document, summary, currency) => {
     `Customer: ${document.customerName || "Customer"}`,
     `Status: ${titleCase(document.paymentStatus || "draft")}`,
     `Issue date: ${formatDate(document.issueDate)}`,
-    ...(document.dueDate ? [`Due: ${formatDate(document.dueDate)}`] : []),
+    ...(document.dueDate
+      ? [`${document.documentType === "invoice" ? getInvoiceDueDateSummaryLabel(document).replace(" date", "") : "Due"}: ${formatDate(document.dueDate)}`]
+      : []),
   ];
 
   if (document.linkedLabel) {
@@ -298,8 +339,10 @@ const buildEmailText = (document, summary, currency) => {
   }
   lines.push(`Total: ${formatCurrency(summary.grandTotal, currency)}`);
   if (document.documentType === "invoice") {
-    lines.push(`Deposit: ${formatCurrency(summary.depositAmount, currency)}`);
-    lines.push(`Balance: ${formatCurrency(summary.balanceDue, currency)}`);
+    lines.push(`${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`);
+    if (!summary.fullPaymentDue) {
+      lines.push(`${SERVICE_BALANCE_SUMMARY_LABEL}: ${formatCurrency(summary.balanceDue, currency)}`);
+    }
   }
   if (document.notes) {
     lines.push("", `Note: ${document.notes}`);
@@ -316,14 +359,18 @@ const buildEmailHtml = (document, summary, currency) => {
     { label: "Total", value: formatCurrency(summary.grandTotal, currency) },
     { label: "Status", value: titleCase(document.paymentStatus || "draft") },
     {
-      label: document.documentType === "invoice" ? "Balance due" : "Items",
+      label: document.documentType === "invoice" ? (summary.fullPaymentDue ? "Amount due" : "Balance due") : "Items",
       value:
         document.documentType === "invoice"
-          ? formatCurrency(summary.balanceDue, currency)
+          ? formatCurrency(summary.fullPaymentDue ? summary.depositAmount : summary.balanceDue, currency)
           : String(summary.billableLineItems.length || 0),
     },
     {
-      label: document.dueDate ? "Due date" : "Issue date",
+      label: document.dueDate
+        ? document.documentType === "invoice"
+          ? getInvoiceDueDateSummaryLabel(document)
+          : "Due date"
+        : "Issue date",
       value: formatDate(document.dueDate || document.issueDate),
     },
   ];
@@ -361,7 +408,11 @@ const buildEmailHtml = (document, summary, currency) => {
     }),
   ];
 
-  if (document.documentType === "invoice" && summary.balanceDue > 0) {
+  if (
+    document.documentType === "invoice" &&
+    String(document.paymentStatus || "draft").toLowerCase() !== "paid" &&
+    summary.depositAmount > 0
+  ) {
     bodyBlocks.splice(
       1,
       0,
@@ -370,10 +421,12 @@ const buildEmailHtml = (document, summary, currency) => {
         title: "Payment due",
         lines: document.dueDate
           ? [
-              `Balance due: ${formatCurrency(summary.balanceDue, currency)}`,
-              `Please settle this invoice by ${formatDate(document.dueDate)}.`,
+              `${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`,
+              summary.fullPaymentDue
+                ? `The deposit date has passed. Please settle the full amount by ${formatDate(document.dueDate)}.`
+                : `Please settle the deposit by ${formatDate(document.dueDate)}. This is ${DEFAULT_SERVICE_DEPOSIT_DUE_LABEL.toLowerCase()}.`,
             ]
-          : [`Balance due: ${formatCurrency(summary.balanceDue, currency)}`],
+          : [`${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`],
       })
     );
   }

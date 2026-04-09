@@ -1,4 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { DateField, SelectField } from "@faako/ui";
 import "./AdminInvoicing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -17,11 +18,15 @@ import {
   faRotateRight,
   faXmark,
 } from "/src/icons/iconSet";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import InvoiceDocumentListSection from "./components/InvoiceDocumentListSection";
+import {
+  DEFAULT_SERVICE_DEPOSIT_DUE_DAYS,
+  DEFAULT_SERVICE_PAYMENT_NOTE,
+  DEFAULT_SERVICE_PAYMENT_TERMS,
+} from "../../../shared/paymentCopy.js";
 
 const COMPANY = {
   name: "REEBS Party Themes",
@@ -59,10 +64,18 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
-const DUE_DATE_OPTIONS = [
+const INVOICE_DEPOSIT_RATE = 0.7;
+
+const INVOICE_DUE_DATE_OPTIONS = [
   { value: "immediately", label: "Immediately" },
-  { value: "two_weeks", label: "Two weeks" },
-  { value: "thirty_days", label: "30 days" },
+  { value: "twenty_four_hours", label: "24hrs" },
+  { value: "forty_eight_hours", label: "48hrs" },
+  { value: "seventy_two_hours", label: "72hrs" },
+  { value: "custom", label: "Custom" },
+];
+
+const RECEIPT_DUE_DATE_OPTIONS = [
+  { value: "immediately", label: "Immediately" },
   { value: "custom", label: "Custom" },
   { value: "none", label: "No due date" },
 ];
@@ -77,13 +90,10 @@ const INVENTORY_MANAGED_SOURCE_TYPES = new Set(["manual", "bookings"]);
 const SHOP_POLICY_TERMS =
   "All shop items are final sale. No returns or exchanges apply unless there are extreme circumstances approved by management.";
 const SHOP_POLICY_NOTE = "Shop policy: all shop items are final sale.";
-const BOOKING_POLICY_TERMS =
-  "Rental dates and inventory are held against the confirmed booking schedule, and any balance is due before delivery or pickup unless noted.";
-const BOOKING_POLICY_NOTE = "Booking policy: rental dates lock to the confirmed schedule.";
-const MIXED_POLICY_TERMS =
-  "All shop items are final sale. No returns or exchanges apply unless there are extreme circumstances approved by management. Rental items follow the confirmed booking schedule, and any balance is due before delivery or pickup unless noted.";
-const MIXED_POLICY_NOTE =
-  "Mixed policy: shop items are final sale, and rental items follow the confirmed booking schedule.";
+const BOOKING_POLICY_TERMS = DEFAULT_SERVICE_PAYMENT_TERMS;
+const BOOKING_POLICY_NOTE = DEFAULT_SERVICE_PAYMENT_NOTE;
+const MIXED_POLICY_TERMS = `${SHOP_POLICY_TERMS}\n\n${DEFAULT_SERVICE_PAYMENT_TERMS}`;
+const MIXED_POLICY_NOTE = `Mixed policy: shop items are final sale. ${DEFAULT_SERVICE_PAYMENT_NOTE}`;
 
 const loadConfig = () => {
   try {
@@ -168,7 +178,10 @@ const formatDateStamp = (value) => {
 const todayValue = () => new Date().toISOString().slice(0, 10);
 
 const defaultDueDateOptionForType = (documentType) =>
-  documentType === "invoice" ? "thirty_days" : "none";
+  documentType === "invoice" ? "forty_eight_hours" : "none";
+
+const getDueDateOptionsForType = (documentType) =>
+  documentType === "invoice" ? INVOICE_DUE_DATE_OPTIONS : RECEIPT_DUE_DATE_OPTIONS;
 
 const normalizeCustomerName = (value) =>
   String(value || "")
@@ -225,6 +238,17 @@ const computeDueDate = (document, dueDateOption) => {
   if (option === "custom") return normalizeDateInput(document?.dueDate);
   if (!referenceDate || option === "none") return "";
   if (option === "immediately") return referenceDate;
+  if (option === "twenty_four_hours") {
+    return mode === "before_event" ? subtractDaysFromDate(referenceDate, 1) : addDaysToDate(referenceDate, 1);
+  }
+  if (option === "forty_eight_hours" || option === "service_deposit") {
+    return mode === "before_event"
+      ? subtractDaysFromDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS)
+      : addDaysToDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS);
+  }
+  if (option === "seventy_two_hours") {
+    return mode === "before_event" ? subtractDaysFromDate(referenceDate, 3) : addDaysToDate(referenceDate, 3);
+  }
   if (option === "two_weeks") {
     return mode === "before_event" ? subtractDaysFromDate(referenceDate, 14) : addDaysToDate(referenceDate, 14);
   }
@@ -238,9 +262,46 @@ const inferDueDateOption = (document, dueDate) => {
   const normalizedDueDate = normalizeDateInput(dueDate);
   if (!normalizedDueDate) return "none";
   if (normalizedDueDate === computeDueDate(document, "immediately")) return "immediately";
-  if (normalizedDueDate === computeDueDate(document, "two_weeks")) return "two_weeks";
-  if (normalizedDueDate === computeDueDate(document, "thirty_days")) return "thirty_days";
+  if (normalizedDueDate === computeDueDate(document, "twenty_four_hours")) return "twenty_four_hours";
+  if (normalizedDueDate === computeDueDate(document, "forty_eight_hours")) return "forty_eight_hours";
+  if (normalizedDueDate === computeDueDate(document, "service_deposit")) return "forty_eight_hours";
+  if (normalizedDueDate === computeDueDate(document, "seventy_two_hours")) return "seventy_two_hours";
+  if (normalizedDueDate === computeDueDate(document, "two_weeks")) return "custom";
+  if (normalizedDueDate === computeDueDate(document, "thirty_days")) return "custom";
   return "custom";
+};
+
+const getInvoiceDueDateLabel = (document) =>
+  document?.documentType === "invoice" ? "Deposit due" : "Due date";
+
+const isInvoiceFullPaymentDue = (document) => {
+  if (document?.documentType !== "invoice") return false;
+  if (String(document?.paymentStatus || "").toLowerCase() === "paid") return false;
+  const dueDate = normalizeDateInput(document?.dueDate);
+  return Boolean(dueDate) && dueDate < todayValue();
+};
+
+const getInvoiceDueDateSummaryLabel = (document) =>
+  document?.documentType === "invoice" && isInvoiceFullPaymentDue(document) ? "Payment due" : "Deposit due";
+
+const getInvoiceDepositLabel = (document) =>
+  isInvoiceFullPaymentDue(document) ? "Amount due (100%)" : "Deposit due (70%)";
+
+const getInvoiceBalanceLabel = () => "Remaining balance";
+
+const syncDocumentLifecycle = (document) => {
+  const paymentStatus = String(document?.paymentStatus || "draft").toLowerCase();
+  const invoiceNumber = getDocumentNumberValue(document?.invoiceNumber);
+  if (paymentStatus !== "draft" && !invoiceNumber) {
+    return {
+      ...document,
+      invoiceNumber: buildDocumentNumber(document?.documentType),
+    };
+  }
+  return {
+    ...document,
+    invoiceNumber,
+  };
 };
 
 const syncDueDateFlow = (document) => {
@@ -322,9 +383,6 @@ const getDocumentFileLabel = (document) => {
   const prefix = document?.documentType === "receipt" ? "receipt" : "invoice";
   return `${prefix}-${getDocumentNumberValue(document?.invoiceNumber) || "draft"}`;
 };
-
-const isUnsentDraftDocument = (document) =>
-  !document?.sentAt && !getDocumentNumberValue(document?.invoiceNumber);
 
 const classifyInvoiceProductPolicy = (product) => {
   const sku = String(product?.sku || "").trim().toUpperCase();
@@ -825,10 +883,7 @@ const normalizeStoredDocument = (record) => {
     issueDate,
     dueDate,
     dueDateOption: inferDueDateOption(dueDateReference, dueDate),
-    paymentStatus:
-      !record?.sentAt && !getDocumentNumberValue(record?.invoiceNumber)
-        ? "draft"
-        : String(record?.paymentStatus || "draft").toLowerCase(),
+    paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
     depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
     discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
 
@@ -1069,18 +1124,28 @@ const computeDocumentSummary = (document) => {
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   const additionalTotal = Number(additionalItems.reduce((sum, item) => sum + item.total, 0).toFixed(2));
   const taxRate = parseTaxRate(document?.taxRate);
-  const discountTotal = Number(document?.discountAmount)
+  const rawDiscount = Math.max(0, toNumber(document?.discountAmount, 0));
   const taxTotal = Number(((subtotal + additionalTotal) * taxRate).toFixed(2));
-  const grandTotal = Number((subtotal + additionalTotal + taxTotal - discountTotal).toFixed(2));
-  const rawDeposit = document?.documentType === "invoice" ? Math.max(0, toNumber(document?.depositAmount, 0)) : 0;
-  const depositAmount = Math.min(rawDeposit, grandTotal);
+  const discountTotal = Math.min(rawDiscount, subtotal + additionalTotal + taxTotal);
+  const grandTotal = Math.max(0, Number((subtotal + additionalTotal + taxTotal - discountTotal).toFixed(2)));
+  const fullPaymentDue = isInvoiceFullPaymentDue(document);
+  const depositAmount =
+    document?.documentType === "invoice"
+      ? fullPaymentDue
+        ? grandTotal
+        : Number((grandTotal * INVOICE_DEPOSIT_RATE).toFixed(2))
+      : 0;
   const amountPaid = document?.paymentStatus === "paid" ? grandTotal : depositAmount;
-  const balanceDue = Math.max(0, Number((grandTotal - amountPaid).toFixed(2)));
+  const balanceDue =
+    document?.documentType === "invoice" && fullPaymentDue
+      ? 0
+      : Math.max(0, Number((grandTotal - amountPaid).toFixed(2)));
   const expensesTotal = expenses.reduce((sum, item) => sum + item.amount, 0);
 
   return {
     ...document,
     docLabel: document?.documentType === "receipt" ? "Receipt" : "Invoice",
+    depositAmount,
     lineItems,
     expenses,
     additionalItems,
@@ -1094,6 +1159,7 @@ const computeDocumentSummary = (document) => {
       discountTotal,
       amountPaid,
       balanceDue,
+      fullPaymentDue,
       expensesTotal,
     },
   };
@@ -1101,6 +1167,61 @@ const computeDocumentSummary = (document) => {
 
 const normalizeSavedDocumentRecord = (record) =>
   computeDocumentSummary(normalizeStoredDocument(record));
+
+const normalizeSavedDocumentListRecord = (record) => {
+  const documentType = record?.documentType === "receipt" ? "receipt" : "invoice";
+  const issueDate = normalizeDateInput(record?.issueDate) || todayValue();
+  const dueDate = normalizeDateInput(record?.dueDate);
+  const event = {
+    eventDate: normalizeDateInput(record?.eventDate),
+    startTime: String(record?.startTime || ""),
+    endTime: String(record?.endTime || ""),
+    venueAddress: String(record?.venueAddress || ""),
+  };
+
+  return {
+    id: Number(record?.id) || null,
+    sourceType: record?.sourceType || "manual",
+    sourceId: Number(record?.sourceId) || null,
+    customerId: Number(record?.customerId) || null,
+    documentType,
+    title: String(record?.title || ""),
+    invoiceNumber: getDocumentNumberValue(record?.invoiceNumber),
+    issueDate,
+    dueDate,
+    dueDateOption: inferDueDateOption({ documentType, issueDate, event }, dueDate),
+    paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
+    depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
+    discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
+    customer: {
+      name: String(record?.customerName || ""),
+      email: String(record?.customerEmail || ""),
+      phone: String(record?.customerPhone || ""),
+    },
+    event,
+    lineItems: [],
+    expenses: [],
+    additionalItems: [],
+    notes: "",
+    terms: "",
+    taxRate: parseTaxRate(record?.taxRate),
+    docLabel: documentType === "receipt" ? "Receipt" : "Invoice",
+    sourceLabel: buildSourceLabel(record?.sourceType, record?.sourceId),
+    linkedLabel:
+      record?.sourceType === "manual"
+        ? MANUAL_LINKED_LABEL
+        : buildSourceLabel(record?.sourceType, record?.sourceId),
+    stockCommittedAt: record?.stockCommittedAt || null,
+    sentAt: record?.sentAt || null,
+    sentToEmail: String(record?.sentToEmail || ""),
+    archivedAt: record?.archivedAt || null,
+    createdAt: record?.createdAt || null,
+    updatedAt: record?.updatedAt || null,
+    summary: {
+      grandTotal: Math.max(0, toNumber(record?.grandTotal, 0)),
+    },
+  };
+};
 
 const buildStoredPayload = (document) => ({
   id: document.id,
@@ -1112,7 +1233,7 @@ const buildStoredPayload = (document) => ({
   invoiceNumber: getDocumentNumberValue(document.invoiceNumber),
   issueDate: document.issueDate,
   dueDate: document.dueDate || computeDueDate(document, document.dueDateOption),
-  paymentStatus: isUnsentDraftDocument(document) ? "draft" : document.paymentStatus,
+  paymentStatus: document.paymentStatus,
   sentAt: document.sentAt || null,
   sentToEmail: document.sentToEmail || "",
   depositAmount: document.documentType === "invoice" ? toNumber(document.depositAmount, 0) : 0,
@@ -1407,7 +1528,7 @@ function EditableDocumentTemplate({
           <div className="invoice-meta invoice-editable-meta">
             <label className="invoice-editable-meta-field">
               <span className="invoicing-label">Type</span>
-              <select
+              <SelectField
                 value={document.documentType}
                 onChange={(event) =>
                   onDocumentChange((current) => ({
@@ -1420,53 +1541,52 @@ function EditableDocumentTemplate({
               >
                 <option value="receipt">Receipt</option>
                 <option value="invoice">Invoice</option>
-              </select>
+              </SelectField>
             </label>
 
             <label className="invoice-editable-meta-field">
               <span className="invoicing-label">Date</span>
-              <input
-                type="date"
+              <DateField
                 value={document.issueDate}
                 onChange={(event) => onDocumentChange({ issueDate: event.target.value })}
               />
             </label>
             <label className="invoice-editable-meta-field">
               <span className="invoicing-label">Status</span>
-              <select
+              <SelectField
                 value={document.paymentStatus}
                 onChange={(event) => onDocumentChange({ paymentStatus: event.target.value })}
-                disabled={isUnsentDraftDocument(document)}
               >
                 {PAYMENT_STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
 
             <label className="invoice-editable-meta-field invoice-editable-field-full">
-              <span className="invoicing-label">Due date</span>
+              <span className="invoicing-label">{getInvoiceDueDateLabel(document)}</span>
               <div className="invoice-editable-due-date-row">
-                <select
+                <SelectField
                   value={document.dueDateOption || defaultDueDateOptionForType(document.documentType)}
                   onChange={(event) => onDocumentChange({ dueDateOption: event.target.value })}
                 >
-                  {DUE_DATE_OPTIONS.map((option) => (
+                  {getDueDateOptionsForType(document.documentType).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
-                <input
-                  type="date"
+                </SelectField>
+                <DateField
                   value={document.dueDate || ""}
                   aria-label="Actual due date"
                   onChange={(event) =>
                     onDocumentChange({
                       dueDate: event.target.value,
-                      dueDateOption: event.target.value ? "custom" : "none",
+                      dueDateOption: event.target.value
+                        ? "custom"
+                        : defaultDueDateOptionForType(document.documentType),
                     })
                   }
                 />
@@ -1480,7 +1600,10 @@ function EditableDocumentTemplate({
       <div className="invoice-chip-row invoice-editable-chip-row">
 
           <span className="invoice-chip-detail">
-            Balance {formatCurrency(summary.balanceDue, companyConfig.currency)}
+            {summary.fullPaymentDue ? "Due" : "Balance"} {formatCurrency(
+              summary.fullPaymentDue ? summary.depositAmount : summary.balanceDue,
+              companyConfig.currency
+            )}
           </span>
         
       </div>
@@ -1518,8 +1641,7 @@ function EditableDocumentTemplate({
             <div className="invoice-editable-card-grid">
               <label className="invoice-editable-field invoice-editable-field-full">
                 <span>Date</span>
-                <input
-                  type="date"
+                <DateField
                   value={document.event?.eventDate || ""}
                   onChange={(event) => onEventChange("eventDate", event.target.value)}
                 />
@@ -1947,16 +2069,8 @@ function EditableDocumentTemplate({
 
             {document.documentType === "invoice" ? (
               <div className="invoice-total-row">
-                <span>Deposit</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={document.depositAmount}
-                  onChange={(event) =>
-                    onDocumentChange({ depositAmount: toNumber(event.target.value, 0) })
-                  }
-                />
+                <span>{getInvoiceDepositLabel(document)}</span>
+                <span>{formatCurrency(summary.depositAmount, companyConfig.currency)}</span>
               </div>
             ) : null}
           </div>
@@ -1997,17 +2111,19 @@ function EditableDocumentTemplate({
             {document.documentType === "invoice" ? (
               <>
                 <div className="invoice-total-row">
-                  <span>Deposit</span>
+                  <span>{getInvoiceDepositLabel(document)}</span>
                   <span>{formatCurrency(summary.depositAmount, companyConfig.currency)}</span>
                 </div>
                 <div className="invoice-total-row">
                   <span>Discount</span>
                   <span>-{formatCurrency(summary.discountTotal, companyConfig.currency)}</span>
                 </div>
-                <div className="invoice-total-row">
-                  <span>Balance</span>
-                  <span>{formatCurrency(summary.balanceDue, companyConfig.currency)}</span>
-                </div>
+                {!summary.fullPaymentDue ? (
+                  <div className="invoice-total-row">
+                    <span>{getInvoiceBalanceLabel()}</span>
+                    <span>{formatCurrency(summary.balanceDue, companyConfig.currency)}</span>
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="invoice-total-row">
@@ -2125,18 +2241,27 @@ function AdminInvoicing() {
     setDocumentsLoading(true);
     setDocumentsError("");
     try {
-      const response = await fetch("/.netlify/functions/invoice-documents");
+      const response = await fetch("/.netlify/functions/invoice-documents?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load invoice documents.");
       }
-      setSavedDocuments(Array.isArray(data) ? data.map(normalizeSavedDocumentRecord) : []);
+      setSavedDocuments(Array.isArray(data) ? data.map(normalizeSavedDocumentListRecord) : []);
     } catch (err) {
       console.error("Invoice documents fetch failed", err);
       setDocumentsError(err.message || "Unable to load invoice documents.");
     } finally {
       setDocumentsLoading(false);
     }
+  }, []);
+
+  const fetchSavedDocumentById = useCallback(async (id) => {
+    const response = await fetch(`/.netlify/functions/invoice-documents?id=${id}`);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.error || "Failed to load invoice document.");
+    }
+    return normalizeSavedDocumentRecord(data);
   }, []);
 
   const fetchCustomers = useCallback(async () => {
@@ -2262,7 +2387,7 @@ function AdminInvoicing() {
   const finalizeWorkingDocument = useCallback(
     (nextDocument, currentDocument = null) => {
       if (!nextDocument) return null;
-      const hydratedDocument = {
+      const hydratedDocument = syncDocumentLifecycle({
         ...nextDocument,
         lineItems: clearLegacyDraftLineItemPlaceholders(
           ensureEditableLineItems(nextDocument.lineItems),
@@ -2270,7 +2395,7 @@ function AdminInvoicing() {
         ),
         expenses: normalizeExpenses(nextDocument.expenses),
         additionalItems: normalizeAdditionalItems(nextDocument.additionalItems),
-      };
+      });
       const policySyncedDocument = syncManagedPolicyCopy(currentDocument, hydratedDocument, productById);
       const dueDateSyncedDocument = syncDueDateFlow(policySyncedDocument);
       const stockClampedDocument = clampDocumentLineItemsToStock(dueDateSyncedDocument, productById);
@@ -2636,10 +2761,10 @@ function AdminInvoicing() {
 
       try {
         if (selectedEntry.sourceType === "manual") {
-          const manualDocument = manualDocuments.find((item) => item.id === selectedEntry.id) || null;
-          if (!manualDocument) {
+          if (!selectedEntry.id) {
             throw new Error("Document not found.");
           }
+          const manualDocument = await fetchSavedDocumentById(selectedEntry.id);
           if (!cancelled) {
             const resolvedDocument = finalizeWorkingDocument(manualDocument);
             const restoredDraft = readInvoiceDraft(selectedEntry.key);
@@ -2655,6 +2780,7 @@ function AdminInvoicing() {
           return;
         }
 
+        const savedOverride = selectedEntry.id ? await fetchSavedDocumentById(selectedEntry.id) : null;
         const endpoint =
           selectedEntry.sourceType === "bookings"
             ? `/.netlify/functions/getInvoiceDetails?id=${selectedEntry.sourceId}`
@@ -2675,7 +2801,7 @@ function AdminInvoicing() {
           baseDocument = normalizeOrderDocument(payload, fallbackItems, defaultTaxRate);
         }
 
-        const override = savedLinkedMap.get(selectedEntry.key) || null;
+        const override = savedOverride || savedLinkedMap.get(selectedEntry.key) || null;
         const merged = finalizeWorkingDocument(mergeDocument(baseDocument, override), baseDocument);
         if (!cancelled) {
           const restoredDraft = readInvoiceDraft(selectedEntry.key);
@@ -2708,8 +2834,8 @@ function AdminInvoicing() {
   }, [
     bookings,
     defaultTaxRate,
+    fetchSavedDocumentById,
     finalizeWorkingDocument,
-    manualDocuments,
     orders,
     savedLinkedMap,
     selectedEntry,
@@ -3183,6 +3309,10 @@ function AdminInvoicing() {
 
   const createPdfDoc = async () => {
     if (!activeDocument) return null;
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const document = activeDocument;
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -3317,7 +3447,12 @@ function AdminInvoicing() {
     doc.setTextColor(203, 213, 225);
     doc.text(`Issued: ${formatShortDate(document.issueDate)}`, rightX, logoPad + 29, { align: "right" });
     if (document.dueDate) {
-      doc.text(`Due: ${formatShortDate(document.dueDate)}`, rightX, logoPad + 34, { align: "right" });
+      doc.text(
+        `${getInvoiceDueDateSummaryLabel(document)}: ${formatShortDate(document.dueDate)}`,
+        rightX,
+        logoPad + 34,
+        { align: "right" }
+      );
     }
 
     // ─── BILL TO + EVENT ─────────────────────────────────────────────
@@ -3495,6 +3630,7 @@ function AdminInvoicing() {
     const hasDiscount = (document.summary.discountTotal || 0) > 0;
     const hasExpenses = (document.summary.additionalTotal || 0) > 0;
     const isInvoice   = document.documentType === "invoice";
+    const isFullPaymentDue = Boolean(document.summary.fullPaymentDue);
     const notesText = document.notes?.trim() || "";
     const termsText = document.terms?.trim() || "";
     const hasNotes = Boolean(notesText || termsText);
@@ -3503,7 +3639,7 @@ function AdminInvoicing() {
     let totalsRows = 2; // subtotal + grand total
     if (hasExpenses)  totalsRows += 1;
     if (hasTax)       totalsRows += 1;
-    if (isInvoice)    totalsRows += 2; // deposit + balance due
+    if (isInvoice)    totalsRows += isFullPaymentDue ? 1 : 2; // due amount + optional balance due
     if (isInvoice && hasDiscount) totalsRows += 1;
 
     const boxW  = 80;
@@ -3549,14 +3685,20 @@ function AdminInvoicing() {
     totalsRow("Grand Total", formatPdfCurrency(document.summary.grandTotal, currency), { bold: true, large: true });
 
     if (isInvoice) {
-      totalsRow("Deposit Paid", formatPdfCurrency(document.summary.depositAmount, currency));
+      totalsRow(getInvoiceDepositLabel(document), formatPdfCurrency(document.summary.depositAmount, currency));
       if (hasDiscount) totalsRow("Discount", `-${formatPdfCurrency(document.summary.discountTotal, currency)}`);
 
-      // Divider above Balance Due
-      doc.setDrawColor(...divider);
-      doc.line(boxX + 4, ry - 3, boxX + boxW - 4, ry - 3);
+      if (!document.summary.fullPaymentDue) {
+        // Divider above Balance Due
+        doc.setDrawColor(...divider);
+        doc.line(boxX + 4, ry - 3, boxX + boxW - 4, ry - 3);
 
-      totalsRow("Balance Due", formatPdfCurrency(document.summary.balanceDue, currency), { bold: true, large: true });
+        totalsRow(
+          getInvoiceBalanceLabel(),
+          formatPdfCurrency(document.summary.balanceDue, currency),
+          { bold: true, large: true }
+        );
+      }
     } else {
       totalsRow("Amount Paid", formatPdfCurrency(document.summary.amountPaid, currency), { bold: true });
     }
@@ -4086,152 +4228,33 @@ function AdminInvoicing() {
         {saveError ? <p className="invoicing-error">{saveError}</p> : null}
         {saveStatus ? <p className="invoicing-success">{saveStatus}</p> : null}
 
-        <section className="invoice-hub-kpis" aria-label="Invoice summary">
-          <article className="bubble-card invoice-hub-kpi">
-            <p>Open</p>
-            <strong>{summaryCards.open}</strong>
-            <span>Draft or unpaid</span>
-          </article>
-          <article className="bubble-card invoice-hub-kpi">
-            <p>Paid</p>
-            <strong>{summaryCards.paid}</strong>
-            <span>Marked paid</span>
-          </article>
-          <article className="bubble-card invoice-hub-total-card">
-            <p>Total value</p>
-            <strong>{formatCurrency(summaryCards.total, config.currency)}</strong>
-          </article>
-        </section>
-
-        <section className="invoice-hub-toolbar" aria-label="Invoice filters">
-          <SearchField
-            className="invoice-hub-search"
-            inputClassName="invoice-hub-search-input"
-            clearClassName="invoice-hub-search-clear"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            onClear={() => setSearchTerm("")}
-            placeholder="Search invoice, receipt, customer or source"
-          />
-
-          <div className="invoice-hub-toolbar-filters">
-            <label className="invoice-hub-toolbar-filter">
-              <span>Type</span>
-              <select value={documentFilter} onChange={(event) => setDocumentFilter(event.target.value)}>
-                {DOCUMENT_TYPE_FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="invoice-hub-toolbar-filter">
-              <span>Status</span>
-              <select
-                value={paymentStatusFilter}
-                onChange={(event) => setPaymentStatusFilter(event.target.value)}
-              >
-                {PAYMENT_STATUS_FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section className="admin-table invoice-hub-table" aria-label="Invoices and receipts">
-
-          {ordersLoading || bookingsLoading || documentsLoading ? (
-            <p className="invoicing-muted">Loading documents...</p>
-          ) : workspaceError && !visibleEntries.length ? (
-            <p className="invoicing-error">{workspaceError}</p>
-          ) : visibleEntries.length === 0 ? (
-            <p className="invoicing-muted">No documents match this view.</p>
-          ) : (
-            <div className="admin-table-scroll inventory-table-scroll invoice-hub-table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="table-row-index">#</th>
-                    <th>Document</th>
-                    <th>Customer</th>
-                    <th>Type</th>
-                    <th>Source</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Archive</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleEntries.map((entry, index) => (
-                    <tr
-                      key={entry.key}
-                      className={`invoice-hub-table-row ${selectedKey === entry.key ? "is-active" : ""}`}
-                      tabIndex={0}
-                      onClick={() => handleSelectEntry(entry.key)}
-                      onKeyDown={(event) => handleEntryKeyDown(event, entry.key)}
-                    >
-                      <td className="table-row-index">{index}</td>
-                      <td>
-                        <div className="admin-product invoice-hub-table-document">
-                          <span className="admin-product-name">{getDocumentTableReference(entry)}</span>
-                        </div>
-                      </td>
-                      <td>{entry.customerName || "-"}</td>
-                      <td>
-                        <span className="invoice-hub-table-type">
-                          {entry.documentType === "receipt" ? "Receipt" : "Invoice"}
-                        </span>
-                      </td>
-                      <td>{entry.linkedLabel}</td>
-                      <td>{formatShortDate(entry.issueDate)}</td>
-                      <td><DocumentPill value={entry.paymentStatus} /></td>
-                      <td>{formatCurrency(entry.total, config.currency)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="invoice-hub-table-action invoice-hub-table-action-danger"
-                          onClick={(event) => archiveEntryFromList(entry, event)}
-                          onKeyDown={(event) => event.stopPropagation()}
-                          disabled={archivingDocument}
-                          aria-label={`Archive ${getDocumentArchiveLabel(entry)}`}
-                          title={`Archive ${getDocumentArchiveLabel(entry)}`}
-                        >
-                          <AppIcon icon={faBoxArchive} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {visibleEntries.length > 0 && (
-                  <tfoot className="admin-table-footer">
-                    <tr>
-                      <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{summaryCards.count}</span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell">
-                        <span className="admin-table-summary-value">
-                          {formatCurrency(summaryCards.total, config.currency)}
-                        </span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          )}
-        </section>
+        <InvoiceDocumentListSection
+          config={config}
+          summaryCards={summaryCards}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          documentFilter={documentFilter}
+          setDocumentFilter={setDocumentFilter}
+          paymentStatusFilter={paymentStatusFilter}
+          setPaymentStatusFilter={setPaymentStatusFilter}
+          documentTypeOptions={DOCUMENT_TYPE_FILTER_OPTIONS}
+          paymentStatusOptions={PAYMENT_STATUS_FILTER_OPTIONS}
+          ordersLoading={ordersLoading}
+          bookingsLoading={bookingsLoading}
+          documentsLoading={documentsLoading}
+          workspaceError={workspaceError}
+          visibleEntries={visibleEntries}
+          selectedKey={selectedKey}
+          handleSelectEntry={handleSelectEntry}
+          handleEntryKeyDown={handleEntryKeyDown}
+          getDocumentTableReference={getDocumentTableReference}
+          formatShortDate={formatShortDate}
+          formatCurrency={formatCurrency}
+          archiveEntryFromList={archiveEntryFromList}
+          archivingDocument={archivingDocument}
+          getDocumentArchiveLabel={getDocumentArchiveLabel}
+          DocumentPillComponent={DocumentPill}
+        />
       </div>
     </div>
   );

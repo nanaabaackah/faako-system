@@ -115,7 +115,7 @@ export default function Reports() {
 
       <div className="panel-grid">
         {reportCards.map((card) => (
-          <article className="panel" key={card.id}>
+          <article className="panel bubble-card" key={card.id}>
             <h3>{card.title}</h3>
             <p className="muted">{card.detail}</p>
             <span className="status-pill is-info">{card.status}</span>
@@ -125,7 +125,7 @@ export default function Reports() {
 
       <div className="kpi-grid">
         {reportStats.map((stat) => (
-          <article className="panel kpi-card" key={stat.id}>
+          <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
             <span className={`kpi-delta is-${stat.tone}`}>{stat.delta}</span>
@@ -134,7 +134,7 @@ export default function Reports() {
       </div>
 
       <div className="page-grid">
-        <article className="panel">
+        <article className="panel glass-card">
           <div className="panel-header">
             <div>
               <h3>Insights snapshot</h3>
@@ -156,7 +156,7 @@ export default function Reports() {
         </article>
 
         <div className="stack">
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Workflow signals</h3>
@@ -174,7 +174,7 @@ export default function Reports() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel glass-card">
             <div className="panel-header">
               <div>
                 <h3>Automation runs</h3>

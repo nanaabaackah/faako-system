@@ -79,7 +79,7 @@ const shouldSkipElement = (element, kind) => {
   if (element.classList.contains("party-confetti")) return true;
   if (element.classList.contains("app-icon")) return true;
   if (element.classList.contains("sr-only")) return true;
-  if (element.matches("input, select, textarea, option, source, svg, path, use")) return true;
+  if (element.matches("input, select, textarea, option, source, svg, path, use, .ui-date-field__trigger, .ui-dropdown-field__trigger")) return true;
   if (element.closest(".search-field")) return true;
   if (kind === "text" && !hasMeaningfulText(element)) return true;
   if (
