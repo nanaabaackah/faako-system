@@ -1292,7 +1292,6 @@ function AdminBookings() {
   };
 
   const openCreate = () => {
-    if (isMobileView) return;
     ensureSupportData({ customers: true, products: true, bouncyCastles: true })
       .then(() => {
         setEditing(null);
@@ -1321,7 +1320,6 @@ function AdminBookings() {
   };
 
   const openEdit = (booking) => {
-    if (isMobileView) return;
     ensureSupportData({ customers: true, products: true, bouncyCastles: true })
       .then(async () => {
         const fullBooking = await fetchBookingById(booking.id);
@@ -1369,9 +1367,7 @@ function AdminBookings() {
       );
 
     if (action === "create") {
-      if (!isMobileView) {
-        openCreate();
-      }
+      openCreate();
       finish();
       return;
     }
@@ -1388,9 +1384,7 @@ function AdminBookings() {
     }
 
     if (action === "edit") {
-      if (!isMobileView) {
-        openEdit(targetBooking);
-      }
+      openEdit(targetBooking);
       finish();
       return;
     }
