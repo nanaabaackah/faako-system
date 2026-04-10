@@ -53,6 +53,9 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
 body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-header-actions .admin-secondary,
 body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-header-actions .admin-refresh {
   width: auto !important;
+  min-width: 46px;
+  min-height: 46px;
+  justify-content: center;
 }
 
 @media (max-width: 900px) {
@@ -77,6 +80,17 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
     width: auto !important;
     justify-content: flex-end !important;
     align-items: center !important;
+  }
+}
+
+@media (max-width: 720px) {
+  body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-header-actions {
+    gap: 0.5rem;
+  }
+
+  body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-header-actions .bookings-secondary,
+  body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-header-actions .bookings-primary {
+    padding: 12px;
   }
 }
 

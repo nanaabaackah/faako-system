@@ -1540,14 +1540,24 @@ function AdminBookings() {
           title="Bookings"
           actions={(
             <>
-              <button type="button" className="bookings-secondary" onClick={fetchAll}>
+              <button
+                type="button"
+                className="bookings-secondary"
+                onClick={fetchAll}
+                aria-label="Refresh bookings"
+                title="Refresh bookings"
+              >
                 <AppIcon icon={faRotateRight} />
               </button>
-              {!isMobileView ? (
-                <button type="button" className="bookings-primary" onClick={openCreate}>
-                  <AppIcon icon={faPlus} />
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="bookings-primary"
+                onClick={openCreate}
+                aria-label="Create booking"
+                title="Create booking"
+              >
+                <AppIcon icon={faPlus} />
+              </button>
             </>
           )}
         />
