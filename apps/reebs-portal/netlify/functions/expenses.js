@@ -1,7 +1,6 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireUser } from "./_shared/userAuth.js";
 import {
   EXPENSE_CATEGORIES,
   buildExpenseFilter,
@@ -30,6 +29,12 @@ const normalizeExpenseRow = (row) => ({
   category: normalizeExpenseCategory(row?.category) || "Operational",
 });
 
+const ensureExpenseLinkColumns = async (client, table) => {
+  if (!table?.queryRef) return;
+  await client.query(`ALTER TABLE ${table.queryRef} ADD COLUMN IF NOT EXISTS "orderId" INTEGER`);
+  await client.query(`ALTER TABLE ${table.queryRef} ADD COLUMN IF NOT EXISTS "bookingId" INTEGER`);
+};
+
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204, {}, { methods: EXPENSE_METHODS });
@@ -55,6 +60,7 @@ export async function handler(event = {}) {
     if (!table) {
       return respond(event, 500, { error: "Expenses table not found." }, { methods: EXPENSE_METHODS });
     }
+    await ensureExpenseLinkColumns(client, table);
     const columns = await resolveExpenseColumns(client, table);
     const hasUserId = columns.includes("userId");
     const hasOrderId = columns.includes("orderId");
@@ -300,11 +306,17 @@ export async function handler(event = {}) {
     }
     if (bookingId) {
       const bookingCheck = await client.query(
-        `SELECT id FROM "booking" WHERE id = $1 AND "organizationId" = $2`,
+        `SELECT id, status FROM "booking" WHERE id = $1 AND "organizationId" = $2`,
         [bookingId, organizationId]
       );
       if (bookingCheck.rowCount === 0) {
         return respond(event, 400, { error: "Booking not found." }, { methods: EXPENSE_METHODS });
+      }
+      const bookingStatus = String(bookingCheck.rows[0]?.status || "").trim().toLowerCase();
+      if (bookingStatus === "completed") {
+        return respond(event, 409, { error: "Completed bookings are locked and can't be edited." }, {
+          methods: EXPENSE_METHODS,
+        });
       }
     }
 

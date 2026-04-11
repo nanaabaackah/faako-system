@@ -6,6 +6,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import type { AppSystemConfig } from "@faako/types";
+import { readMobileBrowserChromeColor } from "@faako/utils";
 import { buildResolvedThemeTokens, getSystemThemeMetaColor, resolveSystemThemePreset } from "@faako/theme";
 import { normalizeAuthMode, normalizeSecurityProfileId } from "@faako/security";
 import { ToastProvider } from "./Feedback";
@@ -84,7 +85,11 @@ export function UiSystemProvider({
       root.style.setProperty(key, value);
     });
 
-    ensureThemeMeta(safeAppSystem?.brand?.browserChromeColor || getSystemThemeMetaColor(preset.id));
+    ensureThemeMeta(
+      readMobileBrowserChromeColor(
+        safeAppSystem?.brand?.browserChromeColor || getSystemThemeMetaColor(preset.id)
+      )
+    );
 
     return () => {
       Object.entries(previousAttrs).forEach(([key, value]) => {

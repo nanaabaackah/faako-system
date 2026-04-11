@@ -177,7 +177,16 @@ export const resolveExpenseTable = async (client) => {
   }
 
   if (!available.length) return null;
-  available.sort((a, b) => b.count - a.count);
+  const tableScore = (table) => {
+    const schemaScore = table.schema === "public" ? 1 : 0;
+    const nameScore = table.tableName === "expense" ? 4 : table.tableName === "Expense" ? 2 : 0;
+    return schemaScore + nameScore;
+  };
+  available.sort((a, b) => {
+    const scoreDiff = tableScore(b) - tableScore(a);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b.count - a.count;
+  });
   return available[0];
 };
 

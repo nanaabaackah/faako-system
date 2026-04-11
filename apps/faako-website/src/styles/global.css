@@ -68,7 +68,7 @@
   --font-display: "Inter", sans-serif;
   --font-body: "Manrope", "Trebuchet MS", sans-serif;
   --bg: #fbfbfb;
-  --browser-chrome-color: var(--bg);
+  --browser-chrome-color: var(--surface);
   --section-bg: rgba(35, 88, 66, 0.08);
   --bg-gradient: #fbfbfb00;
   --ink: #262626;

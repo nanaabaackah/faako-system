@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import "./AdminBookings.css";
@@ -6,6 +7,7 @@ import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faPlus,
   faRotateRight,
+  faTruck,
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -14,6 +16,10 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 import BookingEditorModal from "./components/BookingEditorModal";
 import BookingDetailModal from "./components/BookingDetailModal";
+import {
+  fetchBookingInvoiceDetails,
+  fetchInvoiceDocumentById,
+} from "../../utils/invoiceDocumentCache";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -30,6 +36,26 @@ const formatDate = (value) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear()).slice(-2);
   return `${day}-${month}-${year}`;
+};
+
+const formatFullDate = (value) => {
+  if (!value) return "-";
+  let date;
+  if (typeof value === "string") {
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      date = new Date(Number(year), Number(month) - 1, Number(day));
+    }
+  }
+  date = date || new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 };
 
 const normalizeCurrency = (currency) => {
@@ -119,7 +145,8 @@ const normalizeIdFilter = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
 };
 
-const BOOKING_VIEW_FILTERS = new Set(["list", "map"]);
+const BOOKING_VIEW_FILTERS = new Set(["list", "cards", "board", "map"]);
+const MOBILE_BOOKING_VIEW_FILTERS = new Set(["list", "map"]);
 const BOOKINGS_UI_STORAGE_KEY = "reebs_portal_bookings_ui_state";
 const BOOKING_STATUS_OPTIONS = [
   { value: "all", label: "All" },
@@ -150,9 +177,10 @@ const BOOKING_TIME_OPTIONS = [
   }),
 ];
 
-const normalizeBookingView = (value) => {
+const normalizeBookingView = (value, { isMobile = false } = {}) => {
   const normalized = String(value || "").trim().toLowerCase();
-  if (BOOKING_VIEW_FILTERS.has(normalized)) return normalized;
+  const allowedViews = isMobile ? MOBILE_BOOKING_VIEW_FILTERS : BOOKING_VIEW_FILTERS;
+  if (allowedViews.has(normalized)) return normalized;
   return "list";
 };
 
@@ -259,6 +287,7 @@ const getInitialBookingsUiState = () => {
   const params = new URLSearchParams(window.location.search);
   const hasUrlUiState = ["q", "status", "assigned", "timing", "view"].some((key) => params.has(key));
   const stored = readStoredBookingsUiState();
+  const isMobile = getIsMobileView();
 
   if (hasUrlUiState) {
     return {
@@ -266,7 +295,7 @@ const getInitialBookingsUiState = () => {
       assigned: normalizeIdFilter(params.get("assigned")),
       timing: normalizeBookingTimingFilter(params.get("timing")),
       query: params.get("q") || "",
-      view: normalizeBookingView(params.get("view")),
+      view: normalizeBookingView(params.get("view"), { isMobile }),
     };
   }
 
@@ -275,7 +304,7 @@ const getInitialBookingsUiState = () => {
     assigned: normalizeIdFilter(stored?.assigned),
     timing: normalizeBookingTimingFilter(stored?.timing),
     query: String(stored?.query || ""),
-    view: normalizeBookingView(stored?.view),
+    view: normalizeBookingView(stored?.view, { isMobile }),
   };
 };
 
@@ -283,6 +312,8 @@ const isClosedBooking = (booking) => {
   const status = normalizeStatus(booking?.status);
   return ["completed", "cancelled"].includes(status);
 };
+
+const isCompletedBooking = (booking) => normalizeStatus(booking?.status) === "completed";
 
 const getBookingScheduleDate = (booking) => {
   if (!booking?.eventDate) return null;
@@ -341,6 +372,7 @@ const buildBookingsSearch = ({
   assigned = "",
   timing = "all",
   view,
+  isMobile = false,
   action = "",
   id = "",
 } = {}) => {
@@ -349,7 +381,7 @@ const buildBookingsSearch = ({
   const normalizedStatus = normalizeBookingStatusFilter(status);
   const normalizedAssigned = normalizeIdFilter(assigned);
   const normalizedTiming = normalizeBookingTimingFilter(timing);
-  const normalizedView = normalizeBookingView(view);
+  const normalizedView = normalizeBookingView(view, { isMobile });
   if (trimmedQuery) {
     params.set("q", trimmedQuery);
   }
@@ -396,8 +428,9 @@ const getBookingDocumentTitle = (document) => {
 
 const getBookingDocumentStatus = (document) => {
   if (!document) return "Open in invoicing";
-  if (document.sentAt) return "Sent";
   const paymentStatus = String(document.paymentStatus || "draft").trim().toLowerCase();
+  if (paymentStatus === "paid" || paymentStatus === "unpaid") return paymentStatus;
+  if (document.sentAt) return "unpaid";
   return paymentStatus || "draft";
 };
 
@@ -411,7 +444,14 @@ const getDeliveryMeta = (delivery) => {
   return delivery.driverName || delivery.assignedUserName || "Unassigned";
 };
 
-const BOOKING_VIEW_OPTIONS = [
+const DESKTOP_BOOKING_VIEW_OPTIONS = [
+  { key: "list", label: "List" },
+  { key: "cards", label: "Cards" },
+  { key: "board", label: "Board" },
+  { key: "map", label: "Map" },
+];
+
+const MOBILE_BOOKING_VIEW_OPTIONS = [
   { key: "list", label: "List" },
   { key: "map", label: "Map" },
 ];
@@ -448,6 +488,20 @@ const buildBookingEditorState = (booking, currentUserId = "") => ({
   discountType: "amount",
 });
 
+const getTodayDateInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const buildDetailExpenseDraft = (booking = null) => ({
+  query: "",
+  amount: "",
+  date: booking?.eventDate ? String(booking.eventDate).slice(0, 10) : getTodayDateInputValue(),
+});
+
 function AdminBookings() {
   const location = useLocation();
   const initialUiState = getInitialBookingsUiState();
@@ -476,6 +530,10 @@ function AdminBookings() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [detailBooking, setDetailBooking] = useState(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const [detailExpenseDraft, setDetailExpenseDraft] = useState(() => buildDetailExpenseDraft());
+  const [detailExpenseSaving, setDetailExpenseSaving] = useState(false);
+  const [detailExpenseError, setDetailExpenseError] = useState("");
 
   const [productQuery, setProductQuery] = useState("");
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
@@ -532,6 +590,17 @@ function AdminBookings() {
     return () => mediaQuery.removeListener(handleChange);
   }, []);
 
+  useEffect(() => {
+    setDetailExpenseDraft(buildDetailExpenseDraft(detailBooking));
+    setDetailExpenseSaving(false);
+    setDetailExpenseError("");
+  }, [detailBooking?.eventDate, detailBooking?.id]);
+
+  useEffect(() => {
+    if (detailBooking) return;
+    setDetailEditing(false);
+  }, [detailBooking]);
+
   const runSupportLoader = (key, loader, { force = false } = {}) => {
     const entry = supportLoadStateRef.current[key];
     if (entry.promise) return entry.promise;
@@ -575,7 +644,7 @@ function AdminBookings() {
     runSupportLoader(
       "customers",
       async () => {
-        const response = await fetch("/.netlify/functions/customers");
+        const response = await fetch("/.netlify/functions/customers?compact=1");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch customers (${response.status}).`);
@@ -707,13 +776,19 @@ function AdminBookings() {
     const nextStatus = normalizeBookingStatusFilter(params.get("status"));
     const nextAssigned = normalizeIdFilter(params.get("assigned"));
     const nextTiming = normalizeBookingTimingFilter(params.get("timing"));
-    const nextView = normalizeBookingView(params.get("view"));
+    const nextView = normalizeBookingView(params.get("view"), { isMobile: isMobileView });
     setQuery((current) => (current === nextQuery ? current : nextQuery));
     setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
     setAssignedFilter((current) => (current === nextAssigned ? current : nextAssigned));
     setTimingFilter((current) => (current === nextTiming ? current : nextTiming));
     setViewMode((current) => (current === nextView ? current : nextView));
-  }, [location.search]);
+  }, [isMobileView, location.search]);
+
+  useEffect(() => {
+    const normalizedView = normalizeBookingView(viewMode, { isMobile: isMobileView });
+    if (normalizedView === viewMode) return;
+    setViewMode(normalizedView);
+  }, [isMobileView, viewMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -870,9 +945,29 @@ function AdminBookings() {
     return list;
   }, [filteredBookings]);
 
-  const activeViewMode = viewMode;
+  const activeViewMode = normalizeBookingView(viewMode, { isMobile: isMobileView });
 
-  const availableViewOptions = BOOKING_VIEW_OPTIONS;
+  const availableViewOptions = isMobileView
+    ? MOBILE_BOOKING_VIEW_OPTIONS
+    : DESKTOP_BOOKING_VIEW_OPTIONS;
+
+  const bookingBoardColumns = useMemo(() => {
+    const columns = [
+      { id: "pending", label: "Pending", items: [] },
+      { id: "confirmed", label: "Confirmed", items: [] },
+      { id: "completed", label: "Completed", items: [] },
+      { id: "cancelled", label: "Cancelled", items: [] },
+    ];
+    const columnMap = new Map(columns.map((column) => [column.id, column]));
+
+    sortedBookings.forEach((booking) => {
+      const stage = normalizeStatus(booking?.status);
+      const columnId = columnMap.has(stage) ? stage : "pending";
+      columnMap.get(columnId)?.items.push(booking);
+    });
+
+    return columns;
+  }, [sortedBookings]);
 
   useEffect(() => {
     if (loading) return;
@@ -970,9 +1065,9 @@ function AdminBookings() {
     [sortedBookings]
   );
 
-  const linkedDeliveryCount = useMemo(
-    () => sortedBookings.filter((booking) => deliveryByBookingId.has(Number(booking.id))).length,
-    [deliveryByBookingId, sortedBookings]
+  const completedBookingCount = useMemo(
+    () => sortedBookings.filter((booking) => normalizeStatus(booking.status) === "completed").length,
+    [sortedBookings]
   );
 
   const linkedDocumentCount = useMemo(
@@ -1100,7 +1195,86 @@ function AdminBookings() {
 
   const viewInvoice = (booking) => {
     if (!booking?.id || !canAccessInvoicing) return;
+    const bookingId = Number(booking.id);
+    const bookingDocument = documentByBookingId.get(bookingId) || null;
+    if (bookingDocument?.id) {
+      void fetchInvoiceDocumentById(bookingDocument.id).catch(() => {});
+    }
+    void fetchBookingInvoiceDetails(bookingId).catch(() => {});
     navigate(`/admin/invoicing?type=bookings&id=${booking.id}`);
+  };
+
+  const addDetailExpense = async (event) => {
+    event.preventDefault();
+    if (!detailBooking?.id) return;
+    if (isCompletedBooking(detailBooking)) {
+      setDetailExpenseError("Completed bookings are locked and can't be edited.");
+      return;
+    }
+
+    const description = String(detailExpenseDraft.query || "").trim();
+    const amountValue = Number(detailExpenseDraft.amount);
+    const expenseDate = String(detailExpenseDraft.date || "").trim();
+
+    if (!description) {
+      setDetailExpenseError("Enter an expense description.");
+      return;
+    }
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      setDetailExpenseError("Enter a valid expense amount.");
+      return;
+    }
+    if (!expenseDate) {
+      setDetailExpenseError("Select the expense date.");
+      return;
+    }
+
+    setDetailExpenseSaving(true);
+    setDetailExpenseError("");
+
+    try {
+      const response = await fetch("/.netlify/functions/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "auto",
+          description,
+          amount: amountValue,
+          bookingId: detailBooking.id,
+          date: expenseDate,
+        }),
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to add expense.");
+      }
+
+      if (payload && typeof payload === "object") {
+        setExpenses((prev) => {
+          const next = [payload, ...prev.filter((row) => String(row?.id) !== String(payload?.id))];
+          next.sort((a, b) => {
+            const dateA = new Date(a?.date || 0).getTime();
+            const dateB = new Date(b?.date || 0).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            return Number(b?.id || 0) - Number(a?.id || 0);
+          });
+          return next;
+        });
+      } else {
+        await loadExpenses({ force: true });
+      }
+
+      setDetailExpenseDraft((current) => ({
+        ...current,
+        query: "",
+        amount: "",
+      }));
+    } catch (err) {
+      console.error("Booking expense add failed", err);
+      setDetailExpenseError(err.message || "Failed to add expense.");
+    } finally {
+      setDetailExpenseSaving(false);
+    }
   };
 
   const viewDelivery = (booking) => {
@@ -1116,16 +1290,6 @@ function AdminBookings() {
       return;
     }
     navigate("/admin/customers");
-  };
-
-  const viewExpenses = (booking) => {
-    if (!booking?.id) {
-      setDetailBooking(null);
-      navigate("/admin/expenses");
-      return;
-    }
-    setDetailBooking(null);
-    navigate(`/admin/expenses?bookingId=${booking.id}`);
   };
 
   const addItem = (product) => {
@@ -1294,6 +1458,7 @@ function AdminBookings() {
   const openCreate = () => {
     ensureSupportData({ customers: true, products: true, bouncyCastles: true })
       .then(() => {
+        setDetailEditing(false);
         setEditing(null);
         setSaveError("");
         setProductQuery("");
@@ -1319,16 +1484,32 @@ function AdminBookings() {
       });
   };
 
-  const openEdit = (booking) => {
+  const openEdit = (booking, { inline = false } = {}) => {
+    if (isCompletedBooking(booking)) {
+      openBookingDetail(booking);
+      return;
+    }
+
     ensureSupportData({ customers: true, products: true, bouncyCastles: true })
       .then(async () => {
         const fullBooking = await fetchBookingById(booking.id);
+        if (isCompletedBooking(fullBooking)) {
+          openBookingDetail(fullBooking);
+          return;
+        }
         setBookings((current) => current.map((row) => (row.id === fullBooking.id ? { ...row, ...fullBooking } : row)));
+        setDetailBooking((current) => (current && current.id === fullBooking.id ? fullBooking : current));
         setEditing(fullBooking);
         setSaveError("");
         setProductQuery("");
         setCustomerMenuOpen(false);
         setForm(buildBookingEditorState(fullBooking, user?.id ? String(user.id) : ""));
+        if (inline) {
+          setDetailEditing(true);
+          setModalOpen(false);
+          return;
+        }
+        setDetailEditing(false);
         setModalOpen(true);
       })
       .catch((err) => {
@@ -1356,6 +1537,7 @@ function AdminBookings() {
       assigned: params.get("assigned") || "",
       timing: params.get("timing") || "all",
       view: params.get("view") || viewMode,
+      isMobile: isMobileView,
     });
     const finish = () =>
       navigate(
@@ -1397,6 +1579,9 @@ function AdminBookings() {
     event.preventDefault();
     setSaveError("");
 
+    if (editing?.id && isCompletedBooking(editing)) {
+      return setSaveError("Completed bookings are locked and can't be edited.");
+    }
     if (!form.eventDate) return setSaveError("Event date is required.");
     if (!form.venueAddress.trim()) return setSaveError("Venue address is required.");
     if (!form.items.length) return setSaveError("Add at least one item to the booking.");
@@ -1438,9 +1623,15 @@ function AdminBookings() {
         if (isEdit) return prev.map((row) => (row.id === payload.id ? payload : row));
         return [payload, ...prev];
       });
+      setDetailBooking((current) => (current && current.id === payload.id ? payload : current));
 
-      setModalOpen(false);
-      setEditing(null);
+      if (detailEditing) {
+        setEditing(payload);
+        setDetailEditing(false);
+      } else {
+        setModalOpen(false);
+        setEditing(null);
+      }
     } catch (err) {
       console.error("Save booking failed", err);
       setSaveError(err.message || "Save failed.");
@@ -1451,6 +1642,7 @@ function AdminBookings() {
 
   const updateBookingStatus = async (booking, nextStatus) => {
     if (!booking?.id) return;
+    if (isCompletedBooking(booking)) return;
     if (normalizeStatus(booking.status) === normalizeStatus(nextStatus)) return;
     setStatusUpdatingId(booking.id);
     setError("");
@@ -1493,6 +1685,7 @@ function AdminBookings() {
   };
 
   const openBookingDetail = (booking) => {
+    setDetailEditing(false);
     void ensureSupportData({
       customers: true,
       products: true,
@@ -1520,6 +1713,54 @@ function AdminBookings() {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     openBookingDetail(booking);
+  };
+
+  const closeDetail = () => {
+    setDetailEditing(false);
+    setDetailBooking(null);
+    setEditing(null);
+    setSaveError("");
+    setCustomerMenuOpen(false);
+  };
+
+  const cancelDetailEdit = () => {
+    setDetailEditing(false);
+    setSaveError("");
+    setCustomerMenuOpen(false);
+  };
+
+  const sharedBookingEditorProps = {
+    editing,
+    save,
+    saveError,
+    saving,
+    form,
+    setForm,
+    customerMenuOpen,
+    setCustomerMenuOpen,
+    handleBookingCustomerInputChange,
+    handleBookingCustomerInputKeyDown,
+    filteredBookingCustomerOptions,
+    typedBookingCustomerName,
+    matchedTypedBookingCustomer,
+    commitBookingCustomerInput,
+    handleBookingCustomerChange,
+    customerCreating,
+    BookingCustomerPickerComponent: BookingCustomerPicker,
+    BOOKING_TIME_OPTIONS,
+    BOOKING_EDITOR_STATUS_OPTIONS,
+    assignedUserOptions,
+    productQuery,
+    setProductQuery,
+    filteredProducts,
+    addItem,
+    formItems: form.items,
+    productMap,
+    updateItemPrice,
+    updateItemQuantity,
+    removeItem,
+    bookingTotalCents,
+    bookingCurrency: (value) => formatMoney(value, bookingCurrency),
   };
 
   return (
@@ -1577,12 +1818,8 @@ function AdminBookings() {
               <strong className="bookings-summary-value">{confirmedBookingsCount}</strong>
             </article>
             <article className="bubble-card bookings-summary-card">
-              <p className="bookings-summary-label">Delivery</p>
-              <strong className="bookings-summary-value">{linkedDeliveryCount}</strong>
-            </article>
-            <article className="bubble-card bookings-summary-card">
-              <p className="bookings-summary-label">Invoices</p>
-              <strong className="bookings-summary-value">{linkedDocumentCount}</strong>
+              <p className="bookings-summary-label">Completed</p>
+              <strong className="bookings-summary-value">{completedBookingCount}</strong>
             </article>
             <article className="bubble-card bookings-summary-card">
               <p className="bookings-summary-label">Expenses</p>
@@ -1591,22 +1828,12 @@ function AdminBookings() {
             <article className="bubble-card bookings-summary-card">
               <p className="bookings-summary-label">Booked value</p>
               <strong className="bookings-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</strong>
-              <span className="bookings-summary-sub">{unassignedBookingsCount} unassigned</span>
             </article>
           </section>
         )}
 
         {!loading && !error && (
-          <section className="glass-card admin-table bookings-results-panel">
-            <div className="bookings-results-head">
-              <div>
-                <h3>{sortedBookings.length} Bookings</h3>
-              </div>
-              <div className="bookings-results-meta">
-                <span>{formatMoney(bookingsTableTotal, "GHS")}</span>
-              </div>
-            </div>
-
+          <section className="bookings-results-panel">
             <div className="bookings-toolbar bookings-results-toolbar" aria-label="Booking controls">
               <div className="bookings-toolbar-row">
                 <div className="bookings-toolbar-filters">
@@ -1705,7 +1932,7 @@ function AdminBookings() {
                           <div className="bookings-mobile-card-grid">
                             <div className="bookings-mobile-card-field">
                               <span>Date</span>
-                              <strong>{formatDate(booking.eventDate)}</strong>
+                              <strong>{formatFullDate(booking.eventDate)}</strong>
                             </div>
                             <div className="bookings-mobile-card-field">
                               <span>Time</span>
@@ -1726,7 +1953,7 @@ function AdminBookings() {
                   )}
                 </div>
               ) : (
-                <div className="admin-table-scroll inventory-table-scroll bookings-table-scroll">
+                <div className="admin-table admin-table-scroll inventory-table-scroll bookings-table-scroll">
                   <table className="bookings-hub-table">
                     <thead>
                       <tr>
@@ -1836,6 +2063,106 @@ function AdminBookings() {
               )
             ) : null}
 
+            {!isMobileView && activeViewMode === "cards" ? (
+              <div className="bookings-card-grid" role="list" aria-label="Booking cards">
+                {paginatedBookings.length === 0 ? (
+                  <p className="bookings-empty">No bookings found.</p>
+                ) : (
+                  paginatedBookings.map((booking) => {
+                    const totalValue = toNumber(booking.totalAmount, 0) / 100;
+                    const bookingDocument = documentByBookingId.get(Number(booking.id)) || null;
+                    const bookingDelivery = deliveryByBookingId.get(Number(booking.id)) || null;
+                    const hasScheduledDelivery = Number.isFinite(Number(bookingDelivery?.deliveryId));
+
+                    return (
+                      <button
+                        key={booking.id}
+                        type="button"
+                        className="bubble-card bookings-card"
+                        onClick={() => openBookingDetail(booking)}
+                      >
+                        <div className="bookings-card-head bookings-card-head--cards">
+                          <div className="bookings-card-status-pills">
+                            <span className={`bookings-pill small ${booking.status || "pending"}`}>
+                              {booking.status || "pending"}
+                            </span>
+                            {hasScheduledDelivery ? (
+                              <span
+                                className="bookings-link-pill is-live bookings-card-delivery-pill"
+                                title={`Delivery ${getDeliveryStatusLabel(bookingDelivery)} · ${getDeliveryMeta(bookingDelivery)}`}
+                              >
+                                <AppIcon icon={faTruck} />
+                                Delivery {getDeliveryStatusLabel(bookingDelivery)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <h4>{booking.customerName || "Customer"}</h4>
+                        </div>
+                        <span className="bookings-amount">{formatMoney(totalValue, "GHS")}</span>
+                        <p className="bookings-card-meta">
+                          {formatFullDate(booking.eventDate)} · {formatBookingTimeWindow(booking)}
+                        </p>
+                        <p className="bookings-card-meta">{booking.venueAddress || "-"}</p>
+                        <div className="bookings-card-links bookings-card-links--compact">
+                          <span>Assigned To: {formatUser(booking.assignedUserName)}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            ) : null}
+
+            {!isMobileView && activeViewMode === "board" ? (
+              sortedBookings.length === 0 ? (
+                <p className="bookings-empty">No bookings found.</p>
+              ) : (
+                <div className="bookings-kanban" aria-label="Booking board">
+                  {bookingBoardColumns.map((column) => (
+                    <section key={column.id} className="bookings-kanban-column">
+                      <div className="bookings-kanban-head">
+                        <div>
+                          <h4>{column.label}</h4>
+                          <p>{column.items.length} booking{column.items.length === 1 ? "" : "s"}</p>
+                        </div>
+                        <span className="bookings-link-pill is-empty">{column.items.length}</span>
+                      </div>
+                      <div className="bookings-kanban-list">
+                        {column.items.length === 0 ? (
+                          <p className="bookings-muted">No bookings here.</p>
+                        ) : (
+                          column.items.map((booking) => {
+                            const totalValue = toNumber(booking.totalAmount, 0) / 100;
+
+                            return (
+                              <button
+                                key={booking.id}
+                                type="button"
+                                className="bubble-card bookings-card bookings-card--kanban"
+                                onClick={() => openBookingDetail(booking)}
+                              >
+                                <div className="bookings-card-head">
+                                  <span className={`bookings-pill small ${booking.status || "pending"}`}>
+                                    {booking.status || "pending"}
+                                  </span>
+                                  <span className="bookings-amount">{formatMoney(totalValue, "GHS")}</span>
+                                </div>
+                                <h4>{booking.customerName || "Customer"}</h4>
+                                <p className="bookings-card-meta">
+                                  {formatFullDate(booking.eventDate)} · {formatBookingTimeWindow(booking)}
+                                </p>
+                                <p className="bookings-card-meta">{booking.venueAddress || "-"}</p>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )
+            ) : null}
+
             {activeViewMode === "map" ? (
               <div className="bookings-map-view">
                 <div className="bookings-map-list">
@@ -1901,7 +2228,7 @@ function AdminBookings() {
               </div>
             ) : null}
 
-            {activeViewMode === "list" ? (
+            {activeViewMode === "list" || (!isMobileView && activeViewMode === "cards") ? (
               <div className="table-pagination">
                 <span>
                   Showing {sortedBookings.length === 0 ? 0 : clampedPage * pageSize + 1}-
@@ -1927,42 +2254,13 @@ function AdminBookings() {
 
       <BookingEditorModal
         open={modalOpen}
-        editing={editing}
         closeModal={closeModal}
-        save={save}
-        saveError={saveError}
-        saving={saving}
-        form={form}
-        setForm={setForm}
-        customerMenuOpen={customerMenuOpen}
-        setCustomerMenuOpen={setCustomerMenuOpen}
-        handleBookingCustomerInputChange={handleBookingCustomerInputChange}
-        handleBookingCustomerInputKeyDown={handleBookingCustomerInputKeyDown}
-        filteredBookingCustomerOptions={filteredBookingCustomerOptions}
-        typedBookingCustomerName={typedBookingCustomerName}
-        matchedTypedBookingCustomer={matchedTypedBookingCustomer}
-        commitBookingCustomerInput={commitBookingCustomerInput}
-        handleBookingCustomerChange={handleBookingCustomerChange}
-        customerCreating={customerCreating}
-        BookingCustomerPickerComponent={BookingCustomerPicker}
-        BOOKING_TIME_OPTIONS={BOOKING_TIME_OPTIONS}
-        BOOKING_EDITOR_STATUS_OPTIONS={BOOKING_EDITOR_STATUS_OPTIONS}
-        assignedUserOptions={assignedUserOptions}
-        productQuery={productQuery}
-        setProductQuery={setProductQuery}
-        filteredProducts={filteredProducts}
-        addItem={addItem}
-        formItems={form.items}
-        productMap={productMap}
-        updateItemPrice={updateItemPrice}
-        updateItemQuantity={updateItemQuantity}
-        removeItem={removeItem}
-        bookingTotalCents={bookingTotalCents}
-        bookingCurrency={(value) => formatMoney(value, bookingCurrency)}
+        {...sharedBookingEditorProps}
       />
 
       <BookingDetailModal
         booking={detailBooking}
+        detailEditing={detailEditing}
         detailCustomer={detailCustomer}
         detailDelivery={detailDelivery}
         detailDocument={detailDocument}
@@ -1980,10 +2278,17 @@ function AdminBookings() {
         updateBookingStatus={updateBookingStatus}
         viewInvoice={viewInvoice}
         viewDelivery={viewDelivery}
-        openEdit={openEdit}
-        closeDetail={() => setDetailBooking(null)}
+        openEdit={(booking) => openEdit(booking, { inline: true })}
+        closeInlineEdit={cancelDetailEdit}
+        closeDetail={closeDetail}
         viewCustomer={viewCustomer}
-        viewExpenses={viewExpenses}
+        editor={sharedBookingEditorProps}
+        detailExpenseDraft={detailExpenseDraft}
+        setDetailExpenseDraft={setDetailExpenseDraft}
+        detailExpenseSaving={detailExpenseSaving}
+        detailExpenseError={detailExpenseError}
+        addDetailExpense={addDetailExpense}
+        bookingLocked={isCompletedBooking(detailBooking)}
         formatDate={formatDate}
         formatDateTime={formatDateTime}
         formatBookingTimeWindow={formatBookingTimeWindow}

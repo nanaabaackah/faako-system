@@ -34,7 +34,7 @@
   --gray-200: #eceef2;
 
   --accent: #ff9932;
-  --browser-chrome-color: #ffffff;
+  --browser-chrome-color: var(--bg-base);
   --accent-soft: rgba(255, 153, 50, 0.16);
   --text-main: #23262c;
   --text-subtle: #4f555d;
@@ -169,7 +169,7 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   line-height: 1.58;
-  background: #ffffff;
+  background: var(--bg-base);
   background-attachment: scroll;
 }
 

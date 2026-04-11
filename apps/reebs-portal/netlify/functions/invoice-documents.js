@@ -87,14 +87,45 @@ const tableStatements = [
     WHERE "sourceType" <> 'manual' AND "sourceId" IS NOT NULL`,
 ];
 
+let hasEnsuredInvoiceDocumentTable = false;
+let invoiceDocumentTablePromise = null;
+let hasEnsuredInvoiceAuditColumns = false;
+let invoiceAuditColumnsPromise = null;
+
 const ensureInvoiceDocumentTable = async (client) => {
-  for (const statement of tableStatements) {
-    try {
-      await client.query(statement);
-    } catch (err) {
-      console.warn("Invoice document table check failed:", err?.message || err);
-    }
+  if (hasEnsuredInvoiceDocumentTable) return;
+
+  if (!invoiceDocumentTablePromise) {
+    invoiceDocumentTablePromise = (async () => {
+      for (const statement of tableStatements) {
+        try {
+          await client.query(statement);
+        } catch (err) {
+          console.warn("Invoice document table check failed:", err?.message || err);
+        }
+      }
+      hasEnsuredInvoiceDocumentTable = true;
+    })().finally(() => {
+      invoiceDocumentTablePromise = null;
+    });
   }
+
+  await invoiceDocumentTablePromise;
+};
+
+const ensureInvoiceAuditColumns = async (client) => {
+  if (hasEnsuredInvoiceAuditColumns) return;
+
+  if (!invoiceAuditColumnsPromise) {
+    invoiceAuditColumnsPromise = (async () => {
+      await ensureAuditColumns(client);
+      hasEnsuredInvoiceAuditColumns = true;
+    })().finally(() => {
+      invoiceAuditColumnsPromise = null;
+    });
+  }
+
+  await invoiceAuditColumnsPromise;
 };
 
 const cleanText = (value, maxLength = 400) => {
@@ -643,7 +674,9 @@ export async function handler(event = {}) {
     const { authUser, organizationId } = authResult;
 
     await ensureInvoiceDocumentTable(client);
-    await ensureAuditColumns(client);
+    if (event.httpMethod !== "GET") {
+      await ensureInvoiceAuditColumns(client);
+    }
 
     if (event.httpMethod === "GET") {
       const compact = String(event.queryStringParameters?.compact || "").trim() === "1";

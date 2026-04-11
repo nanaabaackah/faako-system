@@ -48,6 +48,34 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getDocumentType = (document) =>
+  String(document?.documentType || "").trim().toLowerCase() === "receipt" ? "receipt" : "invoice";
+
+const getDocumentDate = (document) =>
+  document?.issueDate || document?.eventDate || document?.createdAt || document?.updatedAt || null;
+
+const getDocumentTotal = (document) => {
+  const grandTotal = document?.summary?.grandTotal ?? document?.grandTotal;
+  return Math.max(0, toNumber(grandTotal));
+};
+
+const getDocumentReference = (document) => {
+  const reference = String(document?.invoiceNumber || "").trim();
+  if (reference) return reference;
+  if (document?.id) return `Draft-${document.id}`;
+  return "Draft";
+};
+
+const getDocumentCustomer = (document) =>
+  document?.customer?.name || document?.customerName || document?.customer?.email || "-";
+
+const getDocumentSourceKey = (document) => {
+  const sourceType = String(document?.sourceType || "").trim().toLowerCase();
+  const sourceId = Number(document?.sourceId);
+  if (!sourceType || sourceType === "manual" || !Number.isFinite(sourceId) || sourceId <= 0) return "";
+  return `${sourceType}-${sourceId}`;
+};
+
 const loadLocalState = (key, fallback) => {
   if (typeof window === "undefined") return fallback;
   try {
@@ -140,6 +168,7 @@ function AdminAccounting() {
   const [isFetching, setIsFetching] = useState(false);
   const [orders, setOrders] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState("");
@@ -337,13 +366,15 @@ function AdminAccounting() {
     setListLoading(true);
     setListError("");
     try {
-      const [ordersRes, bookingsRes, expensesRes] = await Promise.all([
+      const [ordersRes, bookingsRes, documentsRes, expensesRes] = await Promise.all([
         fetchJson("/.netlify/functions/orders"),
         fetchJson("/.netlify/functions/bookings"),
+        fetchJson("/.netlify/functions/invoice-documents?compact=1"),
         fetchJson("/.netlify/functions/expenses"),
       ]);
       setOrders(Array.isArray(ordersRes) ? ordersRes : []);
       setBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
+      setDocuments(Array.isArray(documentsRes) ? documentsRes : []);
       setExpenses(Array.isArray(expensesRes) ? expensesRes : []);
       setListLoaded(true);
     } catch (err) {
@@ -1163,8 +1194,7 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel accounting-panel--margins">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Snapshot</p>
-                    <h3>Profit & loss snapshot</h3>
+                    <h3>Profit & Loss</h3>
                     <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>

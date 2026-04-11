@@ -10,7 +10,7 @@ const DEFAULT_KEYWORDS =
 const DEFAULT_LOCALE = "en_GH";
 const DEFAULT_LANGUAGE = "en-GH";
 const DEFAULT_TWITTER = "@reebspartythemes_";
-const DEFAULT_THEME_COLOR = "#ffffff";
+const DEFAULT_THEME_COLOR = "#f6f7f9";
 
 const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",

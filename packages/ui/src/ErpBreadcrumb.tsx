@@ -10,9 +10,12 @@ export function ErpBreadcrumb({ items = [] }: { items?: BreadcrumbItem[] }) {
 
   return (
     <nav className="erp-breadcrumb admin-breadcrumb" aria-label="Breadcrumb">
-      <ol>
-        <li>
-          <Link to="/admin">Admin</Link>
+      <ol className="erp-breadcrumb__list">
+        <li className="erp-breadcrumb__item erp-breadcrumb__item--root">
+          <Link to="/admin" className="erp-breadcrumb__link erp-breadcrumb__link--root">
+            <span className="erp-breadcrumb__home-marker" aria-hidden="true" />
+            <span className="erp-breadcrumb__label">Admin</span>
+          </Link>
         </li>
         {segments.map((segment, index) => {
           if (!segment?.label) return null;
@@ -20,12 +23,22 @@ export function ErpBreadcrumb({ items = [] }: { items?: BreadcrumbItem[] }) {
           const isLast = index === segments.length - 1;
 
           return (
-            <li key={`${segment.label}-${index}`}>
+            <li
+              key={`${segment.label}-${index}`}
+              className={`erp-breadcrumb__item${isLast ? " is-current" : ""}`}
+            >
               <span className="erp-breadcrumb__sep admin-breadcrumb-sep">/</span>
               {segment.to && !isLast ? (
-                <Link to={segment.to}>{segment.label}</Link>
+                <Link to={segment.to} className="erp-breadcrumb__link">
+                  <span className="erp-breadcrumb__label">{segment.label}</span>
+                </Link>
               ) : (
-                <span aria-current={isLast ? "page" : undefined}>{segment.label}</span>
+                <span
+                  className="erp-breadcrumb__current"
+                  aria-current={isLast ? "page" : undefined}
+                >
+                  <span className="erp-breadcrumb__label">{segment.label}</span>
+                </span>
               )}
             </li>
           );

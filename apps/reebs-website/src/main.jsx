@@ -9,7 +9,7 @@ import { patchOrganizationFetch } from "./utils/organization.js";
 import { syncMobileBrowserChrome } from "../../../packages/utils/src/mobileBrowserChrome";
 
 patchOrganizationFetch();
-syncMobileBrowserChrome({ fallbackColor: "#ffffff" });
+syncMobileBrowserChrome({ fallbackColor: "#f6f7f9" });
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

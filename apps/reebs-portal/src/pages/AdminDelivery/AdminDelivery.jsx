@@ -247,6 +247,11 @@ function AdminDelivery() {
   const saveDelivery = async (event) => {
     event.preventDefault();
     if (!selected) return;
+    const bookingLocked = normalizeStatus(selected.bookingStatus) === "completed";
+    if (bookingLocked) {
+      setError("Completed bookings are locked and can't be edited.");
+      return;
+    }
     setSaving(true);
     setStatus("");
     setError("");
@@ -310,6 +315,7 @@ function AdminDelivery() {
 
   const selectedItems = Array.isArray(selected?.items) ? selected.items : [];
   const selectedStatus = normalizeStatus(selected?.deliveryStatus);
+  const selectedBookingLocked = normalizeStatus(selected?.bookingStatus) === "completed";
 
   return (
     <div className="delivery-page delivery-page--redesign">
@@ -491,12 +497,16 @@ function AdminDelivery() {
                 </div>
 
                 <form className="delivery-form" onSubmit={saveDelivery}>
+                  {selectedBookingLocked ? (
+                    <p className="delivery-muted">Completed bookings are locked. Delivery details are view-only.</p>
+                  ) : null}
                   <div className="delivery-form-row">
                     <label>
                       Status
                       <SelectField
                         value={form.status}
                         onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       >
                         {STATUS_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -512,6 +522,7 @@ function AdminDelivery() {
                         value={form.eta}
                         placeholder="e.g. 14:30"
                         onChange={(event) => setForm((prev) => ({ ...prev, eta: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       />
                     </label>
                   </div>
@@ -522,6 +533,7 @@ function AdminDelivery() {
                         inputClassName="delivery-driver-select"
                         value={form.driverName}
                         onChange={(event) => setForm((prev) => ({ ...prev, driverName: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       >
                         <option value="">Auto-assign driver</option>
                         {driverOptions.map((driver) => (
@@ -538,6 +550,7 @@ function AdminDelivery() {
                         value={form.routeGroup}
                         placeholder="Route A"
                         onChange={(event) => setForm((prev) => ({ ...prev, routeGroup: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       />
                     </label>
                   </div>
@@ -549,6 +562,7 @@ function AdminDelivery() {
                         value={form.routeOrder}
                         placeholder="1"
                         onChange={(event) => setForm((prev) => ({ ...prev, routeOrder: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       />
                     </label>
                     <label>
@@ -558,10 +572,16 @@ function AdminDelivery() {
                         value={form.notes}
                         placeholder="Gate code, setup notes..."
                         onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
+                        disabled={saving || selectedBookingLocked}
                       />
                     </label>
                   </div>
-                  <button type="submit" className="delivery-primary" disabled={saving}>
+                  <button
+                    type="submit"
+                    className="delivery-primary"
+                    disabled={saving || selectedBookingLocked}
+                    title={selectedBookingLocked ? "Completed bookings are locked" : "Update delivery"}
+                  >
                     {saving ? "Saving..." : "Update delivery"}
                   </button>
                 </form>

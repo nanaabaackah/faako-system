@@ -216,7 +216,7 @@ export async function handler(event = {}) {
     const notes = cleanText(payload.notes) || null;
 
     const bookingOwnershipRes = await client.query(
-      `SELECT id
+      `SELECT id, status
        FROM "booking"
        WHERE id = $1 AND "organizationId" = $2
        LIMIT 1`,
@@ -224,6 +224,10 @@ export async function handler(event = {}) {
     );
     if (bookingOwnershipRes.rowCount === 0) {
       return json(event, 404, { error: "Booking not found." });
+    }
+    const bookingStatus = String(bookingOwnershipRes.rows[0]?.status || "").trim().toLowerCase();
+    if (bookingStatus === "completed") {
+      return json(event, 409, { error: "Completed bookings are locked and can't be edited." });
     }
 
     if (!driverName) {

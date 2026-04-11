@@ -22,6 +22,12 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import InvoiceDocumentListSection from "./components/InvoiceDocumentListSection";
+import { fetchInventoryWithCache } from "../../utils/inventoryCache";
+import {
+  fetchBookingInvoiceDetails,
+  fetchInvoiceDocumentById,
+  fetchOrderInvoiceDetails,
+} from "../../utils/invoiceDocumentCache";
 import {
   DEFAULT_SERVICE_DEPOSIT_DUE_DAYS,
   DEFAULT_SERVICE_PAYMENT_NOTE,
@@ -779,6 +785,48 @@ const createAdditionalItem = (overrides = {}) => {
   };
 };
 
+const LINKED_EXPENSE_PREFIX = "linked-expense-";
+
+const createAdditionalItemsFromExpenses = (expenses = []) =>
+  normalizeExpenses(expenses).map((expense, index) => {
+    const expenseId = expense.id || index + 1;
+    const category = String(expense.category || "").trim();
+    const description = String(expense.description || "").trim();
+    return createAdditionalItem({
+      id: `${LINKED_EXPENSE_PREFIX}${expenseId}`,
+      description: [category && category !== "Expense" ? category : "", description]
+        .filter(Boolean)
+        .join(": ") || "Booking expense",
+      quantity: 1,
+      unitLabel: "Expense",
+      unitPrice: expense.amount,
+    });
+  });
+
+const mergeLinkedAdditionalItems = (savedItems = [], baseItems = []) => {
+  const normalizedSaved = normalizeAdditionalItems(savedItems);
+  const normalizedBase = normalizeAdditionalItems(baseItems);
+  if (!normalizedSaved.length) return normalizedBase;
+
+  const savedIds = new Set(normalizedSaved.map((item) => String(item.id)));
+  const missingLinkedItems = normalizedBase.filter((item) => {
+    const itemId = String(item.id || "");
+    return itemId.startsWith(LINKED_EXPENSE_PREFIX) && !savedIds.has(itemId);
+  });
+
+  return [...normalizedSaved, ...missingLinkedItems];
+};
+
+const mergeLinkedExpenses = (savedExpenses = [], baseExpenses = []) => {
+  const normalizedSaved = normalizeExpenses(savedExpenses);
+  const normalizedBase = normalizeExpenses(baseExpenses);
+  if (!normalizedSaved.length) return normalizedBase;
+
+  const savedIds = new Set(normalizedSaved.map((expense) => String(expense.id)));
+  const missingExpenses = normalizedBase.filter((expense) => !savedIds.has(String(expense.id)));
+  return [...normalizedSaved, ...missingExpenses];
+};
+
 const buildEntryKey = (sourceType, sourceId, id = null) =>
   sourceType === "manual" ? `manual-${id}` : `${sourceType}-${sourceId}`;
 
@@ -972,7 +1020,7 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
         };
       })),
     expenses: expenseInfo.expenses,
-    additionalItems: [],
+    additionalItems: createAdditionalItemsFromExpenses(expenseInfo.expenses),
     notes: defaultNotesForType("receipt"),
     terms: defaultTermsForType("receipt"),
     taxRate: defaultTaxRate,
@@ -1036,7 +1084,7 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
         total: (toNumber(item.price ?? item.unitPrice, 0) / 100) * normalizeLineQuantity(item.quantity, 1),
       }))),
     expenses: expenseInfo.expenses,
-    additionalItems: [],
+    additionalItems: createAdditionalItemsFromExpenses(expenseInfo.expenses),
     notes: defaultNotesForType("invoice"),
     terms: defaultTermsForType("invoice"),
     taxRate: defaultTaxRate,
@@ -1074,8 +1122,8 @@ const mergeDocument = (baseDocument, savedDocument) => {
       ...(savedDocument.event || {}),
     },
     lineItems: ensureEditableLineItems(savedDocument.lineItems),
-    expenses: normalizeExpenses(savedDocument.expenses),
-    additionalItems: normalizeAdditionalItems(savedDocument.additionalItems ?? baseDocument.additionalItems),
+    expenses: mergeLinkedExpenses(savedDocument.expenses, baseDocument.expenses),
+    additionalItems: mergeLinkedAdditionalItems(savedDocument.additionalItems, baseDocument.additionalItems),
     notes: savedDocument.notes ?? baseDocument.notes,
     terms: savedDocument.terms ?? baseDocument.terms,
     taxRate: parseTaxRate(savedDocument.taxRate ?? baseDocument.taxRate),
@@ -1524,7 +1572,6 @@ function EditableDocumentTemplate({
         </div>
 
         <div className="invoice-editable-meta-wrap">
-          <DocumentSentBanner sentAt={document.sentAt} />
           <div className="invoice-meta invoice-editable-meta">
             <label className="invoice-editable-meta-field">
               <span className="invoicing-label">Type</span>
@@ -2256,18 +2303,14 @@ function AdminInvoicing() {
   }, []);
 
   const fetchSavedDocumentById = useCallback(async (id) => {
-    const response = await fetch(`/.netlify/functions/invoice-documents?id=${id}`);
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data?.error || "Failed to load invoice document.");
-    }
+    const data = await fetchInvoiceDocumentById(id);
     return normalizeSavedDocumentRecord(data);
   }, []);
 
   const fetchCustomers = useCallback(async () => {
     setCustomerError("");
     try {
-      const response = await fetch("/.netlify/functions/customers");
+      const response = await fetch("/.netlify/functions/customers?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load customers.");
@@ -2286,12 +2329,8 @@ function AdminInvoicing() {
     setProductsLoading(true);
     setProductError("");
     try {
-      const response = await fetch("/.netlify/functions/inventory");
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to load products.");
-      }
-      setProducts(extractInventoryItems(data));
+      const { items } = await fetchInventoryWithCache();
+      setProducts(extractInventoryItems(items));
       hasLoadedProductsRef.current = true;
     } catch (err) {
       console.error("Product fetch failed", err);
@@ -2781,16 +2820,9 @@ function AdminInvoicing() {
         }
 
         const savedOverride = selectedEntry.id ? await fetchSavedDocumentById(selectedEntry.id) : null;
-        const endpoint =
-          selectedEntry.sourceType === "bookings"
-            ? `/.netlify/functions/getInvoiceDetails?id=${selectedEntry.sourceId}`
-            : `/.netlify/functions/generateInvoice?orderId=${selectedEntry.sourceId}`;
-
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-          throw new Error(await readResponseError(response, "Failed to load document."));
-        }
-        const payload = await response.json();
+        const payload = selectedEntry.sourceType === "bookings"
+          ? await fetchBookingInvoiceDetails(selectedEntry.sourceId)
+          : await fetchOrderInvoiceDetails(selectedEntry.sourceId);
 
         let baseDocument = null;
         if (selectedEntry.sourceType === "bookings") {
@@ -2806,7 +2838,7 @@ function AdminInvoicing() {
         if (!cancelled) {
           const restoredDraft = readInvoiceDraft(selectedEntry.key);
           const draftDocument = restoredDraft
-            ? finalizeWorkingDocument(restoredDraft, merged)
+            ? finalizeWorkingDocument(mergeDocument(merged, restoredDraft), merged)
             : null;
           lastPersistedPayloadRef.current = JSON.stringify(buildStoredPayload(merged));
           latestDraftPayloadRef.current = JSON.stringify(
@@ -4111,7 +4143,8 @@ function AdminInvoicing() {
             </div>
           ) : (
             <div className="invoice-document-layout">
-              <section className="glass-card invoice-hub-editor">
+              <section className={`glass-card invoice-hub-editor${activeDocument.sentAt ? " invoice-hub-editor--sent" : ""}`}>
+                <DocumentSentBanner sentAt={activeDocument.sentAt} />
                 <div className="invoice-hub-editor-head">
                   <div>
                     <p className="invoicing-label">Builder</p>

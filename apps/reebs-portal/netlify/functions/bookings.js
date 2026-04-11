@@ -420,6 +420,9 @@ export async function handler(event) {
       if (!existingBooking) {
         return json(event, 404, { error: "Booking not found." });
       }
+      if (normalizeBookingStatusValue(existingBooking.status, "pending") === "completed") {
+        return json(event, 409, { error: "Completed bookings are locked and can't be edited." });
+      }
     }
 
     const customerId = Number.isFinite(requestedCustomerId) ? requestedCustomerId : Number(existingBooking?.customerId);

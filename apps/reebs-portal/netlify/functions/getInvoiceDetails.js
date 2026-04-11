@@ -2,9 +2,38 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  resolveExpenseColumns,
+  resolveExpenseTable,
+} from "./_shared/expenseAccounting.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
+
+const selectBookingExpenses = async (client, organizationId, bookingId) => {
+  const table = await resolveExpenseTable(client);
+  if (!table) return [];
+
+  const columns = await resolveExpenseColumns(client, table);
+  if (!columns.includes("bookingId")) return [];
+
+  const hasOrganizationId = columns.includes("organizationId");
+  const params = [bookingId];
+  const conditions = [`"bookingId" = $1`];
+  if (hasOrganizationId) {
+    params.push(organizationId);
+    conditions.push(`"organizationId" = $${params.length}`);
+  }
+
+  const result = await client.query(
+    `SELECT id, category, amount, description, date
+     FROM ${table.queryRef}
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY date ASC, id ASC`,
+    params
+  );
+  return result.rows || [];
+};
 
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
@@ -82,14 +111,7 @@ export async function handler(event = {}) {
       [id, organizationId]
     );
 
-    const expensesRes = await client.query(
-      `SELECT id, category, amount, description, date
-       FROM "expense"
-       WHERE "bookingId" = $1
-         AND "organizationId" = $2
-       ORDER BY date ASC, id ASC`,
-      [id, organizationId]
-    );
+    const expenseRows = await selectBookingExpenses(client, organizationId, id);
 
     if (result.rowCount === 0) {
       return json(event, 404, { error: "Booking not found" });
@@ -158,7 +180,7 @@ export async function handler(event = {}) {
       }
     }
 
-    const expenses = (expensesRes.rows || []).map((row) => ({
+    const expenses = expenseRows.map((row) => ({
       id: row.id,
       category: row.category,
       description: row.description,
@@ -166,7 +188,7 @@ export async function handler(event = {}) {
       amount: Number(row.amount || 0) / 100,
     }));
 
-    const expensesTotal = (expensesRes.rows || []).reduce(
+    const expensesTotal = expenseRows.reduce(
       (sum, row) => sum + Number(row.amount || 0),
       0
     );

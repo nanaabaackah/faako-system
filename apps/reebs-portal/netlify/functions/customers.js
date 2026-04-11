@@ -24,14 +24,28 @@ const customerStatusStatements = [
   `ALTER TABLE "customer" ADD COLUMN IF NOT EXISTS "segmentOverride" TEXT`,
 ];
 
+let hasEnsuredCustomerStatusColumns = false;
+let customerStatusColumnsPromise = null;
+
 const ensureCustomerStatusColumns = async (client) => {
-  for (const statement of customerStatusStatements) {
-    try {
-      await client.query(statement);
-    } catch (err) {
-      console.warn("Customer status column check failed:", err?.message || err);
-    }
+  if (hasEnsuredCustomerStatusColumns) return;
+
+  if (!customerStatusColumnsPromise) {
+    customerStatusColumnsPromise = (async () => {
+      for (const statement of customerStatusStatements) {
+        try {
+          await client.query(statement);
+        } catch (err) {
+          console.warn("Customer status column check failed:", err?.message || err);
+        }
+      }
+      hasEnsuredCustomerStatusColumns = true;
+    })().finally(() => {
+      customerStatusColumnsPromise = null;
+    });
   }
+
+  await customerStatusColumnsPromise;
 };
 
 export async function handler(event) {
@@ -91,6 +105,7 @@ export async function handler(event) {
     const hasLookup = Boolean(lookupEmail || lookupPhone || lookupName);
     const id = Number(event.queryStringParameters?.id || 0);
     const hasId = Number.isFinite(id) && id > 0;
+    const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
 
     if (!authUser) {
       if (event.httpMethod === "PUT") {
@@ -560,6 +575,22 @@ export async function handler(event) {
           ? { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
           : publicLookupHeaders(event),
         body: JSON.stringify(publicCustomer),
+      };
+    }
+
+    if (compact) {
+      const compactResult = await client.query(
+        `SELECT id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"
+         FROM "customer"
+         WHERE "organizationId" = $1
+           AND "deletedAt" IS NULL
+         ORDER BY name ASC`,
+        [organizationId]
+      );
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify(compactResult.rows),
       };
     }
 

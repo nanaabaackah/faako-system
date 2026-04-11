@@ -51,7 +51,8 @@ import { WEBSITE_URL } from "../../utils/website";
 import { DASHBOARD_PATHS } from "../../utils/adminDashboardLinks";
 
 const MOBILE_QUERY = "(max-width: 720px)";
-const REEBS_PORTAL_LOGO = "/imgs/icons/logo2-white.svg";
+const REEBS_PORTAL_LOGO_LIGHT = "/imgs/brand/reebs_logo2.svg";
+const REEBS_PORTAL_LOGO_DARK = "/imgs/icons/logo2-white.svg";
 const ADMIN_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 const getSearchShortcutLabel = () => {
@@ -281,6 +282,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const navigate = useNavigate();
   const searchFieldRef = useRef(null);
   const pendingSearchFocusRef = useRef(false);
+  const notificationsRef = useRef(null);
+  const notificationsPanelRef = useRef(null);
+  const userMenuRef = useRef(null);
   const [expanded, setExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -288,7 +292,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   });
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
   const [notificationPayload, setNotificationPayload] = useState({ orders: [], bookings: [] });
@@ -337,6 +341,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     [user?.id]
   );
   const searchShortcutLabel = useMemo(() => getSearchShortcutLabel(), []);
+  const portalLogoSrc =
+    resolvedAdminTheme === "dark" ? REEBS_PORTAL_LOGO_DARK : REEBS_PORTAL_LOGO_LIGHT;
 
   const normalizedPath = useMemo(() => normalizePath(location.pathname), [location.pathname]);
 
@@ -396,7 +402,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
   useEffect(() => {
     setUserMenuOpen(false);
-    setNotificationsOpen(true);
+    setNotificationsOpen(false);
     setOverlayOpen(false);
   }, [location.pathname]);
 
@@ -404,6 +410,27 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     if (isMobile) return;
     setOverlayOpen(false);
   }, [isMobile]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleMouseDown = (event) => {
+      const target = event.target;
+      const clickedNotificationToggle =
+        notificationsRef.current && notificationsRef.current.contains(target);
+      const clickedNotificationPanel =
+        notificationsPanelRef.current && notificationsPanelRef.current.contains(target);
+      if (!clickedNotificationToggle && !clickedNotificationPanel) {
+        setNotificationsOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => window.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
   useEffect(() => {
     if (!isMobile || !overlayOpen) return undefined;
@@ -801,6 +828,19 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     </label>
   );
 
+  const renderSearchRow = (context = "sidebar") => {
+    const toolbarContext = `${context}-toolbar`;
+    return (
+      <div className={`portal-sidebar__search-stack portal-sidebar__search-stack--${context}`}>
+        <div className={`portal-sidebar__search-row portal-sidebar__search-row--${context}`}>
+          {renderSearch(context)}
+          {renderNotifications(toolbarContext)}
+        </div>
+        {renderNotificationsPanel(toolbarContext)}
+      </div>
+    );
+  };
+
   const renderLinks = (context = "sidebar") => (
     visibleApps.length > 0 ? (
       <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
@@ -1176,13 +1216,18 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
   const renderNotifications = (context = "sidebar") => {
     if (isWaterUser) return null;
+    const toolbarContext = context.endsWith("-toolbar");
     const compactCollapsedSidebar = context === "sidebar" && !isMobile && !expanded;
+    const iconOnly = toolbarContext || compactCollapsedSidebar;
     const unreadBadgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
     return (
-      <div className={`portal-sidebar__notifications portal-sidebar__notifications--${context}`}>
+      <div
+        ref={notificationsRef}
+        className={`portal-sidebar__notifications portal-sidebar__notifications--${context}`}
+      >
         <button
           type="button"
-          className="portal-sidebar__notifications-toggle"
+          className={`portal-sidebar__notifications-toggle${iconOnly ? " is-icon-only" : ""}`}
           onClick={() => {
             if (compactCollapsedSidebar) return;
             setNotificationsOpen((open) => !open);
@@ -1193,32 +1238,51 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               ? `${unreadBadgeLabel} unread notifications`
               : "Notifications"
           }
+          title="Notifications"
         >
           <span className="portal-sidebar__notifications-title">
             <AppIcon icon={faBell} />
-            <span>Notifications</span>
+            {!iconOnly ? <span>Notifications</span> : null}
           </span>
           {unreadCount > 0 && (
             <span className="portal-sidebar__notifications-count">{unreadBadgeLabel}</span>
           )}
-          <AppIcon
-            icon={faChevronDown}
-            className={`portal-sidebar__notifications-caret ${notificationsOpen ? "is-open" : ""}`}
-          />
+          {!iconOnly ? (
+            <AppIcon
+              icon={faChevronDown}
+              className={`portal-sidebar__notifications-caret ${notificationsOpen ? "is-open" : ""}`}
+            />
+          ) : null}
         </button>
-        {!compactCollapsedSidebar && notificationsOpen && (
-          <div className="portal-sidebar__notifications-body">
+        {!toolbarContext && !compactCollapsedSidebar && renderNotificationsPanel(context)}
+      </div>
+    );
+  };
+
+  const renderNotificationsPanel = (context = "sidebar") => {
+    if (isWaterUser || !notificationsOpen) return null;
+
+    return (
+      <div
+        ref={notificationsPanelRef}
+        className={`portal-sidebar__notifications-dock portal-sidebar__notifications-dock--${context}`}
+      >
+        <div className="portal-sidebar__notifications-body" aria-label="Notifications panel">
+          <div className="portal-sidebar__notifications-panel-head">
+            <div className="portal-sidebar__notifications-panel-copy">
+              <p className="portal-sidebar__notifications-panel-title">Notifications</p>
+            </div>
             {isAuthenticated && unreadCount > 0 && (
-              <div className="portal-sidebar__notifications-actions">
-                <button
-                  type="button"
-                  className="portal-sidebar__notifications-action"
-                  onClick={markAllNotificationsRead}
-                >
-                  Mark all read
-                </button>
-              </div>
+              <button
+                type="button"
+                className="portal-sidebar__notifications-action"
+                onClick={markAllNotificationsRead}
+              >
+                Mark all read
+              </button>
             )}
+          </div>
+          <div className="portal-sidebar__notifications-panel-content">
             {!isAuthenticated && <p className="portal-sidebar__notifications-muted">Sign in to see updates.</p>}
             {isAuthenticated && notificationsLoading && (
               <p className="portal-sidebar__notifications-muted">Loading activity...</p>
@@ -1249,7 +1313,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                         if (isMobile && overlayOpen) setOverlayOpen(false);
                       }}
                     >
-                      <div>
+                      <span className="portal-sidebar__notification-dot" aria-hidden="true" />
+                      <div className="portal-sidebar__notification-copy">
                         <span className="portal-sidebar__notification-title">{note.title}</span>
                         <span className="portal-sidebar__notification-meta">{note.meta}</span>
                       </div>
@@ -1262,13 +1327,16 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               </ul>
             )}
           </div>
-        )}
+        </div>
       </div>
     );
   };
 
   const renderUserSection = (context = "sidebar") => (
-    <div className={`portal-sidebar__user portal-sidebar__user--${context}`}>
+    <div
+      ref={userMenuRef}
+      className={`portal-sidebar__user portal-sidebar__user--${context}`}
+    >
       <button
         type="button"
         className="portal-sidebar__user-button"
@@ -1368,7 +1436,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   onClick={() => setOverlayOpen(false)}
                 >
                   <span className="portal-sidebar__brand-mark" aria-hidden="true">
-                    <img src={REEBS_PORTAL_LOGO} alt="" />
+                    <img src={portalLogoSrc} alt="" />
                   </span>
                   <span className="portal-sidebar__brand-copy">
                     <span className="portal-sidebar__brand-full">REEBS Portal</span>
@@ -1383,12 +1451,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   <AppIcon icon={faXmark} />
                 </button>
               </div>
-              {renderSearch("overlay")}
+              {renderSearchRow("overlay")}
               <nav className="portal-sidebar__overlay-nav" aria-label="Portal apps">
                 {renderSearchResults("overlay")}
               </nav>
               <div className="portal-sidebar__footer">
-                {renderNotifications("overlay")}
                 {renderUserSection("overlay")}
               </div>
             </div>
@@ -1404,7 +1471,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
           <div className="portal-sidebar__header">
             <Link to="/admin" className="portal-sidebar__brand">
               <span className="portal-sidebar__brand-mark" aria-hidden="true">
-                <img src={REEBS_PORTAL_LOGO} alt="" />
+                <img src={portalLogoSrc} alt="" />
               </span>
               <span className="portal-sidebar__brand-copy">
                 <span className="portal-sidebar__brand-full">REEBS Portal</span>
@@ -1427,11 +1494,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               </button>
             </div>
           </div>
-          {!isMobile && expanded && renderSearch()}
+          {!isMobile && expanded && renderSearchRow("sidebar")}
           {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderSearchResults()}</nav>}
           {!isMobile && (
             <div className="portal-sidebar__footer">
-              {renderNotifications()}
+              {!expanded ? renderNotifications("sidebar") : null}
               {renderUserSection()}
             </div>
           )}
