@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPatch, ApiError } from "../../api/client";
+import { clearAuthStore, setAuthenticatedUser } from "../../auth/authStore";
 import {
-  clearStoredSession,
   readStoredSessionToken,
   readStoredSessionUser,
-  writeStoredSession,
 } from "../../utils/authSession";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
 import { formatDateTime } from "../../utils/formatters";
 
 const PASSWORD_POLICY_HELP =
@@ -53,7 +51,7 @@ const Profile = () => {
     async ({ silent = false } = {}) => {
       const token = readStoredSessionToken();
       if (!token) {
-        clearStoredSession();
+        clearAuthStore();
         navigate("/login");
         return;
       }
@@ -66,31 +64,25 @@ const Profile = () => {
       setError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/users/me"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet("/api/users/me", {
+          fallbackMessage: "Unable to load profile",
         });
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          if (response.status === 401) {
-            clearStoredSession();
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load profile"));
-        }
 
         const currentLocalUser = readLocalUser();
         const nextLocalUser = {
           ...(currentLocalUser && typeof currentLocalUser === "object" ? currentLocalUser : {}),
           ...(payload && typeof payload === "object" ? payload : {}),
         };
-        writeStoredSession(nextLocalUser);
+        setAuthenticatedUser(nextLocalUser);
         setProfile(nextLocalUser);
         setFormState(buildProfileFormState(nextLocalUser));
         setLastLoadedAt(new Date().toISOString());
       } catch (requestError) {
+        if (requestError instanceof ApiError && requestError.status === 401) {
+          clearAuthStore();
+          navigate("/login");
+          return;
+        }
         setError(requestError.message || "Unable to load profile");
       } finally {
         setLoading(false);
@@ -143,7 +135,7 @@ const Profile = () => {
 
     const token = readStoredSessionToken();
     if (!token) {
-      clearStoredSession();
+      clearAuthStore();
       navigate("/login");
       return;
     }
@@ -191,34 +183,15 @@ const Profile = () => {
         requestBody.newPassword = newPassword;
       }
 
-      const response = await fetch(buildApiUrl("/api/users/me"), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
+      const payload = await apiPatch("/api/users/me", requestBody, {
+        fallbackMessage: "Unable to save profile",
       });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          clearStoredSession();
-          navigate("/login");
-          return;
-        }
-        const message = getApiErrorMessage(payload, "Unable to save profile");
-        const passwordPolicy =
-          payload && typeof payload === "object" && typeof payload.passwordPolicy === "string"
-            ? payload.passwordPolicy
-            : "";
-        throw new Error(passwordPolicy ? `${message} ${passwordPolicy}` : message);
-      }
       const currentLocalUser = readLocalUser();
       const nextLocalUser = {
         ...(currentLocalUser && typeof currentLocalUser === "object" ? currentLocalUser : {}),
         ...(payload && typeof payload === "object" ? payload : {}),
       };
-      writeStoredSession(nextLocalUser);
+      setAuthenticatedUser(nextLocalUser);
       setProfile(nextLocalUser);
       setFormState(buildProfileFormState(nextLocalUser));
       setLastLoadedAt(new Date().toISOString());
@@ -231,6 +204,22 @@ const Profile = () => {
           : "Profile updated."
       );
     } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.status === 401) {
+        clearAuthStore();
+        navigate("/login");
+        return;
+      }
+      const passwordPolicy =
+        requestError instanceof ApiError &&
+        requestError.payload &&
+        typeof requestError.payload === "object" &&
+        typeof requestError.payload.passwordPolicy === "string"
+          ? requestError.payload.passwordPolicy
+          : "";
+      if (passwordPolicy) {
+        setSaveError(`${requestError.message || "Unable to save profile"} ${passwordPolicy}`);
+        return;
+      }
       setSaveError(requestError.message || "Unable to save profile");
     } finally {
       setIsSaving(false);

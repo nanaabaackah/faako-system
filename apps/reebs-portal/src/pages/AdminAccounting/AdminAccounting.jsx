@@ -48,6 +48,8 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getExpenseAmount = (expense) => Math.max(0, toNumber(expense?.amount)) / 100;
+
 const getDocumentType = (document) =>
   String(document?.documentType || "").trim().toLowerCase() === "receipt" ? "receipt" : "invoice";
 
@@ -75,6 +77,9 @@ const getDocumentSourceKey = (document) => {
   if (!sourceType || sourceType === "manual" || !Number.isFinite(sourceId) || sourceId <= 0) return "";
   return `${sourceType}-${sourceId}`;
 };
+
+const isAccountingBookingStatus = (status) =>
+  ["confirmed", "completed"].includes(String(status || "").trim().toLowerCase());
 
 const loadLocalState = (key, fallback) => {
   if (typeof window === "undefined") return fallback;
@@ -367,8 +372,8 @@ function AdminAccounting() {
     setListError("");
     try {
       const [ordersRes, bookingsRes, documentsRes, expensesRes] = await Promise.all([
-        fetchJson("/.netlify/functions/orders"),
-        fetchJson("/.netlify/functions/bookings"),
+        fetchJson("/.netlify/functions/orders?compact=1"),
+        fetchJson("/.netlify/functions/bookings?compact=1"),
         fetchJson("/.netlify/functions/invoice-documents?compact=1"),
         fetchJson("/.netlify/functions/expenses"),
       ]);
@@ -387,7 +392,7 @@ function AdminAccounting() {
   };
 
   useEffect(() => {
-    if (viewMode !== "activity") return;
+    if (viewMode !== "overview" && viewMode !== "activity") return;
     if (listLoaded) return;
     fetchListData();
   }, [viewMode, listLoaded]);
@@ -543,34 +548,83 @@ function AdminAccounting() {
     [bookings, windowStart, windowEnd]
   );
 
+  const activeDocuments = useMemo(
+    () => documents.filter((document) => !document?.archivedAt),
+    [documents]
+  );
+
+  const documentBySourceKey = useMemo(() => {
+    const map = new Map();
+    activeDocuments.forEach((document) => {
+      const sourceKey = getDocumentSourceKey(document);
+      if (!sourceKey) return;
+      map.set(sourceKey, document);
+    });
+    return map;
+  }, [activeDocuments]);
+
+  const filteredDocuments = useMemo(
+    () => activeDocuments.filter((document) => isWithinRange(getDocumentDate(document), windowStart, windowEnd)),
+    [activeDocuments, windowStart, windowEnd]
+  );
+
   const filteredExpenses = useMemo(
     () => expenses.filter((expense) => isWithinRange(expense.date, windowStart, windowEnd)),
     [expenses, windowStart, windowEnd]
   );
 
+  const linkedIncomeRows = useMemo(() => {
+    const documentRows = filteredDocuments.map((document) => {
+      const documentType = getDocumentType(document);
+      return {
+        id: `document-${document.id}`,
+        type: documentType === "receipt" ? "Receipt" : "Invoice",
+        number: getDocumentReference(document),
+        customer: getDocumentCustomer(document),
+        date: getDocumentDate(document),
+        status: document.paymentStatus || "draft",
+        direction: "in",
+        detail: document.sourceLabel || document.linkedLabel || (
+          document.sourceType === "manual" ? "Manual document" : document.sourceType || "Document"
+        ),
+        total: getDocumentTotal(document),
+        sourceKey: getDocumentSourceKey(document),
+      };
+    });
+
+    const orderRows = filteredOrders
+      .filter((order) => !documentBySourceKey.has(`orders-${order.id}`))
+      .map((order) => ({
+        id: `order-${order.id}`,
+        type: "Receipt",
+        number: order.orderNumber || `ORD-${order.id}`,
+        customer: order.customerName || "-",
+        date: order.orderDate,
+        status: order.status || "posted",
+        direction: "in",
+        detail: "Order fallback",
+        total: Number(order.total || 0),
+      }));
+
+    const bookingRows = filteredBookings
+      .filter((booking) => isAccountingBookingStatus(booking.status))
+      .filter((booking) => !documentBySourceKey.has(`bookings-${booking.id}`))
+      .map((booking) => ({
+        id: `booking-${booking.id}`,
+        type: "Invoice",
+        number: `INV-${booking.id}`,
+        customer: booking.customerName || "-",
+        date: booking.eventDate,
+        status: booking.status || "confirmed",
+        direction: "in",
+        detail: "Booking fallback",
+        total: Number(booking.totalAmount || 0) / 100,
+      }));
+
+    return [...documentRows, ...orderRows, ...bookingRows];
+  }, [documentBySourceKey, filteredBookings, filteredDocuments, filteredOrders]);
+
   const listRows = useMemo(() => {
-    const orderRows = filteredOrders.map((order) => ({
-      id: `order-${order.id}`,
-      type: "Receipt",
-      number: order.orderNumber || `ORD-${order.id}`,
-      customer: order.customerName || "-",
-      date: order.orderDate,
-      status: order.status || "posted",
-      direction: "in",
-      detail: "Order",
-      total: Number(order.total || 0),
-    }));
-    const bookingRows = filteredBookings.map((booking) => ({
-      id: `booking-${booking.id}`,
-      type: "Invoice",
-      number: `INV-${booking.id}`,
-      customer: booking.customerName || "-",
-      date: booking.eventDate,
-      status: booking.status || "confirmed",
-      direction: "in",
-      detail: "Booking",
-      total: Number(booking.totalAmount || 0) / 100,
-    }));
     const expenseRows = filteredExpenses.map((expense) => ({
       id: `expense-${expense.id}`,
       type: "Expense",
@@ -580,28 +634,66 @@ function AdminAccounting() {
       status: expense.maintenanceStatus || "posted",
       direction: "out",
       detail: expense.category || "Expense",
-      total: Number(expense.amount || 0),
+      total: getExpenseAmount(expense),
     }));
-    return [...orderRows, ...bookingRows, ...expenseRows].sort(
+    return [...linkedIncomeRows, ...expenseRows].sort(
       (a, b) => new Date(b.date) - new Date(a.date)
     );
-  }, [filteredBookings, filteredExpenses, filteredOrders]);
+  }, [filteredExpenses, linkedIncomeRows]);
 
   const receiptsTotal = useMemo(
-    () => filteredOrders.reduce((sum, order) => sum + Number(order.total || 0), 0),
-    [filteredOrders]
+    () => linkedIncomeRows
+      .filter((row) => row.type === "Receipt")
+      .reduce((sum, row) => sum + Number(row.total || 0), 0),
+    [linkedIncomeRows]
   );
   const invoicesTotal = useMemo(
-    () => filteredBookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0) / 100, 0),
-    [filteredBookings]
+    () => linkedIncomeRows
+      .filter((row) => row.type === "Invoice")
+      .reduce((sum, row) => sum + Number(row.total || 0), 0),
+    [linkedIncomeRows]
   );
   const expensesTotal = useMemo(
-    () => filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-    [filteredExpenses]
+    () => listLoaded
+      ? filteredExpenses.reduce((sum, expense) => sum + getExpenseAmount(expense), 0)
+      : toNumber(financeSummary?.operatingExpenses || 0),
+    [filteredExpenses, financeSummary?.operatingExpenses, listLoaded]
   );
-  const combinedTotal = receiptsTotal + invoicesTotal;
+  const activityReceiptsTotal = receiptsTotal;
+  const activityInvoicesTotal = invoicesTotal;
+  const receiptsTotalDisplay = listLoaded ? activityReceiptsTotal : toNumber(financeSummary?.revenue || 0);
+  const invoicesTotalDisplay = listLoaded ? activityInvoicesTotal : toNumber(financeSummary?.rentalIncome || 0);
+  const receiptCount = listLoaded
+    ? linkedIncomeRows.filter((row) => row.type === "Receipt").length
+    : toNumber(data?.orders || 0);
+  const invoiceCount = listLoaded
+    ? linkedIncomeRows.filter((row) => row.type === "Invoice").length
+    : toNumber(data?.bookings || 0);
+  const expenseCount = listLoaded ? filteredExpenses.length : 0;
+  const combinedTotal = receiptsTotalDisplay + invoicesTotalDisplay;
   const linkedMoneyIn = combinedTotal;
   const linkedNet = linkedMoneyIn - expensesTotal;
+  const statementSummary = useMemo(() => {
+    if (!financeSummary) return null;
+    if (!listLoaded) return financeSummary;
+
+    const revenue = receiptsTotalDisplay;
+    const rentalIncome = invoicesTotalDisplay;
+    const cogs = toNumber(financeSummary.cogs);
+    const operatingExpenses = expensesTotal;
+    const grossProfit = revenue + rentalIncome - cogs;
+    const netProfit = grossProfit - operatingExpenses;
+
+    return {
+      ...financeSummary,
+      revenue,
+      rentalIncome,
+      cogs,
+      operatingExpenses,
+      grossProfit,
+      netProfit,
+    };
+  }, [expensesTotal, financeSummary, invoicesTotalDisplay, listLoaded, receiptsTotalDisplay]);
   const recentLinkedRows = useMemo(() => listRows.slice(0, 8), [listRows]);
   const updateBalance = (field) => (event) => {
     const value = event.target.value;
@@ -675,7 +767,7 @@ function AdminAccounting() {
   const currentLiabilities = accountsPayable + taxesPayable + accruedExpenses + shortTermLoans;
   const totalAssets = currentAssets + fixedAssets + otherAssets;
   const totalLiabilities = currentLiabilities + longTermLoans;
-  const periodNetProfit = toNumber(financeSummary?.netProfit || 0);
+  const periodNetProfit = toNumber(statementSummary?.netProfit || 0);
   const equityBase = ownerEquity + retainedEarnings;
   const totalEquity = equityBase + periodNetProfit;
   const balanceGap = totalAssets - (totalLiabilities + totalEquity);
@@ -692,14 +784,16 @@ function AdminAccounting() {
   const corporateRate = parsePercent(ghanaTaxConfig.corporateRate);
   const vatTotalRate = vatCoreRate + nhilRate + getFundRate + covidRate;
   const exemptSales = toNumber(taxInputs.exemptSales);
-  const salesBaseForTax = Math.max(combinedTotal, grossRevenue);
+  const salesBaseForTax = listLoaded
+    ? combinedTotal + historicalSalesWindowTotal
+    : grossRevenue;
   const taxableSales = Math.max(0, salesBaseForTax - exemptSales);
   const outputVat = taxableSales * vatTotalRate;
   const inputVatCredits = toNumber(taxInputs.inputVatCredits);
   const vatPayable = Math.max(0, outputVat - inputVatCredits);
   const grossProduction = toNumber(taxInputs.grossProduction);
   const profitBeforeTax =
-    toNumber(financeSummary?.grossProfit || 0) - toNumber(financeSummary?.operatingExpenses || 0);
+    toNumber(statementSummary?.grossProfit || 0) - toNumber(statementSummary?.operatingExpenses || 0);
   const profitBeforeTaxBase = Math.max(0, profitBeforeTax);
   const allowableDeductions = toNumber(taxInputs.allowableDeductions);
   const taxableIncome = Math.max(0, profitBeforeTax - allowableDeductions);
@@ -717,24 +811,24 @@ function AdminAccounting() {
     vatPayable + corporateTaxDue + gslDue + fsrlDue - withholdingCredits
   );
   const grossFormulaGap =
-    toNumber(financeSummary?.revenue || 0) +
-    toNumber(financeSummary?.rentalIncome || 0) -
-    toNumber(financeSummary?.cogs || 0) -
-    toNumber(financeSummary?.grossProfit || 0);
+    toNumber(statementSummary?.revenue || 0) +
+    toNumber(statementSummary?.rentalIncome || 0) -
+    toNumber(statementSummary?.cogs || 0) -
+    toNumber(statementSummary?.grossProfit || 0);
   const netFormulaGap =
-    toNumber(financeSummary?.grossProfit || 0) -
-    toNumber(financeSummary?.operatingExpenses || 0) -
-    toNumber(financeSummary?.netProfit || 0);
+    toNumber(statementSummary?.grossProfit || 0) -
+    toNumber(statementSummary?.operatingExpenses || 0) -
+    toNumber(statementSummary?.netProfit || 0);
   const expenseTieOutGap =
-    expenseBreakdownTotal - toNumber(financeSummary?.operatingExpenses || 0);
+    expenseBreakdownTotal - toNumber(statementSummary?.operatingExpenses || 0);
 
   const withinTolerance = (value) => Math.abs(toNumber(value)) <= 1;
   const toMoneyString = (value) => toNumber(value).toFixed(2);
 
   const autoFillBalanceInputs = () => {
-    const revenue = grossRevenue;
-    const cogs = toNumber(financeSummary?.cogs || 0);
-    const operatingExpenses = toNumber(financeSummary?.operatingExpenses || 0);
+    const revenue = salesBaseForTax;
+    const cogs = toNumber(statementSummary?.cogs || 0);
+    const operatingExpenses = toNumber(statementSummary?.operatingExpenses || 0);
     const projectedLiquid = Math.max(0, revenue - cogs - operatingExpenses);
     const nextCurrentAssets = {
       cashOnHand: projectedLiquid * 0.15,
@@ -800,8 +894,8 @@ function AdminAccounting() {
   };
 
   const autoFillTaxInputs = () => {
-    const salesBase = Math.max(0, grossRevenue);
-    const operatingExpenses = toNumber(financeSummary?.operatingExpenses || 0);
+    const salesBase = Math.max(0, salesBaseForTax);
+    const operatingExpenses = toNumber(statementSummary?.operatingExpenses || 0);
     const defaultExemptSales = salesBase * 0.05;
     const estimatedInputVat = operatingExpenses * vatCoreRate;
     taxInputsEditedRef.current = true;
@@ -1161,7 +1255,7 @@ function AdminAccounting() {
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Money in</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(linkedMoneyIn)}</h3>
-                <p className="accounting-kpi-sub">{data.orders || 0} receipts · {data.bookings || 0} invoices</p>
+                <p className="accounting-kpi-sub">{receiptCount} receipts · {invoiceCount} invoices</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Money out</p>
@@ -1170,12 +1264,12 @@ function AdminAccounting() {
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Gross profit</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(financeSummary?.grossProfit || 0)}</h3>
+                <h3 className="accounting-kpi-value">{formatCurrency(statementSummary?.grossProfit || 0)}</h3>
                 <p className="accounting-kpi-sub">Before expenses</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Net profit</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(financeSummary?.netProfit || 0)}</h3>
+                <h3 className="accounting-kpi-value">{formatCurrency(statementSummary?.netProfit || 0)}</h3>
                 <p className="accounting-kpi-sub">{data.windowLabel || ""}</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
@@ -1198,31 +1292,31 @@ function AdminAccounting() {
                     <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
-                {loading && !financeSummary ? (
+                {loading && !statementSummary ? (
                   <p className="accounting-muted">Reconciling ledgers…</p>
-                ) : error && !financeSummary ? (
+                ) : error && !statementSummary ? (
                   <p className="accounting-error">{error}</p>
-                ) : financeSummary ? (
+                ) : statementSummary ? (
                   <div className="accounting-pnl">
                     <div className="accounting-pnl-row">
                       <span>Receipts</span>
-                      <span>{formatCurrency(financeSummary.revenue)}</span>
+                      <span>{formatCurrency(statementSummary.revenue)}</span>
                     </div>
                     <div className="accounting-pnl-row">
                       <span>Booking invoices</span>
-                      <span>{formatCurrency(financeSummary.rentalIncome)}</span>
+                      <span>{formatCurrency(statementSummary.rentalIncome)}</span>
                     </div>
                     <div className="accounting-pnl-row accounting-negative">
                       <span>Cost of goods sold</span>
-                      <span>-{formatCurrency(financeSummary.cogs)}</span>
+                      <span>-{formatCurrency(statementSummary.cogs)}</span>
                     </div>
                     <div className="accounting-pnl-row">
                       <span>Gross profit</span>
-                      <span>{formatCurrency(financeSummary.grossProfit)}</span>
+                      <span>{formatCurrency(statementSummary.grossProfit)}</span>
                     </div>
                     <div className="accounting-pnl-row accounting-negative">
                       <span>Operating expenses</span>
-                      <span>-{formatCurrency(financeSummary.operatingExpenses)}</span>
+                      <span>-{formatCurrency(statementSummary.operatingExpenses)}</span>
                     </div>
                     {expenseBreakdown.length > 0 && (
                       <>
@@ -1240,7 +1334,7 @@ function AdminAccounting() {
                     )}
                     <div className="accounting-pnl-row total">
                       <strong>Net profit</strong>
-                      <strong>{formatCurrency(financeSummary.netProfit)}</strong>
+                      <strong>{formatCurrency(statementSummary.netProfit)}</strong>
                     </div>
                   </div>
                 ) : (
@@ -1310,7 +1404,7 @@ function AdminAccounting() {
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell">
                             <span className="admin-table-summary-value">
-                              {filteredOrders.length} receipts · {filteredBookings.length} invoices · {filteredExpenses.length} expenses
+                              {receiptCount} receipts · {invoiceCount} invoices · {expenseCount} expenses
                             </span>
                           </td>
                           <td className="admin-table-summary-cell is-empty" />
@@ -1341,18 +1435,18 @@ function AdminAccounting() {
                 <div className="accounting-mini-grid">
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Receipts</p>
-                    <strong className="accounting-mini-value">{formatCurrency(receiptsTotal)}</strong>
-                    <span className="accounting-mini-sub">{filteredOrders.length} orders</span>
+                    <strong className="accounting-mini-value">{formatCurrency(receiptsTotalDisplay)}</strong>
+                    <span className="accounting-mini-sub">{receiptCount} documents</span>
                   </div>
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Invoices</p>
-                    <strong className="accounting-mini-value">{formatCurrency(invoicesTotal)}</strong>
-                    <span className="accounting-mini-sub">{filteredBookings.length} bookings</span>
+                    <strong className="accounting-mini-value">{formatCurrency(invoicesTotalDisplay)}</strong>
+                    <span className="accounting-mini-sub">{invoiceCount} documents</span>
                   </div>
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Expenses</p>
                     <strong className="accounting-mini-value">{formatCurrency(expensesTotal)}</strong>
-                    <span className="accounting-mini-sub">{filteredExpenses.length} entries</span>
+                    <span className="accounting-mini-sub">{expenseCount} entries</span>
                   </div>
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Net</p>
@@ -1508,35 +1602,35 @@ function AdminAccounting() {
                     <p className="accounting-panel-sub">For {data.windowLabel || ""}</p>
                   </div>
                 </div>
-                {loading && !financeSummary ? (
+                {loading && !statementSummary ? (
                   <p className="accounting-muted">Reconciling ledgers…</p>
-                ) : error && !financeSummary ? (
+                ) : error && !statementSummary ? (
                   <p className="accounting-error">{error}</p>
-                ) : financeSummary ? (
+                ) : statementSummary ? (
                   <div className="accounting-pnl">
                     <div className="accounting-pnl-row">
                       <span>Retail sales revenue</span>
-                      <span>{formatCurrency(financeSummary.revenue)}</span>
+                      <span>{formatCurrency(statementSummary.revenue)}</span>
                     </div>
                     <div className="accounting-pnl-row">
                       <span>Rental income</span>
-                      <span>{formatCurrency(financeSummary.rentalIncome)}</span>
+                      <span>{formatCurrency(statementSummary.rentalIncome)}</span>
                     </div>
                     <div className="accounting-pnl-row accounting-negative">
                       <span>Cost of goods sold</span>
-                      <span>-{formatCurrency(financeSummary.cogs)}</span>
+                      <span>-{formatCurrency(statementSummary.cogs)}</span>
                     </div>
                     <div className="accounting-pnl-row">
                       <span>Gross profit</span>
-                      <span>{formatCurrency(financeSummary.grossProfit)}</span>
+                      <span>{formatCurrency(statementSummary.grossProfit)}</span>
                     </div>
                     <div className="accounting-pnl-row accounting-negative">
                       <span>Operating expenses</span>
-                      <span>-{formatCurrency(financeSummary.operatingExpenses)}</span>
+                      <span>-{formatCurrency(statementSummary.operatingExpenses)}</span>
                     </div>
                     <div className="accounting-pnl-row total">
                       <strong>Net profit</strong>
-                      <strong>{formatCurrency(financeSummary.netProfit)}</strong>
+                      <strong>{formatCurrency(statementSummary.netProfit)}</strong>
                     </div>
                   </div>
                 ) : (
@@ -1881,18 +1975,18 @@ function AdminAccounting() {
             <section className="accounting-kpis accounting-kpis-tight accounting-kpis-activity">
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Receipts</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(receiptsTotal)}</h3>
-                <p className="accounting-kpi-sub">{filteredOrders.length} orders</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(receiptsTotalDisplay)}</h3>
+                <p className="accounting-kpi-sub">{receiptCount} documents</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Invoices</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(invoicesTotal)}</h3>
-                <p className="accounting-kpi-sub">{filteredBookings.length} bookings</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(invoicesTotalDisplay)}</h3>
+                <p className="accounting-kpi-sub">{invoiceCount} documents</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Expenses</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(expensesTotal)}</h3>
-                <p className="accounting-kpi-sub">{filteredExpenses.length} entries</p>
+                <p className="accounting-kpi-sub">{expenseCount} entries</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Net</p>
@@ -1959,7 +2053,7 @@ function AdminAccounting() {
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell">
                             <span className="admin-table-summary-value">
-                              {filteredOrders.length} receipts · {filteredBookings.length} invoices · {filteredExpenses.length} expenses
+                              {receiptCount} receipts · {invoiceCount} invoices · {expenseCount} expenses
                             </span>
                           </td>
                           <td className="admin-table-summary-cell is-empty" />

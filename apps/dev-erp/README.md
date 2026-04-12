@@ -2,87 +2,103 @@
 
 Workspace package: `@faako/dev-erp`
 
-Standalone KPI dashboard plus Express and Prisma backend for a dedicated dashboard deployment.
-
-This app was moved into the monorepo without flattening its business logic. It still owns its frontend, backend, auth, reporting, rent, and productivity flows locally.
+Dev ERP is the internal operations portal for the portfolio. It combines a Vite admin frontend with an Express and Prisma backend for organization metrics, rent management, accounting, invoicing, appointments, reports, user access, alerts, and Google Calendar integration.
 
 ## What Lives Here
 
-- Vite frontend in `src/`
-- Express backend in `backend/`
-- Prisma schema and migrations
-- environment-specific runtime loading through `APP_ENV`
+- `src/`: React frontend, route shell, auth store, API client, pages, and utilities
+- `backend/`: Express API, feature route slices, auth and capability middleware, background jobs, email templates, and integration helpers
+- `prisma/`: Prisma schema and migrations for the Dev ERP database
+- `netlify.toml`: frontend deploy config and production API proxying
+- `.env.example`: source of truth for local and hosted environment variables
 
-## Local Dev
+Backend routing is being split into vertical slices. `backend/server.js` now owns runtime setup and composition, while focused modules own auth, users, dashboard, jobs, productivity, capability checks, organization scoping, HTTP app wiring, and security helpers.
 
-Full stack:
+## Run It Locally
+
+Install from the repo root first:
+
+```bash
+pnpm install
+```
+
+Start the full local app:
 
 ```bash
 pnpm --filter @faako/dev-erp run dev:with-backend
 ```
 
-Or from the repo root:
+Equivalent root command:
 
 ```bash
 pnpm run dev:dev-erp
 ```
 
-Frontend only:
+Run only one side:
 
 ```bash
 pnpm --filter @faako/dev-erp run dev
-```
-
-Backend only:
-
-```bash
 pnpm --filter @faako/dev-erp run server:dev
 ```
 
-Backend with development migrations applied first:
+The frontend uses `http://localhost:5173`. Local API calls can go through the Vite proxy when `VITE_API_PROXY_TARGET` is set.
+
+## Database
+
+Use `apps/dev-erp/.env.example` to create an untracked local env file such as `apps/dev-erp/.env.development`.
+
+Common database commands:
 
 ```bash
-pnpm --filter @faako/dev-erp run server:dev:with-migrate
-```
-
-Useful commands:
-
-```bash
-pnpm --filter @faako/dev-erp run dev:with-backend
-pnpm --filter @faako/dev-erp run build
-pnpm --filter @faako/dev-erp run test
+pnpm --filter @faako/dev-erp run db:generate
 pnpm --filter @faako/dev-erp run db:status:dev
 pnpm --filter @faako/dev-erp run db:deploy:dev
 pnpm --filter @faako/dev-erp run db:migrate:dev -- --name <migration-name>
+pnpm --filter @faako/dev-erp run db:studio
 ```
 
-The frontend runs on `http://localhost:5173`. Local API requests can go through `VITE_API_PROXY_TARGET` when you want `/api/*` routed to a local or remote backend.
+Important safeguards:
 
-## Environment
+- `APP_ENV` selects the environment-specific database flow.
+- `ENFORCE_DATABASE_ISOLATION=true` helps block local work from writing to the production database.
+- `VITE_*` values are browser-visible and must not contain secrets.
+- `OAUTH_TOKEN_ENCRYPTION_KEY` is required when Google Calendar integration is enabled.
 
-Use `apps/dev-erp/.env.example` as the source of truth.
+## Auth And API
 
-Important behavior:
+The frontend boots by calling `/api/auth/session`. The response becomes the central auth store state, including the authenticated user and module access. Session tokens are set through server-managed cookies, not returned as browser-readable JSON payloads.
 
-- copy that file to an untracked local env file such as `apps/dev-erp/.env.development`
-- `VITE_*` values are browser-visible and must stay non-secret
-- backend env values control database access, email, auth, Google integrations, and alerts
-- `APP_ENV` selects the environment-specific database flow
-- `ENFORCE_DATABASE_ISOLATION=true` helps block local work from writing into the production database by mistake
-- `OAUTH_TOKEN_ENCRYPTION_KEY` is required when Google Calendar integration is enabled
+Route visibility is still a frontend convenience. Backend access is enforced by capability middleware and organization scoping helpers:
+
+- `backend/auth/capabilities.js` maps API route groups to required modules and denies non-admin roles without a matching capability.
+- `backend/organizations/scope.js` resolves organization read/write scope and blocks cross-organization access for local admins.
+- `backend/security/envExposure.test.js` keeps the browser-visible `VITE_*` env surface intentionally allowlisted.
+
+Use the shared API client in `src/api/client.ts` for new frontend calls. It standardizes JSON parsing, credentials, CSRF headers, session-expiry handling, and normalized API errors.
+
+## Verify Changes
+
+```bash
+pnpm --filter @faako/dev-erp run test
+pnpm --filter @faako/dev-erp exec tsc --noEmit
+pnpm --filter @faako/dev-erp run build
+```
 
 ## Deployment
 
-This app keeps its own Netlify frontend config in `apps/dev-erp/netlify.toml`.
+Netlify builds the frontend with:
 
-Build behavior:
+```bash
+pnpm --filter @faako/dev-erp build
+```
 
-- Netlify builds with `pnpm --filter @faako/dev-erp build`
-- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/dev-erp`
-- the publish folder is `apps/dev-erp/dist`
-- production `/api/*` traffic is redirected to the upstream backend configured in `netlify.toml`
+The publish folder is `apps/dev-erp/dist`, and selective deploys use:
 
-For backend deploys outside Netlify, use the app-local server scripts so Prisma migrations run before startup when needed:
+```bash
+node ./scripts/netlify-ignore.mjs @faako/dev-erp
+```
+
+For a standalone backend deploy, use the server scripts so Prisma generation and migrations run before startup when needed:
 
 ```bash
 pnpm --filter @faako/dev-erp run start

@@ -2,68 +2,77 @@
 
 Workspace package: `@faako/reebs-portal`
 
-Admin portal and Netlify backend for the Reebs product.
-
-This app owns the admin-facing frontend, serverless functions, and Prisma-backed backend behavior used by the Reebs stack.
+Reebs Portal is the admin portal and Netlify Functions backend for the Reebs product. It owns the operational frontend, Prisma-backed backend functions, admin accounting workflows, bookings, content, and internal product modules used by the Reebs stack.
 
 ## What Lives Here
 
-- admin portal frontend
-- Netlify Functions backend in `netlify/functions`
-- Prisma schema and migrations
-- Reebs-specific ERP config and modules
+- `src/`: React admin portal frontend
+- `netlify/functions/`: backend functions
+- `prisma/`: Prisma schema, migrations, and generated client output
+- `docs/`: deeper frontend and backend notes
+- `netlify.toml`: local and hosted Netlify configuration
+- `.env.example`: runtime configuration reference
 
-## Local Dev
+## Run It Locally
 
-Frontend:
+Frontend only:
 
 ```bash
 pnpm --filter @faako/reebs-portal run dev:frontend
 ```
 
-Backend:
+Backend/functions only:
 
 ```bash
 pnpm --filter @faako/reebs-portal run dev:backend
 ```
 
-Useful commands:
-
-```bash
-pnpm --filter @faako/reebs-portal run netlify
-pnpm --filter @faako/reebs-portal run db:migrate:dev
-pnpm --filter @faako/reebs-portal run db:deploy:dev
-pnpm --filter @faako/reebs-portal run test:e2e
-```
-
-Default local ports:
-
-- frontend: `5174`
-- functions/backend: `8888`
-
-## Relationship To Reebs Website
-
-- `apps/reebs-website` is the public site
-- `apps/reebs-portal` owns the backend and admin frontend
-- for full local Reebs development, the easiest root command is:
+Full local Reebs stack from the repo root:
 
 ```bash
 pnpm run dev:reebs
 ```
 
+Default local ports:
+
+- portal frontend: `5174`
+- functions/backend: `8888`
+
+## Common Commands
+
+```bash
+pnpm --filter @faako/reebs-portal run build
+pnpm --filter @faako/reebs-portal run netlify
+pnpm --filter @faako/reebs-portal run db:generate
+pnpm --filter @faako/reebs-portal run db:migrate:dev
+pnpm --filter @faako/reebs-portal run db:deploy:dev
+pnpm --filter @faako/reebs-portal run db:status:dev
+pnpm --filter @faako/reebs-portal run test:e2e
+```
+
+## Relationship To Reebs Website
+
+- `apps/reebs-website` is the public customer-facing site
+- `apps/reebs-portal` owns the backend and admin experience
+- local full-stack Reebs work normally runs both together through `pnpm run dev:reebs`
+
 ## Deployment
 
 This app has its own Netlify config in `apps/reebs-portal/netlify.toml`.
 
-Build behavior:
+Netlify builds with:
 
-- Netlify builds with `pnpm --filter @faako/reebs-portal build`
-- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/reebs-portal`
-- functions are served from `apps/reebs-portal/netlify/functions`
+```bash
+pnpm --filter @faako/reebs-portal build
+```
+
+Functions are served from `apps/reebs-portal/netlify/functions`, and selective deploys use:
+
+```bash
+node ./scripts/netlify-ignore.mjs @faako/reebs-portal
+```
 
 ## More Detail
-
-Deeper Reebs portal docs live here:
 
 - `apps/reebs-portal/docs/FRONTEND.md`
 - `apps/reebs-portal/docs/BACKEND.md`

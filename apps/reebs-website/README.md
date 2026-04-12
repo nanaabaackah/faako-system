@@ -2,11 +2,16 @@
 
 Workspace package: `@faako/reebs-website`
 
-Public website for the Reebs product.
+Reebs Website is the public customer-facing website for the Reebs product. It explains the product, routes visitors to the portal, and uses the portal backend for local full-stack development and production API access.
 
-This app is the customer-facing frontend. It depends on the Reebs portal backend during local full-stack development and in production should point at the correct portal/API origin through public Vite config.
+## What Lives Here
 
-## Local Dev
+- `src/`: React and Vite public website
+- `scripts/generateSitemap.mjs`: sitemap generation used before builds
+- `netlify.toml`: deploy configuration
+- `.env.example`: public runtime variable reference
+
+## Run It Locally
 
 Frontend only:
 
@@ -20,7 +25,7 @@ Full local Reebs stack:
 pnpm --filter @faako/reebs-website run dev:with-backend
 ```
 
-Or from the repo root:
+Equivalent root command:
 
 ```bash
 pnpm run dev:reebs
@@ -32,27 +37,32 @@ Default local ports:
 - companion portal frontend: `5174`
 - companion backend/functions: `8888`
 
-## Environment
+## Configuration
 
-Important public runtime values:
+Important browser-visible values:
 
 - `VITE_BACKEND_BASE_URL`
 - `VITE_REEBS_PORTAL_URL`
 
-These are browser-visible values and should stay non-secret.
+Keep secrets in the portal/backend environment, not in `VITE_*` values.
+
+## Common Commands
+
+```bash
+pnpm --filter @faako/reebs-website run sitemap
+pnpm --filter @faako/reebs-website run build
+pnpm --filter @faako/reebs-website run netlify
+pnpm --filter @faako/reebs-website run test:e2e
+```
 
 ## Deployment
 
 This app has its own Netlify config in `apps/reebs-website/netlify.toml`.
 
-Build behavior:
+Netlify builds with:
 
-- Netlify builds with `pnpm --filter @faako/reebs-website build`
-- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/reebs-website`
-- the site is frontend-only in production and should point at the deployed portal/backend
+```bash
+pnpm --filter @faako/reebs-website build
+```
 
-## Relationship To Reebs Portal
-
-- `apps/reebs-portal` owns the backend and admin experience
-- this app is the public marketing and customer-facing site
-- local full-stack development is normally run with the website plus the portal backend together
+The site is frontend-only in production and should point at the deployed Reebs portal/backend.

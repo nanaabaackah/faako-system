@@ -2,24 +2,18 @@
 
 Workspace package: `@faako/faako-erp`
 
-Tenant-facing ERP frontend for Faako.
+Faako ERP is the tenant-facing ERP frontend for Faako. It uses the shared Faako shell and UI packages to present configurable modules for customers, inventory, finance, reporting, and dashboards.
 
-## Current Shape
+## What Lives Here
 
-- app-local ERP config in `src/config/erpShell.js`
-- shared shell primitives from `@faako/ui`
-- shared config helpers from `@faako/config`
-- shared title and navigation helpers from `@faako/utils`
+- `src/config/erpShell.js`: app-local ERP shell configuration
+- `src/`: React frontend routes, views, and module wiring
+- shared shell and components from `@faako/ui`
+- shared configuration helpers from `@faako/config`
+- shared title and navigation utilities from `@faako/utils`
+- `.env.example`: local public runtime variable reference
 
-## Scope
-
-- configurable modules
-- dashboards and workflows
-- customer, inventory, finance, and reporting views
-
-## Local Dev
-
-Primary command:
+## Run It Locally
 
 ```bash
 pnpm --filter @faako/faako-erp run dev:frontend
@@ -32,25 +26,33 @@ Local frontend URL:
 Useful commands:
 
 ```bash
-pnpm --filter @faako/faako-erp run dev:frontend
 pnpm --filter @faako/faako-erp run build
 pnpm --filter @faako/faako-erp run preview
+pnpm --filter @faako/faako-erp run lint
 ```
 
-Optional local public env values can live in `apps/faako-erp/.env.dev`.
-
-You can also start the Faako stack from the repo root:
+Run the full Faako local stack from the repo root:
 
 ```bash
 pnpm run dev:faako
 ```
 
+## Configuration
+
+Optional local public env values can live in `apps/faako-erp/.env.dev`. Only browser-safe values should use the `VITE_*` prefix.
+
 ## Deployment
 
 This app has its own Netlify config in `apps/faako-erp/netlify.toml`.
 
-Build behavior:
+Netlify builds with:
 
-- Netlify builds with `pnpm --filter @faako/faako-erp build`
-- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/faako-erp`
-- the publish folder is `apps/faako-erp/dist`
+```bash
+pnpm --filter @faako/faako-erp build
+```
+
+The publish folder is `apps/faako-erp/dist`, and selective deploys use:
+
+```bash
+node ./scripts/netlify-ignore.mjs @faako/faako-erp
+```

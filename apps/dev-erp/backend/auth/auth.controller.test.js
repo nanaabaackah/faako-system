@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createForgotPasswordHandler, createLoginHandler } from "./auth.controller.js";
+import {
+  createForgotPasswordHandler,
+  createGetSessionHandler,
+  createLoginHandler,
+} from "./auth.controller.js";
 
 const createMockResponse = () => {
   const response = {
@@ -142,6 +146,134 @@ test("createLoginHandler rejects users with invalid password state instead of th
   assert.equal(res.statusCode, 503);
   assert.deepEqual(res.body, {
     error: "Your account is not configured correctly. Contact an administrator.",
+  });
+});
+
+test("createGetSessionHandler returns the server-authoritative session user", async () => {
+  const handler = createGetSessionHandler({
+    prisma: {
+      user: {
+        async findUnique(options) {
+          assert.deepEqual(options, {
+            where: { id: 44 },
+            include: { role: true },
+          });
+          return {
+            id: 44,
+            email: "owner@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+            fullName: "Ada Lovelace",
+            status: "ACTIVE",
+            organizationId: 9,
+            role: {
+              id: 3,
+              name: "Landlord",
+              permissions: { modules: ["rent"] },
+            },
+          };
+        },
+      },
+    },
+  });
+  const res = createMockResponse();
+
+  await handler({ user: { userId: 44 } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    user: {
+      id: 44,
+      email: "owner@example.com",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      fullName: "Ada Lovelace",
+      organizationId: 9,
+      allowedModules: ["rent"],
+      role: {
+        id: 3,
+        name: "Landlord",
+        permissions: { modules: ["rent"] },
+      },
+    },
+  });
+});
+
+test("createGetSessionHandler reflects current role permissions after role changes", async () => {
+  const handler = createGetSessionHandler({
+    prisma: {
+      user: {
+        async findUnique(options) {
+          assert.deepEqual(options, {
+            where: { id: 52 },
+            include: { role: true },
+          });
+          return {
+            id: 52,
+            email: "changed@example.com",
+            firstName: "Grace",
+            lastName: "Hopper",
+            fullName: "Grace Hopper",
+            status: "ACTIVE",
+            organizationId: 6,
+            role: {
+              id: 9,
+              name: "Tenant",
+              permissions: { modules: ["rent"] },
+            },
+          };
+        },
+      },
+    },
+  });
+  const res = createMockResponse();
+
+  await handler(
+    {
+      user: {
+        userId: 52,
+        roleName: "Admin",
+        modules: ["accounting", "invoicing"],
+      },
+    },
+    res
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.user.allowedModules, ["rent"]);
+  assert.equal(res.body.user.role.name, "Tenant");
+});
+
+test("createGetSessionHandler rejects users without organization scope", async () => {
+  const handler = createGetSessionHandler({
+    prisma: {
+      user: {
+        async findUnique() {
+          return {
+            id: 61,
+            email: "unscoped@example.com",
+            firstName: "No",
+            lastName: "Org",
+            fullName: "No Org",
+            status: "ACTIVE",
+            organizationId: null,
+            role: {
+              id: 3,
+              name: "Landlord",
+              permissions: { modules: ["rent"] },
+            },
+          };
+        },
+      },
+    },
+  });
+  const res = createMockResponse();
+
+  await handler({ user: { userId: 61 } }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(res.body, {
+    error: "Invalid or expired authentication session",
   });
 });
 

@@ -2,25 +2,17 @@
 
 Workspace package: `@faako/bynana-portfolio`
 
-Personal portfolio site for Nana Aba Ackah.
-
-This app owns the public frontend plus two serverless integrations: the contact form handler and the trust-stats proxy.
+ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents the portfolio, projects, writing, resume, and contact flow, and it owns the serverless integrations needed by that public site.
 
 ## What Lives Here
 
-- React and Vite frontend in `src/`
-- route screens for home, about, projects, blog, resume, and contact
-- Netlify Functions in `netlify/functions`
-- deploy-time security headers and redirects in `netlify.toml`
+- `src/`: React and Vite frontend
+- `netlify/functions/contact-submit`: contact form submission handler
+- `netlify/functions/trust-stats-proxy`: proxy for public trust-stat metrics
+- `netlify.toml`: redirects, headers, function routing, and deploy settings
+- `.env.example`: local reference for function-side configuration
 
-Current functions:
-
-- `contact-submit`
-- `trust-stats-proxy`
-
-## Local Dev
-
-Primary command:
+## Run It Locally
 
 ```bash
 pnpm --filter @faako/bynana-portfolio run dev
@@ -34,11 +26,11 @@ pnpm --filter @faako/bynana-portfolio run preview
 pnpm --filter @faako/bynana-portfolio run lint
 ```
 
-The frontend uses the normal Vite dev port.
+The frontend uses the normal Vite dev port unless another process already owns it.
 
-## Serverless Environment
+## Configuration
 
-The frontend itself is static. The sensitive configuration lives only on the Netlify function side.
+The static frontend should only receive browser-safe `VITE_*` values. Sensitive settings belong on the Netlify function side.
 
 Trust stats proxy settings:
 
@@ -60,19 +52,18 @@ Contact function settings:
 - `CONTACT_FORM_SUBMISSION_URL`
 - `CONTACT_FORM_SITE_ORIGIN`
 
-Important rule:
-
-- none of those values belong in browser-visible `VITE_*` config
-
 ## Deployment
 
 This app has its own Netlify site and config in `apps/bynana-portfolio/netlify.toml`.
 
-Build behavior:
+Netlify builds with:
 
-- Netlify builds with `pnpm --filter @faako/bynana-portfolio build`
-- selective deploys are controlled by `node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio`
-- the publish folder is `apps/bynana-portfolio/dist`
-- function requests are routed through `/api/contact` and `/api/public/trust-stats`
+```bash
+pnpm --filter @faako/bynana-portfolio build
+```
 
-The checked-in Netlify config also sets stricter headers, CORS handling through the functions, and hides upstream trust-stats credentials from the browser.
+The publish folder is `apps/bynana-portfolio/dist`, and selective deploys use:
+
+```bash
+node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio
+```

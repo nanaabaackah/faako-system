@@ -17,19 +17,31 @@ import { createSecretCrypto } from "./security/secretCrypto.js";
 import {
   createAuthMiddleware,
   createResolveAuthenticatedPayload,
-  createRentOnlyModuleAccessMiddleware,
   createRequireAdmin,
   createVerifyTokenPayload,
 } from "./auth/auth.middleware.js";
+import { createCapabilityAccessMiddleware } from "./auth/capabilities.js";
 import {
   createBuildToken,
   createForgotPasswordHandler,
+  createGetSessionHandler,
   createLoginHandler,
   createLogoutHandler,
   createSetupAccountCompleteHandler,
   createSetupAccountVerifyHandler,
 } from "./auth/auth.controller.js";
 import { registerAuthRoutes } from "./auth/auth.routes.js";
+import {
+  configureBaseHttpMiddleware,
+  registerApiFallbackRoute,
+  registerErrorHandler,
+  registerHealthRoute,
+} from "./http/app.js";
+import {
+  createIsGlobalAdmin,
+  createResolveOrganizationReadScope,
+  createResolveOrganizationWriteScope,
+} from "./organizations/scope.js";
 import { createGetDashboardVerseHandler } from "./dashboard/verse.js";
 import { createGetDashboardWeatherHandler } from "./dashboard/weather.js";
 import { registerDashboardRoutes } from "./dashboard/dashboard.routes.js";
@@ -37,6 +49,7 @@ import { createGetJobRecommendationsHandler } from "./jobs/jobs.controller.js";
 import { registerJobRoutes } from "./jobs/jobs.routes.js";
 import { createProductivityAiHandler } from "./productivity/ai.controller.js";
 import { registerProductivityRoutes } from "./productivity/productivity.routes.js";
+import { registerUserRoutes } from "./users/users.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
 import { buildForgotPasswordEmailContent } from "./forgotPasswordEmailTemplate.js";
 import {
@@ -1512,10 +1525,24 @@ const SUPPORTED_ACCESS_ROLE_DEFINITIONS = [
     permissions: { modules: [RENT_MODULE_KEY] },
   },
 ];
-const RENT_ONLY_ALLOWED_API_PATHS = [
-  /^\/api\/rent(?:\/|$)/,
-  /^\/api\/users\/me(?:\/|$)/,
+const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
+  { pattern: /^\/api\/dashboard(?:\/|$)/, modules: ["dashboard"] },
+  { pattern: /^\/api\/rent(?:\/|$)/, modules: ["rent"] },
+  { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
+  { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },
+  { pattern: /^\/api\/bookings(?:\/|$)/, modules: ["bookings"] },
+  { pattern: /^\/api\/integrations\/google(?:\/|$)/, modules: ["bookings"] },
+  { pattern: /^\/api\/organizations(?:\/|$)/, modules: ["organizations"] },
+  { pattern: /^\/api\/debug(?:\/|$)/, modules: ["system-health"] },
+  { pattern: /^\/api\/reports(?:\/|$)/, modules: ["reports"] },
+  { pattern: /^\/api\/alerts(?:\/|$)/, modules: ["settings"] },
+  { pattern: /^\/api\/access(?:\/|$)/, modules: ["user-control"] },
+];
+const MODULE_CAPABILITY_PUBLIC_PATHS = [
   /^\/api\/auth(?:\/|$)/,
+  /^\/api\/public(?:\/|$)/,
+  /^\/api\/webhooks(?:\/|$)/,
+  /^\/api\/users\/me(?:\/|$)/,
 ];
 
 const coerceBoolean = (value, fallback = false) => {
@@ -1861,8 +1888,6 @@ const serializeAccessUser = (user) => ({
   updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null,
 });
 
-const isRentOnlyModuleScope = (modules = []) =>
-  modules.length === 1 && modules[0] === RENT_MODULE_KEY;
 const serializeAuthenticatedUser = (user) => ({
   userId: user.id,
   organizationId: user.organizationId,
@@ -1883,7 +1908,8 @@ const loadSessionUser = async (payload) => {
     where: { id: userId },
     include: { role: true },
   });
-  if (!user || user.status !== "ACTIVE" || !user.role) {
+  const organizationId = Number(user?.organizationId);
+  if (!user || user.status !== "ACTIVE" || !user.role || !Number.isInteger(organizationId) || organizationId <= 0) {
     return null;
   }
 
@@ -1903,20 +1929,17 @@ const accountInviteFromEmail =
 const invoiceFromEmail =
   String(INVOICE_FROM_EMAIL_RAW || DEFAULT_ADMIN_EMAIL).trim() || DEFAULT_ADMIN_EMAIL;
 
-const globalAdminEmailSet = new Set(
-  parseRecipients(process.env.GLOBAL_ADMIN_EMAILS ?? DEFAULT_ADMIN_EMAIL).map((email) =>
-    email.toLowerCase()
-  )
+const isGlobalAdmin = createIsGlobalAdmin(
+  parseRecipients(process.env.GLOBAL_ADMIN_EMAILS ?? DEFAULT_ADMIN_EMAIL)
 );
-
-const isGlobalAdmin = (user) => {
-  if (!user || user.roleName !== "Admin") return false;
-  const email = String(user.email || "")
-    .trim()
-    .toLowerCase();
-  if (!email) return false;
-  return globalAdminEmailSet.has(email);
-};
+const resolveOrganizationReadScope = createResolveOrganizationReadScope({
+  prisma,
+  isGlobalAdmin,
+});
+const resolveOrganizationWriteScope = createResolveOrganizationWriteScope({
+  prisma,
+  isGlobalAdmin,
+});
 
 const WEEKDAY_LABELS = [
   "Sunday",
@@ -4454,11 +4477,11 @@ const resolveAuthenticatedPayload = createResolveAuthenticatedPayload({
   verifyTokenPayload,
   loadSessionUser,
 });
-const rentOnlyModuleAccessMiddleware = createRentOnlyModuleAccessMiddleware({
+const capabilityAccessMiddleware = createCapabilityAccessMiddleware({
   resolveAuthenticatedPayload,
   extractAllowedModules,
-  isRentOnlyModuleScope,
-  allowedPathMatchers: RENT_ONLY_ALLOWED_API_PATHS,
+  routeCapabilities: AUTHENTICATED_MODULE_CAPABILITY_ROUTES,
+  publicPathMatchers: MODULE_CAPABILITY_PUBLIC_PATHS,
 });
 
 const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -4640,8 +4663,10 @@ const classifyApiError = (error) => {
   return { status, message, code: prismaCode || null };
 };
 
-app.use(
-  cors({
+configureBaseHttpMiddleware(app, {
+  cors,
+  express,
+  corsOptions: {
     credentials: true,
     origin: (origin, callback) => {
       if (!origin || allowAllOrigins) {
@@ -4654,22 +4679,16 @@ app.use(
       }
       callback(new Error("Not allowed by CORS"));
     },
-  })
-);
-app.use(
-  express.json({
-    limit: "1mb",
-  })
-);
-app.use(securityHeaders);
-app.use("/api", apiRequestLogger);
-app.use("/api", apiRateLimit);
-app.use("/api/auth/login", authRateLimit);
-app.use("/api/auth/forgot-password", authRateLimit);
-app.use("/api/public/bookings", publicBookingRateLimit);
-app.use("/api/ai/productivity-coach", aiRateLimit);
-app.use("/api", csrfMiddleware);
-app.use("/api", rentOnlyModuleAccessMiddleware);
+  },
+  securityHeaders,
+  apiRequestLogger,
+  apiRateLimit,
+  authRateLimit,
+  publicBookingRateLimit,
+  aiRateLimit,
+  csrfMiddleware,
+  capabilityAccessMiddleware,
+});
 
 const loginHandler = createLoginHandler({
   prisma,
@@ -4678,6 +4697,7 @@ const loginHandler = createLoginHandler({
   createCsrfToken,
   setAuthCookies,
 });
+const getSessionHandler = createGetSessionHandler({ prisma });
 const logoutHandler = createLogoutHandler({ clearAuthCookies });
 const forgotPasswordHandler = createForgotPasswordHandler({
   defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
@@ -4697,147 +4717,27 @@ const setupAccountCompleteHandler = createSetupAccountCompleteHandler({
 });
 
 registerAuthRoutes(app, {
+  authMiddleware,
   loginHandler,
+  getSessionHandler,
   logoutHandler,
   forgotPasswordHandler,
   setupAccountVerifyHandler,
   setupAccountCompleteHandler,
 });
 
-app.get("/api/users/me", authMiddleware, async (req, res) => {
-  const { userId } = req.user;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true },
-  });
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-  res.json({
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    fullName: user.fullName,
-    email: user.email,
-    role: serializeUserRole(user.role),
-    allowedModules: extractAllowedModules(user.role.permissions),
-  });
-});
-
-app.patch("/api/users/me", authMiddleware, async (req, res) => {
-  const hasFirstName = req.body?.firstName !== undefined;
-  const hasLastName = req.body?.lastName !== undefined;
-  const hasEmail = req.body?.email !== undefined;
-  const hasCurrentPassword = req.body?.currentPassword !== undefined;
-  const hasNewPassword = req.body?.newPassword !== undefined;
-  if (!hasFirstName && !hasLastName && !hasEmail && !hasCurrentPassword && !hasNewPassword) {
-    return res.status(400).json({
-      error: "Provide firstName, lastName, email, and/or password details to update profile.",
-    });
-  }
-
-  const normalizeName = (value) => (typeof value === "string" ? value.trim() : "");
-
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    include: { role: true },
-  });
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
-  const nextFirstName = hasFirstName ? normalizeName(req.body.firstName) : user.firstName;
-  const nextLastName = hasLastName ? normalizeName(req.body.lastName) : user.lastName;
-  if (!nextFirstName || !nextLastName) {
-    return res.status(400).json({ error: "First name and last name are required." });
-  }
-
-  const updateData = {
-    firstName: nextFirstName,
-    lastName: nextLastName,
-    fullName: `${nextFirstName} ${nextLastName}`.trim(),
-  };
-  let shouldRefreshSession = false;
-
-  if (hasEmail) {
-    const nextEmail = normalizeEmailAddress(req.body.email);
-    if (!nextEmail) {
-      return res.status(400).json({ error: "email must be a valid email address." });
-    }
-    if (nextEmail !== String(user.email || "").trim().toLowerCase()) {
-      const existing = await prisma.user.findUnique({ where: { email: nextEmail } });
-      if (existing && existing.id !== user.id) {
-        return res.status(409).json({ error: "A user with that email already exists." });
-      }
-      updateData.email = nextEmail;
-      shouldRefreshSession = true;
-    }
-  }
-
-  if (hasCurrentPassword && !hasNewPassword) {
-    return res.status(400).json({ error: "Provide newPassword when currentPassword is supplied." });
-  }
-  if (!hasCurrentPassword && hasNewPassword) {
-    return res.status(400).json({ error: "currentPassword is required to change password." });
-  }
-
-  if (hasCurrentPassword && hasNewPassword) {
-    const currentPassword = String(req.body.currentPassword || "").trim();
-    const newPassword = String(req.body.newPassword || "").trim();
-    if (!currentPassword) {
-      return res.status(400).json({ error: "currentPassword cannot be empty." });
-    }
-    if (!newPassword) {
-      return res.status(400).json({ error: "newPassword cannot be empty." });
-    }
-
-    const currentPasswordMatches = await bcrypt.compare(currentPassword, user.password);
-    if (!currentPasswordMatches) {
-      return res.status(403).json({ error: "Current password is incorrect." });
-    }
-
-    const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
-    if (sameAsCurrent) {
-      return res.status(400).json({ error: "newPassword must be different from currentPassword." });
-    }
-
-    const passwordValidation = validatePasswordStrength(newPassword);
-    if (!passwordValidation.ok) {
-      return res.status(400).json({
-        error: passwordValidation.error,
-        passwordPolicy: PASSWORD_POLICY_HINT,
-      });
-    }
-
-    updateData.password = await bcrypt.hash(newPassword, 10);
-    shouldRefreshSession = true;
-  }
-
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: updateData,
-    include: { role: true },
-  });
-
-  const payload = {
-    id: updated.id,
-    firstName: updated.firstName,
-    lastName: updated.lastName,
-    fullName: updated.fullName,
-    email: updated.email,
-    role: serializeUserRole(updated.role),
-    allowedModules: extractAllowedModules(updated.role.permissions),
-  };
-
-  if (shouldRefreshSession) {
-    const refreshedToken = buildToken(updated);
-    const csrfToken = createCsrfToken();
-    setAuthCookies(res, { token: refreshedToken, csrfToken });
-    payload.token = refreshedToken;
-    payload.sessionUpdated = true;
-  }
-
-  return res.json(payload);
+registerUserRoutes(app, {
+  authMiddleware,
+  prisma,
+  bcrypt,
+  normalizeEmailAddress,
+  validatePasswordStrength,
+  passwordPolicyHint: PASSWORD_POLICY_HINT,
+  buildToken,
+  createCsrfToken,
+  setAuthCookies,
+  serializeUserRole,
+  extractAllowedModules,
 });
 
 app.get("/api/organizations", authMiddleware, requireAdmin, async (req, res) => {
@@ -6321,42 +6221,18 @@ app.get("/api/public/trust-stats", async (req, res) => {
 app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
   const { start, end } = buildAccountingRange(req.query?.range);
   const isAdmin = req.user?.roleName === "Admin";
-  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const organizationParam = req.query?.organizationId;
   const includeArchived = String(req.query?.includeArchived || "").toLowerCase() === "true";
-  let organizationFilter = { organizationId: req.user.organizationId };
-  let includeAllOrganizations = false;
-  let selectedOrganization = null;
-
-  if (isAdmin && organizationParam) {
-    if (String(organizationParam).toLowerCase() === "all") {
-      if (!requesterIsGlobalAdmin) {
-        return res.status(403).json({
-          error: "Global admin access is required for organizationId=all.",
-        });
-      }
-      organizationFilter = {};
-      includeAllOrganizations = true;
-    } else {
-      const parsedOrgId = parseOrganizationId(organizationParam);
-      if (!parsedOrgId) {
-        return res.status(400).json({ error: "organizationId must be a valid id or 'all'" });
-      }
-      if (!requesterIsGlobalAdmin && parsedOrgId !== req.user.organizationId) {
-        return res.status(403).json({
-          error: "You can only access accounting entries for your own organization.",
-        });
-      }
-      selectedOrganization = await prisma.organization.findUnique({
-        where: { id: parsedOrgId },
-        select: { id: true, name: true, slug: true },
-      });
-      if (!selectedOrganization) {
-        return res.status(404).json({ error: "Organization not found" });
-      }
-      organizationFilter = { organizationId: selectedOrganization.id };
-    }
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam,
+    requestedByAdmin: isAdmin,
+    ownAccessError: "You can only access accounting entries for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
   }
+  const { organizationFilter, includeAllOrganizations, selectedOrganization } = organizationScope;
 
   const rawEntries = await prisma.accountingEntry.findMany({
     where: {
@@ -6426,7 +6302,6 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/accounting/entries", authMiddleware, requireAdmin, async (req, res) => {
-  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const type = normalizeAccountingType(req.body?.type);
   if (!type) {
     return res.status(400).json({ error: "type must be REVENUE or EXPENSE" });
@@ -6444,26 +6319,15 @@ app.post("/api/accounting/entries", authMiddleware, requireAdmin, async (req, re
     return res.status(400).json({ error: "recurringInterval must be MONTHLY, QUARTERLY, or YEARLY" });
   }
 
-  let organizationId = req.user.organizationId;
-  if (req.body?.organizationId) {
-    const parsedOrganizationId = parseOrganizationId(req.body.organizationId);
-    if (!parsedOrganizationId) {
-      return res.status(400).json({ error: "organizationId must be a valid id" });
-    }
-    if (!requesterIsGlobalAdmin && parsedOrganizationId !== req.user.organizationId) {
-      return res.status(403).json({
-        error: "You can only create accounting entries for your own organization.",
-      });
-    }
-    const organization = await prisma.organization.findUnique({
-      where: { id: parsedOrganizationId },
-      select: { id: true },
-    });
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
-    organizationId = organization.id;
+  const organizationScope = await resolveOrganizationWriteScope({
+    user: req.user,
+    organizationId: req.body?.organizationId,
+    ownAccessError: "You can only create accounting entries for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
   }
+  const { organizationId } = organizationScope;
 
   const amountValue = Number(req.body?.amount);
   if (!Number.isFinite(amountValue) || amountValue <= 0) {
@@ -6547,7 +6411,6 @@ const buildInvoiceNumber = (entryId) => {
 };
 
 app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (req, res) => {
-  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const { entry, error } = await pickAccountingEntry(req.params.id, { user: req.user });
   if (error) {
     return res.status(404).json({ error });
@@ -6609,23 +6472,15 @@ app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (re
   }
 
   if (req.body?.organizationId !== undefined) {
-    const parsedOrganizationId = parseOrganizationId(req.body.organizationId);
-    if (!parsedOrganizationId) {
-      return res.status(400).json({ error: "organizationId must be a valid id" });
-    }
-    if (!requesterIsGlobalAdmin && parsedOrganizationId !== req.user.organizationId) {
-      return res.status(403).json({
-        error: "You can only move entries within your own organization.",
-      });
-    }
-    const organization = await prisma.organization.findUnique({
-      where: { id: parsedOrganizationId },
-      select: { id: true },
+    const organizationScope = await resolveOrganizationWriteScope({
+      user: req.user,
+      organizationId: req.body.organizationId,
+      ownAccessError: "You can only move entries within your own organization.",
     });
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found" });
+    if (organizationScope.error) {
+      return res.status(organizationScope.status).json({ error: organizationScope.error });
     }
-    updateData.organizationId = organization.id;
+    updateData.organizationId = organizationScope.organizationId;
   }
 
   if (req.body?.paidAt !== undefined) {
@@ -6850,39 +6705,18 @@ const buildNextInvoiceNumber = async (organizationId) => {
 
 app.get("/api/invoices", authMiddleware, async (req, res) => {
   const isAdmin = req.user?.roleName === "Admin";
-  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const organizationParam = req.query?.organizationId;
   const statusParam = String(req.query?.status || "").trim();
-  let organizationFilter = { organizationId: req.user.organizationId };
-
-  if (isAdmin && organizationParam) {
-    if (String(organizationParam).toLowerCase() === "all") {
-      if (!requesterIsGlobalAdmin) {
-        return res.status(403).json({
-          error: "Global admin access is required for organizationId=all.",
-        });
-      }
-      organizationFilter = {};
-    } else {
-      const parsedOrganizationId = parseOrganizationId(organizationParam);
-      if (!parsedOrganizationId) {
-        return res.status(400).json({ error: "organizationId must be a valid id or 'all'" });
-      }
-      if (!requesterIsGlobalAdmin && parsedOrganizationId !== req.user.organizationId) {
-        return res.status(403).json({
-          error: "You can only access invoices for your own organization.",
-        });
-      }
-      const organization = await prisma.organization.findUnique({
-        where: { id: parsedOrganizationId },
-        select: { id: true },
-      });
-      if (!organization) {
-        return res.status(404).json({ error: "Organization not found" });
-      }
-      organizationFilter = { organizationId: organization.id };
-    }
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam,
+    requestedByAdmin: isAdmin,
+    ownAccessError: "You can only access invoices for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
   }
+  const { organizationFilter } = organizationScope;
 
   const status =
     statusParam && statusParam.toLowerCase() !== "all"
@@ -6910,27 +6744,15 @@ app.get("/api/invoices", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
-  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
-  let organizationId = req.user.organizationId;
-  if (req.body?.organizationId !== undefined) {
-    const parsedOrganizationId = parseOrganizationId(req.body.organizationId);
-    if (!parsedOrganizationId) {
-      return res.status(400).json({ error: "organizationId must be a valid id" });
-    }
-    if (!requesterIsGlobalAdmin && parsedOrganizationId !== req.user.organizationId) {
-      return res.status(403).json({
-        error: "You can only create invoices for your own organization.",
-      });
-    }
-    const organization = await prisma.organization.findUnique({
-      where: { id: parsedOrganizationId },
-      select: { id: true },
-    });
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found" });
-    }
-    organizationId = organization.id;
+  const organizationScope = await resolveOrganizationWriteScope({
+    user: req.user,
+    organizationId: req.body?.organizationId,
+    ownAccessError: "You can only create invoices for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
   }
+  const { organizationId } = organizationScope;
 
   const currency = normalizeAccountingCurrency(req.body?.currency || "CAD");
   if (!currency) {
@@ -7104,23 +6926,15 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   const updateData = {};
 
   if (req.body?.organizationId !== undefined) {
-    const parsedOrganizationId = parseOrganizationId(req.body.organizationId);
-    if (!parsedOrganizationId) {
-      return res.status(400).json({ error: "organizationId must be a valid id" });
-    }
-    if (!requesterIsGlobalAdmin && parsedOrganizationId !== req.user.organizationId) {
-      return res.status(403).json({
-        error: "You can only move invoices within your own organization.",
-      });
-    }
-    const organization = await prisma.organization.findUnique({
-      where: { id: parsedOrganizationId },
-      select: { id: true },
+    const organizationScope = await resolveOrganizationWriteScope({
+      user: req.user,
+      organizationId: req.body.organizationId,
+      ownAccessError: "You can only move invoices within your own organization.",
     });
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found" });
+    if (organizationScope.error) {
+      return res.status(organizationScope.status).json({ error: organizationScope.error });
     }
-    updateData.organizationId = organization.id;
+    updateData.organizationId = organizationScope.organizationId;
   }
 
   if (req.body?.invoiceNumber !== undefined) {
@@ -10349,41 +10163,9 @@ app.post("/api/webhooks/google-calendar", async (req, res) => {
   });
 });
 
-app.use("/api", (req, res) => {
-  res.status(404).json({
-    error: `API route not found: ${req.method} ${req.originalUrl}`,
-  });
-});
-
-app.get("/healthz", (_req, res) => {
-  res.json({
-    ok: true,
-    environment: APP_ENV,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.use((err, req, res, _next) => {
-  if (res.headersSent) return;
-
-  const isApiRequest = String(req?.originalUrl || "").startsWith("/api");
-  const { status, message, code } = classifyApiError(err);
-
-  if (status >= 500) {
-    console.error(`Unhandled API error: ${req.method} ${req.originalUrl}`, err);
-  }
-
-  if (isApiRequest) {
-    const payload = { error: message };
-    if (!isProduction && code) {
-      payload.code = code;
-    }
-    res.status(status).json(payload);
-    return;
-  }
-
-  res.status(status).send(status >= 500 ? "Internal Server Error" : message);
-});
+registerApiFallbackRoute(app);
+registerHealthRoute(app, { environment: APP_ENV });
+registerErrorHandler(app, { classifyApiError, isProduction });
 
 const ensureDefaults = async () => {
   const organizationDefinitions = [

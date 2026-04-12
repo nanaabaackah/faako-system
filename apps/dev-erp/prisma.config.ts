@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { defineConfig } from "@prisma/config";
 
-const normalizeEnvironmentName = (value) => {
+const normalizeEnvironmentName = (value: unknown) => {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized || normalized === "dev") return "development";
   if (normalized === "prod") return "production";
@@ -16,7 +16,9 @@ const loadEnvironmentConfig = () => {
   const runtimeEnvironment = getRuntimeEnvironment();
   const envFile = `.env.${runtimeEnvironment}`;
   const loadedFile = dotenv.config({ path: envFile, override: true });
-  if (loadedFile.error && loadedFile.error.code !== "ENOENT") {
+  const errorCode =
+    loadedFile.error && "code" in loadedFile.error ? loadedFile.error.code : undefined;
+  if (loadedFile.error && errorCode !== "ENOENT") {
     throw loadedFile.error;
   }
   return runtimeEnvironment;

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../api-url";
+import { apiPost } from "../../api/client";
+import { setAuthenticatedUser } from "../../auth/authStore";
 import ThemeToggle from "../../components/ThemeToggle";
-import { writeStoredSession } from "../../utils/authSession";
 import "./Login.css";
 
 const Login = ({ theme, onToggleTheme }) => {
@@ -22,27 +22,17 @@ const Login = ({ theme, onToggleTheme }) => {
     setError('');
 
     try {
-      const response = await fetch(buildApiUrl("/api/auth/login"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const data = await apiPost("/api/auth/login", { email, password }, {
+        fallbackMessage: "Login failed",
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        if (!data?.user) {
-          throw new Error("Login succeeded but user details were missing.");
-        }
-        writeStoredSession(data.user);
-        navigate("/dashboard");
-      } else {
-        setError(data.error || "Login failed");
+      if (!data?.user) {
+        throw new Error("Login succeeded but user details were missing.");
       }
+      setAuthenticatedUser(data.user);
+      navigate("/dashboard");
     } catch (err) {
-      setError("Network error or server unavailable");
+      setError(err.message || "Network error or server unavailable");
       console.error("Login error:", err);
     }
   };
@@ -58,15 +48,9 @@ const Login = ({ theme, onToggleTheme }) => {
     setForgotError("");
     setForgotStatus("");
     try {
-      const response = await fetch(buildApiUrl("/api/auth/forgot-password"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail }),
+      const payload = await apiPost("/api/auth/forgot-password", { email: trimmedEmail }, {
+        fallbackMessage: "Unable to request password help",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to request password help");
-      }
       const statusMessage = payload?.message || "If that email exists we sent instructions.";
       setForgotStatus(statusMessage);
       setForgotError("");

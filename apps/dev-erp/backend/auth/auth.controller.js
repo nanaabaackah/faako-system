@@ -15,6 +15,26 @@ const extractRoleModules = (role) => {
   );
 };
 
+const hasOrganizationScope = (user) => {
+  const organizationId = Number(user?.organizationId);
+  return Number.isInteger(organizationId) && organizationId > 0;
+};
+
+const serializeSessionUser = (user) => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  fullName: user.fullName,
+  role: {
+    id: user.role.id,
+    name: user.role.name,
+    permissions: user.role.permissions ?? null,
+  },
+  organizationId: user.organizationId,
+  allowedModules: extractRoleModules(user?.role),
+});
+
 export const createBuildToken = ({ jwt, jwtSecret }) => (user) => {
   const payload = {
     purpose: "session",
@@ -55,6 +75,15 @@ export const createLoginHandler =
         error: "Your account is not configured correctly. Contact an administrator.",
       });
     }
+    if (!hasOrganizationScope(user)) {
+      console.error("Login blocked: user is missing an organization assignment.", {
+        userId: user.id,
+        email,
+      });
+      return res.status(503).json({
+        error: "Your account is not configured correctly. Contact an administrator.",
+      });
+    }
 
     let isValid = false;
     try {
@@ -77,23 +106,30 @@ export const createLoginHandler =
     const sessionToken = buildToken(user);
     const csrfToken = createCsrfToken();
     setAuthCookies(res, { token: sessionToken, csrfToken });
-    const allowedModules = extractRoleModules(user?.role);
 
     return res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: user.fullName,
-        role: {
-          id: user.role.id,
-          name: user.role.name,
-          permissions: user.role.permissions ?? null,
-        },
-        organizationId: user.organizationId,
-        allowedModules,
-      },
+      user: serializeSessionUser(user),
+    });
+  };
+
+export const createGetSessionHandler =
+  ({ prisma }) =>
+  async (req, res) => {
+    const userId = Number(req.user?.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(401).json({ error: "Invalid or expired authentication session" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { role: true },
+    });
+    if (!user || user.status !== "ACTIVE" || !user.role || !hasOrganizationScope(user)) {
+      return res.status(401).json({ error: "Invalid or expired authentication session" });
+    }
+
+    return res.json({
+      user: serializeSessionUser(user),
     });
   };
 

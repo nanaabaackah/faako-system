@@ -142,7 +142,235 @@ const hasColumn = async (client, tableName, columnName, schema = "public") => {
   return result.rowCount > 0;
 };
 
+const hasTable = async (client, tableName, schema = "public") => {
+  const result = await client.query(
+    `SELECT 1
+     FROM information_schema.tables
+     WHERE table_schema = $1 AND table_name = $2
+     LIMIT 1`,
+    [schema, tableName]
+  );
+  return result.rowCount > 0;
+};
+
+const toNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const normalizePositiveId = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseArrayField = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeLineQuantity = (value, fallback = 1) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
+};
+
+const normalizeLineRowType = (value) => {
+  const rowType = String(value || "item").toLowerCase();
+  if (rowType === "heading") return "heading";
+  if (rowType === "note") return "note";
+  return "item";
+};
+
+const isPerHeadRateLabel = (value) => /\bhead\b/i.test(String(value || ""));
+
+const normalizeLineItems = (items) =>
+  parseArrayField(items).map((item, index) => {
+    const rowType = normalizeLineRowType(item?.rowType);
+    if (rowType !== "item") {
+      return {
+        id: item?.id || `line-${index + 1}`,
+        rowType,
+        productId: null,
+        quantity: 0,
+        unitLabel: "",
+        unitPrice: 0,
+        total: 0,
+      };
+    }
+
+    const quantity = normalizeLineQuantity(item?.quantity, 1);
+    const unitPrice = Math.max(0, toNumber(item?.unitPrice, 0));
+    return {
+      id: item?.id || `line-${index + 1}`,
+      rowType,
+      productId: normalizePositiveId(item?.productId),
+      quantity,
+      unitLabel: String(item?.unitLabel || ""),
+      unitPrice,
+      total: Math.max(0, toNumber(item?.total, quantity * unitPrice)),
+    };
+  });
+
+const normalizeAdditionalItems = (items) =>
+  parseArrayField(items).map((item, index) => {
+    const quantity = normalizeLineQuantity(item?.quantity, 1);
+    const unitPrice = Math.max(0, toNumber(item?.unitPrice, 0));
+    return {
+      id: item?.id || `additional-${index + 1}`,
+      quantity,
+      unitPrice,
+      total: Math.max(0, toNumber(item?.total, quantity * unitPrice)),
+    };
+  });
+
+const normalizeTaxRate = (value) => {
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return raw > 1 ? raw / 100 : raw;
+};
+
+const normalizeDocumentType = (value) =>
+  String(value || "").trim().toLowerCase() === "receipt" ? "receipt" : "invoice";
+
+const computeDocumentGrandTotal = (document) => {
+  const lineItems = normalizeLineItems(document?.lineItems);
+  const additionalItems = normalizeAdditionalItems(document?.additionalItems);
+  const subtotal = lineItems.reduce((sum, item) => sum + toNumber(item.total), 0);
+  const additionalTotal = additionalItems.reduce((sum, item) => sum + toNumber(item.total), 0);
+  const taxRate = normalizeTaxRate(document?.taxRate);
+  const taxTotal = Math.round((subtotal + additionalTotal) * taxRate * 100) / 100;
+  const discountAmount = Math.max(0, toNumber(document?.discountAmount, 0));
+  const discountTotal = Math.min(discountAmount, subtotal + additionalTotal + taxTotal);
+  return Math.max(0, Math.round((subtotal + additionalTotal + taxTotal - discountTotal) * 100) / 100);
+};
+
+const toDateKey = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+};
+
 const normalizeSku = (sku) => (typeof sku === "string" ? sku.trim().toUpperCase() : "");
+
+const selectProductCostMap = async (client, organizationId, productIds = []) => {
+  const ids = [...new Set(productIds.filter((id) => Number.isInteger(id) && id > 0))];
+  if (!ids.length) return new Map();
+
+  const result = await client.query(
+    `SELECT id, COALESCE("purchasePriceGhs", 0) AS cost_cents
+     FROM "product"
+     WHERE id = ANY($1::int[])
+       AND "organizationId" = $2`,
+    [ids, organizationId]
+  );
+
+  return new Map(
+    (result.rows || []).map((row) => [Number(row.id), Number(row.cost_cents || 0)])
+  );
+};
+
+const getLineItemCogsQuantity = (item) => {
+  const quantity = normalizeLineQuantity(item?.quantity, 0);
+  if (quantity <= 0) return 0;
+  return isPerHeadRateLabel(item?.unitLabel) ? 1 : quantity;
+};
+
+const buildInvoiceDocumentFinancials = async ({
+  client,
+  organizationId,
+  startIso,
+  endIso,
+  enabled,
+}) => {
+  const empty = {
+    receiptCents: 0,
+    invoiceCents: 0,
+    cogsCents: 0,
+    units: 0,
+    receiptCount: 0,
+    invoiceCount: 0,
+    dailyCents: new Map(),
+  };
+  if (!enabled) return empty;
+
+  const result = await client.query(
+    `SELECT
+       id,
+       "sourceType",
+       "sourceId",
+       "documentType",
+       "lineItems",
+       "additionalItems",
+       "taxRate",
+       "discountAmount",
+       COALESCE("issueDate", "eventDate", "createdAt"::date, "updatedAt"::date) AS bucket
+     FROM "invoiceDocument"
+     WHERE "organizationId" = $1
+       AND "archivedAt" IS NULL
+       AND COALESCE("issueDate"::timestamptz, "eventDate"::timestamptz, "createdAt", "updatedAt") >= $2
+       AND COALESCE("issueDate"::timestamptz, "eventDate"::timestamptz, "createdAt", "updatedAt") < $3`,
+    [organizationId, startIso, endIso]
+  );
+
+  const documents = (result.rows || []).map((row) => ({
+    ...row,
+    documentType: normalizeDocumentType(row.documentType),
+    lineItems: normalizeLineItems(row.lineItems),
+    additionalItems: normalizeAdditionalItems(row.additionalItems),
+    grandTotal: computeDocumentGrandTotal(row),
+  }));
+
+  const productIds = documents.flatMap((document) =>
+    document.lineItems
+      .map((item) => item.productId)
+      .filter((productId) => Number.isInteger(productId) && productId > 0)
+  );
+  const productCostMap = await selectProductCostMap(client, organizationId, productIds);
+
+  return documents.reduce((accumulator, document) => {
+    const totalCents = Math.round(toNumber(document.grandTotal, 0) * 100);
+    const bucket = toDateKey(document.bucket);
+    if (bucket && totalCents > 0) {
+      accumulator.dailyCents.set(bucket, (accumulator.dailyCents.get(bucket) || 0) + totalCents);
+    }
+
+    if (document.documentType === "receipt") {
+      accumulator.receiptCents += totalCents;
+      accumulator.receiptCount += 1;
+      for (const item of document.lineItems) {
+        const productId = normalizePositiveId(item.productId);
+        if (!productId) continue;
+        const quantity = getLineItemCogsQuantity(item);
+        accumulator.units += quantity;
+        accumulator.cogsCents += quantity * (productCostMap.get(productId) || 0);
+      }
+    } else {
+      accumulator.invoiceCents += totalCents;
+      accumulator.invoiceCount += 1;
+    }
+
+    return accumulator;
+  }, empty);
+};
+
+const buildDocumentFallbackFilter = ({ enabled, alias, sourceType }) => {
+  if (!enabled) return "";
+  return `AND NOT EXISTS (
+             SELECT 1
+             FROM "invoiceDocument" d
+             WHERE d."organizationId" = ${alias}."organizationId"
+               AND d."sourceType" = '${sourceType}'
+               AND d."sourceId" = ${alias}.id
+               AND d."archivedAt" IS NULL
+           )`;
+};
 
 const buildExpenseBreakdown = async ({ client, start, end, organizationId }) => {
   const table = await resolveExpenseTable(client);
@@ -266,10 +494,15 @@ export async function handler(event = {}) {
     const organizationId = Number(authUser.organizationId);
     await ensureOrderColumns(client);
 
-    const [orderHasOrg, bookingHasOrg] = await Promise.all([
+    const [orderHasOrg, bookingHasOrg, invoiceDocumentHasTable] = await Promise.all([
       hasColumn(client, "order", "organizationId"),
       hasColumn(client, "booking", "organizationId"),
+      hasTable(client, "invoiceDocument"),
     ]);
+    const invoiceDocumentHasOrg = invoiceDocumentHasTable
+      ? await hasColumn(client, "invoiceDocument", "organizationId")
+      : false;
+    const canUseInvoiceDocuments = invoiceDocumentHasTable && invoiceDocumentHasOrg;
 
     const startIso = start.toISOString();
     const endIso = end.toISOString();
@@ -277,6 +510,16 @@ export async function handler(event = {}) {
     const bookingParams = bookingHasOrg ? [startIso, endIso, organizationId] : [startIso, endIso];
     const orderOrgFilter = orderHasOrg ? `AND o."organizationId" = $3` : "";
     const bookingOrgFilter = bookingHasOrg ? `AND b."organizationId" = $3` : "";
+    const orderDocumentFallbackFilter = buildDocumentFallbackFilter({
+      enabled: canUseInvoiceDocuments && orderHasOrg,
+      alias: "o",
+      sourceType: "orders",
+    });
+    const bookingDocumentFallbackFilter = buildDocumentFallbackFilter({
+      enabled: canUseInvoiceDocuments && bookingHasOrg,
+      alias: "b",
+      sourceType: "bookings",
+    });
 
     const [
       summary,
@@ -289,6 +532,7 @@ export async function handler(event = {}) {
       bookingDaily,
       topRentalRows,
       expenseSummary,
+      documentFinancials,
     ] = await Promise.all([
       client.query(
         `SELECT
@@ -298,6 +542,7 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderDocumentFallbackFilter}
            ), 0)::int AS orders,
            COALESCE((
              SELECT SUM(o.total_amount)
@@ -305,6 +550,7 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderDocumentFallbackFilter}
            ), 0) AS revenue_cents,
            COALESCE((
              SELECT SUM(oi.quantity)
@@ -313,6 +559,7 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderDocumentFallbackFilter}
            ), 0)::int AS units,
            COALESCE((
              SELECT SUM(oi.quantity * COALESCE(p."purchasePriceGhs", 0))
@@ -322,6 +569,7 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderDocumentFallbackFilter}
            ), 0) AS cost_cents`,
         orderParams
       ),
@@ -338,6 +586,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderDocumentFallbackFilter}
          GROUP BY p.id, p.name, p.sku
          ORDER BY revenue_cents DESC
          LIMIT 5`,
@@ -351,6 +600,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderDocumentFallbackFilter}
          GROUP BY o."orderDate"::date
          ORDER BY o."orderDate"::date ASC`,
         orderParams
@@ -363,7 +613,8 @@ export async function handler(event = {}) {
          FROM "order" o
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
-           ${orderOrgFilter}`,
+           ${orderOrgFilter}
+           ${orderDocumentFallbackFilter}`,
         orderParams
       ),
       client.query(
@@ -378,6 +629,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderDocumentFallbackFilter}
          GROUP BY p.sku, p."sourceCategoryCode"`,
         orderParams
       ),
@@ -395,6 +647,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderDocumentFallbackFilter}
          GROUP BY p.id, p.name, p.sku, p."purchasePriceGhs"
          ORDER BY revenue_cents DESC
          LIMIT 50`,
@@ -408,7 +661,8 @@ export async function handler(event = {}) {
          WHERE LOWER(COALESCE(b.status, '')) IN ('confirmed', 'completed')
            AND b."eventDate" >= $1
            AND b."eventDate" < $2
-           ${bookingOrgFilter}`,
+           ${bookingOrgFilter}
+           ${bookingDocumentFallbackFilter}`,
         bookingParams
       ),
       client.query(
@@ -420,6 +674,7 @@ export async function handler(event = {}) {
            AND b."eventDate" >= $1
            AND b."eventDate" < $2
            ${bookingOrgFilter}
+           ${bookingDocumentFallbackFilter}
          GROUP BY b."eventDate"::date
          ORDER BY b."eventDate"::date ASC`,
         bookingParams
@@ -438,6 +693,7 @@ export async function handler(event = {}) {
            AND b."eventDate" >= $1
            AND b."eventDate" < $2
            ${bookingOrgFilter}
+           ${bookingDocumentFallbackFilter}
          GROUP BY p.id, p.name, p.sku
          ORDER BY revenue_cents DESC
          LIMIT 5`,
@@ -449,12 +705,21 @@ export async function handler(event = {}) {
         end,
         organizationId,
       }),
+      buildInvoiceDocumentFinancials({
+        client,
+        organizationId,
+        startIso,
+        endIso,
+        enabled: canUseInvoiceDocuments,
+      }),
     ]);
 
     const categoryMap = { retail: 0, rental: 0, other: 0 };
     const addToCategory = (cat, cents) => {
       if (cat === "rental") {
         categoryMap.rental += cents;
+      } else if (cat === "other") {
+        categoryMap.other += cents;
       } else {
         categoryMap.retail += cents;
       }
@@ -471,9 +736,13 @@ export async function handler(event = {}) {
       }
     }
 
-    const bookingRevenueCents = Number(bookingSummary.rows[0]?.revenue_cents || 0);
-    const bookingCount = bookingSummary.rows[0]?.bookings || 0;
-    categoryMap.rental += bookingRevenueCents;
+    categoryMap.retail += documentFinancials.receiptCents;
+    categoryMap.rental += documentFinancials.invoiceCents;
+
+    const rawBookingRevenueCents = Number(bookingSummary.rows[0]?.revenue_cents || 0);
+    const bookingRevenueCents = rawBookingRevenueCents + documentFinancials.invoiceCents;
+    const bookingCount = (bookingSummary.rows[0]?.bookings || 0) + documentFinancials.invoiceCount;
+    categoryMap.rental += rawBookingRevenueCents;
 
     const deliveryFeeTotals = new Map();
     let deliveryFeeCentsTotal = 0;
@@ -487,23 +756,32 @@ export async function handler(event = {}) {
 
     categoryMap.retail += deliveryFeeCentsTotal;
 
-    const orderRevenueCents = Number(summary.rows[0]?.revenue_cents || 0) + deliveryFeeCentsTotal;
-    const costCents = Number(summary.rows[0]?.cost_cents || 0);
+    const rawOrderRevenueCents = Number(summary.rows[0]?.revenue_cents || 0) + deliveryFeeCentsTotal;
+    const orderRevenueCents = rawOrderRevenueCents + documentFinancials.receiptCents;
+    const costCents = Number(summary.rows[0]?.cost_cents || 0) + documentFinancials.cogsCents;
     const expenseWindowCents = Number(expenseSummary.totalCents || 0);
     const grossProfitCents = orderRevenueCents - costCents + bookingRevenueCents;
     const netProfitCents = grossProfitCents - expenseWindowCents;
 
     const cashflowMap = new Map();
     for (const row of cashflowRows.rows || []) {
-      const key = row.bucket;
+      const key = toDateKey(row.bucket);
+      if (!key) continue;
       cashflowMap.set(key, Number(row.revenue_cents || 0));
     }
     for (const row of bookingDaily.rows || []) {
-      const key = row.bucket;
+      const key = toDateKey(row.bucket);
+      if (!key) continue;
       const existing = cashflowMap.get(key) || 0;
       cashflowMap.set(key, existing + Number(row.revenue_cents || 0));
     }
     for (const [key, cents] of deliveryFeeTotals.entries()) {
+      const dateKey = toDateKey(key);
+      if (!dateKey) continue;
+      const existing = cashflowMap.get(dateKey) || 0;
+      cashflowMap.set(dateKey, existing + cents);
+    }
+    for (const [key, cents] of documentFinancials.dailyCents.entries()) {
       const existing = cashflowMap.get(key) || 0;
       cashflowMap.set(key, existing + cents);
     }
@@ -537,11 +815,11 @@ export async function handler(event = {}) {
       windowLabel: label,
       startDate: startIso,
       endDate: endIso,
-      orders: summary.rows[0]?.orders || 0,
+      orders: (summary.rows[0]?.orders || 0) + documentFinancials.receiptCount,
       bookings: bookingCount,
       bookingRevenue: bookingRevenueCents / 100,
       revenue: (orderRevenueCents + bookingRevenueCents) / 100,
-      units: summary.rows[0]?.units || 0,
+      units: (summary.rows[0]?.units || 0) + documentFinancials.units,
       expenseWindowLabel: label,
       summary: {
         revenue: orderRevenueCents / 100,
@@ -578,8 +856,10 @@ export async function handler(event = {}) {
           orders: orderHasOrg,
           bookings: bookingHasOrg,
           expenses: expenseSummary.hasOrganizationId,
+          invoiceDocuments: canUseInvoiceDocuments,
         },
         expenseSourceTable: expenseSummary.tableLabel,
+        incomeSource: canUseInvoiceDocuments ? "invoiceDocument+fallback" : "orders+bookings",
       },
     });
   } catch (err) {

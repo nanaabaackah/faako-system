@@ -116,6 +116,51 @@ test("createAuthMiddleware falls back to cookie tokens", async () => {
   assert.equal(req.authMethod, "cookie");
 });
 
+test("createAuthMiddleware uses the loaded session user as role and module truth", async () => {
+  const staleTokenPayload = {
+    userId: 5,
+    roleName: "Admin",
+    modules: ["accounting", "invoicing"],
+  };
+  const currentSessionUser = {
+    userId: 5,
+    roleName: "Tenant",
+    modules: ["rent"],
+    organizationId: 9,
+  };
+  const req = { headers: { authorization: "Bearer session-token" } };
+  const res = createMockResponse();
+  let nextCalled = false;
+  let loadedPayload = null;
+
+  const authMiddleware = createAuthMiddleware({
+    authCookieName: "auth",
+    getCookieValue() {
+      return null;
+    },
+    readBearerToken() {
+      return "session-token";
+    },
+    verifyTokenPayload(token) {
+      return token === "session-token" ? staleTokenPayload : null;
+    },
+    async loadSessionUser(payload) {
+      loadedPayload = payload;
+      return currentSessionUser;
+    },
+  });
+
+  await authMiddleware(req, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true);
+  assert.deepEqual(loadedPayload, staleTokenPayload);
+  assert.deepEqual(req.user, currentSessionUser);
+  assert.equal(req.authMethod, "bearer");
+  assert.equal(res.statusCode, null);
+});
+
 test("createAuthMiddleware returns 401 when no valid auth is present", async () => {
   const req = { headers: { authorization: "" } };
   const res = createMockResponse();

@@ -42,14 +42,15 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import SideNav from "./components/SideNav";
 import ErrorPage from "./pages/ErrorPage/ErrorPage";
 import useScrollAnimations from "./hooks/useScrollAnimations";
-import { buildApiUrl } from "./api-url";
-import { readJsonResponse } from "./utils/http";
+import { apiGet, apiPost } from "./api/client";
+import {
+  clearAuthStore,
+  refreshAuthSession,
+  useAuthSnapshot,
+} from "./auth/authStore";
 import { canAccessPath, hasModuleAccess, isRentOnlyUser } from "./utils/moduleAccess";
 import {
   addSessionInvalidListener,
-  clearStoredSession,
-  readStoredSessionToken,
-  readStoredSessionUser,
 } from "./utils/authSession";
 
 const NAV_ITEMS = [
@@ -137,10 +138,6 @@ const NAV_SWIPE_CLOSE_THRESHOLD = 72;
 const NAV_SWIPE_VERTICAL_TOLERANCE = 72;
 const NAV_SWIPE_MIN_HORIZONTAL_DELTA = 12;
 
-const readStoredUser = () => {
-  return readStoredSessionUser();
-};
-
 const getVisibleNavItems = (user) => {
   if (isRentOnlyUser(user)) {
     return RENT_ONLY_NAV_ITEMS;
@@ -155,7 +152,7 @@ const getVisibleMobileTabItems = (user) => {
   return MOBILE_TAB_ITEMS.filter((item) => !item.module || hasModuleAccess(user, item.module));
 };
 
-const PrivateRoute = ({ authReady, children }) => {
+const PrivateRoute = ({ authReady, currentUser, children }) => {
   if (!authReady) {
     return (
       <div className="app-loading" role="status" aria-live="polite">
@@ -164,9 +161,7 @@ const PrivateRoute = ({ authReady, children }) => {
     );
   }
 
-  const token = readStoredSessionToken();
-  const user = readStoredSessionUser();
-  return token && user ? children : <Navigate to="/login" />;
+  return currentUser ? children : <Navigate to="/login" />;
 };
 
 const getInitialTheme = () => {
@@ -210,10 +205,9 @@ const getTopbarLabel = (pathname) => {
   }
 };
 
-const AppShell = ({ children, theme, onToggleTheme }) => {
+const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentUser = readStoredUser();
   const isRentScopedUser = isRentOnlyUser(currentUser);
   const visibleNavItems = getVisibleNavItems(currentUser);
   const visibleMobileTabItems = getVisibleMobileTabItems(currentUser);
@@ -279,21 +273,16 @@ const AppShell = ({ children, theme, onToggleTheme }) => {
 
     let isCanceled = false;
     const loadNavNotifications = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
+      if (!currentUser) {
         if (!isCanceled) setNavNotifications({});
         return;
       }
 
       try {
         if (isRentScopedUser) {
-          const response = await fetch(buildApiUrl("/api/rent/dashboard"), {
-            headers: { Authorization: `Bearer ${token}` },
+          const payload = await apiGet("/api/rent/dashboard", {
+            fallbackMessage: "Unable to load rent dashboard",
           });
-          const payload = await readJsonResponse(response);
-          if (!response.ok) {
-            return;
-          }
           if (!isCanceled) {
             setNavNotifications({
               "/dashboard": getRentOutstandingCount(payload),
@@ -313,38 +302,19 @@ const AppShell = ({ children, theme, onToggleTheme }) => {
           range: "all",
         });
 
-        const [dashboardResponse, bookingsResponse, invoicesResponse, accountingResponse] =
-          await Promise.all([
-            fetch(buildApiUrl("/api/dashboard"), {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch(buildApiUrl(`/api/bookings?${query.toString()}`), {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch(buildApiUrl("/api/invoices?status=OVERDUE"), {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch(buildApiUrl(`/api/accounting/entries?${accountingQuery.toString()}`), {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-          ]);
-
         const [dashboardPayload, bookingsPayload, invoicesPayload, accountingPayload] =
           await Promise.all([
-            readJsonResponse(dashboardResponse),
-            readJsonResponse(bookingsResponse),
-            readJsonResponse(invoicesResponse),
-            readJsonResponse(accountingResponse),
+            apiGet("/api/dashboard", { fallbackMessage: "Unable to load dashboard" }),
+            apiGet(`/api/bookings?${query.toString()}`, {
+              fallbackMessage: "Unable to load appointments",
+            }),
+            apiGet("/api/invoices?status=OVERDUE", {
+              fallbackMessage: "Unable to load invoices",
+            }),
+            apiGet(`/api/accounting/entries?${accountingQuery.toString()}`, {
+              fallbackMessage: "Unable to load accounting",
+            }),
           ]);
-
-        if (
-          !dashboardResponse.ok ||
-          !bookingsResponse.ok ||
-          !invoicesResponse.ok ||
-          !accountingResponse.ok
-        ) {
-          return;
-        }
 
         if (!isCanceled) {
           setNavNotifications({
@@ -368,17 +338,15 @@ const AppShell = ({ children, theme, onToggleTheme }) => {
       isCanceled = true;
       window.clearInterval(intervalId);
     };
-  }, [isOffline, isRentScopedUser, location.pathname]);
+  }, [currentUser, isOffline, isRentScopedUser, location.pathname]);
 
   const handleSignOut = async () => {
     try {
-      await fetch(buildApiUrl("/api/auth/logout"), {
-        method: "POST",
-      });
+      await apiPost("/api/auth/logout");
     } catch {
       // local cleanup still happens even if network logout fails
     }
-    clearStoredSession();
+    clearAuthStore();
     navigate("/login");
   };
 
@@ -588,20 +556,19 @@ const RouteBoundary = ({ children }) => {
   return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
 };
 
-const ModuleScopeRoute = ({ children }) => {
+const ModuleScopeRoute = ({ currentUser, children }) => {
   const location = useLocation();
-  const user = readStoredUser();
-  if (!canAccessPath(user, location.pathname)) {
+  if (!canAccessPath(currentUser, location.pathname)) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
 };
 
-const ShellPage = ({ authReady, children, theme, onToggleTheme }) => (
-  <PrivateRoute authReady={authReady}>
-    <ModuleScopeRoute>
+const ShellPage = ({ authReady, currentUser, children, theme, onToggleTheme }) => (
+  <PrivateRoute authReady={authReady} currentUser={currentUser}>
+    <ModuleScopeRoute currentUser={currentUser}>
       <RouteBoundary>
-        <AppShell theme={theme} onToggleTheme={onToggleTheme}>
+        <AppShell theme={theme} onToggleTheme={onToggleTheme} currentUser={currentUser}>
           {children}
         </AppShell>
       </RouteBoundary>
@@ -609,9 +576,8 @@ const ShellPage = ({ authReady, children, theme, onToggleTheme }) => (
   </PrivateRoute>
 );
 
-const DashboardLanding = () => {
-  const user = readStoredUser();
-  if (isRentOnlyUser(user)) {
+const DashboardLanding = ({ currentUser }) => {
+  if (isRentOnlyUser(currentUser)) {
     return <Rent />;
   }
   return <Dashboard />;
@@ -620,7 +586,8 @@ const DashboardLanding = () => {
 function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [authReady, setAuthReady] = useState(false);
-  const [, setAuthRevision] = useState(0);
+  const auth = useAuthSnapshot();
+  const currentUser = auth.user;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -634,48 +601,19 @@ function App() {
   useEffect(() => {
     let isActive = true;
 
-    const validateStoredSession = async () => {
-      const storedToken = readStoredSessionToken();
-      const storedUser = readStoredSessionUser();
-
-      if (!storedToken && !storedUser) {
-        if (isActive) setAuthReady(true);
-        return;
-      }
-
-      if (!storedToken || !storedUser) {
-        clearStoredSession();
-        if (isActive) {
-          setAuthReady(true);
-          setAuthRevision((value) => value + 1);
-        }
-        return;
-      }
-
+    const bootstrapSession = async () => {
       try {
-        const response = await fetch(buildApiUrl("/api/users/me"), {
-          cache: "no-store",
-        });
-        const payload = await readJsonResponse(response);
-
-        if (!isActive) return;
-
-        if (response.ok && payload && typeof payload === "object") {
-          localStorage.setItem("user", JSON.stringify(payload));
-        } else if (response.status === 401) {
-          clearStoredSession();
-        }
+        await refreshAuthSession();
       } catch (error) {
         console.warn("Failed to validate stored session", error);
       } finally {
         if (isActive) {
           setAuthReady(true);
-          setAuthRevision((value) => value + 1);
         }
       }
     };
 
-    validateStoredSession();
+    bootstrapSession();
 
     return () => {
       isActive = false;
@@ -683,9 +621,8 @@ function App() {
   }, []);
 
   useEffect(() => addSessionInvalidListener(() => {
-    clearStoredSession();
+    clearAuthStore();
     setAuthReady(true);
-    setAuthRevision((value) => value + 1);
   }), []);
 
   return (
@@ -728,15 +665,15 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
-              <DashboardLanding />
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <DashboardLanding currentUser={currentUser} />
             </ShellPage>
           }
         />
         <Route
           path="/rent"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Rent />
             </ShellPage>
           }
@@ -744,7 +681,7 @@ function App() {
         <Route
           path="/bookings"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Bookings />
             </ShellPage>
           }
@@ -752,7 +689,7 @@ function App() {
         <Route
           path="/organizations"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Organizations />
             </ShellPage>
           }
@@ -760,7 +697,7 @@ function App() {
         <Route
           path="/profile"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Profile />
             </ShellPage>
           }
@@ -768,7 +705,7 @@ function App() {
         <Route
           path="/user-control"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <UserControl />
             </ShellPage>
           }
@@ -777,7 +714,7 @@ function App() {
         <Route
           path="/system-health"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <SystemHealth />
             </ShellPage>
           }
@@ -785,7 +722,7 @@ function App() {
         <Route
           path="/reports"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Reports />
             </ShellPage>
           }
@@ -793,7 +730,7 @@ function App() {
         <Route
           path="/accounting"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Accounting />
             </ShellPage>
           }
@@ -801,7 +738,7 @@ function App() {
         <Route
           path="/invoicing"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Invoicing />
             </ShellPage>
           }
@@ -810,7 +747,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Settings />
             </ShellPage>
           }
@@ -818,7 +755,7 @@ function App() {
         <Route
           path="/audit-logs"
           element={
-            <ShellPage authReady={authReady} theme={theme} onToggleTheme={handleToggleTheme}>
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <AuditLogs />
             </ShellPage>
           }
