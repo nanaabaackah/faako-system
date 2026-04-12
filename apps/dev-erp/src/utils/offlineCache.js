@@ -1,3 +1,5 @@
+import { readStoredSessionUser } from "./authSession";
+
 const OFFLINE_CACHE_PREFIX = "dev-offline-cache:v1:";
 const DEFAULT_MAX_CACHE_AGE_MS = 1000 * 60 * 30;
 
@@ -16,8 +18,7 @@ const safeParse = (value) => {
 };
 
 const readStoredUserId = () => {
-  if (typeof window === "undefined") return "anon";
-  const parsed = safeParse(localStorage.getItem("user"));
+  const parsed = readStoredSessionUser();
   const id = parsed?.id;
   if (Number.isFinite(Number(id))) {
     return String(id);

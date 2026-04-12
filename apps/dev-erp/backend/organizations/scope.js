@@ -9,6 +9,41 @@ const defaultParseOrganizationId = (value) => {
   return parsed;
 };
 
+const summarizeOrganizations = (organizations) => {
+  const organizationStatusCounts = organizations.reduce((counts, organization) => {
+    const key = String(organization.status || "").trim().toLowerCase();
+    if (!key) return counts;
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+
+  const topLevelOrganizations = organizations.filter((organization) => organization.isTopLevel);
+  const childOrganizationsCount = organizations.filter((organization) => organization.parentOrganizationId).length;
+  const leafOrganizationsCount = organizations.filter(
+    (organization) => (organization.childOrganizationsCount ?? 0) === 0
+  ).length;
+  const totalManagedOrganizations = topLevelOrganizations.reduce(
+    (total, organization) => total + (organization.managedOrganizationsCount ?? 0),
+    0
+  );
+
+  return {
+    organizations,
+    organizationHierarchy: topLevelOrganizations,
+    totalOrganizations: organizations.length,
+    topLevelOrganizationsCount: topLevelOrganizations.length,
+    childOrganizationsCount,
+    leafOrganizationsCount,
+    totalManagedOrganizations: totalManagedOrganizations || organizations.length,
+    organizationStatusBreakdown: Object.entries(organizationStatusCounts)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([status, count]) => ({
+        status,
+        count,
+      })),
+  };
+};
+
 export const createIsGlobalAdmin = (globalAdminEmails = []) => {
   const globalAdminEmailSet = new Set(globalAdminEmails.map(normalizeEmailAddress).filter(Boolean));
 
@@ -17,6 +52,45 @@ export const createIsGlobalAdmin = (globalAdminEmails = []) => {
     const email = normalizeEmailAddress(user.email);
     return Boolean(email && globalAdminEmailSet.has(email));
   };
+};
+
+export const scopeOrganizationHierarchySummary = (
+  summary,
+  user,
+  { isGlobalAdmin, parseOrganizationId = defaultParseOrganizationId } = {}
+) => {
+  if (!summary || typeof summary !== "object") return summary;
+  if (typeof isGlobalAdmin === "function" && isGlobalAdmin(user)) return summary;
+
+  const ownOrganizationId = parseOrganizationId(user?.organizationId);
+  if (!ownOrganizationId) return summarizeOrganizations([]);
+
+  const visibleOrganizationIds = new Set([ownOrganizationId]);
+  const organizations = Array.isArray(summary.organizations) ? summary.organizations : [];
+  const scopedOrganizations = organizations
+    .filter((organization) => visibleOrganizationIds.has(parseOrganizationId(organization?.id)))
+    .map((organization) => {
+      const childOrganizations = Array.isArray(organization.childOrganizations)
+        ? organization.childOrganizations.filter((child) =>
+            visibleOrganizationIds.has(parseOrganizationId(child?.id))
+          )
+        : [];
+      const parentOrganizationId = parseOrganizationId(organization.parentOrganizationId);
+      const parentIsVisible = parentOrganizationId && visibleOrganizationIds.has(parentOrganizationId);
+
+      return {
+        ...organization,
+        parentOrganizationId: parentIsVisible ? parentOrganizationId : null,
+        parentOrganizationName: parentIsVisible ? organization.parentOrganizationName ?? null : null,
+        parentOrganizationSlug: parentIsVisible ? organization.parentOrganizationSlug ?? null : null,
+        isTopLevel: !parentIsVisible,
+        childOrganizations,
+        childOrganizationsCount: childOrganizations.length,
+        managedOrganizationsCount: childOrganizations.length ? childOrganizations.length + 1 : 0,
+      };
+    });
+
+  return summarizeOrganizations(scopedOrganizations);
 };
 
 export const createResolveOrganizationReadScope =

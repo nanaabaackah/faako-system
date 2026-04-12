@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DocumentDownload, NoteText, ReceiptItem } from "iconsax-react";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
-import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
 import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoicePdf";
 
@@ -76,15 +77,6 @@ const resolveEntryDate = (entry) => {
   return entry.dueAt || entry.createdAt;
 };
 
-const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
-
 const createLineItemId = () =>
   `line-${Date.now()}-${Math.random().toString(16).slice(2, 9)}`;
 
@@ -115,8 +107,7 @@ const buildInvoiceFormFromEntry = (entry = null) => ({
 });
 
 const Accounting = () => {
-  const navigate = useNavigate();
-  const storedUser = useMemo(() => readStoredUser(), []);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const userOrgId = storedUser?.organizationId ? String(storedUser.organizationId) : "";
   const [timeRange, setTimeRange] = useState("mtd");
@@ -195,37 +186,16 @@ const Accounting = () => {
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
     setOrganizationError("");
     try {
-      const response = await fetch(buildApiUrl("/api/organizations"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const payload = await apiGet("/api/organizations", {
+        fallbackMessage: "Unable to load organizations",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        if (response.status === 403) {
-          setOrganizations([]);
-          return;
-        }
-        throw new Error(payload?.error || "Unable to load organizations");
-      }
       setOrganizations(Array.isArray(payload) ? payload : []);
     } catch (err) {
       setOrganizationError(err.message || "Unable to load organizations");
     }
-  }, [isAdmin, navigate]);
+  }, [isAdmin]);
 
   useEffect(() => {
     loadOrganizations();
@@ -285,12 +255,6 @@ const Accounting = () => {
 
   const loadEntries = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -308,21 +272,9 @@ const Accounting = () => {
             query.set("organizationId", selectedOrganizationId);
           }
         }
-        const response = await fetch(buildApiUrl(`/api/accounting/entries?${query.toString()}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet(`/api/accounting/entries?${query.toString()}`, {
+          fallbackMessage: "Unable to load accounting data",
         });
-        const payload = await response.json();
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(payload?.error || "Unable to load accounting data");
-        }
         setEntries(payload.entries || []);
         setFaakoStatus(payload.faakoStatus || "");
         setOpenActionId(null);
@@ -335,7 +287,7 @@ const Accounting = () => {
         setIsRefreshing(false);
       }
     },
-    [navigate, selectedOrganizationId, timeRange, isAdmin]
+    [selectedOrganizationId, timeRange, isAdmin]
   );
 
   useEffect(() => {
@@ -428,11 +380,6 @@ const Accounting = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError("");
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
 
     const amountValue = Number(formState.amount);
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
@@ -472,18 +419,9 @@ const Accounting = () => {
         : "/api/accounting/entries";
       const method = editingEntryId ? "PATCH" : "POST";
 
-      const response = await fetch(buildApiUrl(endpoint), {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result?.error || "Unable to save entry");
-      }
+      method === "PATCH"
+        ? await apiPatch(endpoint, payload, { fallbackMessage: "Unable to save entry" })
+        : await apiPost(endpoint, payload, { fallbackMessage: "Unable to save entry" });
 
       setShowForm(false);
       setEditingEntryId(null);
@@ -505,22 +443,10 @@ const Accounting = () => {
     });
   }, [entries]);
 
-  const performEntryAction = async (entryId, path) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return null;
-    }
-    const response = await fetch(buildApiUrl(path), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const performEntryAction = async (path) => {
+    const payload = await apiPost(path, undefined, {
+      fallbackMessage: "Unable to complete action",
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload?.error || "Unable to complete action");
-    }
     return payload;
   };
 
@@ -545,7 +471,7 @@ const Accounting = () => {
   const handleMarkPaid = async (entry) => {
     try {
       setActionNotice("");
-      await performEntryAction(entry.id, `/api/accounting/entries/${entry.id}/mark-paid`);
+      await performEntryAction(`/api/accounting/entries/${entry.id}/mark-paid`);
       setActionNotice("Marked as paid.");
       loadEntries({ silent: true });
     } catch (err) {
@@ -558,7 +484,7 @@ const Accounting = () => {
   const handleArchive = async (entry) => {
     try {
       setActionNotice("");
-      await performEntryAction(entry.id, `/api/accounting/entries/${entry.id}/archive`);
+      await performEntryAction(`/api/accounting/entries/${entry.id}/archive`);
       setActionNotice("Entry archived.");
       loadEntries({ silent: true });
     } catch (err) {
@@ -574,7 +500,7 @@ const Accounting = () => {
       setInvoiceError("");
       setActionNotice("");
       setIsInvoicePreparing(true);
-      const payload = await performEntryAction(entry.id, `/api/accounting/entries/${entry.id}/invoice`);
+      const payload = await performEntryAction(`/api/accounting/entries/${entry.id}/invoice`);
       const invoiceNumber = payload?.invoiceNumber || payload?.entry?.invoiceNumber;
       if (!invoiceNumber) {
         throw new Error("Unable to prepare invoice number.");

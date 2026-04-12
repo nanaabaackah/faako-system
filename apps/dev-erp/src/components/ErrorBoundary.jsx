@@ -1,4 +1,5 @@
 import React from "react";
+import { hasStoredSession } from "../utils/authSession";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -32,9 +33,7 @@ class ErrorBoundary extends React.Component {
       return this.props.children;
     }
 
-    const hasActiveSession =
-      typeof window !== "undefined" &&
-      Boolean(localStorage.getItem("token") && localStorage.getItem("user"));
+    const hasActiveSession = hasStoredSession();
     const primaryHref = hasActiveSession ? "/dashboard" : "/login";
     const primaryLabel = hasActiveSession ? "Go to dashboard" : "Go to login";
 

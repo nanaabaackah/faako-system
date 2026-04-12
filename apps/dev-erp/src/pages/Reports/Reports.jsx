@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
 import useDashboardData from "../../hooks/useDashboardData";
 import downloadCsv from "../../utils/exportCsv";
 import { formatDateTime } from "../../utils/formatters";
@@ -118,26 +118,14 @@ const Reports = () => {
   };
 
   const loadReports = async ({ silent = false } = {}) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setReportsError("Missing session. Please sign in again.");
-      setReportsLoading(false);
-      return;
-    }
-
     if (!silent) {
       setReportsLoading(true);
     }
 
     try {
-      const response = await fetch(buildApiUrl("/api/reports"), {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiGet("/api/reports", {
+        fallbackMessage: "Unable to load reports.",
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to load reports.");
-      }
 
       setReports(Array.isArray(payload?.reports) ? payload.reports : []);
       setReportsError("");
@@ -187,25 +175,13 @@ const Reports = () => {
   };
 
   const handleSaveReport = async (report) => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     setSavingKey(report.key);
     setStatus({ tone: "", message: "" });
 
     try {
-      const response = await fetch(buildApiUrl(`/api/reports/${report.key}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(draft),
+      const payload = await apiPatch(`/api/reports/${report.key}`, draft, {
+        fallbackMessage: "Unable to update report.",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update report.");
-      }
 
       setReports((current) =>
         current.map((item) => (item.key === report.key ? payload.report || item : item))
@@ -221,29 +197,21 @@ const Reports = () => {
   };
 
   const handleToggleEnabled = async (report) => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     const nextEnabled = !report.enabled;
     setTogglingKey(report.key);
     setStatus({ tone: "", message: "" });
 
     try {
-      const response = await fetch(buildApiUrl(`/api/reports/${report.key}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPatch(
+        `/api/reports/${report.key}`,
+        {
           ...buildDraftFromReport(report),
           enabled: nextEnabled,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to update report.");
-      }
+        },
+        {
+          fallbackMessage: "Unable to update report.",
+        }
+      );
 
       const updatedReport = payload.report || report;
       setReports((current) =>
@@ -269,23 +237,13 @@ const Reports = () => {
   };
 
   const handleSendNow = async (report) => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     setSendingKey(report.key);
     setStatus({ tone: "", message: "" });
 
     try {
-      const response = await fetch(buildApiUrl(`/api/reports/${report.key}/send`), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const payload = await apiPost(`/api/reports/${report.key}/send`, undefined, {
+        fallbackMessage: "Unable to send report.",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to send report.");
-      }
 
       if (payload?.report) {
         setReports((current) =>

@@ -1,4 +1,3 @@
-export const AUTH_SESSION_STORAGE_MARKER = "cookie-session";
 export const AUTH_SESSION_INVALID_EVENT = "dev-kpi:auth-session-invalid";
 
 const AUTH_TOKEN_STORAGE_KEY = "token";
@@ -14,11 +13,6 @@ const dispatchSessionInvalidEvent = (detail = {}) => {
   }
 };
 
-export const readStoredSessionToken = () => {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || "";
-};
-
 export const readStoredSessionUser = () => {
   if (typeof window === "undefined") return null;
 
@@ -30,11 +24,11 @@ export const readStoredSessionUser = () => {
 };
 
 export const hasStoredSession = () =>
-  Boolean(readStoredSessionToken() && readStoredSessionUser());
+  Boolean(readStoredSessionUser());
 
 export const writeStoredSession = (user) => {
   if (typeof window === "undefined" || !user) return;
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, AUTH_SESSION_STORAGE_MARKER);
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
 };
 
@@ -70,7 +64,5 @@ export const normalizeLegacySessionToken = () => {
 
   const currentToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   if (!currentToken) return;
-  if (currentToken === AUTH_SESSION_STORAGE_MARKER) return;
-
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, AUTH_SESSION_STORAGE_MARKER);
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 };

@@ -4,6 +4,7 @@ import {
   createIsGlobalAdmin,
   createResolveOrganizationReadScope,
   createResolveOrganizationWriteScope,
+  scopeOrganizationHierarchySummary,
 } from "./scope.js";
 
 test("createIsGlobalAdmin requires admin role and configured email", () => {
@@ -208,5 +209,116 @@ test("createResolveOrganizationWriteScope rejects invalid organization ids", asy
   assert.deepEqual(scope, {
     status: 400,
     error: "organizationId must be a valid id",
+  });
+});
+
+const organizationSummaryFixture = {
+  organizations: [
+    {
+      id: 1,
+      name: "Parent Org",
+      slug: "parent",
+      status: "ACTIVE",
+      parentOrganizationId: null,
+      parentOrganizationName: null,
+      parentOrganizationSlug: null,
+      isTopLevel: true,
+      childOrganizationsCount: 1,
+      managedOrganizationsCount: 2,
+      childOrganizations: [
+        {
+          id: 2,
+          name: "Child Org",
+          slug: "child",
+          status: "ACTIVE",
+          parentOrganizationId: 1,
+        },
+      ],
+    },
+    {
+      id: 2,
+      name: "Child Org",
+      slug: "child",
+      status: "ACTIVE",
+      parentOrganizationId: 1,
+      parentOrganizationName: "Parent Org",
+      parentOrganizationSlug: "parent",
+      isTopLevel: false,
+      childOrganizationsCount: 0,
+      managedOrganizationsCount: 0,
+      childOrganizations: [],
+    },
+  ],
+  organizationHierarchy: [],
+  totalOrganizations: 2,
+  topLevelOrganizationsCount: 1,
+  childOrganizationsCount: 1,
+  leafOrganizationsCount: 1,
+  totalManagedOrganizations: 2,
+  organizationStatusBreakdown: [{ status: "active", count: 2 }],
+};
+
+test("scopeOrganizationHierarchySummary leaves global admins unrestricted", () => {
+  const summary = scopeOrganizationHierarchySummary(
+    organizationSummaryFixture,
+    { roleName: "Admin", email: "root@example.com", organizationId: 2 },
+    {
+      isGlobalAdmin() {
+        return true;
+      },
+    }
+  );
+
+  assert.equal(summary, organizationSummaryFixture);
+});
+
+test("scopeOrganizationHierarchySummary limits local admins to their own organization", () => {
+  const summary = scopeOrganizationHierarchySummary(
+    organizationSummaryFixture,
+    { roleName: "Admin", email: "local@example.com", organizationId: 2 },
+    {
+      isGlobalAdmin() {
+        return false;
+      },
+    }
+  );
+
+  assert.deepEqual(summary, {
+    organizations: [
+      {
+        id: 2,
+        name: "Child Org",
+        slug: "child",
+        status: "ACTIVE",
+        parentOrganizationId: null,
+        parentOrganizationName: null,
+        parentOrganizationSlug: null,
+        isTopLevel: true,
+        childOrganizationsCount: 0,
+        managedOrganizationsCount: 0,
+        childOrganizations: [],
+      },
+    ],
+    organizationHierarchy: [
+      {
+        id: 2,
+        name: "Child Org",
+        slug: "child",
+        status: "ACTIVE",
+        parentOrganizationId: null,
+        parentOrganizationName: null,
+        parentOrganizationSlug: null,
+        isTopLevel: true,
+        childOrganizationsCount: 0,
+        managedOrganizationsCount: 0,
+        childOrganizations: [],
+      },
+    ],
+    totalOrganizations: 1,
+    topLevelOrganizationsCount: 1,
+    childOrganizationsCount: 0,
+    leafOrganizationsCount: 1,
+    totalManagedOrganizations: 1,
+    organizationStatusBreakdown: [{ status: "active", count: 1 }],
   });
 });

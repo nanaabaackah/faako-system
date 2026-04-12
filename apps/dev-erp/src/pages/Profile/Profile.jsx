@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { apiGet, apiPatch, ApiError } from "../../api/client";
 import { clearAuthStore, setAuthenticatedUser } from "../../auth/authStore";
 import {
-  readStoredSessionToken,
   readStoredSessionUser,
 } from "../../utils/authSession";
 import { formatDateTime } from "../../utils/formatters";
@@ -49,13 +48,6 @@ const Profile = () => {
 
   const loadProfile = useCallback(
     async ({ silent = false } = {}) => {
-      const token = readStoredSessionToken();
-      if (!token) {
-        clearAuthStore();
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -132,13 +124,6 @@ const Profile = () => {
 
   const handleSaveProfile = async (event) => {
     event.preventDefault();
-
-    const token = readStoredSessionToken();
-    if (!token) {
-      clearAuthStore();
-      navigate("/login");
-      return;
-    }
 
     const firstName = formState.firstName.trim();
     const lastName = formState.lastName.trim();

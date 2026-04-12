@@ -1,18 +1,15 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-
-const hasActiveSession = () => {
-  if (typeof window === "undefined") return false;
-  return Boolean(localStorage.getItem("token") && localStorage.getItem("user"));
-};
+import { hasStoredSession } from "../../utils/authSession";
 
 const ErrorPage = ({ code, title, message }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isNotFound = code === "404";
   const requestPath = location.pathname !== "/error" ? location.pathname : "";
-  const primaryHref = hasActiveSession() ? "/dashboard" : "/login";
-  const primaryLabel = hasActiveSession() ? "Go to dashboard" : "Go to login";
+  const hasActiveSession = hasStoredSession();
+  const primaryHref = hasActiveSession ? "/dashboard" : "/login";
+  const primaryLabel = hasActiveSession ? "Go to dashboard" : "Go to login";
 
   return (
     <section className="error-page">

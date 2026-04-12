@@ -6,11 +6,11 @@ import KPICard from "../../components/KPICard/KPICard";
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
 import WeatherWidget from "../../components/WeatherWidget/WeatherWidget";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import { formatDateTime, formatPercent, formatRatio } from "../../utils/formatters";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "../../utils/offlineCache";
-import { buildApiUrl } from "../../api-url";
 import "./Dashboard.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
@@ -88,15 +88,6 @@ const buildAccountingSummary = (entries = []) => {
   });
 
   return base;
-};
-
-const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
 };
 
 const buildTodayDate = () => new Date().toISOString().slice(0, 10);
@@ -292,7 +283,7 @@ const ModulePanelLink = ({ to, label }) => (
 );
 
 const Dashboard = () => {
-  const storedUser = useMemo(() => readStoredUser(), []);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const { data: kpiData, loading, isRefreshing, error, reload } = useDashboardData();
   const [timeRange, setTimeRange] = useState("7d");
@@ -426,11 +417,6 @@ const Dashboard = () => {
 
   const handleSlotSave = async () => {
     if (!slotModal) return;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setSlotStatus({ tone: "error", message: "Missing session. Please sign in again." });
-      return;
-    }
 
     const title = slotForm.title.trim();
     if (!title) {
@@ -455,17 +441,10 @@ const Dashboard = () => {
     try {
       const isEditing = Boolean(slotModal.booking?.id);
       const endpoint = isEditing ? `/api/bookings/${slotModal.booking.id}` : "/api/bookings";
-      const response = await fetch(buildApiUrl(endpoint), {
-        method: isEditing ? "PATCH" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const result = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(result, "Unable to save appointment."));
+      if (isEditing) {
+        await apiPatch(endpoint, payload, { fallbackMessage: "Unable to save appointment." });
+      } else {
+        await apiPost(endpoint, payload, { fallbackMessage: "Unable to save appointment." });
       }
       setSlotStatus({ tone: "success", message: "Appointment saved." });
       await loadAvailability();
@@ -478,13 +457,6 @@ const Dashboard = () => {
   };
 
   const loadAvailability = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setAvailabilityLoading(false);
-      setAvailabilityError("Missing session. Please sign in again.");
-      return;
-    }
-
     setAvailabilityLoading(true);
     setAvailabilityError("");
     try {
@@ -498,13 +470,9 @@ const Dashboard = () => {
         from: from.toISOString(),
         to: to.toISOString(),
       });
-      const response = await fetch(buildApiUrl(`/api/bookings?${query.toString()}`), {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiGet(`/api/bookings?${query.toString()}`, {
+        fallbackMessage: "Unable to load availability",
       });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(payload, "Unable to load availability"));
-      }
       const bookings = Array.isArray(payload) ? payload : [];
       setAvailabilityBookings(bookings);
       writeOfflineCache(availabilityCacheKey, bookings);
@@ -538,13 +506,6 @@ const Dashboard = () => {
 
   const loadAccountingSummary = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setAccountingLoading(false);
-        setAccountingError("Missing session. Please sign in again.");
-        return;
-      }
-
       if (!silent) {
         setAccountingLoading(true);
       }
@@ -555,13 +516,9 @@ const Dashboard = () => {
         if (isAdmin) {
           query.set("organizationId", "all");
         }
-        const response = await fetch(buildApiUrl(`/api/accounting/entries?${query.toString()}`), {
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiGet(`/api/accounting/entries?${query.toString()}`, {
+          fallbackMessage: "Unable to load accounting summary",
         });
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          throw new Error(getApiErrorMessage(payload, "Unable to load accounting summary"));
-        }
         const entries = payload.entries || [];
         setAccountingSummary(buildAccountingSummary(entries));
         writeOfflineCache(accountingCacheKey, entries);
@@ -587,29 +544,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     let isActive = true;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setVerseOfDay((prev) => ({
-        ...prev,
-        status: "error",
-        warning: "Missing session. Please sign in again.",
-      }));
-      return undefined;
-    }
 
     setVerseOfDay((prev) => ({ ...prev, status: "loading", warning: "" }));
 
-    fetch(buildApiUrl("/api/dashboard/verse-of-day"), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (response) => {
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          throw new Error(getApiErrorMessage(payload, "Unable to load verse of the day"));
-        }
-
+    apiGet("/api/dashboard/verse-of-day", { fallbackMessage: "Unable to load verse of the day" })
+      .then((payload) => {
         const verse = payload?.verse || {};
         const nextVerse = {
           status: "ready",
@@ -669,17 +608,6 @@ const Dashboard = () => {
     setDailyWeather((prev) => ({ ...prev, status: "loading" }));
 
     const handleSuccess = async (position) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        if (!isActive) return;
-        setDailyWeather((prev) => ({
-          ...prev,
-          status: "error",
-          warning: "Missing session. Please sign in again.",
-        }));
-        return;
-      }
-
       const latitude = Number(position?.coords?.latitude);
       const longitude = Number(position?.coords?.longitude);
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -693,18 +621,9 @@ const Dashboard = () => {
           lat: String(latitude),
           lng: String(longitude),
         });
-        const weatherResponse = await fetch(
-          buildApiUrl(`/api/dashboard/weather?${weatherQuery.toString()}`),
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const weatherPayload = await readJsonResponse(weatherResponse);
-        if (!weatherResponse.ok) {
-          throw new Error(getApiErrorMessage(weatherPayload, "Unable to load weather"));
-        }
+        const weatherPayload = await apiGet(`/api/dashboard/weather?${weatherQuery.toString()}`, {
+          fallbackMessage: "Unable to load weather",
+        });
 
         const weather = weatherPayload?.weather || {};
         const parsedTemperature = Number(weather?.temperature);

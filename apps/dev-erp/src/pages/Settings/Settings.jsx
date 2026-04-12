@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPost, ApiError } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
 
 const DEFAULT_PREFS = {
@@ -26,23 +26,12 @@ const Settings = () => {
   const [lastEmailSentAt, setLastEmailSentAt] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setHasSession(false);
-      setIsLoadingPrefs(false);
-      setStatus({ tone: "error", message: "Sign in again to manage alert settings." });
-      return;
-    }
     setHasSession(true);
     const loadPrefs = async () => {
       try {
-        const response = await fetch(buildApiUrl("/api/alerts/preferences"), {
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiGet("/api/alerts/preferences", {
+          fallbackMessage: "Unable to load alert preferences",
         });
-        if (!response.ok) {
-          throw new Error("Unable to load alert preferences");
-        }
-        const payload = await response.json();
         setPrefs((prev) => ({
           ...prev,
           email: Boolean(payload.emailEnabled),
@@ -57,7 +46,12 @@ const Settings = () => {
         setLastEmailSentAt(payload.lastEmailSentAt ?? null);
         setIsLoaded(true);
       } catch (err) {
-        setStatus({ tone: "error", message: err.message });
+        if (err instanceof ApiError && err.status === 401) {
+          setHasSession(false);
+          setStatus({ tone: "error", message: "Sign in again to manage alert settings." });
+        } else {
+          setStatus({ tone: "error", message: err.message });
+        }
       } finally {
         setIsLoadingPrefs(false);
       }
@@ -74,30 +68,23 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     setIsSaving(true);
     setStatus({ tone: "", message: "" });
     try {
-      const response = await fetch(buildApiUrl("/api/alerts/preferences"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPost(
+        "/api/alerts/preferences",
+        {
           emailEnabled: prefs.email,
           smsEnabled: prefs.sms,
           notifyOffline: prefs.notifyOffline,
           notifyDegraded: prefs.notifyDegraded,
           emailRecipients: prefs.emailRecipients,
           smsRecipients: prefs.smsRecipients,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to save alert preferences");
-      }
+        },
+        {
+          fallbackMessage: "Unable to save alert preferences",
+        }
+      );
       setPrefs((prev) => ({
         ...prev,
         email: Boolean(payload.emailEnabled),
@@ -113,35 +100,34 @@ const Settings = () => {
       setStatus({ tone: "success", message: "Alert preferences saved." });
       setIsLoaded(true);
     } catch (err) {
-      setStatus({ tone: "error", message: err.message });
+      if (err instanceof ApiError && err.status === 401) {
+        setHasSession(false);
+        setStatus({ tone: "error", message: "Sign in again to manage alert settings." });
+      } else {
+        setStatus({ tone: "error", message: err.message });
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleTestEmail = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     setIsTestingEmail(true);
     setStatus({ tone: "", message: "" });
     try {
       const emailRecipients = prefs.emailRecipients.trim();
-      const response = await fetch(buildApiUrl("/api/alerts/test-email"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(emailRecipients ? { emailRecipients } : {}),
+      const payload = await apiPost("/api/alerts/test-email", emailRecipients ? { emailRecipients } : {}, {
+        fallbackMessage: "Unable to send test email",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to send test email");
-      }
       setStatus({ tone: "success", message: "Test email sent." });
       setLastEmailSentAt(payload?.sentAt ?? new Date().toISOString());
     } catch (err) {
-      setStatus({ tone: "error", message: err.message });
+      if (err instanceof ApiError && err.status === 401) {
+        setHasSession(false);
+        setStatus({ tone: "error", message: "Sign in again to manage alert settings." });
+      } else {
+        setStatus({ tone: "error", message: err.message });
+      }
     } finally {
       setIsTestingEmail(false);
     }

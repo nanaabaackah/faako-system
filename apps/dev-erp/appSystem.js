@@ -70,7 +70,7 @@ export default {
   },
   security: {
     profileId: "authenticated-workspace",
-    authMode: "bearer",
+    authMode: "cookie",
     allowedOrigins: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",

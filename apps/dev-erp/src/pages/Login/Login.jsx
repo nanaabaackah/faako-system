@@ -82,7 +82,7 @@ const Login = ({ theme, onToggleTheme }) => {
             </div>
             <div className="auth-list-row">
               <span>Secure access</span>
-              <strong>JWT protected</strong>
+              <strong>Session protected</strong>
             </div>
             <div className="auth-list-row">
               <span>System visibility</span>

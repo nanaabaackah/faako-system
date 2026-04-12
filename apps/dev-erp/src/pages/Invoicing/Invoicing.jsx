@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../api-url";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
 import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoicePdf";
 
@@ -88,15 +87,6 @@ const buildFutureDate = (offsetDays = 14) => {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
   return date.toISOString().slice(0, 10);
-};
-
-const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
 };
 
 const createLineItemId = () =>
@@ -210,8 +200,7 @@ const buildInvoiceForm = ({ organizationId = "", invoice = null } = {}) => ({
 });
 
 const Invoicing = () => {
-  const navigate = useNavigate();
-  const storedUser = useMemo(() => readStoredUser(), []);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const userOrgId = storedUser?.organizationId ? String(storedUser.organizationId) : "";
 
@@ -241,43 +230,21 @@ const Invoicing = () => {
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
 
     setOrganizationError("");
     try {
-      const response = await fetch(buildApiUrl("/api/organizations"), {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiGet("/api/organizations", {
+        fallbackMessage: "Unable to load organizations",
       });
-      const payload = await readJsonResponse(response);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(payload, "Unable to load organizations"));
-      }
 
       setOrganizations(Array.isArray(payload) ? payload : []);
     } catch (loadError) {
       setOrganizationError(loadError.message || "Unable to load organizations");
     }
-  }, [isAdmin, navigate]);
+  }, [isAdmin]);
 
   const loadInvoices = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -298,20 +265,9 @@ const Invoicing = () => {
           }
         }
 
-        const response = await fetch(buildApiUrl(`/api/invoices?${query.toString()}`), {
-          headers: { Authorization: `Bearer ${token}` },
+        const payload = await apiGet(`/api/invoices?${query.toString()}`, {
+          fallbackMessage: "Unable to load invoices",
         });
-        const payload = await readJsonResponse(response);
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load invoices"));
-        }
 
         setInvoices(Array.isArray(payload?.invoices) ? payload.invoices : []);
       } catch (loadError) {
@@ -321,7 +277,7 @@ const Invoicing = () => {
         setIsRefreshing(false);
       }
     },
-    [isAdmin, navigate, selectedOrganizationId, statusFilter]
+    [isAdmin, selectedOrganizationId, statusFilter]
   );
 
   useEffect(() => {
@@ -554,12 +510,6 @@ const Invoicing = () => {
     event.preventDefault();
     setFormError("");
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     const clientName = formState.clientName.trim();
     if (!clientName) {
       setFormError("Client name is required.");
@@ -618,19 +568,9 @@ const Invoicing = () => {
         : "/api/invoices";
       const method = editingInvoiceId ? "PATCH" : "POST";
 
-      const response = await fetch(buildApiUrl(endpoint), {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const result = await readJsonResponse(response);
-
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(result, "Unable to save invoice"));
-      }
+      method === "PATCH"
+        ? await apiPatch(endpoint, payload, { fallbackMessage: "Unable to save invoice" })
+        : await apiPost(endpoint, payload, { fallbackMessage: "Unable to save invoice" });
 
       closeFormModal();
       await loadInvoices({ silent: true });
@@ -643,27 +583,11 @@ const Invoicing = () => {
   };
 
   const handleStatusChange = async (invoice, nextStatus) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     try {
       setError("");
-      const response = await fetch(buildApiUrl(`/api/invoices/${invoice.id}`), {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: nextStatus }),
+      await apiPatch(`/api/invoices/${invoice.id}`, { status: nextStatus }, {
+        fallbackMessage: "Unable to update invoice status",
       });
-      const result = await readJsonResponse(response);
-
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(result, "Unable to update invoice status"));
-      }
 
       await loadInvoices({ silent: true });
       setNotice(`Invoice ${invoice.invoiceNumber} marked ${nextStatus.toLowerCase()}.`);
@@ -683,26 +607,12 @@ const Invoicing = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     setIsSendingInvoice(true);
     setError("");
     try {
-      const response = await fetch(
-        buildApiUrl(`/api/invoices/${selectedInvoice.id}/send`),
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(payload, "Unable to send invoice"));
-      }
+      const payload = await apiPost(`/api/invoices/${selectedInvoice.id}/send`, undefined, {
+        fallbackMessage: "Unable to send invoice",
+      });
 
       const nextInvoice = payload?.id ? payload : { ...selectedInvoice, status: "SENT" };
       const deliveryRecipient = String(

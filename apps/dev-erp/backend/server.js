@@ -22,6 +22,14 @@ import {
 } from "./auth/auth.middleware.js";
 import { createCapabilityAccessMiddleware } from "./auth/capabilities.js";
 import {
+  ACCESS_MODULE_KEYS,
+  ACCESS_MODULE_SET,
+  AUTHENTICATED_MODULE_CAPABILITY_ROUTES,
+  MODULE_CAPABILITY_PUBLIC_PATHS,
+  SUPPORTED_ACCESS_ROLE_DEFINITIONS,
+  SUPPORTED_USER_ROLE_NAMES,
+} from "./auth/accessConfig.js";
+import {
   createBuildToken,
   createForgotPasswordHandler,
   createGetSessionHandler,
@@ -41,6 +49,7 @@ import {
   createIsGlobalAdmin,
   createResolveOrganizationReadScope,
   createResolveOrganizationWriteScope,
+  scopeOrganizationHierarchySummary,
 } from "./organizations/scope.js";
 import { createGetDashboardVerseHandler } from "./dashboard/verse.js";
 import { createGetDashboardWeatherHandler } from "./dashboard/weather.js";
@@ -72,6 +81,7 @@ import {
   isRentManagerUser,
 } from "./utils/rentAccess.js";
 import { resolveRequestBaseUrl as resolveFrontendBaseUrl } from "./utils/requestBaseUrl.js";
+import { buildSafeAppRedirectUrl } from "./utils/redirects.js";
 import { buildInvoiceEmailContent } from "./invoiceEmailTemplate.js";
 import { buildRentMonthlySummaryEmailContent } from "./rentMonthlySummaryEmailTemplate.js";
 import { buildRentPaymentRecordedEmailContent } from "./rentPaymentRecordedEmailTemplate.js";
@@ -1495,56 +1505,6 @@ const ACCOUNTING_REMINDER_FROM_EMAIL_RAW =
   process.env.ACCOUNTING_REMINDER_FROM_EMAIL ??
   process.env.ALERT_FROM_EMAIL ??
   DEFAULT_ADMIN_EMAIL;
-const RENT_MODULE_KEY = "rent";
-const ACCESS_MODULE_KEYS = [
-  "dashboard",
-  "rent",
-  "accounting",
-  "invoicing",
-  "bookings",
-  "organizations",
-  "system-health",
-  "reports",
-  "audit-logs",
-  "profile",
-  "settings",
-  "user-control",
-];
-const ACCESS_MODULE_SET = new Set(ACCESS_MODULE_KEYS);
-const SUPPORTED_USER_ROLE_NAMES = ["Admin", "Landlord", "Tenant"];
-const SUPPORTED_ACCESS_ROLE_DEFINITIONS = [
-  { name: "Admin", description: "Full access to every endpoint", permissions: null },
-  {
-    name: "Landlord",
-    description: "Rent manager with access to all tenant records in the organization",
-    permissions: { modules: [RENT_MODULE_KEY] },
-  },
-  {
-    name: "Tenant",
-    description: "External user with rent module access only",
-    permissions: { modules: [RENT_MODULE_KEY] },
-  },
-];
-const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
-  { pattern: /^\/api\/dashboard(?:\/|$)/, modules: ["dashboard"] },
-  { pattern: /^\/api\/rent(?:\/|$)/, modules: ["rent"] },
-  { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
-  { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },
-  { pattern: /^\/api\/bookings(?:\/|$)/, modules: ["bookings"] },
-  { pattern: /^\/api\/integrations\/google(?:\/|$)/, modules: ["bookings"] },
-  { pattern: /^\/api\/organizations(?:\/|$)/, modules: ["organizations"] },
-  { pattern: /^\/api\/debug(?:\/|$)/, modules: ["system-health"] },
-  { pattern: /^\/api\/reports(?:\/|$)/, modules: ["reports"] },
-  { pattern: /^\/api\/alerts(?:\/|$)/, modules: ["settings"] },
-  { pattern: /^\/api\/access(?:\/|$)/, modules: ["user-control"] },
-];
-const MODULE_CAPABILITY_PUBLIC_PATHS = [
-  /^\/api\/auth(?:\/|$)/,
-  /^\/api\/public(?:\/|$)/,
-  /^\/api\/webhooks(?:\/|$)/,
-  /^\/api\/users\/me(?:\/|$)/,
-];
-
 const coerceBoolean = (value, fallback = false) => {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
@@ -4516,6 +4476,12 @@ const csrfMiddleware = (req, res, next) => {
 };
 
 const requireAdmin = createRequireAdmin();
+const requireGlobalAdmin = (req, res, next) => {
+  if (!isGlobalAdmin(req.user)) {
+    return res.status(403).json({ error: "Global admin access required" });
+  }
+  return next();
+};
 const requireRentManager = (req, res, next) => {
   if (!isRentManagerUser(req.user)) {
     return res.status(403).json({ error: "Rent manager access required" });
@@ -4742,10 +4708,13 @@ registerUserRoutes(app, {
 
 app.get("/api/organizations", authMiddleware, requireAdmin, async (req, res) => {
   const organizationSummary = await buildOrganizationHierarchySummary();
-  res.json(organizationSummary.organizations);
+  const scopedOrganizationSummary = scopeOrganizationHierarchySummary(organizationSummary, req.user, {
+    isGlobalAdmin,
+  });
+  res.json(scopedOrganizationSummary.organizations);
 });
 
-app.get("/api/roles", authMiddleware, async (req, res) => {
+app.get("/api/roles", authMiddleware, requireAdmin, async (req, res) => {
   await ensureSupportedRolesForOrganization(prisma, req.user.organizationId);
 
   const roles = await prisma.role.findMany({
@@ -5407,7 +5376,10 @@ app.post("/api/reports/:key/send", authMiddleware, requireAdmin, async (req, res
 });
 
 app.get("/api/dashboard", authMiddleware, async (req, res) => {
-  const organizationSummary = await buildOrganizationHierarchySummary();
+  const fullOrganizationSummary = await buildOrganizationHierarchySummary();
+  const organizationSummary = scopeOrganizationHierarchySummary(fullOrganizationSummary, req.user, {
+    isGlobalAdmin,
+  });
 
   let reebsStatus = reebsPool ? "ok" : "not_configured";
 
@@ -9869,7 +9841,7 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
   res.json(serializeBooking(syncedBooking));
 });
 
-app.get("/api/debug/faako", authMiddleware, requireAdmin, async (req, res) => {
+app.get("/api/debug/faako", authMiddleware, requireGlobalAdmin, async (req, res) => {
   if (!faakoPool) {
     return res.status(400).json({ error: "FAAKO_DATABASE_URL is not configured." });
   }
@@ -10113,10 +10085,13 @@ app.get("/api/integrations/google/callback", async (req, res) => {
 
     await syncGoogleCalendar(integration);
 
-    if (decodedState.returnTo && appBaseUrl && decodedState.returnTo.startsWith("/")) {
-      const redirectUrl = new URL(decodedState.returnTo, appBaseUrl);
-      redirectUrl.searchParams.set("google", "connected");
-      return res.redirect(redirectUrl.toString());
+    const redirectUrl = buildSafeAppRedirectUrl({
+      appBaseUrl,
+      returnTo: decodedState.returnTo,
+      searchParams: { google: "connected" },
+    });
+    if (redirectUrl) {
+      return res.redirect(redirectUrl);
     }
 
     res.send("Google Calendar connected. You can close this tab.");

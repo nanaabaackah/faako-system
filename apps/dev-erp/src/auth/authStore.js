@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { apiGet, ApiError } from "../api/client";
 import {
   clearStoredSession,
-  readStoredSessionToken,
   readStoredSessionUser,
   writeStoredSession,
 } from "../utils/authSession";
@@ -11,10 +10,9 @@ const listeners = new Set();
 
 const readSnapshot = () => {
   const user = readStoredSessionUser();
-  const token = readStoredSessionToken();
   return {
     user,
-    isAuthenticated: Boolean(token && user),
+    isAuthenticated: Boolean(user),
   };
 };
 
@@ -74,4 +72,3 @@ export const useAuthSnapshot = () => {
 
   return state;
 };
-

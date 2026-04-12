@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../api-url";
-import { getApiErrorMessage, readJsonResponse } from "../utils/http";
+import { apiGet } from "../api/client";
 import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "../utils/offlineCache";
 
 const useDashboardData = () => {
@@ -9,16 +7,9 @@ const useDashboardData = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
   const loadDashboard = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -27,21 +18,9 @@ const useDashboardData = () => {
       setError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/dashboard"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet("/api/dashboard", {
+          fallbackMessage: "Unable to load dashboard",
         });
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load dashboard"));
-        }
         setData(payload);
         const cacheKey = buildUserScopedCacheKey("dashboard");
         writeOfflineCache(cacheKey, payload);
@@ -61,7 +40,7 @@ const useDashboardData = () => {
         setIsRefreshing(false);
       }
     },
-    [navigate]
+    []
   );
 
   useEffect(() => {

@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff, FiMail, FiSave, FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../api-url";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import "./UserControl.css";
 
 const DEFAULT_CREATE_FORM = {
@@ -16,18 +15,8 @@ const DEFAULT_CREATE_FORM = {
 const PASSWORD_POLICY_HELP =
   "At least 14 characters, with uppercase, lowercase, number, and special character (no spaces).";
 
-const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
-
 const UserControl = () => {
-  const navigate = useNavigate();
-  const storedUser = useMemo(() => readStoredUser(), []);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const currentUserId = Number(storedUser?.id || 0);
 
@@ -81,13 +70,6 @@ const UserControl = () => {
 
   const loadData = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        localStorage.removeItem("user");
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -97,27 +79,10 @@ const UserControl = () => {
       setNotice("");
 
       try {
-        const usersResponse = await fetch(buildApiUrl("/api/access/users"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const usersPayload = await readJsonResponse(usersResponse);
-
-        const rolesResponse = await fetch(buildApiUrl("/api/access/roles"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const rolesPayload = await readJsonResponse(rolesResponse);
-
-        if (!rolesResponse.ok || !usersResponse.ok) {
-          if (rolesResponse.status === 401 || usersResponse.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          const rolesMessage = getApiErrorMessage(rolesPayload, "Unable to load role access");
-          const usersMessage = getApiErrorMessage(usersPayload, "Unable to load user access");
-          throw new Error(`${rolesMessage}. ${usersMessage}`);
-        }
+        const [usersPayload, rolesPayload] = await Promise.all([
+          apiGet("/api/access/users", { fallbackMessage: "Unable to load user access" }),
+          apiGet("/api/access/roles", { fallbackMessage: "Unable to load role access" }),
+        ]);
 
         const nextRoles = Array.isArray(rolesPayload?.roles) ? rolesPayload.roles : [];
         const nextUsers = Array.isArray(usersPayload?.users) ? usersPayload.users : [];
@@ -148,7 +113,7 @@ const UserControl = () => {
         setIsRefreshing(false);
       }
     },
-    [buildDraftsFromPayload, createForm.roleId, navigate]
+    [buildDraftsFromPayload, createForm.roleId]
   );
 
   useEffect(() => {
@@ -216,13 +181,6 @@ const UserControl = () => {
   };
 
   const saveRole = async (role) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     const draft = roleDrafts[role.id] || {};
     const modules = String(draft.modulesInput || "")
       .split(/[\s,]+/)
@@ -233,21 +191,14 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(buildApiUrl(`/api/access/roles/${role.id}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await apiPatch(
+        `/api/access/roles/${role.id}`,
+        {
           description: draft.description,
           modules,
-        }),
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(payload, "Unable to save role access"));
-      }
+        },
+        { fallbackMessage: "Unable to save role access" }
+      );
       setNotice(`Role access updated for ${role.name}.`);
       await loadData({ silent: true });
     } catch (requestError) {
@@ -258,13 +209,6 @@ const UserControl = () => {
   };
 
   const saveUser = async (user) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     const draft = userDrafts[user.id] || {};
     const payload = {
       firstName: draft.firstName,
@@ -283,18 +227,9 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(buildApiUrl(`/api/access/users/${user.id}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      await apiPatch(`/api/access/users/${user.id}`, payload, {
+        fallbackMessage: "Unable to update user",
       });
-      const responsePayload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(responsePayload, "Unable to update user"));
-      }
       if (password) {
         setSavedUserPasswords((prev) => ({
           ...prev,
@@ -320,13 +255,6 @@ const UserControl = () => {
   const createUser = async (event) => {
     event.preventDefault();
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     setCreateError("");
     setCreateNotice("");
     setError("");
@@ -335,21 +263,14 @@ const UserControl = () => {
 
     try {
       const createdPassword = String(createForm.password || "");
-      const response = await fetch(buildApiUrl("/api/access/users"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPost(
+        "/api/access/users",
+        {
           ...createForm,
           roleId: Number(createForm.roleId),
-        }),
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(payload, "Unable to create user"));
-      }
+        },
+        { fallbackMessage: "Unable to create user" }
+      );
 
       const invitationRecipient =
         payload && typeof payload === "object" && typeof payload.invitationRecipient === "string"
@@ -392,13 +313,6 @@ const UserControl = () => {
   };
 
   const removeUser = async (user) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     const userLabel = String(user.fullName || "").trim() || user.email;
     const confirmed = window.confirm(
       `Remove ${userLabel}? This permanently deletes the user account. This cannot be undone.`
@@ -411,22 +325,9 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(buildApiUrl(`/api/access/users/${user.id}`), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const payload = await apiDelete(`/api/access/users/${user.id}`, {
+        fallbackMessage: "Unable to remove user",
       });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(payload, "Unable to remove user"));
-      }
 
       const deletedUserEmail =
         payload && typeof payload === "object" && typeof payload.deletedUserEmail === "string"
@@ -454,33 +355,15 @@ const UserControl = () => {
   };
 
   const resendInvitation = async (user) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     setResendingInvitationUserId(user.id);
     setError("");
     setNotice("");
     try {
-      const response = await fetch(buildApiUrl(`/api/access/users/${user.id}/resend-invitation`), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(payload, "Unable to resend setup link"));
-      }
+      const payload = await apiPost(
+        `/api/access/users/${user.id}/resend-invitation`,
+        undefined,
+        { fallbackMessage: "Unable to resend setup link" }
+      );
 
       const invitationRecipient =
         payload && typeof payload === "object" && typeof payload.invitationRecipient === "string"

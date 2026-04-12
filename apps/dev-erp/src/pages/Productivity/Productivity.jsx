@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ReceiptItem, TaskSquare, Timer1 } from "iconsax-react";
 import { FiCheckCircle, FiCircle, FiTrash2 } from "react-icons/fi";
-import { buildApiUrl } from "../../api-url";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import JobsWidget from "../../components/JobsWidget/JobsWidget";
 import { formatDateTime } from "../../utils/formatters";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
 import "./Productivity.css";
 
 const RANGE_OPTIONS = [
@@ -125,7 +124,6 @@ const priorityTone = (priority) => {
 };
 
 const Productivity = () => {
-  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState("14d");
   const [entries, setEntries] = useState([]);
   const [summary, setSummary] = useState(DEFAULT_SUMMARY);
@@ -158,12 +156,6 @@ const Productivity = () => {
 
   const loadEntries = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -173,22 +165,9 @@ const Productivity = () => {
 
       try {
         const query = new URLSearchParams({ range: timeRange });
-        const response = await fetch(buildApiUrl(`/api/productivity/entries?${query.toString()}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet(`/api/productivity/entries?${query.toString()}`, {
+          fallbackMessage: "Unable to load productivity data",
         });
-        const payload = await readJsonResponse(response);
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load productivity data"));
-        }
 
         const nextEntries = Array.isArray(payload?.entries) ? payload.entries : [];
         setEntries(nextEntries);
@@ -211,17 +190,11 @@ const Productivity = () => {
         setIsRefreshing(false);
       }
     },
-    [navigate, timeRange]
+    [timeRange]
   );
 
   const loadTodos = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (!silent) {
         setTodoLoading(true);
       }
@@ -229,22 +202,9 @@ const Productivity = () => {
 
       try {
         const query = new URLSearchParams({ status: todoStatus });
-        const response = await fetch(buildApiUrl(`/api/productivity/todos?${query.toString()}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet(`/api/productivity/todos?${query.toString()}`, {
+          fallbackMessage: "Unable to load to-do list",
         });
-        const payload = await readJsonResponse(response);
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load to-do list"));
-        }
 
         setTodos(Array.isArray(payload?.todos) ? payload.todos : []);
       } catch (loadError) {
@@ -253,17 +213,11 @@ const Productivity = () => {
         setTodoLoading(false);
       }
     },
-    [navigate, todoStatus]
+    [todoStatus]
   );
 
   const fetchJobs = useCallback(
     async ({ search = "", workType = "all", silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       if (!silent) {
         setJobsLoading(true);
       }
@@ -275,22 +229,9 @@ const Productivity = () => {
         if (workType && workType !== "all") query.set("workTypes", workType);
         query.set("limit", "12");
 
-        const response = await fetch(buildApiUrl(`/api/jobs/recommendations?${query.toString()}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet(`/api/jobs/recommendations?${query.toString()}`, {
+          fallbackMessage: "Unable to fetch jobs",
         });
-        const payload = await readJsonResponse(response);
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to fetch jobs"));
-        }
 
         setJobs(Array.isArray(payload?.jobs) ? payload.jobs : []);
         setJobsMeta(payload?.meta || DEFAULT_JOBS_META);
@@ -300,7 +241,7 @@ const Productivity = () => {
         setJobsLoading(false);
       }
     },
-    [navigate]
+    []
   );
 
   useEffect(() => {
@@ -393,12 +334,6 @@ const Productivity = () => {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     const payload = {
       entryDate: formState.entryDate || buildTodayDate(),
       plannedTasks: Number(formState.plannedTasks || 0),
@@ -413,25 +348,9 @@ const Productivity = () => {
     setError("");
 
     try {
-      const response = await fetch(buildApiUrl("/api/productivity/entries"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      const result = await apiPost("/api/productivity/entries", payload, {
+        fallbackMessage: "Unable to save productivity entry",
       });
-      const result = await readJsonResponse(response);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(result, "Unable to save productivity entry"));
-      }
 
       setActiveEntryId(result?.id ?? null);
       setFormState(buildFormFromEntry(result));
@@ -450,11 +369,6 @@ const Productivity = () => {
 
   const handleAddTodo = async (event) => {
     event.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
 
     const title = todoForm.title.trim();
     if (!title) {
@@ -466,30 +380,18 @@ const Productivity = () => {
     setTodoError("");
 
     try {
-      const response = await fetch(buildApiUrl("/api/productivity/todos"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      await apiPost(
+        "/api/productivity/todos",
+        {
           title,
           dueAt: todoForm.dueAt || null,
           priority: todoForm.priority || null,
           notes: todoForm.notes || null,
-        }),
-      });
-      const result = await readJsonResponse(response);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
+        },
+        {
+          fallbackMessage: "Unable to create to-do item",
         }
-        throw new Error(getApiErrorMessage(result, "Unable to create to-do item"));
-      }
+      );
 
       setTodoForm((prev) => ({ ...DEFAULT_TODO_FORM, priority: prev.priority }));
       setNotice("To-do added.");
@@ -502,33 +404,12 @@ const Productivity = () => {
   };
 
   const handleToggleTodo = async (todo) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     setTodoError("");
 
     try {
-      const response = await fetch(buildApiUrl(`/api/productivity/todos/${todo.id}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isDone: !todo.isDone }),
+      const result = await apiPatch(`/api/productivity/todos/${todo.id}`, { isDone: !todo.isDone }, {
+        fallbackMessage: "Unable to update to-do item",
       });
-      const result = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(result, "Unable to update to-do item"));
-      }
       setNotice(result?.isDone ? "To-do completed." : "To-do reopened.");
       loadTodos({ silent: true });
     } catch (updateError) {
@@ -537,31 +418,12 @@ const Productivity = () => {
   };
 
   const handleDeleteTodo = async (todo) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     setTodoError("");
 
     try {
-      const response = await fetch(buildApiUrl(`/api/productivity/todos/${todo.id}`), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await apiDelete(`/api/productivity/todos/${todo.id}`, {
+        fallbackMessage: "Unable to delete to-do item",
       });
-      const result = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(result, "Unable to delete to-do item"));
-      }
       setNotice("To-do removed.");
       loadTodos({ silent: true });
     } catch (deleteError) {
@@ -581,11 +443,6 @@ const Productivity = () => {
 
   const handleGenerateAiPlan = async (event) => {
     event.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
 
     const prompt = aiPrompt.trim();
     if (!prompt) {
@@ -597,27 +454,16 @@ const Productivity = () => {
     setAiError("");
 
     try {
-      const response = await fetch(buildApiUrl("/api/ai/productivity-coach"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPost(
+        "/api/ai/productivity-coach",
+        {
           prompt,
           context: aiContextPayload,
-        }),
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
+        },
+        {
+          fallbackMessage: "Unable to generate AI guidance",
         }
-        throw new Error(getApiErrorMessage(payload, "Unable to generate AI guidance"));
-      }
+      );
 
       setAiReply(String(payload?.reply || "").trim());
       setAiMeta({

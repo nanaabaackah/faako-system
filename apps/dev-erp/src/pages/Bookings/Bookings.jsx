@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { formatDateTime } from "../../utils/formatters";
-import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPost } from "../../api/client";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
 import { getSafeExternalUrl } from "../../utils/safeUrl";
 import "./Bookings.css";
@@ -51,35 +51,18 @@ const Bookings = () => {
   const [copyLabel, setCopyLabel] = useState("Copy link");
 
   const loadData = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setStatus({ tone: "error", message: "Missing session. Please sign in again." });
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setStatus({ tone: "", message: "" });
 
     try {
-      const [bookingsResponse, settingsResponse] = await Promise.all([
-        fetch(buildApiUrl("/api/bookings"), {
-          headers: { Authorization: `Bearer ${token}` },
+      const [bookingsPayload, settingsPayload] = await Promise.all([
+        apiGet("/api/bookings", {
+          fallbackMessage: "Unable to load appointments",
         }),
-        fetch(buildApiUrl("/api/bookings/settings"), {
-          headers: { Authorization: `Bearer ${token}` },
+        apiGet("/api/bookings/settings", {
+          fallbackMessage: "Unable to load appointment settings",
         }),
       ]);
-
-      const bookingsPayload = await bookingsResponse.json();
-      const settingsPayload = await settingsResponse.json();
-
-      if (!bookingsResponse.ok) {
-        throw new Error(bookingsPayload?.error || "Unable to load appointments");
-      }
-      if (!settingsResponse.ok) {
-        throw new Error(settingsPayload?.error || "Unable to load appointment settings");
-      }
 
       setBookings(Array.isArray(bookingsPayload) ? bookingsPayload : []);
       setSettings({
@@ -186,26 +169,19 @@ const Bookings = () => {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     setIsSaving(true);
     setStatus({ tone: "", message: "" });
     try {
-      const response = await fetch(buildApiUrl("/api/bookings/settings"), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiPost(
+        "/api/bookings/settings",
+        {
           bookingLink: settings.bookingLink,
           defaultLocation: settings.defaultLocation,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to save appointment settings");
-      }
+        },
+        {
+          fallbackMessage: "Unable to save appointment settings",
+        }
+      );
       setSettings({
         bookingLink: payload.bookingLink ?? "",
         defaultLocation: payload.defaultLocation ?? "",
@@ -219,21 +195,15 @@ const Bookings = () => {
   };
 
   const handleConnectGoogle = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     setStatus({ tone: "", message: "" });
     try {
       const returnTo = window.location.pathname;
-      const response = await fetch(
-        buildApiUrl(`/api/integrations/google/init?returnTo=${encodeURIComponent(returnTo)}`),
+      const payload = await apiGet(
+        `/api/integrations/google/init?returnTo=${encodeURIComponent(returnTo)}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          fallbackMessage: "Unable to start Google Calendar setup",
         }
       );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to start Google Calendar setup");
-      }
       const safeOAuthUrl = getSafeExternalUrl(payload?.url);
       if (!safeOAuthUrl) {
         throw new Error("Received an invalid Google authorization URL.");
@@ -245,19 +215,12 @@ const Bookings = () => {
   };
 
   const handleSync = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     setIsSyncing(true);
     setStatus({ tone: "", message: "" });
     try {
-      const response = await fetch(buildApiUrl("/api/bookings/sync/google"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiPost("/api/bookings/sync/google", undefined, {
+        fallbackMessage: "Unable to sync Google Calendar",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to sync Google Calendar");
-      }
       setStatus({
         tone: "success",
         message: `Synced ${payload.synced ?? 0} events from Google Calendar.`,
@@ -271,8 +234,6 @@ const Bookings = () => {
   };
 
   const handleDisconnectGoogle = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     const confirmed = window.confirm(
       "Disconnect Google Calendar and remove all synced appointments? This cannot be undone."
     );
@@ -280,14 +241,9 @@ const Bookings = () => {
     setIsDisconnecting(true);
     setStatus({ tone: "", message: "" });
     try {
-      const response = await fetch(buildApiUrl("/api/integrations/google/disconnect"), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await apiPost("/api/integrations/google/disconnect", undefined, {
+        fallbackMessage: "Unable to disconnect Google Calendar",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Unable to disconnect Google Calendar");
-      }
       const deletedCount = Number(payload?.deletedBookings ?? 0);
       setGoogleConnected(false);
       setLastSyncedAt(null);

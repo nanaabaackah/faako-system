@@ -1,18 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiArrowUpRight, FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
-import { buildApiUrl } from "../../api-url";
-import { getApiErrorMessage, readJsonResponse } from "../../utils/http";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import "./Rent.css";
-
-const readStoredUser = () => {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
 
 const buildTodayDate = () => new Date().toISOString().slice(0, 10);
 const buildCurrentMonthInput = () => new Date().toISOString().slice(0, 7);
@@ -156,8 +146,7 @@ const buildPaymentFormFromRecord = (payment) => ({
 });
 
 const Rent = () => {
-  const navigate = useNavigate();
-  const storedUser = useMemo(() => readStoredUser(), []);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
   const roleName = String(storedUser?.role?.name || "");
   const isLandlord = roleName === "Landlord";
   const canManageRent = isRentManagerRole(roleName);
@@ -309,34 +298,15 @@ const Rent = () => {
 
   const loadPayments = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        localStorage.removeItem("user");
-        navigate("/login");
-        return;
-      }
-
       if (!silent) {
         setIsPaymentsLoading(true);
       }
       setPaymentsError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/rent/payments"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet("/api/rent/payments", {
+          fallbackMessage: "Unable to load rent payments",
         });
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load rent payments"));
-        }
 
         setPayments(Array.isArray(payload?.payments) ? payload.payments : []);
       } catch (requestError) {
@@ -345,18 +315,11 @@ const Rent = () => {
         setIsPaymentsLoading(false);
       }
     },
-    [navigate]
+    []
   );
 
   const loadDashboard = useCallback(
     async ({ silent = false } = {}) => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        localStorage.removeItem("user");
-        navigate("/login");
-        return;
-      }
-
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -365,21 +328,9 @@ const Rent = () => {
       setError("");
 
       try {
-        const response = await fetch(buildApiUrl("/api/rent/dashboard"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const payload = await apiGet("/api/rent/dashboard", {
+          fallbackMessage: "Unable to load rent dashboard",
         });
-        const payload = await readJsonResponse(response);
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            navigate("/login");
-            return;
-          }
-          throw new Error(getApiErrorMessage(payload, "Unable to load rent dashboard"));
-        }
 
         setDashboard(payload || null);
       } catch (requestError) {
@@ -389,7 +340,7 @@ const Rent = () => {
         setIsRefreshing(false);
       }
     },
-    [navigate]
+    []
   );
 
   useEffect(() => {
@@ -402,12 +353,6 @@ const Rent = () => {
 
   const submitTenant = async (event) => {
     event.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
 
     setTenantError("");
     setTenantNotice("");
@@ -429,21 +374,13 @@ const Rent = () => {
     };
 
     try {
-      const response = await fetch(buildApiUrl(requestPath), {
-        method: requestMethod,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(
-          getApiErrorMessage(payload, editingTenantId ? "Unable to update tenant" : "Unable to create tenant")
-        );
-      }
+      const requestOptions = {
+        fallbackMessage: editingTenantId ? "Unable to update tenant" : "Unable to create tenant",
+      };
+      const payload =
+        requestMethod === "PATCH"
+          ? await apiPatch(requestPath, requestBody, requestOptions)
+          : await apiPost(requestPath, requestBody, requestOptions);
 
       const invitationRecipient =
         payload && typeof payload === "object" && typeof payload.invitationRecipient === "string"
@@ -486,13 +423,6 @@ const Rent = () => {
     const tenantId = Number(tenantRecord?.id || editingTenantId || 0);
     if (!tenantId) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     const tenantLabel = tenantRecord?.tenantName || "this tenant";
     const shouldDelete = window.confirm(
       `Remove ${tenantLabel}? This will also delete that tenant's recorded payments.`
@@ -504,22 +434,9 @@ const Rent = () => {
     setDeletingTenantId(tenantId);
 
     try {
-      const response = await fetch(buildApiUrl(`/api/rent/tenants/${tenantId}`), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await apiDelete(`/api/rent/tenants/${tenantId}`, {
+        fallbackMessage: "Unable to remove tenant",
       });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(payload, "Unable to remove tenant"));
-      }
 
       if (editingTenantId === tenantId) {
         resetTenantForm();
@@ -555,12 +472,6 @@ const Rent = () => {
 
   const submitPayment = async (event) => {
     event.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
 
     setPaymentError("");
     setPaymentNotice("");
@@ -572,25 +483,18 @@ const Rent = () => {
     const submittedMonth = String(paymentForm.paidAt || "").trim() || buildCurrentMonthInput();
 
     try {
-      const response = await fetch(buildApiUrl(requestPath), {
-        method: requestMethod,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...paymentForm,
-          paidAt: toPaymentDateValue(paymentForm.paidAt),
-          tenantId: Number(paymentForm.tenantId),
-        }),
-      });
-
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(
-          getApiErrorMessage(payload, editingPaymentId ? "Unable to update payment" : "Unable to record payment")
-        );
-      }
+      const requestBody = {
+        ...paymentForm,
+        paidAt: toPaymentDateValue(paymentForm.paidAt),
+        tenantId: Number(paymentForm.tenantId),
+      };
+      const requestOptions = {
+        fallbackMessage: editingPaymentId ? "Unable to update payment" : "Unable to record payment",
+      };
+      const payload =
+        requestMethod === "PATCH"
+          ? await apiPatch(requestPath, requestBody, requestOptions)
+          : await apiPost(requestPath, requestBody, requestOptions);
 
       const notificationMessage = (() => {
         if (editingPaymentId) return "Payment updated.";
@@ -631,14 +535,6 @@ const Rent = () => {
     const paymentId = Number(payment?.id || editingPaymentId || 0);
     if (!paymentId) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      navigate("/login");
-      return;
-    }
-
     const tenantLabel = payment?.tenant?.tenantName || payment?.tenantName || "this payment";
     const shouldDelete = window.confirm(`Delete the payment recorded for ${tenantLabel}?`);
     if (!shouldDelete) return;
@@ -648,22 +544,9 @@ const Rent = () => {
     setDeletingPaymentId(paymentId);
 
     try {
-      const response = await fetch(buildApiUrl(`/api/rent/payments/${paymentId}`), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await apiDelete(`/api/rent/payments/${paymentId}`, {
+        fallbackMessage: "Unable to remove payment",
       });
-      const payload = await readJsonResponse(response);
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
-          return;
-        }
-        throw new Error(getApiErrorMessage(payload, "Unable to remove payment"));
-      }
 
       if (editingPaymentId === paymentId) {
         resetPaymentForm(payment?.tenantId || paymentForm.tenantId);

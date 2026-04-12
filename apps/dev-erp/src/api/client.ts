@@ -215,3 +215,6 @@ export const apiPatch = <T = unknown>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 };
+
+export const apiDelete = <T = unknown>(path: string, options: ApiRequestOptions<T> = {}) =>
+  apiRequest<T>(path, { ...options, method: "DELETE" });
