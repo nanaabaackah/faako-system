@@ -7616,13 +7616,13 @@ const parseUserControlId = (value) => {
   return parsed;
 };
 
-const normalizeEmailAddress = (value) => {
+function normalizeEmailAddress(value) {
   const normalized = String(value || "")
     .trim()
     .toLowerCase();
   if (!normalized || !EMAIL_PATTERN.test(normalized)) return null;
   return normalized;
-};
+}
 
 const parsePositiveAmount = (value, { allowZero = false } = {}) => {
   const parsed = Number(value);
@@ -10277,4 +10277,8 @@ const start = () => {
   });
 };
 
-start();
+if (process.env.DEV_ERP_SKIP_SERVER_START !== "1") {
+  start();
+}
+
+export { app, start };
