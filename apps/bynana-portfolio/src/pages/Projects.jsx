@@ -5,14 +5,14 @@ import '../styles/pages/Projects.css';
 
 const projects = [
   {
-    title: 'Party Rental Website + ERP',
+    title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Umbrella live platform: storefront, bookings/orders, inventory control, accounting, delivery, and people operations.',
-    stack: 'React · Express · PostgreSQL',
-    impact: 'Live platform',
-    href: '/projects/reebs',
+      'Split kids party shop and rental business stack with a public storefront, POS/order builder, admin portal, Netlify Functions backend, and PostgreSQL data model.',
+    stack: 'React · Vite · Netlify Functions · PostgreSQL',
+    impact: 'Live website + portal',
+    href: '/projects/kids-party-shop-rental',
     image: '/imgs/mockups/reebs/REEBS_1.png',
-    badge: 'ERP System',
+    badge: 'Website + Portal',
     track: 'flagship',
     cta: 'View case study',
   },
@@ -40,14 +40,14 @@ const projects = [
     cta: 'Open project',
   },
   {
-    title: 'Development Projects Tracker',
+    title: 'Development Operations System (Dev ERP)',
     summary:
-      'Full-stack tracker workspace for delivery visibility across productivity, bookings, accounting, reporting, and system health.',
+      'Internal operations portal for rent, accounting, invoicing, appointments, reports, access control, alerts, and system health.',
     stack: 'React · Express · Prisma · PostgreSQL',
-    impact: 'Ops visibility',
+    impact: 'Ops + finance portal',
     href: '/projects/development-tracker',
     image: '/imgs/mockups/dev/DEV_2.png',
-    badge: 'SaaS Dashboard',
+    badge: 'Dev ERP',
     track: 'systems',
     cta: 'View case study',
   },

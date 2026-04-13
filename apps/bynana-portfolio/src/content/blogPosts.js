@@ -74,19 +74,20 @@ export const articles = [
         cta: { label: 'Follow the portfolio build series', href: '/blog/portfolio' }
     },
     {
-        title: 'Launching a Live E-Commerce + ERP System for a Party Rental Business',
+        title: 'Launching a Live Kids Party Shop + Rental Portal ERP',
         date: '2025-03-05',
         readTime: '7 min read',
         image: '/imgs/projects/dashboard-case.png',
         summary:
-            'How I shipped a live customer site plus a custom ERP covering inventory, bookings, delivery, accounting, and ops in one system.',
+            'How I split a kids party shop and rental business into a live customer website, dedicated portal backend, and admin ERP for rentals, sales, finance, and operations.',
         takeaways: [
-            'Unified catalog with stock movements for retail sales and rental availability.',
-            'Bookings, orders, delivery board, and digital waivers tracked end to end.',
-            'Accounting, expenses, invoices, HR, and vendor records managed in one admin hub.'
+            'Public website routes shoppers and rental customers through discovery, cart, checkout, and booking flows.',
+            'POS/order builder supports staff-created sales with product search, SKU/barcode lookup, and stock-aware cart lines.',
+            'Portal-owned Netlify Functions centralize orders, bookings, inventory, accounting, documents, and delivery.',
+            'Future camera scanning is scoped as the next step for faster in-store item capture.'
         ],
         tags: ['Full-stack', 'ERP', 'E-commerce'],
-        cta: { label: 'Read the launch recap', href: '/blog/reebs' }
+        cta: { label: 'Read the launch recap', href: '/blog/kids-party-shop-rental' }
     },
     {
         title: 'Setting Up a Stock Management System That Stays Accurate',

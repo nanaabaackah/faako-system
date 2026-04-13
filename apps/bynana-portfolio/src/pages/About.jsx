@@ -22,13 +22,13 @@ const STACK_COLUMNS = [
 const BLOG_POSTS = [
   'Shipping ERP changes without stalling operations',
   'Building Smarter Workflows with Odoo',
-  'Launching a Live E-Commerce + ERP System',
+  'Launching a Live Kids Party Shop + Rental Portal ERP',
   'Rebuilding a Company Intranet',
 ];
 
 const PROJECTS = [
-  { label: 'Party Rental Website + ERP (Bookings, Inventory, Accounting, Delivery)', href: '/projects/reebs' },
-  { label: 'Development Projects Tracker', href: '/projects/development-tracker' },
+  { label: 'Kids Party Shop + Rental Portal ERP (Storefront, POS, Admin Portal, Bookings, Inventory, Finance)', href: '/projects/kids-party-shop-rental' },
+  { label: 'Development Operations System (Rent, Accounting, Invoicing, Appointments, System Health)', href: '/projects/development-tracker' },
   { label: 'Odoo ERP Customization', href: '/projects/odoo' },
   { label: 'Intranet Website Redesign (including Internal Learning System)', href: '/projects/reconstruction' },
 ];

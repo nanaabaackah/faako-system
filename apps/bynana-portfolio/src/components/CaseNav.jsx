@@ -13,11 +13,11 @@ const projectNavItems = [
     },
     {
         slug: 'development-tracker',
-        title: 'Development Projects Tracker',
-        summary: 'Full-stack tracker for productivity, bookings, accounting, reporting, and system health.',
+        title: 'Development Operations System',
+        summary: 'Dev ERP portal for rent, accounting, invoicing, appointments, reporting, access control, and system health.',
         path: '/projects/development-tracker',
         image: '/imgs/10.png',
-        meta: 'SaaS dashboard'
+        meta: 'Dev ERP'
     },
     {
         slug: 'odoo',
@@ -28,12 +28,12 @@ const projectNavItems = [
         meta: 'Automation'
     },
     {
-        slug: 'reebs',
-        title: 'Party Rental Website & ERP',
-        summary: 'Live storefront + ERP platform spanning bookings, inventory, accounting, delivery, and HR.',
-        path: '/projects/reebs',
+        slug: 'kids-party-shop-rental',
+        title: 'Kids Party Shop + Rental Portal ERP',
+        summary: 'Live kids party shop and rental business website paired with a POS/order builder, portal/backend, bookings, finance, fulfillment, and staff operations.',
+        path: '/projects/kids-party-shop-rental',
         image: '/imgs/21.png',
-        meta: 'Live system'
+        meta: 'Website + portal'
     }
 ];
 

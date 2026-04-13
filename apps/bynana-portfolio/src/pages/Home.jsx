@@ -199,12 +199,12 @@ const SKILL_LOGOS = [
 ];
 const HOME_PROJECTS = [
   {
-    title: 'Party Rental Website + ERP',
+    title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Umbrella full-stack build covering storefront, bookings/orders, stock, delivery, accounting, and HR workflows.',
-    stack: 'React · Express · PostgreSQL',
-    category: 'ERP Platform',
-    href: '/projects/reebs',
+      'Live kids party shop and rental business website paired with a dedicated admin portal, POS/order builder, and Netlify Functions backend.',
+    stack: 'React · Vite · Netlify Functions · PostgreSQL',
+    category: 'Website + ERP Portal',
+    href: '/projects/kids-party-shop-rental',
     image: '/imgs/mockups/reebs/REEBS_4.png',
     cta: 'View case study',
   },
@@ -228,11 +228,11 @@ const HOME_PROJECTS = [
     cta: 'View project',
   },
   {
-    title: 'Development Projects Tracker',
+    title: 'Development Operations System',
     summary:
-      'Standalone full-stack tracker that unifies dashboard analytics, productivity workflows, bookings, and accounting.',
+      'Dev ERP portal covering dashboard analytics, rent, accounting, invoicing, appointments, reporting, users, alerts, and system health.',
     stack: 'React · Express · Prisma · PostgreSQL',
-    category: 'SaaS',
+    category: 'Dev ERP',
     href: '/projects/development-tracker',
     image: '/imgs/mockups/dev/DEV_6.png',
     cta: 'View case study',

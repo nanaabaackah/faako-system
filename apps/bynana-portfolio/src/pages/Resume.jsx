@@ -39,11 +39,11 @@ const experience = [
 
 const projectHighlights = [
   {
-    name: 'REEBS Hybrid ERP + Commerce Platform',
-    stack: 'React · Netlify Functions · PostgreSQL · Prisma',
-    summary: 'Unified customer storefront and internal operations platform for bookings, inventory, and financial workflows.',
+    name: 'Kids Party Shop + Rental Portal ERP',
+    stack: 'React/Vite · Netlify Functions · PostgreSQL · Prisma',
+    summary: 'Split public storefront and admin portal/backend for POS orders, bookings, inventory, finance, fulfillment, and staff operations.',
     image: '/imgs/projects/dashboard-case.png',
-    href: '/projects/reebs',
+    href: '/projects/kids-party-shop-rental',
   },
   {
     name: 'Faako ERP Suite',
@@ -54,9 +54,9 @@ const projectHighlights = [
     external: true,
   },
   {
-    name: 'Development Projects Tracker',
+    name: 'Development Operations System',
     stack: 'React · Express · Prisma · PostgreSQL',
-    summary: 'Modular dashboard workspace covering productivity, accounting, bookings, reporting, and system health.',
+    summary: 'Internal Dev ERP portal covering rent, accounting, invoicing, appointments, reporting, user access, alerts, and system health.',
     image: '/imgs/10.png',
     href: '/projects/development-tracker',
   },

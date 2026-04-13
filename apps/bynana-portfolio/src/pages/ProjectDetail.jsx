@@ -1,5 +1,32 @@
 import React, { useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import {
+  HiOutlineArchiveBox,
+  HiOutlineArrowPath,
+  HiOutlineArrowRight,
+  HiOutlineBanknotes,
+  HiOutlineBuildingOffice2,
+  HiOutlineCalendarDays,
+  HiOutlineCamera,
+  HiOutlineChartBar,
+  HiOutlineCircleStack,
+  HiOutlineClipboardDocumentCheck,
+  HiOutlineComputerDesktop,
+  HiOutlineCpuChip,
+  HiOutlineCreditCard,
+  HiOutlineCubeTransparent,
+  HiOutlineCursorArrowRays,
+  HiOutlineDocumentText,
+  HiOutlineKey,
+  HiOutlineRectangleGroup,
+  HiOutlineQrCode,
+  HiOutlineServerStack,
+  HiOutlineShieldCheck,
+  HiOutlineShoppingCart,
+  HiOutlineSquares2X2,
+  HiOutlineSwatch,
+  HiOutlineUsers,
+} from 'react-icons/hi2';
 import Seo from '../components/Seo';
 import NextUpCta from '../components/NextUpCta';
 import { projectDetails, projectDetailsBySlug } from '../content/projectDetails';
@@ -255,89 +282,177 @@ const SnippetsSection = ({ snippets }) => {
   );
 };
 
-const clampValue = (value, min, max) => Math.min(max, Math.max(min, value));
+const DIAGRAM_ICON_RULES = [
+  { keywords: ['token', 'typography', 'spacing', 'type scale', 'alignment', 'color'], icon: HiOutlineSwatch },
+  { keywords: ['interaction', 'state', 'active', 'empty', 'warning', 'default'], icon: HiOutlineCursorArrowRays },
+  { keywords: ['component', 'module', 'building block'], icon: HiOutlineCubeTransparent },
+  { keywords: ['pattern', 'reusable'], icon: HiOutlineSquares2X2 },
+  { keywords: ['scale', 'expansion', 'iteration'], icon: HiOutlineArrowPath },
+  { keywords: ['layout', 'surface', 'screen'], icon: HiOutlineRectangleGroup },
+  { keywords: ['scan', 'camera'], icon: HiOutlineCamera },
+  { keywords: ['pos', 'checkout', 'cart', 'storefront', 'order builder'], icon: HiOutlineShoppingCart },
+  { keywords: ['qr', 'barcode'], icon: HiOutlineQrCode },
+  { keywords: ['payment', 'charge', 'card'], icon: HiOutlineCreditCard },
+  { keywords: ['invoice', 'document'], icon: HiOutlineDocumentText },
+  { keywords: ['accounting', 'finance', 'money', 'rent'], icon: HiOutlineBanknotes },
+  { keywords: ['calendar', 'booking', 'appointment', 'rental'], icon: HiOutlineCalendarDays },
+  { keywords: ['report', 'analytics', 'dashboard', 'kpi'], icon: HiOutlineChartBar },
+  { keywords: ['auth', 'access', 'session', 'role', 'permission'], icon: HiOutlineShieldCheck },
+  { keywords: ['key', 'secret'], icon: HiOutlineKey },
+  { keywords: ['database', 'postgres', 'prisma', 'data'], icon: HiOutlineCircleStack },
+  { keywords: ['api', 'server', 'backend', 'express', 'function'], icon: HiOutlineServerStack },
+  { keywords: ['client', 'frontend', 'react', 'vite', 'ui', 'web', 'portal'], icon: HiOutlineComputerDesktop },
+  { keywords: ['inventory', 'catalog', 'product', 'sku', 'item', 'stock'], icon: HiOutlineArchiveBox },
+  { keywords: ['organization', 'team', 'tenant', 'company'], icon: HiOutlineBuildingOffice2 },
+  { keywords: ['user', 'customer', 'staff'], icon: HiOutlineUsers },
+  { keywords: ['health', 'job', 'diagnostic', 'system'], icon: HiOutlineCpuChip },
+];
 
-const getEdgeLabelAnchor = (edge) => {
-  const dx = edge.to.x - edge.from.x;
-  const dy = edge.to.y - edge.from.y;
-  const length = Math.hypot(dx, dy) || 1;
-  const normalX = -dy / length;
-  const normalY = dx / length;
-  const t = Number.isFinite(edge.labelT) ? edge.labelT : 0.5;
-  const baseX = edge.from.x + dx * t;
-  const baseY = edge.from.y + dy * t;
-  const offset = Number.isFinite(edge.labelOffset) ? edge.labelOffset : 0;
-  const labelDx = Number.isFinite(edge.labelDx) ? edge.labelDx : 0;
-  const labelDy = Number.isFinite(edge.labelDy) ? edge.labelDy : -1;
-
-  return {
-    x: baseX + normalX * offset + labelDx,
-    y: baseY + normalY * offset + labelDy,
-  };
+const getDiagramIcon = (node = {}) => {
+  const searchableText = `${node.id || ''} ${node.label || ''} ${node.detail || ''}`.toLowerCase();
+  return DIAGRAM_ICON_RULES.find(({ keywords }) => keywords.some((keyword) => searchableText.includes(keyword)))?.icon
+    || HiOutlineClipboardDocumentCheck;
 };
 
-const buildEdgeLabels = (edges = []) => {
-  const labels = edges
-    .filter((edge) => edge.label)
-    .map((edge, index) => {
-      const anchor = getEdgeLabelAnchor(edge);
-      return {
-        id: `${edge.id}-label-${index}`,
-        text: edge.label,
-        x: anchor.x,
-        y: anchor.y,
-        width: clampValue(edge.label.length * 0.74 + 4.4, 9.5, 28),
-        height: 4.8,
-      };
-    });
+const DiagramNodeCard = ({ node, index, featured = false }) => {
+  const Icon = getDiagramIcon(node);
 
-  for (let iteration = 0; iteration < 28; iteration += 1) {
-    let moved = false;
-
-    for (let i = 0; i < labels.length; i += 1) {
-      for (let j = i + 1; j < labels.length; j += 1) {
-        const a = labels[i];
-        const b = labels[j];
-        const overlapX = (a.width + b.width) / 2 + 0.8 - Math.abs(a.x - b.x);
-        const overlapY = (a.height + b.height) / 2 + 0.55 - Math.abs(a.y - b.y);
-
-        if (overlapX > 0 && overlapY > 0) {
-          const pushY = overlapY / 2 + 0.32;
-          const pushX = Math.min(1.75, overlapX / 6);
-
-          if (a.y <= b.y) {
-            a.y -= pushY;
-            b.y += pushY;
-          } else {
-            a.y += pushY;
-            b.y -= pushY;
-          }
-
-          if (a.x <= b.x) {
-            a.x -= pushX;
-            b.x += pushX;
-          } else {
-            a.x += pushX;
-            b.x -= pushX;
-          }
-
-          moved = true;
-        }
-      }
-    }
-
-    labels.forEach((label) => {
-      label.x = clampValue(label.x, label.width / 2 + 1, 99 - label.width / 2);
-      label.y = clampValue(label.y, label.height / 2 + 1, 99 - label.height / 2);
-    });
-
-    if (!moved) break;
-  }
-
-  return labels;
+  return (
+    <article className={`case-diagram-node case-diagram-node--${node.tone || 'base'} ${featured ? 'is-featured' : ''}`}>
+      <div className="case-diagram-node__visual">
+        <span className="case-diagram-node__icon" aria-hidden="true">
+          <Icon size={featured ? 26 : 22} />
+        </span>
+        <span className="case-diagram-node__badge">{String(index + 1).padStart(2, '0')}</span>
+      </div>
+      <div>
+        <h4>{node.label}</h4>
+        {node.detail ? <p>{node.detail}</p> : null}
+      </div>
+    </article>
+  );
 };
 
-const DiagramCard = ({ diagram }) => {
+const DiagramFlowStep = ({ edge, index }) => {
+  const title = edge.label || `${edge.from.label} to ${edge.to.label}`;
+
+  return (
+    <article className="case-diagram-flow-step">
+      <span>{index + 1}</span>
+      <div>
+        <h4>{title}</h4>
+        <p>{`${edge.from.label} -> ${edge.to.label}`}</p>
+      </div>
+      <HiOutlineArrowRight className="case-diagram-flow-step__arrow" size={18} aria-hidden="true" />
+    </article>
+  );
+};
+
+const isClassDiagram = (diagram = {}) =>
+  diagram.type === 'class' || /class|database/i.test(`${diagram.id || ''} ${diagram.title || ''}`);
+
+const DiagramClassEntity = ({ node }) => {
+  const attributes = node.attributes || node.fields || (node.detail ? [node.detail] : []);
+
+  return (
+    <article className={`case-class-entity case-class-entity--${node.tone || 'base'}`}>
+      <header>
+        <span className="case-class-entity__icon" aria-hidden="true">
+          <HiOutlineCircleStack size={20} />
+        </span>
+        <div>
+          <p>{node.stereotype || 'entity'}</p>
+          <h4>{node.label}</h4>
+        </div>
+      </header>
+      {attributes.length ? (
+        <ul>
+          {attributes.slice(0, 5).map((attribute) => (
+            <li key={attribute}>{attribute}</li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
+  );
+};
+
+const ClassDiagramCard = ({ diagram }) => {
+  const nodes = useMemo(() => diagram.nodes ?? [], [diagram.nodes]);
+  const relationships = useMemo(() => {
+    const nodeLookup = Object.fromEntries(nodes.map((node) => [node.id, node]));
+    return (diagram.edges ?? [])
+      .map((edge, index) => {
+        const from = nodeLookup[edge.from];
+        const to = nodeLookup[edge.to];
+        if (!from || !to) return null;
+        return {
+          ...edge,
+          id: edge.id || `${edge.from}-${edge.to}-${index}`,
+          from,
+          to,
+          label: edge.label || edge.cardinality || 'association',
+        };
+      })
+      .filter(Boolean);
+  }, [diagram.edges, nodes]);
+
+  return (
+    <article className="case-diagram-card case-diagram-card--class">
+      <header className="case-diagram-card__header">
+        <h3>{diagram.title}</h3>
+        {diagram.caption ? <p>{diagram.caption}</p> : null}
+      </header>
+
+      <div className="case-class-diagram-board" aria-label={diagram.ariaLabel || diagram.title}>
+        <div className="case-diagram-board__mast">
+          <div>
+            <p>Class diagram</p>
+            <h4>{diagram.title}</h4>
+          </div>
+          <dl>
+            <div>
+              <dt>Classes</dt>
+              <dd>{nodes.length}</dd>
+            </div>
+            <div>
+              <dt>Relations</dt>
+              <dd>{relationships.length}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="case-class-diagram-grid">
+          {nodes.map((node) => (
+            <DiagramClassEntity key={node.id} node={node} />
+          ))}
+        </div>
+
+        {relationships.length ? (
+          <section className="case-class-relationships" aria-label={`${diagram.title} relationships`}>
+            <header>
+              <p>Relationships</p>
+              <h4>Entity links and ownership rules.</h4>
+            </header>
+            <div className="case-class-relationships__list">
+              {relationships.map((relationship) => (
+                <article className="case-class-relationship" key={relationship.id}>
+                  <span>{relationship.from.label}</span>
+                  <span className="case-class-relationship__line">
+                    {relationship.label}
+                    <HiOutlineArrowRight size={16} aria-hidden="true" />
+                  </span>
+                  <span>{relationship.to.label}</span>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </article>
+  );
+};
+
+const ArchitectureDiagramCard = ({ diagram }) => {
   const nodes = useMemo(() => diagram.nodes ?? [], [diagram.nodes]);
   const edges = useMemo(() => {
     const nodeLookup = Object.fromEntries(nodes.map((node) => [node.id, node]));
@@ -350,7 +465,10 @@ const DiagramCard = ({ diagram }) => {
       })
       .filter(Boolean);
   }, [diagram.edges, nodes]);
-  const edgeLabels = useMemo(() => buildEdgeLabels(edges), [edges]);
+  const featureCount = nodes.length > 6 ? 4 : Math.min(3, nodes.length);
+  const featuredNodes = nodes.slice(0, featureCount);
+  const moduleNodes = nodes.slice(featureCount);
+  const flowSteps = edges.filter((edge) => edge.label).slice(0, 6);
 
   return (
     <article className="case-diagram-card">
@@ -359,44 +477,86 @@ const DiagramCard = ({ diagram }) => {
         {diagram.caption ? <p>{diagram.caption}</p> : null}
       </header>
 
-      <div className="case-diagram-card__canvas" role="img" aria-label={diagram.ariaLabel || diagram.title}>
-        <div className="case-diagram-card__stage">
-          <svg className="case-diagram-card__svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {edges.map((edge) => (
-              <g key={edge.id}>
-                <line x1={edge.from.x} y1={edge.from.y} x2={edge.to.x} y2={edge.to.y} />
-              </g>
-            ))}
+      <div className="case-diagram-board" role="img" aria-label={diagram.ariaLabel || diagram.title}>
+        <div className="case-diagram-board__mast">
+          <div>
+            <h4>{diagram.title}</h4>
+          </div>
+          <dl>
+            <div>
+              <dt>Modules</dt>
+              <dd>{nodes.length}</dd>
+            </div>
+            <div>
+              <dt>Flows</dt>
+              <dd>{flowSteps.length || edges.length}</dd>
+            </div>
+          </dl>
+        </div>
 
-            {edgeLabels.map((label) => (
-              <g className="case-diagram-edge-label" key={label.id}>
-                <rect
-                  x={label.x - label.width / 2}
-                  y={label.y - label.height / 2}
-                  width={label.width}
-                  height={label.height}
-                  rx="1.3"
-                  ry="1.3"
-                />
-                <text x={label.x} y={label.y + 0.72}>
-                  {label.text}
-                </text>
-              </g>
-            ))}
-          </svg>
-
-          {nodes.map((node) => (
-            <article
-              key={node.id}
-              className={`case-diagram-node case-diagram-node--${node.tone || 'base'}`}
-              style={{ left: `${node.x}%`, top: `${node.y}%` }}
-            >
-              <h4>{node.label}</h4>
-              {node.detail ? <p>{node.detail}</p> : null}
-            </article>
+        <div className="case-diagram-board__hero">
+          {featuredNodes.map((node, index) => (
+            <React.Fragment key={node.id}>
+              <DiagramNodeCard node={node} index={index} featured />
+              {index < featuredNodes.length - 1 ? (
+                <span className="case-diagram-arrow" aria-hidden="true">
+                  <HiOutlineArrowRight size={18} />
+                </span>
+              ) : null}
+            </React.Fragment>
           ))}
         </div>
+
+        <div className="case-diagram-board__lower">
+          {moduleNodes.length ? (
+            <section className="case-diagram-panel case-diagram-panel--modules">
+              <header>
+                <p>Core Modules</p>
+                <h4>Independent pieces working from one operating record.</h4>
+              </header>
+              <div className="case-diagram-panel__grid">
+                {moduleNodes.map((node, index) => (
+                  <DiagramNodeCard key={node.id} node={node} index={index + featuredNodes.length} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {flowSteps.length ? (
+            <section className="case-diagram-panel case-diagram-panel--flow">
+              <header>
+                <p>How a Request Flows</p>
+                <h4>Readable steps without connector clutter.</h4>
+              </header>
+              <div className="case-diagram-flow-list">
+                {flowSteps.map((edge, index) => (
+                  <DiagramFlowStep key={edge.id} edge={edge} index={index} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
       </div>
+    </article>
+  );
+};
+
+const DiagramCard = ({ diagram }) =>
+  isClassDiagram(diagram) ? <ClassDiagramCard diagram={diagram} /> : <ArchitectureDiagramCard diagram={diagram} />;
+
+const DesignSystemPatternCard = ({ card, index, compact = false }) => {
+  const Icon = getDiagramIcon({ id: card.kicker, label: card.title, detail: card.body });
+
+  return (
+    <article className={`case-design-card case-design-card--${card.tone || 'light'} ${compact ? 'is-compact' : ''}`}>
+      <div className="case-design-card__top">
+        <span className="case-design-card__icon" aria-hidden="true">
+          <Icon size={compact ? 20 : 24} />
+        </span>
+        <p className="case-design-card__kicker">{card.kicker || `Pattern ${index + 1}`}</p>
+      </div>
+      <h3 className="case-design-card__title">{card.title}</h3>
+      <p className="case-design-card__body">{card.body}</p>
     </article>
   );
 };
@@ -405,8 +565,8 @@ const DiagramsSection = ({ diagrams }) => {
   if (!diagrams?.length) return null;
 
   return (
-    <section className="case-diagrams" data-scroll-reveal="fadeInUp" aria-label="System and database layout diagrams">
-      <p className="case-diagrams__label">[System and Database Layout]</p>
+    <section className="case-diagrams" data-scroll-reveal="fadeInUp" aria-label="Architecture and database class diagrams">
+      <p className="case-diagrams__label">[Architecture + Database Class Diagrams]</p>
       <div className="case-diagrams__grid">
         {diagrams.map((diagram) => (
           <DiagramCard key={diagram.id || diagram.title} diagram={diagram} />
@@ -451,6 +611,9 @@ const ProjectDetailContent = ({ detail }) => {
     discovery.image || detail.discoveryImage || visuals.sectionVisuals[0] || '/imgs/mockups/portfolio/PORTFOLIO_4.png';
   const storefrontImage =
     storefrontShowcase.image || visuals.hero || '/imgs/mockups/portfolio/PORTFOLIO_1.png';
+  const designBoardCards = designSystem.boardCards?.slice(0, 5) ?? [];
+  const primaryDesignCards = designBoardCards.slice(0, 3);
+  const supportingDesignCards = designBoardCards.slice(3);
 
   return (
     <>
@@ -538,17 +701,45 @@ const ProjectDetailContent = ({ detail }) => {
 
       <section className="case-design-system" data-scroll-reveal="fadeInUp">
         <div className="case-design-system__board">
-          <div className="case-design-system__canvas">
-            {designSystem.boardCards?.slice(0, 5).map((card, index) => (
-              <article
-                key={`${detail.slug}-design-card-${index + 1}`}
-                className={`case-design-card case-design-card--${index + 1} case-design-card--${card.tone || 'light'}`}
-              >
-                <p className="case-design-card__kicker">{card.kicker}</p>
-                <h3 className="case-design-card__title">{card.title}</h3>
-                <p className="case-design-card__body">{card.body}</p>
-              </article>
-            ))}
+          <div className="case-design-system__canvas" aria-label={`${detail.title} design system diagram`}>
+            <div className="case-design-system__mast">
+              <div>
+                <p>Design System Map</p>
+                <h3>Patterns, states, and tokens working as one kit.</h3>
+              </div>
+            </div>
+
+            <div className="case-design-system__flow">
+              {primaryDesignCards.map((card, index) => (
+                <React.Fragment key={`${detail.slug}-design-primary-${index + 1}`}>
+                  <DesignSystemPatternCard card={card} index={index} />
+                  {index < primaryDesignCards.length - 1 ? (
+                    <span className="case-design-system__arrow" aria-hidden="true">
+                      <HiOutlineArrowRight size={18} />
+                    </span>
+                  ) : null}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {supportingDesignCards.length ? (
+              <div className="case-design-system__rules">
+                <header>
+                  <p>Built By Design</p>
+                  <h3>Shared rules keep new screens aligned.</h3>
+                </header>
+                <div className="case-design-system__rule-grid">
+                  {supportingDesignCards.map((card, index) => (
+                    <DesignSystemPatternCard
+                      key={`${detail.slug}-design-support-${index + 1}`}
+                      card={card}
+                      index={index + primaryDesignCards.length}
+                      compact
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
