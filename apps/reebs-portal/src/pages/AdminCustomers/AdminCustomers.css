@@ -2,11 +2,35 @@
 
 .crm-page {
   color: var(--text-main);
+  min-width: 0;
 }
 
 .crm-shell {
+  width: 100%;
   max-width: 1160px;
   gap: 20px;
+  min-width: 0;
+}
+
+.crm-shell,
+.crm-shell *,
+.crm-shell *::before,
+.crm-shell *::after {
+  box-sizing: border-box;
+}
+
+.crm-shell > *,
+.crm-toolbar,
+.crm-toolbar-selects,
+.crm-view-tabs,
+.crm-overview-grid,
+.crm-mini-grid,
+.crm-customer-grid,
+.crm-board,
+.crm-list-table,
+.crm-list-table-scroll {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .crm-header-copy {
@@ -73,7 +97,7 @@
 
 .crm-overview-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 14px;
 }
 
@@ -112,7 +136,7 @@
 
 .crm-mini-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   gap: 14px;
 }
 
@@ -149,19 +173,13 @@
   padding: 1.5rem 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 10px 12px;
   align-items: center;
-}
-
-.crm-toolbar-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .crm-search-field {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   --search-field-icon-color: var(--admin-muted);
 }
@@ -191,13 +209,21 @@
 }
 
 .crm-toolbar-selects {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+  width: min(100%, 34rem);
+  min-width: 0;
 }
 
 .crm-view-tabs {
+  grid-column: 2;
+  grid-row: 1;
   justify-content: flex-end;
+  justify-self: end;
 }
 
 body.admin-theme .crm-view-tabs {
@@ -262,6 +288,26 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
   gap: 10px;
 }
 
+.crm-board {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+}
+
+.crm-board .crm-column,
+.crm-board .crm-column:not(:nth-child(2n)),
+.crm-board .crm-column:not(:nth-child(2n + 1)),
+.crm-board .crm-column:not(:nth-child(4n)),
+.crm-board .crm-column:not(:nth-child(4n + 1)) {
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.crm-board .crm-column::after,
+.crm-board .crm-column:not(:nth-child(2n))::after,
+.crm-board .crm-column:not(:nth-child(4n))::after {
+  content: none;
+}
+
 .crm-item-remove {
   position: absolute;
   top: 16px;
@@ -321,7 +367,9 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
 .crm-select-shell {
   position: relative;
   display: block;
-  min-width: 160px;
+  min-width: min(100%, 160px);
+  max-width: 100%;
+  flex: 1 1 160px;
 }
 
 .crm-select-shell select {
@@ -344,12 +392,12 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
 
 .crm-customer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 16px;
 }
 
 .crm-customer-grid.is-card {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
 }
 
 .crm-customer-card {
@@ -405,6 +453,7 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
   margin: 0 0 4px;
   font-size: 1.08rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .crm-customer-profile p {
@@ -684,6 +733,7 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
 
 .crm-list-table-scroll {
   margin-top: 0;
+  overflow-x: auto;
 }
 
 .crm-list-table table {
@@ -754,7 +804,7 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
 
 @media (min-width: 981px) {
   .crm-customer-grid.is-card {
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   }
 }
 
@@ -775,12 +825,11 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
     grid-template-columns: 1fr;
   }
 
-  .crm-toolbar-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
+  .crm-search-field,
+  .crm-view-tabs,
   .crm-toolbar-selects {
+    grid-column: 1;
+    grid-row: auto;
     width: 100%;
   }
 
@@ -791,6 +840,7 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
   .crm-view-tabs {
     width: 100%;
     justify-content: flex-start;
+    justify-self: stretch;
   }
 
   .crm-header-actions {
@@ -832,13 +882,6 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
 
   .crm-toolbar {
     padding: 1rem 0;
-    gap: 10px;
-  }
-
-  .crm-toolbar-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: stretch;
     gap: 10px;
   }
 

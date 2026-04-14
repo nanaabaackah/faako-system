@@ -2281,7 +2281,7 @@ function Admin() {
           </section>
         )}
 
-        <section className="admin-table">
+        <section>
           <div className="inventory-register-toolbar">
             <div className="inventory-register-head-status">
               {loading && <span className="admin-status">Loading inventory...</span>}
@@ -2413,7 +2413,7 @@ function Admin() {
           )}
 
           {viewMode === "table" && !isMobileView && (
-            <div className="admin-table-scroll inventory-table-scroll">
+            <div className="admin-table admin-table-scroll inventory-table-scroll">
               <table>
                 <thead>
                   <tr>

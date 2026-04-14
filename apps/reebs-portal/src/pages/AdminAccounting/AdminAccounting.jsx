@@ -1042,31 +1042,30 @@ function AdminAccounting() {
         <section className="glass-card accounting-toolbar" aria-label="Accounting controls">
           <div className="accounting-filters accounting-toolbar-row">
             <div className="accounting-filters-left">
-              <label className="accounting-filter">
-                Date filter
-                <SelectField
-                  value={windowKey}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setWindowKey(next);
-                    fetchData(next);
-                  }}
-                >
-                  <option value="today">Today</option>
-                  <option value="allTime">All time</option>
-                  {HISTORICAL_INPUT_YEARS.map((year) => (
-                    <option key={year} value={`year${year}`}>
-                      {year}
-                    </option>
-                  ))}
-                  <option value="thisMonth">This month</option>
-                  <option value="lastMonth">Last month</option>
-                  <option value="thisQuarter">This quarter</option>
-                  <option value="lastQuarter">Last quarter</option>
-                  <option value="thisYear">This year</option>
-                  <option value="lastYear">Last year</option>
-                </SelectField>
-              </label>
+              <SelectField
+                fieldClassName="accounting-filter"
+                label="Date filter"
+                value={windowKey}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setWindowKey(next);
+                  fetchData(next);
+                }}
+              >
+                <option value="today">Today</option>
+                <option value="allTime">All time</option>
+                {HISTORICAL_INPUT_YEARS.map((year) => (
+                  <option key={year} value={`year${year}`}>
+                    {year}
+                  </option>
+                ))}
+                <option value="thisMonth">This month</option>
+                <option value="lastMonth">Last month</option>
+                <option value="thisQuarter">This quarter</option>
+                <option value="lastQuarter">Last quarter</option>
+                <option value="thisYear">This year</option>
+                <option value="lastYear">Last year</option>
+              </SelectField>
             </div>
             <div className="accounting-right">
               <div className="accounting-views">
@@ -1164,20 +1163,19 @@ function AdminAccounting() {
                   </p>
                 </div>
                 <div className="accounting-panel-actions">
-                  <label className="accounting-field">
-                    Historical year
-                    <SelectField
-                      value={selectedHistoricalYear}
-                      onChange={(event) => changeHistoricalYear(event.target.value)}
-                      disabled={!historicalSalesLoaded || historicalSalesSaving}
-                    >
-                      {HISTORICAL_INPUT_YEARS.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </label>
+                  <SelectField
+                    fieldClassName="accounting-field"
+                    label="Historical year"
+                    value={selectedHistoricalYear}
+                    onChange={(event) => changeHistoricalYear(event.target.value)}
+                    disabled={!historicalSalesLoaded || historicalSalesSaving}
+                  >
+                    {HISTORICAL_INPUT_YEARS.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </SelectField>
                   <button
                     type="button"
                     className="accounting-secondary"
@@ -1362,7 +1360,7 @@ function AdminAccounting() {
                 ) : recentLinkedRows.length === 0 ? (
                   <p className="accounting-muted">No linked activity in this window.</p>
                 ) : (
-                  <div className="accounting-table accounting-table-shell">
+                  <div className="glass-card accounting-list-table accounting-table accounting-table-shell">
                     <div className="admin-table-scroll">
                       <table>
                       <thead>
@@ -1381,10 +1379,7 @@ function AdminAccounting() {
                             <td className="table-row-index">{index}</td>
                             <td>{item.type}</td>
                             <td>
-                              <div className="accounting-table-title">
                                 <strong>{item.number || "—"}</strong>
-                                <span>{item.detail || "Linked"}</span>
-                              </div>
                             </td>
                             <td>{item.customer || "-"}</td>
                             <td>{formatDate(item.date)}</td>
@@ -1402,11 +1397,7 @@ function AdminAccounting() {
                             </span>
                           </td>
                           <td className="admin-table-summary-cell is-empty" />
-                          <td className="admin-table-summary-cell">
-                            <span className="admin-table-summary-value">
-                              {receiptCount} receipts · {invoiceCount} invoices · {expenseCount} expenses
-                            </span>
-                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell accounting-activity-footer-total">
@@ -2030,10 +2021,7 @@ function AdminAccounting() {
                           <td className="table-row-index">{index}</td>
                           <td>{row.type}</td>
                           <td>
-                            <div className="accounting-table-title">
                               <strong>{row.number}</strong>
-                              <span>{row.detail}</span>
-                            </div>
                           </td>
                           <td>{row.customer}</td>
                           <td>{formatDate(row.date)}</td>
@@ -2260,21 +2248,20 @@ function AdminAccounting() {
                   </div>
                 </div>
               <div className="accounting-form-grid">
-                <label className="accounting-field">
-                  Corporate tax category
-                  <SelectField
-                    value={corporateCategory}
-                    onChange={updateCorporateCategory}
-                  >
-                    <option value="general">General rate (25%)</option>
-                    <option value="hotel">Hotel industry (22%)</option>
-                    <option value="mining">Mining & upstream petroleum (35%)</option>
-                    <option value="nonTraditional">Non-traditional exports (8%)</option>
-                    <option value="bankAgriLeasing">Banks lending to agri/leasing (20%)</option>
-                    <option value="lottery">Lottery operators (20%)</option>
-                    <option value="custom">Custom rate</option>
-                  </SelectField>
-                </label>
+                <SelectField
+                  fieldClassName="accounting-field"
+                  label="Corporate tax category"
+                  value={corporateCategory}
+                  onChange={updateCorporateCategory}
+                >
+                  <option value="general">General rate (25%)</option>
+                  <option value="hotel">Hotel industry (22%)</option>
+                  <option value="mining">Mining & upstream petroleum (35%)</option>
+                  <option value="nonTraditional">Non-traditional exports (8%)</option>
+                  <option value="bankAgriLeasing">Banks lending to agri/leasing (20%)</option>
+                  <option value="lottery">Lottery operators (20%)</option>
+                  <option value="custom">Custom rate</option>
+                </SelectField>
                 <label className="accounting-field">
                   Corporate tax rate
                   <input
@@ -2284,19 +2271,18 @@ function AdminAccounting() {
                     onChange={updateGhanaTax("corporateRate")}
                   />
                 </label>
-                <label className="accounting-field">
-                  GSL category
-                  <SelectField
-                    value={ghanaTaxConfig.gslCategory}
-                    onChange={updateGhanaTax("gslCategory")}
-                  >
-                    <option value="none">Not applicable</option>
-                    <option value="categoryA">Category A · 5% of PBT</option>
-                    <option value="categoryBGold">Category B (gold) · 3% gross production</option>
-                    <option value="categoryBOther">Category B (other) · 1% gross production</option>
-                    <option value="categoryC">Category C · 2.5% of PBT</option>
-                  </SelectField>
-                </label>
+                <SelectField
+                  fieldClassName="accounting-field"
+                  label="GSL category"
+                  value={ghanaTaxConfig.gslCategory}
+                  onChange={updateGhanaTax("gslCategory")}
+                >
+                  <option value="none">Not applicable</option>
+                  <option value="categoryA">Category A · 5% of PBT</option>
+                  <option value="categoryBGold">Category B (gold) · 3% gross production</option>
+                  <option value="categoryBOther">Category B (other) · 1% gross production</option>
+                  <option value="categoryC">Category C · 2.5% of PBT</option>
+                </SelectField>
                 <label className="accounting-field accounting-check">
                   Apply FSRL (banks)
                   <input

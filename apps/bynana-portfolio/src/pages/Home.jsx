@@ -33,10 +33,17 @@ import '../styles/pages/Home.css';
 
 const EXPERIENCE_START_YEAR = 2022;
 const EXPERIENCE_START_MONTH_INDEX = 8; // September (0-indexed)
-const TRUST_STATS_ENDPOINT = '/api/public/trust-stats';
+const TRUST_STATS_ENDPOINT = import.meta.env.VITE_TRUST_STATS_ENDPOINT || '/api/public/trust-stats';
+const TRUST_STATS_FUNCTION_ENDPOINT = '/.netlify/functions/trust-stats-proxy';
+const TRUST_STATS_UPSTREAM_URL = import.meta.env.VITE_TRUST_STATS_UPSTREAM_URL;
 const LIVE_SYSTEMS_FALLBACK = '3';
 
-const buildTrustStatsCandidates = () => [TRUST_STATS_ENDPOINT];
+const buildTrustStatsCandidates = () =>
+  Array.from(
+    new Set(
+      [TRUST_STATS_ENDPOINT, TRUST_STATS_FUNCTION_ENDPOINT, TRUST_STATS_UPSTREAM_URL].filter(Boolean),
+    ),
+  );
 
 const parseCountValue = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) {

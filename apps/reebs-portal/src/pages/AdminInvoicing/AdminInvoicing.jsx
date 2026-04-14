@@ -1753,8 +1753,8 @@ function EditableDocumentTemplate({
           </div>
         </div>
 
-        <div className="admin-table invoice-editable-table-shell">
-          <div className="admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
+        <div className="invoice-editable-table-shell">
+          <div className="admin-table admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
           <table className="invoice-editable-table">
             <thead>
               <tr>
@@ -1985,8 +1985,8 @@ function EditableDocumentTemplate({
           </div>
         </div>
 
-        <div className="admin-table invoice-editable-table-shell">
-          <div className="admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
+        <div className="invoice-editable-table-shell">
+          <div className="admin-table admin-table-scroll inventory-table-scroll invoice-editable-table-wrapper">
             <table className="invoice-editable-table invoice-extras-table">
               <thead>
                 <tr>

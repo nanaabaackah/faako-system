@@ -8,7 +8,7 @@
   .metric-card,
   .dashboard-brief-card
 ) {
-  color: var(--sys-text);
+  color: var(--text-subtle);
   border: 1px solid var(--sys-border-strong) !important;
   background-color: transparent !important;
   box-shadow: var(--sys-shadow-md) !important;
@@ -100,7 +100,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   border-top-right-radius: var(--sys-radius-lg) !important;
   border-bottom-left-radius: var(--sys-radius-sm) !important;
   border-bottom-right-radius: var(--sys-radius-sm) !important;
-  background-color: var(--sys-surface-strong) !important;
+  background-color: trnsparent !important;
   box-shadow: var(--sys-shadow-sm) !important;
 }
 
@@ -142,22 +142,22 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  color: var(--sys-text);
+  color: var(--text-subtle);
 }
 
 [data-faako-theme] :where(.admin-table tbody td, .admin-table tfoot td, table[class*="table"] tbody td, table[class*="table"] tfoot td) {
-  color: var(--sys-text) !important;
+  color: var(--text-subtle) !important;
   border-bottom: 1px solid var(--sys-border) !important;
 }
 
 [data-faako-theme] :where(.admin-table tfoot td, table[class*="table"] tfoot td, .admin-table-footer .admin-table-summary-cell) {
   background-color: var(--sys-bg-elevated) !important;
-  color: var(--sys-text) !important;
+  color: var(--text-subtle) !important;
   font-weight: 700;
 }
 
 [data-faako-theme] :where(.table-strong, .admin-table-summary-value) {
-  color: var(--sys-text) !important;
+  color: var(--text-subtle) !important;
   font-weight: 700;
 }
 

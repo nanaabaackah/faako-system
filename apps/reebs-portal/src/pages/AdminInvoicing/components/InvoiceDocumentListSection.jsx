@@ -52,16 +52,18 @@ function InvoiceDocumentListSection({
       </section>
 
       <section className="invoice-hub-toolbar" aria-label="Invoice filters">
-        <SearchField
-          className="invoice-hub-search"
-          inputClassName="invoice-hub-search-input"
-          clearClassName="invoice-hub-search-clear"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          onClear={() => setSearchTerm("")}
-          placeholder="Search invoice, receipt, customer or source"
-        />
-
+          <label className="invoice-hub-toolbar-filter">
+            <span>Search</span>
+            <SearchField
+              className="invoice-hub-search"
+              inputClassName="invoice-hub-search-input"
+              clearClassName="invoice-hub-search-clear"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              onClear={() => setSearchTerm("")}
+              placeholder="Search invoice, receipt, customer or source"
+            />
+          </label>
         <div className="invoice-hub-toolbar-filters">
           <label className="invoice-hub-toolbar-filter">
             <span>Type</span>
@@ -90,7 +92,7 @@ function InvoiceDocumentListSection({
         </div>
       </section>
 
-      <section className="admin-table invoice-hub-table" aria-label="Invoices and receipts">
+      <section className="invoice-hub-table" aria-label="Invoices and receipts">
         {ordersLoading || bookingsLoading || documentsLoading ? (
           <p className="invoicing-muted">Loading documents...</p>
         ) : workspaceError && !visibleEntries.length ? (
@@ -99,7 +101,7 @@ function InvoiceDocumentListSection({
           <p className="invoicing-muted">No documents match this view.</p>
         ) : (
           <>
-            <div className="admin-table-scroll inventory-table-scroll invoice-hub-table-scroll">
+            <div className="admin-table admin-table-scroll inventory-table-scroll invoice-hub-table-scroll">
               <table>
                 <thead>
                   <tr>

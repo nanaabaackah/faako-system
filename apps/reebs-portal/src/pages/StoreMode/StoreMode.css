@@ -1197,6 +1197,7 @@ body.admin-theme .store-mode-page {
 
 .store-builder-panel--order {
   min-height: 0;
+  padding: 1rem 0.5rem;
 }
 
 .store-builder-panel--cart {
@@ -1204,7 +1205,7 @@ body.admin-theme .store-mode-page {
   gap: 0.7rem;
   align-self: stretch;
   align-content: start;
-  padding-left: 1.15rem;
+  padding: 1rem 0.5rem;
   border-left: 1px solid var(--admin-border);
 }
 

@@ -40,17 +40,90 @@
   min-width: min(100%, 180px);
 }
 
-.accounting-page .accounting-filter select,
-.accounting-page .accounting-actions .accounting-secondary {
-  box-sizing: border-box;
+.accounting-page .accounting-filter.ui-dropdown-field,
+.accounting-page .accounting-field.ui-dropdown-field {
+  width: 100%;
 }
 
-.accounting-page .accounting-actions .accounting-secondary {
-  min-width: 2.75rem;
+.accounting-page :is(.accounting-filter, .accounting-field).ui-dropdown-field .ui-field__label {
+  color: var(--admin-text, var(--sys-text));
+  font-weight: 700;
+}
+
+.accounting-page :is(.accounting-filter, .accounting-field).ui-dropdown-field .ui-dropdown-field__trigger {
+  min-width: 0;
+  min-height: 2.875rem;
+  height: 2.875rem;
+  box-sizing: border-box;
+  border: 1px solid var(--admin-border, var(--sys-border));
+  border-radius: 1rem;
+  background: var(--admin-surface, var(--sys-surface-strong));
+  color: var(--admin-text, var(--sys-text));
+  font-weight: 600;
+}
+
+.accounting-page :is(.accounting-filter, .accounting-field).ui-dropdown-field .ui-dropdown-field__trigger:focus-visible,
+.accounting-page :is(.accounting-filter, .accounting-field).ui-dropdown-field.is-open .ui-dropdown-field__trigger {
+  border-color: var(--accent, var(--sys-accent));
+  box-shadow: 0 0 0 2px var(--accent-soft, var(--sys-accent-soft));
+}
+
+body.admin-theme .ui-dropdown-field__popover {
+  background: var(--admin-card, var(--sys-surface-strong));
+  border-color: var(--admin-border, var(--sys-border));
+  color: var(--admin-text, var(--sys-text));
+}
+
+body.admin-theme .ui-dropdown-field__option {
+  color: var(--admin-text, var(--sys-text));
+}
+
+body.admin-theme .ui-dropdown-field__option.is-selected {
+  background: var(--accent-soft, var(--sys-accent-soft));
+  color: var(--accent, var(--sys-accent));
+}
+
+.accounting-page .accounting-secondary {
+  box-sizing: border-box;
   min-height: 2.75rem;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border-color: var(--admin-border, var(--sys-border));
+  border-radius: 999px;
+  background: var(--admin-surface, var(--sys-surface-strong));
+  color: var(--admin-text, var(--sys-text));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.accounting-page .accounting-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.accounting-page .accounting-actions .accounting-secondary {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+.accounting-page .accounting-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.accounting-page .accounting-field {
+  min-width: 0;
+}
+
+.accounting-page .accounting-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .accounting-page .accounting-table-shell .admin-table-scroll {
@@ -100,15 +173,36 @@
 }
 
 .accounting-page .accounting-mini-card {
+  box-sizing: border-box;
   display: grid;
-  gap: 0.35rem;
+  align-content: start;
+  gap: 0.45rem;
+  min-width: 0;
   min-height: 0;
+  padding: clamp(0.95rem, 2.4vw, 1.15rem);
 }
 
 .accounting-page .accounting-mini-label,
 .accounting-page .accounting-mini-value,
 .accounting-page .accounting-mini-sub {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.accounting-page .accounting-mini-label {
+  line-height: 1.2;
+}
+
+.accounting-page .accounting-mini-value {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.accounting-page .accounting-mini-sub {
+  color: var(--admin-muted, #64748b);
+  line-height: 1.35;
 }
 
 .accounting-page .accounting-split-legend--finance {
@@ -158,7 +252,6 @@
 }
 
 @media (max-width: 980px) {
-  .accounting-page .accounting-mini-grid,
   .accounting-page .accounting-kpis-activity {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -252,6 +345,10 @@
     width: 100%;
   }
 
+  .accounting-page .accounting-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .accounting-page .accounting-balance-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -287,7 +384,6 @@
     overflow-wrap: anywhere;
   }
 
-  .accounting-page .accounting-mini-grid,
   .accounting-page .accounting-kpis-activity {
     grid-template-columns: 1fr;
   }
