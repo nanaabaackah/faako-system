@@ -35,11 +35,11 @@ export const buildRentMonthlySummaryEmailContent = ({
   const missedPeriods = Number(summary.periodsMissed || 0);
 
   const detailRows = [
-    ...(contentOptions.tenantEmail !== false ? [["Tenant email", summary.tenantEmail || "N/A"]] : []),
+    ...(contentOptions.tenantEmail !== false ? [["Email", summary.tenantEmail || "N/A"]] : []),
     ...(contentOptions.leaseDates !== false
       ? [
-          ["Lease start", summary.leaseStartDate ? summary.leaseStartDate.slice(0, 10) : "N/A"],
-          ["Lease end", summary.leaseEndDate ? summary.leaseEndDate.slice(0, 10) : "Open-ended"],
+          ["From", summary.leaseStartDate ? summary.leaseStartDate.slice(0, 10) : "N/A"],
+          ["To", summary.leaseEndDate ? summary.leaseEndDate.slice(0, 10) : "Open-ended"],
         ]
       : []),
   ];
@@ -64,7 +64,7 @@ export const buildRentMonthlySummaryEmailContent = ({
     "",
     orgLabel ? `Organization: ${orgLabel}` : null,
     `Month: ${monthLabel}`,
-    contentOptions.tenantEmail !== false ? `Tenant email: ${summary.tenantEmail || "N/A"}` : null,
+    contentOptions.tenantEmail !== false ? `Email: ${summary.tenantEmail || "N/A"}` : null,
     introText ? "" : null,
     introText || null,
     "",
@@ -80,8 +80,8 @@ export const buildRentMonthlySummaryEmailContent = ({
     contentOptions.outstandingThisMonth !== false
       ? `Outstanding this month: ${formatMoney(summary.outstandingThisMonth, summary.currency)}`
       : null,
-    contentOptions.outstandingTotal !== false
-      ? `Total outstanding balance: ${formatMoney(summary.outstandingTotal, summary.currency)}`
+    contentOptions.outstandingYear !== false
+      ? `Total Year-end balance: ${formatMoney(summary.outstandingYear, summary.currency)}`
       : null,
     contentOptions.periodsMissed !== false ? `Missed periods: ${missedPeriods}` : null,
     "",
@@ -115,8 +115,8 @@ export const buildRentMonthlySummaryEmailContent = ({
           ...(contentOptions.expectedThisMonth !== false
             ? [["Expected this month", formatMoney(summary.expectedThisMonth, summary.currency)]]
             : []),
-          ...(contentOptions.outstandingTotal !== false
-            ? [["Total outstanding balance", formatMoney(summary.outstandingTotal, summary.currency)]]
+          ...(contentOptions.outstandingYear !== false
+            ? [["Total Year-end balance", formatMoney(summary.outstandingYear, summary.currency)]]
             : []),
         ],
         { theme, labelWidth: "42%" }
@@ -127,8 +127,8 @@ export const buildRentMonthlySummaryEmailContent = ({
   const detailsPanel = detailRows.length
     ? renderPanel({
         theme,
-        eyebrow: orgLabel || "Rent tracker",
-        title: "Tenant and lease details",
+        eyebrow: "Rent tracker",
+        title: "Details",
         bodyHtml: renderKeyValueTable(detailRows, { theme, labelWidth: "34%" }),
       })
     : "";
@@ -141,8 +141,8 @@ export const buildRentMonthlySummaryEmailContent = ({
   const html = renderEmailLayout({
     theme,
     preheader: `${heading} for ${summary.tenantName} in ${monthLabel}.`,
-    brandName: orgLabel || "Rent module",
-    brandTagline: "Tenant and payment visibility",
+    brandName: "Rent Tracker",
+    brandTagline: "Payment visibility",
     eyebrow: "Monthly summary",
     title: heading,
     subtitle: `${summary.tenantName} • ${monthLabel}`,

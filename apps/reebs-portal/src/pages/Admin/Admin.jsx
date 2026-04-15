@@ -61,7 +61,7 @@ const getItemVendorNames = (item, vendorNameById) =>
 const formatItemVendorLabel = (item, vendorNameById) => {
   const vendorNames = getItemVendorNames(item, vendorNameById);
   if (!vendorNames.length) return "No vendors linked";
-  return `Vendors: ${vendorNames.join(", ")}`;
+  return `Vendor: ${vendorNames.join(", ")}`;
 };
 
 const isVendorLinkedInventoryItem = (item) => getItemVendorIds(item).length > 0;
@@ -2517,12 +2517,6 @@ function Admin() {
                         <td>
                           <div className="inventory-table-category">
                             <span>{getCategory(item)}</span>
-                            {segment === "rental" && Number(item.attendantsNeeded) > 0 && (
-                              <small>{item.attendantsNeeded} attendants</small>
-                            )}
-                            {segment === "outsourced" && (
-                              <small>{vendorLabel}</small>
-                            )}
                           </div>
                         </td>
                         <td>
