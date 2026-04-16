@@ -341,6 +341,35 @@ function BookingDetailModal({
     </section>
   );
 
+  // ADDED: Render combined total section showing booking + expenses breakdown
+  const renderCombinedTotalSection = () => {
+    const bookingItemsTotal = canInlineEdit ? bookingTotalCents / 100 : (booking?.totalAmount || 0) / 100;
+    const expensesTotal = detailExpenseTotal || 0;
+    const combinedTotal = bookingItemsTotal + expensesTotal;
+
+    return (
+      <section className="glass-card bookings-detail-section bookings-detail-combined-total">
+        <div className="bookings-detail-section-head">
+          <h3>Booking Summary</h3>
+        </div>
+        <div className="bookings-detail-summary-breakdown" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <span>Booking Items</span>
+            <strong>{formatBookingCurrency(bookingItemsTotal)}</strong>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <span>Expenses</span>
+            <strong>{formatMoney(expensesTotal, "GHS")}</strong>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "4px", fontSize: "1.1em" }}>
+            <span style={{ fontWeight: "600" }}>Full Total</span>
+            <strong style={{ fontSize: "1.2em", color: "#4ade80" }}>{formatMoney(combinedTotal, "GHS")}</strong>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const renderExpensesSection = () => (
     <section className="glass-card bookings-detail-section">
       <div className="bookings-detail-section-head">
@@ -376,6 +405,17 @@ function BookingDetailModal({
             disabled={detailExpenseSaving || bookingLocked}
           />
         </label>
+        <label className="bookings-expense-field bookings-expense-field--date">
+          <span>Date</span>
+          <input
+            type="date"
+            value={detailExpenseDraft?.date || ""}
+            onChange={(event) =>
+              setDetailExpenseDraft((current) => ({ ...current, date: event.target.value }))
+            }
+            disabled={detailExpenseSaving || bookingLocked}
+          />
+        </label>
         <button
           type="submit"
           className="bookings-primary"
@@ -385,6 +425,7 @@ function BookingDetailModal({
             detailExpenseSaving
             || !String(detailExpenseDraft?.query || "").trim()
             || !String(detailExpenseDraft?.amount || "").trim()
+            || !String(detailExpenseDraft?.date || "").trim()
           }
           title={bookingLocked ? "Completed bookings are locked" : "Add expense"}
         >
@@ -723,6 +764,7 @@ function BookingDetailModal({
 
             <div className="bookings-detail-layout bookings-detail-layout--secondary">
               {renderExpensesSection()}
+              {renderCombinedTotalSection()}
             </div>
           </>
         ) : (
@@ -828,6 +870,7 @@ function BookingDetailModal({
             <div className="bookings-detail-layout bookings-detail-layout--secondary">
               {renderRentalItemsSection()}
               {renderExpensesSection()}
+              {renderCombinedTotalSection()}
             </div>
           </>
         )}

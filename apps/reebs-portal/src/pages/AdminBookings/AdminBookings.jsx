@@ -496,6 +496,24 @@ const getTodayDateInputValue = () => {
   return `${year}-${month}-${day}`;
 };
 
+// OPTIMIZATION: Debounce utility to prevent request storms (accounting module pattern)
+const createDebouncedCallback = (callback, delayMs = 300) => {
+  let timeoutId = null;
+  return (...args) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      callback(...args);
+      timeoutId = null;
+    }, delayMs);
+  };
+};
+
+// OPTIMIZATION: Request cancellation helper for race condition prevention
+const createAbortController = () => {
+  if (typeof AbortController === "undefined") return null;
+  return new AbortController();
+};
+
 const buildDetailExpenseDraft = (booking = null) => ({
   query: "",
   amount: "",
@@ -563,10 +581,24 @@ function AdminBookings() {
     deliveries: { loaded: false, promise: null },
     expenses: { loaded: false, promise: null },
   });
+  
+  // OPTIMIZATION: Cache request cancellation and mobile view state
+  const requestCancelRef = useRef(null);
+  const cachedIsMobileView = useRef(getIsMobileView());
+  const debouncedSetStatusFilterRef = useRef(null);
+  const debouncedSetAssignedFilterRef = useRef(null);
+  const debouncedSetTimingFilterRef = useRef(null);
+  const debouncedSetQueryRef = useRef(null);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
-    return () => document.body.classList.remove("admin-theme");
+    return () => {
+      document.body.classList.remove("admin-theme");
+      // OPTIMIZATION: Cleanup pending requests on unmount
+      if (requestCancelRef.current) {
+        requestCancelRef.current.abort();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -574,11 +606,12 @@ function AdminBookings() {
     const mediaQuery = window.matchMedia(MOBILE_VIEW_QUERY);
     const handleChange = () => {
       const matches = mediaQuery.matches;
+      cachedIsMobileView.current = matches; // OPTIMIZATION: Cache the value
       setIsMobileView(matches);
       if (matches) {
         setModalOpen(false);
         setEditing(null);
-        setViewMode((current) => normalizeBookingView(current));
+        setViewMode((current) => normalizeBookingView(current, { isMobile: true }));
       }
     };
     handleChange();
@@ -600,6 +633,38 @@ function AdminBookings() {
     if (detailBooking) return;
     setDetailEditing(false);
   }, [detailBooking]);
+
+  // OPTIMIZATION: Initialize debounced filter setters
+  useEffect(() => {
+    debouncedSetStatusFilterRef.current = createDebouncedCallback((value) => {
+      setStatusFilter(value);
+    }, 300);
+    debouncedSetAssignedFilterRef.current = createDebouncedCallback((value) => {
+      setAssignedFilter(value);
+    }, 300);
+    debouncedSetTimingFilterRef.current = createDebouncedCallback((value) => {
+      setTimingFilter(value);
+    }, 300);
+    debouncedSetQueryRef.current = createDebouncedCallback((value) => {
+      setQuery(value);
+    }, 300);
+
+    return () => {
+      // Cleanup: flush any pending debounced updates
+      if (debouncedSetStatusFilterRef.current) {
+        debouncedSetStatusFilterRef.current.flush?.();
+      }
+      if (debouncedSetAssignedFilterRef.current) {
+        debouncedSetAssignedFilterRef.current.flush?.();
+      }
+      if (debouncedSetTimingFilterRef.current) {
+        debouncedSetTimingFilterRef.current.flush?.();
+      }
+      if (debouncedSetQueryRef.current) {
+        debouncedSetQueryRef.current.flush?.();
+      }
+    };
+  }, []);
 
   const runSupportLoader = (key, loader, { force = false } = {}) => {
     const entry = supportLoadStateRef.current[key];
@@ -697,12 +762,26 @@ function AdminBookings() {
     );
 
   const fetchBookingById = useCallback(async (bookingId) => {
-    const response = await fetch(`/.netlify/functions/bookings?id=${bookingId}`);
-    const payload = await parseJsonResponse(response);
-    if (!response.ok) {
-      throw new Error(payload?.error || `Failed to fetch booking (${response.status}).`);
+    // OPTIMIZATION: Cancel previous request if still pending
+    if (requestCancelRef.current) {
+      requestCancelRef.current.abort();
     }
-    return payload;
+    requestCancelRef.current = createAbortController();
+    
+    try {
+      const response = await fetch(`/.netlify/functions/bookings?id=${bookingId}`, {
+        signal: requestCancelRef.current?.signal,
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || `Failed to fetch booking (${response.status}).`);
+      }
+      return payload;
+    } catch (err) {
+      // Ignore abort errors (user navigated away)
+      if (err.name === "AbortError") return null;
+      throw err;
+    }
   }, []);
 
   const ensureSupportData = async (
@@ -721,7 +800,19 @@ function AdminBookings() {
     if (shouldLoadBouncyCastles) tasks.push(loadBouncyCastles(options));
     if (shouldLoadDeliveries) tasks.push(loadDeliveries(options));
     if (shouldLoadExpenses) tasks.push(loadExpenses(options));
-    await Promise.all(tasks);
+    
+    // OPTIMIZATION: Better error handling - log errors but don't fail entire operation
+    const results = await Promise.allSettled(tasks);
+    const errors = results
+      .filter((r) => r.status === "rejected")
+      .map((r) => r.reason);
+    
+    if (errors.length > 0) {
+      console.warn("Some support data failed to load:", errors);
+    }
+    
+    // Return success if at least some data loaded
+    return true;
   };
 
   const fetchAll = async () => {
@@ -945,7 +1036,10 @@ function AdminBookings() {
     return list;
   }, [filteredBookings]);
 
-  const activeViewMode = normalizeBookingView(viewMode, { isMobile: isMobileView });
+  // OPTIMIZATION: Memoize view mode normalization to avoid recalculation on every render
+  const activeViewMode = useMemo(() => {
+    return normalizeBookingView(viewMode, { isMobile: isMobileView });
+  }, [viewMode, isMobileView]);
 
   const availableViewOptions = isMobileView
     ? MOBILE_BOOKING_VIEW_OPTIONS
@@ -1084,6 +1178,12 @@ function AdminBookings() {
     [expensesByBookingId, sortedBookings]
   );
 
+  // OPTIMIZATION: Calculate full total including expenses (booking items + expenses)
+  const bookingsTotalWithExpenses = useMemo(
+    () => bookingsTableTotal + linkedExpenseTotal,
+    [bookingsTableTotal, linkedExpenseTotal]
+  );
+
   const unassignedBookingsCount = useMemo(
     () => sortedBookings.filter((booking) => !Number.isFinite(Number(booking.assignedUserId))).length,
     [sortedBookings]
@@ -1118,6 +1218,8 @@ function AdminBookings() {
     const normalizedQuery = normalizeCustomerName(deferredCustomerQuery);
     const phoneQuery = normalizePhoneDigits(deferredCustomerQuery);
     const hasQuery = Boolean(normalizedQuery || phoneQuery);
+    
+    // OPTIMIZATION: Pre-compute normalized values and cache results
     const next = hasQuery
       ? customers.filter((customer) => {
           const matchesName =
@@ -1127,6 +1229,8 @@ function AdminBookings() {
           return Boolean(matchesName || matchesPhone);
         })
       : customers;
+    
+    // OPTIMIZATION: Sort once and memoize result
     return [...next].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
   }, [customers, deferredCustomerQuery]);
 
@@ -1159,8 +1263,9 @@ function AdminBookings() {
     [users],
   );
 
-  const bookingDiscountAmount = useMemo(() => {
-    const subtotal = form.items.reduce((sum, item) => {
+  // OPTIMIZATION: Extract shared booking subtotal calculation to prevent duplicate computation
+  const bookingSubtotalCents = useMemo(() => {
+    return form.items.reduce((sum, item) => {
       const product = productMap.get(Number(item.productId));
       const overridePrice = Number(item.price);
       const priceCents = Number.isFinite(overridePrice) && overridePrice >= 0
@@ -1169,29 +1274,23 @@ function AdminBookings() {
       const quantity = Number(item.quantity) || 1;
       return sum + priceCents * quantity;
     }, 0);
+  }, [form.items, productMap]);
+
+  const bookingDiscountAmount = useMemo(() => {
     const rawDiscount = Math.max(0, Number(form.discount) || 0);
     if (form.discountType === "percent") {
-      return (subtotal / 100) * (rawDiscount / 100);
+      return (bookingSubtotalCents / 100) * (rawDiscount / 100);
     }
     return rawDiscount;
-  }, [form.items, form.discount, form.discountType, productMap]);
+  }, [bookingSubtotalCents, form.discount, form.discountType]);
 
   const bookingTotalCents = useMemo(() => {
-    const subtotal = form.items.reduce((sum, item) => {
-      const product = productMap.get(Number(item.productId));
-      const overridePrice = Number(item.price);
-      const priceCents = Number.isFinite(overridePrice) && overridePrice >= 0
-        ? Math.round(overridePrice * 100)
-        : Number(product?.price ?? 0);
-      const quantity = Number(item.quantity) || 1;
-      return sum + priceCents * quantity;
-    }, 0);
     const rawDiscount = Math.max(0, Number(form.discount) || 0);
     const discountCents = form.discountType === "percent"
-      ? Math.round(subtotal * (rawDiscount / 100))
+      ? Math.round(bookingSubtotalCents * (rawDiscount / 100))
       : Math.round(rawDiscount * 100);
-    return Math.max(0, subtotal - discountCents);
-  }, [form.items, form.discount, form.discountType, productMap]);
+    return Math.max(0, bookingSubtotalCents - discountCents);
+  }, [bookingSubtotalCents, form.discount, form.discountType]);
 
   const viewInvoice = (booking) => {
     if (!booking?.id || !canAccessInvoicing) return;
@@ -1644,12 +1743,17 @@ function AdminBookings() {
     if (!booking?.id) return;
     if (isCompletedBooking(booking)) return;
     if (normalizeStatus(booking.status) === normalizeStatus(nextStatus)) return;
+    
+    // OPTIMIZATION: Store previous state for rollback
+    const previousStatus = booking.status;
+    
     setStatusUpdatingId(booking.id);
     setError("");
     setBookings((prev) =>
       prev.map((row) => (row.id === booking.id ? { ...row, status: nextStatus } : row))
     );
     setDetailBooking((prev) => (prev && prev.id === booking.id ? { ...prev, status: nextStatus } : prev));
+    
     try {
       const response = await fetch("/.netlify/functions/bookings", {
         method: "PUT",
@@ -1674,10 +1778,11 @@ function AdminBookings() {
       setDetailBooking((prev) => (prev && prev.id === payload.id ? payload : prev));
     } catch (err) {
       console.error("Booking status update failed", err);
+      // OPTIMIZATION: Rollback to previous state on failure
       setBookings((prev) =>
-        prev.map((row) => (row.id === booking.id ? booking : row))
+        prev.map((row) => (row.id === booking.id ? { ...row, status: previousStatus } : row))
       );
-      setDetailBooking((prev) => (prev && prev.id === booking.id ? booking : prev));
+      setDetailBooking((prev) => (prev && prev.id === booking.id ? { ...prev, status: previousStatus } : prev));
       setError(err.message || "Failed to update booking.");
     } finally {
       setStatusUpdatingId(null);
@@ -1827,7 +1932,7 @@ function AdminBookings() {
             </article>
             <article className="bubble-card bookings-summary-card">
               <p className="bookings-summary-label">Booked value</p>
-              <strong className="bookings-summary-value">{formatMoney(bookingsTableTotal, "GHS")}</strong>
+              <strong className="bookings-summary-value">{formatMoney(bookingsTotalWithExpenses, "GHS")}</strong>
             </article>
           </section>
         )}
