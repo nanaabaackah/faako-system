@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./AdminAccounting.css";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -346,6 +346,8 @@ function AdminAccounting() {
     setNoticeTone("info");
   };
 
+  const fetchDataTimeoutRef = useRef(null);
+
   const fetchData = async (key = windowKey) => {
     if (!data) setLoading(true);
     setIsFetching(true);
@@ -363,8 +365,22 @@ function AdminAccounting() {
     }
   };
 
+  const debouncedFetchData = useCallback((key = windowKey) => {
+    if (fetchDataTimeoutRef.current) {
+      clearTimeout(fetchDataTimeoutRef.current);
+    }
+    fetchDataTimeoutRef.current = setTimeout(() => {
+      fetchData(key);
+    }, 300);
+  }, [windowKey]);
+
   useEffect(() => {
     fetchData("allTime");
+    return () => {
+      if (fetchDataTimeoutRef.current) {
+        clearTimeout(fetchDataTimeoutRef.current);
+      }
+    };
   }, []);
 
   const fetchListData = async () => {
@@ -464,11 +480,14 @@ function AdminAccounting() {
       rentalPct: Math.round((rental / total) * 100),
       otherPct: Math.round((other / total) * 100),
     };
-  }, [data, historicalSalesWindowTotal]);
+  }, [data?.revenueByCategory, historicalSalesWindowTotal]);
 
   const cashflowTrend = useMemo(() => {
     const baseRows = Array.isArray(data?.cashflow) ? data.cashflow : [];
+    if (!baseRows.length) return [];
+    
     if (!historicalSalesInWindow.length) return baseRows;
+    
     const totals = new Map();
     baseRows.forEach((entry) => {
       totals.set(entry.date, {
@@ -476,6 +495,7 @@ function AdminAccounting() {
         revenue: toNumber(entry.revenue),
       });
     });
+    
     historicalSalesInWindow.forEach((entry) => {
       const existing = totals.get(entry.dateKey);
       totals.set(entry.dateKey, {
@@ -483,6 +503,7 @@ function AdminAccounting() {
         revenue: (existing?.revenue || 0) + entry.amount,
       });
     });
+    
     return Array.from(totals.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [data?.cashflow, historicalSalesInWindow]);
   const totalRevenue = useMemo(() => data?.revenue || 0, [data]);
@@ -501,25 +522,29 @@ function AdminAccounting() {
       : "Daily revenue";
   const expenseBreakdown = useMemo(() => {
     const rows = Array.isArray(data?.expenseBreakdown) ? data.expenseBreakdown : [];
+    if (!rows.length) return [];
+    
     const totals = new Map();
     rows.forEach((row) => {
       const category = normalizeExpenseCategory(row?.category) || "Operational";
       const amount = toNumber(row?.amount);
-      totals.set(category, (totals.get(category) || 0) + amount);
+      if (amount > 0) {
+        totals.set(category, (totals.get(category) || 0) + amount);
+      }
     });
-    const ordered = [
-      ...EXPENSE_CATEGORY_LABELS,
-      ...Array.from(totals.keys())
-        .filter((category) => !EXPENSE_CATEGORY_LABELS.includes(category))
-        .sort((a, b) => a.localeCompare(b)),
-    ];
+    
+    const customCategories = Array.from(totals.keys())
+      .filter((category) => !EXPENSE_CATEGORY_LABELS.includes(category))
+      .sort((a, b) => a.localeCompare(b));
+    
+    const ordered = [...EXPENSE_CATEGORY_LABELS, ...customCategories];
     return ordered
       .map((category) => ({
         category,
         amount: totals.get(category) || 0,
       }))
       .filter((entry) => entry.amount > 0);
-  }, [data]);
+  }, [data?.expenseBreakdown]);
   const expenseBreakdownTotal = useMemo(
     () => expenseBreakdown.reduce((sum, entry) => sum + toNumber(entry.amount), 0),
     [expenseBreakdown]
@@ -558,7 +583,9 @@ function AdminAccounting() {
     activeDocuments.forEach((document) => {
       const sourceKey = getDocumentSourceKey(document);
       if (!sourceKey) return;
-      map.set(sourceKey, document);
+      if (!map.has(sourceKey)) {
+        map.set(sourceKey, document);
+      }
     });
     return map;
   }, [activeDocuments]);
@@ -675,8 +702,7 @@ function AdminAccounting() {
   const linkedNet = linkedMoneyIn - expensesTotal;
   const statementSummary = useMemo(() => {
     if (!financeSummary) return null;
-    if (!listLoaded) return financeSummary;
-
+    
     const revenue = receiptsTotalDisplay;
     const rentalIncome = invoicesTotalDisplay;
     const cogs = toNumber(financeSummary.cogs);
@@ -693,7 +719,7 @@ function AdminAccounting() {
       grossProfit,
       netProfit,
     };
-  }, [expensesTotal, financeSummary, invoicesTotalDisplay, listLoaded, receiptsTotalDisplay]);
+  }, [expensesTotal, financeSummary, invoicesTotalDisplay, receiptsTotalDisplay]);
   const recentLinkedRows = useMemo(() => listRows.slice(0, 8), [listRows]);
   const updateBalance = (field) => (event) => {
     const value = event.target.value;
@@ -757,70 +783,146 @@ function AdminAccounting() {
   const longTermLoans = toNumber(balanceInputs.longTermLoans);
   const ownerEquity = toNumber(balanceInputs.ownerEquity);
   const retainedEarnings = toNumber(balanceInputs.retainedEarnings);
-  const currentAssets =
+  
+  const currentAssets = useMemo(() =>
     cashOnHand +
     bankBalance +
     accountsReceivable +
     inventoryValue +
     prepaidExpenses +
-    otherCurrentAssets;
-  const currentLiabilities = accountsPayable + taxesPayable + accruedExpenses + shortTermLoans;
-  const totalAssets = currentAssets + fixedAssets + otherAssets;
-  const totalLiabilities = currentLiabilities + longTermLoans;
+    otherCurrentAssets,
+    [cashOnHand, bankBalance, accountsReceivable, inventoryValue, prepaidExpenses, otherCurrentAssets]
+  );
+  
+  const currentLiabilities = useMemo(() =>
+    accountsPayable + taxesPayable + accruedExpenses + shortTermLoans,
+    [accountsPayable, taxesPayable, accruedExpenses, shortTermLoans]
+  );
+  
+  const totalAssets = useMemo(() =>
+    currentAssets + fixedAssets + otherAssets,
+    [currentAssets, fixedAssets, otherAssets]
+  );
+  
+  const totalLiabilities = useMemo(() =>
+    currentLiabilities + longTermLoans,
+    [currentLiabilities, longTermLoans]
+  );
+  
   const periodNetProfit = toNumber(statementSummary?.netProfit || 0);
   const equityBase = ownerEquity + retainedEarnings;
-  const totalEquity = equityBase + periodNetProfit;
-  const balanceGap = totalAssets - (totalLiabilities + totalEquity);
-  const workingCapital = currentAssets - currentLiabilities;
-  const quickAssets = cashOnHand + bankBalance + accountsReceivable;
-  const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : null;
-  const quickRatio = currentLiabilities > 0 ? quickAssets / currentLiabilities : null;
+  
+  const totalEquity = useMemo(() =>
+    equityBase + periodNetProfit,
+    [equityBase, periodNetProfit]
+  );
+  
+  const balanceGap = useMemo(() =>
+    totalAssets - (totalLiabilities + totalEquity),
+    [totalAssets, totalLiabilities, totalEquity]
+  );
+  
+  const workingCapital = useMemo(() =>
+    currentAssets - currentLiabilities,
+    [currentAssets, currentLiabilities]
+  );
+  
+  const quickAssets = useMemo(() =>
+    cashOnHand + bankBalance + accountsReceivable,
+    [cashOnHand, bankBalance, accountsReceivable]
+  );
+  
+  const currentRatio = useMemo(() =>
+    currentLiabilities > 0 ? currentAssets / currentLiabilities : null,
+    [currentAssets, currentLiabilities]
+  );
+  
+  const quickRatio = useMemo(() =>
+    currentLiabilities > 0 ? quickAssets / currentLiabilities : null,
+    [quickAssets, currentLiabilities]
+  );
 
   const corporateCategory = ghanaTaxConfig.corporateCategory || "general";
-  const vatCoreRate = parsePercent(ghanaTaxConfig.vatCoreRate);
-  const nhilRate = parsePercent(ghanaTaxConfig.nhilRate);
-  const getFundRate = parsePercent(ghanaTaxConfig.getFundRate);
-  const covidRate = parsePercent(ghanaTaxConfig.covidRate);
-  const corporateRate = parsePercent(ghanaTaxConfig.corporateRate);
-  const vatTotalRate = vatCoreRate + nhilRate + getFundRate + covidRate;
+  
+  const taxRates = useMemo(() => ({
+    vatCoreRate: parsePercent(ghanaTaxConfig.vatCoreRate),
+    nhilRate: parsePercent(ghanaTaxConfig.nhilRate),
+    getFundRate: parsePercent(ghanaTaxConfig.getFundRate),
+    covidRate: parsePercent(ghanaTaxConfig.covidRate),
+    corporateRate: parsePercent(ghanaTaxConfig.corporateRate),
+  }), [ghanaTaxConfig]);
+  
+  const vatCoreRate = taxRates.vatCoreRate;
+  const nhilRate = taxRates.nhilRate;
+  const getFundRate = taxRates.getFundRate;
+  const covidRate = taxRates.covidRate;
+  const corporateRate = taxRates.corporateRate;
+  const vatTotalRate = useMemo(() =>
+    vatCoreRate + nhilRate + getFundRate + covidRate,
+    [vatCoreRate, nhilRate, getFundRate, covidRate]
+  );
   const exemptSales = toNumber(taxInputs.exemptSales);
-  const salesBaseForTax = listLoaded
-    ? combinedTotal + historicalSalesWindowTotal
-    : grossRevenue;
+  
+  const salesBaseForTax = useMemo(() => {
+    return combinedTotal + historicalSalesWindowTotal;
+  }, [combinedTotal, historicalSalesWindowTotal]);
+  
   const taxableSales = Math.max(0, salesBaseForTax - exemptSales);
-  const outputVat = taxableSales * vatTotalRate;
+  const outputVat = useMemo(() =>
+    taxableSales * vatTotalRate,
+    [taxableSales, vatTotalRate]
+  );
   const inputVatCredits = toNumber(taxInputs.inputVatCredits);
   const vatPayable = Math.max(0, outputVat - inputVatCredits);
   const grossProduction = toNumber(taxInputs.grossProduction);
-  const profitBeforeTax =
-    toNumber(statementSummary?.grossProfit || 0) - toNumber(statementSummary?.operatingExpenses || 0);
+  const profitBeforeTax = useMemo(() => {
+    const revenue = toNumber(statementSummary?.revenue || 0);
+    const rentalIncome = toNumber(statementSummary?.rentalIncome || 0);
+    const cogs = toNumber(statementSummary?.cogs || 0);
+    const operatingExpenses = toNumber(statementSummary?.operatingExpenses || 0);
+    return revenue + rentalIncome - cogs - operatingExpenses;
+  }, [statementSummary]);
   const profitBeforeTaxBase = Math.max(0, profitBeforeTax);
   const allowableDeductions = toNumber(taxInputs.allowableDeductions);
-  const taxableIncome = Math.max(0, profitBeforeTax - allowableDeductions);
-  const corporateTaxDue = taxableIncome * corporateRate;
+  const taxableIncome = useMemo(() => {
+    return Math.max(0, profitBeforeTax - allowableDeductions);
+  }, [allowableDeductions, profitBeforeTax]);
+  const corporateTaxDue = useMemo(() => {
+    return taxableIncome * corporateRate;
+  }, [corporateRate, taxableIncome]);
   const gslCategory = ghanaTaxConfig.gslCategory || "none";
-  let gslDue = 0;
-  if (gslCategory === "categoryA") gslDue = profitBeforeTaxBase * 0.05;
-  if (gslCategory === "categoryBGold") gslDue = Math.max(0, grossProduction) * 0.03;
-  if (gslCategory === "categoryBOther") gslDue = Math.max(0, grossProduction) * 0.01;
-  if (gslCategory === "categoryC") gslDue = profitBeforeTaxBase * 0.025;
-  const fsrlDue = ghanaTaxConfig.fsrlEnabled ? profitBeforeTaxBase * 0.05 : 0;
+  const gslDue = useMemo(() => {
+    let amount = 0;
+    if (gslCategory === "categoryA") amount = profitBeforeTaxBase * 0.05;
+    else if (gslCategory === "categoryBGold") amount = Math.max(0, grossProduction) * 0.03;
+    else if (gslCategory === "categoryBOther") amount = Math.max(0, grossProduction) * 0.01;
+    else if (gslCategory === "categoryC") amount = profitBeforeTaxBase * 0.025;
+    return amount;
+  }, [gslCategory, grossProduction, profitBeforeTaxBase]);
+  
+  const fsrlDue = useMemo(() => {
+    return ghanaTaxConfig.fsrlEnabled ? profitBeforeTaxBase * 0.05 : 0;
+  }, [ghanaTaxConfig.fsrlEnabled, profitBeforeTaxBase]);
   const withholdingCredits = toNumber(taxInputs.withholdingCredits);
-  const totalTaxDue = Math.max(
-    0,
-    vatPayable + corporateTaxDue + gslDue + fsrlDue - withholdingCredits
-  );
-  const grossFormulaGap =
-    toNumber(statementSummary?.revenue || 0) +
-    toNumber(statementSummary?.rentalIncome || 0) -
-    toNumber(statementSummary?.cogs || 0) -
-    toNumber(statementSummary?.grossProfit || 0);
-  const netFormulaGap =
-    toNumber(statementSummary?.grossProfit || 0) -
-    toNumber(statementSummary?.operatingExpenses || 0) -
-    toNumber(statementSummary?.netProfit || 0);
-  const expenseTieOutGap =
-    expenseBreakdownTotal - toNumber(statementSummary?.operatingExpenses || 0);
+  const totalTaxDue = useMemo(() => {
+    return Math.max(0, vatPayable + corporateTaxDue + gslDue + fsrlDue - withholdingCredits);
+  }, [corporateTaxDue, fsrlDue, gslDue, vatPayable, withholdingCredits]);
+  const grossFormulaGap = useMemo(() => {
+    return toNumber(statementSummary?.revenue || 0) +
+      toNumber(statementSummary?.rentalIncome || 0) -
+      toNumber(statementSummary?.cogs || 0) -
+      toNumber(statementSummary?.grossProfit || 0);
+  }, [statementSummary]);
+  
+  const netFormulaGap = useMemo(() => {
+    return toNumber(statementSummary?.grossProfit || 0) -
+      toNumber(statementSummary?.operatingExpenses || 0) -
+      toNumber(statementSummary?.netProfit || 0);
+  }, [statementSummary]);
+  
+  const expenseTieOutGap = useMemo(() => {
+    return expenseBreakdownTotal - toNumber(statementSummary?.operatingExpenses || 0);
+  }, [expenseBreakdownTotal, statementSummary]);
 
   const withinTolerance = (value) => Math.abs(toNumber(value)) <= 1;
   const toMoneyString = (value) => toNumber(value).toFixed(2);
@@ -1039,7 +1141,7 @@ function AdminAccounting() {
           title="Accounting"
         />
 
-        <section className="glass-card accounting-toolbar" aria-label="Accounting controls">
+        <section className="accounting-toolbar" aria-label="Accounting controls">
           <div className="accounting-filters accounting-toolbar-row">
             <div className="accounting-filters-left">
               <SelectField
@@ -1049,7 +1151,7 @@ function AdminAccounting() {
                 onChange={(event) => {
                   const next = event.target.value;
                   setWindowKey(next);
-                  fetchData(next);
+                  debouncedFetchData(next);
                 }}
               >
                 <option value="today">Today</option>
@@ -1109,7 +1211,10 @@ function AdminAccounting() {
                 </div>
               </div>
               <div className="accounting-actions">
-                <button type="button" className="accounting-secondary" onClick={() => fetchData(windowKey)}>
+                <button type="button" className="accounting-secondary" onClick={() => {
+                  if (fetchDataTimeoutRef.current) clearTimeout(fetchDataTimeoutRef.current);
+                  fetchData(windowKey);
+                }}>
                   <AppIcon icon={faRotateRight} />
                 </button>
               </div>
@@ -1345,11 +1450,10 @@ function AdminAccounting() {
                 )}
               </div>
 
-              <div className="glass-card accounting-panel">
+              <div className="accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Activity</p>
-                    <h3>Linked money flow</h3>
+                    <h3>Money flow</h3>
                     <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
@@ -1418,8 +1522,7 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Linked totals</p>
-                    <h3>Where the money sits</h3>
+                    <h3>Linked Totals</h3>
                     <p className="accounting-panel-sub">{data.windowLabel || ""}</p>
                   </div>
                 </div>
@@ -1427,12 +1530,12 @@ function AdminAccounting() {
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Receipts</p>
                     <strong className="accounting-mini-value">{formatCurrency(receiptsTotalDisplay)}</strong>
-                    <span className="accounting-mini-sub">{receiptCount} documents</span>
+                    <span className="accounting-mini-sub">{receiptCount} Receipts</span>
                   </div>
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Invoices</p>
                     <strong className="accounting-mini-value">{formatCurrency(invoicesTotalDisplay)}</strong>
-                    <span className="accounting-mini-sub">{invoiceCount} documents</span>
+                    <span className="accounting-mini-sub">{invoiceCount} Invoices</span>
                   </div>
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Expenses</p>
@@ -1442,7 +1545,6 @@ function AdminAccounting() {
                   <div className="bubble-card accounting-mini-card">
                     <p className="accounting-mini-label">Net</p>
                     <strong className="accounting-mini-value">{formatCurrency(linkedNet)}</strong>
-                    <span className="accounting-mini-sub">In minus out</span>
                   </div>
                 </div>
                 <div className="accounting-split-legend accounting-split-legend--finance">
@@ -1461,8 +1563,7 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Expenses</p>
-                    <h3>Expense categories</h3>
+                    <h3>Expenses</h3>
                     <p className="accounting-panel-sub">{expenseWindowLabel || data.windowLabel || ""}</p>
                   </div>
                 </div>
@@ -1492,8 +1593,7 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Balance health</p>
-                    <h3>Cash, receivables, liabilities</h3>
+                    <h3>Balance Health</h3>
                     <p className="accounting-panel-sub">
                       Assets {formatCurrency(totalAssets)} · Liabilities {formatCurrency(totalLiabilities)}
                     </p>
@@ -1528,8 +1628,7 @@ function AdminAccounting() {
               <div className="glass-card accounting-panel">
                 <div className="accounting-panel-head">
                   <div>
-                    <p className="accounting-panel-label">Movement</p>
-                    <h3>Cash flow trend</h3>
+                    <h3>Cash Flow Trend</h3>
                     <p className="accounting-panel-sub">{cashflowWindowLabel}</p>
                   </div>
                 </div>
@@ -1967,12 +2066,12 @@ function AdminAccounting() {
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Receipts</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(receiptsTotalDisplay)}</h3>
-                <p className="accounting-kpi-sub">{receiptCount} documents</p>
+                <p className="accounting-kpi-sub">{receiptCount} Receipts</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Invoices</p>
                 <h3 className="accounting-kpi-value">{formatCurrency(invoicesTotalDisplay)}</h3>
-                <p className="accounting-kpi-sub">{invoiceCount} documents</p>
+                <p className="accounting-kpi-sub">{invoiceCount} Invoices</p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Expenses</p>
@@ -2036,14 +2135,10 @@ function AdminAccounting() {
                       <tfoot className="admin-table-footer">
                         <tr>
                           <td className="admin-table-summary-cell is-count">
-                            <span className="admin-table-summary-value">{listRows.length} documents</span>
+                            <span className="admin-table-summary-value">{listRows.length}</span>
                           </td>
                           <td className="admin-table-summary-cell is-empty" />
-                          <td className="admin-table-summary-cell">
-                            <span className="admin-table-summary-value">
-                              {receiptCount} receipts · {invoiceCount} invoices · {expenseCount} expenses
-                            </span>
-                          </td>
+                          <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />

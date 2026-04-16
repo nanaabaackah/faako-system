@@ -4717,7 +4717,7 @@ button.admin-kpi-card {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
-  margin:2rem 0;
+  margin: 2rem 0;
 }
 
 .accounting-kpis.accounting-kpis-tight {
@@ -5207,8 +5207,6 @@ button.admin-kpi-card {
   .accounting-filters-left,
   .accounting-right {
     width: 100%;
-    flex: 1 1 60px;
-
   }
 
   .accounting-filter {
@@ -5240,7 +5238,7 @@ button.admin-kpi-card {
   .accounting-kpis {
     grid-template-columns: 1fr;
     gap: 10px;
-    margin: 1.25rem 0;
+    margin: 1.25rem;
   }
 
   .accounting-kpi-card {
@@ -5257,6 +5255,7 @@ button.admin-kpi-card {
 
   .accounting-panels {
     grid-template-columns: 1fr;
+    margin: 1.25rem;
   }
 
   .accounting-panel--margins {
@@ -6244,7 +6243,6 @@ button.admin-kpi-card {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  flex: 1 1 360px;
 }
 
 .accounting-right {
@@ -12934,7 +12932,7 @@ body.admin-theme :is(
 @media (max-width: 720px) {
   .accounting-shell--redesign,
   .expenses-shell--redesign {
-    gap: 16px;
+    gap: 12px;
   }
 
   .accounting-page--redesign .accounting-filter,

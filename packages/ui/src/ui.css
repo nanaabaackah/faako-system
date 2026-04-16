@@ -149,7 +149,7 @@
 .ui-field__label {
   font-size: 0.86rem;
   font-weight: 700;
-  color: var(--sys-text);
+  color: var(--text-subtle);
 }
 
 .ui-field__message {
