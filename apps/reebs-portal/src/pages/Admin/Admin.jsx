@@ -15,6 +15,8 @@ import {
   faRotateRight,
   faTrash,
   faXmark,
+  faChevronLeft,
+  faChevronRight,
 } from "../../icons/iconSet";
 
 const getQuantity = (item) => {
@@ -969,7 +971,8 @@ function Admin() {
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={clampedPage === 0}
           >
-            Previous
+            <AppIcon icon={faChevronLeft} size={12} />
+            <span className="sr-only">Previous page</span>
           </button>
           <span className="inventory-register-pagination-page">
             Page {paginationDisplayPage} of {paginationDisplayCount}
@@ -979,7 +982,8 @@ function Admin() {
             onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             disabled={clampedPage >= pageCount - 1}
           >
-            Next
+            <AppIcon icon={faChevronRight} size={12} />
+            <span className="sr-only">Next page</span>
           </button>
         </div>
       </div>
@@ -2366,7 +2370,36 @@ function Admin() {
               </label>
             </div>
           </div>
-
+          <div className="table-pagination inventory-register-pagination-header">
+            <div className="inventory-register-pagination-copy">
+              <strong className="inventory-register-pagination-range">
+                Showing {paginationStart}-{paginationEnd} of {inventory.length}
+              </strong>
+            </div>
+            <div className="inventory-register-pagination-meta">
+              <div className="table-pagination-controls inventory-register-pagination-controls">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={clampedPage === 0}
+                >
+                  <AppIcon icon={faChevronLeft} size={12} />
+                  <span className="sr-only">Previous page</span>
+                </button>
+                <span className="inventory-register-pagination-page">
+                  Page {paginationDisplayPage} of {paginationDisplayCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={clampedPage >= pageCount - 1}
+                >
+                  <AppIcon icon={faChevronRight} size={12} />
+                  <span className="sr-only">Next page</span>
+                </button>
+              </div>
+            </div>
+          </div>
           {viewMode === "activity" && (
             <div className="stock-activity-grid">
               {stockActivityError && <p className="admin-error">{stockActivityError}</p>}

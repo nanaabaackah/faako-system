@@ -245,6 +245,13 @@
     linear-gradient(180deg, color-mix(in oklab, var(--card), white 10%), var(--card));
 }
 
+.inventory-register-pagination-header {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-top: none;
+  background: transparent;
+}
+
 .inventory-register-pagination-copy {
   display: grid;
   gap: 0.18rem;
@@ -276,9 +283,8 @@
   justify-content: center;
   min-height: 2.35rem;
   padding: 0.45rem 0.85rem;
-  border: 1px solid var(--admin-portal-border);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--card), white 14%);
+  border:none;
+  background:transparent;
   color: var(--text-main);
   font-size: 0.82rem;
   font-weight: 700;
@@ -290,9 +296,9 @@
 }
 
 .inventory-register-pagination-controls button {
-  min-width: 5.9rem;
+  min-width: 0.5rem;
   min-height: 2.35rem;
-  border-radius: 999px;
+  border-radius: 18px;
   border: 1px solid var(--admin-portal-border);
   background: color-mix(in oklab, var(--card), white 20%);
   color: var(--text-main);
