@@ -9,6 +9,13 @@ lerna-debug.log*
 
 node_modules
 dist
+.env
+.env.local
+.env.*.local
+.turbo
+.DS_Store
+
+dist
 dist-ssr
 *.local
 
