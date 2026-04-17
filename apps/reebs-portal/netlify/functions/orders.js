@@ -6,6 +6,7 @@ import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { sanitizeOrderLogisticsDetails } from "./_shared/orderDetails.js";
+import { ensureInventoryVariantSchema } from "./_shared/inventoryExtensions.js";
 
 const ORDER_METHODS = "GET,PUT,OPTIONS";
 
@@ -68,6 +69,7 @@ export async function handler(event = {}) {
   try {
     await client.connect();
     await ensureAuditColumns(client);
+    await ensureInventoryVariantSchema(client);
     await ensureOrderColumns(client);
     const authResult = await requireInternalUser(client, event, {
       methods: ORDER_METHODS,
@@ -131,7 +133,9 @@ export async function handler(event = {}) {
                  SELECT COALESCE(json_agg(json_build_object(
                    'id', oi.id,
                    'productId', oi."productId",
+                   'variantId', oi."variantId",
                    'productName', p.name,
+                   'variantLabel', CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size),
                    'sku', p.sku,
                    'quantity', oi.quantity,
                    'unitPrice', oi.unit_price,
@@ -140,6 +144,7 @@ export async function handler(event = {}) {
                  )), '[]'::json)
                  FROM "orderItem" oi
                  LEFT JOIN "product" p ON p.id = oi."productId" AND p."organizationId" = o."organizationId"
+                 LEFT JOIN "inventoryVariant" v ON v.id = oi."variantId" AND v."organizationId" = o."organizationId"
                  WHERE oi."orderId" = o.id
                    AND oi."organizationId" = o."organizationId"
                ) AS items
@@ -293,26 +298,52 @@ export async function handler(event = {}) {
 
       if (cancelling && !alreadyCancelled) {
         const itemsRes = await client.query(
-          `SELECT "productId", quantity FROM "orderItem"
+          `SELECT "productId", "variantId", quantity FROM "orderItem"
            WHERE "orderId" = $1 AND "organizationId" = $2`,
           [orderId, organizationId]
         );
 
         for (const item of itemsRes.rows) {
-          await client.query(
-            `UPDATE "product"
-             SET stock = stock + $1,
-                 "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
-                 "lastUpdatedAt" = NOW(),
-                 "updatedAt" = NOW()
-             WHERE id = $2 AND "organizationId" = $4`,
-            [item.quantity, item.productId, actor.userId, organizationId]
-          );
+          if (item.variantId) {
+            await client.query(
+              `UPDATE "inventoryVariant"
+               SET "stockQty" = "stockQty" + $1,
+                   "updatedAt" = NOW()
+               WHERE id = $2 AND "organizationId" = $3`,
+              [item.quantity, item.variantId, organizationId]
+            );
+            await client.query(
+              `UPDATE "product" p
+               SET stock = COALESCE((
+                     SELECT SUM(v."stockQty")::int
+                     FROM "inventoryVariant" v
+                     WHERE v."organizationId" = p."organizationId"
+                       AND v."inventoryItemId" = p.id
+                       AND lower(COALESCE(v.status, 'active')) <> 'inactive'
+                   ), p.stock),
+                   "lastUpdatedByUserId" = COALESCE($2, "lastUpdatedByUserId"),
+                   "lastUpdatedAt" = NOW(),
+                   "updatedAt" = NOW()
+               WHERE p.id = $1 AND p."organizationId" = $3`,
+              [item.productId, actor.userId, organizationId]
+            );
+          } else {
+            await client.query(
+              `UPDATE "product"
+               SET stock = stock + $1,
+                   "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+                   "lastUpdatedAt" = NOW(),
+                   "updatedAt" = NOW()
+               WHERE id = $2 AND "organizationId" = $4`,
+              [item.quantity, item.productId, actor.userId, organizationId]
+            );
+          }
 
           await client.query(
             `INSERT INTO "stockMovement" (
                "organizationId",
                "productId",
+               "variantId",
                "type",
                "quantity",
                "notes",
@@ -323,10 +354,11 @@ export async function handler(event = {}) {
                "performedByEmail",
                "createdAt"
              )
-             VALUES ($1, $2, 'StockIn', $3, $4, $5, NOW(), $6, $7, $8, NOW())`,
+             VALUES ($1, $2, $3, 'StockIn', $4, $5, $6, NOW(), $7, $8, $9, NOW())`,
             [
               organizationId,
               item.productId,
+              item.variantId || null,
               item.quantity,
               `Order #${orderNumber} cancelled`,
               orderNumber,

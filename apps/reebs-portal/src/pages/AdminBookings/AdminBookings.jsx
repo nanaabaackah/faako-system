@@ -11,6 +11,7 @@ import {
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import TablePagination from "../../components/TablePagination/TablePagination";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
@@ -117,6 +118,24 @@ const formatAttendantsNeeded = (value) => {
   if (!Number.isFinite(parsed) || parsed <= 0) return "Attendants: -";
   return `Attendants: ${parsed}`;
 };
+
+const getBookingItemType = (item) =>
+  String(item?.itemType || item?.inventoryItemType || "STANDARD").trim().toUpperCase() || "STANDARD";
+
+const isBookingVariantParent = (item) => getBookingItemType(item) === "VARIANT_PARENT";
+
+const getBookingVariants = (item) => (Array.isArray(item?.variants) ? item.variants : []);
+
+const getBookingVariantAvailableQty = (variant) => {
+  const explicit = Number(variant?.availableQty);
+  if (Number.isFinite(explicit)) return Math.max(0, explicit);
+  return Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
+};
+
+const getBookingLineKey = (productId, variantId = "") => `${productId}:${variantId || "standard"}`;
+
+const formatBookingVariantName = (product, variant) =>
+  [product?.name, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
 
 const normalizeStatus = (status) => {
   if (typeof status !== "string") return "";
@@ -480,6 +499,9 @@ const buildBookingEditorState = (booking, currentUserId = "") => ({
   items: Array.isArray(booking?.items)
     ? booking.items.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId || null,
+        productName: item.productName || "",
+        variantLabel: item.variantLabel || "",
         quantity: item.quantity,
         price: Number.isFinite(item.price) ? (item.price / 100).toFixed(2) : "",
       }))
@@ -969,7 +991,7 @@ function AdminBookings() {
     if (!detailBooking || !Array.isArray(detailBooking.items)) return [];
     const baseItems = detailBooking.items.map((item, index) => ({
       ...item,
-      _key: `item-${item.id || item.productId || index}`,
+      _key: `item-${item.id || item.productId || index}-${item.variantId || "standard"}`,
     }));
 
     const hasPump = baseItems.some((item) => {
@@ -1144,9 +1166,25 @@ function AdminBookings() {
     const start = clampedPage * pageSize;
     return sortedBookings.slice(start, start + pageSize);
   }, [sortedBookings, clampedPage, pageSize]);
-  const bookingsTableTotal = useMemo(
+  const bookingsFilteredTotal = useMemo(
     () => sortedBookings.reduce((sum, booking) => sum + toNumber(booking.totalAmount, 0) / 100, 0),
     [sortedBookings]
+  );
+  const bookingsTableTotal = useMemo(
+    () => paginatedBookings.reduce((sum, booking) => sum + toNumber(booking.totalAmount, 0) / 100, 0),
+    [paginatedBookings]
+  );
+  const renderBookingsPagination = (header = false, className = "") => (
+    <TablePagination
+      total={sortedBookings.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+      className={className}
+    />
   );
 
   const upcomingBookingsCount = useMemo(
@@ -1180,8 +1218,8 @@ function AdminBookings() {
 
   // OPTIMIZATION: Calculate full total including expenses (booking items + expenses)
   const bookingsTotalWithExpenses = useMemo(
-    () => bookingsTableTotal + linkedExpenseTotal,
-    [bookingsTableTotal, linkedExpenseTotal]
+    () => bookingsFilteredTotal + linkedExpenseTotal,
+    [bookingsFilteredTotal, linkedExpenseTotal]
   );
 
   const unassignedBookingsCount = useMemo(
@@ -1194,7 +1232,12 @@ function AdminBookings() {
     const list = [...products].sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
     if (!needle) return list;
     return list.filter((product) => {
-      return product.name?.toLowerCase().includes(needle) || product.sku?.toLowerCase().includes(needle);
+      const variantMatch = getBookingVariants(product).some((variant) =>
+        [variant.sku, variant.variantNumber, variant.color, variant.size]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle))
+      );
+      return product.name?.toLowerCase().includes(needle) || product.sku?.toLowerCase().includes(needle) || variantMatch;
     });
   }, [productQuery, products]);
 
@@ -1391,14 +1434,16 @@ function AdminBookings() {
     navigate("/admin/customers");
   };
 
-  const addItem = (product) => {
+  const addItem = (product, variant = null) => {
     setForm((prev) => {
-      const existing = prev.items.find((item) => Number(item.productId) === Number(product.id));
+      if (isBookingVariantParent(product) && !variant) return prev;
+      const lineKey = getBookingLineKey(product.id, variant?.id);
+      const existing = prev.items.find((item) => getBookingLineKey(item.productId, item.variantId) === lineKey);
       if (existing) {
         return {
           ...prev,
           items: prev.items.map((item) =>
-            Number(item.productId) === Number(product.id)
+            getBookingLineKey(item.productId, item.variantId) === lineKey
               ? { ...item, quantity: (Number(item.quantity) || 1) + 1 }
               : item
           ),
@@ -1410,39 +1455,48 @@ function AdminBookings() {
           ...prev.items,
           {
             productId: product.id,
+            variantId: variant?.id || null,
+            productName: product.name || "",
+            variantLabel: variant ? formatBookingVariantName(product, variant) : "",
             quantity: 1,
-            price: Number.isFinite(product?.price) ? (product.price / 100).toFixed(2) : "",
+            price: variant
+              && variant.priceOverride !== null
+              && typeof variant.priceOverride !== "undefined"
+              && variant.priceOverride !== ""
+              && Number.isFinite(Number(variant.priceOverride))
+              ? Number(variant.priceOverride).toFixed(2)
+              : Number.isFinite(product?.price) ? (product.price / 100).toFixed(2) : "",
           },
         ],
       };
     });
   };
 
-  const updateItemQuantity = (productId, nextValue) => {
+  const updateItemQuantity = (lineKey, nextValue) => {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => {
-        if (Number(item.productId) !== Number(productId)) return item;
+        if (getBookingLineKey(item.productId, item.variantId) !== lineKey) return item;
         const next = Math.max(1, parseInt(nextValue, 10) || 1);
         return { ...item, quantity: next };
       }),
     }));
   };
 
-  const updateItemPrice = (productId, nextValue) => {
+  const updateItemPrice = (lineKey, nextValue) => {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => {
-        if (Number(item.productId) !== Number(productId)) return item;
+        if (getBookingLineKey(item.productId, item.variantId) !== lineKey) return item;
         return { ...item, price: nextValue };
       }),
     }));
   };
 
-  const removeItem = (productId) => {
+  const removeItem = (lineKey) => {
     setForm((prev) => ({
       ...prev,
-      items: prev.items.filter((item) => Number(item.productId) !== Number(productId)),
+      items: prev.items.filter((item) => getBookingLineKey(item.productId, item.variantId) !== lineKey),
     }));
   };
 
@@ -1861,6 +1915,11 @@ function AdminBookings() {
     addItem,
     formItems: form.items,
     productMap,
+    getLineKey: getBookingLineKey,
+    getProductVariants: getBookingVariants,
+    getVariantAvailableQty: getBookingVariantAvailableQty,
+    formatVariantName: formatBookingVariantName,
+    isVariantParent: isBookingVariantParent,
     updateItemPrice,
     updateItemQuantity,
     removeItem,
@@ -1997,6 +2056,10 @@ function AdminBookings() {
               </div>
             </div>
 
+            {(activeViewMode === "list" && isMobileView) || (!isMobileView && activeViewMode === "cards")
+              ? renderBookingsPagination(true)
+              : null}
+
             {activeViewMode === "list" ? (
               isMobileView ? (
                 <div className="bookings-mobile-list" role="list" aria-label="Bookings">
@@ -2058,7 +2121,8 @@ function AdminBookings() {
                   )}
                 </div>
               ) : (
-                <div className="admin-table admin-table-scroll inventory-table-scroll bookings-table-scroll">
+                <div className="admin-table admin-table-scroll bookings-table-scroll">
+                  {renderBookingsPagination(true, "bookings-table-pagination")}
                   <table className="bookings-hub-table">
                     <thead>
                       <tr>
@@ -2164,6 +2228,7 @@ function AdminBookings() {
                       </tfoot>
                     )}
                   </table>
+                  {renderBookingsPagination(false, "bookings-table-pagination")}
                 </div>
               )
             ) : null}
@@ -2333,25 +2398,8 @@ function AdminBookings() {
               </div>
             ) : null}
 
-            {activeViewMode === "list" || (!isMobileView && activeViewMode === "cards") ? (
-              <div className="table-pagination">
-                <span>
-                  Showing {sortedBookings.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(sortedBookings.length, (clampedPage + 1) * pageSize)} of {sortedBookings.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+            {(activeViewMode === "list" && isMobileView) || (!isMobileView && activeViewMode === "cards") ? (
+              renderBookingsPagination()
             ) : null}
           </section>
         )}

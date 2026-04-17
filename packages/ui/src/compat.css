@@ -94,13 +94,28 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   border-bottom: 1px solid var(--sys-border) !important;
 }
 
-[data-faako-theme] :where(.data-table, .admin-table, [class*="table-wrapper"], [class*="table-shell"]) {
-  border: 1px solid var(--sys-border) !important;
+[data-faako-theme] {
+  --sys-table-card-bg: var(--sys-surface-strong);
+  --sys-table-card-border: var(--sys-border);
+  --sys-table-head-bg: color-mix(in srgb, var(--sys-bg-elevated) 82%, var(--sys-surface-strong));
+  --sys-table-row-hover: var(--sys-accent-soft);
+}
+
+[data-faako-theme] :where(
+  .data-table,
+  .admin-table:not(.invoice-editable-table-wrapper),
+  [class*="table-wrapper"]:not(.invoice-editable-table-wrapper),
+  [class*="table-shell"]:not(.invoice-editable-table-shell),
+  [class*="table-wrap"]:not(.invoice-editable-table-wrapper),
+  [class*="table-scroll"]:not(.invoice-editable-table-wrapper)
+) {
+  overflow: hidden !important;
+  border: 1px solid var(--sys-table-card-border) !important;
   border-top-left-radius: var(--sys-radius-lg) !important;
   border-top-right-radius: var(--sys-radius-lg) !important;
   border-bottom-left-radius: var(--sys-radius-sm) !important;
   border-bottom-right-radius: var(--sys-radius-sm) !important;
-  background-color: trnsparent !important;
+  background-color: var(--sys-table-card-bg) !important;
   box-shadow: var(--sys-shadow-sm) !important;
 }
 
@@ -108,16 +123,37 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   gap: 0 !important;
 }
 
+[data-faako-theme] :where(
+  .admin-table > .admin-table-scroll,
+  .admin-table > [class*="table-wrapper"],
+  .admin-table > [class*="table-shell"],
+  .admin-table > [class*="table-wrap"],
+  .admin-table > [class*="table-scroll"]
+) {
+  margin-top: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 [data-faako-theme] :where(.data-table .table-row, .admin-table tbody tr, table[class*="table"] tbody tr) {
   transition: background-color 160ms ease, transform 160ms ease;
 }
 
 [data-faako-theme] :where(.data-table .table-row:not(.table-head)) {
-  background-color: inherit;
+  background-color: transparent;
+  border-bottom: 1px solid var(--sys-table-card-border) !important;
 }
 
-[data-faako-theme] :where(.data-table .table-row:not(.table-head):hover, .admin-table tbody tr:hover, .admin-table tbody tr:focus-within, table[class*="table"] tbody tr:hover, table[class*="table"] tbody tr:focus-within) {
-  background-color: var(--sys-accent-soft) !important;
+[data-faako-theme] :where(
+  .data-table .table-row:not(.table-head):hover,
+  .admin-table tbody tr:hover,
+  .admin-table tbody tr:focus-within,
+  table[class*="table"] tbody tr:hover,
+  table[class*="table"] tbody tr:focus-within
+) {
+  background-color: var(--sys-table-row-hover) !important;
 }
 
 [data-faako-theme] :where(.data-table .table-row:not(.table-head)) {
@@ -126,12 +162,12 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 
 [data-faako-theme] :where(.data-table .table-row.table-head, .admin-table thead th, table[class*="table"] thead th) {
   color: var(--sys-muted) !important;
-  background-color: var(--sys-bg-elevated) !important;
+  background-color: var(--sys-table-head-bg) !important;
   font-size: 0.74rem !important;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-bottom: 1px solid var(--sys-border) !important;
+  border-bottom: 1px solid var(--sys-table-card-border) !important;
 }
 
 [data-faako-theme] :where(.data-table .table-row.table-head) {
@@ -140,24 +176,56 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 
 [data-faako-theme] :where(.admin-table table, table[class*="table"]) {
   width: 100%;
-  border-collapse: separate;
+  border: 0 !important;
+  border-collapse: collapse;
   border-spacing: 0;
-  color: var(--text-subtle);
+  background: transparent !important;
+  color: var(--sys-text);
 }
 
 [data-faako-theme] :where(.admin-table tbody td, .admin-table tfoot td, table[class*="table"] tbody td, table[class*="table"] tfoot td) {
-  color: var(--text-subtle) !important;
-  border-bottom: 1px solid var(--sys-border) !important;
+  color: var(--sys-text) !important;
+  border-bottom: 1px solid var(--sys-table-card-border) !important;
 }
 
 [data-faako-theme] :where(.admin-table tfoot td, table[class*="table"] tfoot td, .admin-table-footer .admin-table-summary-cell) {
-  background-color: var(--sys-bg-elevated) !important;
-  color: var(--text-subtle) !important;
+  background-color: var(--sys-table-head-bg) !important;
+  color: var(--sys-text) !important;
   font-weight: 700;
 }
 
+[data-faako-theme] :where(.table-pagination, .inventory-register-pagination) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 !important;
+  padding: 0.9rem 1rem !important;
+  border-top: 1px solid var(--sys-table-card-border) !important;
+  background: var(--sys-table-card-bg) !important;
+}
+
+[data-faako-theme] :where(.inventory-register-pagination-header) {
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--sys-table-card-border) !important;
+}
+
+[data-faako-theme] :where(.table-pagination-controls, .inventory-register-pagination-controls) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+[data-faako-theme] :where(.table-pagination-controls button, .inventory-register-pagination-controls button) {
+  border: 1px solid var(--sys-table-card-border) !important;
+  border-radius: 8px !important;
+  background: var(--sys-bg-elevated) !important;
+  color: var(--sys-text) !important;
+  box-shadow: none !important;
+}
+
 [data-faako-theme] :where(.table-strong, .admin-table-summary-value) {
-  color: var(--text-subtle) !important;
+  color: var(--sys-text) !important;
   font-weight: 700;
 }
 
@@ -346,6 +414,8 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   .ui-inline-notice,
   .ui-notice-banner,
   .ui-toast,
+  .ui-data-table,
+  .ui-data-table__header,
   .ui-data-table__scroll,
   .admin-table-footer .admin-table-summary-cell
 ) {

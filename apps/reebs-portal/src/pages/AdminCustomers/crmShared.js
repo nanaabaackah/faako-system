@@ -65,6 +65,8 @@ export const toNumber = (value, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+export const centsToMoneyAmount = (value) => toNumber(value) / 100;
+
 export const sanitizePhone = (value) => String(value || "").replace(/\D/g, "");
 
 export const getQuantile = (values, percentile) => {

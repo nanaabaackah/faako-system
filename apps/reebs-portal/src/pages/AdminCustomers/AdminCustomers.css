@@ -737,7 +737,50 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
 }
 
 .crm-list-table table {
-  min-width: 980px;
+  min-width: 860px;
+}
+
+.crm-list-table thead th:nth-child(1),
+.crm-list-table tbody td:nth-child(1),
+.crm-list-table tfoot td:nth-child(1) {
+  width: 3.25rem;
+}
+
+.crm-list-table thead th:nth-child(2),
+.crm-list-table tbody td:nth-child(2) {
+  width: 18%;
+}
+
+.crm-list-table thead th:nth-child(3),
+.crm-list-table tbody td:nth-child(3) {
+  width: 13%;
+}
+
+.crm-list-table thead th:nth-child(4),
+.crm-list-table tbody td:nth-child(4) {
+  width: 24%;
+}
+
+.crm-list-table thead th:nth-child(5),
+.crm-list-table tbody td:nth-child(5),
+.crm-list-table thead th:nth-child(6),
+.crm-list-table tbody td:nth-child(6) {
+  width: 5.5rem;
+}
+
+.crm-list-table thead th:nth-child(7),
+.crm-list-table tbody td:nth-child(7) {
+  width: 7.25rem;
+}
+
+.crm-list-table thead th:nth-child(8),
+.crm-list-table tbody td:nth-child(8) {
+  width: 8.5rem;
+}
+
+.crm-list-table thead th:nth-child(9),
+.crm-list-table tbody td:nth-child(9) {
+  width: 4.5rem;
 }
 
 body.admin-theme .admin-table.crm-list-table thead th:first-child,
@@ -764,23 +807,29 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
 
 .crm-table-name {
   min-width: 0;
+  max-width: 100%;
+}
+
+.crm-table-name .admin-product-name,
+.crm-table-contact span,
+.crm-table-updated span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .crm-table-contact,
 .crm-table-value,
 .crm-table-updated,
 .crm-table-segment {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
 }
 
-.crm-table-contact {
-  max-width: 220px;
-}
-
-.crm-table-contact span,
-.crm-table-updated span {
-  overflow-wrap: anywhere;
+.crm-table-value {
+  justify-items: start;
 }
 
 .crm-table-segment .crm-pill {

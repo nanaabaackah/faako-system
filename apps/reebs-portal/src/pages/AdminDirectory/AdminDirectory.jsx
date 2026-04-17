@@ -7,6 +7,7 @@ import { faPlus, faRotateRight, faXmark, faPen, faEye } from "/src/icons/iconSet
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
 import roleColors from "../../utils/roleColors";
 
 const formatMoney = (value, currency = "GHS") => {
@@ -209,9 +210,20 @@ function AdminDirectory() {
     const start = clampedPage * pageSize;
     return currentList.slice(start, start + pageSize);
   }, [currentList, clampedPage, pageSize]);
+  const renderDirectoryPagination = (header = false) => (
+    <TablePagination
+      total={currentList.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
   const directoryTableSummary = useMemo(() => {
     if (activeTab === "customers") {
-      return currentList.reduce(
+      return paginatedList.reduce(
         (accumulator, row) => {
           accumulator.count += 1;
           accumulator.orders += toNumber(row.orders);
@@ -224,7 +236,7 @@ function AdminDirectory() {
     }
 
     if (activeTab === "vendors") {
-      const totals = currentList.reduce(
+      const totals = paginatedList.reduce(
         (accumulator, row) => {
           accumulator.count += 1;
           accumulator.products += toNumber(row.products);
@@ -244,8 +256,8 @@ function AdminDirectory() {
       };
     }
 
-    return { count: currentList.length };
-  }, [activeTab, currentList]);
+    return { count: paginatedList.length };
+  }, [activeTab, paginatedList]);
 
   const openCreateModal = () => {
     setEditing(null);
@@ -553,8 +565,10 @@ function AdminDirectory() {
           {!loading && error && <p className="customers-error">{error}</p>}
 
           {!loading && !error && (
-            <div className="customers-table-wrapper">
-              <table className="customers-table">
+            <>
+              <div className="customers-table-wrapper">
+                {renderDirectoryPagination(true)}
+                <table className="customers-table">
                 <thead>
                   {activeTab === "customers" ? (
                     <tr>
@@ -745,26 +759,10 @@ function AdminDirectory() {
                     )}
                   </tfoot>
                 )}
-              </table>
-              <div className="table-pagination">
-                <span>
-                  Showing {currentList.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(currentList.length, (clampedPage + 1) * pageSize)} of {currentList.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
+                </table>
+                {renderDirectoryPagination()}
               </div>
-            </div>
+            </>
           )}
         </section>
       </div>

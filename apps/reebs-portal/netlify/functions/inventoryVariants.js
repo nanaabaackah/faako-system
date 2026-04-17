@@ -1,0 +1,519 @@
+/* eslint-disable no-undef */
+import { Client } from "pg";
+import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  cleanInventoryText,
+  ensureInventoryVariantSchema,
+  slugifySourceCategory,
+} from "./_shared/inventoryExtensions.js";
+
+const METHODS = "GET,POST,PATCH,OPTIONS";
+
+const json = (event, statusCode, payload) =>
+  respond(event, statusCode, payload, { methods: METHODS });
+
+const parseBody = (event) => {
+  try {
+    return JSON.parse(event.body || "{}");
+  } catch {
+    return null;
+  }
+};
+
+const toInt = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+};
+
+const toMoneyCents = (value) => {
+  if (value === null || typeof value === "undefined" || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.round(parsed * 100));
+};
+
+const toCentsValue = (value) => {
+  if (value === null || typeof value === "undefined" || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.round(parsed));
+};
+
+const readPriceOverrideCents = (body) => {
+  if (Object.prototype.hasOwnProperty.call(body, "priceOverrideCents")) {
+    return toCentsValue(body.priceOverrideCents);
+  }
+  return toMoneyCents(body.priceOverride);
+};
+
+const serializeVariant = (row) => ({
+  ...row,
+  stockQty: Number(row.stockQty ?? row.stockqty ?? 0),
+  reservedQty: Number(row.reservedQty ?? row.reservedqty ?? 0),
+  availableQty: Math.max(
+    Number(row.stockQty ?? row.stockqty ?? 0) - Number(row.reservedQty ?? row.reservedqty ?? 0),
+    0
+  ),
+  priceOverride:
+    row.priceOverride === null || typeof row.priceOverride === "undefined"
+      ? null
+      : Number(row.priceOverride) / 100,
+});
+
+const selectVariants = async (client, organizationId, itemId) => {
+  const parsedItemId = Number(itemId);
+  if (!Number.isFinite(parsedItemId) || parsedItemId <= 0) {
+    const error = new Error("Inventory item id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const result = await client.query(
+    `SELECT
+       v.id,
+       v."organizationId",
+       v."inventoryItemId",
+       v.sku,
+       v."variantNumber",
+       v.color,
+       v.size,
+       v."stockQty",
+       v."reservedQty",
+       GREATEST(v."stockQty" - v."reservedQty", 0) AS "availableQty",
+       v."reorderLevel",
+       v."priceOverride",
+       v.status,
+       v."createdAt",
+       v."updatedAt",
+       p.name AS "productName",
+       p.price AS "productPrice"
+     FROM "inventoryVariant" v
+     JOIN "product" p
+       ON p.id = v."inventoryItemId"
+      AND p."organizationId" = v."organizationId"
+     WHERE v."organizationId" = $1
+       AND v."inventoryItemId" = $2
+     ORDER BY
+       NULLIF(regexp_replace(COALESCE(v."variantNumber", ''), '[^0-9]', '', 'g'), '')::int NULLS LAST,
+       lower(COALESCE(v.color, '')),
+       lower(COALESCE(v.size, '')),
+       v.id`,
+    [organizationId, parsedItemId]
+  );
+  return result.rows.map(serializeVariant);
+};
+
+const getParent = async (client, organizationId, itemId) => {
+  const parsedItemId = Number(itemId);
+  if (!Number.isFinite(parsedItemId) || parsedItemId <= 0) return null;
+  const result = await client.query(
+    `SELECT id, sku, name, price, "itemType"
+     FROM "product"
+     WHERE id = $1 AND "organizationId" = $2
+     LIMIT 1`,
+    [parsedItemId, organizationId]
+  );
+  return result.rows[0] || null;
+};
+
+const buildVariantSku = (parentSku, { variantNumber, color, size }, index = 0) => {
+  const suffix = [
+    variantNumber ? `N${variantNumber}` : "",
+    color ? slugifySourceCategory(color).toUpperCase().slice(0, 8) : "",
+    size ? slugifySourceCategory(size).toUpperCase().slice(0, 8) : "",
+    index ? String(index) : "",
+  ].filter(Boolean);
+  return `${String(parentSku || "VAR").toUpperCase()}-${suffix.join("-") || "VAR"}`.slice(0, 120);
+};
+
+const createVariant = async (client, organizationId, body) => {
+  const parent = await getParent(client, organizationId, body.inventoryItemId || body.itemId || body.productId);
+  if (!parent) {
+    const error = new Error("Inventory item not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const variantNumber = cleanInventoryText(String(body.variantNumber ?? ""), 40) || null;
+  const color = cleanInventoryText(body.color || "", 80) || null;
+  const size = cleanInventoryText(body.size || "", 80) || null;
+  const stockQty = toInt(body.stockQty ?? body.stock ?? body.quantity, 0);
+  const reservedQty = toInt(body.reservedQty, 0);
+  const reorderLevel = toInt(body.reorderLevel, 2);
+  const priceOverride = readPriceOverrideCents(body);
+  const status = cleanInventoryText(body.status || "active", 32).toLowerCase() || "active";
+  const sku = cleanInventoryText(body.sku || buildVariantSku(parent.sku, { variantNumber, color, size }), 120);
+
+  const result = await client.query(
+    `INSERT INTO "inventoryVariant" (
+       "organizationId",
+       "inventoryItemId",
+       sku,
+       "variantNumber",
+       color,
+       size,
+       "stockQty",
+       "reservedQty",
+       "reorderLevel",
+       "priceOverride",
+       status,
+       "createdAt",
+       "updatedAt"
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+     ON CONFLICT DO NOTHING
+     RETURNING
+       id,
+       "organizationId",
+       "inventoryItemId",
+       sku,
+       "variantNumber",
+       color,
+       size,
+       "stockQty",
+       "reservedQty",
+       GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
+       "reorderLevel",
+       "priceOverride",
+       status,
+       "createdAt",
+       "updatedAt"`,
+    [
+      organizationId,
+      parent.id,
+      sku,
+      variantNumber,
+      color,
+      size,
+      stockQty,
+      reservedQty,
+      reorderLevel,
+      priceOverride,
+      status,
+    ]
+  );
+
+  await client.query(
+    `UPDATE "product"
+     SET "itemType" = 'VARIANT_PARENT',
+         stock = COALESCE((
+           SELECT SUM(v."stockQty")::int
+           FROM "inventoryVariant" v
+           WHERE v."organizationId" = $2
+             AND v."inventoryItemId" = $1
+         ), 0),
+         "updatedAt" = NOW()
+     WHERE id = $1 AND "organizationId" = $2`,
+    [parent.id, organizationId]
+  );
+
+  if (result.rowCount > 0) return serializeVariant(result.rows[0]);
+  const variants = await selectVariants(client, organizationId, parent.id);
+  return variants.find(
+    (variant) =>
+      String(variant.variantNumber || "") === String(variantNumber || "")
+      && String(variant.color || "") === String(color || "")
+      && String(variant.size || "") === String(size || "")
+  ) || null;
+};
+
+const normalizeList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => cleanInventoryText(String(entry || ""), 80)).filter(Boolean);
+  }
+  const cleaned = cleanInventoryText(String(value || ""), 240);
+  if (!cleaned) return [];
+  return cleaned.split(",").map((entry) => cleanInventoryText(entry, 80)).filter(Boolean);
+};
+
+const generateNumberVariants = async (client, organizationId, body) => {
+  const parent = await getParent(client, organizationId, body.inventoryItemId || body.itemId || body.productId);
+  if (!parent) {
+    const error = new Error("Inventory item not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const numbersInput = Array.isArray(body.numbers) && body.numbers.length
+    ? body.numbers
+    : Array.from({ length: 10 }, (_, index) => index);
+  const numbers = [...new Set(
+    numbersInput
+      .map((entry) => String(entry).trim())
+      .filter((entry) => /^\d$/.test(entry))
+  )];
+  if (!numbers.length) {
+    const error = new Error("Choose at least one number from 0-9.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const colors = normalizeList(body.colors);
+  const sizes = normalizeList(body.sizes);
+  const colorValues = colors.length ? colors : [null];
+  const sizeValues = sizes.length ? sizes : [null];
+  const stockQty = toInt(body.stockQty ?? body.defaultStockQty, 0);
+  const reservedQty = toInt(body.reservedQty, 0);
+  const reorderLevel = toInt(body.reorderLevel, 2);
+  const priceOverride = readPriceOverrideCents(body);
+  const created = [];
+  const skipped = [];
+
+  await client.query("BEGIN");
+  try {
+    for (const variantNumber of numbers) {
+      for (const color of colorValues) {
+        for (const size of sizeValues) {
+          const sku = buildVariantSku(parent.sku, { variantNumber, color, size });
+          const result = await client.query(
+            `INSERT INTO "inventoryVariant" (
+               "organizationId",
+               "inventoryItemId",
+               sku,
+               "variantNumber",
+               color,
+               size,
+               "stockQty",
+               "reservedQty",
+               "reorderLevel",
+               "priceOverride",
+               status,
+               "createdAt",
+               "updatedAt"
+             )
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',NOW(),NOW())
+             ON CONFLICT DO NOTHING
+             RETURNING
+               id,
+               "organizationId",
+               "inventoryItemId",
+               sku,
+               "variantNumber",
+               color,
+               size,
+               "stockQty",
+               "reservedQty",
+               GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
+               "reorderLevel",
+               "priceOverride",
+               status,
+               "createdAt",
+               "updatedAt"`,
+            [
+              organizationId,
+              parent.id,
+              sku,
+              variantNumber,
+              color,
+              size,
+              stockQty,
+              reservedQty,
+              reorderLevel,
+              priceOverride,
+            ]
+          );
+          if (result.rowCount > 0) {
+            created.push(serializeVariant(result.rows[0]));
+          } else {
+            skipped.push({ variantNumber, color, size });
+          }
+        }
+      }
+    }
+
+    await client.query(
+      `UPDATE "product"
+       SET "itemType" = 'VARIANT_PARENT',
+           stock = COALESCE((
+             SELECT SUM(v."stockQty")::int
+             FROM "inventoryVariant" v
+             WHERE v."organizationId" = $2
+               AND v."inventoryItemId" = $1
+           ), 0),
+           "lastUpdatedAt" = NOW(),
+           "updatedAt" = NOW()
+       WHERE id = $1 AND "organizationId" = $2`,
+      [parent.id, organizationId]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  }
+
+  return {
+    itemId: parent.id,
+    createdCount: created.length,
+    skippedCount: skipped.length,
+    created,
+    skipped,
+  };
+};
+
+const updateVariant = async (client, organizationId, body) => {
+  const variantId = Number(body.id || body.variantId);
+  if (!Number.isFinite(variantId) || variantId <= 0) {
+    const error = new Error("Variant id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const fields = [];
+  const params = [];
+  const assign = (column, value) => {
+    params.push(value);
+    fields.push(`${column} = $${params.length}`);
+  };
+
+  if (Object.prototype.hasOwnProperty.call(body, "sku")) {
+    const sku = cleanInventoryText(body.sku, 120);
+    if (!sku) {
+      const error = new Error("SKU is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+    assign("sku", sku);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "variantNumber")) {
+    assign(`"variantNumber"`, cleanInventoryText(String(body.variantNumber || ""), 40) || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "color")) {
+    assign("color", cleanInventoryText(body.color || "", 80) || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "size")) {
+    assign("size", cleanInventoryText(body.size || "", 80) || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "stockQty")) {
+    assign(`"stockQty"`, toInt(body.stockQty, 0));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "reservedQty")) {
+    assign(`"reservedQty"`, toInt(body.reservedQty, 0));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "reorderLevel")) {
+    assign(`"reorderLevel"`, toInt(body.reorderLevel, 0));
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(body, "priceOverride")
+    || Object.prototype.hasOwnProperty.call(body, "priceOverrideCents")
+  ) {
+    assign(`"priceOverride"`, readPriceOverrideCents(body));
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "status")) {
+    assign("status", cleanInventoryText(body.status || "active", 32).toLowerCase() || "active");
+  }
+
+  if (!fields.length) {
+    const error = new Error("No variant updates provided.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  params.push(variantId, organizationId);
+  const result = await client.query(
+    `UPDATE "inventoryVariant"
+     SET ${fields.join(", ")}, "updatedAt" = NOW()
+     WHERE id = $${params.length - 1}
+       AND "organizationId" = $${params.length}
+     RETURNING
+       id,
+       "organizationId",
+       "inventoryItemId",
+       sku,
+       "variantNumber",
+       color,
+       size,
+       "stockQty",
+       "reservedQty",
+       GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
+       "reorderLevel",
+       "priceOverride",
+       status,
+       "createdAt",
+       "updatedAt"`,
+    params
+  );
+  if (result.rowCount === 0) {
+    const error = new Error("Variant not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+  const updated = serializeVariant(result.rows[0]);
+  await client.query(
+    `UPDATE "product" p
+     SET stock = COALESCE((
+           SELECT SUM(v."stockQty")::int
+           FROM "inventoryVariant" v
+           WHERE v."organizationId" = p."organizationId"
+             AND v."inventoryItemId" = p.id
+         ), 0),
+         "lastUpdatedAt" = NOW(),
+         "updatedAt" = NOW()
+     WHERE p.id = $1 AND p."organizationId" = $2`,
+    [updated.inventoryItemId, organizationId]
+  );
+  return updated;
+};
+
+export async function handler(event = {}) {
+  const method = (event.httpMethod || "GET").toUpperCase();
+  if (method === "OPTIONS") return json(event, 204, {});
+  if (!["GET", "POST", "PATCH"].includes(method)) {
+    return json(event, 405, { error: "Method not allowed." });
+  }
+
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: resolvePgSslConfig(),
+  });
+
+  try {
+    await client.connect();
+    const auth = await requireInternalUser(client, event, {
+      methods: METHODS,
+      roles: method === "GET" ? [] : ["admin", "manager"],
+      roleError: "Only admins and managers can manage inventory variants.",
+    });
+    if (auth.errorResponse) return auth.errorResponse;
+
+    const { organizationId } = auth;
+    await ensureInventoryVariantSchema(client);
+
+    if (method === "GET") {
+      const itemId = event.queryStringParameters?.itemId
+        || event.queryStringParameters?.productId
+        || event.queryStringParameters?.inventoryItemId;
+      const variants = await selectVariants(client, organizationId, itemId);
+      return json(event, 200, variants);
+    }
+
+    const body = parseBody(event);
+    if (!body) return json(event, 400, { error: "Invalid JSON body." });
+
+    if (method === "PATCH") {
+      const updated = await updateVariant(client, organizationId, body);
+      return json(event, 200, updated);
+    }
+
+    const action = cleanInventoryText(body.action || "", 80).toLowerCase();
+    if (action === "generate-number-variants") {
+      const result = await generateNumberVariants(client, organizationId, body);
+      return json(event, 201, result);
+    }
+
+    const created = await createVariant(client, organizationId, body);
+    return json(event, 201, created);
+  } catch (err) {
+    console.error("inventoryVariants error", err);
+    const status = err?.statusCode || (err?.code === "23505" ? 409 : 500);
+    return json(event, status, {
+      error:
+        status === 409
+          ? "A matching variant already exists."
+          : err?.message || "Failed to process inventory variant.",
+      detail: err?.detail || null,
+    });
+  } finally {
+    await client.end().catch(() => {});
+  }
+}

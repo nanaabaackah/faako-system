@@ -6,6 +6,7 @@ import { SelectField } from "@faako/ui";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
 
 const defaultForm = {
   productId: "",
@@ -52,6 +53,7 @@ function AdminMaintenance() {
   const [filter, setFilter] = useState("open");
   const [searchTerm, setSearchTerm] = useState("");
   const [form, setForm] = useState(defaultForm);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -139,10 +141,32 @@ function AdminMaintenance() {
       return fields.some((field) => String(field || "").toLowerCase().includes(needle));
     });
   }, [logs, filter, searchTerm]);
-  const filteredLogCostTotal = useMemo(
-    () => filteredLogs.reduce((sum, log) => sum + toNumber(log.cost), 0),
-    [filteredLogs]
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paginatedLogs = useMemo(() => {
+    const start = clampedPage * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, clampedPage]);
+  const paginatedLogCostTotal = useMemo(
+    () => paginatedLogs.reduce((sum, log) => sum + toNumber(log.cost), 0),
+    [paginatedLogs]
   );
+  const renderLogsPagination = (header = false) => (
+    <TablePagination
+      total={filteredLogs.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [filter, logs.length, searchTerm]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -339,6 +363,7 @@ function AdminMaintenance() {
                 </div>
               </div>
             </div>
+            {renderLogsPagination(true)}
             <div className="admin-table-scroll">
               <table>
                 <thead>
@@ -362,9 +387,9 @@ function AdminMaintenance() {
                       <td colSpan={7} className="maintenance-empty">No maintenance logs found.</td>
                     </tr>
                   ) : (
-                    filteredLogs.map((log, index) => (
+                    paginatedLogs.map((log, index) => (
                       <tr key={log.id}>
-                        <td className="table-row-index">{index}</td>
+                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
                         <td>
                           <div className="maintenance-asset">
                             <strong>{log.productName || "Unknown"}</strong>
@@ -408,13 +433,13 @@ function AdminMaintenance() {
                   <tfoot className="admin-table-footer">
                     <tr>
                       <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{filteredLogs.length} logs</span>
+                        <span className="admin-table-summary-value">{paginatedLogs.length} logs</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell">
-                        <span className="admin-table-summary-value">{formatCurrency(filteredLogCostTotal)}</span>
+                        <span className="admin-table-summary-value">{formatCurrency(paginatedLogCostTotal)}</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
@@ -422,6 +447,7 @@ function AdminMaintenance() {
                   </tfoot>
                 )}
               </table>
+              {renderLogsPagination()}
             </div>
           </section>
         </div>

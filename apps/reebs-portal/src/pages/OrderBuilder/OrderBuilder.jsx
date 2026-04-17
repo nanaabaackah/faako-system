@@ -28,6 +28,32 @@ const getQuantity = (item) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getItemType = (item) =>
+  String(item?.itemType || item?.inventoryItemType || "STANDARD").trim().toUpperCase() || "STANDARD";
+
+const isVariantParent = (item) => getItemType(item) === "VARIANT_PARENT";
+
+const getVariants = (item) => (Array.isArray(item?.variants) ? item.variants : []);
+
+const getVariantAvailableQty = (variant) => {
+  const explicit = Number(variant?.availableQty);
+  if (Number.isFinite(explicit)) return Math.max(0, explicit);
+  return Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
+};
+
+const getVariantPrice = (product, variant) => {
+  if (variant?.priceOverride === null || typeof variant?.priceOverride === "undefined" || variant?.priceOverride === "") {
+    return getUnitPrice(product);
+  }
+  const override = Number(variant?.priceOverride);
+  return Number.isFinite(override) ? override : getUnitPrice(product);
+};
+
+const formatVariantName = (product, variant) =>
+  [product?.name, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
+
+const getOrderLineKey = (productId, variantId = "") => `${productId}:${variantId || "standard"}`;
+
 const normalizeCurrency = (currency) => {
   if (typeof currency !== "string") return "GBP";
   const trimmed = currency.trim();
@@ -70,6 +96,7 @@ function OrderBuilder() {
   const [orderDiscount, setOrderDiscount] = useState("");
   const [discountType, setDiscountType] = useState("amount");
   const [scanFeedback, setScanFeedback] = useState(null);
+  const [variantDigitInputs, setVariantDigitInputs] = useState({});
   const scanTimeoutRef = useRef(null);
   const { user } = useAuth();
 
@@ -129,13 +156,18 @@ function OrderBuilder() {
   const findProductByCode = (code) => {
     const normalized = normalizeCode(code);
     if (!normalized) return null;
-    return (
-      products.find((product) => {
-        const barcode = normalizeCode(product?.barcode);
-        const sku = normalizeCode(product?.sku);
-        return (barcode && barcode === normalized) || (sku && sku === normalized);
-      }) || null
-    );
+    for (const product of products) {
+      const barcode = normalizeCode(product?.barcode);
+      const sku = normalizeCode(product?.sku);
+      if ((barcode && barcode === normalized) || (sku && sku === normalized)) {
+        return { product };
+      }
+      const variant = getVariants(product).find((entry) => normalizeCode(entry?.sku) === normalized);
+      if (variant) {
+        return { product, variant };
+      }
+    }
+    return null;
   };
 
   const pushScanFeedback = (type, message) => {
@@ -169,10 +201,16 @@ function OrderBuilder() {
     });
     if (!query) return list;
     return list.filter((item) => {
+      const variantMatch = getVariants(item).some((variant) =>
+        [variant.sku, variant.variantNumber, variant.color, variant.size]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      );
       return (
         item.name?.toLowerCase().includes(query) ||
         item.sku?.toLowerCase().includes(query) ||
-        item.barcode?.toLowerCase().includes(query)
+        item.barcode?.toLowerCase().includes(query) ||
+        variantMatch
       );
     });
   }, [products, productQuery]);
@@ -209,15 +247,20 @@ function OrderBuilder() {
     return "MIXED";
   }, [cartItems]);
 
-  const addToCart = (product) => {
-    const stock = getQuantity(product);
-    if (stock <= 0) return;
+  const addToCart = (product, variant = null) => {
+    if (isVariantParent(product) && !variant) {
+      pushScanFeedback("error", `Choose a variant for ${product.name || "this product"}.`);
+      return false;
+    }
+    const stock = variant ? getVariantAvailableQty(variant) : getQuantity(product);
+    if (stock <= 0) return false;
+    const lineId = getOrderLineKey(product.id, variant?.id);
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
+      const existing = prev.find((item) => item.lineId === lineId);
       if (existing) {
         if (existing.quantity >= stock) return prev;
         return prev.map((item) =>
-          item.productId === product.id
+          item.lineId === lineId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -225,15 +268,48 @@ function OrderBuilder() {
       return [
         ...prev,
         {
+          lineId,
           productId: product.id,
-          name: product.name,
-          unitPrice: getUnitPrice(product),
+          variantId: variant?.id || null,
+          name: variant ? formatVariantName(product, variant) : product.name,
+          productName: product.name,
+          unitPrice: variant ? getVariantPrice(product, variant) : getUnitPrice(product),
           currency: normalizeCurrency(product.currency || "GBP"),
           quantity: 1,
           stock,
         },
       ];
     });
+    return true;
+  };
+
+  const addDigitSequenceToCart = (product) => {
+    const rawDigits = String(variantDigitInputs[product.id] || "").replace(/\D/g, "");
+    if (!rawDigits) {
+      pushScanFeedback("error", "Enter the balloon number first.");
+      return;
+    }
+    const variants = getVariants(product);
+    const missing = [];
+    let addedCount = 0;
+    rawDigits.split("").forEach((digit) => {
+      const variant = variants.find((entry) => String(entry.variantNumber) === digit);
+      if (!variant) {
+        missing.push(digit);
+        return;
+      }
+      if (addToCart(product, variant)) addedCount += 1;
+    });
+    if (missing.length) {
+      pushScanFeedback("error", `No variant found for ${[...new Set(missing)].join(", ")}.`);
+      return;
+    }
+    if (!addedCount) {
+      pushScanFeedback("error", "Those variants are out of stock.");
+      return;
+    }
+    setVariantDigitInputs((prev) => ({ ...prev, [product.id]: "" }));
+    pushScanFeedback("success", `Added ${product.name || "variants"} / ${rawDigits}.`);
   };
 
   const handleProductScan = (event) => {
@@ -247,16 +323,17 @@ function OrderBuilder() {
       return;
     }
     event.preventDefault();
-    addToCart(match);
+    const added = addToCart(match.product, match.variant || null);
+    if (!added) return;
     setProductQuery("");
-    pushScanFeedback("success", `Added ${match.name || match.sku || match.barcode || "item"}.`);
+    pushScanFeedback("success", `Added ${match.variant ? formatVariantName(match.product, match.variant) : match.product.name || match.product.sku || match.product.barcode || "item"}.`);
   };
 
-  const updateCartQuantity = (productId, nextValue) => {
+  const updateCartQuantity = (lineId, nextValue) => {
     setCartItems((prev) => {
       return prev
         .map((item) => {
-          if (item.productId !== productId) return item;
+          if (item.lineId !== lineId) return item;
           const next = Math.max(1, Math.min(item.stock, Number(nextValue) || 1));
           return { ...item, quantity: next };
         })
@@ -264,18 +341,18 @@ function OrderBuilder() {
     });
   };
 
-  const updateCartPrice = (productId, nextValue) => {
+  const updateCartPrice = (lineId, nextValue) => {
     setCartItems((prev) =>
       prev.map((item) => {
-        if (item.productId !== productId) return item;
+        if (item.lineId !== lineId) return item;
         const value = Number(nextValue);
         return { ...item, unitPrice: Number.isFinite(value) && value >= 0 ? value : item.unitPrice };
       })
     );
   };
 
-  const removeFromCart = (productId) => {
-    setCartItems((prev) => prev.filter((item) => item.productId !== productId));
+  const removeFromCart = (lineId) => {
+    setCartItems((prev) => prev.filter((item) => item.lineId !== lineId));
   };
 
   const handleSubmit = async () => {
@@ -302,6 +379,7 @@ function OrderBuilder() {
           status,
           items: cartItems.map((item) => ({
             productId: item.productId,
+            variantId: item.variantId || undefined,
             quantity: item.quantity,
             price: item.unitPrice,
           })),
@@ -321,9 +399,26 @@ function OrderBuilder() {
       setCartItems([]);
       setProducts((prev) =>
         prev.map((product) => {
-          const match = cartItems.find((item) => item.productId === product.id);
-          if (!match) return product;
-          const updatedStock = Math.max(getQuantity(product) - match.quantity, 0);
+          const matches = cartItems.filter((item) => Number(item.productId) === Number(product.id));
+          if (!matches.length) return product;
+          if (matches.some((item) => item.variantId)) {
+            const variants = getVariants(product).map((variant) => {
+              const variantQty = matches
+                .filter((item) => Number(item.variantId) === Number(variant.id))
+                .reduce((sum, item) => sum + item.quantity, 0);
+              if (!variantQty) return variant;
+              const nextStock = Math.max(Number(variant.stockQty || 0) - variantQty, 0);
+              return {
+                ...variant,
+                stockQty: nextStock,
+                availableQty: Math.max(nextStock - Number(variant.reservedQty || 0), 0),
+              };
+            });
+            const updatedStock = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+            return { ...product, variants, quantity: updatedStock, stock: updatedStock };
+          }
+          const orderedQty = matches.reduce((sum, item) => sum + item.quantity, 0);
+          const updatedStock = Math.max(getQuantity(product) - orderedQty, 0);
           return { ...product, quantity: updatedStock, stock: updatedStock };
         })
       );
@@ -438,6 +533,8 @@ function OrderBuilder() {
               <div className="order-product-list">
                 {filteredProducts.map((product) => {
                   const stock = getQuantity(product);
+                  const variants = getVariants(product).filter((variant) => String(variant.status || "active") === "active");
+                  const hasVariants = isVariantParent(product);
                   return (
                     <div key={product.id} className="order-product-row">
                       <div>
@@ -445,17 +542,55 @@ function OrderBuilder() {
                         <p>
                           {product.sku ? `SKU ${product.sku}` : "No SKU"}
                           {product.barcode ? ` · Barcode ${product.barcode}` : ""} · Stock {stock}
+                          {hasVariants ? ` · ${variants.length} variants` : ""}
                         </p>
+                        {hasVariants && (
+                          <div className="order-variant-picker">
+                            <div className="order-digit-entry">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={variantDigitInputs[product.id] || ""}
+                                onChange={(event) =>
+                                  setVariantDigitInputs((prev) => ({
+                                    ...prev,
+                                    [product.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. 18"
+                                aria-label={`Digits for ${product.name}`}
+                              />
+                              <button type="button" onClick={() => addDigitSequenceToCart(product)}>
+                                Add digits
+                              </button>
+                            </div>
+                            <div className="order-variant-buttons">
+                              {variants.slice(0, 12).map((variant) => (
+                                <button
+                                  key={variant.id}
+                                  type="button"
+                                  onClick={() => addToCart(product, variant)}
+                                  disabled={getVariantAvailableQty(variant) <= 0}
+                                >
+                                  {formatVariantName(product, variant).replace(`${product.name} / `, "")}
+                                  <small>{getVariantAvailableQty(variant)} left</small>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="order-product-actions">
                         <span>{formatCurrency(getUnitPrice(product), product.currency)}</span>
-                        <button
-                          type="button"
-                          onClick={() => addToCart(product)}
-                          disabled={stock <= 0}
-                        >
-                          Add
-                        </button>
+                        {!hasVariants && (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(product)}
+                            disabled={stock <= 0}
+                          >
+                            Add
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -475,10 +610,13 @@ function OrderBuilder() {
                 <p className="order-empty">Add products to start the order.</p>
               )}
               {cartItems.map((item) => (
-                <div key={item.productId} className="order-cart-row">
+                <div key={item.lineId} className="order-cart-row">
                   <div>
                     <h4>{item.name}</h4>
-                    <p>{formatCurrency(item.unitPrice, item.currency)} each</p>
+                    <p>
+                      {formatCurrency(item.unitPrice, item.currency)} each
+                      {item.variantId ? " · Variant stock" : ""}
+                    </p>
                   </div>
                   <div className="order-cart-actions">
                     <p>{item.unitPrice}</p>
@@ -487,9 +625,9 @@ function OrderBuilder() {
                       min="1"
                       max={item.stock}
                       value={item.quantity}
-                      onChange={(event) => updateCartQuantity(item.productId, event.target.value)}
+                      onChange={(event) => updateCartQuantity(item.lineId, event.target.value)}
                     />
-                    <button type="button" onClick={() => removeFromCart(item.productId)}>
+                    <button type="button" onClick={() => removeFromCart(item.lineId)}>
                       Remove
                     </button>
                   </div>

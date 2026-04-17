@@ -14,8 +14,14 @@ const toCartNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const getCartItemKey = (item = {}) =>
-  normalizeCartKey(item.id ?? item.productId ?? item.slug ?? item.name);
+export const getCartItemKey = (item = {}) => {
+  const standardKey = item.id ?? item.productId ?? item.slug ?? item.name;
+  return normalizeCartKey(
+    item.cartLineId ||
+      (item.variantId ? `${item.productId ?? item.id}:${item.variantId}` : null) ||
+      standardKey
+  );
+};
 
 export const normalizeCartSource = (item = {}) =>
   (item?.cartKind || item?.sourceCategoryCode || item?.sourcecategorycode || "")
@@ -43,11 +49,12 @@ export const splitCartItems = (items = []) =>
   );
 
 export const getCartItemPrice = (item = {}) =>
+  toCartNumber(item.priceOverride) ??
   toCartNumber(item.price) ??
   (typeof item.priceCents === "number" ? item.priceCents / 100 : 0);
 
 export const getCartItemQuantity = (item = {}) =>
-  Math.max(0, Number(item.quantity ?? item.stock ?? 0) || 0);
+  Math.max(0, Number(item.quantity ?? item.stock ?? item.availableQty ?? item.stockQty ?? 0) || 0);
 
 export const isPerHeadCartItem = (item = {}) =>
   PER_HEAD_RATE_PATTERN.test(String(item?.rate || ""));

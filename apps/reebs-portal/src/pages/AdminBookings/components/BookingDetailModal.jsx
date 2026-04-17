@@ -124,6 +124,11 @@ function BookingDetailModal({
     filteredProducts = [],
     addItem,
     formItems = [],
+    getLineKey,
+    getProductVariants,
+    getVariantAvailableQty,
+    formatVariantName,
+    isVariantParent,
     updateItemPrice,
     updateItemQuantity,
     removeItem,
@@ -131,6 +136,11 @@ function BookingDetailModal({
     bookingCurrency,
   } = editor || {};
   const CustomerPicker = BookingCustomerPickerComponent;
+  const buildLineKey = getLineKey || ((productId, variantId = "") => `${productId}:${variantId || "standard"}`);
+  const listVariants = getProductVariants || (() => []);
+  const availableForVariant = getVariantAvailableQty || (() => 0);
+  const formatVariant = formatVariantName || ((product, variant) => [product?.name, variant?.variantNumber].filter(Boolean).join(" / "));
+  const productIsVariantParent = isVariantParent || (() => false);
   const canInlineEdit = Boolean(detailEditing && form && setForm && save && CustomerPicker);
   const displayStatus = canInlineEdit ? form.status || booking.status || "pending" : booking.status || "pending";
   const displayAddress = canInlineEdit ? form.venueAddress : booking.venueAddress;
@@ -214,33 +224,58 @@ function BookingDetailModal({
           </label>
           <div className="booking-items-picker">
             <div className="booking-items-list">
-              {filteredProducts.slice(0, 10).map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  className="booking-item-add"
-                  onClick={() => addItem?.(product)}
-                  disabled={saving}
-                >
-                  {product.name}
-                </button>
-              ))}
+              {filteredProducts.slice(0, 10).map((product) => {
+                const variants = listVariants(product).filter((variant) => String(variant.status || "active") === "active");
+                if (productIsVariantParent(product)) {
+                  return (
+                    <div key={product.id} className="booking-item-add booking-item-add--variants">
+                      <strong>{product.name}</strong>
+                      <div className="booking-item-variant-buttons">
+                        {variants.map((variant) => (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            onClick={() => addItem?.(product, variant)}
+                            disabled={saving || availableForVariant(variant) <= 0}
+                          >
+                            {formatVariant(product, variant).replace(`${product.name} / `, "")}
+                            <small>{availableForVariant(variant)} left</small>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="booking-item-add"
+                    onClick={() => addItem?.(product)}
+                    disabled={saving}
+                  >
+                    {product.name}
+                  </button>
+                );
+              })}
             </div>
 
             {formItems.length > 0 ? (
               <div className="booking-items-selected">
                 {formItems.map((item) => {
                   const product = productMap.get(Number(item.productId));
+                  const lineKey = buildLineKey(item.productId, item.variantId);
+                  const itemName = item.variantLabel || item.productName || product?.name || `Product ${item.productId}`;
                   return (
-                    <div key={item.productId} className="booking-item-row">
-                      <span>{product?.name || item.productName || `Product ${item.productId}`}</span>
+                    <div key={lineKey} className="booking-item-row">
+                      <span>{itemName}</span>
                       <div className="booking-item-controls">
                         <input
                           type="number"
                           min="0"
                           step="0.01"
                           value={item.price ?? ""}
-                          onChange={(event) => updateItemPrice?.(item.productId, event.target.value)}
+                          onChange={(event) => updateItemPrice?.(lineKey, event.target.value)}
                           placeholder={product?.price ? (product.price / 100).toFixed(2) : "0.00"}
                           aria-label="Override price"
                           disabled={saving}
@@ -249,11 +284,11 @@ function BookingDetailModal({
                           type="number"
                           min="1"
                           value={item.quantity}
-                          onChange={(event) => updateItemQuantity?.(item.productId, event.target.value)}
+                          onChange={(event) => updateItemQuantity?.(lineKey, event.target.value)}
                           aria-label="Quantity"
                           disabled={saving}
                         />
-                        <button type="button" onClick={() => removeItem?.(item.productId)} disabled={saving}>
+                        <button type="button" onClick={() => removeItem?.(lineKey)} disabled={saving}>
                           Remove
                         </button>
                       </div>
@@ -303,7 +338,7 @@ function BookingDetailModal({
         <ul className="booking-detail-list">
           {detailItems.map((item) => {
             const product = productMap.get(Number(item.productId));
-            const productName = item.productName || product?.name || `Product ${item.productId}`;
+            const productName = item.variantLabel || item.productName || product?.name || `Product ${item.productId}`;
             const imageSrc = item.productImage || product?.imageUrl || product?.image || "";
             const fallbackLabel = productName.slice(0, 1).toUpperCase();
             const attendantsLabel = formatAttendantsNeeded(product?.attendantsNeeded);

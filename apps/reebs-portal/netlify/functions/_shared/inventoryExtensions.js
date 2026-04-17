@@ -1,0 +1,204 @@
+export const DEFAULT_SOURCE_CATEGORIES = [
+  { name: "Toys", slug: "toys" },
+  { name: "Household", slug: "household" },
+  { name: "Supplies", slug: "supplies" },
+];
+
+export const INVENTORY_ITEM_TYPES = new Set(["STANDARD", "VARIANT_PARENT", "BUNDLE"]);
+
+export const cleanInventoryText = (value, max = 160) => {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").slice(0, max);
+};
+
+export const slugifySourceCategory = (value) => {
+  const slug = cleanInventoryText(value, 120)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+  return slug || "category";
+};
+
+export const normalizeInventoryItemType = (value, fallback = "STANDARD") => {
+  const normalized = cleanInventoryText(value, 32).toUpperCase();
+  return INVENTORY_ITEM_TYPES.has(normalized) ? normalized : fallback;
+};
+
+const runStatements = async (client, statements, label) => {
+  for (const statement of statements) {
+    try {
+      await client.query(statement);
+    } catch (err) {
+      console.warn(`${label} failed:`, err?.message || err);
+    }
+  }
+};
+
+export const ensureSourceCategorySchema = async (client) => {
+  await runStatements(
+    client,
+    [
+      `CREATE TABLE IF NOT EXISTS "sourceCategory" (
+        "id" SERIAL PRIMARY KEY,
+        "organizationId" INTEGER NOT NULL DEFAULT 1,
+        "name" TEXT NOT NULL,
+        "slug" TEXT NOT NULL,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS "sourceCategory_organizationId_isActive_idx"
+        ON "sourceCategory" ("organizationId", "isActive")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "sourceCategory_org_name_ci_key"
+        ON "sourceCategory" ("organizationId", lower("name"))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "sourceCategory_org_slug_ci_key"
+        ON "sourceCategory" ("organizationId", lower("slug"))`,
+      `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "itemType" TEXT NOT NULL DEFAULT 'STANDARD'`,
+      `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "sourceCategoryId" INTEGER`,
+      `CREATE INDEX IF NOT EXISTS "product_sourceCategoryId_idx" ON "product" ("sourceCategoryId")`,
+      `CREATE INDEX IF NOT EXISTS "product_organizationId_itemType_idx"
+        ON "product" ("organizationId", "itemType")`,
+    ],
+    "Source category schema check"
+  );
+
+  for (const category of DEFAULT_SOURCE_CATEGORIES) {
+    await client.query(
+      `INSERT INTO "sourceCategory" ("organizationId", "name", "slug", "isActive", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, true, NOW(), NOW())
+       ON CONFLICT DO NOTHING`,
+      [1, category.name, category.slug]
+    ).catch(() => {});
+  }
+};
+
+export const seedDefaultSourceCategories = async (client, organizationId) => {
+  const parsedOrgId = Number(organizationId);
+  if (!Number.isFinite(parsedOrgId) || parsedOrgId <= 0) return;
+  await ensureSourceCategorySchema(client);
+  for (const category of DEFAULT_SOURCE_CATEGORIES) {
+    await client.query(
+      `INSERT INTO "sourceCategory" ("organizationId", "name", "slug", "isActive", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, true, NOW(), NOW())
+       ON CONFLICT DO NOTHING`,
+      [parsedOrgId, category.name, category.slug]
+    );
+  }
+};
+
+export const ensureInventoryVariantSchema = async (client) => {
+  await ensureSourceCategorySchema(client);
+  await runStatements(
+    client,
+    [
+      `CREATE TABLE IF NOT EXISTS "inventoryVariant" (
+        "id" SERIAL PRIMARY KEY,
+        "organizationId" INTEGER NOT NULL DEFAULT 1,
+        "inventoryItemId" INTEGER NOT NULL,
+        "sku" TEXT NOT NULL,
+        "variantNumber" TEXT,
+        "color" TEXT,
+        "size" TEXT,
+        "stockQty" INTEGER NOT NULL DEFAULT 0,
+        "reservedQty" INTEGER NOT NULL DEFAULT 0,
+        "reorderLevel" INTEGER NOT NULL DEFAULT 2,
+        "priceOverride" INTEGER,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "inventoryVariant_organizationId_sku_key"
+        ON "inventoryVariant" ("organizationId", "sku")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "inventoryVariant_org_item_dimensions_key"
+        ON "inventoryVariant" (
+          "organizationId",
+          "inventoryItemId",
+          COALESCE("variantNumber", ''),
+          COALESCE("color", ''),
+          COALESCE("size", '')
+        )`,
+      `CREATE INDEX IF NOT EXISTS "inventoryVariant_organizationId_inventoryItemId_idx"
+        ON "inventoryVariant" ("organizationId", "inventoryItemId")`,
+      `ALTER TABLE "orderItem" ADD COLUMN IF NOT EXISTS "variantId" INTEGER`,
+      `ALTER TABLE "bookingItem" ADD COLUMN IF NOT EXISTS "variantId" INTEGER`,
+      `ALTER TABLE "stockMovement" ADD COLUMN IF NOT EXISTS "variantId" INTEGER`,
+      `CREATE INDEX IF NOT EXISTS "orderItem_variantId_idx" ON "orderItem" ("variantId")`,
+      `CREATE INDEX IF NOT EXISTS "bookingItem_variantId_idx" ON "bookingItem" ("variantId")`,
+      `CREATE INDEX IF NOT EXISTS "stockMovement_variantId_idx" ON "stockMovement" ("variantId")`,
+    ],
+    "Inventory variant schema check"
+  );
+};
+
+export const findSourceCategoryById = async (client, organizationId, id) => {
+  const parsedId = Number(id);
+  if (!Number.isFinite(parsedId) || parsedId <= 0) return null;
+  const result = await client.query(
+    `SELECT id, "organizationId", name, slug, "isActive", "createdAt", "updatedAt"
+     FROM "sourceCategory"
+     WHERE id = $1 AND "organizationId" = $2
+     LIMIT 1`,
+    [parsedId, organizationId]
+  );
+  return result.rows[0] || null;
+};
+
+export const findSourceCategoryByName = async (client, organizationId, name) => {
+  const cleaned = cleanInventoryText(name, 120);
+  if (!cleaned) return null;
+  const result = await client.query(
+    `SELECT id, "organizationId", name, slug, "isActive", "createdAt", "updatedAt"
+     FROM "sourceCategory"
+     WHERE "organizationId" = $1 AND lower(name) = lower($2)
+     LIMIT 1`,
+    [organizationId, cleaned]
+  );
+  return result.rows[0] || null;
+};
+
+export const createSourceCategory = async (client, organizationId, name) => {
+  await ensureSourceCategorySchema(client);
+  const cleaned = cleanInventoryText(name, 120);
+  if (!cleaned) {
+    const error = new Error("Category name is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existing = await findSourceCategoryByName(client, organizationId, cleaned);
+  if (existing) return existing;
+
+  const baseSlug = slugifySourceCategory(cleaned);
+  let slug = baseSlug;
+  let suffix = 2;
+  while (true) {
+    const slugRes = await client.query(
+      `SELECT id FROM "sourceCategory"
+       WHERE "organizationId" = $1 AND lower(slug) = lower($2)
+       LIMIT 1`,
+      [organizationId, slug]
+    );
+    if (slugRes.rowCount === 0) break;
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  const result = await client.query(
+    `INSERT INTO "sourceCategory" ("organizationId", name, slug, "isActive", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, true, NOW(), NOW())
+     RETURNING id, "organizationId", name, slug, "isActive", "createdAt", "updatedAt"`,
+    [organizationId, cleaned, slug]
+  );
+  return result.rows[0];
+};
+
+export const formatVariantLabel = (productName, variant) => {
+  const parts = [
+    productName,
+    variant?.variantNumber,
+    variant?.color,
+    variant?.size,
+  ].filter((part) => cleanInventoryText(String(part || ""), 80));
+  return parts.join(" / ");
+};

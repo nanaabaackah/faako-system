@@ -654,7 +654,6 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
 .admin-table tbody tr {
   
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
-  border-radius: 16px;
   font-size: 0.7rem;
   text-align: center;
 }
@@ -669,18 +668,7 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   color: var(--text-main);
 }
 
-.admin-table tbody tr td:first-child {
-  border-top-left-radius: 16px;
-  border-bottom-left-radius: 16px;
-}
-
-.admin-table tbody tr td:last-child {
-  border-top-right-radius: 16px;
-  border-bottom-right-radius: 16px;
-}
-
-.table-row-index {
-  width: 3.5rem;
+body.admin-theme .admin-table:not(.inventory-table-scroll) tbody td.table-row-index {
   text-align: center;
   white-space: nowrap;
 }
@@ -691,16 +679,6 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   background: color-mix(in oklab, var(--admin-card, #fff), transparent 10%);
   text-align: center;
   vertical-align: top;
-}
-
-.admin-table-footer .admin-table-summary-cell:first-child {
-  border-top-left-radius: 16px;
-  border-bottom-left-radius: 16px;
-}
-
-.admin-table-footer .admin-table-summary-cell:last-child {
-  border-top-right-radius: 16px;
-  border-bottom-right-radius: 16px;
 }
 
 .admin-table-footer .admin-table-summary-cell.is-count {
@@ -727,6 +705,8 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
 
 .admin-product-name {
   font-weight: 600;
+  width: auto;
+  max-width: 100%;
 }
 
 .admin-product-id {
@@ -740,7 +720,7 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   font-weight: 700;
   font-size: 0.9rem;
   text-align: center;
-  min-width: 32px;
+  min-width: 25px;
 }
 
 .admin-stock-ctrl {
@@ -1604,8 +1584,8 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
 }
 
 .admin-chip {
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.4);
+  border: none;
+  background: transparent;
   color: inherit;
   padding: 8px 12px;
   border-radius: 999px;
@@ -1616,6 +1596,7 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
 .admin-chip.is-active {
   background: rgba(99, 231, 198, 0.18);
   border-color: rgba(99, 231, 198, 0.6);
+  box-shadow: 0 8px 18px rgba(99, 231, 198, 0.12);
 }
 
 .inventory-card-grid {
@@ -2977,7 +2958,44 @@ button.admin-kpi-card {
 .admin-detail-actions {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.admin-detail-save-top {
+  min-height: 2.25rem;
+  padding-inline: 1rem;
+}
+
+.admin-detail-autosave-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 800;
+  opacity: 0.78;
+}
+
+.admin-detail-autosave-status.is-pending,
+.admin-detail-autosave-status.is-saving,
+.admin-detail-autosave-status.is-manual-saving {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.admin-detail-autosave-status.is-saved {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.admin-detail-autosave-status.is-error {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .admin-detail-nav {
@@ -3355,6 +3373,63 @@ button.admin-kpi-card {
 .order-product-row p {
   margin: 0;
   font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.order-variant-picker {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.order-digit-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.order-digit-entry input {
+  width: 8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
+.order-digit-entry button,
+.order-variant-buttons button {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text-main);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-digit-entry button {
+  padding: 0.5rem 0.8rem;
+}
+
+.order-variant-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.order-variant-buttons button {
+  display: inline-grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+}
+
+.order-variant-buttons button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.order-variant-buttons small {
+  font-size: 0.68rem;
+  font-weight: 600;
   opacity: 0.7;
 }
 
@@ -5951,6 +6026,43 @@ button.admin-kpi-card {
 
 .booking-item-add:hover {
   border-color: var(--accent);
+}
+
+.booking-item-add--variants {
+  display: grid;
+  gap: 0.45rem;
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.booking-item-variant-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.booking-item-variant-buttons button {
+  display: inline-grid;
+  gap: 0.1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--card), var(--accent) 4%);
+  color: var(--text-main);
+  padding: 0.4rem 0.55rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.booking-item-variant-buttons button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.booking-item-variant-buttons small {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.7;
 }
 
 .booking-items-selected {
@@ -11879,7 +11991,7 @@ body.admin-theme .admin-table-scroll.inventory-table-scroll thead th {
   border-bottom: 1px solid var(--inventory-table-border-color);
 }
 
-body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(3) .sort-header {
+body.admin-theme .admin-table-scroll.inventory-table-scroll thead th:nth-child(4) .sort-header {
   justify-content: flex-start;
 }
 
@@ -11888,7 +12000,7 @@ body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td {
   vertical-align: middle;
 }
 
-body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(3) {
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(4) {
   text-align: left;
 }
 
@@ -11901,7 +12013,7 @@ body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > .inventor
   margin-inline: auto;
 }
 
-body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(3) > .admin-product {
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td:nth-child(4) > .admin-product {
   margin-inline: 0;
 }
 
@@ -13195,7 +13307,6 @@ body.admin-theme :is(
   .orders-view-btn,
   .orders-chip,
   .table-pagination-controls button,
-  .admin-chip,
   .settings-tabs,
   .scheduler-seg,
   .accounting-tabs,
@@ -13292,7 +13403,6 @@ body.admin-theme :is(
   .orders-view-btn,
   .orders-chip,
   .table-pagination-controls button,
-  .admin-chip,
   .settings-tabs,
   .scheduler-seg,
   .accounting-tabs,
@@ -14422,4 +14532,809 @@ body.admin-theme .portal-app-content :is(
   .timesheet-page--redesign .timesheet-item-meta {
     align-items: flex-start;
   }
+}
+
+/* Shared display table system. Keep this late so older module-specific table skins cannot fight it. */
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table-scroll:not(.invoice-editable-table-wrapper),
+  .customers-table-wrapper,
+  .orders-table-wrapper,
+  .roles-table-wrapper,
+  .water-module-table-wrap,
+  .store-mode-table-scroll
+) {
+  margin-top: 1rem !important;
+  overflow: auto !important;
+  border: 1px solid var(--admin-portal-border, var(--admin-border)) !important;
+  background: var(--admin-card, var(--card)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--admin-portal-border, var(--admin-border)), transparent 22%) !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) {
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 0 !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  table-layout: fixed !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) thead tr {
+  background: color-mix(in oklab, var(--admin-muted, #64748b) 16%, var(--admin-card, #ffffff)) !important;
+  box-shadow: none !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(th, td) {
+  min-width: 0 !important;
+  padding: 0.75rem 0.65rem !important;
+  border-bottom: 1px solid var(--admin-portal-border, var(--admin-border)) !important;
+  color: var(--admin-text, var(--text-main)) !important;
+  font-size: 0.82rem !important;
+  line-height: 1.35 !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  text-overflow: ellipsis !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(td, th):has(> :is(button, input, select, textarea, [class*="action"], [class*="menu"])) {
+  overflow: visible !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) th {
+  color: var(--admin-text, var(--text-main)) !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) tbody tr {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) tbody tr:hover {
+  background: color-mix(in oklab, var(--accent, #0f766e) 8%, transparent) !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(tbody tr:last-child td, tfoot tr:last-child td) {
+  border-bottom: 0 !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(td, th) > :is(div, label):not([class*="action"]):not([class*="menu"]) {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(td, th) > :is(span, strong, small, p, a):not([class*="pill"]):not([class*="tag"]):not([class*="badge"]):not([class*="status"]),
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(td, th) > :is(div, label):not([class*="action"]):not([class*="menu"]) > :is(span, strong, small, p, a):not([class*="pill"]):not([class*="tag"]):not([class*="badge"]):not([class*="status"]),
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(td, th) > :is(div, label):not([class*="action"]):not([class*="menu"]) > :is(div, label):not([class*="action"]):not([class*="menu"]) > :is(span, strong, small, p, a):not([class*="pill"]):not([class*="tag"]):not([class*="badge"]):not([class*="status"]) {
+  display: block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) tfoot td,
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) tfoot td :is(span, strong, small, p, a, div, label),
+:is(body.admin-theme, .store-mode-page) .admin-table-footer .admin-table-summary-cell,
+:is(body.admin-theme, .store-mode-page) .admin-table-footer .admin-table-summary-cell :is(span, strong, small, p, a, div) {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll table {
+  table-layout: fixed !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(thead th.inventory-select-cell, tbody td.inventory-select-cell) {
+  width: 3% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(thead th.table-row-index, tbody td.table-row-index),
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(thead th.inventory-cell-id, tbody td.inventory-cell-id) {
+  width: 4% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(
+  thead th.inventory-cell-product,
+  thead th.inventory-cell-vendor,
+  thead th.inventory-cell-sku,
+  thead th.inventory-cell-category,
+  thead th.inventory-cell-updated,
+  thead th.inventory-cell-price,
+  thead th.inventory-cell-value,
+  tbody td.inventory-cell-product,
+  tbody td.inventory-cell-vendor,
+  tbody td.inventory-cell-sku,
+  tbody td.inventory-cell-category,
+  tbody td.inventory-cell-updated,
+  tbody td.inventory-cell-price,
+  tbody td.inventory-cell-value
+) {
+  width: 10% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(thead th.inventory-cell-stock, tbody td.inventory-cell-stock) {
+  width: 5% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(thead th.inventory-cell-actions, tbody td.inventory-cell-actions) {
+  width: 3% !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(tbody td.table-row-index, tbody td.inventory-cell-stock) {
+  text-align: center !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td.inventory-cell-id {
+  text-align: center !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td.inventory-cell-stock > .inventory-table-stock {
+  justify-content: center !important;
+  justify-items: center !important;
+  margin-inline: auto !important;
+  text-align: center !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody :is(td.table-row-index, td.inventory-cell-id) > .inventory-table-text {
+  margin-inline: auto !important;
+  text-align: center !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > :is(
+  .admin-product,
+  .inventory-table-category,
+  .inventory-table-stock,
+  .inventory-table-value,
+  .inventory-table-updated
+) {
+  width: 100% !important;
+  max-width: 100%;
+  min-width: 0 !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll tbody td > :is(
+  .admin-product,
+  .inventory-table-category,
+  .inventory-table-stock,
+  .inventory-table-value,
+  .inventory-table-updated
+) :is(span, strong, small, p, a):not([class*="pill"]):not([class*="tag"]):not([class*="badge"]):not([class*="status"]) {
+  display: block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll :is(th, td) {
+  padding-inline: 0.35rem !important;
+}
+
+body.admin-theme .admin-table-scroll.inventory-table-scroll .sort-header {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (min-width: 1200px) {
+  body.admin-theme .admin-table-scroll.inventory-table-scroll :is(th, td) {
+    padding-inline: 0.5rem !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  body.admin-theme .admin-table-scroll.inventory-table-scroll :is(th, td) {
+    padding-inline: 0.65rem !important;
+  }
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(th, td).table-row-index {
+  width: 4% !important;
+  min-width: 0 !important;
+  max-width: 4% !important;
+  overflow: hidden !important;
+  text-align: center !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body.admin-theme .bookings-hub-table tbody td:is(.bookings-col-customer, .bookings-col-address) {
+  min-width: 0 !important;
+}
+
+body.admin-theme .bookings-hub-table tbody td.bookings-col-address {
+  min-width: 0 !important;
+  width: 20% !important;
+}
+
+body.admin-theme .bookings-hub-table tbody td.bookings-col-customer {
+  width: 14% !important;
+}
+
+body.admin-theme .bookings-hub-table tbody td.bookings-col-invoice {
+  width: 12% !important;
+}
+
+body.admin-theme .bookings-hub-table tbody td:is(.bookings-col-booking, .bookings-col-date, .bookings-col-time, .bookings-col-status, .bookings-col-total) {
+  width: 8% !important;
+}
+
+body.admin-theme .orders-table tbody td:nth-child(2) {
+  width: 11% !important;
+}
+
+body.admin-theme .orders-table tbody td:nth-child(3),
+body.admin-theme .orders-table tbody td:nth-child(4) {
+  min-width: 0 !important;
+  width: 14% !important;
+}
+
+body.admin-theme .orders-table tbody td:nth-child(8) {
+  width: 12% !important;
+}
+
+body.admin-theme .customers-table tbody td:nth-child(2),
+body.admin-theme .customers-table tbody td:nth-child(3),
+body.admin-theme .customers-table tbody td:nth-child(4) {
+  min-width: 0 !important;
+  width: 16% !important;
+}
+
+body.admin-theme .orders-table tbody td:nth-child(1),
+body.admin-theme .orders-table tbody td:nth-child(5),
+body.admin-theme .orders-table tbody td:nth-child(6),
+body.admin-theme .orders-table tbody td:nth-child(7),
+body.admin-theme .orders-table tbody td:nth-child(9),
+body.admin-theme .customers-table tbody td:nth-child(1),
+body.admin-theme .customers-table tbody td:nth-child(5),
+body.admin-theme .customers-table tbody td:nth-child(6),
+body.admin-theme .customers-table tbody td:nth-child(7) {
+  width: 8% !important;
+  max-width: none !important;
+}
+
+body.admin-theme .crm-table-name,
+body.admin-theme .crm-table-contact {
+  min-width: 0 !important;
+}
+
+body.admin-theme :is(.crm-table-value, .crm-table-updated, .crm-table-segment) {
+  min-width: 0 !important;
+  width: auto !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) :is(.sort-header, button) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) th :is(.sort-header, button) {
+  width: max-content !important;
+}
+
+@media (max-width: 1100px) {
+  :is(body.admin-theme, .store-mode-page) :is(
+    .admin-table table:not(.invoice-editable-table),
+    .accounting-table table,
+    .bookings-hub-table,
+    .customers-table,
+    .orders-table,
+    .marketing-table,
+    .roles-table,
+    .rentals-table,
+    .water-module-table,
+    .expenses-ledger-table,
+    .store-mode-table
+  ) :is(th, td) {
+    padding-inline: 0.4rem !important;
+    font-size: 0.76rem !important;
+  }
+}
+
+@media (min-width: 1400px) {
+  :is(body.admin-theme, .store-mode-page) :is(
+    .admin-table table:not(.invoice-editable-table),
+    .accounting-table table,
+    .bookings-hub-table,
+    .customers-table,
+    .orders-table,
+    .marketing-table,
+    .roles-table,
+    .rentals-table,
+    .water-module-table,
+    .expenses-ledger-table,
+    .store-mode-table
+  ) :is(th, td) {
+    padding-inline: 0.8rem !important;
+  }
+}
+
+/* CRM-style list table card: one shell owns the table, summary, and pagination. */
+:where(body.admin-theme, .store-mode-page) {
+  --admin-list-table-card: var(--admin-card, var(--card));
+  --admin-list-table-border: var(--admin-portal-border, var(--admin-border));
+  --admin-list-table-head: color-mix(in oklab, var(--admin-muted, #64748b) 14%, var(--admin-card, #ffffff));
+  --admin-list-table-hover: color-mix(in oklab, var(--accent, #0f766e) 8%, transparent);
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table:has(> table),
+  .admin-table:has(> .admin-table-scroll),
+  .admin-table:has(> .table-pagination),
+  .admin-table-scroll:not(.invoice-editable-table-wrapper),
+  .customers-table-wrapper,
+  .orders-table-wrapper,
+  .roles-table-wrapper,
+  .water-module-table-wrap,
+  .store-mode-table-scroll
+) {
+  display: grid !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--admin-list-table-border) !important;
+  border-top-left-radius: var(--admin-portal-top-radius, 20px) !important;
+  border-top-right-radius: var(--admin-portal-top-radius, 20px) !important;
+  border-bottom-left-radius: var(--admin-portal-bottom-radius, 5px) !important;
+  border-bottom-right-radius: var(--admin-portal-bottom-radius, 5px) !important;
+  background: var(--admin-list-table-card) !important;
+  box-shadow: var(--admin-portal-shadow, 0 18px 40px rgba(15, 23, 42, 0.1)) !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table-scroll:not(.invoice-editable-table-wrapper),
+  .customers-table-wrapper,
+  .orders-table-wrapper,
+  .roles-table-wrapper,
+  .water-module-table-wrap,
+  .store-mode-table-scroll
+) {
+  margin-top: 1rem !important;
+  overflow-x: auto !important;
+}
+
+:is(body.admin-theme, .store-mode-page) .admin-table > .admin-table-scroll:not(.invoice-editable-table-wrapper) {
+  margin-top: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(body.admin-theme, .store-mode-page) .admin-table > .admin-table-header {
+  margin: 0 !important;
+  padding: 1rem !important;
+  border-bottom: 1px solid var(--admin-list-table-border) !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) thead tr {
+  background: var(--admin-list-table-head) !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .store-mode-table
+) tbody tr:hover {
+  background: var(--admin-list-table-hover) !important;
+  transform: none !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table-footer .admin-table-summary-cell,
+  .admin-table tfoot td,
+  table[class*="table"] tfoot td
+) {
+  background: var(--admin-list-table-head) !important;
+}
+
+/* Shared inventory-style pagination for all portal tables. */
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--admin-list-table-border, var(--admin-portal-border));
+  background: var(--admin-list-table-card, var(--card));
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-header {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-top: none;
+  border-bottom: 1px solid var(--admin-list-table-border, var(--admin-portal-border));
+  background: var(--admin-list-table-card, var(--card));
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-range {
+  color: var(--text-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls {
+  gap: 0.55rem;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button {
+  min-width: 0.5rem;
+  min-height: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-list-table-border, var(--admin-portal-border));
+  background: color-mix(in oklab, var(--card), white 20%);
+  color: var(--text-main);
+  box-shadow: none;
+  padding: 0.45rem 0.95rem;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button:hover:not(:disabled),
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button:focus-visible:not(:disabled) {
+  border-color: color-mix(in oklab, var(--accent), transparent 55%);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 12px 24px rgba(15, 23, 42, 0.12);
+  outline: none;
+}
+
+:where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button:disabled {
+  background: color-mix(in oklab, var(--card), transparent 10%);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  :where(body.admin-theme, .store-mode-page) .inventory-register-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  :where(body.admin-theme, .store-mode-page) .inventory-register-pagination-meta {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  :where(body.admin-theme, .store-mode-page) .inventory-register-pagination-page,
+  :where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls {
+    width: 100%;
+  }
+
+  :where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* Give elevated cards room to paint shadows inside tight grids and mobile rails. */
+:where(body.admin-theme, .store-mode-page) {
+  --admin-card-shadow-bleed: clamp(0.85rem, 1.8vw, 1.35rem);
+}
+
+:where(body.admin-theme, .store-mode-page) :is(
+  .admin-cards,
+  .inventory-kpi-grid,
+  .inventory-kpi-visuals,
+  .inventory-card-grid,
+  .stock-activity-grid,
+  .bookings-summary-grid,
+  .bookings-card-grid,
+  .bookings-mobile-list,
+  .bookings-detail-summary,
+  .crm-overview-grid,
+  .crm-mini-grid,
+  .crm-customer-grid,
+  .crm-detail-stat-grid,
+  .rentals-summary-grid,
+  .rentals-detail-summary-grid,
+  .orders-card-grid,
+  .orders-kanban,
+  .accounting-kpis,
+  .accounting-panels,
+  .accounting-balance-grid,
+  .expenses-overview,
+  .expenses-kpis,
+  .expenses-grid,
+  .hr-kpis,
+  .vendors-kpis,
+  .maintenance-kpis,
+  .delivery-kpis,
+  .roles-kpis,
+  .settings-advanced-kpis,
+  .water-module-kpis,
+  .timesheet-kpis,
+  .aw-home-summary-grid,
+  .aw-staff-summary-grid
+):has(:is(
+  .admin-card,
+  .glass-card,
+  .bubble-card,
+  .inventory-card,
+  .orders-card,
+  .orders-kanban-card,
+  .crm-customer-card,
+  .crm-kanban-card,
+  .vendors-list-item,
+  .aw-card,
+  .aw-panel
+)) {
+  overflow: visible !important;
+  padding-block: var(--admin-card-shadow-bleed) !important;
+  margin-block: calc(-1 * var(--admin-card-shadow-bleed)) !important;
+}
+
+:where(body.admin-theme, .store-mode-page) :is(
+  .bookings-view-tabs.admin-view-toggle,
+  .orders-view-actions,
+  .admin-view-toggle
+) {
+  overflow-y: visible !important;
+  padding-block: 0.35rem;
+  margin-block: -0.35rem;
 }

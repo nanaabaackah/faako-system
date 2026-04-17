@@ -47,8 +47,32 @@ pnpm --filter @faako/reebs-portal run db:generate
 pnpm --filter @faako/reebs-portal run db:migrate:dev
 pnpm --filter @faako/reebs-portal run db:deploy:dev
 pnpm --filter @faako/reebs-portal run db:status:dev
+pnpm --filter @faako/reebs-portal run source-categories:seed
+pnpm --filter @faako/reebs-portal run source-categories:relink:dry
 pnpm --filter @faako/reebs-portal run test:e2e
 ```
+
+## Inventory Source Categories And Variants
+
+Inventory source categories are stored in `sourceCategory`, scoped per organization. The default categories are `Toys`, `Household`, and `Supplies`; `Toys` remains because existing records may already point there. Admin users can create categories from the stock form combobox or from bulk reassignment, and duplicate names are rejected case-insensitively within the same organization.
+
+Numbered balloon stock uses a parent `product` row with `itemType = VARIANT_PARENT` and child rows in `inventoryVariant`. Each variant tracks `stockQty`, `reservedQty`, `reorderLevel`, optional `priceOverride`, and dimensions such as `variantNumber`, `color`, and `size`. Available stock is calculated as `max(stockQty - reservedQty, 0)`. Orders and bookings can reference `variantId`; standard inventory items continue to use the original product stock flow.
+
+To generate number balloon variants, open the item in Admin > Inventory, set the item type to `Variant parent`, then use the variants section to generate digits `0-9` with optional comma-separated colors and sizes. The order builder can expand a typed number like `18` into variant `1` and variant `8`.
+
+Existing Toys-linked items are relinked only through an explicit mapping script. Review first:
+
+```bash
+pnpm --filter @faako/reebs-portal run source-categories:relink:dry
+```
+
+After confirming the exact matched item names, apply:
+
+```bash
+pnpm --filter @faako/reebs-portal run source-categories:relink:apply
+```
+
+The script creates `Household` and `Supplies` first, moves only explicitly mapped product names currently under Toys, and logs the moved count per target category. Anything not mapped stays under Toys for admin review and can be bulk-moved from the stock module.
 
 ## Relationship To Reebs Website
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./Admin.css";
 import { Link, useLocation } from "react-router-dom";
@@ -38,7 +38,33 @@ const getReorderQuantity = (item) => {
 };
 
 const getCategory = (item) =>
-  item?.specificCategory || item?.specificcategory || item?.sourceCategoryCode || "-";
+  item?.sourceCategoryName ||
+  item?.sourcecategoryname ||
+  item?.specificCategory ||
+  item?.specificcategory ||
+  item?.sourceCategoryCode ||
+  "-";
+
+const getSourceCategoryId = (item) => {
+  const raw = item?.sourceCategoryId ?? item?.source_category_id;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const getItemType = (item) =>
+  String(item?.itemType || item?.inventoryItemType || "STANDARD").trim().toUpperCase() || "STANDARD";
+
+const isVariantParentItem = (item) => getItemType(item) === "VARIANT_PARENT";
+
+const getItemVariants = (item) => (Array.isArray(item?.variants) ? item.variants : []);
+
+const getVariantAvailableQty = (variant) =>
+  Number.isFinite(Number(variant?.availableQty))
+    ? Math.max(0, Number(variant.availableQty))
+    : Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
+
+const formatVariantName = (itemName, variant) =>
+  [itemName, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
 
 const normalizeSourceCode = (item) =>
   String(item?.sourceCategoryCode || item?.sourcecategorycode || "")
@@ -62,8 +88,8 @@ const getItemVendorNames = (item, vendorNameById) =>
 
 const formatItemVendorLabel = (item, vendorNameById) => {
   const vendorNames = getItemVendorNames(item, vendorNameById);
-  if (!vendorNames.length) return "No vendors linked";
-  return `Vendor: ${vendorNames.join(", ")}`;
+  if (!vendorNames.length) return "-";
+  return `${vendorNames.join(", ")}`;
 };
 
 const isVendorLinkedInventoryItem = (item) => getItemVendorIds(item).length > 0;
@@ -270,6 +296,152 @@ const INVENTORY_VIEW_MODES = new Set(["table", "cards", "activity"]);
 const INVENTORY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced", "water"]);
 const INVENTORY_STOCK_FILTERS = new Set(["all", "in", "out", "low"]);
 const INVENTORY_ADD_CATEGORY_VALUE = "__add_category__";
+const INVENTORY_ITEM_TYPE_OPTIONS = [
+  { value: "STANDARD", label: "Standard item" },
+  { value: "VARIANT_PARENT", label: "Variant parent" },
+  { value: "BUNDLE", label: "Bundle" },
+];
+const INVENTORY_SOURCE_CODE_OPTIONS = ["CLOTHES", "TOYS", "HOUSEHOLD", "SUPPLIES", "RENTAL", "WATER"];
+const DEFAULT_SPECIFIC_CATEGORY_OPTIONS = [
+  "Party Supplies",
+  "Cleaning Supplies",
+  "Kitchen Supplies",
+  "Laundry",
+  "Bathroom",
+  "Household Goods",
+];
+const SPECIFIC_CATEGORY_SOURCE_RULES = [
+  {
+    sourceName: "Household",
+    sourceCode: "HOUSEHOLD",
+    terms: ["household", "cleaning", "kitchen", "laundry", "bathroom", "broom", "mop", "bucket"],
+  },
+  {
+    sourceName: "Supplies",
+    sourceCode: "SUPPLIES",
+    terms: ["party supplies", "party supply", "supply", "supplies"],
+  },
+];
+
+const resolveSourceCategoryForSpecificCategory = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  const fallback = { sourceName: "Toys", sourceCode: "TOYS" };
+  if (!normalized) return fallback;
+  const match = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
+    rule.terms.some((term) => normalized.includes(term))
+  );
+  return match ? { sourceName: match.sourceName, sourceCode: match.sourceCode } : fallback;
+};
+
+function SourceCategoryCombobox({
+  categories = [],
+  valueId = "",
+  valueName = "",
+  onSelect,
+  onCreate,
+  disabled = false,
+  placeholder = "Search or add a category",
+  ariaLabel = "Source category",
+}) {
+  const [query, setQuery] = useState(valueName || "");
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const normalizedQuery = query.trim().toLowerCase();
+  const activeCategories = useMemo(
+    () => categories.filter((category) => category?.isActive !== false),
+    [categories]
+  );
+  const options = useMemo(() => {
+    const sorted = [...activeCategories].sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""))
+    );
+    if (!normalizedQuery) return sorted.slice(0, 12);
+    return sorted
+      .filter((category) => String(category.name || "").toLowerCase().includes(normalizedQuery))
+      .slice(0, 12);
+  }, [activeCategories, normalizedQuery]);
+  const exactMatch = activeCategories.find(
+    (category) => String(category.name || "").trim().toLowerCase() === normalizedQuery
+  );
+  const selectedId = String(valueId || "");
+
+  useEffect(() => {
+    setQuery(valueName || "");
+  }, [valueId, valueName]);
+
+  const selectCategory = (category) => {
+    if (!category) return;
+    onSelect?.(category);
+    setQuery(category.name || "");
+    setOpen(false);
+  };
+
+  const createCategory = async () => {
+    if (!onCreate || !query.trim() || exactMatch) return;
+    setCreating(true);
+    try {
+      const category = await onCreate(query.trim());
+      if (category) selectCategory(category);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="source-category-combobox">
+      <input
+        type="text"
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 140)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !exactMatch && query.trim() && onCreate) {
+            event.preventDefault();
+            void createCategory();
+          }
+        }}
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+      />
+      {open && !disabled && (
+        <div className="source-category-options" role="listbox" aria-label={ariaLabel}>
+          {options.map((category) => {
+            const active = selectedId && String(category.id) === selectedId;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                className={`source-category-option${active ? " is-active" : ""}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectCategory(category)}
+              >
+                <span>{category.name}</span>
+                {Number(category.itemCount) > 0 && <small>{category.itemCount} items</small>}
+              </button>
+            );
+          })}
+          {!options.length && <span className="source-category-empty">No matching category</span>}
+          {query.trim() && !exactMatch && onCreate ? (
+            <button
+              type="button"
+              className="source-category-option source-category-option--create"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={createCategory}
+              disabled={creating}
+            >
+              {creating ? `Adding "${query.trim()}"...` : `Add "${query.trim()}"`}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getInitialViewMode() {
   return getIsMobileView() ? "cards" : "table";
@@ -318,6 +490,7 @@ function Admin() {
   const [formState, setFormState] = useState({
     type: "StockIn",
     quantity: "",
+    variantId: "",
     notes: "",
     reference: "",
     soldMonth: "",
@@ -331,6 +504,10 @@ function Admin() {
   const [detailForm, setDetailForm] = useState(null);
   const [detailSaving, setDetailSaving] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [detailAutosaveStatus, setDetailAutosaveStatus] = useState("idle");
+  const [detailAutosaveAt, setDetailAutosaveAt] = useState("");
+  const detailAutosaveTimerRef = useRef(null);
+  const detailAutosaveBaselineRef = useRef("");
   const [editRequests, setEditRequests] = useState([]);
   const [editRequestsLoading, setEditRequestsLoading] = useState(false);
   const [editRequestsError, setEditRequestsError] = useState("");
@@ -351,12 +528,23 @@ function Admin() {
   const [archivedBulkLoading, setArchivedBulkLoading] = useState(false);
   const [actionItemId, setActionItemId] = useState(null);
   const [vendors, setVendors] = useState([]);
+  const [sourceCategories, setSourceCategories] = useState([]);
+  const [sourceCategoryError, setSourceCategoryError] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+  const [bulkMoveSpecificCategory, setBulkMoveSpecificCategory] = useState(null);
+  const [bulkMoveSaving, setBulkMoveSaving] = useState(false);
+  const [bulkArchiveSaving, setBulkArchiveSaving] = useState(false);
+  const [variantActionId, setVariantActionId] = useState(null);
+  const [variantGenerateSaving, setVariantGenerateSaving] = useState(false);
   const newItemTemplate = {
     name: "",
     barcode: "",
     price: "",
     quantity: "",
+    itemType: "STANDARD",
     sourceCategoryCode: "CLOTHES",
+    sourceCategoryId: "",
+    sourceCategoryName: "",
     specificCategory: "",
     categoryDraft: "",
     isAddingCategory: false,
@@ -373,12 +561,15 @@ function Admin() {
   const { user } = useAuth();
   const { rates } = useCart();
   const userRole = (user?.role || "").toLowerCase();
-  const isSystemAdmin = userRole === "admin";
-  const canApproveInventoryEdits = userRole === "admin" || userRole === "manager";
-  const canSubmitInventoryEdits = userRole === "admin" || userRole === "manager" || userRole === "staff";
-  const canEditAllInventoryFields = userRole === "admin";
-  const canAdjustInventoryStockDirectly = userRole === "admin" || userRole === "manager";
-  const canCreateInventoryCategories = userRole === "admin" || userRole === "manager";
+  const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
+  const isSystemAdmin = isOwnerOrAdmin;
+  const canApproveInventoryEdits = isOwnerOrAdmin || userRole === "manager";
+  const canSubmitInventoryEdits = isOwnerOrAdmin || userRole === "manager" || userRole === "staff";
+  const canEditAllInventoryFields = isOwnerOrAdmin;
+  const canAdjustInventoryStockDirectly = isOwnerOrAdmin || userRole === "manager";
+  const canCreateInventoryItems = canAdjustInventoryStockDirectly;
+  const canCreateInventoryCategories = isOwnerOrAdmin;
+  const canManageInventoryLifecycle = isOwnerOrAdmin;
   const canViewUpdatedColumn = isSystemAdmin || userRole === "manager";
   const shouldShowUpdatedColumn = canViewUpdatedColumn;
   const detailAccessMessage = canEditAllInventoryFields
@@ -456,6 +647,12 @@ function Admin() {
   }, [isMobileView, location.search]);
 
   useEffect(() => {
+    if (!canCreateInventoryItems) {
+      setNewItemOpen(false);
+    }
+  }, [canCreateInventoryItems]);
+
+  useEffect(() => {
     setArchivedSelected((prev) => {
       if (!prev.size) return prev;
       const validIds = new Set(archivedItems.map((item) => item.id));
@@ -463,6 +660,15 @@ function Admin() {
       return next;
     });
   }, [archivedItems]);
+
+  useEffect(() => {
+    setSelectedItemIds((prev) => {
+      if (!prev.size) return prev;
+      const validIds = new Set(items.map((item) => item.id));
+      const next = new Set([...prev].filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [items]);
 
   useEffect(() => {
     if (canViewUpdatedColumn) return;
@@ -510,6 +716,98 @@ function Admin() {
   useEffect(() => {
     loadVendors();
   }, [loadVendors]);
+
+  const loadSourceCategories = useCallback(async () => {
+    setSourceCategoryError("");
+    try {
+      const response = await fetch("/.netlify/functions/sourceCategories");
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to fetch source categories.");
+      }
+      setSourceCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch source categories", err);
+      setSourceCategoryError(err.message || "Unable to load source categories.");
+      setSourceCategories([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSourceCategories();
+  }, [loadSourceCategories]);
+
+  const createSourceCategoryFromName = useCallback(async (name) => {
+    if (!canCreateInventoryCategories) {
+      setSourceCategoryError("Only owners and admins can create source categories.");
+      return null;
+    }
+    const categoryName = normalizeInventoryCategoryName(name);
+    if (!categoryName) return null;
+    const existing = sourceCategories.find(
+      (category) => String(category.name || "").trim().toLowerCase() === categoryName.toLowerCase()
+    );
+    if (existing) return existing;
+
+    const response = await fetch("/.netlify/functions/sourceCategories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: categoryName }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = data?.error || "Failed to create source category.";
+      setSourceCategoryError(message);
+      throw new Error(message);
+    }
+    setSourceCategories((prev) => {
+      const exists = prev.some((category) => String(category.id) === String(data.id));
+      return exists ? prev : [...prev, data].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    setSourceCategoryError("");
+    return data;
+  }, [canCreateInventoryCategories, sourceCategories]);
+
+  const renameSourceCategory = useCallback(async (category) => {
+    if (!canCreateInventoryCategories || !category?.id) return;
+    const nextName = window.prompt("Rename source category", category.name || "");
+    const categoryName = normalizeInventoryCategoryName(nextName);
+    if (!categoryName || categoryName.toLowerCase() === String(category.name || "").toLowerCase()) return;
+
+    const response = await fetch("/.netlify/functions/sourceCategories", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: category.id, name: categoryName }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = payload?.error || "Failed to update source category.";
+      setSourceCategoryError(message);
+      throw new Error(message);
+    }
+    setSourceCategories((prev) =>
+      prev.map((entry) => (Number(entry.id) === Number(payload.id) ? { ...entry, ...payload } : entry))
+    );
+    setItems((prev) =>
+      prev.map((item) =>
+        Number(getSourceCategoryId(item)) === Number(payload.id)
+          ? {
+              ...item,
+              sourceCategoryName: payload.name,
+              sourceCategorySlug: payload.slug,
+              specificCategory: payload.name,
+            }
+          : item
+      )
+    );
+    setDetailForm((prev) =>
+      prev && Number(prev.sourceCategoryId) === Number(payload.id)
+        ? { ...prev, sourceCategoryName: payload.name, specificCategory: payload.name }
+        : prev
+    );
+    setSourceCategoryError("");
+    setSuccess(`Renamed source category to ${payload.name}.`);
+  }, [canCreateInventoryCategories]);
 
   const vendorNameById = useMemo(
     () =>
@@ -670,6 +968,7 @@ function Admin() {
       refreshInventory(),
       loadWaterSnapshot(),
       loadStockActivity(),
+      loadSourceCategories(),
       canApproveInventoryEdits ? loadEditRequests() : Promise.resolve(),
       archivedOpen ? loadStatusItems("archived") : Promise.resolve(),
       deletedOpen ? loadStatusItems("deleted") : Promise.resolve(),
@@ -681,6 +980,7 @@ function Admin() {
     loadEditRequests,
     loadStatusItems,
     loadStockActivity,
+    loadSourceCategories,
     loadWaterSnapshot,
     refreshInventory,
   ]);
@@ -720,6 +1020,10 @@ function Admin() {
 
   const archiveItem = async (item) => {
     if (!item?.id) return;
+    if (!canManageInventoryLifecycle) {
+      setSubmitError("Only owners and admins can archive inventory items.");
+      return;
+    }
     if (!window.confirm(`Archive "${formatInventoryItemName(item.name, "This Item")}"?`)) return;
     setActionItemId(item.id);
     try {
@@ -743,6 +1047,10 @@ function Admin() {
 
   const restoreSelectedArchived = async () => {
     if (!archivedSelected.size) return;
+    if (!canManageInventoryLifecycle) {
+      setSubmitError("Only owners and admins can restore archived inventory items.");
+      return;
+    }
     if (!window.confirm(`Restore ${archivedSelected.size} archived item(s)?`)) return;
     setArchivedBulkLoading(true);
     try {
@@ -777,6 +1085,10 @@ function Admin() {
 
   const deleteSelectedArchived = async () => {
     if (!archivedSelected.size) return;
+    if (!canManageInventoryLifecycle) {
+      setSubmitError("Only owners and admins can delete archived inventory items.");
+      return;
+    }
     if (!window.confirm(`Delete ${archivedSelected.size} item(s)? This cannot be undone.`)) return;
     setArchivedBulkLoading(true);
     try {
@@ -937,7 +1249,7 @@ function Admin() {
     return inventory.slice(start, start + pageSize);
   }, [inventory, clampedPage, pageSize]);
   const inventoryTableSummary = useMemo(() => {
-    const totals = inventory.reduce(
+    const totals = paginatedInventory.reduce(
       (accumulator, item) => {
         accumulator.count += 1;
         accumulator.stockTotal += getQuantity(item);
@@ -952,7 +1264,18 @@ function Admin() {
       ...totals,
       averagePrice: totals.count ? totals.priceTotal / totals.count : 0,
     };
-  }, [inventory]);
+  }, [paginatedInventory]);
+  const visibleInventoryIds = useMemo(
+    () => paginatedInventory.map((item) => item.id),
+    [paginatedInventory]
+  );
+  const allVisibleSelected =
+    visibleInventoryIds.length > 0 && visibleInventoryIds.every((id) => selectedItemIds.has(id));
+  const activeItemVariants = useMemo(() => getItemVariants(activeItem), [activeItem]);
+  const selectedStockVariant = useMemo(
+    () => activeItemVariants.find((variant) => String(variant.id) === String(formState.variantId)) || null,
+    [activeItemVariants, formState.variantId]
+  );
   const paginationStart = inventory.length === 0 ? 0 : clampedPage * pageSize + 1;
   const paginationEnd = Math.min(inventory.length, (clampedPage + 1) * pageSize);
   const paginationDisplayPage = inventory.length === 0 ? 0 : clampedPage + 1;
@@ -1143,10 +1466,12 @@ function Admin() {
     setDetailForm(null);
     setDetailError("");
     const currentMonth = new Date().toISOString().slice(0, 7);
+    const firstVariant = getItemVariants(item).find((variant) => String(variant.status || "active") === "active");
     setActiveItem(item);
     setFormState({
       type: "StockIn",
       quantity: "",
+      variantId: isVariantParentItem(item) && firstVariant ? String(firstVariant.id) : "",
       notes: "",
       reference: "",
       soldMonth: currentMonth,
@@ -1243,7 +1568,6 @@ function Admin() {
           ? {
               ...row,
               sourceCategoryCode: value,
-              specificCategory: "",
               categoryDraft: "",
               isAddingCategory: false,
             }
@@ -1252,7 +1576,184 @@ function Admin() {
     );
   };
 
-  const handleNewItemCategorySelect = (index, value) => {
+  const handleNewItemSourceCategorySelect = (index, category) => {
+    setNewItemRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              sourceCategoryId: category?.id ? String(category.id) : "",
+              sourceCategoryName: category?.name || "",
+              specificCategory: category?.name || "",
+              categoryDraft: "",
+              isAddingCategory: false,
+            }
+          : row
+      )
+    );
+  };
+
+  const handleDetailSourceCategorySelect = (category) => {
+    setDetailForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            sourceCategoryId: category?.id ? String(category.id) : "",
+            sourceCategoryName: category?.name || "",
+            specificCategory: category?.name || "",
+          }
+        : prev
+    );
+  };
+
+  const toggleItemSelection = (id) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleInventoryIds.forEach((id) => next.delete(id));
+      } else {
+        visibleInventoryIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelectedItems = () => setSelectedItemIds(new Set());
+
+  const createBulkSpecificCategoryOption = async (name) => {
+    const categoryName = normalizeInventoryCategoryName(name);
+    return categoryName ? { id: categoryName.toLowerCase(), name: categoryName, isActive: true } : null;
+  };
+
+  const reassignSelectedSpecificCategory = async () => {
+    if (!canCreateInventoryCategories) {
+      setSubmitError("Only owners and admins can reassign inventory categories.");
+      return;
+    }
+    if (!selectedItemIds.size) {
+      setSubmitError("Select at least one item to move.");
+      return;
+    }
+    const specificCategoryName = normalizeInventoryCategoryName(bulkMoveSpecificCategory?.name);
+    if (!specificCategoryName) {
+      setSubmitError("Choose a specific category for the selected items.");
+      return;
+    }
+
+    setBulkMoveSaving(true);
+    setSubmitError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/.netlify/functions/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reassign-specific-category",
+          productIds: Array.from(selectedItemIds),
+          specificCategory: specificCategoryName,
+          ...buildActorPayload(),
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to move selected items.");
+      }
+
+      const movedItems = Array.isArray(payload?.items) ? payload.items : [];
+      setItems((prev) =>
+        prev.map((item) => {
+          const moved = movedItems.find((row) => Number(row.id) === Number(item.id));
+          return moved
+            ? {
+                ...item,
+                sourceCategoryId: moved.sourceCategoryId,
+                sourceCategoryCode: moved.sourceCategoryCode || item.sourceCategoryCode,
+                sourceCategoryName: moved.sourceCategoryName,
+                sourceCategorySlug: moved.sourceCategorySlug,
+                specificCategory: moved.specificCategory || specificCategoryName,
+                lastUpdatedAt: moved.lastUpdatedAt || item.lastUpdatedAt,
+                lastUpdatedByName: moved.lastUpdatedByName || item.lastUpdatedByName,
+              }
+            : item;
+        })
+      );
+      clearSelectedItems();
+      setBulkMoveSpecificCategory(null);
+      await loadSourceCategories();
+      const movedCount = Number(payload?.movedCount) || movedItems.length;
+      const sourceLabel = payload?.sourceCategory?.name || bulkMoveResolvedSource.sourceName;
+      setSuccess(
+        `Moved ${movedCount} item${movedCount === 1 ? "" : "s"} to ${specificCategoryName}. Source category: ${sourceLabel}.`
+      );
+    } catch (err) {
+      console.error("Bulk specific category move failed", err);
+      setSubmitError(err.message || "Failed to move selected items.");
+    } finally {
+      setBulkMoveSaving(false);
+    }
+  };
+
+  const archiveSelectedItems = async () => {
+    if (!selectedItemIds.size) {
+      setSubmitError("Select at least one item to archive.");
+      return;
+    }
+    const selectedItems = items.filter((item) => selectedItemIds.has(item.id));
+    if (!selectedItems.length) {
+      setSubmitError("No matching selected items found.");
+      return;
+    }
+    if (!window.confirm(`Archive ${selectedItems.length} selected item${selectedItems.length === 1 ? "" : "s"}?`)) {
+      return;
+    }
+
+    setBulkArchiveSaving(true);
+    setSubmitError("");
+    setSuccess("");
+    try {
+      const archived = [];
+      for (const item of selectedItems) {
+        const response = await fetch("/.netlify/functions/inventory", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: item.id, action: "archive", ...buildActorPayload() }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || `Failed to archive ${formatInventoryItemName(item.name, "item")}.`);
+        }
+        archived.push({ ...item, ...data, isArchived: true });
+      }
+
+      const archivedIds = new Set(archived.map((item) => item.id));
+      setItems((prev) => prev.filter((item) => !archivedIds.has(item.id)));
+      setArchivedItems((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id));
+        return [...archived.filter((item) => !existingIds.has(item.id)), ...prev];
+      });
+      clearSelectedItems();
+      setSuccess(`Archived ${archived.length} item${archived.length === 1 ? "" : "s"}.`);
+    } catch (err) {
+      console.error("Bulk archive failed", err);
+      setSubmitError(err.message || "Failed to archive selected items.");
+    } finally {
+      setBulkArchiveSaving(false);
+    }
+  };
+
+  const _handleNewItemCategorySelect = (index, value) => {
     if (value === INVENTORY_ADD_CATEGORY_VALUE) {
       if (!canCreateInventoryCategories) return;
       setNewItemRows((prev) =>
@@ -1283,7 +1784,7 @@ function Admin() {
     );
   };
 
-  const handleNewItemCategoryDraftChange = (index, value) => {
+  const _handleNewItemCategoryDraftChange = (index, value) => {
     setNewItemRows((prev) =>
       prev.map((row, i) =>
         i === index
@@ -1296,7 +1797,7 @@ function Admin() {
     );
   };
 
-  const cancelNewItemCategoryCreate = (index) => {
+  const _cancelNewItemCategoryCreate = (index) => {
     setNewItemRows((prev) =>
       prev.map((row, i) =>
         i === index
@@ -1310,9 +1811,9 @@ function Admin() {
     );
   };
 
-  const saveNewItemCategory = (index) => {
+  const _saveNewItemCategory = (index) => {
     if (!canCreateInventoryCategories) {
-      setNewItemError("Only admins and managers can create categories.");
+      setNewItemError("Only owners and admins can create categories.");
       return;
     }
 
@@ -1461,6 +1962,35 @@ function Admin() {
     );
   }, [customInventoryCategories, items]);
 
+  const specificCategoryOptions = useMemo(() => {
+    const counts = new Map();
+    const addCategory = (value, count = 0) => {
+      const name = normalizeInventoryCategoryName(value);
+      if (!name) return;
+      const key = name.toLowerCase();
+      const current = counts.get(key);
+      counts.set(key, {
+        id: key,
+        name: current?.name || name,
+        itemCount: (current?.itemCount || 0) + count,
+        isActive: true,
+      });
+    };
+
+    DEFAULT_SPECIFIC_CATEGORY_OPTIONS.forEach((category) => addCategory(category));
+    items.forEach((item) => addCategory(item?.specificCategory || item?.specificcategory || "", 1));
+    Object.values(customInventoryCategories).forEach((values) => {
+      values.forEach((value) => addCategory(value));
+    });
+
+    return Array.from(counts.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [customInventoryCategories, items]);
+
+  const bulkMoveResolvedSource = useMemo(
+    () => resolveSourceCategoryForSpecificCategory(bulkMoveSpecificCategory?.name),
+    [bulkMoveSpecificCategory]
+  );
+
   const categories = useMemo(() => {
     const set = new Set();
     items.forEach((item) => {
@@ -1544,11 +2074,17 @@ function Admin() {
     setNewItemError("");
     setSuccess("");
 
+    if (!canCreateInventoryItems) {
+      setNewItemError("Only owners, admins, and managers can create inventory items.");
+      return;
+    }
+
     const rows = newItemRows
       .map((row) => ({
         ...row,
         name: row.name.trim(),
         barcode: row.barcode.trim(),
+        sourceCategoryName: normalizeInventoryCategoryName(row.sourceCategoryName),
         specificCategory: normalizeInventoryCategoryName(row.specificCategory),
         categoryDraft: normalizeInventoryCategoryName(row.categoryDraft),
         description: row.description.trim(),
@@ -1647,7 +2183,10 @@ function Admin() {
             barcode: row.barcode || undefined,
             price: Math.round(Number(row.price) * 100),
             stock: Number.parseInt(row.quantity || "0", 10) || 0,
+            itemType: row.itemType || "STANDARD",
             sourceCategoryCode: row.sourceCategoryCode,
+            sourceCategoryId: row.sourceCategoryId || undefined,
+            sourceCategoryName: row.sourceCategoryName || row.specificCategory || undefined,
             specificCategory: row.specificCategory || undefined,
             description: row.description || undefined,
             purchasePriceGbp: hasPurchasePrice
@@ -1691,11 +2230,44 @@ function Admin() {
     }
   };
 
+  const getDetailAutosaveSignature = useCallback((form) => {
+    if (!form) return "";
+    const vendorIds = Array.isArray(form.vendorIds)
+      ? form.vendorIds.map((value) => String(value)).sort()
+      : [];
+    return JSON.stringify({
+      id: form.id,
+      name: form.name || "",
+      barcode: form.barcode || "",
+      itemType: form.itemType || "STANDARD",
+      sourceCategoryCode: form.sourceCategoryCode || "",
+      sourceCategoryId: form.sourceCategoryId || "",
+      sourceCategoryName: form.sourceCategoryName || "",
+      specificCategory: form.specificCategory || "",
+      vendorIds,
+      price: form.price ?? "",
+      stock: form.stock ?? "",
+      currency: form.currency || "GHS",
+      purchasePriceGbp: form.purchasePriceGbp ?? "",
+      purchasePriceGhs: form.purchasePriceGhs ?? "",
+      saleValue: form.saleValue ?? "",
+      attendantsNeeded: form.attendantsNeeded ?? "",
+      reorderLevel: form.reorderLevel ?? "",
+      reorderQuantity: form.reorderQuantity ?? "",
+      age: form.age || "",
+      imageUrl: form.imageUrl || "",
+      rate: form.rate || "",
+      description: form.description || "",
+    });
+  }, []);
+
   const setDetailFromItem = (item) => {
     if (!item) return;
     setDetailItem(item);
     setDetailError("");
-    setDetailForm({
+    setDetailAutosaveStatus("idle");
+    setDetailAutosaveAt("");
+    const nextForm = {
       id: item.id,
       name: item.name || "",
       sku: item.sku || "",
@@ -1703,6 +2275,9 @@ function Admin() {
       sourceCategoryCode: (item.sourceCategoryCode || item.sourcecategorycode || "CLOTHES")
         .toString()
         .toUpperCase(),
+      itemType: getItemType(item),
+      sourceCategoryId: getSourceCategoryId(item) ? String(getSourceCategoryId(item)) : "",
+      sourceCategoryName: item.sourceCategoryName || item.sourcecategoryname || item.specificCategory || "",
       specificCategory: item.specificCategory || item.specificcategory || "",
       vendorIds: getItemVendorIds(item),
       price: Number.isFinite(Number(item.price)) ? Number(item.price) : "",
@@ -1718,7 +2293,16 @@ function Admin() {
       imageUrl: item.imageUrl || item.image || "",
       rate: item.rate || "",
       description: item.description || "",
-    });
+      variants: getItemVariants(item),
+      variantNumbers: "0,1,2,3,4,5,6,7,8,9",
+      variantColors: "",
+      variantSizes: "",
+      variantDefaultStockQty: "0",
+      variantDefaultReorderLevel: String(getReorderLevel(item)),
+      variantPriceOverride: "",
+    };
+    detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
+    setDetailForm(nextForm);
   };
 
   const openItemDetails = (item) => {
@@ -1728,13 +2312,169 @@ function Admin() {
   };
 
   const closeItemDetails = () => {
+    if (detailAutosaveTimerRef.current) {
+      clearTimeout(detailAutosaveTimerRef.current);
+      detailAutosaveTimerRef.current = null;
+    }
     setDetailItem(null);
     setDetailForm(null);
     setDetailError("");
+    setDetailAutosaveStatus("idle");
+    setDetailAutosaveAt("");
+    detailAutosaveBaselineRef.current = "";
   };
 
   const updateDetailForm = (field, value) => {
     setDetailForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const syncItemVariants = (itemId, variants, itemUpdates = {}) => {
+    const variantList = Array.isArray(variants) ? variants : [];
+    const variantStock = variantList.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+    setItems((prev) =>
+      prev.map((item) =>
+        Number(item.id) === Number(itemId)
+          ? {
+              ...item,
+              ...itemUpdates,
+              itemType: itemUpdates.itemType || "VARIANT_PARENT",
+              variants: variantList,
+              stock: variantStock,
+              quantity: variantStock,
+            }
+          : item
+      )
+    );
+    setDetailItem((prev) =>
+      prev && Number(prev.id) === Number(itemId)
+        ? {
+            ...prev,
+            ...itemUpdates,
+            itemType: itemUpdates.itemType || "VARIANT_PARENT",
+            variants: variantList,
+            stock: variantStock,
+            quantity: variantStock,
+          }
+        : prev
+    );
+    setDetailForm((prev) =>
+      prev && Number(prev.id) === Number(itemId)
+        ? {
+            ...prev,
+            ...itemUpdates,
+            itemType: itemUpdates.itemType || "VARIANT_PARENT",
+            variants: variantList,
+            stock: String(variantStock),
+          }
+        : prev
+    );
+  };
+
+  const fetchItemVariants = async (itemId) => {
+    const response = await fetch(`/.netlify/functions/inventoryVariants?itemId=${encodeURIComponent(itemId)}`);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || "Unable to load variants.");
+    }
+    return Array.isArray(payload) ? payload : [];
+  };
+
+  const updateDetailVariant = (variantId, field, value) => {
+    setDetailForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            variants: getItemVariants(prev).map((variant) =>
+              Number(variant.id) === Number(variantId) ? { ...variant, [field]: value } : variant
+            ),
+          }
+        : prev
+    );
+  };
+
+  const saveDetailVariant = async (variant) => {
+    if (!variant?.id || !detailForm?.id) return;
+    setVariantActionId(variant.id);
+    setDetailError("");
+    try {
+      const response = await fetch("/.netlify/functions/inventoryVariants", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: variant.id,
+          sku: variant.sku,
+          variantNumber: variant.variantNumber,
+          color: variant.color,
+          size: variant.size,
+          stockQty: Number.parseInt(variant.stockQty || "0", 10) || 0,
+          reservedQty: Number.parseInt(variant.reservedQty || "0", 10) || 0,
+          reorderLevel: Number.parseInt(variant.reorderLevel || "0", 10) || 0,
+          priceOverride: variant.priceOverride === "" ? null : variant.priceOverride,
+          status: variant.status || "active",
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to save variant.");
+      }
+      const nextVariants = getItemVariants(detailForm).map((row) =>
+        Number(row.id) === Number(payload.id) ? payload : row
+      );
+      syncItemVariants(detailForm.id, nextVariants);
+      setSuccess(`Updated ${formatVariantName(detailForm.name, payload)}.`);
+    } catch (err) {
+      console.error("Variant update failed", err);
+      setDetailError(err.message || "Failed to save variant.");
+    } finally {
+      setVariantActionId(null);
+    }
+  };
+
+  const generateDetailNumberVariants = async () => {
+    if (!detailForm?.id) return;
+    setVariantGenerateSaving(true);
+    setDetailError("");
+    setSuccess("");
+    try {
+      const numbers = String(detailForm.variantNumbers || "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const colors = String(detailForm.variantColors || "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const sizes = String(detailForm.variantSizes || "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const response = await fetch("/.netlify/functions/inventoryVariants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "generate-number-variants",
+          productId: detailForm.id,
+          numbers,
+          colors,
+          sizes,
+          stockQty: Number.parseInt(detailForm.variantDefaultStockQty || "0", 10) || 0,
+          reorderLevel: Number.parseInt(detailForm.variantDefaultReorderLevel || "0", 10) || 0,
+          priceOverride: detailForm.variantPriceOverride === "" ? null : detailForm.variantPriceOverride,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to generate number variants.");
+      }
+      const variants = await fetchItemVariants(detailForm.id);
+      syncItemVariants(detailForm.id, variants, { itemType: "VARIANT_PARENT" });
+      setSuccess(`Generated ${payload?.createdCount || 0} variant${Number(payload?.createdCount) === 1 ? "" : "s"}.`);
+    } catch (err) {
+      console.error("Variant generation failed", err);
+      setDetailError(err.message || "Failed to generate variants.");
+    } finally {
+      setVariantGenerateSaving(false);
+    }
   };
 
   const isDetailFieldEditable = (field) => {
@@ -1747,87 +2487,100 @@ function Admin() {
     openItemDetails(item);
   };
 
-  const saveItemDetails = async () => {
-    if (!detailForm) return;
+  const saveItemDetails = async ({ autosave = false } = {}) => {
+    const formSnapshot = detailForm;
+    if (!formSnapshot || detailSaving) return;
     if (!canSubmitInventoryEdits) {
       setDetailError("You do not have permission to edit inventory items.");
       return;
     }
 
-    const name = detailForm.name.trim();
-    const stockValue = Number.parseInt(detailForm.stock, 10);
-    const priceValue = Number(detailForm.price);
+    const name = formSnapshot.name.trim();
+    const stockValue = Number.parseInt(formSnapshot.stock, 10);
+    const priceValue = Number(formSnapshot.price);
     const reorderLevelValue =
-      detailForm.reorderLevel !== "" ? Number.parseInt(detailForm.reorderLevel, 10) : null;
+      formSnapshot.reorderLevel !== "" ? Number.parseInt(formSnapshot.reorderLevel, 10) : null;
     const reorderQuantityValue =
-      detailForm.reorderQuantity !== "" ? Number.parseInt(detailForm.reorderQuantity, 10) : null;
-    const selectedVendorIds = Array.isArray(detailForm.vendorIds)
-      ? detailForm.vendorIds
+      formSnapshot.reorderQuantity !== "" ? Number.parseInt(formSnapshot.reorderQuantity, 10) : null;
+    const selectedVendorIds = Array.isArray(formSnapshot.vendorIds)
+      ? formSnapshot.vendorIds
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value) && value > 0)
       : [];
+    const failDetailSave = (message) => {
+      setDetailError(message);
+      setDetailAutosaveStatus("error");
+    };
 
     if (!name) {
-      setDetailError("Name is required.");
+      failDetailSave("Name is required.");
       return;
     }
     if (!Number.isFinite(stockValue) || stockValue < 0) {
-      setDetailError("Stock must be zero or higher.");
+      failDetailSave("Stock must be zero or higher.");
       return;
     }
     if (!Number.isFinite(priceValue) || priceValue < 0) {
-      setDetailError("Price must be zero or higher.");
+      failDetailSave("Price must be zero or higher.");
       return;
     }
     if (
-      detailForm.reorderLevel !== "" &&
+      formSnapshot.reorderLevel !== "" &&
       (!Number.isFinite(reorderLevelValue) || reorderLevelValue < 0)
     ) {
-      setDetailError("Reorder level must be zero or higher.");
+      failDetailSave("Reorder level must be zero or higher.");
       return;
     }
     if (
-      detailForm.reorderQuantity !== "" &&
+      formSnapshot.reorderQuantity !== "" &&
       (!Number.isFinite(reorderQuantityValue) || reorderQuantityValue < 0)
     ) {
-      setDetailError("Reorder quantity must be zero or higher.");
+      failDetailSave("Reorder quantity must be zero or higher.");
       return;
     }
 
+    if (detailAutosaveTimerRef.current) {
+      clearTimeout(detailAutosaveTimerRef.current);
+      detailAutosaveTimerRef.current = null;
+    }
     setDetailSaving(true);
+    setDetailAutosaveStatus(autosave ? "saving" : "manual-saving");
     setDetailError("");
     try {
       const response = await fetch("/.netlify/functions/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: detailForm.id,
+          id: formSnapshot.id,
           name,
-          barcode: detailForm.barcode || undefined,
+          barcode: formSnapshot.barcode || undefined,
           priceCents: Math.round(priceValue * 100),
           stock: stockValue,
-          sourceCategoryCode: detailForm.sourceCategoryCode,
-          specificCategory: detailForm.specificCategory || undefined,
+          itemType: formSnapshot.itemType || "STANDARD",
+          sourceCategoryCode: formSnapshot.sourceCategoryCode,
+          sourceCategoryId: formSnapshot.sourceCategoryId || undefined,
+          sourceCategoryName: formSnapshot.sourceCategoryName || undefined,
+          specificCategory: formSnapshot.specificCategory || undefined,
           vendorIds: selectedVendorIds,
-          description: detailForm.description || undefined,
-          currency: detailForm.currency || "GHS",
+          description: formSnapshot.description || undefined,
+          currency: formSnapshot.currency || "GHS",
           purchasePriceGbpCents:
-            detailForm.purchasePriceGbp !== ""
-              ? Math.round(Number(detailForm.purchasePriceGbp) * 100)
+            formSnapshot.purchasePriceGbp !== ""
+              ? Math.round(Number(formSnapshot.purchasePriceGbp) * 100)
               : undefined,
           purchasePriceGhsCents:
-            detailForm.purchasePriceGhs !== ""
-              ? Math.round(Number(detailForm.purchasePriceGhs) * 100)
+            formSnapshot.purchasePriceGhs !== ""
+              ? Math.round(Number(formSnapshot.purchasePriceGhs) * 100)
               : undefined,
           saleValueCents:
-            detailForm.saleValue !== "" ? Math.round(Number(detailForm.saleValue) * 100) : undefined,
+            formSnapshot.saleValue !== "" ? Math.round(Number(formSnapshot.saleValue) * 100) : undefined,
           attendantsNeeded:
-            detailForm.attendantsNeeded !== "" ? Number(detailForm.attendantsNeeded) : undefined,
+            formSnapshot.attendantsNeeded !== "" ? Number(formSnapshot.attendantsNeeded) : undefined,
           reorderLevel: Number.isFinite(reorderLevelValue) ? reorderLevelValue : undefined,
           reorderQuantity: Number.isFinite(reorderQuantityValue) ? reorderQuantityValue : undefined,
-          age: detailForm.age || undefined,
-          imageUrl: detailForm.imageUrl || undefined,
-          rate: detailForm.rate || undefined,
+          age: formSnapshot.age || undefined,
+          imageUrl: formSnapshot.imageUrl || undefined,
+          rate: formSnapshot.rate || undefined,
           userId: user?.id,
           userName:
             user?.fullName ||
@@ -1844,21 +2597,78 @@ function Admin() {
       }
 
       if (response.status === 202 || payload?.status === "pending_approval") {
-        closeItemDetails();
+        detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+        setDetailAutosaveStatus("saved");
+        setDetailAutosaveAt(new Date().toISOString());
         setSuccess(payload?.message || "Changes sent for manager approval.");
         return;
       }
 
       setItems((prev) => prev.map((row) => (row.id === payload.id ? { ...row, ...payload } : row)));
-      closeItemDetails();
-      setSuccess(`Updated ${payload.name || "item"}.`);
+      setDetailItem((prev) => (prev && prev.id === payload.id ? { ...prev, ...payload } : prev));
+      setDetailForm((prev) => {
+        if (!prev || prev.id !== payload.id) return prev;
+        const nextForm = {
+          ...prev,
+          sku: payload.sku || prev.sku,
+          sourceCategoryId: getSourceCategoryId(payload) ? String(getSourceCategoryId(payload)) : prev.sourceCategoryId,
+          sourceCategoryName: payload.sourceCategoryName || prev.sourceCategoryName,
+          specificCategory: payload.specificCategory || prev.specificCategory,
+          stock: String(getQuantity(payload)),
+        };
+        detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
+        return nextForm;
+      });
+      setDetailAutosaveStatus("saved");
+      setDetailAutosaveAt(new Date().toISOString());
+      setSuccess(`${autosave ? "Autosaved" : "Updated"} ${payload.name || "item"}.`);
     } catch (err) {
       console.error("Update item failed", err);
       setDetailError(err.message || "Failed to update item.");
+      setDetailAutosaveStatus("error");
     } finally {
       setDetailSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (detailAutosaveTimerRef.current) {
+      clearTimeout(detailAutosaveTimerRef.current);
+      detailAutosaveTimerRef.current = null;
+    }
+
+    if (!detailForm || !canSubmitInventoryEdits || detailSaving) return undefined;
+
+    const currentSignature = getDetailAutosaveSignature(detailForm);
+    if (!detailAutosaveBaselineRef.current) {
+      detailAutosaveBaselineRef.current = currentSignature;
+      return undefined;
+    }
+
+    if (currentSignature === detailAutosaveBaselineRef.current) {
+      if (detailAutosaveStatus === "pending") setDetailAutosaveStatus("idle");
+      return undefined;
+    }
+
+    setDetailAutosaveStatus("pending");
+    detailAutosaveTimerRef.current = setTimeout(() => {
+      detailAutosaveTimerRef.current = null;
+      void saveItemDetails({ autosave: true });
+    }, 1200);
+
+    return () => {
+      if (detailAutosaveTimerRef.current) {
+        clearTimeout(detailAutosaveTimerRef.current);
+        detailAutosaveTimerRef.current = null;
+      }
+    };
+  }, [
+    canSubmitInventoryEdits,
+    detailAutosaveStatus,
+    detailForm,
+    detailSaving,
+    getDetailAutosaveSignature,
+  ]);
 
   const formatEditRequestSummary = (request) => {
     const requestedFields =
@@ -1924,7 +2734,7 @@ function Admin() {
     event.preventDefault();
     if (!activeItem) return;
     if (!canAdjustInventoryStockDirectly) {
-      setSubmitError("Only admins and managers can adjust stock directly.");
+      setSubmitError("Only owners, admins, and managers can adjust stock directly.");
       return;
     }
     setSubmitError("");
@@ -1935,6 +2745,10 @@ function Admin() {
       setSubmitError("Quantity must be a positive number.");
       return;
     }
+    if (isVariantParentItem(activeItem) && !formState.variantId) {
+      setSubmitError("Choose a variant before adjusting this item.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -1943,6 +2757,7 @@ function Admin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: activeItem.id,
+          variantId: formState.variantId || undefined,
           type: formState.type,
           quantity: parsedQty,
           soldMonth: formState.type === "StockOut" ? formState.soldMonth : null,
@@ -1969,6 +2784,25 @@ function Admin() {
       setItems((prev) =>
         prev.map((item) => {
           if (item.id !== activeItem.id) return item;
+          if (payload.variantId) {
+            const nextVariants = getItemVariants(item).map((variant) =>
+              Number(variant.id) === Number(payload.variantId)
+                ? {
+                    ...variant,
+                    stockQty: toNumber(payload.newStock, variant.stockQty),
+                    availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
+                  }
+                : variant
+            );
+            return {
+              ...item,
+              variants: nextVariants,
+              quantity: nextVariants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0),
+              stock: nextVariants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0),
+              lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+              lastUpdatedByName: payload.lastUpdatedByName || actorName,
+            };
+          }
           return {
             ...item,
             quantity: toNumber(payload.newStock, getQuantity(item)),
@@ -1977,6 +2811,39 @@ function Admin() {
           };
         })
       );
+      setActiveItem((prev) => {
+        if (!prev || prev.id !== activeItem.id) return prev;
+        if (payload.variantId) {
+          const nextVariants = getItemVariants(prev).map((variant) =>
+            Number(variant.id) === Number(payload.variantId)
+              ? {
+                  ...variant,
+                  stockQty: toNumber(payload.newStock, variant.stockQty),
+                  availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
+                }
+              : variant
+          );
+          const nextStock = nextVariants.reduce(
+            (sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0),
+            0
+          );
+          return {
+            ...prev,
+            variants: nextVariants,
+            quantity: nextStock,
+            stock: nextStock,
+            lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+            lastUpdatedByName: payload.lastUpdatedByName || actorName,
+          };
+        }
+        return {
+          ...prev,
+          quantity: toNumber(payload.newStock, getQuantity(prev)),
+          stock: toNumber(payload.newStock, getQuantity(prev)),
+          lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+          lastUpdatedByName: payload.lastUpdatedByName || actorName,
+        };
+      });
       await loadStockActivity();
       setSuccess(payload?.message || "Stock updated.");
     } catch (err) {
@@ -1997,20 +2864,22 @@ function Admin() {
           title="Stock Management"
           actions={
             <>
-              <button
-                type="button"
-                className="admin-chip inventory-header-action"
-                aria-label={newItemOpen ? "Close add items" : "Add items"}
-                title={newItemOpen ? "Close add items" : "Add items"}
-                onClick={() => {
-                  setNewItemError("");
-                  setSuccess("");
-                  setNewItemOpen((open) => !open);
-                }}
-              >
-                <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
-                <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
-              </button>
+              {canCreateInventoryItems && (
+                <button
+                  type="button"
+                  className="admin-chip inventory-header-action"
+                  aria-label={newItemOpen ? "Close add items" : "Add items"}
+                  title={newItemOpen ? "Close add items" : "Add items"}
+                  onClick={() => {
+                    setNewItemError("");
+                    setSuccess("");
+                    setNewItemOpen((open) => !open);
+                  }}
+                >
+                  <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
+                  <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="admin-chip inventory-header-action"
@@ -2370,6 +3239,52 @@ function Admin() {
               </label>
             </div>
           </div>
+          {canCreateInventoryCategories && viewMode !== "activity" && selectedItemIds.size > 0 && (
+            <div className="inventory-bulk-move">
+              <div>
+                <strong>{selectedItemIds.size} selected</strong>
+                <span>
+                  {bulkMoveSpecificCategory?.name
+                    ? `Move to a specific category. Source category will become ${bulkMoveResolvedSource.sourceName}.`
+                    : "Move to a specific category. Source category updates automatically."}
+                </span>
+              </div>
+              <SourceCategoryCombobox
+                categories={specificCategoryOptions}
+                valueId={bulkMoveSpecificCategory?.id || ""}
+                valueName={bulkMoveSpecificCategory?.name || ""}
+                onSelect={setBulkMoveSpecificCategory}
+                onCreate={createBulkSpecificCategoryOption}
+                placeholder="Search or add a specific category"
+                ariaLabel="Bulk specific category"
+                disabled={!selectedItemIds.size || bulkMoveSaving || bulkArchiveSaving}
+              />
+              <button
+                type="button"
+                className="admin-primary"
+                onClick={reassignSelectedSpecificCategory}
+                disabled={!selectedItemIds.size || !bulkMoveSpecificCategory?.name || bulkMoveSaving || bulkArchiveSaving}
+              >
+                {bulkMoveSaving ? "Moving..." : "Move selected"}
+              </button>
+              <button
+                type="button"
+                className="admin-secondary inventory-bulk-archive"
+                onClick={archiveSelectedItems}
+                disabled={!selectedItemIds.size || bulkMoveSaving || bulkArchiveSaving}
+              >
+                {bulkArchiveSaving ? "Archiving..." : "Archive selected"}
+              </button>
+              <button
+                type="button"
+                className="admin-secondary"
+                onClick={clearSelectedItems}
+                disabled={!selectedItemIds.size || bulkMoveSaving || bulkArchiveSaving}
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="table-pagination inventory-register-pagination-header">
             <div className="inventory-register-pagination-copy">
               <strong className="inventory-register-pagination-range">
@@ -2400,6 +3315,8 @@ function Admin() {
               </div>
             </div>
           </div>
+          {sourceCategoryError && <p className="admin-error">{sourceCategoryError}</p>}
+
           {viewMode === "activity" && (
             <div className="stock-activity-grid">
               {stockActivityError && <p className="admin-error">{stockActivityError}</p>}
@@ -2450,56 +3367,70 @@ function Admin() {
               <table>
                 <thead>
                   <tr>
+                    <th className="inventory-select-cell">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleVisibleSelection}
+                        disabled={!canCreateInventoryCategories}
+                        aria-label="Select visible inventory items"
+                      />
+                    </th>
                     <th className="table-row-index">#</th>
-                    <th>
+                    <th className="inventory-cell-id">
                       <button type="button" className="sort-header" onClick={() => requestSort("id")}>
                         ID <span className="sort-indicator">{sortIndicator("id")}</span>
                       </button>
                     </th>
-                    <th>
+                    <th className="inventory-cell-product">
                       <button type="button" className="sort-header" onClick={() => requestSort("name")}>
                         Product <span className="sort-indicator">{sortIndicator("name")}</span>
                       </button>
                     </th>
-                    <th>
+                    <th className="inventory-cell-vendor">
+                      <button type="button" className="sort-header" onClick={() => requestSort("vendorLabel")}>
+                        Vendor <span className="sort-indicator">{sortIndicator("vendorLabel")}</span>
+                      </button>
+                    </th>
+                    <th className="inventory-cell-sku">
                       <button type="button" className="sort-header" onClick={() => requestSort("sku")}>
                         SKU <span className="sort-indicator">{sortIndicator("sku")}</span>
                       </button>
                     </th>
-                    <th>
+                    <th className="inventory-cell-category">
                       <button type="button" className="sort-header" onClick={() => requestSort("category")}>
                         Category <span className="sort-indicator">{sortIndicator("category")}</span>
                       </button>
                     </th>
-                    <th>
+                    {shouldShowUpdatedColumn && (
+                      <th className="inventory-cell-updated">
+                        <button type="button" className="sort-header" onClick={() => requestSort("lastUpdatedAt")}>
+                          Last Updated <span className="sort-indicator">{sortIndicator("lastUpdatedAt")}</span>
+                        </button>
+                      </th>
+                    )}
+                    <th className="inventory-cell-stock">
                       <button type="button" className="sort-header" onClick={() => requestSort("quantity")}>
                         Stock <span className="sort-indicator">{sortIndicator("quantity")}</span>
                       </button>
                     </th>
-                    <th>
+                    <th className="inventory-cell-price">
                       <button type="button" className="sort-header" onClick={() => requestSort("price")}>
                         Price <span className="sort-indicator">{sortIndicator("price")}</span>
                       </button>
                     </th>
-                    <th>
+                    <th className="inventory-cell-value">
                       <button type="button" className="sort-header" onClick={() => requestSort("inventoryValue")}>
-                        Inventory value <span className="sort-indicator">{sortIndicator("inventoryValue")}</span>
+                        Inventory Value <span className="sort-indicator">{sortIndicator("inventoryValue")}</span>
                       </button>
                     </th>
-                    {shouldShowUpdatedColumn && (
-                      <th>
-                        <button type="button" className="sort-header" onClick={() => requestSort("lastUpdatedAt")}>
-                          Updated <span className="sort-indicator">{sortIndicator("lastUpdatedAt")}</span>
-                        </button>
-                      </th>
-                    )}
-                    <th aria-label="Actions" />
+                    <th className="inventory-cell-actions" aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {!loading && inventory.length === 0 && (
                     <tr>
-                      <td colSpan={shouldShowUpdatedColumn ? 10 : 9} className="admin-empty">
+                      <td colSpan={shouldShowUpdatedColumn ? 12 : 11} className="admin-empty">
                         No items found in inventory.
                       </td>
                     </tr>
@@ -2509,9 +3440,7 @@ function Admin() {
                     const isOut = quantity <= 0;
                     const isLow = isLowStockItem(item);
                     const isMenuOpen = openMenuId === item.id;
-                    const segment = getInventorySegment(item);
                     const vendorLabel = formatItemVendorLabel(item, vendorNameById);
-                    const productMeta = item.barcode ? `Barcode ${item.barcode}` : "";
                     const stockStateClass = isOut ? "is-out" : isLow ? "is-low" : "is-healthy";
                     return (
                       <tr
@@ -2527,48 +3456,42 @@ function Admin() {
                           }
                         }}
                       >
+                        <td className="inventory-select-cell" onClick={(event) => event.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedItemIds.has(item.id)}
+                            onChange={() => toggleItemSelection(item.id)}
+                            disabled={!canCreateInventoryCategories}
+                            aria-label={`Select ${formatInventoryItemName(item.name, "item")}`}
+                          />
+                        </td>
                         <td className="table-row-index">
                           <span className="inventory-table-text">{clampedPage * pageSize + index}</span>
                         </td>
-                        <td>
+                        <td className="inventory-cell-id">
                           <span className="inventory-table-text">{item.id}</span>
                         </td>
-                        <td>
+                        <td className="inventory-cell-product">
                           <div className="admin-product">
                             <span className="admin-product-name">{formatInventoryItemName(item.name)}</span>
-                            {productMeta ? (
-                              <span className="admin-product-id">{productMeta}</span>
-                            ) : null}
-                            {segment === "outsourced" && (
-                              <span className="admin-product-id">{vendorLabel}</span>
+                            {isVariantParentItem(item) && (
+                              <span className="inventory-variant-pill">{getItemVariants(item).length} variants</span>
                             )}
                           </div>
                         </td>
-                        <td>
-                          <span className="inventory-table-text">{item.sku || "-"}</span>
+                        <td className="inventory-cell-vendor">
+                            <span className="admin-vendor">{vendorLabel || "-"}</span>
                         </td>
-                        <td>
+                        <td className="inventory-cell-sku">
+                          <span className="admin-sku">{item.sku || "-"}</span>
+                        </td>
+                        <td className="inventory-cell-category">
                           <div className="inventory-table-category">
                             <span>{getCategory(item)}</span>
                           </div>
                         </td>
-                        <td>
-                          <div className="inventory-table-stock">
-                            <span className="admin-stock">{quantity}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="inventory-table-value">
-                            <strong>{formatMoney(toNumber(item?.price, 0))}</strong>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="inventory-table-value">
-                            <strong>{formatMoney(getInventoryStockValue(item))}</strong>
-                          </div>
-                        </td>
                         {shouldShowUpdatedColumn && (
-                          <td>
+                          <td className="inventory-cell-updated">
                             <div className="inventory-table-updated">
                               <span title={formatUpdatedDetails(item.lastUpdatedAt || item.updatedAt, item.lastUpdatedByName)}>
                                 {formatDate(item.lastUpdatedAt || item.updatedAt)}
@@ -2576,7 +3499,22 @@ function Admin() {
                             </div>
                           </td>
                         )}
-                        <td>
+                        <td className="inventory-cell-stock">
+                          <div className="inventory-table-stock">
+                            <span className="admin-stock">{quantity}</span>
+                          </div>
+                        </td>
+                        <td className="inventory-cell-price">
+                          <div className="inventory-table-value">
+                            <strong>{formatMoney(toNumber(item?.price, 0))}</strong>
+                          </div>
+                        </td>
+                        <td className="inventory-cell-value">
+                          <div className="inventory-table-value">
+                            <strong>{formatMoney(getInventoryStockValue(item))}</strong>
+                          </div>
+                        </td>
+                        <td className="inventory-cell-actions">
                           {!isMobileView && (
                             <div className="bookings-menu inventory-menu">
                               <button
@@ -2621,17 +3559,19 @@ function Admin() {
                                       Adjust stock
                                     </button>
                                   )}
-                                  <button
-                                    type="button"
-                                    className="inventory-menu-archive"
-                                    onClick={() => {
-                                      closeMenu();
-                                      archiveItem(item);
-                                    }}
-                                    disabled={actionItemId === item.id}
-                                  >
-                                    Archive item
-                                  </button>
+                                  {canManageInventoryLifecycle && (
+                                    <button
+                                      type="button"
+                                      className="inventory-menu-archive"
+                                      onClick={() => {
+                                        closeMenu();
+                                        archiveItem(item);
+                                      }}
+                                      disabled={actionItemId === item.id}
+                                    >
+                                      Archive item
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     className="inventory-menu-copy"
@@ -2668,16 +3608,23 @@ function Admin() {
                   <tfoot className="admin-table-footer">
                     <tr>
                       <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          Total
+                        </span>
+                      </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
+                      <td className="admin-table-summary-cell is-empty" />
+                      {shouldShowUpdatedColumn && <td className="admin-table-summary-cell is-empty" />}
                       <td className="admin-table-summary-cell">
                         <span className="admin-table-summary-value">{inventoryTableSummary.stockTotal}</span>
                       </td>
                       <td className="admin-table-summary-cell">
                         <span className="admin-table-summary-value">
-                          {formatMoney(inventoryTableSummary.averagePrice)}
+                          {formatMoney(inventoryTableSummary.priceTotal)}
                         </span>
                       </td>
                       <td className="admin-table-summary-cell">
@@ -2685,7 +3632,6 @@ function Admin() {
                           {formatMoney(inventoryTableSummary.inventoryValueTotal)}
                         </span>
                       </td>
-                      {shouldShowUpdatedColumn && <td className="admin-table-summary-cell is-empty" />}
                       <td className="admin-table-summary-cell is-empty" />
                     </tr>
                   </tfoot>
@@ -2736,6 +3682,20 @@ function Admin() {
                           </div>
 	                      </div>
 	                      <div className="inventory-card-head-actions">
+                          {canCreateInventoryCategories && (
+                            <label
+                              className="inventory-card-select"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedItemIds.has(item.id)}
+                                onChange={() => toggleItemSelection(item.id)}
+                                aria-label={`Select ${formatInventoryItemName(item.name, "item")}`}
+                              />
+                              <span className="sr-only">Select</span>
+                            </label>
+                          )}
 	                        <span className="admin-stock">Qty {quantity}</span>
 	                        <div
 	                          className="bookings-menu inventory-menu inventory-card-menu"
@@ -2782,17 +3742,19 @@ function Admin() {
 	                                  Adjust stock
 	                                </button>
 	                              )}
-	                              <button
-	                                type="button"
-	                                className="inventory-menu-archive"
-	                                onClick={() => {
-	                                  closeMenu();
-	                                  archiveItem(item);
-	                                }}
-	                                disabled={actionItemId === item.id}
-	                              >
-	                                Archive item
-	                              </button>
+	                              {canManageInventoryLifecycle && (
+	                                <button
+	                                  type="button"
+	                                  className="inventory-menu-archive"
+	                                  onClick={() => {
+	                                    closeMenu();
+	                                    archiveItem(item);
+	                                  }}
+	                                  disabled={actionItemId === item.id}
+	                                >
+	                                  Archive item
+	                                </button>
+	                              )}
 	                              <button
 	                                type="button"
 	                                className="inventory-menu-copy"
@@ -2821,7 +3783,12 @@ function Admin() {
 	                        </div>
 	                      </div>
 	                    </div>
-	                    <h4 className="inventory-card-title">{formatInventoryItemName(item.name)}</h4>
+	                    <h4 className="inventory-card-title">
+                        {formatInventoryItemName(item.name)}
+                        {isVariantParentItem(item) && (
+                          <span className="inventory-variant-pill">{getItemVariants(item).length} variants</span>
+                        )}
+                      </h4>
 	                    <div className="inventory-card-details">
 	                      <p className="inventory-card-sub">
 	                        {item.sku ? `SKU ${item.sku}` : "No SKU"}
@@ -2900,14 +3867,16 @@ function Admin() {
                   />
                   Select all
                 </label>
-                <button
-                  type="button"
-                  className="admin-chip"
-                  onClick={restoreSelectedArchived}
-                  disabled={!archivedSelected.size || archivedBulkLoading}
-                >
-                  Restore selected
-                </button>
+                {canManageInventoryLifecycle && (
+                  <button
+                    type="button"
+                    className="admin-chip"
+                    onClick={restoreSelectedArchived}
+                    disabled={!archivedSelected.size || archivedBulkLoading}
+                  >
+                    Restore selected
+                  </button>
+                )}
                 {isSystemAdmin && (
                   <button
                     type="button"
@@ -3090,68 +4059,53 @@ function Admin() {
                         />
                       </label>
                       <label>
-                        Type
+                        Item type
+                        <SelectField
+                          value={row.itemType}
+                          onChangeValue={(nextValue) =>
+                            updateNewItemRow(index, "itemType", String(nextValue))
+                          }
+                          ariaLabel={`Item ${index + 1} item type`}
+                        >
+                          {INVENTORY_ITEM_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </SelectField>
+                      </label>
+                      <label>
+                        Inventory type
                         <SelectField
                           value={row.sourceCategoryCode}
                           onChangeValue={(nextValue) =>
                             handleNewItemSourceCategoryChange(index, String(nextValue))
                           }
-                          ariaLabel={`Item ${index + 1} source category`}
+                          ariaLabel={`Item ${index + 1} inventory type`}
                         >
-                          <option value="CLOTHES">CLOTHES</option>
-                          <option value="TOYS">TOYS</option>
-                          <option value="RENTAL">RENTAL</option>
-                          <option value="WATER">WATER</option>
+                          {INVENTORY_SOURCE_CODE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
                         </SelectField>
                       </label>
                       <label className="admin-new-item-field--wide">
-                        Category
-                        <div className="admin-new-item-category-stack">
-                          <SelectField
-                            value={row.isAddingCategory ? INVENTORY_ADD_CATEGORY_VALUE : row.specificCategory}
-                            onChangeValue={(nextValue) =>
-                              handleNewItemCategorySelect(index, String(nextValue))
-                            }
-                            ariaLabel={`Item ${index + 1} specific category`}
-                          >
-                            <option value="">Select category</option>
-                            {rowCategoryOptions.map((category) => (
-                              <option key={category} value={category}>
-                                {category}
-                              </option>
-                            ))}
-                            {canCreateInventoryCategories && (
-                              <option value={INVENTORY_ADD_CATEGORY_VALUE}>+ Add category</option>
-                            )}
-                          </SelectField>
-
-                          {row.isAddingCategory && canCreateInventoryCategories ? (
-                            <div className="admin-new-item-category-creator">
-                              <input
-                                type="text"
-                                value={row.categoryDraft}
-                                onChange={(e) => handleNewItemCategoryDraftChange(index, e.target.value)}
-                                placeholder="Enter new category"
-                              />
-                              <div className="admin-new-item-category-actions">
-                                <button
-                                  type="button"
-                                  className="admin-chip"
-                                  onClick={() => saveNewItemCategory(index)}
-                                >
-                                  Save category
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-chip"
-                                  onClick={() => cancelNewItemCategoryCreate(index)}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
+                        Source category
+                        <SourceCategoryCombobox
+                          categories={sourceCategories}
+                          valueId={row.sourceCategoryId}
+                          valueName={row.sourceCategoryName || row.specificCategory}
+                          onSelect={(category) => handleNewItemSourceCategorySelect(index, category)}
+                          onCreate={canCreateInventoryCategories ? createSourceCategoryFromName : null}
+                          placeholder="Search or add a category"
+                          ariaLabel={`Item ${index + 1} source category`}
+                        />
+                        {rowCategoryOptions.length > 0 && !row.sourceCategoryId ? (
+                          <span className="admin-field-hint">
+                            Existing legacy options: {rowCategoryOptions.slice(0, 4).join(", ")}
+                          </span>
+                        ) : null}
                       </label>
 
                       <div className="admin-new-item-price-section admin-new-item-field--full">
@@ -3373,6 +4327,25 @@ function Admin() {
                 </p>
               </div>
               <div className="admin-detail-actions">
+                <span className={`admin-detail-autosave-status is-${detailAutosaveStatus}`}>
+                  {detailAutosaveStatus === "saving" || detailAutosaveStatus === "manual-saving"
+                    ? "Saving..."
+                    : detailAutosaveStatus === "pending"
+                      ? "Autosave pending"
+                      : detailAutosaveStatus === "saved"
+                        ? `Saved${detailAutosaveAt ? ` ${formatDateTime(detailAutosaveAt)}` : ""}`
+                        : detailAutosaveStatus === "error"
+                          ? "Save failed"
+                          : "Autosave on"}
+                </span>
+                <button
+                  type="button"
+                  className="admin-primary admin-detail-save-top"
+                  onClick={() => saveItemDetails()}
+                  disabled={detailSaving || !canSubmitInventoryEdits}
+                >
+                  {detailSaving ? (userRole === "staff" ? "Sending..." : "Saving...") : detailSubmitLabel}
+                </button>
                 {detailIndex !== -1 && inventory.length > 1 && (
                   <div className="admin-detail-nav" aria-label="Inventory item navigation">
                     <button
@@ -3426,27 +4399,61 @@ function Admin() {
                   />
                 </label>
                 <label>
-                  Source category
+                  Item type
+                  <SelectField
+                    value={detailForm.itemType}
+                    onChangeValue={(nextValue) => updateDetailForm("itemType", String(nextValue))}
+                    disabled={!isDetailFieldEditable("itemType")}
+                    ariaLabel="Item type"
+                  >
+                    {INVENTORY_ITEM_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectField>
+                </label>
+                <label>
+                  Inventory type
                   <SelectField
                     value={detailForm.sourceCategoryCode}
                     onChangeValue={(nextValue) => updateDetailForm("sourceCategoryCode", String(nextValue))}
                     disabled={!isDetailFieldEditable("sourceCategoryCode")}
-                    ariaLabel="Source category"
+                    ariaLabel="Inventory type"
                   >
-                    <option value="CLOTHES">CLOTHES</option>
-                    <option value="TOYS">TOYS</option>
-                    <option value="RENTAL">RENTAL</option>
-                    <option value="WATER">WATER</option>
+                    {INVENTORY_SOURCE_CODE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </SelectField>
                 </label>
-                <label>
-                  Specific category
-                  <input
-                    type="text"
-                    value={detailForm.specificCategory}
-                    onChange={(event) => updateDetailForm("specificCategory", event.target.value)}
+                <label className="admin-detail-source-category">
+                  Source category
+                  <SourceCategoryCombobox
+                    categories={sourceCategories}
+                    valueId={detailForm.sourceCategoryId}
+                    valueName={detailForm.sourceCategoryName || detailForm.specificCategory}
+                    onSelect={handleDetailSourceCategorySelect}
+                    onCreate={canCreateInventoryCategories ? createSourceCategoryFromName : null}
                     disabled={!isDetailFieldEditable("specificCategory")}
+                    placeholder="Search or add a category"
+                    ariaLabel="Source category"
                   />
+                  {canCreateInventoryCategories && detailForm.sourceCategoryId ? (
+                    <button
+                      type="button"
+                      className="admin-chip admin-source-category-edit"
+                      onClick={() =>
+                        renameSourceCategory({
+                          id: detailForm.sourceCategoryId,
+                          name: detailForm.sourceCategoryName || detailForm.specificCategory,
+                        })
+                      }
+                    >
+                      Edit source category
+                    </button>
+                  ) : null}
                 </label>
                 <label>
                   Vendors
@@ -3497,10 +4504,13 @@ function Admin() {
                     type="number"
                     min="0"
                     step="1"
-                    value={detailForm.stock}
-                    onChange={(event) => updateDetailForm("stock", event.target.value)}
-                    disabled={!isDetailFieldEditable("stock")}
+                  value={detailForm.stock}
+                  onChange={(event) => updateDetailForm("stock", event.target.value)}
+                    disabled={!isDetailFieldEditable("stock") || detailForm.itemType === "VARIANT_PARENT"}
                   />
+                  {detailForm.itemType === "VARIANT_PARENT" && (
+                    <span className="admin-field-hint">Parent stock is the sum of its variants.</span>
+                  )}
                 </label>
                 <label>
                   Reorder level
@@ -3606,6 +4616,221 @@ function Admin() {
                 </div>
               </div>
 
+              {(detailForm.itemType === "VARIANT_PARENT" || getItemVariants(detailForm).length > 0) && (
+                <section className="inventory-variant-section">
+                  <div className="inventory-variant-section-head">
+                    <div>
+                      <p className="admin-eyebrow">Variants</p>
+                      <h3>Number balloon stock</h3>
+                    </div>
+                    <span>{getItemVariants(detailForm).length} variants</span>
+                  </div>
+
+                  <div className="inventory-variant-generator">
+                    <label>
+                      Numbers
+                      <input
+                        type="text"
+                        value={detailForm.variantNumbers}
+                        onChange={(event) => updateDetailForm("variantNumbers", event.target.value)}
+                        placeholder="0,1,2,3,4,5,6,7,8,9"
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <label>
+                      Colors
+                      <input
+                        type="text"
+                        value={detailForm.variantColors}
+                        onChange={(event) => updateDetailForm("variantColors", event.target.value)}
+                        placeholder="Gold, Silver"
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <label>
+                      Sizes
+                      <input
+                        type="text"
+                        value={detailForm.variantSizes}
+                        onChange={(event) => updateDetailForm("variantSizes", event.target.value)}
+                        placeholder="16in"
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <label>
+                      Starting stock
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={detailForm.variantDefaultStockQty}
+                        onChange={(event) => updateDetailForm("variantDefaultStockQty", event.target.value)}
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <label>
+                      Reorder
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={detailForm.variantDefaultReorderLevel}
+                        onChange={(event) => updateDetailForm("variantDefaultReorderLevel", event.target.value)}
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <label>
+                      Price override
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={detailForm.variantPriceOverride}
+                        onChange={(event) => updateDetailForm("variantPriceOverride", event.target.value)}
+                        placeholder="Optional"
+                        disabled={!canAdjustInventoryStockDirectly}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      onClick={generateDetailNumberVariants}
+                      disabled={variantGenerateSaving || !canAdjustInventoryStockDirectly}
+                    >
+                      {variantGenerateSaving ? "Generating..." : "Generate number variants"}
+                    </button>
+                  </div>
+
+                  {getItemVariants(detailForm).length > 0 ? (
+                    <div className="inventory-variant-table-wrap">
+                      <table className="inventory-variant-table">
+                        <thead>
+                          <tr>
+                            <th>Variant</th>
+                            <th>SKU</th>
+                            <th>Stock</th>
+                            <th>Reserved</th>
+                            <th>Available</th>
+                            <th>Reorder</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th aria-label="Save" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getItemVariants(detailForm).map((variant) => (
+                            <tr key={variant.id}>
+                              <td>
+                                <div className="inventory-variant-name">
+                                  <input
+                                    type="text"
+                                    value={variant.variantNumber || ""}
+                                    onChange={(event) => updateDetailVariant(variant.id, "variantNumber", event.target.value)}
+                                    aria-label="Variant number"
+                                    disabled={!canAdjustInventoryStockDirectly}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={variant.color || ""}
+                                    onChange={(event) => updateDetailVariant(variant.id, "color", event.target.value)}
+                                    placeholder="Color"
+                                    aria-label="Variant color"
+                                    disabled={!canAdjustInventoryStockDirectly}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={variant.size || ""}
+                                    onChange={(event) => updateDetailVariant(variant.id, "size", event.target.value)}
+                                    placeholder="Size"
+                                    aria-label="Variant size"
+                                    disabled={!canAdjustInventoryStockDirectly}
+                                  />
+                                </div>
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  value={variant.sku || ""}
+                                  onChange={(event) => updateDetailVariant(variant.id, "sku", event.target.value)}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={variant.stockQty ?? 0}
+                                  onChange={(event) => updateDetailVariant(variant.id, "stockQty", event.target.value)}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={variant.reservedQty ?? 0}
+                                  onChange={(event) => updateDetailVariant(variant.id, "reservedQty", event.target.value)}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                />
+                              </td>
+                              <td>{getVariantAvailableQty(variant)}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={variant.reorderLevel ?? 0}
+                                  onChange={(event) => updateDetailVariant(variant.id, "reorderLevel", event.target.value)}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={variant.priceOverride ?? ""}
+                                  onChange={(event) => updateDetailVariant(variant.id, "priceOverride", event.target.value)}
+                                  placeholder={String(detailForm.price || "0")}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                />
+                              </td>
+                              <td>
+                                <SelectField
+                                  value={variant.status || "active"}
+                                  onChangeValue={(nextValue) => updateDetailVariant(variant.id, "status", String(nextValue))}
+                                  disabled={!canAdjustInventoryStockDirectly}
+                                  ariaLabel="Variant status"
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                </SelectField>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="admin-chip"
+                                  onClick={() => saveDetailVariant(variant)}
+                                  disabled={variantActionId === variant.id || !canAdjustInventoryStockDirectly}
+                                >
+                                  {variantActionId === variant.id ? "Saving..." : "Save"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="admin-field-hint">
+                      Generate 0-9 number variants to track each balloon number separately.
+                    </p>
+                  )}
+                </section>
+              )}
+
               <label className="admin-detail-description">
                 Description
                 <textarea
@@ -3619,14 +4844,7 @@ function Admin() {
               {detailError && <p className="admin-error">{detailError}</p>}
               <div className="admin-form-actions">
                 <button type="button" className="admin-secondary" onClick={closeItemDetails}>
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="admin-primary"
-                  disabled={detailSaving || !canSubmitInventoryEdits}
-                >
-                  {detailSaving ? (userRole === "staff" ? "Sending..." : "Saving...") : detailSubmitLabel}
+                  Close
                 </button>
               </div>
             </form>
@@ -3699,6 +4917,31 @@ function Admin() {
                   Add for new deliveries, remove for sales or damage.
                 </small>
               </label>
+
+              {isVariantParentItem(activeItem) && (
+                <label>
+                  Variant
+                  <SelectField
+                    value={formState.variantId}
+                    onChangeValue={(nextValue) =>
+                      setFormState((prev) => ({ ...prev, variantId: String(nextValue) }))
+                    }
+                    ariaLabel="Stock variant"
+                  >
+                    <option value="">Select variant</option>
+                    {activeItemVariants.map((variant) => (
+                      <option key={variant.id} value={variant.id}>
+                        {formatVariantName(activeItem.name, variant)} · available {getVariantAvailableQty(variant)}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <small className="admin-form-hint">
+                    {selectedStockVariant
+                      ? `Stock ${selectedStockVariant.stockQty || 0}, reserved ${selectedStockVariant.reservedQty || 0}.`
+                      : "Variant parents need a specific stock unit."}
+                  </small>
+                </label>
+              )}
 
               <label>
                 Quantity

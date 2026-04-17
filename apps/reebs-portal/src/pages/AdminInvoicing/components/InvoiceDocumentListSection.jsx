@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
+import TablePagination from "../../../components/TablePagination/TablePagination";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faBoxArchive } from "/src/icons/iconSet";
 
@@ -32,6 +33,38 @@ function InvoiceDocumentListSection({
   DocumentPillComponent,
 }) {
   const DocumentPill = DocumentPillComponent;
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(visibleEntries.length / pageSize));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paginatedEntries = useMemo(() => {
+    const start = clampedPage * pageSize;
+    return visibleEntries.slice(start, start + pageSize);
+  }, [visibleEntries, clampedPage]);
+  const pageSummary = useMemo(
+    () => ({
+      count: paginatedEntries.length,
+      total: paginatedEntries.reduce((sum, entry) => sum + (Number(entry.total) || 0), 0),
+    }),
+    [paginatedEntries]
+  );
+  const renderPagination = (header = false, className = "") => (
+    <TablePagination
+      total={visibleEntries.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+      className={className}
+    />
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [visibleEntries.length]);
+
   return (
     <>
       <section className="invoice-hub-kpis" aria-label="Invoice summary">
@@ -101,7 +134,8 @@ function InvoiceDocumentListSection({
           <p className="invoicing-muted">No documents match this view.</p>
         ) : (
           <>
-            <div className="admin-table admin-table-scroll inventory-table-scroll invoice-hub-table-scroll">
+            <div className="admin-table admin-table-scroll invoice-hub-table-scroll">
+              {renderPagination(true)}
               <table>
                 <thead>
                   <tr>
@@ -117,7 +151,7 @@ function InvoiceDocumentListSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleEntries.map((entry, index) => (
+                  {paginatedEntries.map((entry, index) => (
                     <tr
                       key={entry.key}
                       className={`invoice-hub-table-row ${selectedKey === entry.key ? "is-active" : ""}`}
@@ -125,7 +159,7 @@ function InvoiceDocumentListSection({
                       onClick={() => handleSelectEntry(entry.key)}
                       onKeyDown={(event) => handleEntryKeyDown(event, entry.key)}
                     >
-                      <td className="table-row-index">{index}</td>
+                      <td className="table-row-index">{clampedPage * pageSize + index}</td>
                       <td>
                         <div className="admin-product invoice-hub-table-document">
                           <span className="admin-product-name">{getDocumentTableReference(entry)}</span>
@@ -161,7 +195,7 @@ function InvoiceDocumentListSection({
                   <tfoot className="admin-table-footer">
                     <tr>
                       <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{summaryCards.count}</span>
+                        <span className="admin-table-summary-value">{pageSummary.count}</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
@@ -171,7 +205,7 @@ function InvoiceDocumentListSection({
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell">
                         <span className="admin-table-summary-value">
-                          {formatCurrency(summaryCards.total, config.currency)}
+                          {formatCurrency(pageSummary.total, config.currency)}
                         </span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
@@ -179,10 +213,11 @@ function InvoiceDocumentListSection({
                   </tfoot>
                 )}
               </table>
+              {renderPagination(false, "invoice-hub-table-pagination")}
             </div>
 
             <div className="invoice-hub-mobile-list" role="list" aria-label="Invoices and receipts">
-              {visibleEntries.map((entry, index) => (
+              {paginatedEntries.map((entry, index) => (
                 <article
                   key={`${entry.key}-mobile`}
                   role="button"
@@ -195,7 +230,7 @@ function InvoiceDocumentListSection({
                 >
                   <div className="invoice-hub-mobile-card-head">
                     <div className="invoice-hub-mobile-card-copy">
-                      <span className="invoice-hub-mobile-card-index">#{index}</span>
+                      <span className="invoice-hub-mobile-card-index">#{clampedPage * pageSize + index}</span>
                       <strong>{getDocumentTableReference(entry)}</strong>
                       <p>{entry.customerName || "Customer"}</p>
                     </div>
@@ -231,6 +266,7 @@ function InvoiceDocumentListSection({
                 </article>
               ))}
             </div>
+            {renderPagination(false, "invoice-hub-mobile-pagination")}
           </>
         )}
       </section>

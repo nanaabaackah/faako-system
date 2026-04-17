@@ -3,10 +3,7 @@
 
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import {
-  resolveActor,
-  normalizeActor,
-} from "./auditHelpers.js";
+import { ensureAuditColumns } from "./auditHelpers.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { notifyManager } from "./_shared/managerPush.js";
 import {
@@ -17,6 +14,15 @@ import {
 } from "./_shared/productVendors.js";
 import { resolveOrganizationId } from "./_shared/organization.js";
 import { requireUser } from "./_shared/userAuth.js";
+import {
+  cleanInventoryText,
+  createSourceCategory,
+  ensureInventoryVariantSchema,
+  findSourceCategoryById,
+  findSourceCategoryByName,
+  normalizeInventoryItemType,
+  seedDefaultSourceCategories,
+} from "./_shared/inventoryExtensions.js";
 
 const getCorsHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -25,7 +31,29 @@ const getCorsHeaders = (event) => ({
   }),
 });
 
-const allowedSources = ["CLOTHES", "TOYS", "RENTAL", "WATER"];
+const allowedSources = [
+  "CLOTHES",
+  "TOYS",
+  "RENTAL",
+  "WATER",
+  "SHOES",
+  "SHOP",
+  "INVENTORY",
+  "HOUSEHOLD",
+  "SUPPLIES",
+];
+const SPECIFIC_CATEGORY_SOURCE_RULES = [
+  {
+    sourceName: "Household",
+    sourceCode: "HOUSEHOLD",
+    terms: ["household", "cleaning", "kitchen", "laundry", "bathroom", "broom", "mop", "bucket"],
+  },
+  {
+    sourceName: "Supplies",
+    sourceCode: "SUPPLIES",
+    terms: ["party supplies", "party supply", "supply", "supplies"],
+  },
+];
 const statusColumnStatements = [
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "isArchived" BOOLEAN DEFAULT false`,
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
@@ -109,6 +137,7 @@ const ensureInventoryReadSchema = async (client) => {
       await ensureProductBarcodeColumn(client);
       await ensureProductVendorColumn(client);
       await ensureProductVendorLinksTable(client);
+      await ensureInventoryVariantSchema(client);
       hasEnsuredInventoryReadSchema = true;
     })().finally(() => {
       inventoryReadSchemaPromise = null;
@@ -124,8 +153,10 @@ const ensureInventoryWriteSchema = async (client) => {
 
   if (!inventoryWriteSchemaPromise) {
     inventoryWriteSchemaPromise = (async () => {
+      await ensureAuditColumns(client);
       await ensureInventoryEditRequestTable(client);
       await ensureSourceCategoryValue(client, "WATER");
+      await ensureInventoryVariantSchema(client);
       hasEnsuredInventoryWriteSchema = true;
     })().finally(() => {
       inventoryWriteSchemaPromise = null;
@@ -144,6 +175,22 @@ const toCents = (value) => {
 const sanitizeString = (value, max = 120) => {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
+};
+
+const normalizeCategoryName = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b([a-z])/gi, (match) => match.toUpperCase());
+
+const resolveSourceCategoryForSpecificCategory = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  const fallback = { sourceName: "Toys", sourceCode: "TOYS" };
+  if (!normalized) return fallback;
+  const match = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
+    rule.terms.some((term) => normalized.includes(term))
+  );
+  return match ? { sourceName: match.sourceName, sourceCode: match.sourceCode } : fallback;
 };
 
 const ensureSourceCategoryValue = async (client, value) => {
@@ -226,21 +273,21 @@ const isSystemAdmin = async (client, userId, organizationId = null) => {
     hasOrg ? [parsedId, organizationId] : [parsedId]
   );
   const role = result.rows[0]?.role || "";
-  return role.toLowerCase() === "admin";
+  return ["owner", "admin"].includes(role.toLowerCase());
 };
 
 const normalizeRole = (value) => String(value || "").trim().toLowerCase();
 
-const isAdminRole = (role) => normalizeRole(role) === "admin";
+const isAdminRole = (role) => ["owner", "admin"].includes(normalizeRole(role));
 
 const canApproveInventoryEditRequests = (role) => {
   const normalized = normalizeRole(role);
-  return normalized === "admin" || normalized === "manager";
+  return normalized === "owner" || normalized === "admin" || normalized === "manager";
 };
 
 const canEditInventoryDirectly = (role) => {
   const normalized = normalizeRole(role);
-  return normalized === "admin" || normalized === "manager";
+  return normalized === "owner" || normalized === "admin" || normalized === "manager";
 };
 
 const canRequestInventoryEdit = (role) => normalizeRole(role) === "staff";
@@ -267,6 +314,54 @@ const generateSku = (name, source) => {
   const nameSlug = slugify(name, 8);
   const random = Math.random().toString(36).slice(-3).toUpperCase();
   return `${prefix}-${nameSlug}-${random}`;
+};
+
+const recordInventoryStockAdjustment = async (
+  client,
+  {
+    organizationId,
+    productId,
+    previousStock,
+    nextStock,
+    actor,
+    reference = "Inventory edit",
+  }
+) => {
+  const before = Number(previousStock);
+  const after = Number(nextStock);
+  if (!Number.isFinite(before) || !Number.isFinite(after) || before === after) return;
+
+  const delta = after - before;
+  const type = delta > 0 ? "StockIn" : "StockOut";
+  const quantity = Math.abs(delta);
+
+  await client.query(
+    `INSERT INTO "stockMovement" (
+       "organizationId",
+       "productId",
+       "type",
+       "quantity",
+       "notes",
+       "reference",
+       "date",
+       "performedByUserId",
+       "performedByName",
+       "performedByEmail",
+       "createdAt"
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, NOW())`,
+    [
+      organizationId,
+      productId,
+      type,
+      quantity,
+      `${type === "StockIn" ? "Increased" : "Reduced"} by inventory edit (${before} -> ${after})`,
+      reference,
+      actor?.userId || null,
+      actor?.userName || "Admin",
+      actor?.userEmail || null,
+    ]
+  );
 };
 
 export async function handler(event = {}) {
@@ -315,12 +410,18 @@ export async function handler(event = {}) {
       }
 
       const organizationId = await resolveOrganizationId(client, event, null);
+      await ensureInventoryReadSchema(client);
+      await seedDefaultSourceCategories(client, organizationId);
       const result = await client.query(
         `SELECT
            p.id,
            p.sku,
            p.name,
            p.description,
+           p."itemType" AS "itemType",
+           p."sourceCategoryId" AS "sourceCategoryId",
+           sc.name AS "sourceCategoryName",
+           sc.slug AS "sourceCategorySlug",
            p."sourceCategoryCode" AS "sourceCategoryCode",
            p."specificCategory" AS "specificCategory",
            p.rate,
@@ -337,8 +438,33 @@ export async function handler(event = {}) {
              ELSE 'Available'
            END AS availability,
            p."attendantsNeeded" AS "attendantsNeeded",
-           p.currency
+           p.currency,
+           COALESCE((
+             SELECT json_agg(
+               json_build_object(
+                 'id', v.id,
+                 'inventoryItemId', v."inventoryItemId",
+                 'sku', v.sku,
+                 'variantNumber', v."variantNumber",
+                 'color', v.color,
+                 'size', v.size,
+                 'stockQty', v."stockQty",
+                 'reservedQty', v."reservedQty",
+                 'availableQty', GREATEST(v."stockQty" - v."reservedQty", 0),
+                 'reorderLevel', v."reorderLevel",
+                 'priceOverride', CASE WHEN v."priceOverride" IS NULL THEN NULL ELSE (v."priceOverride"::numeric / 100) END,
+                 'status', v.status
+               )
+               ORDER BY v.id
+             )
+             FROM "inventoryVariant" v
+             WHERE v."organizationId" = p."organizationId"
+               AND v."inventoryItemId" = p.id
+           ), '[]'::json) AS variants
          FROM "product" p
+         LEFT JOIN "sourceCategory" sc
+           ON sc.id = p."sourceCategoryId"
+          AND sc."organizationId" = p."organizationId"
          WHERE p."organizationId" = $1
            AND COALESCE(p."isDeleted", false) = false
            AND COALESCE(p."isArchived", false) = false
@@ -368,6 +494,7 @@ export async function handler(event = {}) {
     } else {
       await ensureInventoryReadSchema(client);
     }
+    await seedDefaultSourceCategories(client, organizationId);
 
     if (method === "GET") {
       const view = requestedView;
@@ -377,7 +504,7 @@ export async function handler(event = {}) {
           return {
             statusCode: 403,
             headers: getCorsHeaders(event),
-            body: JSON.stringify({ error: "Only admins and managers can view edit approvals." }),
+            body: JSON.stringify({ error: "Only owners, admins, and managers can view edit approvals." }),
           };
         }
 
@@ -429,6 +556,10 @@ export async function handler(event = {}) {
           p.name, 
           p.description, 
           p."vendorId" AS "vendorId",
+          p."itemType" AS "itemType",
+          p."sourceCategoryId" AS "sourceCategoryId",
+          sc.name AS "sourceCategoryName",
+          sc.slug AS "sourceCategorySlug",
           p."sourceCategoryCode" AS "sourceCategoryCode",
           p."specificCategory"   AS "specificCategory",
           p.rate,
@@ -460,9 +591,34 @@ export async function handler(event = {}) {
           p."lastUpdatedAt",
           p."lastUpdatedByUserId",
           updater."fullName" AS "lastUpdatedByName",
-          updater.email AS "lastUpdatedByEmail"
+          updater.email AS "lastUpdatedByEmail",
+          COALESCE((
+            SELECT json_agg(
+              json_build_object(
+                'id', v.id,
+                'inventoryItemId', v."inventoryItemId",
+                'sku', v.sku,
+                'variantNumber', v."variantNumber",
+                'color', v.color,
+                'size', v.size,
+                'stockQty', v."stockQty",
+                'reservedQty', v."reservedQty",
+                'availableQty', GREATEST(v."stockQty" - v."reservedQty", 0),
+                'reorderLevel', v."reorderLevel",
+                'priceOverride', CASE WHEN v."priceOverride" IS NULL THEN NULL ELSE (v."priceOverride"::numeric / 100) END,
+                'status', v.status
+              )
+              ORDER BY v.id
+            )
+            FROM "inventoryVariant" v
+            WHERE v."organizationId" = p."organizationId"
+              AND v."inventoryItemId" = p.id
+          ), '[]'::json) AS variants
         FROM "product" p
         LEFT JOIN "user" updater ON updater.id = p."lastUpdatedByUserId"
+        LEFT JOIN "sourceCategory" sc
+          ON sc.id = p."sourceCategoryId"
+         AND sc."organizationId" = p."organizationId"
         ${whereClause}
         ORDER BY p.id ASC
       `, [organizationId]);
@@ -498,7 +654,7 @@ export async function handler(event = {}) {
           return {
             statusCode: 403,
             headers: getCorsHeaders(event),
-            body: JSON.stringify({ error: "Only admins and managers can review edit requests." }),
+            body: JSON.stringify({ error: "Only owners, admins, and managers can review edit requests." }),
           };
         }
 
@@ -578,6 +734,7 @@ export async function handler(event = {}) {
             `SELECT
                id,
                name,
+               "itemType",
                description,
                price,
                stock
@@ -610,6 +767,17 @@ export async function handler(event = {}) {
           const nextStock = Object.prototype.hasOwnProperty.call(requestedFields, "stock")
             ? Math.max(0, Math.round(parseNumber(requestedFields.stock)))
             : Number(currentProduct.stock || 0);
+          if (
+            normalizeInventoryItemType(currentProduct.itemType) === "VARIANT_PARENT"
+            && nextStock !== Number(currentProduct.stock || 0)
+          ) {
+            await client.query("ROLLBACK");
+            return {
+              statusCode: 400,
+              headers: getCorsHeaders(event),
+              body: JSON.stringify({ error: "Adjust variant stock from the variant table." }),
+            };
+          }
           const nextStockValue = nextPriceCents * nextStock;
 
           const productUpdateRes = await client.query(
@@ -656,6 +824,15 @@ export async function handler(event = {}) {
             [requestId, reviewer.userId, reviewer.userName, reviewer.userEmail]
           );
 
+          await recordInventoryStockAdjustment(client, {
+            organizationId,
+            productId: requestRow.productId,
+            previousStock: currentProduct.stock,
+            nextStock,
+            actor: reviewer,
+            reference: `Inventory edit request #${requestId}`,
+          });
+
           await client.query("COMMIT");
 
           return {
@@ -686,8 +863,15 @@ export async function handler(event = {}) {
         };
       }
 
-      const actor = await resolveActor(client, normalizeActor(payload), organizationId);
+      const actor = buildActorFromUser(authenticatedUser);
       if (action === "archive") {
+        if (!isAdminRole(authenticatedUser.role)) {
+          return {
+            statusCode: 403,
+            headers: getCorsHeaders(event),
+            body: JSON.stringify({ error: "Only owners and admins can archive inventory items." }),
+          };
+        }
         const result = await client.query(
           `UPDATE "product"
            SET "isArchived" = true,
@@ -709,6 +893,13 @@ export async function handler(event = {}) {
       }
 
       if (action === "unarchive") {
+        if (!isAdminRole(authenticatedUser.role)) {
+          return {
+            statusCode: 403,
+            headers: getCorsHeaders(event),
+            body: JSON.stringify({ error: "Only owners and admins can restore archived inventory items." }),
+          };
+        }
         const result = await client.query(
           `UPDATE "product"
            SET "isArchived" = false,
@@ -746,16 +937,16 @@ export async function handler(event = {}) {
         };
       }
 
-      const canDelete = await isSystemAdmin(client, payload.userId, organizationId);
+      const canDelete = await isSystemAdmin(client, authenticatedUser.id, organizationId);
       if (!canDelete) {
         return {
           statusCode: 403,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Only system admins can delete items." }),
+          body: JSON.stringify({ error: "Only owners and admins can delete items." }),
         };
       }
 
-      const actor = await resolveActor(client, normalizeActor(payload), organizationId);
+      const actor = buildActorFromUser(authenticatedUser);
       const result = await client.query(
         `UPDATE "product"
          SET "isDeleted" = true,
@@ -787,11 +978,226 @@ export async function handler(event = {}) {
       };
     }
 
+    const postAction = String(payload.action || "").trim().toLowerCase();
+    if (postAction === "reassign-specific-category") {
+      const authUser = authenticatedUser;
+      if (!authUser || !isAdminRole(authUser.role)) {
+        return {
+          statusCode: 403,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Only owners and admins can reassign inventory categories." }),
+        };
+      }
+
+      const productIds = Array.isArray(payload.productIds)
+        ? payload.productIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+
+      if (!productIds.length) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Select at least one inventory item." }),
+        };
+      }
+
+      const specificCategory = normalizeCategoryName(sanitizeString(payload.specificCategory || "", 120));
+      if (!specificCategory) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Choose a specific category." }),
+        };
+      }
+
+      const resolvedSource = resolveSourceCategoryForSpecificCategory(specificCategory);
+      await ensureSourceCategoryValue(client, resolvedSource.sourceCode);
+      let category = await findSourceCategoryByName(client, organizationId, resolvedSource.sourceName);
+      if (!category) {
+        category = await createSourceCategory(client, organizationId, resolvedSource.sourceName);
+      }
+
+      const actor = buildActorFromUser(authUser);
+      const beforeRes = await client.query(
+        `SELECT
+           p.id,
+           COALESCE(NULLIF(p."specificCategory", ''), sc.name, NULLIF(p."sourceCategoryCode", ''), 'Unassigned') AS "previousCategory"
+         FROM "product" p
+         LEFT JOIN "sourceCategory" sc
+           ON sc.id = p."sourceCategoryId"
+          AND sc."organizationId" = p."organizationId"
+         WHERE p."organizationId" = $1
+           AND p.id = ANY($2::int[])
+           AND COALESCE(p."isDeleted", false) = false`,
+        [organizationId, productIds]
+      );
+
+      if (beforeRes.rowCount === 0) {
+        return {
+          statusCode: 404,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "No matching inventory items found." }),
+        };
+      }
+
+      const movedByPreviousCategory = beforeRes.rows.reduce((accumulator, row) => {
+        const key = row.previousCategory || "Unassigned";
+        accumulator[key] = (accumulator[key] || 0) + 1;
+        return accumulator;
+      }, {});
+
+      const updateRes = await client.query(
+        `UPDATE "product"
+         SET "sourceCategoryId" = $1,
+             "sourceCategoryCode" = $2,
+             "specificCategory" = $3,
+             "lastUpdatedByUserId" = COALESCE($4, "lastUpdatedByUserId"),
+             "lastUpdatedAt" = NOW(),
+             "updatedAt" = NOW()
+         WHERE "organizationId" = $5
+           AND id = ANY($6::int[])
+           AND COALESCE("isDeleted", false) = false
+         RETURNING id, name, "sourceCategoryId", "sourceCategoryCode", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
+        [category.id, resolvedSource.sourceCode, specificCategory, actor.userId, organizationId, productIds]
+      );
+
+      return {
+        statusCode: 200,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({
+          movedCount: updateRes.rowCount,
+          sourceCategory: category,
+          specificCategory,
+          movedByPreviousCategory,
+          items: updateRes.rows.map((row) => ({
+            ...row,
+            sourceCategoryName: category.name,
+            sourceCategorySlug: category.slug,
+            lastUpdatedByName: actor.userName,
+            lastUpdatedByEmail: actor.userEmail,
+          })),
+        }),
+      };
+    }
+
+    if (postAction === "reassign-source-category") {
+      const authUser = authenticatedUser;
+      if (!authUser || !isAdminRole(authUser.role)) {
+        return {
+          statusCode: 403,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Only owners and admins can reassign source categories." }),
+        };
+      }
+
+      const productIds = Array.isArray(payload.productIds)
+        ? payload.productIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+
+      if (!productIds.length) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Select at least one inventory item." }),
+        };
+      }
+
+      let category = await findSourceCategoryById(client, organizationId, payload.sourceCategoryId);
+      if (!category && payload.sourceCategoryName) {
+        category = await findSourceCategoryByName(client, organizationId, payload.sourceCategoryName);
+      }
+      if (!category && payload.createIfMissing && payload.sourceCategoryName) {
+        category = await createSourceCategory(client, organizationId, payload.sourceCategoryName);
+      }
+      if (!category) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Choose a valid source category." }),
+        };
+      }
+
+      const actor = buildActorFromUser(authUser);
+      const beforeRes = await client.query(
+        `SELECT
+           p.id,
+           COALESCE(sc.name, NULLIF(p."specificCategory", ''), NULLIF(p."sourceCategoryCode", ''), 'Unassigned') AS "previousCategory"
+         FROM "product" p
+         LEFT JOIN "sourceCategory" sc
+           ON sc.id = p."sourceCategoryId"
+          AND sc."organizationId" = p."organizationId"
+         WHERE p."organizationId" = $1
+           AND p.id = ANY($2::int[])
+           AND COALESCE(p."isDeleted", false) = false`,
+        [organizationId, productIds]
+      );
+
+      if (beforeRes.rowCount === 0) {
+        return {
+          statusCode: 404,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "No matching inventory items found." }),
+        };
+      }
+
+      const movedByPreviousCategory = beforeRes.rows.reduce((accumulator, row) => {
+        const key = row.previousCategory || "Unassigned";
+        accumulator[key] = (accumulator[key] || 0) + 1;
+        return accumulator;
+      }, {});
+
+      const updateRes = await client.query(
+        `UPDATE "product"
+         SET "sourceCategoryId" = $1,
+             "specificCategory" = $2,
+             "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+             "lastUpdatedAt" = NOW(),
+             "updatedAt" = NOW()
+         WHERE "organizationId" = $4
+           AND id = ANY($5::int[])
+           AND COALESCE("isDeleted", false) = false
+         RETURNING id, name, "sourceCategoryId", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
+        [category.id, category.name, actor.userId, organizationId, productIds]
+      );
+
+      return {
+        statusCode: 200,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({
+          movedCount: updateRes.rowCount,
+          sourceCategory: category,
+          movedByPreviousCategory,
+          items: updateRes.rows.map((row) => ({
+            ...row,
+            sourceCategoryName: category.name,
+            sourceCategorySlug: category.slug,
+            lastUpdatedByName: actor.userName,
+            lastUpdatedByEmail: actor.userEmail,
+          })),
+        }),
+      };
+    }
+
     const name = sanitizeString(payload.name, 160);
     const sourceCategoryCode = sanitizeString(
       payload.sourceCategoryCode || payload.sourcecategorycode || "",
       30
     ).toUpperCase();
+    const hasItemTypeInput =
+      Object.prototype.hasOwnProperty.call(payload, "itemType")
+      || Object.prototype.hasOwnProperty.call(payload, "inventoryItemType");
+    const requestedItemType = hasItemTypeInput
+      ? normalizeInventoryItemType(payload.itemType || payload.inventoryItemType)
+      : null;
+    const requestedSourceCategoryId = Number(payload.sourceCategoryId ?? payload.source_category_id);
+    const requestedSourceCategoryName = cleanInventoryText(
+      payload.sourceCategoryName || payload.source_category_name || "",
+      120
+    );
     const specificCategory = sanitizeString(payload.specificCategory || payload.specificcategory || "", 120);
     const description = sanitizeString(payload.description || "", 400);
     const barcodeInput = sanitizeString(payload.barcode || payload.scanCode || "", 120);
@@ -817,6 +1223,35 @@ export async function handler(event = {}) {
       ? sourceCategoryCode
       : "CLOTHES";
 
+    let selectedSourceCategory = null;
+    if (Number.isFinite(requestedSourceCategoryId) && requestedSourceCategoryId > 0) {
+      selectedSourceCategory = await findSourceCategoryById(
+        client,
+        organizationId,
+        requestedSourceCategoryId
+      );
+      if (!selectedSourceCategory) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Selected source category was not found." }),
+        };
+      }
+    } else if (requestedSourceCategoryName) {
+      selectedSourceCategory = await findSourceCategoryByName(
+        client,
+        organizationId,
+        requestedSourceCategoryName
+      );
+      if (!selectedSourceCategory && isAdminRole(authenticatedUser?.role)) {
+        selectedSourceCategory = await createSourceCategory(
+          client,
+          organizationId,
+          requestedSourceCategoryName
+        );
+      }
+    }
+
     const priceInput = payload.price ?? payload.priceCents ?? payload.price_cents;
     const priceValue = parseNumber(priceInput);
     const priceCents = Math.max(
@@ -833,6 +1268,7 @@ export async function handler(event = {}) {
     const purchasePriceCadInput =
       payload.purchasePriceCad ??
       payload.purchasePriceCadCents ??
+      payload.purchasePriceGbpFromCad ??
       payload.purchase_price_gbp_from_cad;
     const purchasePriceGbp = toCents(purchasePriceGbpInput);
     const purchasePriceGhs = toCents(purchasePriceGhsInput);
@@ -868,12 +1304,22 @@ export async function handler(event = {}) {
     const actor = buildActorFromUser(authUser);
     const actorRole = normalizeRole(authUser?.role);
 
+    if (!isUpdate && !canEditInventoryDirectly(actorRole)) {
+      return {
+        statusCode: 403,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({ error: "Only owners, admins, and managers can create inventory items." }),
+      };
+    }
+
     // If updating an existing product, retain its SKU and current field values.
     let sku = null;
     let nextBarcode = barcode;
     let nextDescription = description || null;
+    let nextItemType = requestedItemType || "STANDARD";
+    let nextSourceCategoryId = selectedSourceCategory?.id || null;
     let nextSourceCategoryCode = safeSource;
-    let nextSpecificCategory = specificCategory || null;
+    let nextSpecificCategory = selectedSourceCategory?.name || specificCategory || null;
     let nextRate = rate || null;
     let nextAge = age || null;
     let nextPriceCents = priceCents;
@@ -888,6 +1334,7 @@ export async function handler(event = {}) {
     let nextVendorIds = hasVendorLinkInput ? requestedVendorIds : [];
     let nextReorderLevel = reorderLevel;
     let nextReorderQuantity = reorderQuantity;
+    let previousStock = null;
 
     if (hasVendorLinkInput && hasInvalidVendorIds) {
       return {
@@ -914,6 +1361,8 @@ export async function handler(event = {}) {
            name,
            description,
            "vendorId",
+           "itemType",
+           "sourceCategoryId",
            "sourceCategoryCode",
            "specificCategory",
            rate,
@@ -943,6 +1392,7 @@ export async function handler(event = {}) {
       }
 
       const currentProduct = existing.rows[0];
+      previousStock = Number(currentProduct.stock || 0);
       const currentVendorLinkMap = await getProductVendorIdsMap(client, {
         organizationId,
         productIds: [parsedId],
@@ -952,9 +1402,27 @@ export async function handler(event = {}) {
           Number.isFinite(Number(currentProduct.vendorId))
             ? [Number(currentProduct.vendorId)]
             : []
-        );
+      );
       sku = currentProduct.sku;
       nextVendorIds = hasVendorLinkInput ? requestedVendorIds : currentVendorIds;
+      nextItemType = requestedItemType || currentProduct.itemType || "STANDARD";
+      nextSourceCategoryId = selectedSourceCategory
+        ? selectedSourceCategory.id
+        : currentProduct.sourceCategoryId || null;
+      nextSpecificCategory = selectedSourceCategory
+        ? selectedSourceCategory.name
+        : nextSpecificCategory || currentProduct.specificCategory || null;
+
+      if (
+        normalizeInventoryItemType(nextItemType) === "VARIANT_PARENT"
+        && nextStock !== previousStock
+      ) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Adjust variant stock from the variant table." }),
+        };
+      }
 
       if (!canEditInventoryDirectly(actorRole) && !canRequestInventoryEdit(actorRole)) {
         return {
@@ -1048,6 +1516,8 @@ export async function handler(event = {}) {
 
       if (!isAdminRole(actorRole)) {
         nextBarcode = currentProduct.barcode;
+        nextItemType = currentProduct.itemType || nextItemType;
+        nextSourceCategoryId = currentProduct.sourceCategoryId || null;
         nextSourceCategoryCode = currentProduct.sourceCategoryCode || nextSourceCategoryCode;
         nextSpecificCategory = currentProduct.specificCategory || null;
         nextRate = currentProduct.rate || null;
@@ -1078,6 +1548,8 @@ export async function handler(event = {}) {
         "name",
         "description",
         "vendorId",
+        "itemType",
+        "sourceCategoryId",
         "sourceCategoryCode",
         "specificCategory",
         "rate",
@@ -1099,12 +1571,14 @@ export async function handler(event = {}) {
         "lastUpdatedAt",
         "createdAt",
         "updatedAt"
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,true,$23,NOW(),NOW(),NOW())
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,true,$25,NOW(),NOW(),NOW())
       ON CONFLICT ("organizationId", "sku") DO UPDATE
       SET "barcode" = EXCLUDED."barcode",
           "name" = EXCLUDED."name",
           "description" = EXCLUDED."description",
           "vendorId" = EXCLUDED."vendorId",
+          "itemType" = EXCLUDED."itemType",
+          "sourceCategoryId" = EXCLUDED."sourceCategoryId",
           "sourceCategoryCode" = EXCLUDED."sourceCategoryCode",
           "specificCategory" = EXCLUDED."specificCategory",
           "rate" = EXCLUDED."rate",
@@ -1132,6 +1606,8 @@ export async function handler(event = {}) {
         name,
         description,
         "vendorId" AS "vendorId",
+        "itemType" AS "itemType",
+        "sourceCategoryId" AS "sourceCategoryId",
         "sourceCategoryCode",
         "specificCategory",
         rate,
@@ -1159,43 +1635,69 @@ export async function handler(event = {}) {
         "lastUpdatedByUserId"
     `;
 
-    const result = await client.query(insertQuery, [
-      organizationId,
-      sku,
-      nextBarcode,
-      name,
-      nextDescription,
-      nextVendorId,
-      nextSourceCategoryCode,
-      nextSpecificCategory,
-      nextRate,
-      nextAge,
-      nextPriceCents,
-      nextCurrency,
-      nextStock,
-      nextPurchasePriceGbp,
-      nextPurchasePriceGhs,
-      nextPurchasePriceCad,
-      stockValue,
-      nextSaleValue,
-      nextAttendantsNeeded,
-      nextImageUrl,
-      nextReorderLevel,
-      nextReorderQuantity,
-      actor.userId,
-    ]);
+    let created = null;
+    let syncedVendorIds = [];
+    await client.query("BEGIN");
+    try {
+      const result = await client.query(insertQuery, [
+        organizationId,
+        sku,
+        nextBarcode,
+        name,
+        nextDescription,
+        nextVendorId,
+        nextItemType,
+        nextSourceCategoryId,
+        nextSourceCategoryCode,
+        nextSpecificCategory,
+        nextRate,
+        nextAge,
+        nextPriceCents,
+        nextCurrency,
+        nextStock,
+        nextPurchasePriceGbp,
+        nextPurchasePriceGhs,
+        nextPurchasePriceCad,
+        stockValue,
+        nextSaleValue,
+        nextAttendantsNeeded,
+        nextImageUrl,
+        nextReorderLevel,
+        nextReorderQuantity,
+        actor.userId,
+      ]);
 
-    const created = result.rows[0];
-    const syncedVendorIds = await setProductVendorLinks(client, {
-      organizationId,
-      productId: created?.id,
-      vendorIds: nextVendorIds,
-    });
+      created = result.rows[0];
+      syncedVendorIds = await setProductVendorLinks(client, {
+        organizationId,
+        productId: created?.id,
+        vendorIds: nextVendorIds,
+      });
+
+      if (isUpdate) {
+        await recordInventoryStockAdjustment(client, {
+          organizationId,
+          productId: created?.id,
+          previousStock,
+          nextStock,
+          actor,
+        });
+      }
+
+      await client.query("COMMIT");
+    } catch (transactionError) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw transactionError;
+    }
+
     return {
       statusCode: isUpdate ? 200 : 201,
       headers: getCorsHeaders(event),
       body: JSON.stringify({
         ...created,
+        sourceCategoryName: selectedSourceCategory?.name || nextSpecificCategory || null,
+        sourceCategorySlug: selectedSourceCategory?.slug || null,
+        variants: [],
         vendorId: syncedVendorIds[0] || null,
         vendorIds: syncedVendorIds,
         lastUpdatedByName: actor.userName,

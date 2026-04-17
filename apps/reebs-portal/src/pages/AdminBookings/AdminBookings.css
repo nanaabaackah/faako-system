@@ -1543,7 +1543,6 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
 
 [data-admin-theme="dark"] body.admin-theme .bookings-page :is(
   .admin-table-scroll.bookings-table-scroll,
-  .admin-table-scroll.bookings-table-scroll.inventory-table-scroll,
   .bookings-hub-table,
   .bookings-hub-table thead tr,
   .bookings-hub-table thead th,
@@ -1553,8 +1552,7 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
 }
 
 [data-admin-theme="dark"] body.admin-theme .bookings-page :is(
-  .admin-table-scroll.bookings-table-scroll,
-  .admin-table-scroll.bookings-table-scroll.inventory-table-scroll
+  .admin-table-scroll.bookings-table-scroll
 ) {
   box-shadow: none !important;
 }

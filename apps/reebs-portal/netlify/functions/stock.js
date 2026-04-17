@@ -10,6 +10,7 @@ import {
   backfillAuditDefaults,
 } from "./auditHelpers.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { ensureInventoryVariantSchema } from "./_shared/inventoryExtensions.js";
 
 const STOCK_METHODS = "POST,OPTIONS";
 
@@ -18,6 +19,12 @@ const normalizeStockType = (value) => {
   if (normalized === "stockin") return "StockIn";
   if (normalized === "stockout") return "StockOut";
   return "";
+};
+
+const parsePositiveInteger = (value) => {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) return null;
+  return numeric;
 };
 
 export async function handler(event) {
@@ -35,8 +42,9 @@ export async function handler(event) {
     return respond(event, 400, { error: "Invalid JSON format in request body." }, { methods: STOCK_METHODS });
   }
 
-  const { productId, type, quantity, notes, reference, soldMonth } = data;
-  if (!productId || !type || !quantity) {
+  const { productId, variantId, type, quantity, notes, reference, soldMonth } = data;
+  const normalizedProductId = parsePositiveInteger(productId);
+  if (!normalizedProductId || !type || quantity == null) {
     return respond(
       event,
       400,
@@ -45,9 +53,9 @@ export async function handler(event) {
     );
   }
 
-  const productQuantity = parseInt(quantity, 10);
-  if (isNaN(productQuantity) || productQuantity <= 0) {
-    return respond(event, 400, { error: "Quantity must be a positive number." }, {
+  const productQuantity = parsePositiveInteger(quantity);
+  if (!productQuantity) {
+    return respond(event, 400, { error: "Quantity must be a positive whole number." }, {
       methods: STOCK_METHODS,
     });
   }
@@ -89,6 +97,7 @@ export async function handler(event) {
   try {
     await client.connect();
     await ensureAuditColumns(client);
+    await ensureInventoryVariantSchema(client);
     const authResult = await requireInternalUser(client, event, {
       methods: STOCK_METHODS,
       roles: ["owner", "admin", "manager"],
@@ -107,25 +116,89 @@ export async function handler(event) {
 
     await client.query("BEGIN");
 
-    const updateProductQuery = `
-      UPDATE "product"
-      SET "stock" = "stock" + $1,
-          "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
-          "lastUpdatedAt" = NOW(),
-          "updatedAt" = NOW()
-      WHERE "id" = $2 AND "organizationId" = $4
-      RETURNING "id", "stock", "lastUpdatedAt", "lastUpdatedByUserId";
-    `;
-    const updateResult = await client.query(updateProductQuery, [
-      stockDelta,
-      productId,
-      actor.userId,
-      organizationId,
-    ]);
+    let updateResult = null;
+    let normalizedVariantId = null;
+    if (variantId) {
+      normalizedVariantId = parsePositiveInteger(variantId);
+      if (!normalizedVariantId) {
+        await client.query("ROLLBACK");
+        return respond(event, 400, { error: "variantId must be a valid id." }, {
+          methods: STOCK_METHODS,
+        });
+      }
+
+      const variantCheck = await client.query(
+        `SELECT id, "inventoryItemId"
+         FROM "inventoryVariant"
+         WHERE id = $1
+           AND "inventoryItemId" = $2
+           AND "organizationId" = $3
+         FOR UPDATE`,
+        [normalizedVariantId, normalizedProductId, organizationId]
+      );
+      if (variantCheck.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return respond(event, 404, { error: "Variant not found for that product." }, {
+          methods: STOCK_METHODS,
+        });
+      }
+
+      updateResult = await client.query(
+        `UPDATE "inventoryVariant"
+         SET "stockQty" = "stockQty" + $1,
+             "updatedAt" = NOW()
+         WHERE id = $2
+           AND "organizationId" = $3
+           AND (
+             $1 >= 0
+             OR GREATEST("stockQty" - "reservedQty", 0) >= ABS($1)
+           )
+         RETURNING id, "stockQty", "reservedQty", GREATEST("stockQty" - "reservedQty", 0) AS "availableQty"`,
+        [stockDelta, normalizedVariantId, organizationId]
+      );
+      if (updateResult.rowCount > 0) {
+        await client.query(
+          `UPDATE "product" p
+           SET stock = COALESCE((
+                 SELECT SUM(v."stockQty")::int
+                 FROM "inventoryVariant" v
+                 WHERE v."organizationId" = p."organizationId"
+                   AND v."inventoryItemId" = p.id
+                   AND lower(COALESCE(v.status, 'active')) <> 'inactive'
+               ), p.stock),
+               "lastUpdatedByUserId" = COALESCE($2, "lastUpdatedByUserId"),
+               "lastUpdatedAt" = NOW(),
+               "updatedAt" = NOW()
+           WHERE p.id = $1 AND p."organizationId" = $3`,
+          [normalizedProductId, actor.userId, organizationId]
+        );
+      }
+    } else {
+      const updateProductQuery = `
+        UPDATE "product"
+        SET "stock" = COALESCE("stock", 0) + $1,
+            "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+            "lastUpdatedAt" = NOW(),
+            "updatedAt" = NOW()
+        WHERE "id" = $2
+          AND "organizationId" = $4
+          AND (
+            $1 >= 0
+            OR COALESCE("stock", 0) >= ABS($1)
+          )
+        RETURNING "id", "stock", "lastUpdatedAt", "lastUpdatedByUserId";
+      `;
+      updateResult = await client.query(updateProductQuery, [
+        stockDelta,
+        normalizedProductId,
+        actor.userId,
+        organizationId,
+      ]);
+    }
 
     if (updateResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return respond(event, 404, { error: `Product with ID ${productId} not found.` }, {
+      return respond(event, 404, { error: `Product or variant with ID ${normalizedProductId} not found, or stock is insufficient.` }, {
         methods: STOCK_METHODS,
       });
     }
@@ -134,6 +207,7 @@ export async function handler(event) {
       INSERT INTO "stockMovement" (
         "organizationId",
         "productId", 
+        "variantId",
         "type", 
         "quantity", 
         "notes", 
@@ -145,12 +219,13 @@ export async function handler(event) {
         "performedByEmail",
         "createdAt"
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, NOW())
     `;
 
     await client.query(insertMovementQuery, [
       organizationId,
-      productId,
+      normalizedProductId,
+      normalizedVariantId,
       normalizedType,
       productQuantity,
       notes || null,
@@ -165,10 +240,14 @@ export async function handler(event) {
 
     return respond(event, 200, {
       message: `${normalizedType} successful.`,
-      productId: productId,
-      newStock: updateResult.rows[0].stock,
-      lastUpdatedAt: updateResult.rows[0].lastUpdatedAt,
-      lastUpdatedByUserId: updateResult.rows[0].lastUpdatedByUserId,
+      productId: normalizedProductId,
+      variantId: normalizedVariantId,
+      newStock: normalizedVariantId
+        ? updateResult.rows[0].stockQty
+        : updateResult.rows[0].stock,
+      variantAvailableQty: normalizedVariantId ? updateResult.rows[0].availableQty : undefined,
+      lastUpdatedAt: updateResult.rows[0].lastUpdatedAt || new Date().toISOString(),
+      lastUpdatedByUserId: updateResult.rows[0].lastUpdatedByUserId || actor.userId,
       lastUpdatedByName: actor.userName,
     }, {
       methods: STOCK_METHODS,

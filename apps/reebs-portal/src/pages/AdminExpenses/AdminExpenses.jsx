@@ -6,6 +6,7 @@ import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faReceipt } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import TablePagination from "../../components/TablePagination/TablePagination";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useLocation } from "react-router-dom";
 import {
@@ -80,6 +81,7 @@ function AdminExpenses() {
   const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(0);
   const [allTimeView, setAllTimeView] = useState(false);
   const [monthFilter, setMonthFilter] = useState(() => new Date().toISOString().slice(0, 7));
   const [form, setForm] = useState({
@@ -181,12 +183,38 @@ function AdminExpenses() {
     if (!requestedBookingId) return expenses;
     return expenses.filter((expense) => String(expense?.bookingId || "") === requestedBookingId);
   }, [expenses, requestedBookingId]);
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(visibleExpenses.length / pageSize));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paginatedExpenses = useMemo(() => {
+    const start = clampedPage * pageSize;
+    return visibleExpenses.slice(start, start + pageSize);
+  }, [visibleExpenses, clampedPage]);
+  const renderExpensesPagination = (header = false) => (
+    <TablePagination
+      total={visibleExpenses.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [requestedBookingId, visibleExpenses.length]);
 
   const categoryList = EXPENSE_CATEGORY_LABELS;
 
   const totalExpenses = useMemo(
     () => visibleExpenses.reduce((sum, expense) => sum + toNumber(expense.amount) / 100, 0),
     [visibleExpenses]
+  );
+  const paginatedExpensesTotal = useMemo(
+    () => paginatedExpenses.reduce((sum, expense) => sum + toNumber(expense.amount) / 100, 0),
+    [paginatedExpenses]
   );
 
   const linkedExpenseCount = useMemo(
@@ -523,6 +551,7 @@ function AdminExpenses() {
                 )}
               </div>
             </div>
+            {renderExpensesPagination(true)}
             <div className="admin-table-scroll">
               <table className="expenses-ledger-table">
                 <thead>
@@ -549,9 +578,9 @@ function AdminExpenses() {
                       </td>
                     </tr>
                   ) : (
-                    visibleExpenses.map((expense, index) => (
+                    paginatedExpenses.map((expense, index) => (
                       <tr key={expense.id}>
-                        <td className="table-row-index" data-label="#">{index}</td>
+                        <td className="table-row-index" data-label="#">{clampedPage * pageSize + index}</td>
                         <td data-label="Date">{formatDate(expense.date)}</td>
                         <td data-label="Category">
                           <span className="expenses-tag" style={getExpenseCategoryStyle(expense.category)}>
@@ -569,19 +598,20 @@ function AdminExpenses() {
                   <tfoot className="admin-table-footer">
                     <tr>
                       <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{visibleExpenses.length} expenses</span>
+                        <span className="admin-table-summary-value">{paginatedExpenses.length} expenses</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell">
-                        <span className="admin-table-summary-value">{formatCurrency(totalExpenses)}</span>
+                        <span className="admin-table-summary-value">{formatCurrency(paginatedExpensesTotal)}</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                     </tr>
                   </tfoot>
                 )}
               </table>
+              {renderExpensesPagination()}
             </div>
           </section>
         </div>

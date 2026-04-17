@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import TablePagination from "../../../components/TablePagination/TablePagination";
 import CustomerArchiveButton from "./CustomerArchiveButton";
 import { getSegmentLabel, getTouchLabel } from "../crmShared";
 
@@ -111,12 +112,36 @@ export function CustomerKanbanCard({
 }
 
 export function CustomerListTable({ customers, onOpen, onArchive, removingCustomerId }) {
-  const ordersTotal = customers.reduce((sum, customer) => sum + Number(customer.orders || 0), 0);
-  const bookingsTotal = customers.reduce((sum, customer) => sum + Number(customer.bookings || 0), 0);
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(customers.length / pageSize));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paginatedCustomers = useMemo(() => {
+    const start = clampedPage * pageSize;
+    return customers.slice(start, start + pageSize);
+  }, [customers, clampedPage]);
+  const ordersTotal = paginatedCustomers.reduce((sum, customer) => sum + Number(customer.orders || 0), 0);
+  const bookingsTotal = paginatedCustomers.reduce((sum, customer) => sum + Number(customer.bookings || 0), 0);
+  const renderPagination = (header = false) => (
+    <TablePagination
+      total={customers.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [customers.length]);
 
   return (
     <section className="admin-table crm-list-table" aria-label="Customer list">
-      <div className="admin-table-scroll crm-list-table-scroll inventory-table-scroll">
+      {renderPagination(true)}
+      <div className="admin-table-scroll crm-list-table-scroll">
         <table>
           <thead>
             <tr>
@@ -127,12 +152,12 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
               <th>Orders</th>
               <th>Bookings</th>
               <th>Last</th>
-              <th>Segment</th>
+              <th>Status</th>
               <th>Archive</th>
             </tr>
           </thead>
           <tbody>
-            {customers.map((customer, index) => (
+            {paginatedCustomers.map((customer, index) => (
               <tr
                 key={customer.id}
                 onClick={() => onOpen(customer)}
@@ -146,7 +171,7 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
                   }
                 }}
               >
-                <td className="table-row-index">{index}</td>
+                <td className="table-row-index">{clampedPage * pageSize + index}</td>
                 <td>
                   <div className="admin-product crm-table-name">
                     <span className="admin-product-name">{customer.name || "Unnamed customer"}</span>
@@ -198,25 +223,21 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
           {customers.length > 0 && (
             <tfoot className="admin-table-footer">
               <tr>
-                <td className="admin-table-summary-cell is-count">
-                  <span className="admin-table-summary-value">{customers.length} customers</span>
+                <td className="admin-table-summary-cell is-count" colSpan={4}>
+                  <span className="admin-table-summary-value">{paginatedCustomers.length} customers</span>
                 </td>
-                <td className="admin-table-summary-cell is-empty" />
-                <td className="admin-table-summary-cell is-empty" />
-                <td className="admin-table-summary-cell is-empty" />
                 <td className="admin-table-summary-cell">
                   <span className="admin-table-summary-value">{ordersTotal}</span>
                 </td>
                 <td className="admin-table-summary-cell">
                   <span className="admin-table-summary-value">{bookingsTotal}</span>
                 </td>
-                <td className="admin-table-summary-cell is-empty" />
-                <td className="admin-table-summary-cell is-empty" />
-                <td className="admin-table-summary-cell is-empty" />
+                <td className="admin-table-summary-cell is-empty" colSpan={3} />
               </tr>
             </tfoot>
           )}
         </table>
+        {renderPagination()}
       </div>
     </section>
   );

@@ -17,6 +17,7 @@ import {
   sendNotificationEmail,
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
+import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
 import {
   buildCustomerOrderEmailHtml,
   buildCustomerOrderEmailText,
@@ -213,6 +214,12 @@ export async function handler(event) {
   const normalizedItems = items
     .map((item) => ({
       productId: Number(item.productId),
+      variantId: Number.isFinite(Number(item.variantId)) && Number(item.variantId) > 0
+        ? Number(item.variantId)
+        : null,
+      digitString: String(item.digitString || item.numberSequence || item.digits || "")
+        .replace(/\D/g, "")
+        .slice(0, 40),
       quantity: Math.max(1, parseInt(item.quantity, 10) || 0),
       price: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
     }))
@@ -271,6 +278,7 @@ export async function handler(event) {
       ? authUser.organizationId
       : await resolveOrganizationId(client, event, payload);
     await ensureAuditColumns(client);
+    await ensureInventoryVariantSchema(client);
     await ensureOrderColumns(client);
 
     const actor = authUser
@@ -295,9 +303,59 @@ export async function handler(event) {
 
     await client.query('BEGIN'); // Start transaction
 
-    const productIds = [...new Set(normalizedItems.map((item) => item.productId))];
+    const digitExpandedItems = [];
+    for (const item of normalizedItems) {
+      if (!item.digitString || item.variantId) {
+        digitExpandedItems.push(item);
+        continue;
+      }
+
+      const digitRes = await client.query(
+        `SELECT id, "variantNumber"
+         FROM "inventoryVariant"
+         WHERE "organizationId" = $1
+           AND "inventoryItemId" = $2
+           AND "variantNumber" = ANY($3::text[])
+           AND lower(COALESCE(status, 'active')) = 'active'`,
+        [organizationId, item.productId, [...new Set(item.digitString.split(""))]]
+      );
+      const variantByNumber = new Map(
+        digitRes.rows.map((row) => [String(row.variantNumber), Number(row.id)])
+      );
+      for (const digit of item.digitString.split("")) {
+        const digitVariantId = variantByNumber.get(digit);
+        if (!digitVariantId) {
+          await client.query("ROLLBACK");
+          return json(event, 409, {
+            error: `Number variant ${digit} is not configured for product ${item.productId}.`,
+          });
+        }
+        digitExpandedItems.push({
+          ...item,
+          variantId: digitVariantId,
+          digitString: "",
+          quantity: 1,
+        });
+      }
+    }
+
+    const aggregatedItems = [];
+    const aggregateMap = new Map();
+    for (const item of digitExpandedItems) {
+      const key = `${item.productId}:${item.variantId || ""}:${Number.isFinite(item.price) ? item.price : ""}`;
+      const existing = aggregateMap.get(key);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        const next = { ...item };
+        aggregateMap.set(key, next);
+        aggregatedItems.push(next);
+      }
+    }
+
+    const productIds = [...new Set(aggregatedItems.map((item) => item.productId))];
     const productRes = await client.query(
-      `SELECT id, name, price, stock, "isActive"
+      `SELECT id, name, price, stock, "isActive", "itemType"
        FROM "product"
        WHERE id = ANY($1::int[]) AND "organizationId" = $2
        FOR UPDATE`,
@@ -310,11 +368,46 @@ export async function handler(event) {
       await client.query("ROLLBACK");
       return json(event, 404, { error: "One or more products were not found." });
     }
-    for (const item of normalizedItems) {
+    const variantIds = [
+      ...new Set(
+        aggregatedItems
+          .map((item) => Number(item.variantId))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      ),
+    ];
+    const variantMap = new Map();
+    if (variantIds.length) {
+      const variantRes = await client.query(
+        `SELECT
+           id,
+           "inventoryItemId",
+           sku,
+           "variantNumber",
+           color,
+           size,
+           "stockQty",
+           "reservedQty",
+           "priceOverride",
+           status
+         FROM "inventoryVariant"
+         WHERE id = ANY($1::int[])
+           AND "organizationId" = $2
+         FOR UPDATE`,
+        [variantIds, organizationId]
+      );
+      variantRes.rows.forEach((row) => variantMap.set(Number(row.id), row));
+      if (variantMap.size !== variantIds.length) {
+        await client.query("ROLLBACK");
+        return json(event, 404, { error: "One or more variants were not found." });
+      }
+    }
+
+    for (const item of aggregatedItems) {
       const product = productMap.get(item.productId);
       const dbPriceCents = Number(product?.price);
       const availableStock = Number(product?.stock ?? 0);
       const isActive = product?.isActive !== false;
+      const itemType = String(product?.itemType || "STANDARD").toUpperCase();
       if (!Number.isFinite(dbPriceCents)) {
         await client.query("ROLLBACK");
         return json(event, 400, { error: `Invalid price for product ${item.productId}.` });
@@ -323,6 +416,30 @@ export async function handler(event) {
         await client.query("ROLLBACK");
         return json(event, 409, { error: `Product ${item.productId} is unavailable.` });
       }
+      if (item.variantId) {
+        const variant = variantMap.get(Number(item.variantId));
+        if (!variant || Number(variant.inventoryItemId) !== Number(item.productId)) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Variant ${item.variantId} does not belong to product ${item.productId}.` });
+        }
+        if (String(variant.status || "active").toLowerCase() !== "active") {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Variant ${item.variantId} is unavailable.` });
+        }
+        const availableVariantStock = Math.max(
+          Number(variant.stockQty || 0) - Number(variant.reservedQty || 0),
+          0
+        );
+        if (availableVariantStock < item.quantity) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Insufficient stock for ${formatVariantLabel(product.name, variant)}.` });
+        }
+        continue;
+      }
+      if (itemType === "VARIANT_PARENT") {
+        await client.query("ROLLBACK");
+        return json(event, 400, { error: `Choose a specific variant for ${product.name || `product ${item.productId}`}.` });
+      }
       if (!Number.isFinite(availableStock) || availableStock < item.quantity) {
         await client.query("ROLLBACK");
         return json(event, 409, { error: `Insufficient stock for product ${item.productId}.` });
@@ -330,14 +447,24 @@ export async function handler(event) {
     }
 
     const allowPriceOverride = Boolean(authUser);
-    const pricedItems = normalizedItems.map((item) => {
+    const pricedItems = aggregatedItems.map((item) => {
       const product = productMap.get(item.productId);
       const dbPriceCents = Number(product?.price);
+      const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+      const variantPriceCents = Number(variant?.priceOverride);
       const overrideCents = allowPriceOverride && Number.isFinite(item.price)
         ? Math.max(0, toCents(item.price))
         : null;
-      const unitPriceCents = Number.isFinite(overrideCents) ? overrideCents : dbPriceCents;
-      return { ...item, unitPriceCents };
+      const unitPriceCents = Number.isFinite(overrideCents)
+        ? overrideCents
+        : Number.isFinite(variantPriceCents) && variantPriceCents >= 0
+          ? variantPriceCents
+          : dbPriceCents;
+      return {
+        ...item,
+        unitPriceCents,
+        variantLabel: variant ? formatVariantLabel(product?.name, variant) : null,
+      };
     });
     const discountCents = allowPriceOverride ? Math.max(0, toCents(discount || 0)) : 0;
     const itemsTotalCents = pricedItems.reduce(
@@ -420,27 +547,62 @@ export async function handler(event) {
 
       // Add to orderItem table
       await client.query(
-        `INSERT INTO "orderItem" ("organizationId", "orderId", "productId", "quantity", "unit_price", "total_amount") 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [organizationId, orderId, item.productId, quantity, unitPriceCents, lineTotal]
+        `INSERT INTO "orderItem" (
+           "organizationId",
+           "orderId",
+           "productId",
+           "variantId",
+           "quantity",
+           "unit_price",
+           "total_amount"
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [organizationId, orderId, item.productId, item.variantId || null, quantity, unitPriceCents, lineTotal]
       );
 
-      // Deduct stock from Product table
-      const updateResult = await client.query(
-        `UPDATE "product"
-           SET stock = stock - $1,
-               "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
-               "lastUpdatedAt" = NOW(),
-               "updatedAt" = NOW()
-         WHERE id = $2
-           AND "organizationId" = $4
-           AND COALESCE("isActive", true) = true
-           AND stock >= $1`,
-        [quantity, item.productId, actor.userId, organizationId]
-      );
+      const updateResult = item.variantId
+        ? await client.query(
+            `UPDATE "inventoryVariant"
+             SET "stockQty" = "stockQty" - $1,
+                 "updatedAt" = NOW()
+             WHERE id = $2
+               AND "organizationId" = $3
+               AND GREATEST("stockQty" - "reservedQty", 0) >= $1`,
+            [quantity, item.variantId, organizationId]
+          )
+        : await client.query(
+            `UPDATE "product"
+               SET stock = stock - $1,
+                   "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+                   "lastUpdatedAt" = NOW(),
+                   "updatedAt" = NOW()
+             WHERE id = $2
+               AND "organizationId" = $4
+               AND COALESCE("isActive", true) = true
+               AND stock >= $1`,
+            [quantity, item.productId, actor.userId, organizationId]
+          );
       if (updateResult.rowCount === 0) {
         await client.query("ROLLBACK");
         return json(event, 409, { error: `Unable to reserve stock for product ${item.productId}.` });
+      }
+
+      if (item.variantId) {
+        await client.query(
+          `UPDATE "product" p
+           SET stock = COALESCE((
+                 SELECT SUM(v."stockQty")::int
+                 FROM "inventoryVariant" v
+                 WHERE v."organizationId" = p."organizationId"
+                   AND v."inventoryItemId" = p.id
+                   AND lower(COALESCE(v.status, 'active')) <> 'inactive'
+               ), p.stock),
+               "lastUpdatedByUserId" = COALESCE($2, "lastUpdatedByUserId"),
+               "lastUpdatedAt" = NOW(),
+               "updatedAt" = NOW()
+           WHERE p.id = $1 AND p."organizationId" = $3`,
+          [item.productId, actor.userId, organizationId]
+        );
       }
 
       // Record StockMovement (StockOut)
@@ -448,6 +610,7 @@ export async function handler(event) {
         `INSERT INTO "stockMovement" (
            "organizationId",
            "productId",
+           "variantId",
            "type",
            "quantity",
            "notes",
@@ -458,12 +621,13 @@ export async function handler(event) {
            "performedByEmail",
            "createdAt"
          ) 
-         VALUES ($1, $2, 'StockOut', $3, $4, $5, NOW(), $6, $7, $8, NOW())`,
+         VALUES ($1, $2, $3, 'StockOut', $4, $5, $6, NOW(), $7, $8, $9, NOW())`,
         [
           organizationId,
           item.productId,
+          item.variantId || null,
           quantity,
-          `Sold in Order #${orderId}`,
+          item.variantLabel ? `Sold in Order #${orderId}: ${item.variantLabel}` : `Sold in Order #${orderId}`,
           orderNumber,
           actor.userId,
           actor.userName,
@@ -485,7 +649,7 @@ export async function handler(event) {
       paymentPreference: normalizedPaymentPreference,
       items: pricedItems.map((item) => ({
         ...item,
-        productName: productMap.get(item.productId)?.name || `Item ${item.productId}`,
+        productName: item.variantLabel || productMap.get(item.productId)?.name || `Item ${item.productId}`,
       })),
     };
     try {

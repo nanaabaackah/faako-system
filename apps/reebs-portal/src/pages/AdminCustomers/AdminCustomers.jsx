@@ -16,6 +16,7 @@ import {
   KANBAN_COLUMNS,
   MOBILE_CARD_VIEW_QUERY,
   buildSearchBlob,
+  centsToMoneyAmount,
   getCustomerSegment,
   getDaysSince,
   getIsMobileCardView,
@@ -102,7 +103,9 @@ export default function AdminCustomers() {
     const base = customers.map((customer) => {
       const orders = toNumber(customer.orders);
       const bookings = toNumber(customer.bookings);
-      const ltv = toNumber(customer.total_spent) + toNumber(customer.total_rented);
+      const totalSpent = centsToMoneyAmount(customer.total_spent);
+      const totalRented = centsToMoneyAmount(customer.total_rented);
+      const ltv = totalSpent + totalRented;
       const activity = orders + bookings;
       const lastTouch = getLastTouch(customer);
       const daysSince = getDaysSince(lastTouch);
@@ -111,6 +114,8 @@ export default function AdminCustomers() {
         ...customer,
         orders,
         bookings,
+        totalSpent,
+        totalRented,
         ltv,
         activity,
         lastTouch,
@@ -219,11 +224,11 @@ export default function AdminCustomers() {
   );
 
   const selectedSegment = selectedCustomer?.segment || "prospect";
-  const selectedTotals = detail?.totals || {
-    orders: selectedCustomer?.orders || 0,
-    bookings: selectedCustomer?.bookings || 0,
-    totalSpent: selectedCustomer?.total_spent || 0,
-    totalRented: selectedCustomer?.total_rented || 0,
+  const selectedTotals = {
+    orders: toNumber(detail?.totals?.orders ?? selectedCustomer?.orders),
+    bookings: toNumber(detail?.totals?.bookings ?? selectedCustomer?.bookings),
+    totalSpent: centsToMoneyAmount(detail?.totals?.totalSpent ?? selectedCustomer?.total_spent),
+    totalRented: centsToMoneyAmount(detail?.totals?.totalRented ?? selectedCustomer?.total_rented),
   };
 
   const syncCustomerRow = (updatedCustomer) => {

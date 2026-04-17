@@ -73,7 +73,7 @@ export async function handler(event = {}) {
          oi.quantity,
          oi.unit_price,
          oi.total_amount,
-         p.name,
+         COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size), ''), p.name) AS name,
          p.sku,
          p.rate,
          p."attendantsNeeded",
@@ -85,6 +85,9 @@ export async function handler(event = {}) {
         AND p."organizationId" = oi."organizationId"
        LEFT JOIN "bouncy_castles" bc
          ON bc."productId" = oi."productId"
+       LEFT JOIN "inventoryVariant" v
+         ON v.id = oi."variantId"
+        AND v."organizationId" = oi."organizationId"
        WHERE oi."orderId" = $1
          AND oi."organizationId" = $2
        ORDER BY oi.id ASC`,

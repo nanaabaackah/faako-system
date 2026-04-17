@@ -2,6 +2,7 @@ import React from "react";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faBoxArchive, faFloppyDisk, faXmark } from "/src/icons/iconSet";
 import {
+  centsToMoneyAmount,
   formatDate,
   formatMoney,
   getSegmentLabel,
@@ -136,7 +137,7 @@ export default function CustomerDetailModal({
               title: order.orderNumber || `Order #${order.id}`,
               subtitle: `${formatDate(order.orderDate)}${order.deliveryMethod ? ` · ${order.deliveryMethod}` : ""}`,
             })}
-            renderValue={(order) => formatMoney(order.total_with_delivery ?? order.total_amount)}
+            renderValue={(order) => formatMoney(centsToMoneyAmount(order.total_with_delivery ?? order.total_amount))}
           />
 
           <CustomerActivityList
@@ -148,7 +149,7 @@ export default function CustomerDetailModal({
               title: `Booking #${booking.id}`,
               subtitle: `${formatDate(booking.eventDate)}${booking.status ? ` · ${booking.status}` : ""}`,
             })}
-            renderValue={(booking) => formatMoney(booking.totalAmount)}
+            renderValue={(booking) => formatMoney(centsToMoneyAmount(booking.totalAmount))}
           />
         </section>
       </div>

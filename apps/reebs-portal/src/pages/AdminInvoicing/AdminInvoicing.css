@@ -247,6 +247,10 @@
   display: none;
 }
 
+.invoice-hub-mobile-pagination {
+  display: none !important;
+}
+
 .invoice-hub-mobile-card {
   gap: 12px;
 }
@@ -1730,6 +1734,14 @@ body.admin-theme .admin-table.invoice-editable-table-shell .invoice-editable-tab
 
   .invoice-hub-table-scroll {
     display: none;
+  }
+
+  .invoice-hub-table-pagination {
+    display: none !important;
+  }
+
+  .invoice-hub-mobile-pagination {
+    display: flex !important;
   }
 
   .invoice-hub-mobile-list {

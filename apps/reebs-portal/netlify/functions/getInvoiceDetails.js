@@ -85,9 +85,10 @@ export async function handler(event = {}) {
              json_build_object(
                'id', bi.id,
                'productId', bi."productId",
+               'variantId', bi."variantId",
                'quantity', bi.quantity,
                'price', bi.price,
-               'productName', p.name,
+               'productName', COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size), ''), p.name),
                'attendantsNeeded', p."attendantsNeeded",
                'rate', p.rate
              )
@@ -105,6 +106,9 @@ export async function handler(event = {}) {
        LEFT JOIN "product" p
          ON p.id = bi."productId"
         AND p."organizationId" = b."organizationId"
+       LEFT JOIN "inventoryVariant" v
+         ON v.id = bi."variantId"
+        AND v."organizationId" = b."organizationId"
        WHERE b.id = $1
          AND b."organizationId" = $2
        GROUP BY b.id, c.id`,

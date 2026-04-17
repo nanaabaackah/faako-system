@@ -7,6 +7,7 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
 
 const formatCurrency = (amount, currency = "GHS") => {
   try {
@@ -477,6 +478,17 @@ function OrdersList() {
     const start = clampedPage * pageSize;
     return sortedOrders.slice(start, start + pageSize);
   }, [sortedOrders, clampedPage, pageSize]);
+  const renderOrdersPagination = (header = false) => (
+    <TablePagination
+      total={sortedOrders.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
 
   useEffect(() => {
     setPage(0);
@@ -531,8 +543,8 @@ function OrdersList() {
   }, [detailOrder]);
 
   const totalAmount = useMemo(() => {
-    return sortedOrders.reduce((sum, order) => sum + toNumber(order.total), 0);
-  }, [sortedOrders]);
+    return paginatedOrders.reduce((sum, order) => sum + toNumber(order.total), 0);
+  }, [paginatedOrders]);
 
   const requestSort = (key) => {
     setSortConfig((prev) => {
@@ -818,8 +830,10 @@ function OrdersList() {
           {!loading && error && <p className="orders-error">{error}</p>}
 
           {!loading && !error && viewMode === "table" && (
-            <div className="orders-table-wrapper">
-              <table className="orders-table">
+            <>
+              <div className="orders-table-wrapper">
+                {renderOrdersPagination(true)}
+                <table className="orders-table">
                 <thead>
                   <tr>
                     <th className="table-row-index">#</th>
@@ -941,7 +955,7 @@ function OrdersList() {
                   <tfoot className="admin-table-footer">
                     <tr className="orders-total-row">
                       <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{sortedOrders.length} orders</span>
+                        <span className="admin-table-summary-value">{paginatedOrders.length} orders</span>
                       </td>
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
@@ -957,30 +971,15 @@ function OrdersList() {
                     </tr>
                   </tfoot>
                 )}
-              </table>
-              <div className="table-pagination">
-                <span>
-                  Showing {sortedOrders.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(sortedOrders.length, (clampedPage + 1) * pageSize)} of {sortedOrders.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
+                </table>
+                {renderOrdersPagination()}
               </div>
-            </div>
+            </>
           )}
 
           {!loading && !error && viewMode === "cards" && (
             <>
+              {renderOrdersPagination(true)}
               <div className="orders-card-grid">
                 {!sortedOrders.length && <p className="orders-empty">No orders match your filters.</p>}
                 {paginatedOrders.map((order) => (
@@ -1053,24 +1052,7 @@ function OrdersList() {
                   </div>
                 ))}
               </div>
-              <div className="table-pagination">
-                <span>
-                  Showing {sortedOrders.length === 0 ? 0 : clampedPage * pageSize + 1}-
-                  {Math.min(sortedOrders.length, (clampedPage + 1) * pageSize)} of {sortedOrders.length}
-                </span>
-                <div className="table-pagination-controls">
-                  <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0}>
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={clampedPage >= pageCount - 1}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              {renderOrdersPagination()}
             </>
           )}
 

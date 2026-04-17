@@ -19,6 +19,7 @@ import {
   sendNotificationEmail,
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
+import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
 import {
   buildResponseHeaders,
   isAllowedAppOrigin,
@@ -191,9 +192,11 @@ const fullSelectColumns = `
         json_build_object(
           'id', bi.id,
           'productId', bi."productId",
+          'variantId', bi."variantId",
           'quantity', bi.quantity,
           'price', bi.price,
           'productName', p.name,
+          'variantLabel', CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size),
           'productImage', p."imageUrl"
         )
         ORDER BY bi.id
@@ -207,6 +210,7 @@ const fullSelectColumns = `
   LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
   LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
   LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
+  LEFT JOIN "inventoryVariant" v ON v.id = bi."variantId" AND v."organizationId" = b."organizationId"
 `;
 
 const selectBookings = async (client, organizationId, { compact = false } = {}) => {
@@ -347,6 +351,7 @@ export async function handler(event) {
       ? authUser.organizationId
       : await resolveOrganizationId(client, event, data);
     await ensureAuditColumns(client);
+    await ensureInventoryVariantSchema(client);
     const defaultActor = authUser
       ? { userId: authUser.id, userName: authUser.fullName, userEmail: authUser.email }
       : await resolveActor(client, normalizeActor({}), organizationId);
@@ -404,6 +409,9 @@ export async function handler(event) {
       .slice(0, MAX_BOOKING_ITEMS)
       .map((item) => ({
         productId: Number(item.productId),
+        variantId: Number.isFinite(Number(item.variantId)) && Number(item.variantId) > 0
+          ? Number(item.variantId)
+          : null,
         quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
         price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price)) : null,
       }))
@@ -438,6 +446,9 @@ export async function handler(event) {
       ? normalizedItems
       : (Array.isArray(existingBooking?.items) ? existingBooking.items : []).map((item) => ({
           productId: Number(item.productId),
+          variantId: Number.isFinite(Number(item.variantId)) && Number(item.variantId) > 0
+            ? Number(item.variantId)
+            : null,
           quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
           price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price) / 100) : null,
         }));
@@ -478,7 +489,7 @@ export async function handler(event) {
 
       const productIds = [...new Set(mergedItems.map((item) => item.productId))];
       const productRes = await client.query(
-        `SELECT id, price, sku, "sourceCategoryCode"
+        `SELECT id, name, price, sku, "sourceCategoryCode", "itemType"
          FROM "product"
          WHERE id = ANY($1::int[]) AND "organizationId" = $2`,
         [productIds, organizationId]
@@ -498,6 +509,10 @@ export async function handler(event) {
         if (source !== "RENTAL" && !sku.startsWith("RENT") && !sku.startsWith("PUM")) {
           await client.query("ROLLBACK");
           return json(event, 400, { error: `Bookings can only include rental items. Item ${item.productId} is not a rental.` });
+        }
+        if (String(product.itemType || "STANDARD").toUpperCase() === "VARIANT_PARENT" && !item.variantId) {
+          await client.query("ROLLBACK");
+          return json(event, 400, { error: `Choose a specific variant for ${product.name || `item ${item.productId}`}.` });
         }
       }
 
@@ -575,13 +590,98 @@ export async function handler(event) {
         }
       }
 
+      const shouldReserveVariants = !["completed", "cancelled"].includes(status);
+      const releaseExistingReservations = event.httpMethod === "PUT"
+        && existingBooking
+        && !["completed", "cancelled"].includes(normalizeBookingStatusValue(existingBooking.status, "pending"));
+      if (releaseExistingReservations) {
+        const existingVariantItems = await client.query(
+          `SELECT "variantId", quantity
+           FROM "bookingItem"
+           WHERE "bookingId" = $1
+             AND "organizationId" = $2
+             AND "variantId" IS NOT NULL
+           FOR UPDATE`,
+          [bookingId, organizationId]
+        );
+        for (const row of existingVariantItems.rows) {
+          await client.query(
+            `UPDATE "inventoryVariant"
+             SET "reservedQty" = GREATEST("reservedQty" - $1, 0),
+                 "updatedAt" = NOW()
+             WHERE id = $2 AND "organizationId" = $3`,
+            [row.quantity, row.variantId, organizationId]
+          );
+        }
+      }
+
+      const variantIds = [
+        ...new Set(
+          finalItems
+            .map((item) => Number(item.variantId))
+            .filter((value) => Number.isFinite(value) && value > 0)
+        ),
+      ];
+      const variantMap = new Map();
+      if (variantIds.length) {
+        const variantRes = await client.query(
+          `SELECT
+             id,
+             "inventoryItemId",
+             sku,
+             "variantNumber",
+             color,
+             size,
+             "stockQty",
+             "reservedQty",
+             "priceOverride",
+             status
+           FROM "inventoryVariant"
+           WHERE id = ANY($1::int[])
+             AND "organizationId" = $2
+           FOR UPDATE`,
+          [variantIds, organizationId]
+        );
+        variantRes.rows.forEach((row) => variantMap.set(Number(row.id), row));
+        if (variantMap.size !== variantIds.length) {
+          await client.query("ROLLBACK");
+          return json(event, 404, { error: "One or more variants were not found." });
+        }
+      }
+
+      for (const item of finalItems) {
+        if (!item.variantId) continue;
+        const product = productMap.get(item.productId);
+        const variant = variantMap.get(Number(item.variantId));
+        if (!variant || Number(variant.inventoryItemId) !== Number(item.productId)) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Variant ${item.variantId} does not belong to product ${item.productId}.` });
+        }
+        if (String(variant.status || "active").toLowerCase() !== "active") {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Variant ${item.variantId} is unavailable.` });
+        }
+        const availableVariantStock = Math.max(
+          Number(variant.stockQty || 0) - Number(variant.reservedQty || 0),
+          0
+        );
+        if (shouldReserveVariants && availableVariantStock < item.quantity) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `Insufficient variant stock for ${formatVariantLabel(product?.name, variant)}.` });
+        }
+      }
+
       const totalAmount = Math.max(
         0,
         finalItems.reduce((sum, item) => {
           const product = productMap.get(item.productId);
+          const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+          const variantPrice = Number(variant?.priceOverride);
           const priceCents = Number.isFinite(item.price)
             ? Math.round(item.price * 100)
-            : product.price;
+            : Number.isFinite(variantPrice) && variantPrice >= 0
+              ? variantPrice
+              : product.price;
           return sum + priceCents * item.quantity;
         }, 0) - Math.round(discountValue * 100)
       );
@@ -660,12 +760,33 @@ export async function handler(event) {
 
       for (const item of finalItems) {
         const fallbackPrice = productMap.get(item.productId)?.price;
-        const price = Number.isFinite(item.price) ? Math.round(item.price * 100) : fallbackPrice;
+        const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+        const variantPrice = Number(variant?.priceOverride);
+        const price = Number.isFinite(item.price)
+          ? Math.round(item.price * 100)
+          : Number.isFinite(variantPrice) && variantPrice >= 0
+            ? variantPrice
+            : fallbackPrice;
         await client.query(
-          `INSERT INTO "bookingItem" ("organizationId", "bookingId", "productId", quantity, price)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [organizationId, bookingId, item.productId, item.quantity, price]
+          `INSERT INTO "bookingItem" ("organizationId", "bookingId", "productId", "variantId", quantity, price)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [organizationId, bookingId, item.productId, item.variantId || null, item.quantity, price]
         );
+        if (shouldReserveVariants && item.variantId) {
+          const reserveResult = await client.query(
+            `UPDATE "inventoryVariant"
+             SET "reservedQty" = "reservedQty" + $1,
+                 "updatedAt" = NOW()
+             WHERE id = $2
+               AND "organizationId" = $3
+               AND GREATEST("stockQty" - "reservedQty", 0) >= $1`,
+            [item.quantity, item.variantId, organizationId]
+          );
+          if (reserveResult.rowCount === 0) {
+            await client.query("ROLLBACK");
+            return json(event, 409, { error: `Unable to reserve variant ${item.variantId}.` });
+          }
+        }
       }
 
       await client.query("COMMIT");

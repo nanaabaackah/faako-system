@@ -14,6 +14,8 @@ model Organization {
   orders          Order[]
   orderItems      OrderItem[]
   products        Product[]
+  sourceCategories SourceCategory[]
+  inventoryVariants InventoryVariant[]
   stockMovements  StockMovement[]
   users           User[]
   employeeProfiles EmployeeProfile[]
@@ -78,14 +80,17 @@ model OrderItem {
   organization   Organization @relation(fields: [organizationId], references: [id])
   orderId        Int
   productId      Int
+  variantId      Int?
   quantity       Int
   unit_price     Int     
   total_amount   Int     
   Order          Order   @relation(fields: [orderId], references: [id])
   Product        Product @relation(fields: [productId], references: [id])
+  variant        InventoryVariant? @relation(fields: [variantId], references: [id])
 
   @@index([orderId])
   @@index([productId])
+  @@index([variantId])
   @@map("orderItem")
 }
 
@@ -100,6 +105,9 @@ model Product {
   vendorId             Int?
   vendor               Vendor?  @relation(fields: [vendorId], references: [id])
   
+  itemType             String   @default("STANDARD")
+  sourceCategoryId     Int?
+  sourceCategory       SourceCategory? @relation(fields: [sourceCategoryId], references: [id])
   sourceCategoryCode   String
   specificCategory     String?
   rate                 String?
@@ -115,6 +123,8 @@ model Product {
   price                Int      
   currency             String   @default("GHS")
   stock                Int      @default(0)
+  reorderLevel         Int      @default(2)
+  reorderQuantity      Int      @default(0)
   isActive             Boolean  @default(true)
   isArchived           Boolean  @default(false)
   archivedAt           DateTime?
@@ -131,6 +141,7 @@ model Product {
   updatedAt            DateTime @default(now()) 
   
   OrderItem            OrderItem[]
+  variants             InventoryVariant[]
   StockMovement        StockMovement[]
   bookingItems         BookingItem[]
   maintenanceLogs      MaintenanceLog[]
@@ -141,7 +152,50 @@ model Product {
   
   @@unique([organizationId, sku])
   @@unique([organizationId, barcode])
+  @@index([sourceCategoryId])
+  @@index([organizationId, itemType])
   @@map("product")
+}
+
+model SourceCategory {
+  id             Int      @id @default(autoincrement())
+  organizationId Int     @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  slug           String
+  isActive       Boolean  @default(true)
+  products       Product[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, isActive])
+  @@map("sourceCategory")
+}
+
+model InventoryVariant {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  inventoryItemId Int
+  inventoryItem   Product  @relation(fields: [inventoryItemId], references: [id])
+  sku             String
+  variantNumber   String?
+  color           String?
+  size            String?
+  stockQty        Int      @default(0)
+  reservedQty     Int      @default(0)
+  reorderLevel    Int      @default(2)
+  priceOverride   Int?
+  status          String   @default("active")
+  orderItems      OrderItem[]
+  bookingItems    BookingItem[]
+  stockMovements  StockMovement[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, inventoryItemId])
+  @@map("inventoryVariant")
 }
 
 model StockMovement {
@@ -149,6 +203,7 @@ model StockMovement {
   organizationId Int @default(1)
   organization   Organization @relation(fields: [organizationId], references: [id])
   productId Int
+  variantId Int?
   type      String
   quantity  Int
   date      DateTime
@@ -163,7 +218,9 @@ model StockMovement {
   user      User?    @relation(fields: [userId], references: [id])
 
   Product   Product  @relation(fields: [productId], references: [id])
+  variant   InventoryVariant? @relation(fields: [variantId], references: [id])
   @@index([productId])
+  @@index([variantId])
   @@map("stockMovement")
 }
 
@@ -515,9 +572,12 @@ model BookingItem {
   booking   Booking @relation(fields: [bookingId], references: [id])
   productId Int
   product   Product @relation(fields: [productId], references: [id])
+  variantId Int?
+  variant   InventoryVariant? @relation(fields: [variantId], references: [id])
   quantity  Int
   price     Int     // Price at time of booking (in cents)
 
+  @@index([variantId])
   @@map("bookingItem")
 }
 

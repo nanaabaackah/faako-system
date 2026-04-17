@@ -5,6 +5,7 @@ import "./AdminRentals.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import { useAuth } from "../../components/AuthContext/AuthContext";
@@ -244,6 +245,7 @@ function AdminRentals() {
   const [detailForm, setDetailForm] = useState(null);
   const [detailError, setDetailError] = useState("");
   const [maintenanceForm, setMaintenanceForm] = useState(createEmptyMaintenanceForm());
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -435,9 +437,16 @@ function AdminRentals() {
     });
   }, [categoryFilter, healthFilter, maintenanceByProductId, query, rentals]);
 
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(filteredRentals.length / pageSize));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paginatedRentals = useMemo(() => {
+    const start = clampedPage * pageSize;
+    return filteredRentals.slice(start, start + pageSize);
+  }, [filteredRentals, clampedPage]);
   const rentalsTableSummary = useMemo(
     () =>
-      filteredRentals.reduce(
+      paginatedRentals.reduce(
         (summary, item) => {
           const productId = Number(item.id);
           const linkedBookings = bookingsByProductId.get(productId) || [];
@@ -456,8 +465,23 @@ function AdminRentals() {
         },
         { count: 0, stock: 0, upcoming: 0, documents: 0, maintenance: 0 }
       ),
-    [bookingsByProductId, documentsByProductId, filteredRentals, maintenanceByProductId, todayStart]
+    [bookingsByProductId, documentsByProductId, maintenanceByProductId, paginatedRentals, todayStart]
   );
+  const renderRentalsPagination = (header = false) => (
+    <TablePagination
+      total={filteredRentals.length}
+      pageIndex={clampedPage}
+      pageSize={pageSize}
+      pageCount={pageCount}
+      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      header={header}
+    />
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [categoryFilter, healthFilter, query, rentals.length]);
 
   const globalSummary = useMemo(() => {
     const totalUnits = rentals.reduce((sum, item) => sum + getQuantity(item), 0);
@@ -906,7 +930,8 @@ function AdminRentals() {
             </label>
           </div>
 
-          <div className="admin-table-scroll inventory-table-scroll rentals-table-scroll">
+          <div className="admin-table-scroll rentals-table-scroll">
+            {renderRentalsPagination(true)}
             <table className="rentals-table">
               <thead>
                 <tr>
@@ -930,7 +955,7 @@ function AdminRentals() {
                     </td>
                   </tr>
                 ) : filteredRentals.length ? (
-                  filteredRentals.map((item, index) => {
+                  paginatedRentals.map((item, index) => {
                     const productId = Number(item.id);
                     const category = getSpecificCategory(item) || "Rental";
                     const linkedBookings = bookingsByProductId.get(productId) || [];
@@ -956,7 +981,7 @@ function AdminRentals() {
                           }
                         }}
                       >
-                        <td className="table-row-index">{index}</td>
+                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
                         <td className="rentals-col-sku">
                           <span className="rentals-table-text">{item.sku || "-"}</span>
                         </td>
@@ -1026,6 +1051,7 @@ function AdminRentals() {
                 </tr>
               </tfoot>
             </table>
+            {renderRentalsPagination()}
           </div>
         </section>
 
