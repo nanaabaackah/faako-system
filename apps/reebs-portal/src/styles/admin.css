@@ -15077,7 +15077,7 @@ body.admin-theme :is(.crm-table-value, .crm-table-updated, .crm-table-segment) {
 :where(body.admin-theme, .store-mode-page) {
   --admin-list-table-card: var(--admin-card, var(--card));
   --admin-list-table-border: var(--admin-portal-border, var(--admin-border));
-  --admin-list-table-head: color-mix(in oklab, var(--admin-muted, #64748b) 14%, var(--admin-card, #ffffff));
+  --admin-list-table-head: color-mix(in oklab, var(--admin-muted, #64748b) 14%, var(--admin-card, transparent));
   --admin-list-table-hover: color-mix(in oklab, var(--accent, #0f766e) 8%, transparent);
 }
 
@@ -15143,7 +15143,8 @@ body.admin-theme :is(.crm-table-value, .crm-table-updated, .crm-table-segment) {
   .expenses-ledger-table,
   .store-mode-table
 ) thead tr {
-  background: var(--admin-list-table-head) !important;
+  background: transparent !important;
+  color: var(--text-subtle);
 }
 
 :is(body.admin-theme, .store-mode-page) :is(

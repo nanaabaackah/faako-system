@@ -97,7 +97,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 [data-faako-theme] {
   --sys-table-card-bg: var(--sys-surface-strong);
   --sys-table-card-border: var(--sys-border);
-  --sys-table-head-bg: color-mix(in srgb, var(--sys-bg-elevated) 82%, var(--sys-surface-strong));
+  --sys-table-head-bg: color-mix(in srgb, transparent 82%, var(--sys-surface-strong));
   --sys-table-row-hover: var(--sys-accent-soft);
 }
 
@@ -202,10 +202,11 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   margin: 0 !important;
   padding: 0.9rem 1rem !important;
   border-top: 1px solid var(--sys-table-card-border) !important;
-  background: var(--sys-table-card-bg) !important;
+  background: var(--sys-table-head-bg) !important;
 }
 
 [data-faako-theme] :where(.inventory-register-pagination-header) {
+  background: transparent !important;
   border-top: 0 !important;
   border-bottom: 1px solid var(--sys-table-card-border) !important;
 }
@@ -225,7 +226,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 }
 
 [data-faako-theme] :where(.table-strong, .admin-table-summary-value) {
-  color: var(--sys-text) !important;
+  color: var(--text-subtle) !important;
   font-weight: 700;
 }
 
@@ -419,7 +420,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   .ui-data-table__scroll,
   .admin-table-footer .admin-table-summary-cell
 ) {
-  background: var(--admin-card) !important;
+  background: var(--sys-table-head-bg) !important;
   border-color: var(--admin-border) !important;
   color: var(--admin-text) !important;
 }
@@ -442,7 +443,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 }
 
 [data-admin-theme="dark"] body.admin-theme :is(.ui-data-table thead th, .ui-data-table tfoot td) {
-  background-color: var(--admin-surface) !important;
+  background-color: var(--sys-table-head-bg) !important;
   color: var(--admin-text) !important;
 }
 
