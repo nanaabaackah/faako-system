@@ -45,7 +45,18 @@ const listCategories = async (client, organizationId, { includeInactive = false 
      WHERE sc."organizationId" = $1
        ${includeInactive ? "" : `AND sc."isActive" = true`}
      GROUP BY sc.id
-     ORDER BY sc."isActive" DESC, lower(sc.name) ASC`,
+     ORDER BY sc."isActive" DESC,
+       CASE lower(sc.name)
+         WHEN 'toys' THEN 1
+         WHEN 'rentals' THEN 2
+         WHEN 'rental' THEN 2
+         WHEN 'clothes' THEN 3
+         WHEN 'shoes' THEN 4
+         WHEN 'supplies' THEN 5
+         WHEN 'household' THEN 6
+         ELSE 99
+       END,
+       lower(sc.name) ASC`,
     [organizationId]
   );
   return result.rows || [];

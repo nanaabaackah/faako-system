@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { ensureAuditColumns } from "./auditHelpers.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import {
   cleanInventoryText,
@@ -140,6 +141,11 @@ const createVariant = async (client, organizationId, body) => {
   const size = cleanInventoryText(body.size || "", 80) || null;
   const stockQty = toInt(body.stockQty ?? body.stock ?? body.quantity, 0);
   const reservedQty = toInt(body.reservedQty, 0);
+  if (reservedQty > stockQty) {
+    const error = new Error("Reserved quantity cannot exceed stock quantity.");
+    error.statusCode = 409;
+    throw error;
+  }
   const reorderLevel = toInt(body.reorderLevel, 2);
   const priceOverride = readPriceOverrideCents(body);
   const status = cleanInventoryText(body.status || "active", 32).toLowerCase() || "active";
@@ -202,6 +208,7 @@ const createVariant = async (client, organizationId, body) => {
            FROM "inventoryVariant" v
            WHERE v."organizationId" = $2
              AND v."inventoryItemId" = $1
+             AND lower(COALESCE(v.status, 'active')) <> 'inactive'
          ), 0),
          "updatedAt" = NOW()
      WHERE id = $1 AND "organizationId" = $2`,
@@ -210,12 +217,16 @@ const createVariant = async (client, organizationId, body) => {
 
   if (result.rowCount > 0) return serializeVariant(result.rows[0]);
   const variants = await selectVariants(client, organizationId, parent.id);
-  return variants.find(
+  const existingVariant = variants.find(
     (variant) =>
       String(variant.variantNumber || "") === String(variantNumber || "")
       && String(variant.color || "") === String(color || "")
       && String(variant.size || "") === String(size || "")
-  ) || null;
+  );
+  if (existingVariant) return existingVariant;
+  const error = new Error("A variant with that SKU already exists.");
+  error.statusCode = 409;
+  throw error;
 };
 
 const normalizeList = (value) => {
@@ -255,6 +266,11 @@ const generateNumberVariants = async (client, organizationId, body) => {
   const sizeValues = sizes.length ? sizes : [null];
   const stockQty = toInt(body.stockQty ?? body.defaultStockQty, 0);
   const reservedQty = toInt(body.reservedQty, 0);
+  if (reservedQty > stockQty) {
+    const error = new Error("Reserved quantity cannot exceed stock quantity.");
+    error.statusCode = 409;
+    throw error;
+  }
   const reorderLevel = toInt(body.reorderLevel, 2);
   const priceOverride = readPriceOverrideCents(body);
   const created = [];
@@ -330,6 +346,7 @@ const generateNumberVariants = async (client, organizationId, body) => {
              FROM "inventoryVariant" v
              WHERE v."organizationId" = $2
                AND v."inventoryItemId" = $1
+               AND lower(COALESCE(v.status, 'active')) <> 'inactive'
            ), 0),
            "lastUpdatedAt" = NOW(),
            "updatedAt" = NOW()
@@ -351,7 +368,7 @@ const generateNumberVariants = async (client, organizationId, body) => {
   };
 };
 
-const updateVariant = async (client, organizationId, body) => {
+const updateVariant = async (client, organizationId, body, actor) => {
   const variantId = Number(body.id || body.variantId);
   if (!Number.isFinite(variantId) || variantId <= 0) {
     const error = new Error("Variant id is required.");
@@ -409,50 +426,112 @@ const updateVariant = async (client, organizationId, body) => {
     throw error;
   }
 
-  params.push(variantId, organizationId);
-  const result = await client.query(
-    `UPDATE "inventoryVariant"
-     SET ${fields.join(", ")}, "updatedAt" = NOW()
-     WHERE id = $${params.length - 1}
-       AND "organizationId" = $${params.length}
-     RETURNING
-       id,
-       "organizationId",
-       "inventoryItemId",
-       sku,
-       "variantNumber",
-       color,
-       size,
-       "stockQty",
-       "reservedQty",
-       GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
-       "reorderLevel",
-       "priceOverride",
-       status,
-       "createdAt",
-       "updatedAt"`,
-    params
-  );
-  if (result.rowCount === 0) {
-    const error = new Error("Variant not found.");
-    error.statusCode = 404;
-    throw error;
+  await client.query("BEGIN");
+  try {
+    const currentRes = await client.query(
+      `SELECT id, "inventoryItemId", sku, "stockQty", "reservedQty"
+       FROM "inventoryVariant"
+       WHERE id = $1 AND "organizationId" = $2
+       FOR UPDATE`,
+      [variantId, organizationId]
+    );
+    if (currentRes.rowCount === 0) {
+      const error = new Error("Variant not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const current = currentRes.rows[0];
+    const nextStockQty = Object.prototype.hasOwnProperty.call(body, "stockQty")
+      ? toInt(body.stockQty, 0)
+      : Number(current.stockQty || 0);
+    const nextReservedQty = Object.prototype.hasOwnProperty.call(body, "reservedQty")
+      ? toInt(body.reservedQty, 0)
+      : Number(current.reservedQty || 0);
+    if (nextReservedQty > nextStockQty) {
+      const error = new Error("Reserved quantity cannot exceed stock quantity.");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    params.push(variantId, organizationId);
+    const result = await client.query(
+      `UPDATE "inventoryVariant"
+       SET ${fields.join(", ")}, "updatedAt" = NOW()
+       WHERE id = $${params.length - 1}
+         AND "organizationId" = $${params.length}
+       RETURNING
+         id,
+         "organizationId",
+         "inventoryItemId",
+         sku,
+         "variantNumber",
+         color,
+         size,
+         "stockQty",
+         "reservedQty",
+         GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
+         "reorderLevel",
+         "priceOverride",
+         status,
+         "createdAt",
+         "updatedAt"`,
+      params
+    );
+    const updated = serializeVariant(result.rows[0]);
+    const stockDelta = Number(updated.stockQty || 0) - Number(current.stockQty || 0);
+    if (stockDelta !== 0) {
+      await client.query(
+        `INSERT INTO "stockMovement" (
+           "organizationId",
+           "productId",
+           "variantId",
+           "type",
+           "quantity",
+           "notes",
+           "reference",
+           "date",
+           "performedByUserId",
+           "performedByName",
+           "performedByEmail",
+           "createdAt"
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, NOW())`,
+        [
+          organizationId,
+          updated.inventoryItemId,
+          updated.id,
+          stockDelta > 0 ? "StockIn" : "StockOut",
+          Math.abs(stockDelta),
+          "Variant stock adjusted from variant table.",
+          updated.sku || current.sku || `Variant ${updated.id}`,
+          actor?.userId || null,
+          actor?.userName || null,
+          actor?.userEmail || null,
+        ]
+      );
+    }
+    await client.query(
+      `UPDATE "product" p
+       SET stock = COALESCE((
+             SELECT SUM(v."stockQty")::int
+             FROM "inventoryVariant" v
+             WHERE v."organizationId" = p."organizationId"
+               AND v."inventoryItemId" = p.id
+               AND lower(COALESCE(v.status, 'active')) <> 'inactive'
+           ), 0),
+           "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+           "lastUpdatedAt" = NOW(),
+           "updatedAt" = NOW()
+       WHERE p.id = $1 AND p."organizationId" = $2`,
+      [updated.inventoryItemId, organizationId, actor?.userId || null]
+    );
+    await client.query("COMMIT");
+    return updated;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
   }
-  const updated = serializeVariant(result.rows[0]);
-  await client.query(
-    `UPDATE "product" p
-     SET stock = COALESCE((
-           SELECT SUM(v."stockQty")::int
-           FROM "inventoryVariant" v
-           WHERE v."organizationId" = p."organizationId"
-             AND v."inventoryItemId" = p.id
-         ), 0),
-         "lastUpdatedAt" = NOW(),
-         "updatedAt" = NOW()
-     WHERE p.id = $1 AND p."organizationId" = $2`,
-    [updated.inventoryItemId, organizationId]
-  );
-  return updated;
 };
 
 export async function handler(event = {}) {
@@ -469,10 +548,11 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    await ensureAuditColumns(client);
     const auth = await requireInternalUser(client, event, {
       methods: METHODS,
-      roles: method === "GET" ? [] : ["admin", "manager"],
-      roleError: "Only admins and managers can manage inventory variants.",
+      roles: method === "GET" ? [] : ["owner", "admin", "manager"],
+      roleError: "Only owners, admins, and managers can manage inventory variants.",
     });
     if (auth.errorResponse) return auth.errorResponse;
 
@@ -491,7 +571,11 @@ export async function handler(event = {}) {
     if (!body) return json(event, 400, { error: "Invalid JSON body." });
 
     if (method === "PATCH") {
-      const updated = await updateVariant(client, organizationId, body);
+      const updated = await updateVariant(client, organizationId, body, {
+        userId: auth.authUser.id,
+        userName: auth.authUser.fullName,
+        userEmail: auth.authUser.email,
+      });
       return json(event, 200, updated);
     }
 

@@ -1,7 +1,10 @@
 export const DEFAULT_SOURCE_CATEGORIES = [
   { name: "Toys", slug: "toys" },
-  { name: "Household", slug: "household" },
+  { name: "Rentals", slug: "rentals" },
+  { name: "Clothes", slug: "clothes" },
+  { name: "Shoes", slug: "shoes" },
   { name: "Supplies", slug: "supplies" },
+  { name: "Household", slug: "household" },
 ];
 
 export const INVENTORY_ITEM_TYPES = new Set(["STANDARD", "VARIANT_PARENT", "BUNDLE"]);
@@ -35,6 +38,68 @@ const runStatements = async (client, statements, label) => {
   }
 };
 
+const normalizeDefaultSourceCategories = async (client, organizationId) => {
+  const parsedOrgId = Number(organizationId);
+  if (!Number.isFinite(parsedOrgId) || parsedOrgId <= 0) return;
+
+  try {
+    const canonicalRentals = await client.query(
+      `SELECT id
+       FROM "sourceCategory"
+       WHERE "organizationId" = $1
+         AND (lower(name) = 'rentals' OR lower(slug) = 'rentals')
+       ORDER BY id
+       LIMIT 1`,
+      [parsedOrgId]
+    );
+    const legacyRental = await client.query(
+      `SELECT id
+       FROM "sourceCategory"
+       WHERE "organizationId" = $1
+         AND (lower(name) = 'rental' OR lower(slug) = 'rental')
+       ORDER BY id
+       LIMIT 1`,
+      [parsedOrgId]
+    );
+
+    const canonicalId = canonicalRentals.rows[0]?.id;
+    const legacyId = legacyRental.rows[0]?.id;
+    if (!legacyId) return;
+
+    if (canonicalId) {
+      await client.query(
+        `UPDATE "product"
+         SET "sourceCategoryId" = $1
+         WHERE "organizationId" = $3
+           AND "sourceCategoryId" = $2`,
+        [canonicalId, legacyId, parsedOrgId]
+      );
+      await client.query(
+        `UPDATE "sourceCategory"
+         SET "isActive" = false,
+             "updatedAt" = NOW()
+         WHERE id = $1
+           AND "organizationId" = $2`,
+        [legacyId, parsedOrgId]
+      );
+      return;
+    }
+
+    await client.query(
+      `UPDATE "sourceCategory"
+       SET name = 'Rentals',
+           slug = 'rentals',
+           "isActive" = true,
+           "updatedAt" = NOW()
+       WHERE id = $1
+         AND "organizationId" = $2`,
+      [legacyId, parsedOrgId]
+    );
+  } catch (err) {
+    console.warn("Source category normalization failed:", err?.message || err);
+  }
+};
+
 export const ensureSourceCategorySchema = async (client) => {
   await runStatements(
     client,
@@ -63,6 +128,7 @@ export const ensureSourceCategorySchema = async (client) => {
     "Source category schema check"
   );
 
+  await normalizeDefaultSourceCategories(client, 1);
   for (const category of DEFAULT_SOURCE_CATEGORIES) {
     await client.query(
       `INSERT INTO "sourceCategory" ("organizationId", "name", "slug", "isActive", "createdAt", "updatedAt")
@@ -77,6 +143,7 @@ export const seedDefaultSourceCategories = async (client, organizationId) => {
   const parsedOrgId = Number(organizationId);
   if (!Number.isFinite(parsedOrgId) || parsedOrgId <= 0) return;
   await ensureSourceCategorySchema(client);
+  await normalizeDefaultSourceCategories(client, parsedOrgId);
   for (const category of DEFAULT_SOURCE_CATEGORIES) {
     await client.query(
       `INSERT INTO "sourceCategory" ("organizationId", "name", "slug", "isActive", "createdAt", "updatedAt")
@@ -87,8 +154,48 @@ export const seedDefaultSourceCategories = async (client, organizationId) => {
   }
 };
 
-export const ensureInventoryVariantSchema = async (client) => {
+export const ensureSpecificCategorySchema = async (client) => {
   await ensureSourceCategorySchema(client);
+  await runStatements(
+    client,
+    [
+      `CREATE TABLE IF NOT EXISTS "specificCategory" (
+        "id" SERIAL PRIMARY KEY,
+        "organizationId" INTEGER NOT NULL DEFAULT 1,
+        "sourceCategoryId" INTEGER,
+        "sourceCategoryCode" TEXT,
+        "name" TEXT NOT NULL,
+        "slug" TEXT NOT NULL,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `ALTER TABLE "specificCategory" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE "specificCategory" ADD COLUMN IF NOT EXISTS "sourceCategoryId" INTEGER`,
+      `ALTER TABLE "specificCategory" ADD COLUMN IF NOT EXISTS "sourceCategoryCode" TEXT`,
+      `ALTER TABLE "specificCategory" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true`,
+      `CREATE INDEX IF NOT EXISTS "specificCategory_organization_source_idx"
+        ON "specificCategory" ("organizationId", "sourceCategoryCode", "isActive")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "specificCategory_org_source_name_ci_key"
+        ON "specificCategory" ("organizationId", COALESCE("sourceCategoryCode", ''), lower("name"))`,
+      `DO $$
+       BEGIN
+         IF NOT EXISTS (
+           SELECT 1 FROM pg_constraint WHERE conname = 'specificCategory_sourceCategoryId_fkey'
+         ) THEN
+           ALTER TABLE "specificCategory"
+             ADD CONSTRAINT "specificCategory_sourceCategoryId_fkey"
+             FOREIGN KEY ("sourceCategoryId") REFERENCES "sourceCategory"("id")
+             ON DELETE SET NULL ON UPDATE CASCADE;
+         END IF;
+       END $$`,
+    ],
+    "Specific category schema check"
+  );
+};
+
+export const ensureInventoryVariantSchema = async (client) => {
+  await ensureSpecificCategorySchema(client);
   await runStatements(
     client,
     [
@@ -191,6 +298,100 @@ export const createSourceCategory = async (client, organizationId, name) => {
     [organizationId, cleaned, slug]
   );
   return result.rows[0];
+};
+
+export const findSpecificCategoryByName = async (
+  client,
+  organizationId,
+  { name, sourceCategoryCode = "" } = {}
+) => {
+  const cleaned = cleanInventoryText(name, 120);
+  const sourceCode = cleanInventoryText(sourceCategoryCode, 40).toUpperCase();
+  if (!cleaned) return null;
+  await ensureSpecificCategorySchema(client);
+  const result = await client.query(
+    `SELECT
+       id,
+       "organizationId",
+       "sourceCategoryId",
+       "sourceCategoryCode",
+       name,
+       slug,
+       "isActive",
+       "createdAt",
+       "updatedAt"
+     FROM "specificCategory"
+     WHERE "organizationId" = $1
+       AND COALESCE("sourceCategoryCode", '') = $2
+       AND lower(name) = lower($3)
+     LIMIT 1`,
+    [organizationId, sourceCode, cleaned]
+  );
+  return result.rows[0] || null;
+};
+
+export const createSpecificCategory = async (
+  client,
+  organizationId,
+  { name, sourceCategoryId = null, sourceCategoryCode = "" } = {}
+) => {
+  await ensureSpecificCategorySchema(client);
+  const cleaned = cleanInventoryText(name, 120);
+  if (!cleaned) {
+    const error = new Error("Specific category name is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const sourceCode = cleanInventoryText(sourceCategoryCode, 40).toUpperCase();
+  const existing = await findSpecificCategoryByName(client, organizationId, {
+    name: cleaned,
+    sourceCategoryCode: sourceCode,
+  });
+  if (existing) return existing;
+
+  const parsedSourceCategoryId = Number(sourceCategoryId);
+  const safeSourceCategoryId =
+    Number.isFinite(parsedSourceCategoryId) && parsedSourceCategoryId > 0
+      ? parsedSourceCategoryId
+      : null;
+  const result = await client.query(
+    `INSERT INTO "specificCategory" (
+       "organizationId",
+       "sourceCategoryId",
+       "sourceCategoryCode",
+       name,
+       slug,
+       "isActive",
+       "createdAt",
+       "updatedAt"
+     )
+     VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+     ON CONFLICT DO NOTHING
+     RETURNING
+       id,
+       "organizationId",
+       "sourceCategoryId",
+       "sourceCategoryCode",
+       name,
+       slug,
+       "isActive",
+       "createdAt",
+       "updatedAt"`,
+    [
+      organizationId,
+      safeSourceCategoryId,
+      sourceCode || null,
+      cleaned,
+      slugifySourceCategory(cleaned),
+    ]
+  );
+
+  return result.rows[0]
+    || findSpecificCategoryByName(client, organizationId, {
+      name: cleaned,
+      sourceCategoryCode: sourceCode,
+    });
 };
 
 export const formatVariantLabel = (productName, variant) => {

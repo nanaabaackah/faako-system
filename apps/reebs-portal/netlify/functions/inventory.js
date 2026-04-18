@@ -17,6 +17,7 @@ import { requireUser } from "./_shared/userAuth.js";
 import {
   cleanInventoryText,
   createSourceCategory,
+  createSpecificCategory,
   ensureInventoryVariantSchema,
   findSourceCategoryById,
   findSourceCategoryByName,
@@ -42,16 +43,72 @@ const allowedSources = [
   "HOUSEHOLD",
   "SUPPLIES",
 ];
+const SOURCE_CATEGORY_CODE_ALIASES = {
+  RENTALS: "RENTAL",
+  RENTAL: "RENTAL",
+  CLOTHING: "CLOTHES",
+  CLOTHES: "CLOTHES",
+};
+const SOURCE_CATEGORY_LABELS_BY_CODE = {
+  TOYS: "Toys",
+  RENTAL: "Rentals",
+  CLOTHES: "Clothes",
+  SHOES: "Shoes",
+  SUPPLIES: "Supplies",
+  HOUSEHOLD: "Household",
+};
 const SPECIFIC_CATEGORY_SOURCE_RULES = [
   {
-    sourceName: "Household",
-    sourceCode: "HOUSEHOLD",
-    terms: ["household", "cleaning", "kitchen", "laundry", "bathroom", "broom", "mop", "bucket"],
+    sourceName: "Rentals",
+    sourceCode: "RENTAL",
+    contains: [
+      "bouncy castle",
+      "bouncy castles",
+      "bounce house",
+      "bounce houses",
+      "canopies",
+      "canopy",
+      "chair",
+      "chairs",
+      "event table",
+      "event tables",
+      "inflatable",
+      "inflatables",
+      "rental",
+      "rentals",
+      "tent",
+      "tents",
+    ],
   },
   {
     sourceName: "Supplies",
     sourceCode: "SUPPLIES",
-    terms: ["party supplies", "party supply", "supply", "supplies"],
+    endsWith: ["supplies", "supply"],
+    contains: ["supplies", "supply"],
+  },
+  {
+    sourceName: "Clothes",
+    sourceCode: "CLOTHES",
+    endsWith: ["clothes", "clothing"],
+    contains: ["clothes", "clothing"],
+  },
+  {
+    sourceName: "Shoes",
+    sourceCode: "SHOES",
+    endsWith: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
+    contains: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
+  },
+  {
+    sourceName: "Household",
+    sourceCode: "HOUSEHOLD",
+    startsWith: ["household"],
+    contains: ["bathroom", "broom", "brooms", "bucket", "buckets", "laundry", "mop", "mops"],
+  },
+  {
+    sourceName: "Toys",
+    sourceCode: "TOYS",
+    endsWith: ["toy", "toys"],
+    contains: ["toy", "toys"],
   },
 ];
 const statusColumnStatements = [
@@ -183,14 +240,65 @@ const normalizeCategoryName = (value) =>
     .trim()
     .replace(/\b([a-z])/gi, (match) => match.toUpperCase());
 
-const resolveSourceCategoryForSpecificCategory = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
-  const fallback = { sourceName: "Toys", sourceCode: "TOYS" };
+const normalizeSpecificCategoryMatchText = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const specificCategoryRuleMatches = (normalized, rule) => {
+  const startsWith = Array.isArray(rule.startsWith) ? rule.startsWith : [];
+  const endsWith = Array.isArray(rule.endsWith) ? rule.endsWith : [];
+  const contains = Array.isArray(rule.contains) ? rule.contains : [];
+  return startsWith.some((term) => normalized.startsWith(term))
+    || endsWith.some((term) => normalized.endsWith(term))
+    || contains.some((term) => normalized.includes(term));
+};
+
+const resolveSourceCategoryForSpecificCategory = (value, fallbackSourceCode = "TOYS") => {
+  const normalized = normalizeSpecificCategoryMatchText(value);
+  const normalizedFallbackCode = normalizeSourceCategoryCodeValue(fallbackSourceCode);
+  const fallbackSourceCodeValue = SOURCE_CATEGORY_CODE_ALIASES[normalizedFallbackCode] || normalizedFallbackCode;
+  const safeFallbackCode = SOURCE_CATEGORY_LABELS_BY_CODE[fallbackSourceCodeValue]
+    ? fallbackSourceCodeValue
+    : "TOYS";
+  const fallback = {
+    sourceName: SOURCE_CATEGORY_LABELS_BY_CODE[safeFallbackCode] || "Toys",
+    sourceCode: safeFallbackCode,
+    matched: false,
+  };
   if (!normalized) return fallback;
   const match = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
-    rule.terms.some((term) => normalized.includes(term))
+    specificCategoryRuleMatches(normalized, rule)
   );
-  return match ? { sourceName: match.sourceName, sourceCode: match.sourceCode } : fallback;
+  return match
+    ? { sourceName: match.sourceName, sourceCode: match.sourceCode, matched: true }
+    : fallback;
+};
+
+const normalizeSourceCategoryCodeValue = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const resolveSourceCategoryCodeForCategory = (category) => {
+  const directCode = normalizeSourceCategoryCodeValue(category?.name || category?.slug);
+  const aliasedCode = SOURCE_CATEGORY_CODE_ALIASES[directCode] || directCode;
+  if (allowedSources.includes(aliasedCode)) return aliasedCode;
+
+  const normalizedName = String(category?.name || category?.slug || "").trim().toLowerCase();
+  const ruleMatch = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
+    specificCategoryRuleMatches(normalizeSpecificCategoryMatchText(normalizedName), rule)
+  );
+  if (ruleMatch?.sourceCode && allowedSources.includes(ruleMatch.sourceCode)) {
+    return ruleMatch.sourceCode;
+  }
+
+  return "INVENTORY";
 };
 
 const ensureSourceCategoryValue = async (client, value) => {
@@ -979,6 +1087,196 @@ export async function handler(event = {}) {
     }
 
     const postAction = String(payload.action || "").trim().toLowerCase();
+    if (postAction === "reassign-categories") {
+      const authUser = authenticatedUser;
+      if (!authUser || !isAdminRole(authUser.role)) {
+        return {
+          statusCode: 403,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Only owners and admins can reassign inventory categories." }),
+        };
+      }
+
+      const productIds = Array.isArray(payload.productIds)
+        ? payload.productIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+
+      if (!productIds.length) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Select at least one inventory item." }),
+        };
+      }
+
+      const hasSourceCategoryInput = Boolean(
+        payload.sourceCategoryId
+        || sanitizeString(payload.sourceCategoryName || payload.source_category_name || "", 120)
+      );
+      const hasSpecificCategoryInput = Object.prototype.hasOwnProperty.call(payload, "specificCategory")
+        || Object.prototype.hasOwnProperty.call(payload, "specific_category");
+      const specificCategory = hasSpecificCategoryInput
+        ? normalizeCategoryName(
+          sanitizeString(payload.specificCategory || payload.specific_category || "", 120)
+        )
+        : null;
+
+      if (!hasSourceCategoryInput && !specificCategory) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Choose a source category, a specific category, or both." }),
+        };
+      }
+
+      if (hasSpecificCategoryInput && !specificCategory) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Specific category cannot be blank." }),
+        };
+      }
+
+      let sourceCategory = null;
+      let sourceCategoryCode = null;
+      if (hasSourceCategoryInput) {
+        sourceCategory = await findSourceCategoryById(client, organizationId, payload.sourceCategoryId);
+        const sourceCategoryName = sanitizeString(
+          payload.sourceCategoryName || payload.source_category_name || "",
+          120
+        );
+        if (!sourceCategory && sourceCategoryName) {
+          sourceCategory = await findSourceCategoryByName(client, organizationId, sourceCategoryName);
+        }
+        if (!sourceCategory && payload.createIfMissing && sourceCategoryName) {
+          sourceCategory = await createSourceCategory(client, organizationId, sourceCategoryName);
+        }
+        if (!sourceCategory) {
+          return {
+            statusCode: 400,
+            headers: getCorsHeaders(event),
+            body: JSON.stringify({ error: "Choose a valid source category." }),
+          };
+        }
+        const requestedSourceCategoryCode = normalizeSourceCategoryCodeValue(
+          payload.sourceCategoryCode || payload.source_category_code
+        );
+        const aliasedSourceCategoryCode =
+          SOURCE_CATEGORY_CODE_ALIASES[requestedSourceCategoryCode] || requestedSourceCategoryCode;
+        sourceCategoryCode = allowedSources.includes(aliasedSourceCategoryCode)
+          ? aliasedSourceCategoryCode
+          : resolveSourceCategoryCodeForCategory(sourceCategory);
+        await ensureSourceCategoryValue(client, sourceCategoryCode);
+      }
+
+      if (specificCategory) {
+        const resolvedSpecificSource = resolveSourceCategoryForSpecificCategory(
+          specificCategory,
+          sourceCategoryCode || payload.sourceCategoryCode || payload.source_category_code || "TOYS"
+        );
+        if (!sourceCategory || resolvedSpecificSource.matched) {
+          const linkedSourceCategory = await findSourceCategoryByName(
+            client,
+            organizationId,
+            resolvedSpecificSource.sourceName
+          ) || await createSourceCategory(client, organizationId, resolvedSpecificSource.sourceName);
+          sourceCategory = linkedSourceCategory;
+          sourceCategoryCode = resolvedSpecificSource.sourceCode;
+          await ensureSourceCategoryValue(client, sourceCategoryCode);
+        }
+        if (sourceCategory && !sourceCategoryCode) {
+          sourceCategoryCode = resolveSourceCategoryCodeForCategory(sourceCategory);
+          await ensureSourceCategoryValue(client, sourceCategoryCode);
+        }
+        if (sourceCategory) {
+          await createSpecificCategory(client, organizationId, {
+            name: specificCategory,
+            sourceCategoryId: sourceCategory.id,
+            sourceCategoryCode,
+          }).catch((err) => {
+            console.warn("Specific category persistence failed:", err?.message || err);
+          });
+        }
+      }
+
+      const actor = buildActorFromUser(authUser);
+      const beforeRes = await client.query(
+        `SELECT
+           p.id,
+           COALESCE(sc.name, NULLIF(p."specificCategory", ''), NULLIF(p."sourceCategoryCode", ''), 'Unassigned') AS "previousCategory"
+         FROM "product" p
+         LEFT JOIN "sourceCategory" sc
+           ON sc.id = p."sourceCategoryId"
+          AND sc."organizationId" = p."organizationId"
+         WHERE p."organizationId" = $1
+           AND p.id = ANY($2::int[])
+           AND COALESCE(p."isDeleted", false) = false`,
+        [organizationId, productIds]
+      );
+
+      if (beforeRes.rowCount === 0) {
+        return {
+          statusCode: 404,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "No matching inventory items found." }),
+        };
+      }
+
+      const movedByPreviousCategory = beforeRes.rows.reduce((accumulator, row) => {
+        const key = row.previousCategory || "Unassigned";
+        accumulator[key] = (accumulator[key] || 0) + 1;
+        return accumulator;
+      }, {});
+
+      const updateParts = [];
+      const updateParams = [];
+      if (sourceCategory) {
+        updateParams.push(sourceCategory.id);
+        updateParts.push(`"sourceCategoryId" = $${updateParams.length}`);
+        updateParams.push(sourceCategoryCode);
+        updateParts.push(`"sourceCategoryCode" = $${updateParams.length}`);
+      }
+      if (specificCategory) {
+        updateParams.push(specificCategory);
+        updateParts.push(`"specificCategory" = $${updateParams.length}`);
+      }
+      updateParams.push(actor.userId);
+      updateParts.push(`"lastUpdatedByUserId" = COALESCE($${updateParams.length}, "lastUpdatedByUserId")`);
+      updateParts.push(`"lastUpdatedAt" = NOW()`);
+      updateParts.push(`"updatedAt" = NOW()`);
+      updateParams.push(organizationId, productIds);
+
+      const updateRes = await client.query(
+        `UPDATE "product"
+         SET ${updateParts.join(", ")}
+         WHERE "organizationId" = $${updateParams.length - 1}
+           AND id = ANY($${updateParams.length}::int[])
+           AND COALESCE("isDeleted", false) = false
+         RETURNING id, name, "sourceCategoryId", "sourceCategoryCode", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
+        updateParams
+      );
+
+      return {
+        statusCode: 200,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({
+          movedCount: updateRes.rowCount,
+          sourceCategory,
+          specificCategory,
+          movedByPreviousCategory,
+          items: updateRes.rows.map((row) => ({
+            ...row,
+            sourceCategoryName: sourceCategory?.name,
+            sourceCategorySlug: sourceCategory?.slug,
+            lastUpdatedByName: actor.userName,
+            lastUpdatedByEmail: actor.userEmail,
+          })),
+        }),
+      };
+    }
+
     if (postAction === "reassign-specific-category") {
       const authUser = authenticatedUser;
       if (!authUser || !isAdminRole(authUser.role)) {
@@ -1018,6 +1316,13 @@ export async function handler(event = {}) {
       if (!category) {
         category = await createSourceCategory(client, organizationId, resolvedSource.sourceName);
       }
+      await createSpecificCategory(client, organizationId, {
+        name: specificCategory,
+        sourceCategoryId: category.id,
+        sourceCategoryCode: resolvedSource.sourceCode,
+      }).catch((err) => {
+        console.warn("Specific category persistence failed:", err?.message || err);
+      });
 
       const actor = buildActorFromUser(authUser);
       const beforeRes = await client.query(
@@ -1120,6 +1425,8 @@ export async function handler(event = {}) {
           body: JSON.stringify({ error: "Choose a valid source category." }),
         };
       }
+      const sourceCategoryCode = resolveSourceCategoryCodeForCategory(category);
+      await ensureSourceCategoryValue(client, sourceCategoryCode);
 
       const actor = buildActorFromUser(authUser);
       const beforeRes = await client.query(
@@ -1153,15 +1460,16 @@ export async function handler(event = {}) {
       const updateRes = await client.query(
         `UPDATE "product"
          SET "sourceCategoryId" = $1,
-             "specificCategory" = $2,
-             "lastUpdatedByUserId" = COALESCE($3, "lastUpdatedByUserId"),
+             "sourceCategoryCode" = $2,
+             "specificCategory" = $3,
+             "lastUpdatedByUserId" = COALESCE($4, "lastUpdatedByUserId"),
              "lastUpdatedAt" = NOW(),
              "updatedAt" = NOW()
-         WHERE "organizationId" = $4
-           AND id = ANY($5::int[])
+         WHERE "organizationId" = $5
+           AND id = ANY($6::int[])
            AND COALESCE("isDeleted", false) = false
-         RETURNING id, name, "sourceCategoryId", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
-        [category.id, category.name, actor.userId, organizationId, productIds]
+         RETURNING id, name, "sourceCategoryId", "sourceCategoryCode", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
+        [category.id, sourceCategoryCode, category.name, actor.userId, organizationId, productIds]
       );
 
       return {
@@ -1312,14 +1620,35 @@ export async function handler(event = {}) {
       };
     }
 
+    const resolvedSpecificSource = specificCategory
+      ? resolveSourceCategoryForSpecificCategory(specificCategory, safeSource)
+      : null;
+    if (specificCategory && (resolvedSpecificSource.matched || !selectedSourceCategory)) {
+      const linkedSourceCategory = await findSourceCategoryByName(
+        client,
+        organizationId,
+        resolvedSpecificSource.sourceName
+      ) || (
+        isAdminRole(actorRole)
+          ? await createSourceCategory(client, organizationId, resolvedSpecificSource.sourceName)
+          : null
+      );
+      if (linkedSourceCategory) {
+        selectedSourceCategory = linkedSourceCategory;
+      }
+    }
+    const selectedSourceCategoryCode = selectedSourceCategory
+      ? resolveSourceCategoryCodeForCategory(selectedSourceCategory)
+      : safeSource;
+
     // If updating an existing product, retain its SKU and current field values.
     let sku = null;
     let nextBarcode = barcode;
     let nextDescription = description || null;
     let nextItemType = requestedItemType || "STANDARD";
     let nextSourceCategoryId = selectedSourceCategory?.id || null;
-    let nextSourceCategoryCode = safeSource;
-    let nextSpecificCategory = selectedSourceCategory?.name || specificCategory || null;
+    let nextSourceCategoryCode = selectedSourceCategoryCode;
+    let nextSpecificCategory = specificCategory || null;
     let nextRate = rate || null;
     let nextAge = age || null;
     let nextPriceCents = priceCents;
@@ -1409,9 +1738,7 @@ export async function handler(event = {}) {
       nextSourceCategoryId = selectedSourceCategory
         ? selectedSourceCategory.id
         : currentProduct.sourceCategoryId || null;
-      nextSpecificCategory = selectedSourceCategory
-        ? selectedSourceCategory.name
-        : nextSpecificCategory || currentProduct.specificCategory || null;
+      nextSpecificCategory = nextSpecificCategory || currentProduct.specificCategory || null;
 
       if (
         normalizeInventoryItemType(nextItemType) === "VARIANT_PARENT"
@@ -1534,7 +1861,18 @@ export async function handler(event = {}) {
         nextReorderQuantity = currentProduct.reorderQuantity;
       }
     } else {
-      sku = generateSku(name, safeSource);
+      sku = generateSku(name, nextSourceCategoryCode);
+    }
+
+    await ensureSourceCategoryValue(client, nextSourceCategoryCode);
+    if (nextSpecificCategory) {
+      await createSpecificCategory(client, organizationId, {
+        name: nextSpecificCategory,
+        sourceCategoryId: nextSourceCategoryId,
+        sourceCategoryCode: nextSourceCategoryCode,
+      }).catch((err) => {
+        console.warn("Specific category persistence failed:", err?.message || err);
+      });
     }
 
     const nextVendorId = nextVendorIds[0] || null;

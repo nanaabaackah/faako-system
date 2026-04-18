@@ -15,6 +15,7 @@ model Organization {
   orderItems      OrderItem[]
   products        Product[]
   sourceCategories SourceCategory[]
+  specificCategories SpecificCategory[]
   inventoryVariants InventoryVariant[]
   stockMovements  StockMovement[]
   users           User[]
@@ -165,11 +166,30 @@ model SourceCategory {
   slug           String
   isActive       Boolean  @default(true)
   products       Product[]
+  specificCategories SpecificCategory[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([organizationId, isActive])
   @@map("sourceCategory")
+}
+
+model SpecificCategory {
+  id                 Int      @id @default(autoincrement())
+  organizationId     Int      @default(1)
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  sourceCategoryId   Int?
+  sourceCategory     SourceCategory? @relation(fields: [sourceCategoryId], references: [id])
+  sourceCategoryCode String?
+  name               String
+  slug               String
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([organizationId, sourceCategoryCode, isActive])
+  @@index([sourceCategoryId])
+  @@map("specificCategory")
 }
 
 model InventoryVariant {

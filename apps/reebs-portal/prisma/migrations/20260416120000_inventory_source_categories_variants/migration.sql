@@ -23,14 +23,74 @@ CREATE UNIQUE INDEX IF NOT EXISTS "sourceCategory_org_name_ci_key"
 CREATE UNIQUE INDEX IF NOT EXISTS "sourceCategory_org_slug_ci_key"
   ON "sourceCategory" ("organizationId", lower("slug"));
 
+CREATE TABLE IF NOT EXISTS "specificCategory" (
+  "id" SERIAL NOT NULL,
+  "organizationId" INTEGER NOT NULL DEFAULT 1,
+  "sourceCategoryId" INTEGER,
+  "sourceCategoryCode" TEXT,
+  "name" TEXT NOT NULL,
+  "slug" TEXT NOT NULL,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "specificCategory_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "specificCategory_sourceCategoryId_fkey"
+    FOREIGN KEY ("sourceCategoryId") REFERENCES "sourceCategory"("id")
+    ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "specificCategory_organization_source_idx"
+  ON "specificCategory" ("organizationId", "sourceCategoryCode", "isActive");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "specificCategory_org_source_name_ci_key"
+  ON "specificCategory" ("organizationId", COALESCE("sourceCategoryCode", ''), lower("name"));
+
+UPDATE "sourceCategory" sc
+SET "name" = 'Rentals',
+    "slug" = 'rentals',
+    "isActive" = true,
+    "updatedAt" = CURRENT_TIMESTAMP
+WHERE lower(sc."name") = 'rental'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "sourceCategory" existing
+    WHERE existing."organizationId" = sc."organizationId"
+      AND lower(existing."name") = 'rentals'
+  );
+
+UPDATE "product" p
+SET "sourceCategoryId" = canonical.id,
+    "updatedAt" = CURRENT_TIMESTAMP
+FROM "sourceCategory" legacy
+JOIN "sourceCategory" canonical
+  ON canonical."organizationId" = legacy."organizationId"
+ AND lower(canonical."name") = 'rentals'
+WHERE p."sourceCategoryId" = legacy.id
+  AND p."organizationId" = legacy."organizationId"
+  AND lower(legacy."name") = 'rental';
+
+UPDATE "sourceCategory" legacy
+SET "isActive" = false,
+    "updatedAt" = CURRENT_TIMESTAMP
+WHERE lower(legacy."name") = 'rental'
+  AND EXISTS (
+    SELECT 1
+    FROM "sourceCategory" canonical
+    WHERE canonical."organizationId" = legacy."organizationId"
+      AND lower(canonical."name") = 'rentals'
+  );
+
 INSERT INTO "sourceCategory" ("organizationId", "name", "slug", "isActive", "createdAt", "updatedAt")
 SELECT o.id, defaults.name, defaults.slug, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 FROM "organization" o
 CROSS JOIN (
   VALUES
     ('Toys', 'toys'),
-    ('Household', 'household'),
-    ('Supplies', 'supplies')
+    ('Rentals', 'rentals'),
+    ('Clothes', 'clothes'),
+    ('Shoes', 'shoes'),
+    ('Supplies', 'supplies'),
+    ('Household', 'household')
 ) AS defaults(name, slug)
 WHERE NOT EXISTS (
   SELECT 1
