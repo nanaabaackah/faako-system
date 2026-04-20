@@ -164,6 +164,7 @@ export async function handler(event = {}) {
     }
 
     if (method === "DELETE") {
+      console.log(`[sourceCategories DELETE] categoryId=${existing.id}, organizationId=${organizationId}, category=${existing.name}`);
       const moveItemsTo = Number(body.moveItemsTo || 0);
       if (moveItemsTo && moveItemsTo > 0) {
         const targetCategory = await findSourceCategoryById(client, organizationId, moveItemsTo);
@@ -202,11 +203,46 @@ export async function handler(event = {}) {
             existing.name,
           ]
         );
+      } else {
+        // If no moveItemsTo provided, unlink products from this source to avoid FK constraint
+        await client.query(
+          `UPDATE "product"
+           SET "sourceCategoryId" = NULL, "updatedAt" = NOW()
+           WHERE "organizationId" = $1
+             AND "sourceCategoryId" = $2`,
+          [organizationId, existing.id]
+        );
       }
-      await client.query(
-        `DELETE FROM "sourceCategory" WHERE id = $1 AND "organizationId" = $2`,
-        [existing.id, organizationId]
-      );
+      // Delete all specific categories linked to this source first (due to FK constraint)
+      try {
+        const specificDelResult = await client.query(
+          `DELETE FROM "specificCategory"
+           WHERE "organizationId" = $1
+             AND "sourceCategoryId" = $2`,
+          [organizationId, existing.id]
+        );
+        console.log(`[sourceCategories] Deleted ${specificDelResult.rowCount} specific categories`);
+      } catch (err) {
+        console.error("[sourceCategories] Error deleting specific categories:", err.message);
+        throw err;
+      }
+      
+      // Now delete the source category
+      try {
+        console.log(`[sourceCategories] Attempting DELETE WHERE id=${existing.id} AND organizationId=${organizationId}`);
+        console.log(`[sourceCategories] existing object:`, JSON.stringify(existing, null, 2));
+        const sourceDelResult = await client.query(
+          `DELETE FROM "sourceCategory" WHERE id = $1 AND "organizationId" = $2`,
+          [existing.id, organizationId]
+        );
+        console.log(`[sourceCategories] Deleted ${sourceDelResult.rowCount} source categories`);
+        if (sourceDelResult.rowCount === 0) {
+          console.warn(`[sourceCategories] Warning: No sourceCategory record deleted for id ${existing.id}`);
+        }
+      } catch (err) {
+        console.error("[sourceCategories] Error deleting source category:", err.message);
+        throw err;
+      }
       return json(event, 200, { success: true, message: "Product deleted successfully." });
     }
 

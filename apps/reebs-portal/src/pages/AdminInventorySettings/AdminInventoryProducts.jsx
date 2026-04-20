@@ -175,6 +175,8 @@ function AdminInventoryProducts() {
     setSuccess("");
     try {
       await action();
+      // Small delay to allow database transaction to commit
+      await new Promise(resolve => setTimeout(resolve, 100));
       await loadSetup();
       setSuccess(message);
     } catch (err) {
