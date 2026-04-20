@@ -111,6 +111,8 @@ Response:
     "id": 101,
     "sku": "INV-CUPS-ABC",
     "name": "Paper cups",
+    "inventoryProductCode": "CLOTHES",
+    "category": "Party supplies",
     "sourceCategoryCode": "CLOTHES",
     "specificCategory": "Party supplies",
     "price": 12.5,

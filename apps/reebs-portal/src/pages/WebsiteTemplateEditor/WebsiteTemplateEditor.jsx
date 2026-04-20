@@ -63,7 +63,14 @@ const FIELD_META = [
 ];
 
 function WebsiteTemplateEditor() {
-  const { config, updateTemplateConfig, resetTemplateConfig, storePreviewConfig } = useTemplateConfig();
+  const {
+    config,
+    error: templateConfigError,
+    isLoading: templateConfigLoading,
+    updateTemplateConfig,
+    resetTemplateConfig,
+    storePreviewConfig,
+  } = useTemplateConfig();
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState(config);
   const [status, setStatus] = useState("");
@@ -80,13 +87,19 @@ function WebsiteTemplateEditor() {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event.preventDefault();
     setSaving(true);
-    updateTemplateConfig(draft);
-    setStatus("Changes saved. The live site will reflect them immediately.");
-    setSaving(false);
-    setEditMode(false);
+    setStatus("");
+    try {
+      await updateTemplateConfig(draft);
+      setStatus("Changes saved. The live site will reflect them immediately.");
+      setEditMode(false);
+    } catch (err) {
+      setStatus(err?.message || "Unable to save website settings.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePreview = () => {
@@ -103,14 +116,23 @@ function WebsiteTemplateEditor() {
     setStatus("");
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!editMode) return;
     if (typeof window !== "undefined") {
       const confirmed = window.confirm("Restore template defaults and overwrite current customizations?");
       if (!confirmed) return;
     }
-    resetTemplateConfig();
-    setStatus("Defaults restored. Save to apply them.");
+    setSaving(true);
+    setStatus("");
+    try {
+      const nextConfig = await resetTemplateConfig();
+      setDraft(nextConfig);
+      setStatus("Defaults restored.");
+    } catch (err) {
+      setStatus(err?.message || "Unable to restore defaults.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -120,9 +142,14 @@ function WebsiteTemplateEditor() {
           <p className="kicker">Template mode</p>
           <h1 className="admin-section-title">Edit the public website</h1>
           <p className="template-editor-sub">
-            Toggle edit mode to change hero copy and accent colors. Your edits are saved locally and applied across the
-            front-end instantly, then appear on the live website.
+            Toggle edit mode to change hero copy and accent colors. Your edits are saved to the database and reflected on
+            the live website.
           </p>
+          {(templateConfigLoading || templateConfigError) && (
+            <p className="template-editor-status">
+              {templateConfigLoading ? "Loading saved website settings..." : templateConfigError}
+            </p>
+          )}
         </div>
         <div className="template-editor-header-actions">
           {!editMode ? (
@@ -184,7 +211,7 @@ function WebsiteTemplateEditor() {
               <AppIcon icon={faFloppyDisk} />
               Save &amp; apply
             </button>
-            <button type="button" className="hero-btn hero-btn-ghost" onClick={handleReset} disabled={!editMode}>
+            <button type="button" className="hero-btn hero-btn-ghost" onClick={handleReset} disabled={!editMode || saving}>
               <AppIcon icon={faCircleCheck} />
               Restore defaults
             </button>

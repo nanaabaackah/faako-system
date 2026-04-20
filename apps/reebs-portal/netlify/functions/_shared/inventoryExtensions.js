@@ -96,7 +96,7 @@ const normalizeDefaultSourceCategories = async (client, organizationId) => {
       [legacyId, parsedOrgId]
     );
   } catch (err) {
-    console.warn("Source category normalization failed:", err?.message || err);
+    console.warn("Product normalization failed:", err?.message || err);
   }
 };
 
@@ -125,7 +125,7 @@ export const ensureSourceCategorySchema = async (client) => {
       `CREATE INDEX IF NOT EXISTS "product_organizationId_itemType_idx"
         ON "product" ("organizationId", "itemType")`,
     ],
-    "Source category schema check"
+    "Product schema check"
   );
 
   await normalizeDefaultSourceCategories(client, 1);
@@ -190,7 +190,7 @@ export const ensureSpecificCategorySchema = async (client) => {
          END IF;
        END $$`,
     ],
-    "Specific category schema check"
+    "Category schema check"
   );
 };
 
@@ -338,7 +338,7 @@ export const createSpecificCategory = async (
   await ensureSpecificCategorySchema(client);
   const cleaned = cleanInventoryText(name, 120);
   if (!cleaned) {
-    const error = new Error("Specific category name is required.");
+    const error = new Error("Category name is required.");
     error.statusCode = 400;
     throw error;
   }

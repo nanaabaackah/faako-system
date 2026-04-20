@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import "./Rentals.css";
-//import rentalItems from "/src/data/rentalItems.json"
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import SideNav from '/src/components/SideNav/SideNav';
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";

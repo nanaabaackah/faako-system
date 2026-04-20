@@ -52,9 +52,9 @@ pnpm --filter @faako/reebs-portal run source-categories:relink:dry
 pnpm --filter @faako/reebs-portal run test:e2e
 ```
 
-## Inventory Source Categories And Variants
+## Inventory Products And Variants
 
-Inventory source categories are stored in `sourceCategory`, scoped per organization. The default categories are `Toys`, `Household`, and `Supplies`; `Toys` remains because existing records may already point there. Admin users can create categories from the stock form combobox or from bulk reassignment, and duplicate names are rejected case-insensitively within the same organization.
+Inventory products are stored in the legacy `sourceCategory` table, scoped per organization for compatibility with existing data. Inventory categories are stored in the legacy `specificCategory` table and linked to those products. The database also exposes read aliases `inventoryProduct` and `inventoryCategory`, and the API returns `inventoryProduct*` plus `category` aliases for the current product/category wording. Admin users can create products and categories from the stock form combobox or from bulk reassignment, and duplicate names are rejected case-insensitively within the same organization.
 
 Numbered balloon stock uses a parent `product` row with `itemType = VARIANT_PARENT` and child rows in `inventoryVariant`. Each variant tracks `stockQty`, `reservedQty`, `reorderLevel`, optional `priceOverride`, and dimensions such as `variantNumber`, `color`, and `size`. Available stock is calculated as `max(stockQty - reservedQty, 0)`. Orders and bookings can reference `variantId`; standard inventory items continue to use the original product stock flow.
 

@@ -34,7 +34,7 @@ try {
 
   console.log(`Done. Checked ${organizationIds.length} organization(s).`);
 } catch (err) {
-  console.error("Failed to seed source categories:", err?.message || err);
+  console.error("Failed to seed inventory products:", err?.message || err);
   process.exitCode = 1;
 } finally {
   await client.end().catch(() => {});

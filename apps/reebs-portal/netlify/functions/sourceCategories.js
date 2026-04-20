@@ -11,7 +11,7 @@ import {
   slugifySourceCategory,
 } from "./_shared/inventoryExtensions.js";
 
-const METHODS = "GET,POST,PATCH,OPTIONS";
+const METHODS = "GET,POST,PATCH,DELETE,OPTIONS";
 
 const json = (event, statusCode, payload) =>
   respond(event, statusCode, payload, { methods: METHODS });
@@ -26,40 +26,90 @@ const parseBody = (event) => {
 
 const isAdmin = (user) => ["owner", "admin"].includes(String(user?.role || "").trim().toLowerCase());
 
+const getProductNameInput = (body = {}) => body.name ?? body.productName ?? body.product_name;
+
+const withProductAliases = (category = {}) => ({
+  ...category,
+  productId: category.productId ?? category.id ?? null,
+  productName: category.productName ?? category.name ?? null,
+  productCode: category.productCode ?? category.sourceCategoryCode ?? category.slug ?? null,
+});
+
 const listCategories = async (client, organizationId, { includeInactive = false } = {}) => {
   const result = await client.query(
-    `SELECT
-       sc.id,
-       sc."organizationId",
-       sc.name,
-       sc.slug,
-       sc."isActive",
-       sc."createdAt",
-       sc."updatedAt",
-       COUNT(p.id)::int AS "itemCount"
-     FROM "sourceCategory" sc
-     LEFT JOIN "product" p
-       ON p."sourceCategoryId" = sc.id
-      AND p."organizationId" = sc."organizationId"
-      AND COALESCE(p."isDeleted", false) = false
-     WHERE sc."organizationId" = $1
-       ${includeInactive ? "" : `AND sc."isActive" = true`}
-     GROUP BY sc.id
-     ORDER BY sc."isActive" DESC,
-       CASE lower(sc.name)
-         WHEN 'toys' THEN 1
-         WHEN 'rentals' THEN 2
-         WHEN 'rental' THEN 2
-         WHEN 'clothes' THEN 3
-         WHEN 'shoes' THEN 4
-         WHEN 'supplies' THEN 5
-         WHEN 'household' THEN 6
-         ELSE 99
-       END,
-       lower(sc.name) ASC`,
+      `SELECT
+         sc.id,
+         sc."organizationId",
+         sc.name,
+         sc.slug,
+         COALESCE(
+           NULLIF((
+             SELECT p_code."sourceCategoryCode"
+             FROM "product" p_code
+             WHERE p_code."organizationId" = sc."organizationId"
+               AND COALESCE(p_code."isDeleted", false) = false
+               AND NULLIF(trim(COALESCE(p_code."sourceCategoryCode", '')), '') IS NOT NULL
+               AND (
+                 p_code."sourceCategoryId" = sc.id
+                 OR (
+                   p_code."sourceCategoryId" IS NULL
+                   AND (
+                     upper(regexp_replace(COALESCE(NULLIF(sc.slug, ''), sc.name), '[^A-Za-z0-9]+', '_', 'g'))
+                       = upper(regexp_replace(COALESCE(p_code."sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g'))
+                     OR regexp_replace(
+                       upper(regexp_replace(COALESCE(NULLIF(sc.slug, ''), sc.name), '[^A-Za-z0-9]+', '_', 'g')),
+                       'S$',
+                       ''
+                     ) = regexp_replace(
+                       upper(regexp_replace(COALESCE(p_code."sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g')),
+                       'S$',
+                       ''
+                     )
+                   )
+                 )
+               )
+             GROUP BY p_code."sourceCategoryCode"
+             ORDER BY COUNT(*) DESC, MIN(p_code.id) ASC
+             LIMIT 1
+           ), ''),
+           upper(regexp_replace(COALESCE(NULLIF(sc.slug, ''), sc.name), '[^A-Za-z0-9]+', '_', 'g'))
+         ) AS "sourceCategoryCode",
+         sc."isActive",
+         sc."createdAt",
+         sc."updatedAt",
+         COUNT(p.id)::int AS "itemCount"
+       FROM "sourceCategory" sc
+       LEFT JOIN "product" p
+         ON p."organizationId" = sc."organizationId"
+        AND COALESCE(p."isDeleted", false) = false
+        AND (
+          p."sourceCategoryId" = sc.id
+          OR (
+            p."sourceCategoryId" IS NULL
+            AND NULLIF(trim(COALESCE(p."sourceCategoryCode", '')), '') IS NOT NULL
+            AND (
+              upper(regexp_replace(COALESCE(NULLIF(sc.slug, ''), sc.name), '[^A-Za-z0-9]+', '_', 'g'))
+                = upper(regexp_replace(COALESCE(p."sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g'))
+              OR regexp_replace(
+                upper(regexp_replace(COALESCE(NULLIF(sc.slug, ''), sc.name), '[^A-Za-z0-9]+', '_', 'g')),
+                'S$',
+                ''
+              ) = regexp_replace(
+                upper(regexp_replace(COALESCE(p."sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g')),
+                'S$',
+                ''
+              )
+            )
+          )
+        )
+       WHERE sc."organizationId" = $1
+         ${includeInactive ? "" : `AND sc."isActive" = true`}
+       GROUP BY sc.id
+       ORDER BY sc."isActive" DESC,
+         lower(sc.name) ASC`,
     [organizationId]
   );
-  return result.rows || [];
+  return (result.rows || []).map(withProductAliases);
 };
 
 export async function handler(event = {}) {
@@ -67,7 +117,7 @@ export async function handler(event = {}) {
   if (method === "OPTIONS") {
     return json(event, 204, {});
   }
-  if (!["GET", "POST", "PATCH"].includes(method)) {
+  if (!["GET", "POST", "PATCH", "DELETE"].includes(method)) {
     return json(event, 405, { error: "Method not allowed." });
   }
 
@@ -94,7 +144,7 @@ export async function handler(event = {}) {
     }
 
     if (!isAdmin(authUser)) {
-      return json(event, 403, { error: "Only owners and admins can manage source categories." });
+      return json(event, 403, { error: "Only owners and admins can manage products." });
     }
 
     const body = parseBody(event);
@@ -103,21 +153,72 @@ export async function handler(event = {}) {
     }
 
     if (method === "POST") {
-      const created = await createSourceCategory(client, organizationId, body.name);
-      return json(event, 201, created);
+      const created = await createSourceCategory(client, organizationId, getProductNameInput(body));
+      return json(event, 201, withProductAliases(created));
     }
 
     const categoryId = Number(body.id || event.queryStringParameters?.id);
     const existing = await findSourceCategoryById(client, organizationId, categoryId);
     if (!existing) {
-      return json(event, 404, { error: "Source category not found." });
+      return json(event, 404, { error: "Product not found." });
+    }
+
+    if (method === "DELETE") {
+      const moveItemsTo = Number(body.moveItemsTo || 0);
+      if (moveItemsTo && moveItemsTo > 0) {
+        const targetCategory = await findSourceCategoryById(client, organizationId, moveItemsTo);
+        if (!targetCategory) {
+          return json(event, 404, { error: "Target product not found for item reassignment." });
+        }
+        await client.query(
+          `UPDATE "product"
+           SET "sourceCategoryId" = $1, "updatedAt" = NOW()
+           WHERE "organizationId" = $2
+             AND (
+               "sourceCategoryId" = $3
+               OR (
+                 "sourceCategoryId" IS NULL
+                 AND NULLIF(trim(COALESCE("sourceCategoryCode", '')), '') IS NOT NULL
+                 AND (
+                   upper(regexp_replace(COALESCE(NULLIF($4, ''), $5), '[^A-Za-z0-9]+', '_', 'g'))
+                     = upper(regexp_replace(COALESCE("sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g'))
+                   OR regexp_replace(
+                     upper(regexp_replace(COALESCE(NULLIF($4, ''), $5), '[^A-Za-z0-9]+', '_', 'g')),
+                     'S$',
+                     ''
+                   ) = regexp_replace(
+                     upper(regexp_replace(COALESCE("sourceCategoryCode", ''), '[^A-Za-z0-9]+', '_', 'g')),
+                     'S$',
+                     ''
+                   )
+                 )
+               )
+             )`,
+          [
+            moveItemsTo,
+            organizationId,
+            existing.id,
+            existing.slug || "",
+            existing.name,
+          ]
+        );
+      }
+      await client.query(
+        `DELETE FROM "sourceCategory" WHERE id = $1 AND "organizationId" = $2`,
+        [existing.id, organizationId]
+      );
+      return json(event, 200, { success: true, message: "Product deleted successfully." });
     }
 
     const updates = [];
     const params = [];
-    if (Object.prototype.hasOwnProperty.call(body, "name")) {
-      const name = cleanInventoryText(body.name, 120);
-      if (!name) return json(event, 400, { error: "Category name is required." });
+    if (
+      Object.prototype.hasOwnProperty.call(body, "name")
+      || Object.prototype.hasOwnProperty.call(body, "productName")
+      || Object.prototype.hasOwnProperty.call(body, "product_name")
+    ) {
+      const name = cleanInventoryText(getProductNameInput(body), 120);
+      if (!name) return json(event, 400, { error: "Product name is required." });
       const duplicate = await client.query(
         `SELECT id FROM "sourceCategory"
          WHERE "organizationId" = $1
@@ -127,7 +228,7 @@ export async function handler(event = {}) {
         [organizationId, existing.id, name]
       );
       if (duplicate.rowCount > 0) {
-        return json(event, 409, { error: "A category with that name already exists." });
+        return json(event, 409, { error: "A product with that name already exists." });
       }
       params.push(name);
       updates.push(`name = $${params.length}`);
@@ -140,8 +241,13 @@ export async function handler(event = {}) {
       updates.push(`"isActive" = $${params.length}`);
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, "moveItemsTo")) {
+      params.push(Number(body.moveItemsTo));
+      updates.push(`"sourceCategoryId" = $${params.length}`);
+    }
+
     if (!updates.length) {
-      return json(event, 400, { error: "No category updates provided." });
+      return json(event, 400, { error: "No product updates provided." });
     }
 
     params.push(existing.id, organizationId);
@@ -153,12 +259,12 @@ export async function handler(event = {}) {
       params
     );
 
-    return json(event, 200, result.rows[0]);
+    return json(event, 200, withProductAliases(result.rows[0]));
   } catch (err) {
     console.error("sourceCategories error", err);
     const status = err?.statusCode || (err?.code === "23505" ? 409 : 500);
     return json(event, status, {
-      error: status === 409 ? "A category with that name already exists." : "Failed to process source category.",
+      error: status === 409 ? "A product with that name already exists." : "Failed to process product.",
       detail: err?.message || null,
     });
   } finally {

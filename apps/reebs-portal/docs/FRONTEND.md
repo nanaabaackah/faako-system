@@ -106,7 +106,7 @@ Caching:
 ### Shop
 Location: `src/pages/Shop.jsx`
 - Fetches inventory from `/.netlify/functions/inventory`.
-- Filters out rental items (`sourceCategoryCode === "rental"`).
+- Filters out rental items by inventory product code.
 - Supports search, category filters, in-stock toggle, pagination, and a featured carousel.
 - Requires auth state to be ready and authenticated before it loads inventory.
 

@@ -1,4 +1,4 @@
--- Add dynamic source categories and variant stock units without removing legacy fields.
+-- Add dynamic inventory products and variant stock units without removing legacy fields.
 
 CREATE TABLE IF NOT EXISTS "sourceCategory" (
   "id" SERIAL NOT NULL,

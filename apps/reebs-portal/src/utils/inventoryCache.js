@@ -2,8 +2,15 @@ const INVENTORY_CACHE_KEY = "reebs_inventory_cache_v1";
 const INVENTORY_CACHE_TTL = 5 * 60 * 1000;
 let inventoryRequestPromise = null;
 
-const normalizeSource = (item) =>
-  (item?.sourceCategoryCode || item?.sourcecategorycode || "")
+const normalizeInventoryProductCode = (item) =>
+  (
+    item?.inventoryProductCode
+    || item?.productGroupCode
+    || item?.productCode
+    || item?.sourceCategoryCode
+    || item?.sourcecategorycode
+    || ""
+  )
     .toString()
     .trim()
     .toLowerCase();
@@ -100,9 +107,9 @@ export const splitInventory = (items = []) => {
   const products = [];
 
   for (const item of items) {
-    const source = normalizeSource(item);
-    const isRental = source
-      ? source === "rental"
+    const productCode = normalizeInventoryProductCode(item);
+    const isRental = productCode
+      ? productCode === "rental"
       : (item?.sku || "").toString().toUpperCase().startsWith("REN");
     if (isRental) {
       rentals.push(item);

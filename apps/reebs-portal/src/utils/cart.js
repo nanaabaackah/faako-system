@@ -24,7 +24,15 @@ export const getCartItemKey = (item = {}) => {
 };
 
 export const normalizeCartSource = (item = {}) =>
-  (item?.cartKind || item?.sourceCategoryCode || item?.sourcecategorycode || "")
+  (
+    item?.cartKind
+    || item?.inventoryProductCode
+    || item?.productGroupCode
+    || item?.productCode
+    || item?.sourceCategoryCode
+    || item?.sourcecategorycode
+    || ""
+  )
     .toString()
     .trim()
     .toLowerCase();
@@ -107,6 +115,6 @@ const isKidsPartyMachine = (item = {}) => {
 export const getCartItemCategory = (item = {}) => {
   if (isKidsPartyMachine(item)) return "Kids Rentals";
   return normalizeCartCategory(
-    item.specificCategory || item.specificcategory || item.type || item.category || null
+    item.category || item.inventoryCategory || item.specificCategory || item.specificcategory || item.type || null
   );
 };

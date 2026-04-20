@@ -32,85 +32,7 @@ const getCorsHeaders = (event) => ({
   }),
 });
 
-const allowedSources = [
-  "CLOTHES",
-  "TOYS",
-  "RENTAL",
-  "WATER",
-  "SHOES",
-  "SHOP",
-  "INVENTORY",
-  "HOUSEHOLD",
-  "SUPPLIES",
-];
-const SOURCE_CATEGORY_CODE_ALIASES = {
-  RENTALS: "RENTAL",
-  RENTAL: "RENTAL",
-  CLOTHING: "CLOTHES",
-  CLOTHES: "CLOTHES",
-};
-const SOURCE_CATEGORY_LABELS_BY_CODE = {
-  TOYS: "Toys",
-  RENTAL: "Rentals",
-  CLOTHES: "Clothes",
-  SHOES: "Shoes",
-  SUPPLIES: "Supplies",
-  HOUSEHOLD: "Household",
-};
-const SPECIFIC_CATEGORY_SOURCE_RULES = [
-  {
-    sourceName: "Rentals",
-    sourceCode: "RENTAL",
-    contains: [
-      "bouncy castle",
-      "bouncy castles",
-      "bounce house",
-      "bounce houses",
-      "canopies",
-      "canopy",
-      "chair",
-      "chairs",
-      "event table",
-      "event tables",
-      "inflatable",
-      "inflatables",
-      "rental",
-      "rentals",
-      "tent",
-      "tents",
-    ],
-  },
-  {
-    sourceName: "Supplies",
-    sourceCode: "SUPPLIES",
-    endsWith: ["supplies", "supply"],
-    contains: ["supplies", "supply"],
-  },
-  {
-    sourceName: "Clothes",
-    sourceCode: "CLOTHES",
-    endsWith: ["clothes", "clothing"],
-    contains: ["clothes", "clothing"],
-  },
-  {
-    sourceName: "Shoes",
-    sourceCode: "SHOES",
-    endsWith: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
-    contains: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
-  },
-  {
-    sourceName: "Household",
-    sourceCode: "HOUSEHOLD",
-    startsWith: ["household"],
-    contains: ["bathroom", "broom", "brooms", "bucket", "buckets", "laundry", "mop", "mops"],
-  },
-  {
-    sourceName: "Toys",
-    sourceCode: "TOYS",
-    endsWith: ["toy", "toys"],
-    contains: ["toy", "toys"],
-  },
-];
+const DEFAULT_SOURCE_CATEGORY_CODE = "INVENTORY";
 const statusColumnStatements = [
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "isArchived" BOOLEAN DEFAULT false`,
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
@@ -240,44 +162,6 @@ const normalizeCategoryName = (value) =>
     .trim()
     .replace(/\b([a-z])/gi, (match) => match.toUpperCase());
 
-const normalizeSpecificCategoryMatchText = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const specificCategoryRuleMatches = (normalized, rule) => {
-  const startsWith = Array.isArray(rule.startsWith) ? rule.startsWith : [];
-  const endsWith = Array.isArray(rule.endsWith) ? rule.endsWith : [];
-  const contains = Array.isArray(rule.contains) ? rule.contains : [];
-  return startsWith.some((term) => normalized.startsWith(term))
-    || endsWith.some((term) => normalized.endsWith(term))
-    || contains.some((term) => normalized.includes(term));
-};
-
-const resolveSourceCategoryForSpecificCategory = (value, fallbackSourceCode = "TOYS") => {
-  const normalized = normalizeSpecificCategoryMatchText(value);
-  const normalizedFallbackCode = normalizeSourceCategoryCodeValue(fallbackSourceCode);
-  const fallbackSourceCodeValue = SOURCE_CATEGORY_CODE_ALIASES[normalizedFallbackCode] || normalizedFallbackCode;
-  const safeFallbackCode = SOURCE_CATEGORY_LABELS_BY_CODE[fallbackSourceCodeValue]
-    ? fallbackSourceCodeValue
-    : "TOYS";
-  const fallback = {
-    sourceName: SOURCE_CATEGORY_LABELS_BY_CODE[safeFallbackCode] || "Toys",
-    sourceCode: safeFallbackCode,
-    matched: false,
-  };
-  if (!normalized) return fallback;
-  const match = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
-    specificCategoryRuleMatches(normalized, rule)
-  );
-  return match
-    ? { sourceName: match.sourceName, sourceCode: match.sourceCode, matched: true }
-    : fallback;
-};
-
 const normalizeSourceCategoryCodeValue = (value) =>
   String(value || "")
     .trim()
@@ -285,20 +169,75 @@ const normalizeSourceCategoryCodeValue = (value) =>
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+const getPayloadProductId = (payload = {}) =>
+  payload.sourceCategoryId ?? payload.source_category_id
+    ?? payload.inventoryProductId ?? payload.inventory_product_id
+    ?? payload.productGroupId ?? payload.product_group_id;
+
+const getPayloadProductName = (payload = {}) =>
+  payload.sourceCategoryName ?? payload.source_category_name
+    ?? payload.inventoryProductName ?? payload.inventory_product_name
+    ?? payload.productGroupName ?? payload.product_group_name;
+
+const getPayloadProductCode = (payload = {}) =>
+  payload.sourceCategoryCode ?? payload.source_category_code ?? payload.sourcecategorycode
+    ?? payload.inventoryProductCode ?? payload.inventory_product_code
+    ?? payload.productGroupCode ?? payload.product_group_code;
+
+const getPayloadCategoryName = (payload = {}) =>
+  payload.specificCategory ?? payload.specificcategory ?? payload.specific_category
+    ?? payload.category ?? payload.inventoryCategory ?? payload.inventory_category;
+
+const hasPayloadCategoryInput = (payload = {}) =>
+  [
+    "specificCategory",
+    "specificcategory",
+    "specific_category",
+    "category",
+    "inventoryCategory",
+    "inventory_category",
+  ].some((key) => hasOwn(payload, key));
+
+const withInventoryAliases = (item = {}) => {
+  const productId =
+    item.inventoryProductId ?? item.inventory_product_id ?? item.productGroupId ?? item.product_group_id
+    ?? item.sourceCategoryId ?? item.source_category_id ?? null;
+  const productName =
+    item.inventoryProductName ?? item.inventory_product_name ?? item.productGroupName ?? item.product_group_name
+    ?? item.productName ?? item.product_name ?? item.sourceCategoryName ?? item.source_category_name ?? null;
+  const productCode =
+    item.inventoryProductCode ?? item.inventory_product_code ?? item.productGroupCode ?? item.product_group_code
+    ?? item.productCode ?? item.product_code ?? item.sourceCategoryCode ?? item.sourcecategorycode
+    ?? item.source_category_code ?? null;
+  const category =
+    item.category ?? item.inventoryCategory ?? item.inventory_category ?? item.specificCategory
+    ?? item.specificcategory ?? item.specific_category ?? null;
+
+  return {
+    ...item,
+    inventoryProductId: productId,
+    inventoryProductName: productName,
+    inventoryProductCode: productCode,
+    productGroupId: productId,
+    productGroupName: productName,
+    productGroupCode: productCode,
+    category,
+    inventoryCategory: category,
+  };
+};
+
+const resolveSourceCategoryForSpecificCategory = (_value, fallbackSourceCode = "") => ({
+  sourceName: "",
+  sourceCode: normalizeSourceCategoryCodeValue(fallbackSourceCode) || DEFAULT_SOURCE_CATEGORY_CODE,
+  matched: false,
+});
+
 const resolveSourceCategoryCodeForCategory = (category) => {
-  const directCode = normalizeSourceCategoryCodeValue(category?.name || category?.slug);
-  const aliasedCode = SOURCE_CATEGORY_CODE_ALIASES[directCode] || directCode;
-  if (allowedSources.includes(aliasedCode)) return aliasedCode;
-
-  const normalizedName = String(category?.name || category?.slug || "").trim().toLowerCase();
-  const ruleMatch = SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) =>
-    specificCategoryRuleMatches(normalizeSpecificCategoryMatchText(normalizedName), rule)
-  );
-  if (ruleMatch?.sourceCode && allowedSources.includes(ruleMatch.sourceCode)) {
-    return ruleMatch.sourceCode;
-  }
-
-  return "INVENTORY";
+  return normalizeSourceCategoryCodeValue(
+    category?.sourceCategoryCode || category?.slug || category?.name
+  ) || DEFAULT_SOURCE_CATEGORY_CODE;
 };
 
 const ensureSourceCategoryValue = async (client, value) => {
@@ -328,7 +267,7 @@ const ensureSourceCategoryValue = async (client, value) => {
       await client.query(`ALTER TYPE "${enumName}" ADD VALUE '${value}'`);
     }
   } catch (err) {
-    console.warn("Source category enum check failed:", err?.message || err);
+    console.warn("Product enum check failed:", err?.message || err);
   }
 };
 
@@ -583,7 +522,7 @@ export async function handler(event = {}) {
       return {
         statusCode: 200,
         headers: getCorsHeaders(event),
-        body: JSON.stringify(Array.isArray(result.rows) ? result.rows : []),
+        body: JSON.stringify((Array.isArray(result.rows) ? result.rows : []).map(withInventoryAliases)),
       };
     }
 
@@ -740,11 +679,11 @@ export async function handler(event = {}) {
         const linkedVendorIds = vendorIdsByProduct.get(Number(row.id)) || [];
         const primaryVendorId = linkedVendorIds[0]
           ?? (Number.isFinite(Number(row.vendorId)) ? Number(row.vendorId) : null);
-        return {
+        return withInventoryAliases({
           ...row,
           vendorId: primaryVendorId,
           vendorIds: primaryVendorId && !linkedVendorIds.length ? [primaryVendorId] : linkedVendorIds,
-        };
+        });
       });
 
       return {
@@ -1112,14 +1051,13 @@ export async function handler(event = {}) {
       }
 
       const hasSourceCategoryInput = Boolean(
-        payload.sourceCategoryId
-        || sanitizeString(payload.sourceCategoryName || payload.source_category_name || "", 120)
+        getPayloadProductId(payload)
+        || sanitizeString(getPayloadProductName(payload) || "", 120)
       );
-      const hasSpecificCategoryInput = Object.prototype.hasOwnProperty.call(payload, "specificCategory")
-        || Object.prototype.hasOwnProperty.call(payload, "specific_category");
+      const hasSpecificCategoryInput = hasPayloadCategoryInput(payload);
       const specificCategory = hasSpecificCategoryInput
         ? normalizeCategoryName(
-          sanitizeString(payload.specificCategory || payload.specific_category || "", 120)
+          sanitizeString(getPayloadCategoryName(payload) || "", 120)
         )
         : null;
 
@@ -1127,7 +1065,7 @@ export async function handler(event = {}) {
         return {
           statusCode: 400,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Choose a source category, a specific category, or both." }),
+          body: JSON.stringify({ error: "Choose a product, a category, or both." }),
         };
       }
 
@@ -1135,16 +1073,16 @@ export async function handler(event = {}) {
         return {
           statusCode: 400,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Specific category cannot be blank." }),
+          body: JSON.stringify({ error: "Category cannot be blank." }),
         };
       }
 
       let sourceCategory = null;
       let sourceCategoryCode = null;
       if (hasSourceCategoryInput) {
-        sourceCategory = await findSourceCategoryById(client, organizationId, payload.sourceCategoryId);
+        sourceCategory = await findSourceCategoryById(client, organizationId, getPayloadProductId(payload));
         const sourceCategoryName = sanitizeString(
-          payload.sourceCategoryName || payload.source_category_name || "",
+          getPayloadProductName(payload) || "",
           120
         );
         if (!sourceCategory && sourceCategoryName) {
@@ -1157,26 +1095,22 @@ export async function handler(event = {}) {
           return {
             statusCode: 400,
             headers: getCorsHeaders(event),
-            body: JSON.stringify({ error: "Choose a valid source category." }),
+            body: JSON.stringify({ error: "Choose a valid product." }),
           };
         }
         const requestedSourceCategoryCode = normalizeSourceCategoryCodeValue(
-          payload.sourceCategoryCode || payload.source_category_code
+          getPayloadProductCode(payload)
         );
-        const aliasedSourceCategoryCode =
-          SOURCE_CATEGORY_CODE_ALIASES[requestedSourceCategoryCode] || requestedSourceCategoryCode;
-        sourceCategoryCode = allowedSources.includes(aliasedSourceCategoryCode)
-          ? aliasedSourceCategoryCode
-          : resolveSourceCategoryCodeForCategory(sourceCategory);
+        sourceCategoryCode = requestedSourceCategoryCode || resolveSourceCategoryCodeForCategory(sourceCategory);
         await ensureSourceCategoryValue(client, sourceCategoryCode);
       }
 
       if (specificCategory) {
         const resolvedSpecificSource = resolveSourceCategoryForSpecificCategory(
           specificCategory,
-          sourceCategoryCode || payload.sourceCategoryCode || payload.source_category_code || "TOYS"
+          sourceCategoryCode || getPayloadProductCode(payload) || DEFAULT_SOURCE_CATEGORY_CODE
         );
-        if (!sourceCategory || resolvedSpecificSource.matched) {
+        if (resolvedSpecificSource.sourceName && (!sourceCategory || resolvedSpecificSource.matched)) {
           const linkedSourceCategory = await findSourceCategoryByName(
             client,
             organizationId,
@@ -1196,7 +1130,7 @@ export async function handler(event = {}) {
             sourceCategoryId: sourceCategory.id,
             sourceCategoryCode,
           }).catch((err) => {
-            console.warn("Specific category persistence failed:", err?.message || err);
+            console.warn("Category persistence failed:", err?.message || err);
           });
         }
       }
@@ -1266,7 +1200,7 @@ export async function handler(event = {}) {
           sourceCategory,
           specificCategory,
           movedByPreviousCategory,
-          items: updateRes.rows.map((row) => ({
+          items: updateRes.rows.map((row) => withInventoryAliases({
             ...row,
             sourceCategoryName: sourceCategory?.name,
             sourceCategorySlug: sourceCategory?.slug,
@@ -1301,27 +1235,46 @@ export async function handler(event = {}) {
         };
       }
 
-      const specificCategory = normalizeCategoryName(sanitizeString(payload.specificCategory || "", 120));
+      const specificCategory = normalizeCategoryName(sanitizeString(getPayloadCategoryName(payload) || "", 120));
       if (!specificCategory) {
         return {
           statusCode: 400,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Choose a specific category." }),
+          body: JSON.stringify({ error: "Choose a category." }),
         };
       }
 
-      const resolvedSource = resolveSourceCategoryForSpecificCategory(specificCategory);
-      await ensureSourceCategoryValue(client, resolvedSource.sourceCode);
-      let category = await findSourceCategoryByName(client, organizationId, resolvedSource.sourceName);
-      if (!category) {
-        category = await createSourceCategory(client, organizationId, resolvedSource.sourceName);
+      const requestedSourceCategoryId = Number(getPayloadProductId(payload));
+      const requestedSourceCategoryName = cleanInventoryText(
+        getPayloadProductName(payload) || "",
+        120
+      );
+      let category = Number.isFinite(requestedSourceCategoryId) && requestedSourceCategoryId > 0
+        ? await findSourceCategoryById(client, organizationId, requestedSourceCategoryId)
+        : null;
+      if (!category && requestedSourceCategoryName) {
+        category = await findSourceCategoryByName(client, organizationId, requestedSourceCategoryName);
       }
+      if (!category && payload.createIfMissing && requestedSourceCategoryName) {
+        category = await createSourceCategory(client, organizationId, requestedSourceCategoryName);
+      }
+      if (!category) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Choose a valid product." }),
+        };
+      }
+      const resolvedSourceCode = normalizeSourceCategoryCodeValue(
+        getPayloadProductCode(payload)
+      ) || resolveSourceCategoryCodeForCategory(category);
+      await ensureSourceCategoryValue(client, resolvedSourceCode);
       await createSpecificCategory(client, organizationId, {
         name: specificCategory,
         sourceCategoryId: category.id,
-        sourceCategoryCode: resolvedSource.sourceCode,
+        sourceCategoryCode: resolvedSourceCode,
       }).catch((err) => {
-        console.warn("Specific category persistence failed:", err?.message || err);
+        console.warn("Category persistence failed:", err?.message || err);
       });
 
       const actor = buildActorFromUser(authUser);
@@ -1376,7 +1329,7 @@ export async function handler(event = {}) {
           sourceCategory: category,
           specificCategory,
           movedByPreviousCategory,
-          items: updateRes.rows.map((row) => ({
+          items: updateRes.rows.map((row) => withInventoryAliases({
             ...row,
             sourceCategoryName: category.name,
             sourceCategorySlug: category.slug,
@@ -1393,7 +1346,7 @@ export async function handler(event = {}) {
         return {
           statusCode: 403,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Only owners and admins can reassign source categories." }),
+          body: JSON.stringify({ error: "Only owners and admins can reassign products." }),
         };
       }
 
@@ -1411,18 +1364,19 @@ export async function handler(event = {}) {
         };
       }
 
-      let category = await findSourceCategoryById(client, organizationId, payload.sourceCategoryId);
-      if (!category && payload.sourceCategoryName) {
-        category = await findSourceCategoryByName(client, organizationId, payload.sourceCategoryName);
+      const requestedProductName = getPayloadProductName(payload);
+      let category = await findSourceCategoryById(client, organizationId, getPayloadProductId(payload));
+      if (!category && requestedProductName) {
+        category = await findSourceCategoryByName(client, organizationId, requestedProductName);
       }
-      if (!category && payload.createIfMissing && payload.sourceCategoryName) {
-        category = await createSourceCategory(client, organizationId, payload.sourceCategoryName);
+      if (!category && payload.createIfMissing && requestedProductName) {
+        category = await createSourceCategory(client, organizationId, requestedProductName);
       }
       if (!category) {
         return {
           statusCode: 400,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Choose a valid source category." }),
+          body: JSON.stringify({ error: "Choose a valid product." }),
         };
       }
       const sourceCategoryCode = resolveSourceCategoryCodeForCategory(category);
@@ -1479,7 +1433,7 @@ export async function handler(event = {}) {
           movedCount: updateRes.rowCount,
           sourceCategory: category,
           movedByPreviousCategory,
-          items: updateRes.rows.map((row) => ({
+          items: updateRes.rows.map((row) => withInventoryAliases({
             ...row,
             sourceCategoryName: category.name,
             sourceCategorySlug: category.slug,
@@ -1492,7 +1446,7 @@ export async function handler(event = {}) {
 
     const name = sanitizeString(payload.name, 160);
     const sourceCategoryCode = sanitizeString(
-      payload.sourceCategoryCode || payload.sourcecategorycode || "",
+      getPayloadProductCode(payload) || "",
       30
     ).toUpperCase();
     const hasItemTypeInput =
@@ -1501,12 +1455,12 @@ export async function handler(event = {}) {
     const requestedItemType = hasItemTypeInput
       ? normalizeInventoryItemType(payload.itemType || payload.inventoryItemType)
       : null;
-    const requestedSourceCategoryId = Number(payload.sourceCategoryId ?? payload.source_category_id);
+    const requestedSourceCategoryId = Number(getPayloadProductId(payload));
     const requestedSourceCategoryName = cleanInventoryText(
-      payload.sourceCategoryName || payload.source_category_name || "",
+      getPayloadProductName(payload) || "",
       120
     );
-    const specificCategory = sanitizeString(payload.specificCategory || payload.specificcategory || "", 120);
+    const specificCategory = sanitizeString(getPayloadCategoryName(payload) || "", 120);
     const description = sanitizeString(payload.description || "", 400);
     const barcodeInput = sanitizeString(payload.barcode || payload.scanCode || "", 120);
     const barcode = barcodeInput || null;
@@ -1527,10 +1481,6 @@ export async function handler(event = {}) {
       };
     }
 
-    const safeSource = allowedSources.includes(sourceCategoryCode)
-      ? sourceCategoryCode
-      : "CLOTHES";
-
     let selectedSourceCategory = null;
     if (Number.isFinite(requestedSourceCategoryId) && requestedSourceCategoryId > 0) {
       selectedSourceCategory = await findSourceCategoryById(
@@ -1542,7 +1492,7 @@ export async function handler(event = {}) {
         return {
           statusCode: 400,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Selected source category was not found." }),
+          body: JSON.stringify({ error: "Selected product was not found." }),
         };
       }
     } else if (requestedSourceCategoryName) {
@@ -1559,6 +1509,9 @@ export async function handler(event = {}) {
         );
       }
     }
+    const safeSource = sourceCategoryCode
+      || (selectedSourceCategory ? resolveSourceCategoryCodeForCategory(selectedSourceCategory) : "")
+      || DEFAULT_SOURCE_CATEGORY_CODE;
 
     const priceInput = payload.price ?? payload.priceCents ?? payload.price_cents;
     const priceValue = parseNumber(priceInput);
@@ -1623,7 +1576,11 @@ export async function handler(event = {}) {
     const resolvedSpecificSource = specificCategory
       ? resolveSourceCategoryForSpecificCategory(specificCategory, safeSource)
       : null;
-    if (specificCategory && (resolvedSpecificSource.matched || !selectedSourceCategory)) {
+    if (
+      specificCategory
+      && resolvedSpecificSource?.sourceName
+      && (resolvedSpecificSource.matched || !selectedSourceCategory)
+    ) {
       const linkedSourceCategory = await findSourceCategoryByName(
         client,
         organizationId,
@@ -1871,7 +1828,7 @@ export async function handler(event = {}) {
         sourceCategoryId: nextSourceCategoryId,
         sourceCategoryCode: nextSourceCategoryCode,
       }).catch((err) => {
-        console.warn("Specific category persistence failed:", err?.message || err);
+        console.warn("Category persistence failed:", err?.message || err);
       });
     }
 
@@ -2031,16 +1988,16 @@ export async function handler(event = {}) {
     return {
       statusCode: isUpdate ? 200 : 201,
       headers: getCorsHeaders(event),
-      body: JSON.stringify({
+      body: JSON.stringify(withInventoryAliases({
         ...created,
-        sourceCategoryName: selectedSourceCategory?.name || nextSpecificCategory || null,
+        sourceCategoryName: selectedSourceCategory?.name || null,
         sourceCategorySlug: selectedSourceCategory?.slug || null,
         variants: [],
         vendorId: syncedVendorIds[0] || null,
         vendorIds: syncedVendorIds,
         lastUpdatedByName: actor.userName,
         lastUpdatedByEmail: actor.userEmail,
-      }),
+      })),
     };
   } catch (err) {
     console.error("❌ Database error:", err);

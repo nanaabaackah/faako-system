@@ -38,6 +38,7 @@ model Organization {
   waterExpenses   WaterExpense[]
   waterAdjustments WaterAdjustment[]
   accountingConfig AccountingConfig?
+  websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
   userSessions    UserSession[]
 
@@ -356,6 +357,23 @@ model AccountingConfig {
   updatedAt       DateTime     @updatedAt
 
   @@map("accountingConfig")
+}
+
+model WebsiteContent {
+  id             Int          @id @default(autoincrement())
+  organizationId Int         @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  section        String
+  key            String
+  payload        Json
+  sortOrder      Int          @default(0)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, section, key])
+  @@index([organizationId, section, isActive, sortOrder])
+  @@map("websiteContent")
 }
 
 model Vendor {

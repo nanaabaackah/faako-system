@@ -1,6 +1,5 @@
 import { readMobileBrowserChromeColor } from "../../../../packages/utils/src/mobileBrowserChrome";
 import { flattenFaqItems } from "/src/content/faqContent";
-import rentalItems from "/src/data/rentalItems.json";
 
 const SITE_NAME = "REEBS Party Themes";
 const SITE_URL = "https://www.reebspartythemes.com";
@@ -19,14 +18,6 @@ const SAME_AS_LINKS = [
   "https://www.tiktok.com/@reebspartythemes_",
 ];
 
-const slugify = (value = "") =>
-  value
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-
 export const toAbsoluteUrl = (value = "") => {
   const input = `${value || ""}`.trim();
   if (!input) return DEFAULT_IMAGE;
@@ -34,32 +25,6 @@ export const toAbsoluteUrl = (value = "") => {
   if (input.startsWith("//")) return `https:${input}`;
   return `${SITE_URL}${input.startsWith("/") ? input : `/${input}`}`;
 };
-
-const buildRentalPath = (item = {}) => {
-  const idSlug = String(item?.id || item?.productId || "").trim().toLowerCase();
-  const pageSlug = slugify(item?.page?.split("/").filter(Boolean).pop() || "");
-  const nameSlug = slugify(item?.name);
-  const slug = pageSlug || idSlug || nameSlug;
-  return slug ? `/rentals/${slug}` : null;
-};
-
-const RENTAL_CATALOG_ENTRIES = Array.from(
-  new Map(
-    (Array.isArray(rentalItems) ? rentalItems : [])
-      .map((item) => {
-        const path = buildRentalPath(item);
-        if (!path) return null;
-        return [
-          path,
-          {
-            name: item?.name || "Party rental",
-            path,
-          },
-        ];
-      })
-      .filter(Boolean)
-  ).values()
-);
 
 const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
@@ -185,21 +150,6 @@ const FAQ_SCHEMA = {
   })),
 };
 
-const RENTAL_ITEM_LIST_SCHEMA = {
-  "@context": "https://schema.org",
-  "@type": "ItemList",
-  "@id": `${SITE_URL}/rentals#items`,
-  name: "REEBS Party Rentals",
-  itemListOrder: "https://schema.org/ItemListOrderAscending",
-  numberOfItems: RENTAL_CATALOG_ENTRIES.length,
-  itemListElement: RENTAL_CATALOG_ENTRIES.map((item, index) => ({
-    "@type": "ListItem",
-    position: index + 1,
-    name: item.name,
-    url: `${SITE_URL}${item.path}`,
-  })),
-};
-
 const PAGE_META = [
   {
     match: (path) => path === "/",
@@ -230,7 +180,7 @@ const PAGE_META = [
     description:
       "Browse REEBS rental categories including bouncy castles, games, and event setup essentials for birthdays and celebrations.",
     keywords: "party rentals Accra, kids equipment rental Ghana, bouncy castles Ghana",
-    schema: [RENTAL_SERVICE_SCHEMA, RENTAL_ITEM_LIST_SCHEMA],
+    schema: [RENTAL_SERVICE_SCHEMA],
   },
   {
     match: (path) => path.startsWith("/shop"),

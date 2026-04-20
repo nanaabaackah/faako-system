@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -20,13 +21,18 @@ export interface TemplateConfig {
 
 interface TemplateConfigContextValue {
   config: TemplateConfig;
-  updateTemplateConfig: (updates: Partial<TemplateConfig>) => void;
-  resetTemplateConfig: () => void;
+  isLoading: boolean;
+  error: string;
+  updateTemplateConfig: (updates: Partial<TemplateConfig>) => Promise<TemplateConfig>;
+  resetTemplateConfig: () => Promise<TemplateConfig>;
   storePreviewConfig: (draft: Partial<TemplateConfig>) => void;
 }
 
 const STORAGE_KEY = "reebs_template_config";
 const PREVIEW_KEY = `${STORAGE_KEY}_preview`;
+const TEMPLATE_CONTENT_URL = "/.netlify/functions/websiteContent?section=template&key=config";
+const TEMPLATE_CONTENT_SECTION = "template";
+const TEMPLATE_CONTENT_KEY = "config";
 
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
   heroKicker: "Party rentals, decor, and supplies across Ghana",
@@ -42,17 +48,60 @@ export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
 
 const TemplateConfigContext = createContext<TemplateConfigContextValue | null>(null);
 
-const loadTemplateConfig = (): TemplateConfig => {
-  if (typeof window === "undefined") return { ...DEFAULT_TEMPLATE_CONFIG };
+const normalizeTemplateConfig = (value: Partial<TemplateConfig> | null | undefined): TemplateConfig => {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.keys(DEFAULT_TEMPLATE_CONFIG).reduce((acc, key) => {
+    const configKey = key as keyof TemplateConfig;
+    const nextValue = source[configKey];
+    acc[configKey] =
+      typeof nextValue === "string" && nextValue.trim()
+        ? nextValue.trim()
+        : DEFAULT_TEMPLATE_CONFIG[configKey];
+    return acc;
+  }, {} as TemplateConfig);
+};
 
+const readErrorMessage = async (response: Response) => {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return { ...DEFAULT_TEMPLATE_CONFIG };
-    const parsed = JSON.parse(stored);
-    return { ...DEFAULT_TEMPLATE_CONFIG, ...parsed };
+    const payload = await response.json();
+    return payload?.error || payload?.message || `Request failed: ${response.status}`;
   } catch {
-    return { ...DEFAULT_TEMPLATE_CONFIG };
+    return `Request failed: ${response.status}`;
   }
+};
+
+const fetchTemplateConfig = async (): Promise<TemplateConfig | null> => {
+  const response = await fetch(TEMPLATE_CONTENT_URL);
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const payload = await response.json();
+  const remoteConfig = payload?.content?.payload;
+  return remoteConfig && typeof remoteConfig === "object"
+    ? normalizeTemplateConfig(remoteConfig)
+    : null;
+};
+
+const saveTemplateConfig = async (config: TemplateConfig) => {
+  const response = await fetch("/.netlify/functions/websiteContent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      section: TEMPLATE_CONTENT_SECTION,
+      key: TEMPLATE_CONTENT_KEY,
+      payload: config,
+      sortOrder: 0,
+      isActive: true,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const payload = await response.json();
+  return normalizeTemplateConfig(payload?.content?.payload || config);
 };
 
 const getPreviewConfig = (): TemplateConfig | null => {
@@ -65,18 +114,53 @@ const getPreviewConfig = (): TemplateConfig | null => {
     const preview = window.localStorage.getItem(PREVIEW_KEY);
     if (!preview) return null;
     const parsed = JSON.parse(preview);
-    return { ...DEFAULT_TEMPLATE_CONFIG, ...parsed };
+    return normalizeTemplateConfig(parsed);
   } catch {
     return null;
   }
 };
 
 export function TemplateConfigProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState<TemplateConfig>(() => {
-    const base = loadTemplateConfig();
-    const preview = getPreviewConfig();
-    return preview || base;
-  });
+  const [previewConfig] = useState<TemplateConfig | null>(() => getPreviewConfig());
+  const [config, setConfig] = useState<TemplateConfig>(() =>
+    previewConfig || { ...DEFAULT_TEMPLATE_CONFIG },
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(() => !previewConfig);
+  const [error, setError] = useState("");
+  const configRef = useRef(config);
+
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  useEffect(() => {
+    if (previewConfig) return;
+
+    let active = true;
+    setIsLoading(true);
+    setError("");
+
+    fetchTemplateConfig()
+      .then((remoteConfig) => {
+        if (!active) return;
+        if (remoteConfig) {
+          setConfig(remoteConfig);
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err?.message || "Unable to load website settings.");
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [previewConfig]);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -85,18 +169,42 @@ export function TemplateConfigProvider({ children }: { children: React.ReactNode
         config.accentColor || DEFAULT_TEMPLATE_CONFIG.accentColor,
       );
     }
-
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    }
   }, [config]);
 
-  const updateTemplateConfig = useCallback((updates: Partial<TemplateConfig>) => {
-    setConfig((prev) => ({ ...prev, ...updates }));
+  const updateTemplateConfig = useCallback(async (updates: Partial<TemplateConfig>) => {
+    const previous = configRef.current;
+    const nextConfig = normalizeTemplateConfig({ ...previous, ...updates });
+    setConfig(nextConfig);
+    setError("");
+
+    try {
+      const savedConfig = await saveTemplateConfig(nextConfig);
+      setConfig(savedConfig);
+      return savedConfig;
+    } catch (err) {
+      setConfig(previous);
+      const message = err instanceof Error ? err.message : "Unable to save website settings.";
+      setError(message);
+      throw err;
+    }
   }, []);
 
-  const resetTemplateConfig = useCallback(() => {
-    setConfig({ ...DEFAULT_TEMPLATE_CONFIG });
+  const resetTemplateConfig = useCallback(async () => {
+    const previous = configRef.current;
+    const nextConfig = normalizeTemplateConfig(DEFAULT_TEMPLATE_CONFIG);
+    setConfig(nextConfig);
+    setError("");
+
+    try {
+      const savedConfig = await saveTemplateConfig(nextConfig);
+      setConfig(savedConfig);
+      return savedConfig;
+    } catch (err) {
+      setConfig(previous);
+      const message = err instanceof Error ? err.message : "Unable to save website settings.";
+      setError(message);
+      throw err;
+    }
   }, []);
 
   const storePreviewConfig = useCallback((draft: Partial<TemplateConfig>) => {
@@ -107,11 +215,13 @@ export function TemplateConfigProvider({ children }: { children: React.ReactNode
   const contextValue = useMemo(
     () => ({
       config,
+      isLoading,
+      error,
       updateTemplateConfig,
       resetTemplateConfig,
       storePreviewConfig,
     }),
-    [config, resetTemplateConfig, storePreviewConfig, updateTemplateConfig],
+    [config, error, isLoading, resetTemplateConfig, storePreviewConfig, updateTemplateConfig],
   );
 
   return (

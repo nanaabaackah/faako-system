@@ -1,9 +1,12 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./Admin.css";
 import { Link, useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import ModuleTopbarMenu from "../../components/ModuleTopbarMenu/ModuleTopbarMenu";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
@@ -11,8 +14,11 @@ import { AppIcon } from "../../components/Icon/Icon";
 import {
   faEllipsisHorizontal,
   faFolderOpen,
+  faFileLines,
+  faGear,
   faPlus,
   faRotateRight,
+  faTags,
   faTrash,
   faXmark,
   faChevronLeft,
@@ -38,10 +44,10 @@ const getReorderQuantity = (item) => {
 };
 
 const getCategory = (item) =>
-  item?.sourceCategoryName ||
-  item?.sourcecategoryname ||
   item?.specificCategory ||
   item?.specificcategory ||
+  item?.sourceCategoryName ||
+  item?.sourcecategoryname ||
   item?.sourceCategoryCode ||
   "-";
 
@@ -301,66 +307,6 @@ const INVENTORY_ITEM_TYPE_OPTIONS = [
   { value: "VARIANT_PARENT", label: "Variant parent" },
   { value: "BUNDLE", label: "Bundle" },
 ];
-const INVENTORY_SOURCE_CODE_OPTIONS = [
-  { value: "TOYS", label: "Toys" },
-  { value: "RENTAL", label: "Rentals" },
-  { value: "CLOTHES", label: "Clothes" },
-  { value: "SHOES", label: "Shoes" },
-  { value: "SUPPLIES", label: "Supplies" },
-  { value: "HOUSEHOLD", label: "Household" },
-];
-const INVENTORY_SOURCE_CODE_ALIASES = {
-  RENTAL: ["rental", "rentals"],
-  CLOTHES: ["clothes", "clothing"],
-};
-const SPECIFIC_CATEGORY_SOURCE_RULES = [
-  {
-    sourceCode: "RENTAL",
-    contains: [
-      "bouncy castle",
-      "bouncy castles",
-      "bounce house",
-      "bounce houses",
-      "canopies",
-      "canopy",
-      "chair",
-      "chairs",
-      "event table",
-      "event tables",
-      "inflatable",
-      "inflatables",
-      "rental",
-      "rentals",
-      "tent",
-      "tents",
-    ],
-  },
-  {
-    sourceCode: "SUPPLIES",
-    endsWith: ["supplies", "supply"],
-    contains: ["supplies", "supply"],
-  },
-  {
-    sourceCode: "CLOTHES",
-    endsWith: ["clothes", "clothing"],
-    contains: ["clothes", "clothing"],
-  },
-  {
-    sourceCode: "SHOES",
-    endsWith: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
-    contains: ["shoe", "shoes", "sneaker", "sneakers", "sandal", "sandals", "boot", "boots"],
-  },
-  {
-    sourceCode: "HOUSEHOLD",
-    startsWith: ["household"],
-    contains: ["bathroom", "broom", "brooms", "bucket", "buckets", "laundry", "mop", "mops"],
-  },
-  {
-    sourceCode: "TOYS",
-    endsWith: ["toy", "toys"],
-    contains: ["toy", "toys"],
-  },
-];
 
 const normalizeSourceCategoryOptionKey = (value) =>
   String(value || "")
@@ -368,62 +314,34 @@ const normalizeSourceCategoryOptionKey = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
 
-const normalizeSpecificCategoryMatchText = (value) =>
+const getInventorySourceLabel = (value) =>
   String(value || "")
     .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
-
-const getInventorySourceOption = (value) =>
-  INVENTORY_SOURCE_CODE_OPTIONS.find((option) => option.value === String(value || "").trim().toUpperCase()) || null;
-
-const getInventorySourceLabel = (value) => getInventorySourceOption(value)?.label || "";
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const getInventorySourceCodeFromValue = (value) => {
-  const direct = getInventorySourceOption(value);
-  if (direct) return direct.value;
-  const key = normalizeSourceCategoryOptionKey(value);
-  if (!key) return "";
-  const match = INVENTORY_SOURCE_CODE_OPTIONS.find((option) =>
-    getInventorySourceAliases(option).includes(key)
-  );
-  return match?.value || "";
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized;
 };
 
 const getInventorySourceAliases = (option) => [
   option.value,
   option.label,
-  ...(INVENTORY_SOURCE_CODE_ALIASES[option.value] || []),
+  option.name,
+  option.slug,
+  option.sourceCategoryCode,
 ].map(normalizeSourceCategoryOptionKey);
 
-const getSpecificCategoryRuleMatch = (value) => {
-  const normalized = normalizeSpecificCategoryMatchText(value);
-  if (!normalized) return null;
-  return SPECIFIC_CATEGORY_SOURCE_RULES.find((rule) => {
-    const startsWith = Array.isArray(rule.startsWith) ? rule.startsWith : [];
-    const endsWith = Array.isArray(rule.endsWith) ? rule.endsWith : [];
-    const contains = Array.isArray(rule.contains) ? rule.contains : [];
-    return startsWith.some((term) => normalized.startsWith(term))
-      || endsWith.some((term) => normalized.endsWith(term))
-      || contains.some((term) => normalized.includes(term));
-  }) || null;
-};
-
 const resolveSpecificCategorySourceCode = (value, fallbackSourceCode = "") => {
-  const ruleMatch = getSpecificCategoryRuleMatch(value);
-  if (ruleMatch?.sourceCode && getInventorySourceOption(ruleMatch.sourceCode)) {
-    return ruleMatch.sourceCode;
-  }
-  return getInventorySourceCodeFromValue(fallbackSourceCode) || "TOYS";
-};
-
-const isSpecificCategoryLinkedToSource = (value, sourceCode) => {
-  const normalizedCategory = normalizeInventoryCategoryName(value);
-  const normalizedSource = getInventorySourceCodeFromValue(sourceCode);
-  if (!normalizedCategory || !normalizedSource) return true;
-  return resolveSpecificCategorySourceCode(normalizedCategory, normalizedSource) === normalizedSource;
+  if (!normalizeInventoryCategoryName(value)) return getInventorySourceCodeFromValue(fallbackSourceCode);
+  return getInventorySourceCodeFromValue(fallbackSourceCode);
 };
 
 const getSpecificCategoryOptionId = (sourceCode, name) =>
@@ -437,8 +355,8 @@ function SourceCategoryCombobox({
   onCreate,
   onQueryChange,
   disabled = false,
-  placeholder = "Search or add a category",
-  ariaLabel = "Source category",
+  placeholder = "Search or add",
+  ariaLabel = "Product",
 }) {
   const [query, setQuery] = useState(valueName || "");
   const [open, setOpen] = useState(false);
@@ -656,7 +574,7 @@ function Admin() {
     price: "",
     quantity: "",
     itemType: "STANDARD",
-    sourceCategoryCode: "CLOTHES",
+    sourceCategoryCode: "",
     sourceCategoryId: "",
     sourceCategoryName: "",
     specificCategory: "",
@@ -693,6 +611,32 @@ function Admin() {
         ? "Staff can edit the name, stock, price, and description. A manager must approve the changes before they apply."
         : "This item is read only for your role.";
   const detailSubmitLabel = userRole === "staff" ? "Send for approval" : "Save changes";
+  const inventoryModuleMenuItems = useMemo(
+    () => [
+      {
+        key: "inventory-products",
+        label: "Product setup",
+        description: "Categories, inventory types, and source links.",
+        to: "/admin/inventory/products",
+        icon: faTags,
+      },
+      {
+        key: "inventory-templates",
+        label: "Templates",
+        description: "Email templates, terms, and inventory notes.",
+        to: "/admin/inventory/templates",
+        icon: faFileLines,
+      },
+      {
+        key: "inventory-settings",
+        label: "Admin settings",
+        description: "ERP controls and advanced configuration.",
+        to: "/admin/settings?tab=advanced",
+        icon: faGear,
+      },
+    ],
+    []
+  );
   const location = useLocation();
   const gbpRate = useMemo(() => {
     const rawRate = Number(rates?.GBP);
@@ -836,12 +780,12 @@ function Admin() {
       const response = await fetch("/.netlify/functions/sourceCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to fetch source categories.");
+        throw new Error(data?.error || "Unable to fetch products.");
       }
       setSourceCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch source categories", err);
-      setSourceCategoryError(err.message || "Unable to load source categories.");
+      console.error("Failed to fetch products", err);
+      setSourceCategoryError(err.message || "Unable to load products.");
       setSourceCategories([]);
     }
   }, []);
@@ -856,12 +800,12 @@ function Admin() {
       const response = await fetch("/.netlify/functions/specificCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to fetch specific categories.");
+        throw new Error(data?.error || "Unable to fetch categories.");
       }
       setSpecificCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch specific categories", err);
-      setSourceCategoryError(err.message || "Unable to load specific categories.");
+      console.error("Failed to fetch categories", err);
+      setSourceCategoryError(err.message || "Unable to load categories.");
       setSpecificCategories([]);
     }
   }, []);
@@ -872,7 +816,7 @@ function Admin() {
 
   const createSourceCategoryFromName = useCallback(async (name) => {
     if (!canCreateInventoryCategories) {
-      setSourceCategoryError("Only owners and admins can create source categories.");
+      setSourceCategoryError("Only owners and admins can create products.");
       return null;
     }
     const categoryName = normalizeInventoryCategoryName(name);
@@ -893,12 +837,16 @@ function Admin() {
       setSourceCategoryError(message);
       throw new Error(message);
     }
+    const createdCategory = {
+      ...data,
+      sourceCategoryCode: getInventorySourceCodeFromValue(data?.sourceCategoryCode || data?.slug || data?.name),
+    };
     setSourceCategories((prev) => {
-      const exists = prev.some((category) => String(category.id) === String(data.id));
-      return exists ? prev : [...prev, data].sort((a, b) => a.name.localeCompare(b.name));
+      const exists = prev.some((category) => String(category.id) === String(createdCategory.id));
+      return exists ? prev : [...prev, createdCategory].sort((a, b) => a.name.localeCompare(b.name));
     });
     setSourceCategoryError("");
-    return data;
+    return createdCategory;
   }, [canCreateInventoryCategories, sourceCategories]);
 
   const renameSourceCategory = useCallback(async (category) => {
@@ -1694,32 +1642,53 @@ function Admin() {
   };
 
   const canonicalSourceCategories = useMemo(
-    () =>
-      INVENTORY_SOURCE_CODE_OPTIONS.map((option) => {
-        const aliases = getInventorySourceAliases(option);
-        const existing = sourceCategories.find((category) => {
-          const keys = [
-            category?.name,
-            category?.slug,
-            category?.sourceCategoryCode,
-          ].map(normalizeSourceCategoryOptionKey);
-          return keys.some((key) => aliases.includes(key));
-        });
+    () => {
+      const seen = new Set();
+      return sourceCategories
+        .map((category) => {
+          const name = normalizeInventoryCategoryName(
+            category?.name || category?.slug || category?.sourceCategoryCode
+          );
+          const slug = String(category?.slug || name)
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+          const sourceCategoryCode = getInventorySourceCodeFromValue(
+            category?.sourceCategoryCode || slug || name
+          );
+          if (!name || !sourceCategoryCode || seen.has(sourceCategoryCode)) return null;
+          seen.add(sourceCategoryCode);
+          const option = {
+            value: sourceCategoryCode,
+            label: name,
+            name,
+            slug,
+            sourceCategoryCode,
+          };
         return {
-          id: existing?.id ? String(existing.id) : option.value,
-          name: option.label,
-          slug: existing?.slug || option.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          id: category?.id ? String(category.id) : option.value,
+          name,
+          slug,
           aliases: getInventorySourceAliases(option),
-          isActive: true,
-          itemCount: Number(existing?.itemCount || 0),
-          sourceCategoryCode: option.value,
+          isActive: category?.isActive !== false,
+          itemCount: Number(category?.itemCount || 0),
+          sourceCategoryCode,
         };
-      }),
+        })
+        .filter(Boolean);
+    },
     [sourceCategories]
   );
+  const defaultSourceCategoryCode = canonicalSourceCategories[0]?.sourceCategoryCode || "";
 
   const findCanonicalSourceCategory = (value) =>
-    canonicalSourceCategories.find((category) => category.sourceCategoryCode === String(value || "").trim().toUpperCase())
+    canonicalSourceCategories.find((category) => {
+      const code = getInventorySourceCodeFromValue(value);
+      if (category.sourceCategoryCode === code) return true;
+      const key = normalizeSourceCategoryOptionKey(value);
+      return key && Array.isArray(category.aliases) && category.aliases.includes(key);
+    })
     || null;
 
   const findCanonicalSourceCategoryByName = (value) => {
@@ -1736,75 +1705,58 @@ function Admin() {
     }) || null;
   };
 
-  const handleNewItemSourceCategoryChange = (index, value) => {
-    const category = findCanonicalSourceCategory(value);
-    setNewItemRows((prev) =>
-      prev.map((row, i) =>
-        i === index
-          ? {
-              ...row,
-              sourceCategoryCode: value,
-              sourceCategoryId: category?.id ? String(category.id) : "",
-              sourceCategoryName: category?.name || getInventorySourceLabel(value),
-              specificCategory: isSpecificCategoryLinkedToSource(row.specificCategory, value)
-                ? row.specificCategory
-                : "",
-              categoryDraft: "",
-              isAddingCategory: false,
-            }
-          : row
-      )
-    );
+  const getProductDisplayName = (sourceCategoryId, sourceCategoryName, sourceCategoryCode) => {
+    const idMatch = sourceCategoryId
+      ? canonicalSourceCategories.find((category) => String(category.id) === String(sourceCategoryId))
+      : null;
+    const codeMatch = findCanonicalSourceCategory(sourceCategoryCode);
+    const nameMatch = findCanonicalSourceCategoryByName(sourceCategoryName);
+    return idMatch?.name
+      || codeMatch?.name
+      || nameMatch?.name
+      || getInventorySourceLabel(sourceCategoryCode)
+      || "";
   };
 
   const handleNewItemSourceCategorySelect = (index, category) => {
+    const nextSourceCategoryCode = getInventorySourceCodeFromValue(
+      category?.sourceCategoryCode || category?.slug || category?.name
+    );
     setNewItemRows((prev) =>
       prev.map((row, i) =>
         i === index
           ? {
               ...row,
-              sourceCategoryCode: category?.sourceCategoryCode || row.sourceCategoryCode,
+              sourceCategoryCode: nextSourceCategoryCode || row.sourceCategoryCode,
               sourceCategoryId: category?.id ? String(category.id) : "",
               sourceCategoryName: category?.name || "",
-              specificCategory: isSpecificCategoryLinkedToSource(row.specificCategory, category?.sourceCategoryCode)
-                ? row.specificCategory
-                : "",
+              specificCategory:
+                getInventorySourceCodeFromValue(row.sourceCategoryCode) === nextSourceCategoryCode
+                  ? row.specificCategory
+                  : "",
               categoryDraft: "",
               isAddingCategory: false,
             }
           : row
       )
-    );
-  };
-
-  const handleDetailSourceCategoryCodeChange = (value) => {
-    const category = findCanonicalSourceCategory(value);
-    setDetailForm((prev) =>
-      prev
-        ? {
-            ...prev,
-            sourceCategoryCode: value,
-            sourceCategoryId: category?.id ? String(category.id) : "",
-            sourceCategoryName: category?.name || getInventorySourceLabel(value),
-            specificCategory: isSpecificCategoryLinkedToSource(prev.specificCategory, value)
-              ? prev.specificCategory
-              : "",
-          }
-        : prev
     );
   };
 
   const handleDetailSourceCategorySelect = (category) => {
+    const nextSourceCategoryCode = getInventorySourceCodeFromValue(
+      category?.sourceCategoryCode || category?.slug || category?.name
+    );
     setDetailForm((prev) =>
       prev
         ? {
             ...prev,
-            sourceCategoryCode: category?.sourceCategoryCode || prev.sourceCategoryCode,
+            sourceCategoryCode: nextSourceCategoryCode || prev.sourceCategoryCode,
             sourceCategoryId: category?.id ? String(category.id) : "",
             sourceCategoryName: category?.name || "",
-            specificCategory: isSpecificCategoryLinkedToSource(prev.specificCategory, category?.sourceCategoryCode)
-              ? prev.specificCategory
-              : "",
+            specificCategory:
+              getInventorySourceCodeFromValue(prev.sourceCategoryCode) === nextSourceCategoryCode
+                ? prev.specificCategory
+                : "",
           }
         : prev
     );
@@ -1841,7 +1793,7 @@ function Admin() {
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      const message = payload?.error || "Failed to create specific category.";
+      const message = payload?.error || "Failed to create category.";
       setSourceCategoryError(message);
       throw new Error(message);
     }
@@ -1967,7 +1919,7 @@ function Admin() {
       : effectiveSourceCategory;
     const sourceCategoryName = normalizeInventoryCategoryName(linkedSourceCategory?.name);
     if (!sourceCategoryName && !specificCategoryName) {
-      setSubmitError("Choose a inventory type, a specific category, or both.");
+      setSubmitError("Choose a product, a category, or both.");
       return;
     }
     const sourceCategoryId = Number(linkedSourceCategory?.id);
@@ -2151,7 +2103,7 @@ function Admin() {
       return;
     }
 
-    const sourceCategory = String(row?.sourceCategoryCode || "CLOTHES").toUpperCase();
+    const sourceCategory = getInventorySourceCodeFromValue(row?.sourceCategoryCode || defaultSourceCategoryCode);
     const existingOptions = specificCategoriesBySource[sourceCategory] || [];
     const existingMatch = existingOptions.find(
       (value) => value.trim().toLowerCase() === nextCategory.toLowerCase()
@@ -2277,7 +2229,7 @@ function Admin() {
 
     items.forEach((item) => {
       addCategory(
-        normalizeSourceCode(item) || "TOYS",
+        normalizeSourceCode(item) || defaultSourceCategoryCode,
         item?.specificCategory || item?.specificcategory || ""
       );
     });
@@ -2288,7 +2240,7 @@ function Admin() {
         Array.from(valueSet).sort((a, b) => a.localeCompare(b)),
       ])
     );
-  }, [items, specificCategories]);
+  }, [defaultSourceCategoryCode, items, specificCategories]);
 
   const specificCategoryOptionsBySource = useMemo(() => {
     const counts = new Map();
@@ -2312,7 +2264,7 @@ function Admin() {
     });
 
     items.forEach((item) => addCount(
-      normalizeSourceCode(item) || "TOYS",
+      normalizeSourceCode(item) || defaultSourceCategoryCode,
       item?.specificCategory || item?.specificcategory || "",
       1
     ));
@@ -2333,7 +2285,7 @@ function Admin() {
         }),
       ])
     );
-  }, [items, specificCategories, specificCategoriesBySource]);
+  }, [defaultSourceCategoryCode, items, specificCategories, specificCategoriesBySource]);
 
   const specificCategoryOptions = useMemo(
     () =>
@@ -2546,7 +2498,7 @@ function Admin() {
             itemType: row.itemType || "STANDARD",
             sourceCategoryCode: row.sourceCategoryCode,
             sourceCategoryId: row.sourceCategoryId || undefined,
-            sourceCategoryName: row.sourceCategoryName || row.specificCategory || undefined,
+            sourceCategoryName: row.sourceCategoryName || undefined,
             specificCategory: row.specificCategory || undefined,
             description: row.description || undefined,
             purchasePriceGbp: hasPurchasePrice
@@ -2628,17 +2580,24 @@ function Admin() {
     setDetailError("");
     setDetailAutosaveStatus("idle");
     setDetailAutosaveAt("");
+    const itemSourceCategoryId = getSourceCategoryId(item) ? String(getSourceCategoryId(item)) : "";
+    const itemSourceCategoryCode = (item.sourceCategoryCode || item.sourcecategorycode || defaultSourceCategoryCode)
+      .toString()
+      .toUpperCase();
+    const itemSourceCategoryName = item.sourceCategoryName || item.sourcecategoryname || "";
     const nextForm = {
       id: item.id,
       name: item.name || "",
       sku: item.sku || "",
       barcode: item.barcode || "",
-      sourceCategoryCode: (item.sourceCategoryCode || item.sourcecategorycode || "CLOTHES")
-        .toString()
-        .toUpperCase(),
+      sourceCategoryCode: itemSourceCategoryCode,
       itemType: getItemType(item),
-      sourceCategoryId: getSourceCategoryId(item) ? String(getSourceCategoryId(item)) : "",
-      sourceCategoryName: item.sourceCategoryName || item.sourcecategoryname || item.specificCategory || "",
+      sourceCategoryId: itemSourceCategoryId,
+      sourceCategoryName: getProductDisplayName(
+        itemSourceCategoryId,
+        itemSourceCategoryName,
+        itemSourceCategoryCode
+      ),
       specificCategory: item.specificCategory || item.specificcategory || "",
       vendorIds: getItemVendorIds(item),
       price: Number.isFinite(Number(item.price)) ? Number(item.price) : "",
@@ -3278,6 +3237,14 @@ function Admin() {
                 <AppIcon icon={faRotateRight} size={16} />
                 <span className="sr-only">Refresh</span>
               </button>
+              {isOwnerOrAdmin && (
+                <ModuleTopbarMenu
+                  label="Inventory admin menu"
+                  title="Inventory admin"
+                  items={inventoryModuleMenuItems}
+                  className="inventory-module-topbar-menu"
+                />
+              )}
             </>
           }
         />
@@ -3605,7 +3572,7 @@ function Admin() {
               <div>
                 <strong>{selectedItemIds.size} selected</strong>
                 <span>
-                  Set the inventory type, specific category, or both.
+                  Set the product, category, or both.
                 </span>
               </div>
               <SourceCategoryCombobox
@@ -3613,16 +3580,18 @@ function Admin() {
                 valueId={bulkMoveSourceCategory?.id || ""}
                 valueName={bulkMoveSourceCategory?.name || bulkMoveSourceCategoryDraft}
                 onSelect={(category) => {
+                  const previousSourceCode = bulkMoveSourceCategory?.sourceCategoryCode || "";
                   setBulkMoveSourceCategory(category);
                   setBulkMoveSourceCategoryDraft(category?.name || "");
-                  if (!isSpecificCategoryLinkedToSource(
-                    bulkMoveSpecificCategory?.name || bulkMoveSpecificCategoryDraft,
-                    category?.sourceCategoryCode
-                  )) {
+                  if (
+                    getInventorySourceCodeFromValue(previousSourceCode)
+                    !== getInventorySourceCodeFromValue(category?.sourceCategoryCode)
+                  ) {
                     setBulkMoveSpecificCategory(null);
                     setBulkMoveSpecificCategoryDraft("");
                   }
                 }}
+                onCreate={canCreateInventoryCategories ? createSourceCategoryFromName : undefined}
                 onQueryChange={(nextQuery) => {
                   setBulkMoveSourceCategory(null);
                   setBulkMoveSourceCategoryDraft(nextQuery);
@@ -3631,8 +3600,8 @@ function Admin() {
                     setBulkMoveSpecificCategoryDraft("");
                   }
                 }}
-                placeholder="Inventory type"
-                ariaLabel="Bulk inventory type"
+                placeholder="Product"
+                ariaLabel="Bulk product"
                 disabled={!selectedItemIds.size || bulkMoveSaving || bulkArchiveSaving}
               />
               <SourceCategoryCombobox
@@ -3653,8 +3622,8 @@ function Admin() {
                   setBulkMoveSpecificCategory(null);
                   setBulkMoveSpecificCategoryDraft(nextQuery);
                 }}
-                placeholder="Specific category"
-                ariaLabel="Bulk specific category"
+                placeholder="Category"
+                ariaLabel="Bulk category"
                 disabled={!selectedItemIds.size || bulkMoveSaving || bulkArchiveSaving}
               />
               <button
@@ -3698,36 +3667,7 @@ function Admin() {
               </button>
             </div>
           )}
-          <div className="table-pagination inventory-register-pagination-header">
-            <div className="inventory-register-pagination-copy">
-              <strong className="inventory-register-pagination-range">
-                Showing {paginationStart}-{paginationEnd} of {inventory.length}
-              </strong>
-            </div>
-            <div className="inventory-register-pagination-meta">
-              <div className="table-pagination-controls inventory-register-pagination-controls">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  disabled={clampedPage === 0}
-                >
-                  <AppIcon icon={faChevronLeft} size={12} />
-                  <span className="sr-only">Previous page</span>
-                </button>
-                <span className="inventory-register-pagination-page">
-                  Page {paginationDisplayPage} of {paginationDisplayCount}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                  disabled={clampedPage >= pageCount - 1}
-                >
-                  <AppIcon icon={faChevronRight} size={12} />
-                  <span className="sr-only">Next page</span>
-                </button>
-              </div>
-            </div>
-          </div>
+
           {sourceCategoryError && <p className="admin-error">{sourceCategoryError}</p>}
 
           {viewMode === "activity" && (
@@ -3777,6 +3717,36 @@ function Admin() {
 
           {viewMode === "table" && !isMobileView && (
             <div className="admin-table admin-table-scroll inventory-table-scroll">
+              <div className="table-pagination inventory-register-pagination-header">
+                <div className="inventory-register-pagination-copy">
+                  <strong className="inventory-register-pagination-range">
+                    Showing {paginationStart}-{paginationEnd} of {inventory.length}
+                  </strong>
+                </div>
+                <div className="inventory-register-pagination-meta">
+                  <div className="table-pagination-controls inventory-register-pagination-controls">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={clampedPage === 0}
+                    >
+                      <AppIcon icon={faChevronLeft} size={12} />
+                      <span className="sr-only">Previous page</span>
+                    </button>
+                    <span className="inventory-register-pagination-page">
+                      Page {paginationDisplayPage} of {paginationDisplayCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                      disabled={clampedPage >= pageCount - 1}
+                    >
+                      <AppIcon icon={faChevronRight} size={12} />
+                      <span className="sr-only">Next page</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -4408,7 +4378,7 @@ function Admin() {
 
             <form className="admin-new-item-form" onSubmit={createInventoryItems}>
               {newItemRows.map((row, index) => {
-                const sourceCategoryCode = String(row.sourceCategoryCode || "CLOTHES").toUpperCase();
+                const sourceCategoryCode = getInventorySourceCodeFromValue(row.sourceCategoryCode || defaultSourceCategoryCode);
                 const rowSpecificCategoryOptions = specificCategoryOptionsBySource[sourceCategoryCode] || [];
                 const rowSpecificCategorySourceCode = row.specificCategory
                   ? resolveSpecificCategorySourceCode(row.specificCategory, sourceCategoryCode)
@@ -4475,13 +4445,13 @@ function Admin() {
                         />
                       </label>
                       <label>
-                        Inventory type
+                        Item type
                         <SelectField
                           value={row.itemType}
                           onChangeValue={(nextValue) =>
                             updateNewItemRow(index, "itemType", String(nextValue))
                           }
-                          ariaLabel={`Item ${index + 1} inventory type`}
+                          ariaLabel={`Item ${index + 1} item type`}
                         >
                           {INVENTORY_ITEM_TYPE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -4490,35 +4460,24 @@ function Admin() {
                           ))}
                         </SelectField>
                       </label>
-                      <label>
-                        Inventory type
-                        <SelectField
-                          value={row.sourceCategoryCode}
-                          onChangeValue={(nextValue) =>
-                            handleNewItemSourceCategoryChange(index, String(nextValue))
-                          }
-                          ariaLabel={`Item ${index + 1} inventory type`}
-                        >
-                          {INVENTORY_SOURCE_CODE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </SelectField>
-                      </label>
                       <label className="admin-new-item-field--wide">
-                        Inventory type
+                        Product
                         <SourceCategoryCombobox
                           categories={canonicalSourceCategories}
                           valueId={row.sourceCategoryId}
-                          valueName={row.sourceCategoryName || getInventorySourceLabel(row.sourceCategoryCode)}
+                          valueName={getProductDisplayName(
+                            row.sourceCategoryId,
+                            row.sourceCategoryName,
+                            row.sourceCategoryCode
+                          )}
                           onSelect={(category) => handleNewItemSourceCategorySelect(index, category)}
-                          placeholder="Inventory type"
-                          ariaLabel={`Item ${index + 1} inventory type`}
+                          onCreate={canCreateInventoryCategories ? createSourceCategoryFromName : undefined}
+                          placeholder="Product"
+                          ariaLabel={`Item ${index + 1} product`}
                         />
                       </label>
                       <label className="admin-new-item-field--wide">
-                        Specific category
+                        Category
                         <SourceCategoryCombobox
                           categories={rowSpecificCategoryOptions}
                           valueId={
@@ -4534,8 +4493,8 @@ function Admin() {
                               : undefined
                           }
                           onQueryChange={(nextQuery) => handleNewItemSpecificCategoryDraftChange(index, nextQuery)}
-                          placeholder={`Specific under ${getInventorySourceLabel(sourceCategoryCode) || "source"}`}
-                          ariaLabel={`Item ${index + 1} specific category`}
+                          placeholder={`Category under ${getInventorySourceLabel(sourceCategoryCode) || "product"}`}
+                          ariaLabel={`Item ${index + 1} category`}
                         />
                       </label>
 
@@ -4830,12 +4789,12 @@ function Admin() {
                   />
                 </label>
                 <label>
-                  Inventory type
+                  Item type
                   <SelectField
                     value={detailForm.itemType}
                     onChangeValue={(nextValue) => updateDetailForm("itemType", String(nextValue))}
                     disabled={!isDetailFieldEditable("itemType")}
-                    ariaLabel="Inventory type"
+                    ariaLabel="Item type"
                   >
                     {INVENTORY_ITEM_TYPE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -4845,26 +4804,28 @@ function Admin() {
                   </SelectField>
                 </label>
                 <label>
-                  Inventory type
-                  <SelectField
-                    value={detailForm.sourceCategoryCode}
-                    onChangeValue={(nextValue) => handleDetailSourceCategoryCodeChange(String(nextValue))}
+                  Product
+                  <SourceCategoryCombobox
+                    categories={canonicalSourceCategories}
+                    valueId={detailForm.sourceCategoryId}
+                    valueName={getProductDisplayName(
+                      detailForm.sourceCategoryId,
+                      detailForm.sourceCategoryName,
+                      detailForm.sourceCategoryCode
+                    )}
+                    onSelect={handleDetailSourceCategorySelect}
+                    onCreate={canCreateInventoryCategories ? createSourceCategoryFromName : undefined}
                     disabled={!isDetailFieldEditable("sourceCategoryCode")}
-                    ariaLabel="Inventory type"
-                  >
-                    {INVENTORY_SOURCE_CODE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectField>
+                    placeholder="Product"
+                    ariaLabel="Product"
+                  />
                 </label>
                 <label className="admin-detail-source-category">
-                  Specific category
+                  Category
                   <SourceCategoryCombobox
                     categories={
                       specificCategoryOptionsBySource[
-                        getInventorySourceCodeFromValue(detailForm.sourceCategoryCode) || "TOYS"
+                        getInventorySourceCodeFromValue(detailForm.sourceCategoryCode) || defaultSourceCategoryCode
                       ] || []
                     }
                     valueId={
@@ -4887,8 +4848,8 @@ function Admin() {
                     }
                     onQueryChange={handleDetailSpecificCategoryDraftChange}
                     disabled={!isDetailFieldEditable("specificCategory")}
-                    placeholder={`Specific under ${getInventorySourceLabel(detailForm.sourceCategoryCode) || "source"}`}
-                    ariaLabel="Specific category"
+                    placeholder={`Category under ${getInventorySourceLabel(detailForm.sourceCategoryCode) || "product"}`}
+                    ariaLabel="Category"
                   />
                 </label>
                 <label>

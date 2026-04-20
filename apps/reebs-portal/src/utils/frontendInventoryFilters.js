@@ -18,6 +18,14 @@ const WATER_TERMS = [/\bg[\s-]?water\b/i, /\bwater\b/i];
 
 const getItemTextForFrontendFiltering = (item = {}) =>
   [
+    item.inventoryProductCode,
+    item.inventoryProductName,
+    item.productGroupCode,
+    item.productGroupName,
+    item.productCode,
+    item.productName,
+    item.category,
+    item.inventoryCategory,
     item.sourceCategoryCode,
     item.sourcecategorycode,
     item.specificCategory,
@@ -34,6 +42,14 @@ const hasAnyMatch = (text, matchers) => matchers.some((matcher) => matcher.test(
 
 export const isTestCategoryItem = (item = {}) => {
   const text = [
+    item.inventoryProductCode,
+    item.inventoryProductName,
+    item.productGroupCode,
+    item.productGroupName,
+    item.productCode,
+    item.productName,
+    item.category,
+    item.inventoryCategory,
     item.sourceCategoryCode,
     item.sourcecategorycode,
     item.specificCategory,
@@ -50,8 +66,10 @@ export const isTestCategoryItem = (item = {}) => {
 };
 
 export const isFrontendHiddenProduct = (item = {}) => {
-  const source = normalizeText(item.sourceCategoryCode || item.sourcecategorycode);
-  if (source === "water" || source === "g-water" || source === "gwater") return true;
+  const productCode = normalizeText(
+    item.inventoryProductCode || item.productGroupCode || item.productCode || item.sourceCategoryCode || item.sourcecategorycode
+  );
+  if (productCode === "water" || productCode === "g-water" || productCode === "gwater") return true;
 
   const text = getItemTextForFrontendFiltering(item);
   if (!text) return false;
@@ -60,9 +78,11 @@ export const isFrontendHiddenProduct = (item = {}) => {
 };
 
 export const isOnlineShopItem = (item = {}) => {
-  const source = normalizeText(item.sourceCategoryCode || item.sourcecategorycode);
+  const productCode = normalizeText(
+    item.inventoryProductCode || item.productGroupCode || item.productCode || item.sourceCategoryCode || item.sourcecategorycode
+  );
   const sku = normalizeText(item.sku);
-  const isRental = source ? source === "rental" : sku.startsWith("ren");
+  const isRental = productCode ? productCode === "rental" : sku.startsWith("ren");
   if (isRental) return false;
   return !isFrontendHiddenProduct(item);
 };

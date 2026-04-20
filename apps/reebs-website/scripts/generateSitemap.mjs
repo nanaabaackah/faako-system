@@ -1,13 +1,13 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const publicSitemapPath = path.join(appRoot, "public", "sitemap.xml");
-const rentalItemsPath = path.join(appRoot, "src", "data", "rentalItems.json");
 
 const SITE_URL = "https://www.reebspartythemes.com";
+const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
 const today = new Date().toISOString().slice(0, 10);
 
 const staticRoutes = [
@@ -48,9 +48,46 @@ const buildRentalPath = (item = {}) => {
   return slug ? `/rentals/${slug}` : null;
 };
 
+const normalizeBackendBaseUrl = (value = "") =>
+  String(value || "").trim().replace(/\/+$/, "");
+
+const getBackendBaseUrl = () =>
+  normalizeBackendBaseUrl(
+    process.env.VITE_BACKEND_BASE_URL
+      || process.env.BACKEND_BASE_URL
+      || process.env.PORTAL_URL
+      || DEFAULT_BACKEND_BASE_URL
+  );
+
+const isRentalInventoryItem = (item = {}) => {
+  const source = String(
+    item.sourceCategoryCode
+      || item.sourcecategorycode
+      || item.sourceCategoryName
+      || item.sourcecategoryname
+      || ""
+  ).trim().toLowerCase();
+  if (source === "rental" || source === "rentals") return true;
+  return String(item.sku || "").trim().toUpperCase().startsWith("REN");
+};
+
 const loadRentalRoutes = async () => {
-  const raw = await readFile(rentalItemsPath, "utf8");
-  const items = JSON.parse(raw);
+  const backendBaseUrl = getBackendBaseUrl();
+  if (!backendBaseUrl) return [];
+
+  let items = [];
+  try {
+    const response = await fetch(new URL("/.netlify/functions/inventory", backendBaseUrl));
+    if (!response.ok) {
+      throw new Error(`Inventory request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    items = Array.isArray(data) ? data.filter(isRentalInventoryItem) : [];
+  } catch (error) {
+    console.warn(`Skipping rental sitemap routes: ${error?.message || error}`);
+    return [];
+  }
+
   const uniquePaths = new Set();
 
   for (const item of Array.isArray(items) ? items : []) {

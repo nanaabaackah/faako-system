@@ -34,15 +34,15 @@ const getRentalQuantity = (item = {}) =>
   Math.max(0, Number(item.quantity ?? item.stock ?? 0) || 0);
 
 const getRentalCategory = (item = {}) =>
-  item.specificCategory || item.specificcategory || item.category || "Rental";
+  item.category || item.inventoryCategory || item.specificCategory || item.specificcategory || "Rental";
 
 export const getRentalCartItem = (item = {}) => {
   const price = getRentalPrice(item);
   if (!price) return null;
 
   const originalId = String(item.productId ?? item.id ?? slugify(item.name || "rental")).trim();
-  const source =
-    String(item.sourceCategoryCode ?? item.sourcecategorycode ?? "rental")
+  const productCode =
+    String(item.inventoryProductCode ?? item.productGroupCode ?? item.productCode ?? item.sourceCategoryCode ?? item.sourcecategorycode ?? "rental")
       .trim()
       .toLowerCase() || "rental";
   const nameKey = slugify(item.name || "");
@@ -51,10 +51,12 @@ export const getRentalCartItem = (item = {}) => {
 
   return {
     ...item,
-    id: `rental-${source}-${originalId}${variantSuffix}`,
+    id: `rental-${productCode}-${originalId}${variantSuffix}`,
     productId: item.productId ?? item.id ?? null,
-    sourceCategoryCode: item.sourceCategoryCode || item.sourcecategorycode || "RENTAL",
+    sourceCategoryCode: item.sourceCategoryCode || item.sourcecategorycode || item.inventoryProductCode || item.productGroupCode || "RENTAL",
+    inventoryProductCode: item.inventoryProductCode || item.productGroupCode || item.productCode || item.sourceCategoryCode || item.sourcecategorycode || "RENTAL",
     specificCategory: getRentalCategory(item),
+    category: getRentalCategory(item),
     type: getRentalCategory(item),
     price,
     quantity,

@@ -51,6 +51,8 @@ const AdminMarketing = lazy(() => import("./pages/AdminMarketing/AdminMarketing"
 const AdminScheduler = lazy(() => import("./pages/AdminScheduler/AdminScheduler"));
 const AdminBookings = lazy(() => import("./pages/AdminBookings/AdminBookings"));
 const AdminRentals = lazy(() => import("./pages/AdminRentals/AdminRentals"));
+const AdminInventoryProducts = lazy(() => import("./pages/AdminInventorySettings/AdminInventoryProducts"));
+const AdminInventoryTemplates = lazy(() => import("./pages/AdminInventorySettings/AdminInventoryTemplates"));
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
@@ -142,6 +144,26 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <Admin />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/inventory/products"
+        element={
+          <RequireAuth>
+            <RequireRole allowedRoles={['owner', 'admin']}>
+              <AdminInventoryProducts />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/inventory/templates"
+        element={
+          <RequireAuth>
+            <RequireRole allowedRoles={['owner', 'admin']}>
+              <AdminInventoryTemplates />
+            </RequireRole>
           </RequireAuth>
         }
       />
