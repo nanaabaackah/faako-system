@@ -37,23 +37,22 @@ const hashString = (value = "") => {
   return Math.abs(hash);
 };
 
-const normalizeCategoryKey = (value = "") =>
-  value
-    .toString()
+const normalizeCategoryKey = (value) => {
+  if (value == null) return "";
+  return String(value)
     .toLowerCase()
     .replace(/['`]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+};
 
 const getSourceCode = (item = {}) =>
-  (item.sourceCategoryCode || item.sourcecategorycode || "")
-    .toString()
+  String(item.sourceCategoryCode || item.sourcecategorycode || "")
     .trim()
     .toLowerCase();
 
 const getSku = (item = {}) =>
-  (item.sku || "")
-    .toString()
+  String(item.sku || "")
     .trim()
     .toUpperCase();
 
@@ -75,9 +74,9 @@ const HAS_UNSAFE_URL_CHARACTERS = /["'<>\\]/;
 const ABSOLUTE_URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
 const HAS_FILE_EXTENSION = /\.[a-z0-9]{2,}(?:[?#].*)?$/i;
 
-const normalizeCatalogRelativePath = (value = "") => {
-  const normalized = value
-    .toString()
+const normalizeCatalogRelativePath = (value) => {
+  if (value == null) return "";
+  const normalized = String(value)
     .trim()
     .replace(/\\/g, "/")
     .replace(/^public\//i, "");
