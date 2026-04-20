@@ -204,13 +204,24 @@ const withInventoryAliases = (item = {}) => {
   const productId =
     item.inventoryProductId ?? item.inventory_product_id ?? item.productGroupId ?? item.product_group_id
     ?? item.sourceCategoryId ?? item.source_category_id ?? null;
+
   const productName =
     item.inventoryProductName ?? item.inventory_product_name ?? item.productGroupName ?? item.product_group_name
     ?? item.productName ?? item.product_name ?? item.sourceCategoryName ?? item.source_category_name ?? null;
+
   const productCode =
     item.inventoryProductCode ?? item.inventory_product_code ?? item.productGroupCode ?? item.product_group_code
     ?? item.productCode ?? item.product_code ?? item.sourceCategoryCode ?? item.sourcecategorycode
     ?? item.source_category_code ?? null;
+
+  const sourceCategory =
+    item.sourceCategory
+    ?? item.sourcecategory
+    ?? item.source_category
+    ?? item.sourceCategoryName
+    ?? item.source_category_name
+    ?? null;
+
   const category =
     item.category ?? item.inventoryCategory ?? item.inventory_category ?? item.specificCategory
     ?? item.specificcategory ?? item.specific_category ?? null;
@@ -223,6 +234,11 @@ const withInventoryAliases = (item = {}) => {
     productGroupId: productId,
     productGroupName: productName,
     productGroupCode: productCode,
+
+    sourceCategory,
+    sourcecategory: sourceCategory,
+    source_category: sourceCategory,
+
     category,
     inventoryCategory: category,
   };
