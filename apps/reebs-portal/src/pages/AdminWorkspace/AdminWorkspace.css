@@ -2334,8 +2334,8 @@ body.admin-theme.aw-theme .portal-app-content :is(
 
 body.admin-theme.aw-theme .portal-app-content .aw-panel-header {
   border-bottom: 1px solid var(--aw-border);
-  margin: calc(-1 * var(--aw-panel-padding)) calc(-1 * var(--aw-panel-padding)) 0.35rem;
-  padding: var(--aw-panel-padding) var(--aw-panel-padding) 0.85rem;
+  margin: 0;
+  padding: var(--aw-panel-padding) var(--aw-panel-padding) 0.5rem;
   margin-bottom: 0.35rem;
 }
 
@@ -2354,7 +2354,7 @@ body.admin-theme.aw-theme .aw-quick-action-btn {
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem 0.75rem;
-  background: linear-gradient(135deg, var(--aw-card-strong), rgba(255, 255, 255, 0.58));
+  background: var(--aw-card-strong);
   border: 1px solid var(--aw-border);
   border-radius: 1rem;
   cursor: pointer;
@@ -2379,7 +2379,6 @@ body.admin-theme.aw-theme .aw-quick-action-btn:active {
 }
 
 [data-admin-theme="dark"] body.admin-theme.aw-theme .aw-quick-action-btn {
-  background: linear-gradient(135deg, rgba(17, 24, 39, 0.7), rgba(31, 41, 55, 0.6));
   border-color: rgba(148, 163, 184, 0.24);
   color: var(--aw-ink);
 }

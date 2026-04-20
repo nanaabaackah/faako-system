@@ -143,9 +143,10 @@ body.admin-theme .ui-dropdown-field__option.is-selected {
   vertical-align: middle;
 }
 
-.accounting-page .accounting-table-shell .accounting-table-title {
+.accounting-table-title {
   align-items: flex-start;
   gap: 0.2rem;
+  margin: 1rem;
 }
 
 .accounting-page .accounting-activity-amount {

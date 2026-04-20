@@ -1464,8 +1464,7 @@ function AdminAccounting() {
                 ) : recentLinkedRows.length === 0 ? (
                   <p className="accounting-muted">No linked activity in this window.</p>
                 ) : (
-                  <div className="glass-card accounting-list-table accounting-table accounting-table-shell">
-                    <div className="admin-table-scroll">
+                  <div className="admin-table admin-table-scroll inventory-table-scroll">
                       <table>
                       <thead>
                         <tr>
@@ -1495,12 +1494,12 @@ function AdminAccounting() {
                       </tbody>
                       <tfoot className="admin-table-footer">
                         <tr>
+                          <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-count">
                             <span className="admin-table-summary-value">
                               {listRows.length} records
                             </span>
                           </td>
-                          <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
                           <td className="admin-table-summary-cell is-empty" />
@@ -1513,7 +1512,6 @@ function AdminAccounting() {
                       </tfoot>
                       </table>
                     </div>
-                  </div>
                 )}
               </div>
             </section>
@@ -2085,7 +2083,7 @@ function AdminAccounting() {
               </div>
             </section>
 
-            <section className="glass-card accounting-table accounting-list-table accounting-table-shell">
+            <section className="admin-table admin-table-scroll inventory-table-scroll accounting-table-shell">
               <div className="accounting-table-title">
                 <h3>Linked activity</h3>
                 <span>{data.windowLabel || ""}</span>

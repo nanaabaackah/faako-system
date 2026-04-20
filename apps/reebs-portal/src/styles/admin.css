@@ -6409,27 +6409,35 @@ button.admin-kpi-card {
 .accounting-tabs {
   display: inline-flex;
   align-items: center;
-  padding: 6px;
-  border-radius: 999px;
-  
-  border: 1px solid var(--glass-border);
   gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-portal-border);
+  background: rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  flex-wrap: wrap;
 }
 
 .accounting-tabs button {
   border: none;
   background: transparent;
   color: var(--text-main);
-  font-weight: 600;
-  padding: 8px 12px;
+  opacity: 0.78;
+  padding: 0.5rem 0.9rem;
   border-radius: 999px;
   cursor: pointer;
-  opacity: 0.75;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .accounting-tabs button.is-active {
-  background: rgba(255, 122, 89, 0.18);
+  background: rgba(255, 255, 255, 0.82);
+  color: grey;
   opacity: 1;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 /*********************************************************************************************************************/
@@ -13740,8 +13748,8 @@ body.admin-theme .portal-app-content :is(.admin-card, .glass-card) :is(
 )::after {
   content: "";
   position: absolute;
-  left: calc(-1 * var(--admin-portal-head-offset, 0px));
-  right: calc(-1 * var(--admin-portal-head-offset, 0px));
+  left: calc(-0.7 * var(--admin-portal-head-offset, 0px));
+  right: calc(-0.7 * var(--admin-portal-head-offset, 0px));
   bottom: 0;
   border-bottom: 1px solid var(--admin-portal-border);
   pointer-events: none;
