@@ -414,10 +414,10 @@ export async function handler(event = {}) {
          FROM "specificCategory"
          WHERE "organizationId" = $1
            AND id <> $2
-           AND COALESCE("sourceCategoryCode", '') = $3
+           AND COALESCE("sourceCategoryId", -1) = COALESCE($3, -1)
            AND lower(name) = lower($4)
          LIMIT 1`,
-        [organizationId, existing.id, nextSourceCategoryCode || "", nextName]
+        [organizationId, existing.id, sourceCategory?.id || null, nextName]
       );
       if (duplicate.rowCount > 0) {
         return json(event, 409, { error: "A category with that name already exists for this product." });

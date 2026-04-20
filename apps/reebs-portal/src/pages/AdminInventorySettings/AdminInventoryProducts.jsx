@@ -2,10 +2,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { SelectField } from "@faako/ui";
-import { Pen, ArrowRight, Eye, EyeOff, Trash2 } from "lucide-react";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
+import { AppIcon } from "../../components/Icon/Icon";
+import {
+  faPen,
+  faArrowRight,
+  faEye,
+  faEyeSlash,
+  faTrash,
+} from "../../icons/iconSet";
 import "./AdminInventorySettings.css";
 
 const sourceCategoriesUrl = "/.netlify/functions/sourceCategories?includeInactive=1";
@@ -337,7 +344,9 @@ function AdminInventoryProducts() {
     }
 
     // Check if a category with the same name already exists in the target source
-    const existingInTarget = filteredSpecificCategories.find(
+    // Use specificCategories (full list) instead of filteredSpecificCategories
+    // so we can see all categories in the target source, not just filtered ones
+    const existingInTarget = specificCategories.find(
       (cat) =>
         cat.id !== category.id &&
         cat.sourceCategoryId === nextSource.id &&
@@ -514,7 +523,7 @@ function AdminInventoryProducts() {
                   </span>
                   <span className="inventory-admin-settings-row-actions">
                     <button type="button" title="Rename" onClick={() => handleRenameSource(category)} className="inventory-admin-settings-icon-button">
-                      <Pen size={18} />
+                      <AppIcon icon={faPen} size={18} />
                     </button>
                     <button
                       type="button"
@@ -522,7 +531,7 @@ function AdminInventoryProducts() {
                       className={`inventory-admin-settings-icon-button ${category.isActive === false ? "" : "danger"}`}
                       onClick={() => handleToggleSource(category)}
                     >
-                      {category.isActive === false ? <Eye size={18} /> : <EyeOff size={18} />}
+                      <AppIcon icon={category.isActive === false ? faEye : faEyeSlash} size={18} />
                     </button>
                     <button
                       type="button"
@@ -531,7 +540,7 @@ function AdminInventoryProducts() {
                       onClick={() => handleDeleteSource(category)}
                       disabled={saving.startsWith(`source:${category.id}`)}
                     >
-                      <Trash2 size={18} />
+                      <AppIcon icon={faTrash} size={18} />
                     </button>
                   </span>
                 </div>
@@ -583,10 +592,13 @@ function AdminInventoryProducts() {
 
             <div className="inventory-admin-settings-list">
                 {filteredSpecificCategories.length ? filteredSpecificCategories.map((category) => {
-                const canEdit = category.source === "specificCategory" && !String(category.id).startsWith("product:");
                 const source = resolveSpecificSource(category);
-                const rowContent = (
-                  <>
+
+                return (
+                  <div
+                    key={`${category.source || "category"}-${category.id}`}
+                    className={`inventory-admin-settings-row${category.isActive === false ? " is-inactive" : ""}`}
+                  >
                     <span className="inventory-admin-settings-row-main">
                       <strong>{categoryLabel(category)}</strong>
                       <span>
@@ -596,10 +608,10 @@ function AdminInventoryProducts() {
                     </span>
                     <span className="inventory-admin-settings-row-actions">
                       <button type="button" title="Rename" onClick={() => handleRenameSpecific(category)} className="inventory-admin-settings-icon-button">
-                        <Pen size={18} />
+                        <AppIcon icon={faPen} size={18} />
                       </button>
                       <button type="button" title="Move" onClick={() => handleMoveSpecific(category)} className="inventory-admin-settings-icon-button">
-                        <ArrowRight size={18} />
+                        <AppIcon icon={faArrowRight} size={18} />
                       </button>
                       <button
                         type="button"
@@ -607,7 +619,7 @@ function AdminInventoryProducts() {
                         className={`inventory-admin-settings-icon-button ${category.isActive === false ? "" : "danger"}`}
                         onClick={() => handleToggleSpecific(category)}
                       >
-                        {category.isActive === false ? <Eye size={18} /> : <EyeOff size={18} />}
+                        <AppIcon icon={category.isActive === false ? faEye : faEyeSlash} size={18} />
                       </button>
                       <button
                         type="button"
@@ -616,41 +628,9 @@ function AdminInventoryProducts() {
                         onClick={() => handleDeleteSpecific(category)}
                         disabled={saving.startsWith(`specific:${category.id}`)}
                       >
-                        <Trash2 size={18} />
+                        <AppIcon icon={faTrash} size={18} />
                       </button>
                     </span>
-                  </>
-                );
-
-                if (canEdit) {
-                  return (
-                    <div
-                      key={`${category.source || "category"}-${category.id}`}
-                      className={`inventory-admin-settings-row${category.isActive === false ? " is-inactive" : ""}`}
-                    >
-                      {rowContent}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={`${category.source || "category"}-${category.id}`}
-                    className={`inventory-admin-settings-row inventory-admin-settings-row--clickable${
-                      category.isActive === false ? " is-inactive" : ""
-                    }`}
-                    onClick={() => handleShowProductData(category)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleShowProductData(category);
-                      }
-                    }}
-                    title="Click to view product details"
-                  >
-                    {rowContent}
                   </div>
                 );
               }) : (
