@@ -2614,7 +2614,7 @@ function Admin() {
       rate: item.rate || "",
       description: item.description || "",
       variants: getItemVariants(item),
-      variantNumbers: "0,1,2,3,4,5,6,7,8,9",
+      variantNumbers: "1,2,3",
       variantColors: "",
       variantSizes: "",
       variantDefaultStockQty: "0",
@@ -2840,6 +2840,13 @@ function Admin() {
       failDetailSave("Stock must be zero or higher.");
       return;
     }
+
+    // Check if this is a variant parent and stock is being changed
+    if (getItemType(formSnapshot) === "VARIANT_PARENT" && stockValue !== getQuantity(detailItem)) {
+      failDetailSave("Cannot adjust stock directly on variant parent items. Edit individual variant stock instead.");
+      return;
+    }
+
     if (!Number.isFinite(priceValue) || priceValue < 0) {
       failDetailSave("Price must be zero or higher.");
       return;
@@ -2917,10 +2924,38 @@ function Admin() {
       }
 
       if (response.status === 202 || payload?.status === "pending_approval") {
-        detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
         setDetailAutosaveStatus("saved");
         setDetailAutosaveAt(new Date().toISOString());
         setSuccess(payload?.message || "Changes sent for manager approval.");
+        
+        // Reload the item from the database to prevent stale state since staff changes don't update immediately
+        try {
+          const refreshed = await fetch(`/.netlify/functions/inventory`);
+          if (refreshed.ok) {
+            const allItems = await refreshed.json();
+            const updatedItem = allItems?.find((item) => Number(item.id) === Number(formSnapshot.id));
+            if (updatedItem) {
+              setDetailItem(updatedItem);
+              const updatedForm = {
+                ...formSnapshot,
+                stock: String(getQuantity(updatedItem)),
+                sku: updatedItem.sku || formSnapshot.sku,
+              };
+              setDetailForm(updatedForm);
+              detailAutosaveBaselineRef.current = getDetailAutosaveSignature(updatedForm);
+            } else {
+              // Fallback: use current form as baseline
+              detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+            }
+          } else {
+            // Fallback: use current form as baseline if refresh fails
+            detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+          }
+        } catch (refreshErr) {
+          console.warn("Failed to refresh item data after edit request", refreshErr);
+          // Fallback: use current form as baseline if refresh fails
+          detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+        }
         return;
       }
 
@@ -5030,7 +5065,7 @@ function Admin() {
                         type="text"
                         value={detailForm.variantNumbers}
                         onChange={(event) => updateDetailForm("variantNumbers", event.target.value)}
-                        placeholder="0,1,2,3,4,5,6,7,8,9"
+                        placeholder="1,2,3 or 10,11,12 or A1,A2,A3"
                         disabled={!canAdjustInventoryStockDirectly}
                       />
                     </label>

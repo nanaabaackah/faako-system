@@ -251,11 +251,11 @@ const generateNumberVariants = async (client, organizationId, body) => {
     : Array.from({ length: 10 }, (_, index) => index);
   const numbers = [...new Set(
     numbersInput
-      .map((entry) => String(entry).trim())
-      .filter((entry) => /^\d$/.test(entry))
+      .map((entry) => cleanInventoryText(String(entry).trim(), 40))
+      .filter(Boolean)
   )];
   if (!numbers.length) {
-    const error = new Error("Choose at least one number from 0-9.");
+    const error = new Error("Choose at least one variant number.");
     error.statusCode = 400;
     throw error;
   }

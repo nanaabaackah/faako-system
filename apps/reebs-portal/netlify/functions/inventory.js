@@ -1702,9 +1702,12 @@ export async function handler(event = {}) {
         && nextStock !== previousStock
       ) {
         return {
-          statusCode: 400,
+          statusCode: 409,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Adjust variant stock from the variant table." }),
+          body: JSON.stringify({ 
+            error: "Cannot adjust stock directly on variant parent items.",
+            detail: "Variant parent stock is calculated from individual variant stock. Edit variant stock from the variant table instead.",
+          }),
         };
       }
 
