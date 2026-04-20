@@ -488,7 +488,7 @@
   border: 1px solid transparent;
   border-radius: 0.9rem;
   background: transparent;
-  color: var(--sys-text);
+  color: var(--text-main);
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
