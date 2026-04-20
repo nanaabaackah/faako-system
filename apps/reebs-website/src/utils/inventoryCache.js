@@ -3,7 +3,7 @@ const INVENTORY_CACHE_TTL = 5 * 60 * 1000;
 let inventoryRequestPromise = null;
 
 const normalizeInventoryProductCode = (item) =>
-  (
+  String(
     item?.inventoryProductCode
     || item?.productGroupCode
     || item?.productCode

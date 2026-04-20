@@ -1,8 +1,7 @@
-const normalizeText = (value = "") =>
-  value
-    .toString()
-    .trim()
-    .toLowerCase();
+const normalizeText = (value) => {
+  if (value == null) return "";
+  return String(value).trim().toLowerCase();
+};
 
 const APPAREL_TERMS = [
   /\bcloth(?:e|es|ing)?\b/i,
