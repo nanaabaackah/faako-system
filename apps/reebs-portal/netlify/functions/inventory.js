@@ -1046,10 +1046,13 @@ export async function handler(event = {}) {
       const authUser = authenticatedUser;
       if (!authUser || !isAdminRole(authUser.role)) {
         return {
-          statusCode: 403,
+          statusCode: 410,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Only owners and admins can reassign inventory categories." }),
+          body: JSON.stringify({
+            error: "Category reassignment actions have been retired.",
+        }),
         };
+
       }
 
       const productIds = Array.isArray(payload.productIds)
@@ -1231,9 +1234,11 @@ export async function handler(event = {}) {
       const authUser = authenticatedUser;
       if (!authUser || !isAdminRole(authUser.role)) {
         return {
-          statusCode: 403,
-          headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Only owners and admins can reassign inventory categories." }),
+        statusCode: 410,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({
+          error: "Category reassignment actions have been retired.",
+        }),
         };
       }
 
@@ -1359,10 +1364,12 @@ export async function handler(event = {}) {
     if (postAction === "reassign-source-category") {
       const authUser = authenticatedUser;
       if (!authUser || !isAdminRole(authUser.role)) {
-        return {
-          statusCode: 403,
+          return {
+          statusCode: 410,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ error: "Only owners and admins can reassign products." }),
+          body: JSON.stringify({
+            error: "Category reassignment actions have been retired.",
+          }),
         };
       }
 
