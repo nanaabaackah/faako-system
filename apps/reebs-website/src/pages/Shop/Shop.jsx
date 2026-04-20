@@ -43,13 +43,14 @@ const isUnavailableImageSource = (src = "") => {
   return normalized.includes("placeholder");
 };
 
-const normalizeCategoryKey = (value = "") =>
-  value
-    .toString()
+const normalizeCategoryKey = (value) => {
+  if (value == null) return "";
+  return String(value)
     .toLowerCase()
-    .replace(/['’`]/g, "")
+    .replace(/[''`]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+};
 
 const toTitleCase = (value = "") =>
   value.replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -70,7 +71,7 @@ const normalizeSearchText = (value = "") =>
     .replace(/\s+/g, " ");
 
 const normalizeShopCategoryLabel = (value = "") => {
-  const key = normalizeCategoryKey(value);
+  const key = normalizeCategoryKey(value ?? "");
   if (!key) return "Other";
 
   if (["kids toys", "kid toys", "kids toy", "kid toy"].includes(key)) {
