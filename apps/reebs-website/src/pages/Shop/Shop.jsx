@@ -143,7 +143,7 @@ function Shop() {
   const getQuantity = useCallback((item) => item.quantity ?? item.stock ?? 0, []);
 
   const getCategoryLabel = useCallback((item) => {
-    const raw = item.specificCategory || item.specificcategory || item.type || item.category;
+    const raw = item.sourceCategory || item.sourcecategory || item.source_category || "";
     return normalizeShopCategoryLabel(raw);
   }, []);
 
@@ -238,8 +238,9 @@ function Shop() {
               item?.description,
               categoryLabel,
               item?.sku,
-              item?.specificCategory,
-              item?.specificcategory,
+              item?.sourceCategory,
+              item?.sourcecategory,
+              item?.source_category,
             ]
               .filter(Boolean)
               .join(" ")
