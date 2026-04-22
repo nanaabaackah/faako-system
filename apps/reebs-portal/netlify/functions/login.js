@@ -1,5 +1,8 @@
 /* eslint-disable no-undef */
+import { createLogger } from "./_shared/logger.js";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
+
+const logger = createLogger("reebs:login");
 import { Client } from "pg";
 import { hashPassword, verifyPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
@@ -11,6 +14,21 @@ import {
   USER_SESSION_TTL_MS,
 } from "./_shared/userSessions.js";
 const SESSION_ONLY_TTL_MS = 1000 * 60 * 60 * 12;
+
+const getClientIp = (event) =>
+  String(event.headers?.["x-forwarded-for"] || event.headers?.["x-real-ip"] || "")
+    .split(",")[0]
+    .trim() || null;
+
+const writeAudit = (client, data) => {
+  client
+    .query(
+      `INSERT INTO "auditLog" ("organizationId","userId","action","metadata","ipAddress","createdAt")
+       VALUES ($1,$2,$3,$4,$5,NOW())`,
+      [data.organizationId ?? null, data.userId ?? null, data.action, data.metadata ? JSON.stringify(data.metadata) : null, data.ipAddress ?? null]
+    )
+    .catch(() => {});
+};
 
 const respond = (event, statusCode, payload = {}, extraHeaders = {}) =>
   json(event, statusCode, payload, { methods: "POST, OPTIONS", extraHeaders });
@@ -45,6 +63,9 @@ export async function handler(event) {
   if (!normalizedEmail || !normalizedPassword) {
     return respond(event, 400, { error: "Email/username and password are required." });
   }
+  if (normalizedEmail.length > 254 || normalizedPassword.length > 1024) {
+    return respond(event, 400, { error: "Invalid credentials." });
+  }
 
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -56,14 +77,14 @@ export async function handler(event) {
     await ensureUserPersonalEmailColumn(client);
     const result = isUsernameOnly
       ? await client.query(
-        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password
+        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password, "loginAttempts", "lockedUntil"
          FROM "user"
          WHERE SPLIT_PART(LOWER(email), '@', 1) = $1
          LIMIT 1`,
         [normalizedEmail]
       )
       : await client.query(
-        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password
+        `SELECT id, "firstName", "lastName", "fullName", email, "personalEmail", role, "organizationId", password, "loginAttempts", "lockedUntil"
          FROM "user"
          WHERE LOWER(email) = $1
          LIMIT 1`,
@@ -75,8 +96,30 @@ export async function handler(event) {
       return respond(event, 401, { error: "Invalid credentials." });
     }
 
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const retryAfterSec = Math.ceil((new Date(user.lockedUntil) - Date.now()) / 1000);
+      return respond(event, 429, { error: "Too many failed login attempts. Try again later." }, {
+        "Retry-After": String(retryAfterSec),
+      });
+    }
+
     const { isValid, needsRehash } = await verifyPassword(normalizedPassword, user.password);
     if (!isValid) {
+      const maxAttempts = 5;
+      const lockoutMs = 15 * 60 * 1000;
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      const shouldLock = newAttempts >= maxAttempts;
+      await client.query(
+        `UPDATE "user" SET "loginAttempts" = $1, "lockedUntil" = $2 WHERE id = $3`,
+        [newAttempts, shouldLock ? new Date(Date.now() + lockoutMs) : null, user.id]
+      );
+      writeAudit(client, {
+        userId: user.id,
+        organizationId: user.organizationId ?? null,
+        action: "LOGIN_FAILED",
+        metadata: { attempts: newAttempts, locked: shouldLock },
+        ipAddress: getClientIp(event),
+      });
       return respond(event, 401, { error: "Invalid credentials." });
     }
 
@@ -88,12 +131,19 @@ export async function handler(event) {
           [newHash, user.id]
         );
       } catch (err) {
-        console.warn("Password rehash failed for user", user.id, err);
+        logger.warn({ userId: user.id, err }, "Password rehash failed");
       }
     }
 
-    // Strip password before returning
-    const { password: _, ...safeUser } = user;
+    if (user.loginAttempts > 0 || user.lockedUntil) {
+      await client.query(
+        `UPDATE "user" SET "loginAttempts" = 0, "lockedUntil" = NULL WHERE id = $1`,
+        [user.id]
+      );
+    }
+
+    // Strip password and lockout fields before returning
+    const { password: _, loginAttempts: __, lockedUntil: ___, ...safeUser } = user;
     await ensureUserSessionsTable(client);
     const session = await createUserSession(client, {
       organizationId: user.organizationId,
@@ -112,6 +162,13 @@ export async function handler(event) {
       return respond(event, 500, { error: "Auth secret is not configured." });
     }
 
+    writeAudit(client, {
+      userId: user.id,
+      organizationId: user.organizationId ?? null,
+      action: "LOGIN_SUCCESS",
+      ipAddress: getClientIp(event),
+    });
+
     const sessionCookie = buildUserSessionCookie(event, token, { ttlMs: sessionTtlMs });
     return respond(event, 200, {
       ...safeUser,
@@ -124,7 +181,7 @@ export async function handler(event) {
       "Set-Cookie": sessionCookie,
     });
   } catch (err) {
-    console.error("Login error", err);
+    logger.error({ err }, "Login error");
     return respond(event, 500, { error: "Login failed. Please try again." });
   } finally {
     await client.end().catch(() => {});

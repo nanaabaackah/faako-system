@@ -14,6 +14,15 @@ export const configureBaseHttpMiddleware = (
     capabilityAccessMiddleware,
   }
 ) => {
+  // Allow /api/v1/* as an alias for /api/* so clients can adopt versioned URLs
+  // without requiring route changes. Strip the version segment before routing.
+  app.use((req, _res, next) => {
+    if (req.url.startsWith("/api/v1/")) {
+      req.url = "/api/" + req.url.slice("/api/v1/".length);
+    }
+    next();
+  });
+
   app.use(cors(corsOptions));
   app.use(
     express.json({
@@ -49,7 +58,7 @@ export const registerHealthRoute = (app, { environment }) => {
   });
 };
 
-export const registerErrorHandler = (app, { classifyApiError, isProduction }) => {
+export const registerErrorHandler = (app, { classifyApiError, isProduction, logger }) => {
   app.use((err, req, res, _next) => {
     void _next;
     if (res.headersSent) return;
@@ -58,7 +67,8 @@ export const registerErrorHandler = (app, { classifyApiError, isProduction }) =>
     const { status, message, code } = classifyApiError(err);
 
     if (status >= 500) {
-      console.error(`Unhandled API error: ${req.method} ${req.originalUrl}`, err);
+      const log = logger ?? console;
+      log.error({ err, method: req.method, url: req.originalUrl }, "Unhandled API error");
     }
 
     if (isApiRequest) {

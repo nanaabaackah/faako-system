@@ -1,4 +1,5 @@
 import React from "react";
+import { EmptyState, InlineNotice } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faArrowRight, faMinus, faPlus, faRotateRight } from "/src/icons/iconSet";
 
@@ -17,19 +18,6 @@ function PanelShell({ title, subtitle, actions = null, className = "", children 
   );
 }
 
-function EmptyState({ title, copy, actionLabel, onAction }) {
-  return (
-    <div className="aw-staff-empty">
-      <strong>{title}</strong>
-      <p>{copy}</p>
-      {actionLabel && onAction ? (
-        <button type="button" className="aw-link-btn" onClick={onAction}>
-          {actionLabel}
-        </button>
-      ) : null}
-    </div>
-  );
-}
 
 function SummaryCard({ card, onNavigate }) {
   const handleClick = card.onClick || (card.path ? () => onNavigate(card.path) : undefined);
@@ -111,7 +99,7 @@ function AssignedWorkPanel({
 
   return (
     <PanelShell title="Assigned Work">
-      {workflowError && <p className="aw-feedback-error">{workflowError}</p>}
+      {workflowError && <InlineNotice tone="error" compact message={workflowError} />}
       <div className="aw-home-summary-grid">
         {myWorkCards.map((card) => (
           <SummaryCard key={card.key} card={card} onNavigate={onNavigate} />
@@ -175,7 +163,7 @@ function AssignedWorkPanel({
           })}
         </ul>
       ) : isAssignedWorkListVisible ? (
-        <EmptyState title={emptyTitle} copy={emptyCopy} />
+        <EmptyState title={emptyTitle} message={emptyCopy} />
       ) : null}
     </PanelShell>
   );
@@ -305,7 +293,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
       )}
     >
       {panel.loading && <p className="aw-muted">Loading KPI data...</p>}
-      {!panel.loading && panel.error && <p className="aw-feedback-error">{panel.error}</p>}
+      {!panel.loading && panel.error && <InlineNotice tone="error" compact message={panel.error} />}
       {!panel.loading && !panel.error && (
         <>
           <div className="aw-home-kpi-grid">
@@ -392,7 +380,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               {revenueTrend.loading ? (
                 <p className="aw-muted">Loading revenue trend...</p>
               ) : revenueTrend.error ? (
-                <p className="aw-feedback-error">{revenueTrend.error}</p>
+                <InlineNotice tone="error" compact message={revenueTrend.error} />
               ) : revenueTrend.hasData ? (
                 <div className="aw-home-kpi-spark-panel">
                   <div className="aw-home-kpi-spark-stat">
@@ -427,7 +415,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               {stockMovement.loading ? (
                 <p className="aw-muted">Loading stock activity...</p>
               ) : stockMovement.error ? (
-                <p className="aw-feedback-error">{stockMovement.error}</p>
+                <InlineNotice tone="error" compact message={stockMovement.error} />
               ) : stockMovement.hasData ? (
                 <div className="aw-home-kpi-stock-panel">
                   <div className="aw-home-kpi-stock-summary">
@@ -546,9 +534,12 @@ function ApprovalsPanel({ panel, onNavigate }) {
       ) : (
         <EmptyState
           title="No approvals waiting."
-          copy="Open orders or bookings directly if you want to review the wider queue."
-          actionLabel="Open orders"
-          onAction={() => onNavigate(safePanel.emptyPath)}
+          message="Open orders or bookings directly if you want to review the wider queue."
+          actions={(
+            <button type="button" className="aw-link-btn" onClick={() => onNavigate(safePanel.emptyPath)}>
+              Open orders
+            </button>
+          )}
         />
       )}
     </PanelShell>
@@ -586,9 +577,12 @@ function TeamLoadPanel({ panel, onNavigate }) {
       ) : (
         <EmptyState
           title="No team workload data yet."
-          copy="Assigned orders and bookings will populate the team board automatically."
-          actionLabel="Open team directory"
-          onAction={() => onNavigate(safePanel.emptyPath)}
+          message="Assigned orders and bookings will populate the team board automatically."
+          actions={(
+            <button type="button" className="aw-link-btn" onClick={() => onNavigate(safePanel.emptyPath)}>
+              Open team directory
+            </button>
+          )}
         />
       )}
     </PanelShell>
@@ -697,7 +691,7 @@ function ActivityPanel({ panel, onNavigate, formatRelativeTime, formatDateTime }
         </div>
       )}
     >
-      {safePanel.error && <p className="aw-feedback-error">{safePanel.error}</p>}
+      {safePanel.error && <InlineNotice tone="error" compact message={safePanel.error} />}
       {safePanel.loading && !items.length ? (
         <p className="aw-muted">Loading activity...</p>
       ) : items.length ? (
@@ -747,7 +741,7 @@ function ActivityPanel({ panel, onNavigate, formatRelativeTime, formatDateTime }
       ) : (
         <EmptyState
           title="No staff activity logged yet."
-          copy="Orders, bookings, stock changes, and pending sync actions will appear here once work starts."
+          message="Orders, bookings, stock changes, and pending sync actions will appear here once work starts."
         />
       )}
     </PanelShell>

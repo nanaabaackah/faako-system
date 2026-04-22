@@ -1,7 +1,7 @@
 [build]
   command = "pnpm --filter @faako/dev-erp build"
   ignore = "node ./scripts/netlify-ignore.mjs @faako/dev-erp"
-  publish = "/apps/dev-erp/dist"
+  publish = "apps/dev-erp/dist"
 
 [[headers]]
   for = "/*"

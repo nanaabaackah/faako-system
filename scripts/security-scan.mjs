@@ -12,12 +12,51 @@ const ALLOWED_ENV_FILE_SUFFIXES = [
   ".template",
   ".dist",
 ];
+
+// Path segments that skip the file entirely (no file or content checks).
 const SKIPPED_PATH_SEGMENTS = new Set([
   "node_modules",
   ".pnpm",
   ".turbo",
   "coverage",
 ]);
+
+// Files that pass the file-path checks but should NOT be content-scanned
+// because they are intentionally allowed to contain placeholder-looking values.
+// Matches are checked against the full relative path from the repo root.
+const CONTENT_SCAN_EXCLUDED_SUFFIXES = [
+  // Env templates — placeholders are expected
+  ".env.example",
+  ".env.sample",
+  ".env.template",
+  ".env.dist",
+  // Documentation — connection strings are shown as examples
+  ".md",
+  ".mdx",
+  ".txt",
+  ".rst",
+  // Test files — test DB URLs and fixture secrets are not real
+  ".test.js",
+  ".test.ts",
+  ".test.jsx",
+  ".test.tsx",
+  ".spec.js",
+  ".spec.ts",
+  ".spec.jsx",
+  ".spec.tsx",
+];
+
+// Top-level directory prefixes that are documentation and should not be
+// content-scanned for secrets.
+const CONTENT_SCAN_EXCLUDED_DIR_PREFIXES = [
+  "docs/",
+  ".claude/",
+];
+
+// Lines containing this marker are exempt from content scanning.
+// Add it as a comment on any line that intentionally contains a pattern.
+// Example:  DATABASE_URL=postgresql://user:pass@host/db  # security-scan-ok
+const CONTENT_SCAN_LINE_ALLOWLIST_MARKER = "security-scan-ok";
 
 const SENSITIVE_FILE_PATTERNS = [
   { name: "tracked env file", test: isTrackedSecretEnvFile },
@@ -52,6 +91,20 @@ const CONTENT_SIGNATURES = [
   {
     name: "github fine-grained token",
     pattern: /\bgithub_pat_[A-Za-z0-9_]{40,}\b/g,
+  },
+  {
+    name: "openai api key",
+    pattern: /\bsk-(?:proj-|[A-Za-z0-9]{20,}T3BlbkFJ)[A-Za-z0-9_-]{20,}\b/g,
+  },
+  {
+    name: "resend api key",
+    pattern: /\bre_[A-Za-z0-9_-]{20,}\b/g,
+  },
+  {
+    // Matches postgresql://user:pass@host/db but skips template placeholders
+    // (<...> syntax, keyword "placeholder", and common example words).
+    name: "postgresql connection string with credentials",
+    pattern: /postgresql:\/\/(?!(?:[^@]*<[^>]*>|[^@]*\bplaceholder\b|[^@]*\bexample\b|[^@]*\byour[-_]?(?:pass|password|user|db)\b))[^:@\s]+:[^@\s]{8,}@[^/\s]+\/\S+/gi,
   },
 ];
 
@@ -108,10 +161,31 @@ function findSensitiveFiles(files) {
   return findings;
 }
 
+function shouldSkipContentScan(filePath) {
+  const lower = filePath.toLowerCase();
+  if (CONTENT_SCAN_EXCLUDED_DIR_PREFIXES.some((prefix) => lower.startsWith(prefix))) {
+    return true;
+  }
+  if (CONTENT_SCAN_EXCLUDED_SUFFIXES.some((suffix) => lower.endsWith(suffix))) {
+    return true;
+  }
+  // Also skip files whose basename matches the allowed env-template suffixes,
+  // regardless of where in the tree they live (e.g. apps/dev-erp/.env.example).
+  const baseName = path.basename(lower);
+  if (baseName.startsWith(".env") && ALLOWED_ENV_FILE_SUFFIXES.some((s) => baseName.endsWith(s))) {
+    return true;
+  }
+  return false;
+}
+
 function findSensitiveContent(files) {
   const findings = [];
 
   for (const filePath of files) {
+    if (shouldSkipContentScan(filePath)) {
+      continue;
+    }
+
     const absolutePath = path.join(rootDir, filePath);
     if (!isScannableFile(absolutePath)) {
       continue;
@@ -124,10 +198,15 @@ function findSensitiveContent(files) {
     }
 
     const content = buffer.toString("utf8");
+    // Strip lines that carry the per-line allowlist marker before scanning.
+    const scannable = content
+      .split("\n")
+      .filter((line) => !line.includes(CONTENT_SCAN_LINE_ALLOWLIST_MARKER))
+      .join("\n");
 
     for (const signature of CONTENT_SIGNATURES) {
       signature.pattern.lastIndex = 0;
-      if (signature.pattern.test(content)) {
+      if (signature.pattern.test(scannable)) {
         findings.push({
           filePath,
           type: "content",

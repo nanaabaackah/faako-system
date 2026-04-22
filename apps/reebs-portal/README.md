@@ -74,6 +74,24 @@ pnpm --filter @faako/reebs-portal run source-categories:relink:apply
 
 The script creates `Household` and `Supplies` first, moves only explicitly mapped product names currently under Toys, and logs the moved count per target category. Anything not mapped stays under Toys for admin review and can be bulk-moved from the stock module.
 
+## Auth Security
+
+### Account Lockout
+
+After 5 consecutive failed login attempts the account is locked for 15 minutes. Lock state is stored in `loginAttempts` and `lockedUntil` on the `user` row and reset on successful login. The login function returns a `429` with a `Retry-After` header while the lock is active.
+
+### Manager Login Rate Limiting
+
+The manager login endpoint uses in-memory per-IP rate limiting (10 requests per 10-minute window derived from the `x-forwarded-for` header). Exceeding the limit returns `429` with `Retry-After: 600`. This prevents brute-force of the shared manager PIN without creating a global account lockout.
+
+### Input Validation
+
+Login and related auth functions cap input lengths (email ≤ 254, password ≤ 1024) before processing.
+
+### Logging
+
+All functions use `@faako/logger` for structured JSON output, compatible with Netlify's log drain.
+
 ## Relationship To Reebs Website
 
 - `apps/reebs-website` is the public customer-facing site

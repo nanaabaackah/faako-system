@@ -1,10 +1,10 @@
 [build]
   command = "pnpm --filter @faako/faako-api prisma:migrate:deploy && echo 'No build step for API'"
   ignore = "node ./scripts/netlify-ignore.mjs @faako/faako-api"
-  publish = "/apps/faako-api/netlify/static"
+  publish = "apps/faako-api/netlify/static"
 
 [functions]
-  directory = "/apps/faako-api/netlify/functions"
+  directory = "apps/faako-api/netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["pg", "pg-connection-string", "pg-int8", "pg-pool", "pg-protocol", "pg-types", "pgpass", "postgres-array", "postgres-bytea", "postgres-date", "postgres-interval", "split2", "xtend"]
 

@@ -3,6 +3,22 @@ import "../../runtimeEnv.js";
 import { verifyPassword } from "../../utils/passwords.js";
 import { signManagerToken } from "./_shared/managerAuth.js";
 
+const MANAGER_RATE_LIMIT_MAX = 10;
+const MANAGER_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const ipAttempts = new Map();
+
+const checkIpRateLimit = (ip) => {
+  const now = Date.now();
+  const bucket = ipAttempts.get(ip) || { count: 0, windowStart: now };
+  if (now - bucket.windowStart > MANAGER_RATE_LIMIT_WINDOW_MS) {
+    bucket.count = 0;
+    bucket.windowStart = now;
+  }
+  bucket.count += 1;
+  ipAttempts.set(ip, bucket);
+  return bucket.count > MANAGER_RATE_LIMIT_MAX;
+};
+
 const json = (statusCode, body, extraHeaders = {}) => ({
   statusCode,
   headers: {
@@ -27,6 +43,11 @@ export async function handler(event = {}) {
   }
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "POST,OPTIONS" });
+  }
+
+  const clientIp = event.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  if (checkIpRateLimit(clientIp)) {
+    return json(429, { error: "Too many attempts. Try again later." }, { "Retry-After": "600" });
   }
 
   let payload = {};

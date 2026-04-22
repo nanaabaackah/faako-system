@@ -3,7 +3,7 @@
 [build]
 command = "pnpm --filter @faako/reebs-website build"
 ignore = "node ./scripts/netlify-ignore.mjs @faako/reebs-website"
-publish = "/apps/reebs-website/dist"
+publish = "apps/reebs-website/dist"
 
 [dev]
 command = "pnpm --filter @faako/reebs-website dev -- --host 0.0.0.0 --port 5173"

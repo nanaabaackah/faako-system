@@ -12,6 +12,9 @@ importers:
         specifier: ^6.1.0
         version: 6.1.0(react@19.2.4)
     devDependencies:
+      husky:
+        specifier: ^9.0.0
+        version: 9.1.7
       turbo:
         specifier: ^2.0.0
         version: 2.8.17
@@ -199,6 +202,9 @@ importers:
       waypoints:
         specifier: ^4.0.1
         version: 4.0.1
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0
@@ -5530,6 +5536,11 @@ packages:
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
     engines: {node: '>=16.17.0'}
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   iconsax-react@0.0.8:
     resolution: {integrity: sha512-l3dVk4zGtkkJHgvNYqAf0wDKqnKxXykee5/DoESGo2JvSYwaxajJUHSX2YrPRXSov8Hd8ClGFwJxCEaEjrFD1Q==}
@@ -13993,6 +14004,8 @@ snapshots:
   human-signals@2.1.0: {}
 
   human-signals@5.0.0: {}
+
+  husky@9.1.7: {}
 
   iconsax-react@0.0.8(react@18.3.1):
     dependencies:

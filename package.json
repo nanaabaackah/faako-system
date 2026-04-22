@@ -25,9 +25,11 @@
     "security:scan": "node ./scripts/security-scan.mjs",
     "security:gate": "node ./scripts/security-gate.mjs",
     "security:deps": "node ./scripts/security-deps.mjs",
-    "security:all": "pnpm run security:scan && pnpm run security:gate"
+    "security:all": "pnpm run security:scan && pnpm run security:gate",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.0.0",
     "turbo": "^2.0.0"
   },
   "dependencies": {

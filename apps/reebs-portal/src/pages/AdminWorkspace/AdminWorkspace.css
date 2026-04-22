@@ -1931,6 +1931,173 @@ button.aw-activity-item {
   }
 }
 
+/* ─── Skeleton loading shimmer ─────────────────────────────────────────── */
+@keyframes aw-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.aw-skeleton {
+  border-radius: var(--aw-radius-md);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.11) 37%,
+    rgba(0, 0, 0, 0.06) 63%
+  );
+  background-size: 800px 100%;
+  animation: aw-shimmer 1.4s ease-in-out infinite;
+}
+
+.aw-skeleton-kpi-card {
+  height: 90px;
+  border-radius: var(--aw-radius-lg);
+}
+
+.aw-skeleton-chart-card {
+  height: 180px;
+  border-radius: var(--aw-radius-lg);
+}
+
+.aw-skeleton-row {
+  height: 1.1rem;
+  border-radius: var(--aw-radius-sm);
+  margin: 0.3rem 0;
+}
+
+/* ─── Data freshness indicator ──────────────────────────────────────────── */
+.aw-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: inherit;
+}
+
+.aw-freshness::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.aw-freshness.is-fresh::before  { background: #22c55e; }
+.aw-freshness.is-aging::before  { background: #f59e0b; }
+.aw-freshness.is-stale::before  { background: #ef4444; }
+.aw-freshness.is-stale          { color: #b74441; }
+
+/* ─── Chart card error with retry ──────────────────────────────────────── */
+.aw-chart-error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.5rem 0;
+}
+
+/* ─── Top performers list ───────────────────────────────────────────────── */
+.aw-home-top-performers {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.aw-home-top-performers-grids {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+.aw-home-top-list {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.aw-home-top-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.38rem 0;
+  border-bottom: 1px solid var(--aw-divider);
+  font-size: 0.88rem;
+}
+
+.aw-home-top-list li:last-child {
+  border-bottom: none;
+}
+
+.aw-home-top-list li span {
+  color: var(--aw-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.aw-home-top-list li strong {
+  color: var(--aw-ink);
+  font-weight: 700;
+  font-size: 0.84rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.aw-home-top-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: var(--aw-primary-soft);
+  color: var(--aw-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ─── Topbar overdue badge ──────────────────────────────────────────────── */
+.aw-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--aw-radius-pill);
+  background: var(--aw-danger-soft);
+  color: var(--aw-danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ─── Mobile responsive fixes ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .aw-home-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  .aw-home-kpi-donut-shell {
+    width: 100px;
+    height: 100px;
+  }
+
+  .aw-home-kpi-velocity-row {
+    grid-template-columns: 50px 1fr auto;
+    font-size: 0.78rem;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .aw-home-kpi-chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Glass-only dashboard redesign for the AdminWorkspace routes. */
 body.admin-theme.aw-theme {
   --aw-ink: #08161b;

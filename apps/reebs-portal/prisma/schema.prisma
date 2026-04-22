@@ -260,8 +260,10 @@ model User {
   firstName String
   lastName  String
   fullName  String
-  role      String   @default("Staff") 
+  role      String   @default("Staff")
   permissions Json?
+  loginAttempts Int      @default(0)
+  lockedUntil   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
@@ -734,4 +736,20 @@ model ManagerDevice {
   updatedAt  DateTime @default(now())
 
   @@map("managerDevice")
+}
+
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  organizationId Int?
+  userId         Int?
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, action, createdAt])
+  @@index([userId, createdAt])
+  @@map("auditLog")
 }

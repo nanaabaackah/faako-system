@@ -76,6 +76,41 @@ Route visibility is still a frontend convenience. Backend access is enforced by 
 
 Use the shared API client in `src/api/client.ts` for new frontend calls. It standardizes JSON parsing, credentials, CSRF headers, session-expiry handling, and normalized API errors.
 
+## Auth Security
+
+### Endpoints
+
+| Route | Description |
+| --- | --- |
+| `POST /api/auth/login` | Issues a 15-min JWT access token cookie and a 7-day rotating refresh token cookie |
+| `GET /api/auth/session` | Validates the session and returns the current user |
+| `POST /api/auth/refresh` | Rotates the refresh token and issues a new access token (no re-login needed) |
+| `POST /api/auth/logout` | Revokes the refresh token in the database and clears all auth cookies |
+| `POST /api/auth/forgot-password` | Sends a password reset email |
+| `POST /api/auth/setup-account/verify` | Validates an invitation token before the user sets a password |
+| `POST /api/auth/setup-account/complete` | Accepts a password, hashes it, and activates the account |
+
+The `/api/v1/*` URL prefix is supported as an alias — the server rewrites it to `/api/*` before routing so both URL shapes work transparently.
+
+### Tokens and Cookies
+
+- Access tokens are short-lived JWTs (15 minutes) embedded in an HttpOnly cookie.
+- Refresh tokens are 40-byte random values whose SHA-256 hash is stored in the `RefreshToken` table. The raw token lives only in the HttpOnly `dev_kpi_refresh` cookie scoped to `/api/auth/refresh`.
+- Each access token embeds `tokenVersion`, which is matched against the user row on every authenticated request. Logging out increments `tokenVersion`, immediately invalidating all outstanding access tokens for that user.
+- CSRF protection uses a double-submit cookie pattern. The CSRF token is rotated with every new access token.
+
+### Account Lockout
+
+After 5 consecutive failed password attempts the account is locked for 15 minutes. The lock state is stored in `loginAttempts` and `lockedUntil` on the `User` row. Successful login resets both fields.
+
+### Input Validation
+
+All auth endpoints run Zod schema validation before handlers execute. Invalid payloads return a `400` with a structured `errors` array.
+
+### Logging
+
+All auth and server errors use `@faako/logger` (Pino) with structured JSON output. No raw `console.error` calls remain in the backend.
+
 ## Verify Changes
 
 ```bash

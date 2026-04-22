@@ -1,0 +1,12 @@
+{
+  "name": "@faako/logger",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "pino": "^9.0.0"
+  }
+}

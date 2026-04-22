@@ -1,5 +1,8 @@
 /* eslint-disable no-undef */
+import { createLogger } from "./_shared/logger.js";
 import { APP_ENV, resolvePgSslConfig } from "../../runtimeEnv.js";
+
+const logger = createLogger("reebs:forgot-password");
 import { Pool } from "pg";
 import emailKit from "../../../../packages/email-kit/src/index.cjs";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
@@ -275,7 +278,7 @@ export async function handler(event = {}) {
       ensurePasswordResetTokensTable(client),
     ]);
     await maybeCleanupPasswordResetTokens(client).catch((error) => {
-      console.warn("Password reset token cleanup skipped:", error?.message || error);
+      logger.warn({ err: error }, "Password reset token cleanup skipped");
     });
     const organizationId = await resolveOrganizationId(client, event, payload);
 
@@ -413,7 +416,7 @@ export async function handler(event = {}) {
             .join(""),
         });
       } catch (error) {
-        console.error("Forgot password email failed:", error);
+        logger.error({ err: error }, "Forgot password email failed");
       }
     }
 
@@ -430,7 +433,7 @@ export async function handler(event = {}) {
             + `The link expires in ${Math.round(PASSWORD_RESET_TTL_MS / 60000)} minutes.${localResetMessage}`,
     });
   } catch (error) {
-    console.error("Forgot password request failed:", error);
+    logger.error({ err: error }, "Forgot password request failed");
     return respond(event, 500, { error: "Unable to start password reset right now." });
   } finally {
     client?.release();

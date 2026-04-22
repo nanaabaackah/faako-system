@@ -30,6 +30,7 @@
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); if (!process.env.NETLIFY && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },
   "dependencies": {
+    "@faako/logger": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
@@ -59,6 +60,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.2",
     "resend": "^4.0.0",
+    "zod": "^3.24.0",
     "stellar.js": "^0.6.5",
     "waypoints": "^4.0.1"
   },

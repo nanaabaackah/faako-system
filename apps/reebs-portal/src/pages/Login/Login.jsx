@@ -10,10 +10,6 @@ function Login({ mode = "staff" }) {
   const navigate = useNavigate();
   const { login, authLoading, authError } = useAuth();
   const isCustomer = mode === "customer";
-  const heroKicker = isCustomer ? "Customer portal" : "Staff portal";
-  const heroPills = isCustomer
-    ? ["Fast return", "Saved details", "Live support"]
-    : ["Secure access", "Daily ops", "Team workspace"];
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -166,27 +162,17 @@ function Login({ mode = "staff" }) {
         <section className="login-stage page-hero" aria-labelledby={`${pageId}-heading`}>
           <div className="login-stage-inner">
             <div className="login-stage-copy page-hero-copy">
-              <span className="kicker">{heroKicker}</span>
               <h1 id={`${pageId}-heading`} className="page-hero-title">
                 {isCustomer ? "Customer login" : "Staff login"}
               </h1>
               <p className="login-stage-subtitle">
                 {isCustomer
                   ? "Use the same contact details from your booking to jump back into your party plans."
-                  : "Secure sign-in for the REEBS team workspace, scheduling, and operations."}
+                  : null}
               </p>
-              <div className="login-stage-pills" aria-hidden="true">
-                {heroPills.map((pill) => (
-                  <span key={pill}>{pill}</span>
-                ))}
-              </div>
             </div>
 
             <div className="login-card">
-              <header className="login-brand">
-                <span className="login-brand-name">{isCustomer ? "Customer access" : "Staff portal"}</span>
-              </header>
-
               <div className="login-header">
                 <p className="login-eyebrow">{isCustomer ? "Continue your booking" : "Workspace access"}</p>
                 <h2>

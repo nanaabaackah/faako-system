@@ -1,10 +1,10 @@
 [build]
   command = "pnpm --filter @faako/bynana-portfolio build"
   ignore = "node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio"
-  publish = "/apps/bynana-portfolio/dist"
+  publish = "apps/bynana-portfolio/dist"
 
 [functions]
-  directory = "/apps/bynana-portfolio/netlify/functions"
+  directory = "apps/bynana-portfolio/netlify/functions"
 
 [[headers]]
   for = "/*"

@@ -33,12 +33,17 @@ import {
   createBuildToken,
   createForgotPasswordHandler,
   createGetSessionHandler,
+  createIssueRefreshToken,
   createLoginHandler,
   createLogoutHandler,
+  createRefreshHandler,
   createSetupAccountCompleteHandler,
   createSetupAccountVerifyHandler,
 } from "./auth/auth.controller.js";
 import { registerAuthRoutes } from "./auth/auth.routes.js";
+import { createLogger } from "@faako/logger";
+import { validate } from "./validation/validate.js";
+import { publicBookingSchema, productivityEntrySchema, productivityTodoSchema } from "./validation/schemas.js";
 import {
   configureBaseHttpMiddleware,
   registerApiFallbackRoute,
@@ -361,24 +366,20 @@ const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .split(",")
   .map((origin) => normalizeOrigin(origin.trim()))
   .filter(Boolean);
-const productionExtraOrigins = [
-  "https://dev.nanaabaackah.com",
-  "https://faako.nanaabaackah.com",
-];
-const devOrigins = isProduction
-  ? productionExtraOrigins
-  : [
-      "http://localhost:5173",
-      "http://localhost:5177",
-      "http://192.168.100.17:5177",
-      "http://127.0.0.1:5173",
-      "http://localhost:4173",
-      "http://localhost:8888",
-      "https://dev.nanaabaackah.com",
-      "https://faako.nanaabaackah.com",
-    ];
-const allowedOriginSet = new Set([...allowedOrigins, ...devOrigins]);
-const allowAllOrigins = allowedOriginSet.size === 0;
+// In development, fall back to safe localhost defaults only when CORS_ORIGINS is unset.
+// In production, CORS_ORIGINS must be explicitly configured — no implicit fallback.
+const defaultDevOrigins =
+  !isProduction && allowedOrigins.length === 0
+    ? [
+        "http://localhost:5173",
+        "http://localhost:5177",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://localhost:8888",
+      ]
+    : [];
+const allowedOriginSet = new Set([...allowedOrigins, ...defaultDevOrigins]);
+const allowAllOrigins = !isProduction && allowedOriginSet.size === 0;
 const API_RATE_LIMIT_WINDOW_MS = parsePositiveInt(
   process.env.API_RATE_LIMIT_WINDOW_MS ?? process.env.RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000,
@@ -478,6 +479,8 @@ const AUTH_COOKIE_MAX_AGE_MS = parsePositiveInt(
 );
 const AUTH_COOKIE_SAME_SITE = normalizeSameSite(process.env.AUTH_COOKIE_SAME_SITE, "lax");
 const AUTH_COOKIE_SECURE = parseEnvBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
+const REFRESH_COOKIE_NAME = String(process.env.REFRESH_COOKIE_NAME || "dev_kpi_refresh").trim() || "dev_kpi_refresh";
+const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const reebsPool = reebsDatabaseUrl
   ? new Pool({
       connectionString: reebsDatabaseUrl,
@@ -1746,6 +1749,24 @@ const clearAuthCookies = (res) => {
   res.clearCookie(AUTH_CSRF_COOKIE_NAME, authCookieBaseOptions);
 };
 
+const refreshCookieBaseOptions = {
+  secure: AUTH_COOKIE_SECURE,
+  sameSite: AUTH_COOKIE_SAME_SITE,
+  path: "/api/auth/refresh",
+  httpOnly: true,
+};
+
+const setRefreshCookie = (res, rawToken) => {
+  res.cookie(REFRESH_COOKIE_NAME, rawToken, {
+    ...refreshCookieBaseOptions,
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+  });
+};
+
+const clearRefreshCookie = (res) => {
+  res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieBaseOptions);
+};
+
 const createCsrfToken = () => crypto.randomBytes(32).toString("hex");
 
 const parseRecipients = (value) => {
@@ -1870,6 +1891,10 @@ const loadSessionUser = async (payload) => {
   });
   const organizationId = Number(user?.organizationId);
   if (!user || user.status !== "ACTIVE" || !user.role || !Number.isInteger(organizationId) || organizationId <= 0) {
+    return null;
+  }
+
+  if ((payload.tokenVersion ?? 0) !== user.tokenVersion) {
     return null;
   }
 
@@ -4656,15 +4681,40 @@ configureBaseHttpMiddleware(app, {
   capabilityAccessMiddleware,
 });
 
+const issueRefreshToken = createIssueRefreshToken({ crypto, prisma });
 const loginHandler = createLoginHandler({
   prisma,
   bcrypt,
   buildToken,
   createCsrfToken,
   setAuthCookies,
+  issueRefreshToken,
+  setRefreshCookie,
 });
 const getSessionHandler = createGetSessionHandler({ prisma });
-const logoutHandler = createLogoutHandler({ clearAuthCookies });
+const logoutHandler = createLogoutHandler({
+  clearAuthCookies,
+  clearRefreshCookie,
+  prisma,
+  verifyTokenPayload,
+  getCookieValue,
+  authCookieName: AUTH_COOKIE_NAME,
+  refreshCookieName: REFRESH_COOKIE_NAME,
+  readBearerToken,
+  crypto,
+});
+const refreshHandler = createRefreshHandler({
+  prisma,
+  crypto,
+  buildToken,
+  setAuthCookies,
+  createCsrfToken,
+  issueRefreshToken,
+  setRefreshCookie,
+  clearRefreshCookie,
+  getCookieValue,
+  refreshCookieName: REFRESH_COOKIE_NAME,
+});
 const forgotPasswordHandler = createForgotPasswordHandler({
   defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
   prisma,
@@ -4687,6 +4737,7 @@ registerAuthRoutes(app, {
   loginHandler,
   getSessionHandler,
   logoutHandler,
+  refreshHandler,
   forgotPasswordHandler,
   setupAccountVerifyHandler,
   setupAccountCompleteHandler,
@@ -7294,7 +7345,7 @@ app.get("/api/productivity/summary", authMiddleware, async (req, res) => {
   });
 });
 
-app.post("/api/productivity/entries", authMiddleware, async (req, res) => {
+app.post("/api/productivity/entries", authMiddleware, validate(productivityEntrySchema), async (req, res) => {
   const entryDate = parseProductivityDate(req.body?.entryDate);
   if (!entryDate) {
     return res.status(400).json({ error: "entryDate must be a valid date (YYYY-MM-DD)" });
@@ -7376,7 +7427,7 @@ app.get("/api/productivity/todos", authMiddleware, async (req, res) => {
   });
 });
 
-app.post("/api/productivity/todos", authMiddleware, async (req, res) => {
+app.post("/api/productivity/todos", authMiddleware, validate(productivityTodoSchema), async (req, res) => {
   const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
   if (!title) {
     return res.status(400).json({ error: "title is required" });
@@ -9518,7 +9569,7 @@ app.get("/api/public/bookings/:orgSlug", async (req, res) => {
   );
 });
 
-app.post("/api/public/bookings/:orgSlug", async (req, res) => {
+app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (req, res) => {
   const orgSlug = String(req.params.orgSlug || "").trim();
   if (!orgSlug) {
     return res.status(400).json({ error: "Organization slug is required." });
@@ -10140,7 +10191,7 @@ app.post("/api/webhooks/google-calendar", async (req, res) => {
 
 registerApiFallbackRoute(app);
 registerHealthRoute(app, { environment: APP_ENV });
-registerErrorHandler(app, { classifyApiError, isProduction });
+registerErrorHandler(app, { classifyApiError, isProduction, logger: serverLogger });
 
 const ensureDefaults = async () => {
   const organizationDefinitions = [
@@ -10267,9 +10318,21 @@ const initializeBackgroundServices = async () => {
   }
 };
 
+const serverLogger = createLogger("server");
+
+process.on("unhandledRejection", (reason) => {
+  serverLogger.error({ err: reason }, "Unhandled promise rejection");
+  process.exit(1);
+});
+
+process.on("uncaughtException", (error) => {
+  serverLogger.error({ err: error }, "Uncaught exception");
+  process.exit(1);
+});
+
 const start = () => {
   app.listen(port, () => {
-    console.log(`API server listening on http://localhost:${port}`);
+    serverLogger.info({ port }, "API server listening");
   });
 
   initializeBackgroundServices().catch((error) => {

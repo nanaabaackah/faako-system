@@ -57,10 +57,42 @@ model User {
   email          String        @unique
   password       String
   status         UserStatus    @default(ACTIVE)
+  tokenVersion   Int           @default(0)
+  loginAttempts  Int           @default(0)
+  lockedUntil    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   productivityEntries ProductivityEntry[]
   productivityTodos ProductivityTodo[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  organizationId Int?
+  userId         Int?
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, action, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Booking {

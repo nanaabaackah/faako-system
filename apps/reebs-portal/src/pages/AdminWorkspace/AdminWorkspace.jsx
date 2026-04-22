@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { InlineNotice, SelectField } from "@faako/ui";
 import "./AdminWorkspace.css";
 import { useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -1136,6 +1136,8 @@ function AdminWorkspace({ section = "home" }) {
           fetchActivityFeed(),
           fetchWorkflowData(),
           canViewHomeKpis ? fetchHomeKpis() : Promise.resolve(),
+          canViewHomeKpis ? fetchFinancialStats() : Promise.resolve(),
+          canViewHomeKpis ? fetchStockActivity() : Promise.resolve(),
         ]);
       }
       if (!silent) {
@@ -1150,7 +1152,9 @@ function AdminWorkspace({ section = "home" }) {
     [
       canViewHomeKpis,
       fetchActivityFeed,
+      fetchFinancialStats,
       fetchHomeKpis,
+      fetchStockActivity,
       fetchWorkflowData,
       isOnline,
       loadInventory,
@@ -1246,9 +1250,13 @@ function AdminWorkspace({ section = "home" }) {
     const timer = window.setInterval(() => {
       fetchActivityFeed();
       fetchWorkflowData();
+      if (canViewHomeKpis) {
+        fetchHomeKpis();
+        fetchFinancialStats();
+      }
     }, 60000);
     return () => window.clearInterval(timer);
-  }, [activeSection, fetchActivityFeed, fetchWorkflowData, user?.id]);
+  }, [activeSection, canViewHomeKpis, fetchActivityFeed, fetchFinancialStats, fetchHomeKpis, fetchWorkflowData, user?.id]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -1477,12 +1485,23 @@ function AdminWorkspace({ section = "home" }) {
     ? Math.min(100, Math.round((lowStockCount / Math.max(1, inventoryItemCount)) * 100))
     : 0;
   const lockedInPct = totalRevenue > 0 ? Math.min(100, Math.round((lockedInValue / totalRevenue) * 100)) : 0;
+  const totalOrders = kpiStats?.orders ?? 0;
+  const totalBookings = kpiStats?.bookings ?? 0;
+  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+  const dataFreshnessClass = useMemo(() => {
+    if (!homeUpdatedAt) return "";
+    const ageMs = Date.now() - new Date(homeUpdatedAt).getTime();
+    if (ageMs < 5 * 60 * 1000) return "is-fresh";
+    if (ageMs < 30 * 60 * 1000) return "is-aging";
+    return "is-stale";
+  }, [homeUpdatedAt]);
+  const totalOverdueCount = (myOverdueOrders?.length ?? 0) + (myOverdueBookings?.length ?? 0);
   const revenueMixSegments = useMemo(
     () => [
       { key: "retail", label: "Retail", value: Math.max(0, retailRevenue), color: "#3b82f6" },
       { key: "rental", label: "Rental", value: Math.max(0, rentalRevenue), color: "#14b8a6" },
       { key: "expenses", label: "Expenses", value: Math.max(0, operatingExpensesWindow), color: "#f59e0b" },
-    ],
+    ].filter((s) => s.value > 0),
     [retailRevenue, rentalRevenue, operatingExpensesWindow]
   );
   const revenueMixTotal = useMemo(
@@ -2124,6 +2143,22 @@ function AdminWorkspace({ section = "home" }) {
           meterWidth: lockedInPct,
           path: DASHBOARD_PATHS.bookingsConfirmed,
         },
+        {
+          key: "orders-count",
+          label: "Orders & Bookings",
+          value: String(totalOrders + totalBookings),
+          meta: `${totalOrders} orders • ${totalBookings} bookings`,
+          path: DASHBOARD_PATHS.orders,
+        },
+        {
+          key: "aov",
+          label: "Avg. Order Value",
+          value: avgOrderValue > 0 ? toCurrency(avgOrderValue, "GHS") : "—",
+          meta: totalOrders > 0
+            ? `Across ${totalOrders} order${totalOrders === 1 ? "" : "s"}`
+            : "No orders in window",
+          path: DASHBOARD_PATHS.accounting,
+        },
       ],
       revenueMix: {
         path: DASHBOARD_PATHS.accounting,
@@ -2144,6 +2179,7 @@ function AdminWorkspace({ section = "home" }) {
         deltaLabel: revenueTrendDeltaLabel,
         rangeLabel: revenueTrendRangeLabel,
         spark: revenueTrendSpark,
+        onRetry: fetchFinancialStats,
       },
       stockMovement: {
         path: DASHBOARD_PATHS.inventoryActivity,
@@ -2160,18 +2196,28 @@ function AdminWorkspace({ section = "home" }) {
           stockOut: toNumber(entry.stockOut),
         })),
         velocityMax,
+        onRetry: fetchStockActivity,
       },
       operationalLoad: {
         path: "/admin/bookings",
         bars: operationsBars,
         max: operationsBarsMax,
       },
+      topProducts: kpiStats?.topProducts || [],
+      topRentalBookings: kpiStats?.topRentalBookings || [],
+      dataFreshnessClass,
+      onRetryKpi: fetchHomeKpis,
     }),
     [
       activeWindowConfig.sourceLabel,
+      avgOrderValue,
       canViewHomeKpis,
       dashboardWindow,
+      dataFreshnessClass,
       directoryLoading,
+      fetchFinancialStats,
+      fetchHomeKpis,
+      fetchStockActivity,
       financialError,
       financialLoading,
       financialStats.windowLabel,
@@ -2181,6 +2227,8 @@ function AdminWorkspace({ section = "home" }) {
       kpiError,
       kpiLoading,
       kpiStats?.nextQuarterLabel,
+      kpiStats?.topProducts,
+      kpiStats?.topRentalBookings,
       lockedInPct,
       lockedInValue,
       netAfterExpenses,
@@ -2208,6 +2256,8 @@ function AdminWorkspace({ section = "home" }) {
       stockActivityTotals,
       stockForecastNote,
       totalRevenue,
+      totalBookings,
+      totalOrders,
       velocityMax,
       velocityTotals.stockIn,
       velocityTotals.stockOut,
@@ -2983,7 +3033,7 @@ function AdminWorkspace({ section = "home" }) {
               {surfaceNotice}
             </p>
           )}
-          {surfaceError && <p className="aw-feedback-error">{surfaceError}</p>}
+          {surfaceError && <InlineNotice tone="error" compact message={surfaceError} />}
           {inventoryError && <p className="aw-feedback-note">{inventoryError}</p>}
         </section>
       )}
