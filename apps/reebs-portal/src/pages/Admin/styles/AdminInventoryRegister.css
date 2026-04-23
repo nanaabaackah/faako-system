@@ -778,6 +778,39 @@ body.admin-theme .admin-table tbody tr.is-out td {
   justify-content: center;
 }
 
+.inventory-type-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(100, 100, 120, 0.1);
+  color: var(--text-main);
+  opacity: 0.85;
+}
+
+.inventory-type-pill.is-rental {
+  background: rgba(91, 88, 200, 0.13);
+  color: #4340a8;
+}
+
+.inventory-type-pill.is-shop {
+  background: rgba(15, 143, 120, 0.12);
+  color: #0f6c5b;
+}
+
+.inventory-type-pill.is-outsourced {
+  background: rgba(217, 119, 6, 0.12);
+  color: #92540a;
+}
+
+.inventory-type-pill.is-water {
+  background: rgba(14, 116, 144, 0.12);
+  color: #0e7490;
+}
+
 .inventory-variant-pill {
   display: inline-flex;
   align-items: center;

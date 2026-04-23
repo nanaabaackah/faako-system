@@ -115,6 +115,7 @@ const getOperatingExpenseTotalCents = async ({
 
   if (expenseTable) {
     const hasExpenseOrg = expenseColumns.includes("organizationId");
+    const hasBookingId = expenseColumns.includes("bookingId");
     const { whereClause, params } = buildExpenseFilter({
       hasOrganizationId: hasExpenseOrg,
       organizationId,
@@ -123,10 +124,14 @@ const getOperatingExpenseTotalCents = async ({
       dateExpression: "\"date\"",
     });
 
+    // Exclude expenses linked to bookings — those are billed back to the customer
+    const bookingFilter = hasBookingId ? `${whereClause ? "AND" : "WHERE"} "bookingId" IS NULL` : "";
+
     const expenseRes = await client.query(
       `SELECT COALESCE(SUM(amount), 0) AS expense_cents
        FROM ${expenseTable.queryRef}
-       ${whereClause}`,
+       ${whereClause}
+       ${bookingFilter}`,
       params
     );
 

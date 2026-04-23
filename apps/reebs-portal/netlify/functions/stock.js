@@ -114,6 +114,21 @@ export async function handler(event) {
     };
     await backfillAuditDefaults(client, actor.userId, organizationId);
 
+    // Block StockOut on rental items — capacity is managed through bookings only.
+    if (normalizedType === "StockOut") {
+      const rentalCheck = await client.query(
+        `SELECT "sourceCategoryCode" FROM "product"
+         WHERE id = $1 AND "organizationId" = $2`,
+        [normalizedProductId, organizationId]
+      );
+      const sourceCode = String(rentalCheck.rows[0]?.sourceCategoryCode || "").trim().toUpperCase();
+      if (sourceCode === "RENTAL") {
+        return respond(event, 400, {
+          error: "StockOut is not permitted for rental items. Rental capacity is managed through bookings.",
+        }, { methods: STOCK_METHODS });
+      }
+    }
+
     await client.query("BEGIN");
 
     let updateResult = null;

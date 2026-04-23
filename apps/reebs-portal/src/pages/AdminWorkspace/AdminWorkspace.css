@@ -1548,6 +1548,11 @@ button.aw-activity-item {
   color: #872f2b;
 }
 
+.aw-stock-badge.is-rental {
+  background: rgba(91, 88, 200, 0.13);
+  color: #4340a8;
+}
+
 .aw-stock-actions {
   display: flex;
   align-items: center;
@@ -2031,7 +2036,7 @@ button.aw-activity-item {
   border-bottom: none;
 }
 
-.aw-home-top-list li span {
+.aw-home-top-list li span:not(.aw-home-top-rank) {
   color: var(--aw-muted);
   overflow: hidden;
   text-overflow: ellipsis;

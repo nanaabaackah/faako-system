@@ -3965,7 +3965,7 @@ function Admin() {
                                 >
                                   Edit item
                                 </button>
-                                  {canAdjustInventoryStockDirectly && (
+                                  {canAdjustInventoryStockDirectly && getInventorySegment(item) !== "rental" && (
                                     <button
                                       type="button"
                                       className="inventory-menu-adjust"
@@ -4148,7 +4148,7 @@ function Admin() {
 	                              >
 	                                Edit item
 	                              </button>
-	                              {canAdjustInventoryStockDirectly && (
+	                              {canAdjustInventoryStockDirectly && getInventorySegment(item) !== "rental" && (
 	                                <button
 	                                  type="button"
 	                                  className="inventory-menu-adjust"
@@ -4931,7 +4931,7 @@ function Admin() {
                   />
                 </label>
                 <label>
-                  Stock on hand
+                  {getInventorySegment(detailForm) === "rental" ? "Total units (capacity)" : "Stock on hand"}
                   <input
                     type="number"
                     min="0"
@@ -4942,6 +4942,9 @@ function Admin() {
                   />
                   {detailForm.itemType === "VARIANT_PARENT" && (
                     <span className="admin-field-hint">Parent stock is the sum of its variants.</span>
+                  )}
+                  {getInventorySegment(detailForm) === "rental" && detailForm.itemType !== "VARIANT_PARENT" && (
+                    <span className="admin-field-hint">How many physical units you own. Availability is calculated per booking date.</span>
                   )}
                 </label>
                 <label>

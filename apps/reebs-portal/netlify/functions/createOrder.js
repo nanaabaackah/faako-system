@@ -355,7 +355,7 @@ export async function handler(event) {
 
     const productIds = [...new Set(aggregatedItems.map((item) => item.productId))];
     const productRes = await client.query(
-      `SELECT id, name, price, stock, "isActive", "itemType"
+      `SELECT id, name, price, stock, "isActive", "itemType", "sourceCategoryCode"
        FROM "product"
        WHERE id = ANY($1::int[]) AND "organizationId" = $2
        FOR UPDATE`,
@@ -408,9 +408,14 @@ export async function handler(event) {
       const availableStock = Number(product?.stock ?? 0);
       const isActive = product?.isActive !== false;
       const itemType = String(product?.itemType || "STANDARD").toUpperCase();
+      const sourceCode = String(product?.sourceCategoryCode || "").trim().toUpperCase();
       if (!Number.isFinite(dbPriceCents)) {
         await client.query("ROLLBACK");
         return json(event, 400, { error: `Invalid price for product ${item.productId}.` });
+      }
+      if (sourceCode === "RENTAL") {
+        await client.query("ROLLBACK");
+        return json(event, 400, { error: `"${product?.name || `Item ${item.productId}`}" is a rental item and cannot be added to an order. Use the bookings system instead.` });
       }
       if (!isActive) {
         await client.query("ROLLBACK");

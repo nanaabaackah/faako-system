@@ -58,17 +58,6 @@ WHERE lower(sc."name") = 'rental'
       AND lower(existing."name") = 'rentals'
   );
 
-UPDATE "product" p
-SET "sourceCategoryId" = canonical.id,
-    "updatedAt" = CURRENT_TIMESTAMP
-FROM "sourceCategory" legacy
-JOIN "sourceCategory" canonical
-  ON canonical."organizationId" = legacy."organizationId"
- AND lower(canonical."name") = 'rentals'
-WHERE p."sourceCategoryId" = legacy.id
-  AND p."organizationId" = legacy."organizationId"
-  AND lower(legacy."name") = 'rental';
-
 UPDATE "sourceCategory" legacy
 SET "isActive" = false,
     "updatedAt" = CURRENT_TIMESTAMP
@@ -104,6 +93,18 @@ ALTER TABLE "product"
   ADD COLUMN IF NOT EXISTS "sourceCategoryId" INTEGER,
   ADD COLUMN IF NOT EXISTS "reorderLevel" INTEGER NOT NULL DEFAULT 2,
   ADD COLUMN IF NOT EXISTS "reorderQuantity" INTEGER NOT NULL DEFAULT 0;
+
+-- Re-point products that were linked to the old 'rental' category to the canonical 'rentals' one.
+UPDATE "product" p
+SET "sourceCategoryId" = canonical.id,
+    "updatedAt" = CURRENT_TIMESTAMP
+FROM "sourceCategory" legacy
+JOIN "sourceCategory" canonical
+  ON canonical."organizationId" = legacy."organizationId"
+ AND lower(canonical."name") = 'rentals'
+WHERE p."sourceCategoryId" = legacy.id
+  AND p."organizationId" = legacy."organizationId"
+  AND lower(legacy."name") = 'rental';
 
 DO $$
 BEGIN

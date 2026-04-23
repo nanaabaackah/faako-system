@@ -262,7 +262,11 @@ function BusinessKpiPanel({ panel, onNavigate }) {
   return (
     <PanelShell
       title="Business KPI Dashboard"
-      subtitle={panel.updatedAt ? `Updated ${panel.updatedAt} • ${panel.sourceLabel}` : panel.sourceLabel}
+      subtitle={panel.updatedAt ? (
+        <span className={`aw-freshness${panel.dataFreshnessClass ? ` ${panel.dataFreshnessClass}` : ""}`}>
+          {`Updated ${panel.updatedAt} • ${panel.sourceLabel}`}
+        </span>
+      ) : panel.sourceLabel}
       className="aw-home-kpi-panel"
       actions={(
         <div className="aw-home-kpi-window-pills">
@@ -292,8 +296,21 @@ function BusinessKpiPanel({ panel, onNavigate }) {
         </div>
       )}
     >
-      {panel.loading && <p className="aw-muted">Loading KPI data...</p>}
-      {!panel.loading && panel.error && <InlineNotice tone="error" compact message={panel.error} />}
+      {panel.loading && (
+        <div className="aw-home-kpi-grid" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="aw-skeleton aw-skeleton-kpi-card" />
+          ))}
+        </div>
+      )}
+      {!panel.loading && panel.error && (
+        <div className="aw-chart-error">
+          <InlineNotice tone="error" compact message={panel.error} />
+          <button type="button" className="aw-link-btn" onClick={panel.onRetryKpi}>
+            Retry
+          </button>
+        </div>
+      )}
       {!panel.loading && !panel.error && (
         <>
           <div className="aw-home-kpi-grid">
@@ -303,6 +320,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                 type="button"
                 className="button-card aw-home-kpi-card aw-home-kpi-card-hero"
                 onClick={() => onNavigate(card.path)}
+                aria-label={`${card.label}: ${card.value}`}
               >
                 <p className="aw-home-kpi-label">{card.label}</p>
                 <strong>{card.value}</strong>
@@ -378,9 +396,12 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                 <span>{revenueTrend.windowLabel}</span>
               </div>
               {revenueTrend.loading ? (
-                <p className="aw-muted">Loading revenue trend...</p>
+                <div className="aw-skeleton aw-skeleton-chart-card" aria-hidden="true" />
               ) : revenueTrend.error ? (
-                <InlineNotice tone="error" compact message={revenueTrend.error} />
+                <div className="aw-chart-error">
+                  <InlineNotice tone="error" compact message={revenueTrend.error} />
+                  <button type="button" className="aw-link-btn" onClick={revenueTrend.onRetry}>Retry</button>
+                </div>
               ) : revenueTrend.hasData ? (
                 <div className="aw-home-kpi-spark-panel">
                   <div className="aw-home-kpi-spark-stat">
@@ -413,9 +434,12 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                 <span>12 months + recent velocity</span>
               </div>
               {stockMovement.loading ? (
-                <p className="aw-muted">Loading stock activity...</p>
+                <div className="aw-skeleton aw-skeleton-chart-card" aria-hidden="true" />
               ) : stockMovement.error ? (
-                <InlineNotice tone="error" compact message={stockMovement.error} />
+                <div className="aw-chart-error">
+                  <InlineNotice tone="error" compact message={stockMovement.error} />
+                  <button type="button" className="aw-link-btn" onClick={stockMovement.onRetry}>Retry</button>
+                </div>
               ) : stockMovement.hasData ? (
                 <div className="aw-home-kpi-stock-panel">
                   <div className="aw-home-kpi-stock-summary">
@@ -496,6 +520,46 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               </ul>
             </button>
           </div>
+
+          {(panel.topProducts?.length > 0 || panel.topRentalBookings?.length > 0) && (
+            <div className="aw-home-top-performers">
+              <p className="aw-home-kpi-label">Top performers</p>
+              <div className="aw-home-top-performers-grids">
+                {panel.topProducts?.length > 0 && (
+                  <div>
+                    <p className="aw-home-kpi-label" style={{ fontSize: "0.74rem", marginBottom: "0.3rem" }}>
+                      Best-selling products
+                    </p>
+                    <ul className="aw-home-top-list">
+                      {panel.topProducts.slice(0, 5).map((p, i) => (
+                        <li key={p.id || p.sku || i}>
+                          <span className="aw-home-top-rank">{i + 1}</span>
+                          <span>{p.name || p.sku || "Product"}</span>
+                          <strong>{p.units} unit{p.units === 1 ? "" : "s"}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {panel.topRentalBookings?.length > 0 && (
+                  <div>
+                    <p className="aw-home-kpi-label" style={{ fontSize: "0.74rem", marginBottom: "0.3rem" }}>
+                      Top rental items
+                    </p>
+                    <ul className="aw-home-top-list">
+                      {panel.topRentalBookings.slice(0, 5).map((p, i) => (
+                        <li key={p.id || p.sku || i}>
+                          <span className="aw-home-top-rank">{i + 1}</span>
+                          <span>{p.name || p.sku || "Item"}</span>
+                          <strong>{p.units} unit{p.units === 1 ? "" : "s"}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </PanelShell>

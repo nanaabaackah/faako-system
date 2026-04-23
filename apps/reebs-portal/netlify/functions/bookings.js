@@ -455,9 +455,36 @@ export async function handler(event) {
 
     if (!Number.isFinite(customerId)) return json(event, 400, { error: "customerId is required." });
     if (!eventDate) return json(event, 400, { error: "eventDate is required." });
+    if (eventDate < new Date()) {
+      // Allow same-day bookings; only block dates strictly in the past.
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (eventDate < todayStart) {
+        return json(event, 400, { error: "eventDate cannot be in the past." });
+      }
+    }
     if (!venueAddress) return json(event, 400, { error: "venueAddress is required." });
     if (mergedItems.length === 0) {
       return json(event, 400, { error: "At least one booking item is required." });
+    }
+
+    // Validate that endTime is after startTime when both are provided.
+    if (startTime && endTime) {
+      const parseTime = (value) => {
+        const m = String(value || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (!m) return null;
+        let hours = parseInt(m[1], 10);
+        const minutes = parseInt(m[2], 10);
+        const period = (m[3] || "").toUpperCase();
+        if (period === "PM" && hours !== 12) hours += 12;
+        if (period === "AM" && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+      };
+      const startMinutes = parseTime(startTime);
+      const endMinutes = parseTime(endTime);
+      if (startMinutes !== null && endMinutes !== null && endMinutes <= startMinutes) {
+        return json(event, 400, { error: "endTime must be after startTime." });
+      }
     }
 
     let bundleEligible = mergedItems.length >= BUNDLE_MIN_ITEMS;
@@ -650,24 +677,69 @@ export async function handler(event) {
       }
 
       for (const item of finalItems) {
-        if (!item.variantId) continue;
         const product = productMap.get(item.productId);
-        const variant = variantMap.get(Number(item.variantId));
-        if (!variant || Number(variant.inventoryItemId) !== Number(item.productId)) {
-          await client.query("ROLLBACK");
-          return json(event, 409, { error: `Variant ${item.variantId} does not belong to product ${item.productId}.` });
-        }
-        if (String(variant.status || "active").toLowerCase() !== "active") {
-          await client.query("ROLLBACK");
-          return json(event, 409, { error: `Variant ${item.variantId} is unavailable.` });
-        }
-        const availableVariantStock = Math.max(
-          Number(variant.stockQty || 0) - Number(variant.reservedQty || 0),
-          0
-        );
-        if (shouldReserveVariants && availableVariantStock < item.quantity) {
-          await client.query("ROLLBACK");
-          return json(event, 409, { error: `Insufficient variant stock for ${formatVariantLabel(product?.name, variant)}.` });
+
+        if (item.variantId) {
+          const variant = variantMap.get(Number(item.variantId));
+          if (!variant || Number(variant.inventoryItemId) !== Number(item.productId)) {
+            await client.query("ROLLBACK");
+            return json(event, 409, { error: `Variant ${item.variantId} does not belong to product ${item.productId}.` });
+          }
+          if (String(variant.status || "active").toLowerCase() !== "active") {
+            await client.query("ROLLBACK");
+            return json(event, 409, { error: `Variant ${item.variantId} is unavailable.` });
+          }
+          if (shouldReserveVariants) {
+            // Date-specific check: count units already booked for this exact event date,
+            // excluding the current booking being edited (if PUT).
+            const dateReservedRes = await client.query(
+              `SELECT COALESCE(SUM(bi.quantity), 0)::int AS reserved
+               FROM "bookingItem" bi
+               JOIN "booking" b ON b.id = bi."bookingId"
+               WHERE bi."variantId" = $1
+                 AND bi."organizationId" = $2
+                 AND LOWER(b.status) IN ('pending', 'confirmed')
+                 AND b."eventDate"::date = $3::date
+                 ${bookingId ? `AND b.id != ${Number(bookingId)}` : ""}`,
+              [item.variantId, organizationId, eventDate]
+            );
+            const reservedOnDate = Number(dateReservedRes.rows[0]?.reserved || 0);
+            const availableOnDate = Math.max(Number(variant.stockQty || 0) - reservedOnDate, 0);
+            if (availableOnDate < item.quantity) {
+              await client.query("ROLLBACK");
+              return json(event, 409, { error: `Insufficient availability on this date for ${formatVariantLabel(product?.name, variant)}.` });
+            }
+          }
+        } else {
+          // Non-variant rental item: check date-specific reservations at product level.
+          if (shouldReserveVariants) {
+            // Acquire an advisory lock keyed on (productId, eventDate) so concurrent
+            // requests for the same item on the same date serialize here. Variant items
+            // are already serialized by the FOR UPDATE lock on inventoryVariant above.
+            await client.query(
+              `SELECT pg_advisory_xact_lock(hashtext($1))`,
+              [`booking_avail:${item.productId}:${eventDate.toISOString().slice(0, 10)}`]
+            );
+            const productDateRes = await client.query(
+              `SELECT COALESCE(SUM(bi.quantity), 0)::int AS reserved
+               FROM "bookingItem" bi
+               JOIN "booking" b ON b.id = bi."bookingId"
+               WHERE bi."productId" = $1
+                 AND bi."variantId" IS NULL
+                 AND bi."organizationId" = $2
+                 AND LOWER(b.status) IN ('pending', 'confirmed')
+                 AND b."eventDate"::date = $3::date
+                 ${bookingId ? `AND b.id != ${Number(bookingId)}` : ""}`,
+              [item.productId, organizationId, eventDate]
+            );
+            const reservedOnDate = Number(productDateRes.rows[0]?.reserved || 0);
+            const totalUnits = Number(product?.stock ?? 0);
+            const availableOnDate = Math.max(totalUnits - reservedOnDate, 0);
+            if (availableOnDate < item.quantity) {
+              await client.query("ROLLBACK");
+              return json(event, 409, { error: `Insufficient availability on this date for "${product?.name || `item ${item.productId}`}".` });
+            }
+          }
         }
       }
 
@@ -773,19 +845,15 @@ export async function handler(event) {
           [organizationId, bookingId, item.productId, item.variantId || null, item.quantity, price]
         );
         if (shouldReserveVariants && item.variantId) {
-          const reserveResult = await client.query(
+          // Keep reservedQty counter in sync for display purposes (date check already done above).
+          await client.query(
             `UPDATE "inventoryVariant"
              SET "reservedQty" = "reservedQty" + $1,
                  "updatedAt" = NOW()
              WHERE id = $2
-               AND "organizationId" = $3
-               AND GREATEST("stockQty" - "reservedQty", 0) >= $1`,
+               AND "organizationId" = $3`,
             [item.quantity, item.variantId, organizationId]
           );
-          if (reserveResult.rowCount === 0) {
-            await client.query("ROLLBACK");
-            return json(event, 409, { error: `Unable to reserve variant ${item.variantId}.` });
-          }
         }
       }
 

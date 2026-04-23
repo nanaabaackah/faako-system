@@ -104,6 +104,15 @@ const getQuantity = (item) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const isRentalItem = (item) => {
+  const code = String(
+    item?.sourceCategoryCode || item?.inventoryProductCode || item?.productGroupCode || ""
+  ).trim().toUpperCase();
+  if (code === "RENTAL") return true;
+  const sku = String(item?.sku || "").trim().toUpperCase();
+  return sku.startsWith("REN");
+};
+
 const getPrice = (item) => {
   const parsed = Number(item?.price);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -1487,7 +1496,7 @@ function AdminWorkspace({ section = "home" }) {
   const lockedInPct = totalRevenue > 0 ? Math.min(100, Math.round((lockedInValue / totalRevenue) * 100)) : 0;
   const totalOrders = kpiStats?.orders ?? 0;
   const totalBookings = kpiStats?.bookings ?? 0;
-  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+  const avgOrderValue = totalOrders > 0 ? Math.round((kpiStats?.revenue ?? 0) / totalOrders) : 0;
   const dataFreshnessClass = useMemo(() => {
     if (!homeUpdatedAt) return "";
     const ageMs = Date.now() - new Date(homeUpdatedAt).getTime();
@@ -2366,9 +2375,10 @@ function AdminWorkspace({ section = "home" }) {
   const visibleInventory = useMemo(() => {
     return searchedInventory.filter((item) => {
       const quantity = getQuantity(item);
-      if (stockFilter === "in") return quantity > 0;
+      if (stockFilter === "rental") return isRentalItem(item);
+      if (stockFilter === "in") return quantity > 0 && !isRentalItem(item);
       if (stockFilter === "out") return quantity <= 0;
-      if (stockFilter === "low") return quantity <= LOW_STOCK_THRESHOLD;
+      if (stockFilter === "low") return quantity <= LOW_STOCK_THRESHOLD && !isRentalItem(item);
       return true;
     });
   }, [searchedInventory, stockFilter]);
@@ -2410,7 +2420,9 @@ function AdminWorkspace({ section = "home" }) {
   }, [canViewHomeKpis, roleKey]);
 
   const purchaseCatalog = useMemo(() => {
-    const products = searchedInventory.filter((item) => getQuantity(item) > 0);
+    const products = searchedInventory.filter(
+      (item) => getQuantity(item) > 0 && !isRentalItem(item)
+    );
     return products.slice(0, 80);
   }, [searchedInventory]);
 
@@ -2552,6 +2564,10 @@ function AdminWorkspace({ section = "home" }) {
   const handleQuickStock = async (item, direction) => {
     const quantity = quickQuantity;
     if (quantity <= 0) return;
+    if (isRentalItem(item)) {
+      setSurfaceError(`"${item.name}" is a rental item. Manage capacity through the Inventory editor, not stock adjustments.`);
+      return;
+    }
 
     const movementType = direction === "in" ? "StockIn" : "StockOut";
     const delta = direction === "in" ? quantity : -quantity;
@@ -2701,6 +2717,15 @@ function AdminWorkspace({ section = "home" }) {
             >
               Low
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={stockFilter === "rental"}
+              className={`aw-pill ${stockFilter === "rental" ? "is-active" : ""}`}
+              onClick={() => setStockFilter("rental")}
+            >
+              Rental
+            </button>
           </div>
           <div className="aw-qty-pills" role="tablist" aria-label="Quick quantity">
             {STOCK_ACTION_OPTIONS.map((value) => (
@@ -2726,34 +2751,49 @@ function AdminWorkspace({ section = "home" }) {
               const inBusy = stockBusyId === `${item.id}-in`;
               const quantity = getQuantity(item);
               const isLow = quantity <= LOW_STOCK_THRESHOLD;
+              const isRental = isRentalItem(item);
               return (
                 <article key={item.id} className="glass-card aw-stock-card">
                   <div className="aw-stock-meta">
                     <h3>{item.name}</h3>
                     <p>{item.sku || "No SKU"}</p>
-                    <span className={`aw-stock-badge ${isLow ? "is-low" : ""}`}>
-                      Qty {quantity}
-                    </span>
+                    {isRental ? (
+                      <span className="aw-stock-badge is-rental">
+                        {quantity} unit{quantity !== 1 ? "s" : ""} · Rental
+                      </span>
+                    ) : (
+                      <span className={`aw-stock-badge ${isLow ? "is-low" : ""}`}>
+                        Qty {quantity}
+                      </span>
+                    )}
                   </div>
                   <div className="aw-stock-actions">
-                    <button
-                      type="button"
-                      className="aw-icon-btn danger"
-                      onClick={() => handleQuickStock(item, "out")}
-                      disabled={outBusy}
-                      aria-label={`Reduce stock for ${item.name}`}
-                    >
-                      <AppIcon icon={faMinus} />
-                    </button>
-                    <button
-                      type="button"
-                      className="aw-icon-btn success"
-                      onClick={() => handleQuickStock(item, "in")}
-                      disabled={inBusy}
-                      aria-label={`Increase stock for ${item.name}`}
-                    >
-                      <AppIcon icon={faPlus} />
-                    </button>
+                    {isRental ? (
+                      <span className="aw-muted" style={{ fontSize: "0.78rem" }}>
+                        Manage via bookings
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="aw-icon-btn danger"
+                          onClick={() => handleQuickStock(item, "out")}
+                          disabled={outBusy}
+                          aria-label={`Reduce stock for ${item.name}`}
+                        >
+                          <AppIcon icon={faMinus} />
+                        </button>
+                        <button
+                          type="button"
+                          className="aw-icon-btn success"
+                          onClick={() => handleQuickStock(item, "in")}
+                          disabled={inBusy}
+                          aria-label={`Increase stock for ${item.name}`}
+                        >
+                          <AppIcon icon={faPlus} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </article>
               );
@@ -3010,6 +3050,11 @@ function AdminWorkspace({ section = "home" }) {
           <span className={`aw-online-pill ${isOnline ? "online" : "offline"}`}>
             {isOnline ? "Online" : "Offline"}
           </span>
+          {totalOverdueCount > 0 && (
+            <span className="aw-overdue-badge" role="status" aria-live="polite">
+              {totalOverdueCount} overdue
+            </span>
+          )}
           <button
             type="button"
             className="aw-secondary-btn"

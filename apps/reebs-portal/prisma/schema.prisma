@@ -140,8 +140,8 @@ model Product {
   lastUpdatedAt        DateTime? @default(now())
   
   createdAt            DateTime @default(now())
-  updatedAt            DateTime @default(now()) 
-  
+  updatedAt            DateTime @updatedAt
+
   OrderItem            OrderItem[]
   variants             InventoryVariant[]
   StockMovement        StockMovement[]
@@ -156,6 +156,8 @@ model Product {
   @@unique([organizationId, barcode])
   @@index([sourceCategoryId])
   @@index([organizationId, itemType])
+  @@index([organizationId, sourceCategoryCode])
+  @@index([organizationId, isDeleted, isArchived])
   @@map("product")
 }
 

@@ -10191,6 +10191,9 @@ app.post("/api/webhooks/google-calendar", async (req, res) => {
 
 registerApiFallbackRoute(app);
 registerHealthRoute(app, { environment: APP_ENV });
+
+const serverLogger = createLogger("server");
+
 registerErrorHandler(app, { classifyApiError, isProduction, logger: serverLogger });
 
 const ensureDefaults = async () => {
@@ -10317,8 +10320,6 @@ const initializeBackgroundServices = async () => {
     console.warn("Background jobs are disabled until database connectivity is restored.");
   }
 };
-
-const serverLogger = createLogger("server");
 
 process.on("unhandledRejection", (reason) => {
   serverLogger.error({ err: reason }, "Unhandled promise rejection");

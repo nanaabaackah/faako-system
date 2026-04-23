@@ -497,6 +497,7 @@ export async function handler(event = {}) {
            p."isActive" AS status,
            CASE
              WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
+             WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN 'Available'
              WHEN p.stock IS NOT NULL AND p.stock <= 0 THEN 'Unavailable'
              ELSE 'Available'
            END AS availability,
@@ -561,6 +562,116 @@ export async function handler(event = {}) {
 
     if (method === "GET") {
       const view = requestedView;
+
+      // Single-item lookup: GET /inventory?id=123
+      const singleId = event.queryStringParameters?.id
+        ? Number(event.queryStringParameters.id)
+        : null;
+      if (singleId && Number.isFinite(singleId)) {
+        const singleResult = await client.query(`
+          SELECT
+            p.id,
+            p.sku,
+            p."barcode" AS "barcode",
+            p.name,
+            p.description,
+            p."vendorId" AS "vendorId",
+            p."itemType" AS "itemType",
+            p."sourceCategoryId" AS "sourceCategoryId",
+            sc.name AS "sourceCategoryName",
+            sc.slug AS "sourceCategorySlug",
+            p."sourceCategoryCode" AS "sourceCategoryCode",
+            p."specificCategory"   AS "specificCategory",
+            p.rate,
+            p.page,
+            p.age,
+            (p."price"::numeric / 100) AS price,
+            (p."purchasePriceGbp"::numeric / 100) AS "purchasePriceGbp",
+            (p."purchasePriceGhs"::numeric / 100) AS "purchasePriceGhs",
+            (p."purchasePriceCad"::numeric / 100) AS "purchasePriceCad",
+            (p."stockValue"::numeric / 100) AS "stockValue",
+            (p."saleValue"::numeric / 100) AS "saleValue",
+            p.stock AS quantity,
+            p."imageUrl" AS image,
+            p."imageUrl" AS "imageUrl",
+            p."isActive" AS status,
+            CASE
+              WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
+              WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN 'Available'
+              WHEN p.stock IS NOT NULL AND p.stock <= 0 THEN 'Unavailable'
+              ELSE 'Available'
+            END AS availability,
+            p."attendantsNeeded" AS "attendantsNeeded",
+            p."isArchived" AS "isArchived",
+            p."archivedAt" AS "archivedAt",
+            p."isDeleted" AS "isDeleted",
+            p."deletedAt" AS "deletedAt",
+            p."reorderLevel" AS "reorderLevel",
+            p."reorderQuantity" AS "reorderQuantity",
+            p.currency,
+            p."lastUpdatedAt",
+            p."lastUpdatedByUserId",
+            updater."fullName" AS "lastUpdatedByName",
+            updater.email AS "lastUpdatedByEmail",
+            COALESCE((
+              SELECT json_agg(
+                json_build_object(
+                  'id', v.id,
+                  'inventoryItemId', v."inventoryItemId",
+                  'sku', v.sku,
+                  'variantNumber', v."variantNumber",
+                  'color', v.color,
+                  'size', v.size,
+                  'stockQty', v."stockQty",
+                  'reservedQty', v."reservedQty",
+                  'availableQty', GREATEST(v."stockQty" - v."reservedQty", 0),
+                  'reorderLevel', v."reorderLevel",
+                  'priceOverride', CASE WHEN v."priceOverride" IS NULL THEN NULL ELSE (v."priceOverride"::numeric / 100) END,
+                  'status', v.status
+                )
+                ORDER BY v.id
+              )
+              FROM "inventoryVariant" v
+              WHERE v."organizationId" = p."organizationId"
+                AND v."inventoryItemId" = p.id
+            ), '[]'::json) AS variants
+          FROM "product" p
+          LEFT JOIN "user" updater ON updater.id = p."lastUpdatedByUserId"
+          LEFT JOIN "sourceCategory" sc
+            ON sc.id = p."sourceCategoryId"
+           AND sc."organizationId" = p."organizationId"
+          WHERE p.id = $1
+            AND p."organizationId" = $2
+            AND COALESCE(p."isDeleted", false) = false
+        `, [singleId, organizationId]);
+
+        if (singleResult.rowCount === 0) {
+          return {
+            statusCode: 404,
+            headers: getCorsHeaders(event),
+            body: JSON.stringify({ error: "Item not found." }),
+          };
+        }
+
+        const singleRow = singleResult.rows[0];
+        const vendorMap = await getProductVendorIdsMap(client, {
+          organizationId,
+          productIds: [singleRow.id],
+        });
+        const linkedVendorIds = vendorMap.get(Number(singleRow.id)) || [];
+        const primaryVendorId = linkedVendorIds[0]
+          ?? (Number.isFinite(Number(singleRow.vendorId)) ? Number(singleRow.vendorId) : null);
+        return {
+          statusCode: 200,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify(withInventoryAliases({
+            ...singleRow,
+            vendorId: primaryVendorId,
+            vendorIds: primaryVendorId && !linkedVendorIds.length ? [primaryVendorId] : linkedVendorIds,
+          })),
+        };
+      }
+
       if (view === "edit-requests") {
         const authUser = authenticatedUser;
         if (!authUser || !canApproveInventoryEditRequests(authUser.role)) {
@@ -640,6 +751,7 @@ export async function handler(event = {}) {
           p."isActive" AS status,
           CASE
             WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
+            WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN 'Available'
             WHEN p.stock IS NOT NULL AND p.stock <= 0 THEN 'Unavailable'
             ELSE 'Available'
           END AS availability,
@@ -1010,6 +1122,42 @@ export async function handler(event = {}) {
       }
 
       const actor = buildActorFromUser(authenticatedUser);
+
+      // Block deletion if the item has active (pending/confirmed) bookings or open orders.
+      const activeBookingCheck = await client.query(
+        `SELECT 1 FROM "bookingItem" bi
+         JOIN "booking" b ON b.id = bi."bookingId"
+         WHERE bi."productId" = $1
+           AND bi."organizationId" = $2
+           AND LOWER(b.status) IN ('pending', 'confirmed')
+         LIMIT 1`,
+        [parsedId, organizationId]
+      );
+      if (activeBookingCheck.rowCount > 0) {
+        return {
+          statusCode: 409,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Cannot delete this item — it has active bookings. Cancel or complete all bookings first." }),
+        };
+      }
+
+      const activeOrderCheck = await client.query(
+        `SELECT 1 FROM "orderItem" oi
+         JOIN "order" o ON o.id = oi."orderId"
+         WHERE oi."productId" = $1
+           AND oi."organizationId" = $2
+           AND LOWER(o.status) NOT IN ('cancelled', 'canceled', 'completed', 'delivered')
+         LIMIT 1`,
+        [parsedId, organizationId]
+      );
+      if (activeOrderCheck.rowCount > 0) {
+        return {
+          statusCode: 409,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({ error: "Cannot delete this item — it has open orders. Close all orders first." }),
+        };
+      }
+
       const result = await client.query(
         `UPDATE "product"
          SET "isDeleted" = true,
@@ -1339,7 +1487,7 @@ export async function handler(event = {}) {
            AND id = ANY($6::int[])
            AND COALESCE("isDeleted", false) = false
          RETURNING id, name, "sourceCategoryId", "sourceCategoryCode", "specificCategory", "lastUpdatedAt", "lastUpdatedByUserId"`,
-        [category.id, resolvedSource.sourceCode, specificCategory, actor.userId, organizationId, productIds]
+        [category.id, resolvedSourceCode, specificCategory, actor.userId, organizationId, productIds]
       );
 
       return {
@@ -1727,11 +1875,39 @@ export async function handler(event = {}) {
         return {
           statusCode: 409,
           headers: getCorsHeaders(event),
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             error: "Cannot adjust stock directly on variant parent items.",
             detail: "Variant parent stock is calculated from individual variant stock. Edit variant stock from the variant table instead.",
           }),
         };
+      }
+
+      const isRentalItem = String(currentProduct.sourceCategoryCode || "").trim().toUpperCase() === "RENTAL";
+      if (isRentalItem && nextStock !== previousStock) {
+        const maxBookedRes = await client.query(
+          `SELECT COALESCE(MAX(daily_qty), 0)::int AS max_booked
+           FROM (
+             SELECT SUM(bi.quantity) AS daily_qty
+             FROM "bookingItem" bi
+             JOIN "booking" b ON b.id = bi."bookingId"
+             WHERE bi."productId" = $1
+               AND bi."variantId" IS NULL
+               AND bi."organizationId" = $2
+               AND LOWER(b.status) IN ('pending', 'confirmed')
+             GROUP BY b."eventDate"::date
+           ) daily`,
+          [parsedId, organizationId]
+        );
+        const maxBooked = Number(maxBookedRes.rows[0]?.max_booked || 0);
+        if (nextStock < maxBooked) {
+          return {
+            statusCode: 409,
+            headers: getCorsHeaders(event),
+            body: JSON.stringify({
+              error: `Cannot reduce rental capacity below ${maxBooked} — that many units are already booked on at least one date.`,
+            }),
+          };
+        }
       }
 
       if (!canEditInventoryDirectly(actorRole) && !canRequestInventoryEdit(actorRole)) {
@@ -1948,6 +2124,7 @@ export async function handler(event = {}) {
         "isActive" AS status,
         CASE
           WHEN COALESCE("isActive", true) = false THEN 'Unavailable'
+          WHEN UPPER(COALESCE("sourceCategoryCode", '')) = 'RENTAL' THEN 'Available'
           WHEN stock IS NOT NULL AND stock <= 0 THEN 'Unavailable'
           ELSE 'Available'
         END AS availability,
