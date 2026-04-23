@@ -2004,6 +2004,39 @@ select.input {
   overflow: hidden;
 }
 
+/* Align select and date inputs with shared UI token system.
+   Specificity 0,2,1 beats index.css 0,1,1/0,2,0 rules above,
+   letting --sys-* tokens control the visual and compat.css
+   chevron/calendar rules (0,3,1) remain authoritative. */
+[data-faako-theme] select.input {
+  height: auto;
+  min-height: 3rem;
+  padding: 0 2.75rem 0 0.95rem;
+  border-radius: 1rem;
+  background: var(--sys-surface-strong);
+  border: 1px solid var(--sys-border);
+  color: var(--sys-text);
+  -webkit-text-fill-color: currentColor;
+  background-clip: padding-box;
+  box-sizing: border-box;
+}
+
+[data-faako-theme] .input[type="date"],
+[data-faako-theme] .input[type="month"],
+[data-faako-theme] .input[type="time"],
+[data-faako-theme] .input[type="datetime-local"] {
+  min-height: 3rem;
+  padding: 0 0.95rem;
+  border-radius: 1rem;
+  background: var(--sys-surface-strong);
+  border: 1px solid var(--sys-border);
+  color: var(--sys-text);
+  -webkit-text-fill-color: currentColor;
+  background-clip: padding-box;
+  color-scheme: light dark;
+  box-sizing: border-box;
+}
+
 textarea.input {
   min-height: 110px;
   resize: vertical;
@@ -2020,8 +2053,8 @@ textarea.input {
   .input[type="time"],
   .input[type="datetime-local"] {
     height: auto;
-    min-height: 2.8rem;
-    padding-block: 0.72rem;
+    min-height: 3rem;
+    padding-block: 0.75rem;
   }
 
   .input[type="date"]::-webkit-date-and-time-value,

@@ -7,7 +7,10 @@ import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoiceP
 
 const INVOICE_STATUS_OPTIONS = [
   { value: "DRAFT", label: "Draft" },
+  { value: "QUOTATION", label: "Quotation" },
   { value: "SENT", label: "Sent" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "DECLINED", label: "Declined" },
   { value: "PAID", label: "Paid" },
   { value: "OVERDUE", label: "Overdue" },
   { value: "VOID", label: "Void" },
@@ -17,7 +20,10 @@ const FILTER_STATUS_OPTIONS = [{ value: "all", label: "All" }, ...INVOICE_STATUS
 
 const STATUS_TONE = {
   DRAFT: "info",
+  QUOTATION: "warning",
   SENT: "warning",
+  ACCEPTED: "success",
+  DECLINED: "danger",
   PAID: "success",
   OVERDUE: "danger",
   VOID: "danger",
@@ -227,6 +233,8 @@ const Invoicing = () => {
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
+  const [isSendingQuotation, setIsSendingQuotation] = useState(false);
+  const [isRespondingToQuote, setIsRespondingToQuote] = useState(false);
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
@@ -630,6 +638,71 @@ const Invoicing = () => {
       setError(sendError.message || "Unable to send invoice");
     } finally {
       setIsSendingInvoice(false);
+    }
+  };
+
+  const handleSendQuotation = async () => {
+    if (!selectedInvoice) return;
+    if (!["DRAFT", "SENT"].includes(selectedInvoice.status)) {
+      setError("Only draft or sent invoices can be sent as a quotation.");
+      return;
+    }
+    if (!selectedInvoice.clientEmail) {
+      setError("Add a valid client email before sending the quotation.");
+      return;
+    }
+    setIsSendingQuotation(true);
+    setError("");
+    try {
+      const payload = await apiPost(`/api/invoices/${selectedInvoice.id}/send-quotation`, undefined, {
+        fallbackMessage: "Unable to send quotation",
+      });
+      const nextInvoice = payload?.id ? payload : { ...selectedInvoice, status: "QUOTATION" };
+      setSelectedInvoice(nextInvoice);
+      await loadInvoices({ silent: true });
+      setNotice(`Quotation ${nextInvoice.invoiceNumber} sent to ${selectedInvoice.clientEmail}.`);
+    } catch (sendError) {
+      setError(sendError.message || "Unable to send quotation");
+    } finally {
+      setIsSendingQuotation(false);
+    }
+  };
+
+  const handleAcceptQuotation = async () => {
+    if (!selectedInvoice) return;
+    setIsRespondingToQuote(true);
+    setError("");
+    try {
+      const payload = await apiPost(`/api/invoices/${selectedInvoice.id}/accept`, undefined, {
+        fallbackMessage: "Unable to accept quotation",
+      });
+      const nextInvoice = payload?.id ? payload : { ...selectedInvoice, status: "ACCEPTED" };
+      setSelectedInvoice(nextInvoice);
+      await loadInvoices({ silent: true });
+      setNotice(`Quotation ${nextInvoice.invoiceNumber} marked as accepted.`);
+    } catch (err) {
+      setError(err.message || "Unable to accept quotation");
+    } finally {
+      setIsRespondingToQuote(false);
+    }
+  };
+
+  const handleDeclineQuotation = async () => {
+    if (!selectedInvoice) return;
+    setIsRespondingToQuote(true);
+    setError("");
+    try {
+      const payload = await apiPost(`/api/invoices/${selectedInvoice.id}/decline`, undefined, {
+        fallbackMessage: "Unable to decline quotation",
+      });
+      const nextInvoice = payload?.id ? payload : { ...selectedInvoice, status: "DECLINED" };
+      setSelectedInvoice(nextInvoice);
+      await loadInvoices({ silent: true });
+      setNotice(`Quotation ${nextInvoice.invoiceNumber} marked as declined.`);
+    } catch (err) {
+      setError(err.message || "Unable to decline quotation");
+    } finally {
+      setIsRespondingToQuote(false);
     }
   };
 
@@ -1077,6 +1150,37 @@ const Invoicing = () => {
                         <span>{isSendingInvoice ? "Sending..." : "Send invoice"}</span>
                       </button>
                     ) : null}
+                    {isAdmin && ["DRAFT", "SENT"].includes(selectedInvoice.status) ? (
+                      <button
+                        className="button button-plain"
+                        type="button"
+                        onClick={handleSendQuotation}
+                        disabled={isSendingQuotation || !selectedInvoice.clientEmail}
+                      >
+                        <FiMail aria-hidden="true" />
+                        <span>{isSendingQuotation ? "Sending..." : "Send as quotation"}</span>
+                      </button>
+                    ) : null}
+                    {isAdmin && ["QUOTATION", "SENT"].includes(selectedInvoice.status) ? (
+                      <>
+                        <button
+                          className="button button-plain"
+                          type="button"
+                          onClick={handleAcceptQuotation}
+                          disabled={isRespondingToQuote}
+                        >
+                          <span>Accept quotation</span>
+                        </button>
+                        <button
+                          className="button button-ghost"
+                          type="button"
+                          onClick={handleDeclineQuotation}
+                          disabled={isRespondingToQuote}
+                        >
+                          <span>Decline quotation</span>
+                        </button>
+                      </>
+                    ) : null}
                     <button
                       className="button button-plain"
                       type="button"
@@ -1086,7 +1190,7 @@ const Invoicing = () => {
                       <span>Download PDF</span>
                     </button>
                   </div>
-                  {isAdmin && selectedInvoice.status === "DRAFT" && !selectedInvoice.clientEmail ? (
+                  {isAdmin && ["DRAFT", "SENT"].includes(selectedInvoice.status) && !selectedInvoice.clientEmail ? (
                     <p className="muted">Add a client email before sending this invoice.</p>
                   ) : null}
                 </section>

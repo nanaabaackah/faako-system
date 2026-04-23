@@ -525,8 +525,9 @@ const googleNightlySyncEnabled = ["true", "1", "yes", "on"].includes(
 );
 const googleNightlySyncHour = Number(process.env.GOOGLE_NIGHTLY_SYNC_HOUR ?? 2);
 const googleNightlySyncMinute = Number(process.env.GOOGLE_NIGHTLY_SYNC_MINUTE ?? 0);
-const SITE_STATUS_TIMEOUT_MS = Number(process.env.SITE_STATUS_TIMEOUT_MS ?? 6500);
+const SITE_STATUS_TIMEOUT_MS = Number(process.env.SITE_STATUS_TIMEOUT_MS ?? 12000);
 const SITE_STATUS_CACHE_TTL_MS = Number(process.env.SITE_STATUS_CACHE_TTL_MS ?? 5 * 60 * 1000);
+const SITE_STATUS_FAILURE_CACHE_TTL_MS = 30 * 1000;
 const TRUST_STATS_CACHE_TTL_MS = Number(
   process.env.TRUST_STATS_CACHE_TTL_MS ?? 5 * 60 * 1000
 );
@@ -748,19 +749,19 @@ const checkUrlStatus = async (url) => {
 };
 
 const buildSiteStatus = async () => {
-  const sites = await Promise.all(
-    SITE_PAGES.map(async (site) => {
-      const pages = await Promise.all(
-        site.pages.map(async (page) => {
-          const url = new URL(page.path, site.baseUrl).toString();
-          const status = await checkUrlStatus(url);
-          return { ...page, url, status };
-        })
-      );
-      return { ...site, pages };
-    })
-  );
-  return sites;
+  // Check sites sequentially to avoid cold-start connection burst timeouts.
+  const results = [];
+  for (const site of SITE_PAGES) {
+    const pages = await Promise.all(
+      site.pages.map(async (page) => {
+        const url = new URL(page.path, site.baseUrl).toString();
+        const status = await checkUrlStatus(url);
+        return { ...page, url, status };
+      })
+    );
+    results.push({ ...site, pages });
+  }
+  return results;
 };
 
 const buildSiteStatusFallback = (status = "unknown") =>
@@ -5541,6 +5542,7 @@ registerDashboardRoutes(app, {
   authMiddleware,
   getDashboardVerseHandler,
   getDashboardWeatherHandler,
+  prisma,
 });
 
 app.get("/api/rent/dashboard", authMiddleware, async (req, res) => {
@@ -7153,6 +7155,55 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   res.json(serializeInvoice(updatedInvoice));
 });
 
+const INVOICE_VIEW_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
+
+const generateInvoiceViewToken = () => crypto.randomBytes(32).toString("hex");
+
+const buildInvoiceViewUrl = (token) => {
+  const base = String(process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  return base ? `${base}/invoice/view/${token}` : null;
+};
+
+const resolveInvoiceWithToken = async (token) => {
+  if (!token || typeof token !== "string") return null;
+  const invoice = await prisma.invoice.findFirst({
+    where: { viewToken: token },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  return invoice || null;
+};
+
+const serializePublicInvoice = (invoice) => ({
+  id: invoice.id,
+  invoiceNumber: invoice.invoiceNumber,
+  status: invoice.status,
+  currency: invoice.currency,
+  issueDate: invoice.issueDate,
+  dueDate: invoice.dueDate,
+  clientName: invoice.clientName,
+  clientAddress: invoice.clientAddress ?? null,
+  notes: invoice.notes ?? null,
+  subtotal: Number(invoice.subtotal),
+  taxRate: Number(invoice.taxRate),
+  taxAmount: Number(invoice.taxAmount),
+  discount: Number(invoice.discount),
+  total: Number(invoice.total),
+  organizationName: invoice.organization?.name ?? null,
+  respondedAt: invoice.respondedAt ?? null,
+  viewTokenExpiresAt: invoice.viewTokenExpiresAt ?? null,
+  lineItems: (invoice.lineItems ?? []).map((li) => ({
+    id: li.id,
+    description: li.description,
+    quantity: Number(li.quantity),
+    unitPrice: Number(li.unitPrice),
+    amount: Number(li.amount),
+    sortOrder: li.sortOrder,
+  })),
+});
+
 app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res) => {
   const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const invoiceId = parseInvoiceId(req.params.id);
@@ -7186,6 +7237,10 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
     return res.status(400).json({ error: "Invoice has an invalid client email address." });
   }
 
+  const viewToken = generateInvoiceViewToken();
+  const viewTokenExpiresAt = new Date(Date.now() + INVOICE_VIEW_TOKEN_TTL_MS);
+  const viewInvoiceUrl = buildInvoiceViewUrl(viewToken);
+
   const invoiceSenderName = invoice.organization?.name || INVOICE_EMAIL_SENDER_NAME;
   const { subject, text, html } = buildInvoiceEmailContent(invoice, {
     senderName: invoiceSenderName,
@@ -7194,6 +7249,7 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
     introMessage: INVOICE_EMAIL_INTRO_MESSAGE,
     supportMessage: INVOICE_EMAIL_SUPPORT_MESSAGE,
     closingName: invoice.organization?.name || INVOICE_EMAIL_CLOSING_NAME,
+    viewInvoiceUrl,
   });
   const deliveryTarget = resolveInvoiceDeliveryTarget(recipient);
   const subjectLine = deliveryTarget.wasRerouted ? `[DEV] ${subject}` : subject;
@@ -7242,7 +7298,7 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
 
   const updatedInvoice = await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { status: "SENT" },
+    data: { status: "SENT", viewToken, viewTokenExpiresAt },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -7255,6 +7311,200 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
     intendedRecipient: deliveryTarget.intendedRecipient,
     emailRerouted: deliveryTarget.wasRerouted,
   });
+});
+
+app.post("/api/invoices/:id/send-quotation", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) {
+    return res.status(400).json({ error: "Invoice id must be a valid number." });
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId }
+      : { id: invoiceId, organizationId: req.user.organizationId },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (!["DRAFT", "SENT"].includes(invoice.status)) {
+    return res.status(409).json({ error: "Only draft or sent invoices can be sent as a quotation." });
+  }
+
+  const recipient = String(invoice.clientEmail || "").trim();
+  if (!recipient) {
+    return res.status(400).json({ error: "Invoice requires clientEmail before it can be sent." });
+  }
+  if (!EMAIL_PATTERN.test(recipient)) {
+    return res.status(400).json({ error: "Invoice has an invalid client email address." });
+  }
+
+  const viewToken = generateInvoiceViewToken();
+  const viewTokenExpiresAt = new Date(Date.now() + INVOICE_VIEW_TOKEN_TTL_MS);
+  const viewInvoiceUrl = buildInvoiceViewUrl(viewToken);
+
+  const invoiceSenderName = invoice.organization?.name || INVOICE_EMAIL_SENDER_NAME;
+  const { subject, text, html } = buildInvoiceEmailContent(invoice, {
+    senderName: invoiceSenderName,
+    headerTagline: "Quotation for your review",
+    deliveryLead: "Please review the quotation below and use the link to accept or decline.",
+    introMessage: "We have prepared a quotation for you. Please review the details and let us know your decision.",
+    supportMessage: INVOICE_EMAIL_SUPPORT_MESSAGE,
+    closingName: invoice.organization?.name || INVOICE_EMAIL_CLOSING_NAME,
+    viewInvoiceUrl,
+    isQuotation: true,
+  });
+
+  const deliveryTarget = resolveInvoiceDeliveryTarget(recipient);
+  const subjectLine = deliveryTarget.wasRerouted ? `[DEV] ${subject}` : subject;
+  const textBody = deliveryTarget.wasRerouted
+    ? [`DEV MODE: rerouted from ${deliveryTarget.intendedRecipient}`, "", text].join("\n")
+    : text;
+  const htmlBody = deliveryTarget.wasRerouted
+    ? `<p><strong>DEV MODE:</strong> rerouted from ${escapeHtml(deliveryTarget.intendedRecipient)}</p><hr />${html}`
+    : html;
+
+  if (!EMAIL_PATTERN.test(invoiceFromEmail)) {
+    return res.status(500).json({ error: "INVOICE_FROM_EMAIL is invalid." });
+  }
+
+  try {
+    await sendEmail({
+      fromEmail: invoiceFromEmail,
+      fromName: invoiceSenderName,
+      recipients: [deliveryTarget.deliveryRecipient],
+      subject: subjectLine,
+      text: textBody,
+      html: htmlBody,
+    });
+  } catch (sendError) {
+    const status =
+      Number.isInteger(Number(sendError?.statusCode)) && Number(sendError.statusCode) >= 400
+        ? Number(sendError.statusCode)
+        : 502;
+    return res.status(status).json({ error: sendError?.message || "Unable to send quotation email." });
+  }
+
+  const updatedInvoice = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { status: "QUOTATION", viewToken, viewTokenExpiresAt },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  res.json({
+    ...serializeInvoice(updatedInvoice),
+    deliveryRecipient: deliveryTarget.deliveryRecipient,
+    intendedRecipient: deliveryTarget.intendedRecipient,
+    emailRerouted: deliveryTarget.wasRerouted,
+  });
+});
+
+app.post("/api/invoices/:id/accept", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) return res.status(400).json({ error: "Invoice id must be a valid number." });
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId }
+      : { id: invoiceId, organizationId: req.user.organizationId },
+    include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (!["QUOTATION", "SENT"].includes(invoice.status)) {
+    return res.status(409).json({ error: "Only quotation or sent invoices can be accepted." });
+  }
+
+  const updated = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { status: "ACCEPTED", respondedAt: new Date() },
+    include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(serializeInvoice(updated));
+});
+
+app.post("/api/invoices/:id/decline", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) return res.status(400).json({ error: "Invoice id must be a valid number." });
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId }
+      : { id: invoiceId, organizationId: req.user.organizationId },
+    include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  if (!invoice) return res.status(404).json({ error: "Invoice not found." });
+  if (!["QUOTATION", "SENT"].includes(invoice.status)) {
+    return res.status(409).json({ error: "Only quotation or sent invoices can be declined." });
+  }
+
+  const updated = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { status: "DECLINED", respondedAt: new Date() },
+    include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
+  });
+  res.json(serializeInvoice(updated));
+});
+
+// Public invoice view routes — no auth required
+app.get("/api/invoices/view/:token", async (req, res) => {
+  const invoice = await resolveInvoiceWithToken(req.params.token);
+  if (!invoice) return res.status(404).json({ error: "Invoice link not found." });
+
+  const isExpired = invoice.viewTokenExpiresAt && new Date() > new Date(invoice.viewTokenExpiresAt);
+  if (isExpired) {
+    return res.status(410).json({ error: "This invoice link has expired.", expired: true });
+  }
+
+  res.json({ invoice: serializePublicInvoice(invoice) });
+});
+
+app.post("/api/invoices/view/:token/accept", async (req, res) => {
+  const invoice = await resolveInvoiceWithToken(req.params.token);
+  if (!invoice) return res.status(404).json({ error: "Invoice link not found." });
+
+  const isExpired = invoice.viewTokenExpiresAt && new Date() > new Date(invoice.viewTokenExpiresAt);
+  if (isExpired) return res.status(410).json({ error: "This invoice link has expired.", expired: true });
+
+  if (!["QUOTATION", "SENT"].includes(invoice.status)) {
+    return res.status(409).json({ error: "This invoice has already been responded to." });
+  }
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { status: "ACCEPTED", respondedAt: new Date() },
+  });
+
+  res.json({ message: "Quotation accepted. Thank you!" });
+});
+
+app.post("/api/invoices/view/:token/decline", async (req, res) => {
+  const invoice = await resolveInvoiceWithToken(req.params.token);
+  if (!invoice) return res.status(404).json({ error: "Invoice link not found." });
+
+  const isExpired = invoice.viewTokenExpiresAt && new Date() > new Date(invoice.viewTokenExpiresAt);
+  if (isExpired) return res.status(410).json({ error: "This invoice link has expired.", expired: true });
+
+  if (!["QUOTATION", "SENT"].includes(invoice.status)) {
+    return res.status(409).json({ error: "This invoice has already been responded to." });
+  }
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { status: "DECLINED", respondedAt: new Date() },
+  });
+
+  res.json({ message: "Quotation declined." });
 });
 
 app.get("/api/productivity/entries", authMiddleware, async (req, res) => {
@@ -9348,6 +9598,9 @@ const serializeInvoice = (invoice) => ({
     typeof invoice.total?.toNumber === "function"
       ? invoice.total.toNumber()
       : Number(invoice.total),
+  viewToken: invoice.viewToken ?? null,
+  viewTokenExpiresAt: invoice.viewTokenExpiresAt ? invoice.viewTokenExpiresAt.toISOString() : null,
+  respondedAt: invoice.respondedAt ? invoice.respondedAt.toISOString() : null,
   createdAt: invoice.createdAt ? invoice.createdAt.toISOString() : null,
   updatedAt: invoice.updatedAt ? invoice.updatedAt.toISOString() : null,
   lineItems: Array.isArray(invoice.lineItems) ? invoice.lineItems.map(serializeInvoiceLineItem) : [],

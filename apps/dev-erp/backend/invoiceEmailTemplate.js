@@ -9,6 +9,7 @@ const {
   renderNotice,
   renderPanel,
   renderParagraphs,
+  renderButton,
 } = emailKit;
 
 const formatInvoiceCurrency = (amount, currency) =>
@@ -196,6 +197,10 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     DEFAULT_TEMPLATE_BRANDING.supportMessage;
   const closingName =
     String(templateOptions?.closingName || senderName).trim() || senderName;
+  const viewInvoiceUrl = templateOptions?.viewInvoiceUrl
+    ? String(templateOptions.viewInvoiceUrl).trim()
+    : null;
+  const isQuotation = Boolean(templateOptions?.isQuotation);
 
   const rawLineItems = Array.isArray(invoice?.lineItems) ? invoice.lineItems : [];
   const lineItems = rawLineItems.map((lineItem) => {
@@ -236,7 +241,8 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     `Hello ${clientName},`,
     "",
     deliveryLead,
-    paymentPrompt,
+    isQuotation ? "Use the link below to view and respond to this quotation." : paymentPrompt,
+    ...(viewInvoiceUrl ? [`View ${isQuotation ? "quotation" : "invoice"}: ${viewInvoiceUrl}`] : []),
     "",
     "Invoice details",
     `Invoice number: ${invoiceNumber}`,
@@ -271,15 +277,20 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     closingName,
   ].join("\n");
 
+  const viewButtonHtml = viewInvoiceUrl
+    ? `<div style="margin:0 0 20px;">${renderButton({ href: viewInvoiceUrl, label: isQuotation ? "View & respond to quotation" : "View invoice", theme })}</div>`
+    : "";
+
   const introHtml = [
     renderParagraphs(
       [
         `Hello ${clientName},`,
         introMessage,
-        paymentPrompt,
+        isQuotation ? "Use the button below to view and respond to this quotation." : paymentPrompt,
       ],
       { theme }
     ),
+    viewButtonHtml,
   ].join("");
 
   const summaryHtml = renderMetricGrid(
@@ -412,11 +423,13 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
 
   const html = renderEmailLayout({
     theme,
-    preheader: `Invoice ${invoiceNumber} from ${senderName}. Total due ${formatInvoiceCurrency(total, currency)}.`,
+    preheader: isQuotation
+      ? `Quotation ${invoiceNumber} from ${senderName}. Total ${formatInvoiceCurrency(total, currency)}. Please review and respond.`
+      : `Invoice ${invoiceNumber} from ${senderName}. Total due ${formatInvoiceCurrency(total, currency)}.`,
     brandName: senderName,
     brandTagline: headerTagline,
-    eyebrow: "Invoice",
-    title: `Invoice ${invoiceNumber}`,
+    eyebrow: isQuotation ? "Quotation" : "Invoice",
+    title: `${isQuotation ? "Quotation" : "Invoice"} ${invoiceNumber}`,
     subtitle: `Prepared for ${clientName}`,
     introHtml,
     bodyHtml: [summaryHtml, detailsHtml, lineItemsHtml, totalsHtml, notesHtml].join(""),
@@ -424,7 +437,9 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
   });
 
   return {
-    subject: `Invoice ${invoiceNumber} from ${senderName}`,
+    subject: isQuotation
+      ? `Quotation ${invoiceNumber} from ${senderName} — please review`
+      : `Invoice ${invoiceNumber} from ${senderName}`,
     text,
     html,
   };

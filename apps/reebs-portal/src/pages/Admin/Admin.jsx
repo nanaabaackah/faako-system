@@ -5056,7 +5056,7 @@ function Admin() {
                   <div className="inventory-variant-section-head">
                     <div>
                       <p className="admin-eyebrow">Variants</p>
-                      <h3>Number balloon stock</h3>
+                      <h3>{detailForm.name} stock</h3>
                     </div>
                     <span>{getItemVariants(detailForm).length} variants</span>
                   </div>
@@ -5132,7 +5132,7 @@ function Admin() {
                       onClick={generateDetailNumberVariants}
                       disabled={variantGenerateSaving || !canAdjustInventoryStockDirectly}
                     >
-                      {variantGenerateSaving ? "Generating..." : "Generate number variants"}
+                      {variantGenerateSaving ? "Generating..." : "Generate"}
                     </button>
                   </div>
 

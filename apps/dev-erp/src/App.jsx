@@ -27,6 +27,7 @@ import SetupAccount from "./pages/SetupAccount/SetupAccount";
 import ThemeToggle from "./components/ThemeToggle";
 import Accounting from "./pages/Accounting/Accounting";
 import Invoicing from "./pages/Invoicing/Invoicing";
+import InvoiceView from "./pages/InvoiceView/InvoiceView";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SideNav from "./components/SideNav";
 import ErrorPage from "./pages/ErrorPage/ErrorPage";
@@ -486,6 +487,14 @@ function App() {
           element={
             <RouteBoundary>
               <PublicBooking />
+            </RouteBoundary>
+          }
+        />
+        <Route
+          path="/invoice/view/:token"
+          element={
+            <RouteBoundary>
+              <InvoiceView />
             </RouteBoundary>
           }
         />

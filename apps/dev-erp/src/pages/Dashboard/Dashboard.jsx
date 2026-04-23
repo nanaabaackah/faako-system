@@ -273,6 +273,44 @@ const buildAvailabilityMatrix = (days, bookings, holidayMap) => {
   });
 };
 
+const formatAuditAction = (action) => {
+  const labels = {
+    LOGIN: "User signed in",
+    LOGOUT: "User signed out",
+    CREATE_BOOKING: "Booking created",
+    UPDATE_BOOKING: "Booking updated",
+    DELETE_BOOKING: "Booking deleted",
+    CREATE_PRODUCT: "Product created",
+    UPDATE_PRODUCT: "Product updated",
+    DELETE_PRODUCT: "Product deleted",
+    CREATE_ORDER: "Order created",
+    UPDATE_ORDER: "Order updated",
+    DELETE_ORDER: "Order deleted",
+    CREATE_USER: "User created",
+    UPDATE_USER: "User updated",
+    DELETE_USER: "User removed",
+    STOCK_ADJUSTMENT: "Stock adjusted",
+    EXPORT: "Data exported",
+    IMPORT: "Data imported",
+    PASSWORD_RESET: "Password reset",
+  };
+  if (labels[action]) return labels[action];
+  return String(action)
+    .split("_")
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const getAuditActionMeta = (action) => {
+  const key = String(action).toUpperCase();
+  if (/^DELETE/.test(key)) return { badge: "Delete", priority: "urgent" };
+  if (/^CREATE/.test(key)) return { badge: "New", priority: "normal" };
+  if (/^UPDATE|ADJUST/.test(key)) return { badge: "Update", priority: "normal" };
+  if (/^(LOGIN|LOGOUT|AUTH|PASSWORD)/.test(key)) return { badge: "Auth", priority: "normal" };
+  if (/^(EXPORT|IMPORT)/.test(key)) return { badge: "Data", priority: "normal" };
+  return { badge: "Action", priority: "normal" };
+};
+
 const ModulePanelLink = ({ to, label }) => (
   <>
     <Link className="dashboard-module-panel__link" to={to} aria-label={label} />
@@ -302,6 +340,9 @@ const Dashboard = () => {
   const [verseOfDay, setVerseOfDay] = useState(DEFAULT_DAILY_VERSE);
   const [dailyWeather, setDailyWeather] = useState(DEFAULT_DAILY_WEATHER);
   const [briefRefreshTick, setBriefRefreshTick] = useState(0);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityActiveUsers, setActivityActiveUsers] = useState(0);
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
@@ -687,12 +728,32 @@ const Dashboard = () => {
     };
   }, [weatherCacheKey, briefRefreshTick]);
 
+  const loadActivityLogs = useCallback(async () => {
+    setActivityLoading(true);
+    try {
+      const payload = await apiGet(`/api/dashboard/activity?range=${timeRange}`, {
+        fallbackMessage: "Unable to load activity",
+      });
+      setActivityLogs(Array.isArray(payload.entries) ? payload.entries : []);
+      setActivityActiveUsers(Number(payload.activeUserCount) || 0);
+    } catch (_err) {
+      // silently fall through — timeline still shows synthetic events
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadActivityLogs();
+  }, [loadActivityLogs]);
+
   const handleRefresh = () => {
     if (!isRefreshing) {
       reload({ silent: true });
     }
     loadAvailability();
     loadAccountingSummary({ silent: true });
+    loadActivityLogs();
     setBriefRefreshTick((previous) => previous + 1);
   };
 
@@ -868,7 +929,23 @@ const Dashboard = () => {
       : null,
   ].filter(Boolean);
 
-  const timelineEvents = baseTimelineEvents
+  const auditTimelineEvents = activityLogs.map((log) => {
+    const { badge, priority } = getAuditActionMeta(log.action);
+    const userName = log.user?.fullName || "System";
+    const targetInfo = log.targetType
+      ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ""}`
+      : "";
+    return {
+      id: `audit-${log.id}`,
+      timestamp: log.createdAt,
+      title: formatAuditAction(log.action),
+      detail: [userName, targetInfo].filter(Boolean).join(" · "),
+      badge,
+      priority,
+    };
+  });
+
+  const timelineEvents = [...baseTimelineEvents, ...auditTimelineEvents]
     .filter((event) => {
       const eventTime = new Date(event.timestamp).getTime();
       if (Number.isNaN(eventTime)) return false;
@@ -1548,6 +1625,11 @@ const Dashboard = () => {
               <div className="panel-header">
                 <div>
                   <h3>Activity timeline</h3>
+                  <p className="muted">
+                    {activityLoading
+                      ? "Loading…"
+                      : `${timelineEvents.length} event${timelineEvents.length !== 1 ? "s" : ""} · ${activityActiveUsers} active user${activityActiveUsers !== 1 ? "s" : ""} · ${rangeDescription}`}
+                  </p>
                 </div>
               </div>
               <div className="timeline">
@@ -1557,13 +1639,15 @@ const Dashboard = () => {
                       <span className="timeline-time">{formatDateTime(event.timestamp)}</span>
                       <div>
                         <span className="table-strong">{event.title}</span>
-                        <p className="muted">{event.detail}</p>
+                        {event.detail ? <p className="muted">{event.detail}</p> : null}
                       </div>
                       <span className={`priority is-${event.priority}`}>{event.badge}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="muted">No activity logged in this window.</p>
+                  <p className="muted">
+                    {activityLoading ? "Loading activity…" : "No activity logged in this window."}
+                  </p>
                 )}
               </div>
             </article>

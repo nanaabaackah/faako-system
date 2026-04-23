@@ -255,26 +255,29 @@ model ProductivityTodo {
 }
 
 model Invoice {
-  id             Int           @id @default(autoincrement())
-  organizationId Int
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  invoiceNumber  String
-  status         InvoiceStatus @default(DRAFT)
-  currency       CurrencyCode
-  issueDate      DateTime      @db.Date
-  dueDate        DateTime?     @db.Date
-  paidAt         DateTime?
-  clientName     String
-  clientEmail    String?
-  clientAddress  String?
-  notes          String?
-  subtotal       Decimal       @db.Decimal(14, 2)
-  taxRate        Decimal       @default(0) @db.Decimal(5, 2)
-  taxAmount      Decimal       @default(0) @db.Decimal(14, 2)
-  discount       Decimal       @default(0) @db.Decimal(14, 2)
-  total          Decimal       @db.Decimal(14, 2)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                 Int           @id @default(autoincrement())
+  organizationId     Int
+  organization       Organization  @relation(fields: [organizationId], references: [id])
+  invoiceNumber      String
+  status             InvoiceStatus @default(DRAFT)
+  currency           CurrencyCode
+  issueDate          DateTime      @db.Date
+  dueDate            DateTime?     @db.Date
+  paidAt             DateTime?
+  clientName         String
+  clientEmail        String?
+  clientAddress      String?
+  notes              String?
+  subtotal           Decimal       @db.Decimal(14, 2)
+  taxRate            Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount          Decimal       @default(0) @db.Decimal(14, 2)
+  discount           Decimal       @default(0) @db.Decimal(14, 2)
+  total              Decimal       @db.Decimal(14, 2)
+  viewToken          String?       @unique
+  viewTokenExpiresAt DateTime?
+  respondedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   lineItems InvoiceLineItem[]
 
@@ -282,6 +285,7 @@ model Invoice {
   @@index([organizationId, status])
   @@index([organizationId, dueDate])
   @@index([organizationId, issueDate])
+  @@index([viewToken])
 }
 
 model InvoiceLineItem {
@@ -400,7 +404,10 @@ enum CurrencyCode {
 
 enum InvoiceStatus {
   DRAFT
+  QUOTATION
   SENT
+  ACCEPTED
+  DECLINED
   PAID
   OVERDUE
   VOID
