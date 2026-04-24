@@ -5532,35 +5532,6 @@ function Admin() {
 
                   {canAdjustInventoryStockDirectly && (
                     <div className="inventory-variant-builder">
-                      <div className="inventory-variant-builder-top">
-                        <div className="inventory-variant-builder-heading">
-                          <p className="inventory-variant-builder-label">Dimensions</p>
-                          <p className="inventory-variant-builder-copy">
-                            Mix only the fields you need. Names work well for styles like Kente or Ankara.
-                          </p>
-                        </div>
-                        <div className="inventory-variant-builder-summary">
-                          {detailVariantBuilderSummary.activeDimensions.length > 0 ? (
-                            <>
-                              {detailVariantBuilderSummary.activeDimensions.map((dimension) => (
-                                <span key={dimension.key} className="inventory-variant-builder-chip">
-                                  <strong>{dimension.count}</strong>
-                                  {dimension.label}
-                                </span>
-                              ))}
-                              <span className="inventory-variant-builder-chip inventory-variant-builder-chip--accent">
-                                <strong>{detailVariantBuilderSummary.comboCount}</strong>
-                                Combination{detailVariantBuilderSummary.comboCount === 1 ? "" : "s"}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="inventory-variant-builder-chip inventory-variant-builder-chip--muted">
-                              Add at least one dimension to generate variants.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
                       <div className="inventory-variant-builder-surface">
                         <div className="inventory-variant-builder-fields inventory-variant-builder-fields--dimensions">
                           <label>
@@ -5626,9 +5597,6 @@ function Admin() {
                             </label>
                           </div>
                           <div className="inventory-variant-builder-action-block">
-                            <p className="inventory-variant-builder-note">
-                              Starting stock and any price override are applied to each new combination.
-                            </p>
                             <button
                               type="button"
                               className="admin-secondary inventory-variant-generate-btn"
@@ -5638,7 +5606,6 @@ function Admin() {
                               <span className="inventory-variant-generate-btn-icon" aria-hidden="true">
                                 <AppIcon icon={faRotateRight} size={13} />
                               </span>
-                              <span>{variantGenerateSaving ? "Generating..." : "Generate Variants"}</span>
                             </button>
                           </div>
                         </div>
@@ -5688,7 +5655,6 @@ function Admin() {
                               {showSize && <th>Size</th>}
                               <th>SKU</th>
                               <th>Stock</th>
-                              <th>Available</th>
                               <th>Status</th>
                               {showPriceOverride && <th>Price</th>}
                               {showVariantActions && <th className="inventory-variant-actions-head">Actions</th>}
@@ -5796,17 +5762,19 @@ function Admin() {
                                     </td>
                                   )}
                                   {showVariantActions && (
-                                    <td className="inventory-variant-row-actions">
-                                      <button
-                                        type="button"
-                                        className="inventory-variant-icon-btn inventory-variant-icon-btn--danger"
-                                        onClick={() => deleteDetailVariant(variant.id)}
-                                        disabled={variantActionId === variant.id}
-                                        aria-label="Delete variant"
-                                        title="Delete"
-                                      >
-                                        <AppIcon icon={faTrash} size={13} />
-                                      </button>
+                                    <td className="inventory-variant-row-actions-cell">
+                                      <div className="inventory-variant-row-actions">
+                                        <button
+                                          type="button"
+                                          className="inventory-variant-icon-btn inventory-variant-icon-btn--danger"
+                                          onClick={() => deleteDetailVariant(variant.id)}
+                                          disabled={variantActionId === variant.id}
+                                          aria-label="Delete variant"
+                                          title="Delete"
+                                        >
+                                          <AppIcon icon={faTrash} size={13} />
+                                        </button>
+                                      </div>
                                     </td>
                                   )}
                                 </tr>

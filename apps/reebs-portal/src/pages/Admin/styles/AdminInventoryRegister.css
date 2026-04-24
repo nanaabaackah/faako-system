@@ -1121,8 +1121,13 @@ body.admin-theme .admin-table tbody tr.is-out td {
   text-align: center;
 }
 
+.inventory-variant-row-actions-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
 .inventory-variant-row-actions {
-  display: flex;
+  display: inline-flex;
   gap: 0.25rem;
   align-items: center;
   justify-content: center;
@@ -1258,6 +1263,7 @@ body.admin-theme .admin-table tbody tr.is-out td {
   }
 
   .inventory-variant-row-actions {
+    width: 100%;
     justify-content: flex-start;
   }
 }
