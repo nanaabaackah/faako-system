@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { FiActivity, FiLogOut, FiSearch, FiUser, FiX } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiLogOut,
+  FiSearch,
+  FiUser,
+  FiX,
+} from "react-icons/fi";
 
 const MOBILE_QUERY = "(max-width: 900px)";
 
@@ -14,12 +21,15 @@ const SideNav = ({
   className,
   style,
   isOpen,
+  isCollapsed,
   visibleNavItems,
   navNotifications,
   formatNotificationCount,
   currentUser,
   onOpen,
   onClose,
+  onToggleCollapsed,
+  onExpand,
   onSignOut,
   onTouchStart,
   onTouchMove,
@@ -33,6 +43,7 @@ const SideNav = ({
     return window.matchMedia(MOBILE_QUERY).matches;
   });
   const [navQuery, setNavQuery] = useState("");
+  const isDesktopCollapsed = isCollapsed && !isMobile;
 
   const displayName =
     currentUser?.fullName ||
@@ -78,6 +89,10 @@ const SideNav = ({
           onOpen?.();
           return;
         }
+        if (!isMobile && isCollapsed) {
+          onExpand?.();
+          return;
+        }
         searchFieldRef.current?.focus();
         searchFieldRef.current?.select?.();
         pendingSearchFocusRef.current = false;
@@ -86,11 +101,12 @@ const SideNav = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMobile, isOpen, onOpen]);
+  }, [isCollapsed, isMobile, isOpen, onExpand, onOpen]);
 
   useEffect(() => {
     if (!pendingSearchFocusRef.current) return;
     if (isMobile && !isOpen) return;
+    if (!isMobile && isCollapsed) return;
     if (typeof window === "undefined") return;
     const frame = window.requestAnimationFrame(() => {
       searchFieldRef.current?.focus();
@@ -98,7 +114,7 @@ const SideNav = ({
       pendingSearchFocusRef.current = false;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [isMobile, isOpen]);
+  }, [isCollapsed, isMobile, isOpen]);
 
   const filteredNavItems = useMemo(() => {
     const term = navQuery.trim().toLowerCase();
@@ -124,7 +140,7 @@ const SideNav = ({
   return (
     <>
       <aside
-        className={className}
+        className={[className, isDesktopCollapsed ? "is-collapsed" : ""].filter(Boolean).join(" ")}
         id="erp-sidebar"
         style={style}
         onTouchStart={onTouchStart}
@@ -172,6 +188,9 @@ const SideNav = ({
                 const Icon = item.Icon;
                 const count = Number(navNotifications[item.to] || 0);
                 const hasNotification = count > 0;
+                const collapsedNavLabel = hasNotification
+                  ? `${item.label}, ${count} new`
+                  : item.label;
 
                 return (
                   <NavLink
@@ -180,6 +199,8 @@ const SideNav = ({
                     end={item.to === "/dashboard"}
                     className={({ isActive }) => (isActive ? "active" : "")}
                     onClick={handleSelect}
+                    title={isDesktopCollapsed ? collapsedNavLabel : undefined}
+                    aria-label={isDesktopCollapsed ? collapsedNavLabel : undefined}
                   >
                     <span className="nav-link-main">
                       <Icon
@@ -210,11 +231,23 @@ const SideNav = ({
           </nav>
 
           <div className="erp-sidebar__footer">
-            <button className="erp-sidebar__cta" type="button" onClick={handleSignOutClick}>
+            <button
+              className="erp-sidebar__cta"
+              type="button"
+              onClick={handleSignOutClick}
+              title={isDesktopCollapsed ? "Sign out" : undefined}
+              aria-label={isDesktopCollapsed ? "Sign out" : undefined}
+            >
               <FiLogOut aria-hidden="true" />
               <span>Sign out</span>
             </button>
-            <NavLink to="/profile" className="erp-sidebar__profile" onClick={handleSelect}>
+            <NavLink
+              to="/profile"
+              className="erp-sidebar__profile"
+              onClick={handleSelect}
+              title={isDesktopCollapsed ? displayName : undefined}
+              aria-label={isDesktopCollapsed ? `Profile for ${displayName}` : undefined}
+            >
               <span className="erp-sidebar__avatar" aria-hidden="true">
                 {userInitials}
               </span>
@@ -226,6 +259,21 @@ const SideNav = ({
             </NavLink>
           </div>
         </div>
+        {!isMobile ? (
+          <button
+            className="erp-sidebar__edge-toggle"
+            type="button"
+            onClick={onToggleCollapsed}
+            aria-label={isDesktopCollapsed ? "Expand navigation" : "Collapse navigation"}
+            title={isDesktopCollapsed ? "Expand navigation" : "Collapse navigation"}
+          >
+            {isDesktopCollapsed ? (
+              <FiChevronRight aria-hidden="true" />
+            ) : (
+              <FiChevronLeft aria-hidden="true" />
+            )}
+          </button>
+        ) : null}
       </aside>
       <button
         className={`nav-scrim ${isOpen ? "is-open" : ""}`}

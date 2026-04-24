@@ -100,10 +100,16 @@ button {
 
 .erp-shell {
   --sidebar-width: 326px;
+  --sidebar-collapsed-width: 104px;
   --topbar-height: 72px;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
+  transition: grid-template-columns 0.22s ease;
+}
+
+.erp-shell.is-sidebar-collapsed {
+  --sidebar-width: var(--sidebar-collapsed-width);
 }
 
 .erp-sidebar {
@@ -113,7 +119,7 @@ button {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
 }
 
@@ -123,9 +129,12 @@ button {
   flex-direction: column;
   gap: 1rem;
   padding: 1.15rem;
+  border-radius: 1.5rem;
   color: var(--ink);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  overflow: hidden;
+  transition: padding 0.22s ease, gap 0.22s ease;
 }
 
 .erp-sidebar__header {
@@ -204,6 +213,11 @@ button {
   color: var(--ink);
 }
 
+.nav-toggle svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
 .erp-sidebar__close:focus-visible,
 .nav-toggle:focus-visible {
   outline: 2px solid var(--accent);
@@ -212,6 +226,40 @@ button {
 
 .erp-sidebar__close {
   display: none;
+}
+
+.erp-sidebar__edge-toggle {
+  position: absolute;
+  top: 50%;
+  right: -1.05rem;
+  width: 2.2rem;
+  height: 4.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--card), var(--surface) 12%);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(59, 47, 47, 0.14);
+  transform: translateY(-50%);
+  transition: transform 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+    background 0.18s ease, box-shadow 0.18s ease;
+  z-index: 2;
+}
+
+.erp-sidebar__edge-toggle:hover {
+  transform: translateY(-50%) translateX(1px);
+  color: var(--ink);
+  border-color: color-mix(in oklab, var(--accent), var(--border) 54%);
+  background: color-mix(in oklab, var(--card), var(--surface) 4%);
+  box-shadow: 0 18px 36px rgba(59, 47, 47, 0.18);
+}
+
+.erp-sidebar__edge-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .erp-sidebar__search {
@@ -496,6 +544,94 @@ button {
   flex: 0 0 auto;
 }
 
+.erp-sidebar.is-collapsed .erp-sidebar__panel {
+  align-items: center;
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__header,
+.erp-sidebar.is-collapsed .erp-sidebar__brand,
+.erp-sidebar.is-collapsed .erp-sidebar__footer {
+  width: 100%;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__header,
+.erp-sidebar.is-collapsed .erp-sidebar__brand {
+  justify-content: center;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__brand-copy,
+.erp-sidebar.is-collapsed .erp-sidebar__search,
+.erp-sidebar.is-collapsed .nav-link-main > span,
+.erp-sidebar.is-collapsed .erp-sidebar__cta span,
+.erp-sidebar.is-collapsed .erp-sidebar__profile-copy,
+.erp-sidebar.is-collapsed .erp-sidebar__profile-icon {
+  display: none;
+}
+
+.erp-sidebar.is-collapsed .erp-nav {
+  width: 100%;
+  padding-right: 0;
+}
+
+.erp-sidebar.is-collapsed .erp-nav a {
+  justify-content: center;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.erp-sidebar.is-collapsed .erp-nav a:hover {
+  transform: none;
+}
+
+.erp-sidebar.is-collapsed .erp-nav a::before {
+  left: 0.35rem;
+}
+
+.erp-sidebar.is-collapsed .nav-link-main {
+  width: 100%;
+  justify-content: center;
+  gap: 0;
+}
+
+.erp-sidebar.is-collapsed .nav-badge {
+  position: absolute;
+  top: 0.48rem;
+  right: 0.55rem;
+  min-width: 0.62rem;
+  width: 0.62rem;
+  height: 0.62rem;
+  padding: 0;
+  border-width: 0;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--card), var(--surface) 8%);
+  color: transparent;
+  overflow: hidden;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__footer {
+  justify-items: center;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__cta {
+  width: 3.35rem;
+  height: 3.35rem;
+  padding: 0;
+  border-radius: 1rem;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__profile {
+  justify-content: center;
+  padding-top: 0;
+}
+
+.erp-sidebar.is-collapsed .erp-sidebar__avatar {
+  width: 3rem;
+  height: 3rem;
+  flex-basis: 3rem;
+}
+
 .erp-main {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -517,6 +653,7 @@ button {
   right: 0;
   z-index: 80;
   min-height: var(--topbar-height);
+  transition: left 0.22s ease, padding 0.22s ease;
 }
 
 .topbar-title {
@@ -549,6 +686,7 @@ button {
   padding: 0.42rem 2rem;
   font-size: 0.8rem;
   font-weight: 600;
+  transition: left 0.22s ease, padding 0.22s ease;
 }
 
 .erp-shell.is-offline .erp-content {
@@ -2342,6 +2480,10 @@ textarea.input {
     --mobile-tabbar-clearance: calc(5.8rem + env(safe-area-inset-bottom));
   }
 
+  .erp-shell.is-sidebar-collapsed {
+    --sidebar-width: 0px;
+  }
+
   body {
     overflow-x: hidden;
   }
@@ -2386,6 +2528,7 @@ textarea.input {
     padding: 0.75rem;
     z-index: 120;
     box-shadow: none;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -2408,6 +2551,10 @@ textarea.input {
   .nav-toggle,
   .erp-sidebar__close {
     display: inline-flex;
+  }
+
+  .erp-sidebar__edge-toggle {
+    display: none;
   }
 
   .nav-scrim {
