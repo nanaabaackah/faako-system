@@ -69,8 +69,69 @@ const getVariantAvailableQty = (variant) =>
     ? Math.max(0, Number(variant.availableQty))
     : Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
 
+const isInactiveVariant = (variant) =>
+  String(variant?.status || "active").trim().toLowerCase() === "inactive";
+
+const getVariantParentStock = (variants) =>
+  (Array.isArray(variants) ? variants : []).reduce((sum, variant) => {
+    if (isInactiveVariant(variant)) return sum;
+    return sum + Math.max(0, Number(variant?.stockQty) || 0);
+  }, 0);
+
 const formatVariantName = (itemName, variant) =>
-  [itemName, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
+  [itemName, variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
+    .filter(Boolean)
+    .join(" / ");
+
+const parseVariantDimensionInput = (value) =>
+  String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const normalizeVariantDraftText = (value) => String(value ?? "").trim();
+
+const getDetailVariantAutosaveSignature = (item) =>
+  getItemVariants(item)
+    .map((variant) => ({
+      id: Number(variant?.id) || 0,
+      sku: String(variant?.sku || ""),
+      variantName: String(variant?.variantName || ""),
+      variantNumber: String(variant?.variantNumber || ""),
+      color: String(variant?.color || ""),
+      size: String(variant?.size || ""),
+      stockQty: String(variant?.stockQty ?? ""),
+      status: String(variant?.status || "active"),
+      priceOverride:
+        variant?.priceOverride === null || typeof variant?.priceOverride === "undefined"
+          ? ""
+          : String(variant.priceOverride),
+    }))
+    .sort((a, b) => a.id - b.id);
+
+const buildVariantPersistPayload = (variant) => {
+  const priceOverrideRaw =
+    variant?.priceOverride === null || typeof variant?.priceOverride === "undefined"
+      ? ""
+      : String(variant.priceOverride).trim();
+
+  return {
+    id: Number(variant?.id),
+    sku: normalizeVariantDraftText(variant?.sku),
+    variantName: normalizeVariantDraftText(variant?.variantName) || null,
+    variantNumber: normalizeVariantDraftText(variant?.variantNumber) || null,
+    color: normalizeVariantDraftText(variant?.color) || null,
+    size: normalizeVariantDraftText(variant?.size) || null,
+    stockQty: Number.parseInt(normalizeVariantDraftText(variant?.stockQty) || "0", 10) || 0,
+    status:
+      normalizeVariantDraftText(variant?.status || "active").toLowerCase() === "inactive"
+        ? "inactive"
+        : "active",
+    priceOverride: priceOverrideRaw === "" ? null : Number(priceOverrideRaw),
+  };
+};
+
+const getVariantPersistSignature = (variant) => JSON.stringify(buildVariantPersistPayload(variant));
 
 const normalizeSourceCode = (item) =>
   String(item?.sourceCategoryCode || item?.sourcecategorycode || "")
@@ -587,6 +648,14 @@ function Admin() {
     conversionRate: null,
     cadConversionAccepted: false,
     cadConversionRate: null,
+    hasVariants: false,
+    variantNames: "",
+    variantNumbers: "",
+    variantColors: "",
+    variantSizes: "",
+    variantDefaultStockQty: "0",
+    variantDefaultReorderLevel: "2",
+    variantPriceOverride: "",
   };
   const [newItemRows, setNewItemRows] = useState([{ ...newItemTemplate }]);
   const { user } = useAuth();
@@ -1629,7 +1698,39 @@ function Admin() {
 
   const updateNewItemRow = (index, field, value) => {
     setNewItemRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((row, i) => {
+        if (i !== index) return row;
+
+        if (field === "hasVariants") {
+          const hasVariants = Boolean(value);
+          return {
+            ...row,
+            hasVariants,
+            itemType: hasVariants ? "VARIANT_PARENT" : "STANDARD",
+            quantity: hasVariants ? "0" : row.quantity,
+          };
+        }
+
+        if (field === "itemType") {
+          const nextItemType = String(value || "STANDARD");
+          const nextHasVariants = nextItemType === "VARIANT_PARENT";
+          return {
+            ...row,
+            itemType: nextItemType,
+            hasVariants: nextHasVariants,
+            quantity: nextHasVariants ? "0" : row.quantity,
+          };
+        }
+
+        if (field === "quantity" && row.hasVariants) {
+          return {
+            ...row,
+            quantity: "0",
+          };
+        }
+
+        return { ...row, [field]: value };
+      })
     );
   };
 
@@ -2320,6 +2421,30 @@ function Admin() {
     return priceValue * stockValue;
   }, [detailForm]);
 
+  const detailVariantBuilderSummary = useMemo(() => {
+    const names = parseVariantDimensionInput(detailForm?.variantNames);
+    const numbers = parseVariantDimensionInput(detailForm?.variantNumbers);
+    const colors = parseVariantDimensionInput(detailForm?.variantColors);
+    const sizes = parseVariantDimensionInput(detailForm?.variantSizes);
+    const dimensions = [
+      { key: "names", label: "Names", count: names.length },
+      { key: "numbers", label: "Numbers", count: numbers.length },
+      { key: "colors", label: "Colors", count: colors.length },
+      { key: "sizes", label: "Sizes", count: sizes.length },
+    ];
+    const activeDimensions = dimensions.filter((dimension) => dimension.count > 0);
+    const anyInput = activeDimensions.length > 0;
+    const comboCount = anyInput
+      ? dimensions.reduce((total, dimension) => total * (dimension.count || 1), 1)
+      : 0;
+
+    return {
+      activeDimensions,
+      anyInput,
+      comboCount,
+    };
+  }, [detailForm]);
+
   const resetNewItemForm = () => {
     setNewItemRows([{ ...newItemTemplate }]);
     setNewItemError("");
@@ -2412,6 +2537,10 @@ function Admin() {
       const row = rows[i];
       const priceValue = Number(row.price);
       const quantityValue = Number.parseInt(row.quantity || "0", 10) || 0;
+      const variantNames = String(row.variantNames || "").split(",").map((entry) => entry.trim()).filter(Boolean);
+      const variantNumbers = String(row.variantNumbers || "").split(",").map((entry) => entry.trim()).filter(Boolean);
+      const variantColors = String(row.variantColors || "").split(",").map((entry) => entry.trim()).filter(Boolean);
+      const variantSizes = String(row.variantSizes || "").split(",").map((entry) => entry.trim()).filter(Boolean);
       const hasPurchasePrice = row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null;
       const purchasePriceValue = hasPurchasePrice ? Number(row.purchasePriceGbp) : null;
       const hasCadPrice = row.purchasePriceCad !== "" && row.purchasePriceCad !== null;
@@ -2426,6 +2555,10 @@ function Admin() {
       }
       if (!Number.isFinite(quantityValue) || quantityValue < 0) {
         setNewItemError(`Row ${i + 1}: Quantity must be zero or higher.`);
+        return;
+      }
+      if (row.hasVariants && !variantNames.length && !variantNumbers.length && !variantColors.length && !variantSizes.length) {
+        setNewItemError(`Row ${i + 1}: Add at least one variant dimension or untick variants.`);
         return;
       }
       if (hasPurchasePrice && (!Number.isFinite(purchasePriceValue) || purchasePriceValue < 0)) {
@@ -2475,6 +2608,7 @@ function Admin() {
     setNewItemSaving(true);
     try {
       const created = [];
+      const variantGenerationWarnings = [];
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i];
         const hasPurchasePrice = row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null;
@@ -2525,6 +2659,43 @@ function Admin() {
         if (!response.ok) {
           throw new Error(data?.error || `Row ${i + 1}: Failed to create item.`);
         }
+
+        if (row.hasVariants && data.id) {
+          const vNames = String(row.variantNames || "").split(",").map((s) => s.trim()).filter(Boolean);
+          const vNumbers = String(row.variantNumbers || "").split(",").map((s) => s.trim()).filter(Boolean);
+          const vColors = String(row.variantColors || "").split(",").map((s) => s.trim()).filter(Boolean);
+          const vSizes = String(row.variantSizes || "").split(",").map((s) => s.trim()).filter(Boolean);
+          if (vNames.length || vNumbers.length || vColors.length || vSizes.length) {
+            const vResponse = await fetch("/.netlify/functions/inventoryVariants", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "generate-variants",
+                inventoryItemId: data.id,
+                names: vNames,
+                numbers: vNumbers,
+                colors: vColors,
+                sizes: vSizes,
+                stockQty: Number.parseInt(row.variantDefaultStockQty || "0", 10) || 0,
+                reorderLevel: Number.parseInt(row.variantDefaultReorderLevel || "2", 10) || 2,
+                priceOverride: row.variantPriceOverride === "" ? null : row.variantPriceOverride,
+              }),
+            });
+            const vData = await vResponse.json().catch(() => null);
+            if (vResponse.ok && vData) {
+              const nextVariants = Array.isArray(vData.created) ? vData.created : [];
+              const variantStock = getVariantParentStock(nextVariants);
+              data.itemType = "VARIANT_PARENT";
+              data.variants = nextVariants;
+              data.stock = variantStock;
+              data.quantity = variantStock;
+            } else {
+              const errorMessage = vData?.error || "Variant generation failed.";
+              variantGenerationWarnings.push(`Row ${i + 1}: ${errorMessage}`);
+            }
+          }
+        }
+
         created.push(data);
       }
 
@@ -2534,7 +2705,16 @@ function Admin() {
       }
       resetNewItemForm();
       setNewItemOpen(false);
-      setSuccess(`Added ${created.length} item${created.length === 1 ? "" : "s"}.`);
+      const createdSummary = `Added ${created.length} item${created.length === 1 ? "" : "s"}.`;
+      if (variantGenerationWarnings.length === 1) {
+        setSuccess(`${createdSummary} ${variantGenerationWarnings[0]}`);
+      } else if (variantGenerationWarnings.length > 1) {
+        setSuccess(
+          `${createdSummary} ${variantGenerationWarnings.length} rows still need variant setup review.`
+        );
+      } else {
+        setSuccess(createdSummary);
+      }
     } catch (err) {
       console.error("Create items failed", err);
       setNewItemError(err.message || "Failed to create items.");
@@ -2543,49 +2723,14 @@ function Admin() {
     }
   };
 
-  const getDetailAutosaveSignature = useCallback((form) => {
-    if (!form) return "";
-    const vendorIds = Array.isArray(form.vendorIds)
-      ? form.vendorIds.map((value) => String(value)).sort()
-      : [];
-    return JSON.stringify({
-      id: form.id,
-      name: form.name || "",
-      barcode: form.barcode || "",
-      itemType: form.itemType || "STANDARD",
-      sourceCategoryCode: form.sourceCategoryCode || "",
-      sourceCategoryId: form.sourceCategoryId || "",
-      sourceCategoryName: form.sourceCategoryName || "",
-      specificCategory: form.specificCategory || "",
-      vendorIds,
-      price: form.price ?? "",
-      stock: form.stock ?? "",
-      currency: form.currency || "GHS",
-      purchasePriceGbp: form.purchasePriceGbp ?? "",
-      purchasePriceGhs: form.purchasePriceGhs ?? "",
-      saleValue: form.saleValue ?? "",
-      attendantsNeeded: form.attendantsNeeded ?? "",
-      reorderLevel: form.reorderLevel ?? "",
-      reorderQuantity: form.reorderQuantity ?? "",
-      age: form.age || "",
-      imageUrl: form.imageUrl || "",
-      rate: form.rate || "",
-      description: form.description || "",
-    });
-  }, []);
-
-  const setDetailFromItem = (item) => {
-    if (!item) return;
-    setDetailItem(item);
-    setDetailError("");
-    setDetailAutosaveStatus("idle");
-    setDetailAutosaveAt("");
+  const buildDetailFormState = (item) => {
+    if (!item) return null;
     const itemSourceCategoryId = getSourceCategoryId(item) ? String(getSourceCategoryId(item)) : "";
     const itemSourceCategoryCode = (item.sourceCategoryCode || item.sourcecategorycode || defaultSourceCategoryCode)
       .toString()
       .toUpperCase();
     const itemSourceCategoryName = item.sourceCategoryName || item.sourcecategoryname || "";
-    const nextForm = {
+    return {
       id: item.id,
       name: item.name || "",
       sku: item.sku || "",
@@ -2614,6 +2759,7 @@ function Admin() {
       rate: item.rate || "",
       description: item.description || "",
       variants: getItemVariants(item),
+      variantNames: "",
       variantNumbers: "1,2,3",
       variantColors: "",
       variantSizes: "",
@@ -2621,6 +2767,148 @@ function Admin() {
       variantDefaultReorderLevel: String(getReorderLevel(item)),
       variantPriceOverride: "",
     };
+  };
+
+  const getDetailCoreAutosaveSignature = useCallback((form) => {
+    if (!form) return "";
+    const vendorIds = Array.isArray(form.vendorIds)
+      ? form.vendorIds.map((value) => String(value)).sort()
+      : [];
+    return JSON.stringify({
+      id: form.id,
+      name: form.name || "",
+      barcode: form.barcode || "",
+      itemType: form.itemType || "STANDARD",
+      sourceCategoryCode: form.sourceCategoryCode || "",
+      sourceCategoryId: form.sourceCategoryId || "",
+      sourceCategoryName: form.sourceCategoryName || "",
+      specificCategory: form.specificCategory || "",
+      vendorIds,
+      price: form.price ?? "",
+      stock: getItemType(form) === "VARIANT_PARENT" ? "__variant_parent__" : (form.stock ?? ""),
+      currency: form.currency || "GHS",
+      purchasePriceGbp: form.purchasePriceGbp ?? "",
+      purchasePriceGhs: form.purchasePriceGhs ?? "",
+      saleValue: form.saleValue ?? "",
+      attendantsNeeded: form.attendantsNeeded ?? "",
+      reorderLevel: form.reorderLevel ?? "",
+      reorderQuantity: form.reorderQuantity ?? "",
+      age: form.age || "",
+      imageUrl: form.imageUrl || "",
+      rate: form.rate || "",
+      description: form.description || "",
+    });
+  }, []);
+
+  const getDetailAutosaveSignature = useCallback((form) => {
+    if (!form) return "";
+    return JSON.stringify({
+      ...JSON.parse(getDetailCoreAutosaveSignature(form)),
+      variants: getDetailVariantAutosaveSignature(form),
+    });
+  }, [getDetailCoreAutosaveSignature]);
+
+  const buildCommittedDetailForm = (formSnapshot, committedItem, variantsOverride) => {
+    const committedVariants = Array.isArray(variantsOverride)
+      ? variantsOverride
+      : getItemVariants(committedItem);
+    const committedVariantStock = getVariantParentStock(committedVariants);
+    const committedSourceCategoryId = getSourceCategoryId(committedItem)
+      ? String(getSourceCategoryId(committedItem))
+      : (formSnapshot?.sourceCategoryId || "");
+    const committedSourceCategoryCode =
+      committedItem?.sourceCategoryCode
+      || committedItem?.sourcecategorycode
+      || formSnapshot?.sourceCategoryCode
+      || defaultSourceCategoryCode;
+    const committedSourceCategoryName = getProductDisplayName(
+      committedSourceCategoryId,
+      committedItem?.sourceCategoryName || committedItem?.sourcecategoryname || formSnapshot?.sourceCategoryName,
+      committedSourceCategoryCode
+    );
+
+    return {
+      ...formSnapshot,
+      itemType: committedVariants.length
+        ? "VARIANT_PARENT"
+        : (committedItem?.itemType || formSnapshot?.itemType || "STANDARD"),
+      sku: committedItem?.sku || formSnapshot?.sku || "",
+      sourceCategoryCode: committedSourceCategoryCode,
+      sourceCategoryId: committedSourceCategoryId,
+      sourceCategoryName: committedSourceCategoryName,
+      specificCategory:
+        committedItem?.specificCategory
+        || committedItem?.specificcategory
+        || formSnapshot?.specificCategory
+        || "",
+      variants: committedVariants,
+      stock: String(committedVariants.length ? committedVariantStock : getQuantity(committedItem || formSnapshot)),
+    };
+  };
+
+  const applyCommittedDetailForm = (formSnapshot, committedForm) => {
+    if (!committedForm) return;
+    const savedCoreSignature = getDetailCoreAutosaveSignature(formSnapshot);
+    const savedVariantSignature = getDetailVariantAutosaveSignature(formSnapshot);
+    detailAutosaveBaselineRef.current = getDetailAutosaveSignature(committedForm);
+
+    setDetailForm((prev) => {
+      if (!prev || prev.id !== committedForm.id) return prev;
+
+      const canApplyCore = getDetailCoreAutosaveSignature(prev) === savedCoreSignature;
+      const canApplyVariants = getDetailVariantAutosaveSignature(prev) === savedVariantSignature;
+
+      if (!canApplyCore && !canApplyVariants) {
+        return prev;
+      }
+
+      const nextForm = { ...prev };
+
+      if (canApplyCore) {
+        nextForm.name = committedForm.name;
+        nextForm.barcode = committedForm.barcode;
+        nextForm.itemType = committedForm.itemType;
+        nextForm.sourceCategoryCode = committedForm.sourceCategoryCode;
+        nextForm.sourceCategoryId = committedForm.sourceCategoryId;
+        nextForm.sourceCategoryName = committedForm.sourceCategoryName;
+        nextForm.specificCategory = committedForm.specificCategory;
+        nextForm.vendorIds = committedForm.vendorIds;
+        nextForm.price = committedForm.price;
+        nextForm.currency = committedForm.currency;
+        nextForm.purchasePriceGbp = committedForm.purchasePriceGbp;
+        nextForm.purchasePriceGhs = committedForm.purchasePriceGhs;
+        nextForm.saleValue = committedForm.saleValue;
+        nextForm.attendantsNeeded = committedForm.attendantsNeeded;
+        nextForm.reorderLevel = committedForm.reorderLevel;
+        nextForm.reorderQuantity = committedForm.reorderQuantity;
+        nextForm.age = committedForm.age;
+        nextForm.imageUrl = committedForm.imageUrl;
+        nextForm.rate = committedForm.rate;
+        nextForm.description = committedForm.description;
+
+        if (!getItemVariants(committedForm).length && getItemType(committedForm) !== "VARIANT_PARENT") {
+          nextForm.stock = committedForm.stock;
+        }
+      }
+
+      if (canApplyVariants) {
+        nextForm.variants = getItemVariants(committedForm);
+        if (getItemType(committedForm) === "VARIANT_PARENT" || getItemVariants(committedForm).length) {
+          nextForm.stock = committedForm.stock;
+        }
+      }
+
+      return nextForm;
+    });
+  };
+
+  const setDetailFromItem = (item) => {
+    if (!item) return;
+    setDetailItem(item);
+    setDetailError("");
+    setDetailAutosaveStatus("idle");
+    setDetailAutosaveAt("");
+    const nextForm = buildDetailFormState(item);
     detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
     setDetailForm(nextForm);
   };
@@ -2648,9 +2936,9 @@ function Admin() {
     setDetailForm((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
-  const syncItemVariants = (itemId, variants, itemUpdates = {}) => {
+  const syncItemVariants = (itemId, variants, itemUpdates = {}, options = {}) => {
     const variantList = Array.isArray(variants) ? variants : [];
-    const variantStock = variantList.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+    const variantStock = getVariantParentStock(variantList);
     setItems((prev) =>
       prev.map((item) =>
         Number(item.id) === Number(itemId)
@@ -2678,15 +2966,20 @@ function Admin() {
         : prev
     );
     setDetailForm((prev) =>
-      prev && Number(prev.id) === Number(itemId)
-        ? {
-            ...prev,
-            ...itemUpdates,
-            itemType: itemUpdates.itemType || "VARIANT_PARENT",
-            variants: variantList,
-            stock: String(variantStock),
-          }
-        : prev
+      {
+        if (!prev || Number(prev.id) !== Number(itemId)) return prev;
+        const nextForm = {
+          ...prev,
+          ...itemUpdates,
+          itemType: itemUpdates.itemType || "VARIANT_PARENT",
+          variants: variantList,
+          stock: String(variantStock),
+        };
+        if (options.syncBaseline) {
+          detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
+        }
+        return nextForm;
+      }
     );
   };
 
@@ -2701,61 +2994,118 @@ function Admin() {
 
   const updateDetailVariant = (variantId, field, value) => {
     setDetailForm((prev) =>
-      prev
-        ? {
-            ...prev,
-            variants: getItemVariants(prev).map((variant) =>
-              Number(variant.id) === Number(variantId) ? { ...variant, [field]: value } : variant
-            ),
-          }
-        : prev
+      {
+        if (!prev) return prev;
+        const nextVariants = getItemVariants(prev).map((variant) =>
+          Number(variant.id) === Number(variantId) ? { ...variant, [field]: value } : variant
+        );
+        const nextForm = {
+          ...prev,
+          variants: nextVariants,
+        };
+        if (prev.itemType === "VARIANT_PARENT" || nextVariants.length) {
+          nextForm.stock = String(getVariantParentStock(nextVariants));
+        }
+        return nextForm;
+      }
     );
   };
 
-  const saveDetailVariant = async (variant) => {
-    if (!variant?.id || !detailForm?.id) return;
-    setVariantActionId(variant.id);
-    setDetailError("");
-    try {
+  const persistDirtyDetailVariants = async (formSnapshot, savedItemSnapshot) => {
+    const currentVariants = getItemVariants(formSnapshot);
+    if (!currentVariants.length) return [];
+
+    const savedVariants = getItemVariants(savedItemSnapshot);
+    const savedVariantMap = new Map(savedVariants.map((variant) => [Number(variant.id), variant]));
+    const savedVariantSignatures = new Map(
+      savedVariants.map((variant) => [Number(variant.id), getVariantPersistSignature(variant)])
+    );
+
+    const variantsToSave = currentVariants.reduce((list, variant) => {
+      const payload = buildVariantPersistPayload(variant);
+      const variantLabel =
+        formatVariantName(formSnapshot?.name, variant) || payload.sku || `Variant #${variant?.id || "?"}`;
+
+      if (!Number.isFinite(payload.id) || payload.id <= 0) {
+        throw new Error(`Unable to save ${variantLabel}. Variant id is missing.`);
+      }
+      if (!payload.sku) {
+        throw new Error(`${variantLabel} needs a SKU.`);
+      }
+      if (!Number.isFinite(payload.stockQty) || payload.stockQty < 0) {
+        throw new Error(`${variantLabel} stock must be zero or higher.`);
+      }
+      if (payload.priceOverride !== null && (!Number.isFinite(payload.priceOverride) || payload.priceOverride < 0)) {
+        throw new Error(`${variantLabel} price override must be zero or higher.`);
+      }
+
+      if (savedVariantSignatures.get(payload.id) !== JSON.stringify(payload)) {
+        list.push(payload);
+      }
+
+      return list;
+    }, []);
+
+    const nextVariants = currentVariants.map((variant) => savedVariantMap.get(Number(variant.id)) || variant);
+    if (!variantsToSave.length) return nextVariants;
+
+    for (const payload of variantsToSave) {
       const response = await fetch("/.netlify/functions/inventoryVariants", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: variant.id,
-          sku: variant.sku,
-          variantNumber: variant.variantNumber,
-          color: variant.color,
-          size: variant.size,
-          stockQty: Number.parseInt(variant.stockQty || "0", 10) || 0,
-          reservedQty: Number.parseInt(variant.reservedQty || "0", 10) || 0,
-          reorderLevel: Number.parseInt(variant.reorderLevel || "0", 10) || 0,
-          priceOverride: variant.priceOverride === "" ? null : variant.priceOverride,
-          status: variant.status || "active",
-        }),
+        body: JSON.stringify(payload),
       });
-      const payload = await response.json().catch(() => null);
+      const updatedVariant = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to save variant.");
+        throw new Error(updatedVariant?.error || "Failed to save variant changes.");
       }
-      const nextVariants = getItemVariants(detailForm).map((row) =>
-        Number(row.id) === Number(payload.id) ? payload : row
+
+      const replaceIndex = nextVariants.findIndex((variant) => Number(variant.id) === Number(updatedVariant.id));
+      if (replaceIndex >= 0) {
+        nextVariants[replaceIndex] = updatedVariant;
+      }
+    }
+
+    return nextVariants;
+  };
+
+  const deleteDetailVariant = async (variantId) => {
+    if (!variantId || !detailForm?.id) return;
+    setVariantActionId(variantId);
+    setDetailError("");
+    try {
+      const response = await fetch(
+        `/.netlify/functions/inventoryVariants?id=${encodeURIComponent(variantId)}`,
+        { method: "DELETE" }
       );
-      syncItemVariants(detailForm.id, nextVariants);
-      setSuccess(`Updated ${formatVariantName(detailForm.name, payload)}.`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Failed to delete variant.");
+      const nextVariants = getItemVariants(detailForm).filter((v) => Number(v.id) !== Number(variantId));
+      syncItemVariants(
+        detailForm.id,
+        nextVariants,
+        nextVariants.length ? { itemType: "VARIANT_PARENT" } : { itemType: "STANDARD" },
+        { syncBaseline: true }
+      );
+      setSuccess("Variant deleted.");
     } catch (err) {
-      console.error("Variant update failed", err);
-      setDetailError(err.message || "Failed to save variant.");
+      console.error("Variant delete failed", err);
+      setDetailError(err.message || "Failed to delete variant.");
     } finally {
       setVariantActionId(null);
     }
   };
 
-  const generateDetailNumberVariants = async () => {
+  const generateDetailVariants = async () => {
     if (!detailForm?.id) return;
     setVariantGenerateSaving(true);
     setDetailError("");
     setSuccess("");
     try {
+      const names = String(detailForm.variantNames || "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
       const numbers = String(detailForm.variantNumbers || "")
         .split(",")
         .map((entry) => entry.trim())
@@ -2768,12 +3118,17 @@ function Admin() {
         .split(",")
         .map((entry) => entry.trim())
         .filter(Boolean);
+      if (!names.length && !numbers.length && !colors.length && !sizes.length) {
+        setDetailError("Enter at least one dimension — names, numbers, colors, or sizes.");
+        return;
+      }
       const response = await fetch("/.netlify/functions/inventoryVariants", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "generate-number-variants",
+          action: "generate-variants",
           productId: detailForm.id,
+          names,
           numbers,
           colors,
           sizes,
@@ -2784,10 +3139,19 @@ function Admin() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to generate number variants.");
+        throw new Error(payload?.error || "Failed to generate variants.");
       }
       const variants = await fetchItemVariants(detailForm.id);
-      syncItemVariants(detailForm.id, variants, { itemType: "VARIANT_PARENT" });
+      syncItemVariants(detailForm.id, variants, { itemType: "VARIANT_PARENT" }, { syncBaseline: true });
+      setDetailForm((prev) => prev ? {
+        ...prev,
+        variantNames: "",
+        variantNumbers: "",
+        variantColors: "",
+        variantSizes: "",
+        variantDefaultStockQty: "0",
+        variantPriceOverride: "",
+      } : prev);
       setSuccess(`Generated ${payload?.createdCount || 0} variant${Number(payload?.createdCount) === 1 ? "" : "s"}.`);
     } catch (err) {
       console.error("Variant generation failed", err);
@@ -2816,7 +3180,13 @@ function Admin() {
     }
 
     const name = formSnapshot.name.trim();
-    const stockValue = Number.parseInt(formSnapshot.stock, 10);
+    const savedFormSnapshot = buildDetailFormState(detailItem) || formSnapshot;
+    const currentVariants = getItemVariants(formSnapshot);
+    const isVariantParent = getItemType(formSnapshot) === "VARIANT_PARENT";
+    const derivedVariantStock = currentVariants.length ? getVariantParentStock(currentVariants) : getQuantity(detailItem);
+    const enteredStockValue = Number.parseInt(formSnapshot.stock, 10);
+    const stockValue = isVariantParent ? derivedVariantStock : enteredStockValue;
+    const inventoryStockValue = isVariantParent ? getQuantity(detailItem) : stockValue;
     const priceValue = Number(formSnapshot.price);
     const reorderLevelValue =
       formSnapshot.reorderLevel !== "" ? Number.parseInt(formSnapshot.reorderLevel, 10) : null;
@@ -2827,6 +3197,10 @@ function Admin() {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value) && value > 0)
       : [];
+    const hasCoreChanges =
+      getDetailCoreAutosaveSignature(formSnapshot) !== getDetailCoreAutosaveSignature(savedFormSnapshot);
+    const hasVariantChanges =
+      getDetailVariantAutosaveSignature(formSnapshot) !== getDetailVariantAutosaveSignature(savedFormSnapshot);
     const failDetailSave = (message) => {
       setDetailError(message);
       setDetailAutosaveStatus("error");
@@ -2836,13 +3210,12 @@ function Admin() {
       failDetailSave("Name is required.");
       return;
     }
-    if (!Number.isFinite(stockValue) || stockValue < 0) {
+    if (!Number.isFinite(enteredStockValue) || enteredStockValue < 0) {
       failDetailSave("Stock must be zero or higher.");
       return;
     }
 
-    // Check if this is a variant parent and stock is being changed
-    if (getItemType(formSnapshot) === "VARIANT_PARENT" && stockValue !== getQuantity(detailItem)) {
+    if (isVariantParent && enteredStockValue !== derivedVariantStock) {
       failDetailSave("Cannot adjust stock directly on variant parent items. Edit individual variant stock instead.");
       return;
     }
@@ -2866,6 +3239,13 @@ function Admin() {
       return;
     }
 
+    if (!hasCoreChanges && !hasVariantChanges) {
+      setDetailAutosaveStatus("saved");
+      setDetailAutosaveAt(new Date().toISOString());
+      setDetailError("");
+      return;
+    }
+
     if (detailAutosaveTimerRef.current) {
       clearTimeout(detailAutosaveTimerRef.current);
       detailAutosaveTimerRef.current = null;
@@ -2874,56 +3254,75 @@ function Admin() {
     setDetailAutosaveStatus(autosave ? "saving" : "manual-saving");
     setDetailError("");
     try {
-      const response = await fetch("/.netlify/functions/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: formSnapshot.id,
-          name,
-          barcode: formSnapshot.barcode || undefined,
-          priceCents: Math.round(priceValue * 100),
-          stock: stockValue,
-          itemType: formSnapshot.itemType || "STANDARD",
-          sourceCategoryCode: formSnapshot.sourceCategoryCode,
-          sourceCategoryId: formSnapshot.sourceCategoryId || undefined,
-          sourceCategoryName: formSnapshot.sourceCategoryName || undefined,
-          specificCategory: formSnapshot.specificCategory || undefined,
-          vendorIds: selectedVendorIds,
-          description: formSnapshot.description || undefined,
-          currency: formSnapshot.currency || "GHS",
-          purchasePriceGbpCents:
-            formSnapshot.purchasePriceGbp !== ""
-              ? Math.round(Number(formSnapshot.purchasePriceGbp) * 100)
-              : undefined,
-          purchasePriceGhsCents:
-            formSnapshot.purchasePriceGhs !== ""
-              ? Math.round(Number(formSnapshot.purchasePriceGhs) * 100)
-              : undefined,
-          saleValueCents:
-            formSnapshot.saleValue !== "" ? Math.round(Number(formSnapshot.saleValue) * 100) : undefined,
-          attendantsNeeded:
-            formSnapshot.attendantsNeeded !== "" ? Number(formSnapshot.attendantsNeeded) : undefined,
-          reorderLevel: Number.isFinite(reorderLevelValue) ? reorderLevelValue : undefined,
-          reorderQuantity: Number.isFinite(reorderQuantityValue) ? reorderQuantityValue : undefined,
-          age: formSnapshot.age || undefined,
-          imageUrl: formSnapshot.imageUrl || undefined,
-          rate: formSnapshot.rate || undefined,
-          userId: user?.id,
-          userName:
-            user?.fullName ||
-            user?.name ||
-            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-            undefined,
-          userEmail: user?.email,
-        }),
-      });
+      let response = null;
+      let payload = detailItem || {};
 
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.detail || payload?.error || "Failed to update item.");
+      if (hasCoreChanges) {
+        response = await fetch("/.netlify/functions/inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: formSnapshot.id,
+            name,
+            barcode: formSnapshot.barcode || undefined,
+            priceCents: Math.round(priceValue * 100),
+            stock: inventoryStockValue,
+            itemType: formSnapshot.itemType || "STANDARD",
+            sourceCategoryCode: formSnapshot.sourceCategoryCode,
+            sourceCategoryId: formSnapshot.sourceCategoryId || undefined,
+            sourceCategoryName: formSnapshot.sourceCategoryName || undefined,
+            specificCategory: formSnapshot.specificCategory || undefined,
+            vendorIds: selectedVendorIds,
+            description: formSnapshot.description || undefined,
+            currency: formSnapshot.currency || "GHS",
+            purchasePriceGbpCents:
+              formSnapshot.purchasePriceGbp !== ""
+                ? Math.round(Number(formSnapshot.purchasePriceGbp) * 100)
+                : undefined,
+            purchasePriceGhsCents:
+              formSnapshot.purchasePriceGhs !== ""
+                ? Math.round(Number(formSnapshot.purchasePriceGhs) * 100)
+                : undefined,
+            saleValueCents:
+              formSnapshot.saleValue !== "" ? Math.round(Number(formSnapshot.saleValue) * 100) : undefined,
+            attendantsNeeded:
+              formSnapshot.attendantsNeeded !== "" ? Number(formSnapshot.attendantsNeeded) : undefined,
+            reorderLevel: Number.isFinite(reorderLevelValue) ? reorderLevelValue : undefined,
+            reorderQuantity: Number.isFinite(reorderQuantityValue) ? reorderQuantityValue : undefined,
+            age: formSnapshot.age || undefined,
+            imageUrl: formSnapshot.imageUrl || undefined,
+            rate: formSnapshot.rate || undefined,
+            userId: user?.id,
+            userName:
+              user?.fullName ||
+              user?.name ||
+              [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+              undefined,
+            userEmail: user?.email,
+          }),
+        });
+
+        payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.detail || payload?.error || "Failed to update item.");
+        }
       }
 
-      if (response.status === 202 || payload?.status === "pending_approval") {
+      const nextVariants = hasVariantChanges
+        ? await persistDirtyDetailVariants(formSnapshot, detailItem)
+        : getItemVariants(savedFormSnapshot);
+      const variantStock = getVariantParentStock(nextVariants);
+      const mergedPayload = {
+        ...(detailItem || {}),
+        ...payload,
+        variants: nextVariants,
+        itemType: nextVariants.length ? "VARIANT_PARENT" : (payload.itemType || formSnapshot.itemType || "STANDARD"),
+        quantity: nextVariants.length ? variantStock : getQuantity(payload),
+        stock: nextVariants.length ? variantStock : getQuantity(payload),
+      };
+      const committedForm = buildCommittedDetailForm(formSnapshot, mergedPayload, nextVariants);
+
+      if (response && (response.status === 202 || payload?.status === "pending_approval")) {
         setDetailAutosaveStatus("saved");
         setDetailAutosaveAt(new Date().toISOString());
         setSuccess(payload?.message || "Changes sent for manager approval.");
@@ -2936,47 +3335,32 @@ function Admin() {
             const updatedItem = allItems?.find((item) => Number(item.id) === Number(formSnapshot.id));
             if (updatedItem) {
               setDetailItem(updatedItem);
-              const updatedForm = {
-                ...formSnapshot,
-                stock: String(getQuantity(updatedItem)),
-                sku: updatedItem.sku || formSnapshot.sku,
-              };
-              setDetailForm(updatedForm);
-              detailAutosaveBaselineRef.current = getDetailAutosaveSignature(updatedForm);
+              applyCommittedDetailForm(
+                formSnapshot,
+                buildCommittedDetailForm(formSnapshot, updatedItem, getItemVariants(updatedItem))
+              );
             } else {
               // Fallback: use current form as baseline
-              detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+              applyCommittedDetailForm(formSnapshot, committedForm);
             }
           } else {
             // Fallback: use current form as baseline if refresh fails
-            detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+            applyCommittedDetailForm(formSnapshot, committedForm);
           }
         } catch (refreshErr) {
           console.warn("Failed to refresh item data after edit request", refreshErr);
           // Fallback: use current form as baseline if refresh fails
-          detailAutosaveBaselineRef.current = getDetailAutosaveSignature(formSnapshot);
+          applyCommittedDetailForm(formSnapshot, committedForm);
         }
         return;
       }
 
-      setItems((prev) => prev.map((row) => (row.id === payload.id ? { ...row, ...payload } : row)));
-      setDetailItem((prev) => (prev && prev.id === payload.id ? { ...prev, ...payload } : prev));
-      setDetailForm((prev) => {
-        if (!prev || prev.id !== payload.id) return prev;
-        const nextForm = {
-          ...prev,
-          sku: payload.sku || prev.sku,
-          sourceCategoryId: getSourceCategoryId(payload) ? String(getSourceCategoryId(payload)) : prev.sourceCategoryId,
-          sourceCategoryName: payload.sourceCategoryName || prev.sourceCategoryName,
-          specificCategory: payload.specificCategory || prev.specificCategory,
-          stock: String(getQuantity(payload)),
-        };
-        detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
-        return nextForm;
-      });
+      setItems((prev) => prev.map((row) => (row.id === mergedPayload.id ? { ...row, ...mergedPayload } : row)));
+      setDetailItem((prev) => (prev && prev.id === mergedPayload.id ? { ...prev, ...mergedPayload } : prev));
+      applyCommittedDetailForm(formSnapshot, committedForm);
       setDetailAutosaveStatus("saved");
       setDetailAutosaveAt(new Date().toISOString());
-      setSuccess(`${autosave ? "Autosaved" : "Updated"} ${payload.name || "item"}.`);
+      setSuccess(`${autosave ? "Autosaved" : "Updated"} ${mergedPayload.name || "item"}.`);
     } catch (err) {
       console.error("Update item failed", err);
       setDetailError(err.message || "Failed to update item.");
@@ -3152,8 +3536,8 @@ function Admin() {
             return {
               ...item,
               variants: nextVariants,
-              quantity: nextVariants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0),
-              stock: nextVariants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0),
+              quantity: getVariantParentStock(nextVariants),
+              stock: getVariantParentStock(nextVariants),
               lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
               lastUpdatedByName: payload.lastUpdatedByName || actorName,
             };
@@ -3178,10 +3562,7 @@ function Admin() {
                 }
               : variant
           );
-          const nextStock = nextVariants.reduce(
-            (sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0),
-            0
-          );
+          const nextStock = getVariantParentStock(nextVariants);
           return {
             ...prev,
             variants: nextVariants,
@@ -4469,7 +4850,7 @@ function Admin() {
                         />
                       </label>
                       <label>
-                        Qty
+                        {row.hasVariants ? "Parent stock" : "Qty"}
                         <input
                           type="number"
                           min="0"
@@ -4477,7 +4858,13 @@ function Admin() {
                           value={row.quantity}
                           onChange={(e) => updateNewItemRow(index, "quantity", e.target.value)}
                           placeholder="0"
+                          disabled={row.hasVariants}
                         />
+                        {row.hasVariants && (
+                          <span className="admin-field-hint">
+                            Parent stock is calculated from the generated variants below.
+                          </span>
+                        )}
                       </label>
                       <label>
                         Item type
@@ -4644,6 +5031,83 @@ function Admin() {
                           </div>
                         </div>
                       </div>
+
+                      {canAdjustInventoryStockDirectly && (
+                        <div className="admin-new-item-field--full admin-new-item-variants-toggle">
+                          <label className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={row.hasVariants}
+                              onChange={(e) => updateNewItemRow(index, "hasVariants", e.target.checked)}
+                            />
+                            This item has variants (names, colors, sizes, numbers)
+                          </label>
+                          {row.hasVariants && (
+                            <div className="inventory-variant-generator admin-new-item-variant-gen">
+                              <label>
+                                Names
+                                <input
+                                  type="text"
+                                  value={row.variantNames}
+                                  onChange={(e) => updateNewItemRow(index, "variantNames", e.target.value)}
+                                  placeholder="Kente, Ankara"
+                                />
+                              </label>
+                              <label>
+                                Numbers
+                                <input
+                                  type="text"
+                                  value={row.variantNumbers}
+                                  onChange={(e) => updateNewItemRow(index, "variantNumbers", e.target.value)}
+                                  placeholder="1, 2, 3 or A1, A2"
+                                />
+                              </label>
+                              <label>
+                                Colors
+                                <input
+                                  type="text"
+                                  value={row.variantColors}
+                                  onChange={(e) => updateNewItemRow(index, "variantColors", e.target.value)}
+                                  placeholder="Gold, Silver"
+                                />
+                              </label>
+                              <label>
+                                Sizes
+                                <input
+                                  type="text"
+                                  value={row.variantSizes}
+                                  onChange={(e) => updateNewItemRow(index, "variantSizes", e.target.value)}
+                                  placeholder="S, M, L or 16in"
+                                />
+                              </label>
+                              <label>
+                                Starting stock
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={row.variantDefaultStockQty}
+                                  onChange={(e) => updateNewItemRow(index, "variantDefaultStockQty", e.target.value)}
+                                />
+                              </label>
+                              <label>
+                                Price override
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={row.variantPriceOverride}
+                                  onChange={(e) => updateNewItemRow(index, "variantPriceOverride", e.target.value)}
+                                  placeholder="Optional"
+                                />
+                              </label>
+                              <p className="admin-field-hint admin-new-item-field--full">
+                                Use names for styles like Kente or Ankara. Fill at least one dimension and every combination will be created.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <label className="admin-new-item-field--full">
                         Description
@@ -5051,217 +5515,315 @@ function Admin() {
                 </div>
               </div>
 
-              {(detailForm.itemType === "VARIANT_PARENT" || getItemVariants(detailForm).length > 0) && (
+              {(canAdjustInventoryStockDirectly || detailForm.itemType === "VARIANT_PARENT" || getItemVariants(detailForm).length > 0) && (
                 <section className="inventory-variant-section">
                   <div className="inventory-variant-section-head">
-                    <div>
+                    <div className="inventory-variant-section-title">
                       <p className="admin-eyebrow">Variants</p>
-                      <h3>{detailForm.name} stock</h3>
+                      <h3>{detailForm.name}</h3>
+                      <p className="inventory-variant-intro">
+                        Build combinations with names, numbers, colors, and sizes. Parent stock updates automatically from the variant rows below.
+                      </p>
                     </div>
-                    <span>{getItemVariants(detailForm).length} variants</span>
+                    <span className="inventory-variant-count">
+                      {getItemVariants(detailForm).length} variant{getItemVariants(detailForm).length === 1 ? "" : "s"}
+                    </span>
                   </div>
 
-                  <div className="inventory-variant-generator">
-                    <label>
-                      Numbers
-                      <input
-                        type="text"
-                        value={detailForm.variantNumbers}
-                        onChange={(event) => updateDetailForm("variantNumbers", event.target.value)}
-                        placeholder="1,2,3 or 10,11,12 or A1,A2,A3"
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <label>
-                      Colors
-                      <input
-                        type="text"
-                        value={detailForm.variantColors}
-                        onChange={(event) => updateDetailForm("variantColors", event.target.value)}
-                        placeholder="Gold, Silver"
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <label>
-                      Sizes
-                      <input
-                        type="text"
-                        value={detailForm.variantSizes}
-                        onChange={(event) => updateDetailForm("variantSizes", event.target.value)}
-                        placeholder="16in"
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <label>
-                      Starting stock
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={detailForm.variantDefaultStockQty}
-                        onChange={(event) => updateDetailForm("variantDefaultStockQty", event.target.value)}
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <label>
-                      Reorder
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={detailForm.variantDefaultReorderLevel}
-                        onChange={(event) => updateDetailForm("variantDefaultReorderLevel", event.target.value)}
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <label>
-                      Price override
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={detailForm.variantPriceOverride}
-                        onChange={(event) => updateDetailForm("variantPriceOverride", event.target.value)}
-                        placeholder="Optional"
-                        disabled={!canAdjustInventoryStockDirectly}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="admin-secondary"
-                      onClick={generateDetailNumberVariants}
-                      disabled={variantGenerateSaving || !canAdjustInventoryStockDirectly}
-                    >
-                      {variantGenerateSaving ? "Generating..." : "Generate"}
-                    </button>
-                  </div>
+                  {canAdjustInventoryStockDirectly && (
+                    <div className="inventory-variant-builder">
+                      <div className="inventory-variant-builder-top">
+                        <div className="inventory-variant-builder-heading">
+                          <p className="inventory-variant-builder-label">Dimensions</p>
+                          <p className="inventory-variant-builder-copy">
+                            Mix only the fields you need. Names work well for styles like Kente or Ankara.
+                          </p>
+                        </div>
+                        <div className="inventory-variant-builder-summary">
+                          {detailVariantBuilderSummary.activeDimensions.length > 0 ? (
+                            <>
+                              {detailVariantBuilderSummary.activeDimensions.map((dimension) => (
+                                <span key={dimension.key} className="inventory-variant-builder-chip">
+                                  <strong>{dimension.count}</strong>
+                                  {dimension.label}
+                                </span>
+                              ))}
+                              <span className="inventory-variant-builder-chip inventory-variant-builder-chip--accent">
+                                <strong>{detailVariantBuilderSummary.comboCount}</strong>
+                                Combination{detailVariantBuilderSummary.comboCount === 1 ? "" : "s"}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="inventory-variant-builder-chip inventory-variant-builder-chip--muted">
+                              Add at least one dimension to generate variants.
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                  {getItemVariants(detailForm).length > 0 ? (
-                    <div className="inventory-variant-table-wrap">
-                      <table className="inventory-variant-table">
-                        <thead>
-                          <tr>
-                            <th>Variant</th>
-                            <th>SKU</th>
-                            <th>Stock</th>
-                            <th>Reserved</th>
-                            <th>Available</th>
-                            <th>Reorder</th>
-                            <th>Price</th>
-                            <th>Status</th>
-                            <th aria-label="Save" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {getItemVariants(detailForm).map((variant) => (
-                            <tr key={variant.id}>
-                              <td>
-                                <div className="inventory-variant-name">
-                                  <input
-                                    type="text"
-                                    value={variant.variantNumber || ""}
-                                    onChange={(event) => updateDetailVariant(variant.id, "variantNumber", event.target.value)}
-                                    aria-label="Variant number"
-                                    disabled={!canAdjustInventoryStockDirectly}
-                                  />
-                                  <input
-                                    type="text"
-                                    value={variant.color || ""}
-                                    onChange={(event) => updateDetailVariant(variant.id, "color", event.target.value)}
-                                    placeholder="Color"
-                                    aria-label="Variant color"
-                                    disabled={!canAdjustInventoryStockDirectly}
-                                  />
-                                  <input
-                                    type="text"
-                                    value={variant.size || ""}
-                                    onChange={(event) => updateDetailVariant(variant.id, "size", event.target.value)}
-                                    placeholder="Size"
-                                    aria-label="Variant size"
-                                    disabled={!canAdjustInventoryStockDirectly}
-                                  />
-                                </div>
-                              </td>
-                              <td>
-                                <input
-                                  type="text"
-                                  value={variant.sku || ""}
-                                  onChange={(event) => updateDetailVariant(variant.id, "sku", event.target.value)}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={variant.stockQty ?? 0}
-                                  onChange={(event) => updateDetailVariant(variant.id, "stockQty", event.target.value)}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={variant.reservedQty ?? 0}
-                                  onChange={(event) => updateDetailVariant(variant.id, "reservedQty", event.target.value)}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                />
-                              </td>
-                              <td>{getVariantAvailableQty(variant)}</td>
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={variant.reorderLevel ?? 0}
-                                  onChange={(event) => updateDetailVariant(variant.id, "reorderLevel", event.target.value)}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={variant.priceOverride ?? ""}
-                                  onChange={(event) => updateDetailVariant(variant.id, "priceOverride", event.target.value)}
-                                  placeholder={String(detailForm.price || "0")}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                />
-                              </td>
-                              <td>
-                                <SelectField
-                                  value={variant.status || "active"}
-                                  onChangeValue={(nextValue) => updateDetailVariant(variant.id, "status", String(nextValue))}
-                                  disabled={!canAdjustInventoryStockDirectly}
-                                  ariaLabel="Variant status"
-                                >
-                                  <option value="active">Active</option>
-                                  <option value="inactive">Inactive</option>
-                                </SelectField>
-                              </td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="admin-chip"
-                                  onClick={() => saveDetailVariant(variant)}
-                                  disabled={variantActionId === variant.id || !canAdjustInventoryStockDirectly}
-                                >
-                                  {variantActionId === variant.id ? "Saving..." : "Save"}
-                                </button>
-                              </td>
+                      <div className="inventory-variant-builder-surface">
+                        <div className="inventory-variant-builder-fields inventory-variant-builder-fields--dimensions">
+                          <label>
+                            Names
+                            <input
+                              type="text"
+                              value={detailForm.variantNames}
+                              onChange={(event) => updateDetailForm("variantNames", event.target.value)}
+                              placeholder="Kente, Ankara"
+                            />
+                          </label>
+                          <label>
+                            Numbers
+                            <input
+                              type="text"
+                              value={detailForm.variantNumbers}
+                              onChange={(event) => updateDetailForm("variantNumbers", event.target.value)}
+                              placeholder="1, 2, 3 or A1, A2"
+                            />
+                          </label>
+                          <label>
+                            Colors
+                            <input
+                              type="text"
+                              value={detailForm.variantColors}
+                              onChange={(event) => updateDetailForm("variantColors", event.target.value)}
+                              placeholder="Gold, Silver"
+                            />
+                          </label>
+                          <label>
+                            Sizes
+                            <input
+                              type="text"
+                              value={detailForm.variantSizes}
+                              onChange={(event) => updateDetailForm("variantSizes", event.target.value)}
+                              placeholder="S, M, L or 16in"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="inventory-variant-builder-footer">
+                          <div className="inventory-variant-builder-fields inventory-variant-builder-fields--defaults">
+                            <label>
+                              Starting stock
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={detailForm.variantDefaultStockQty}
+                                onChange={(event) => updateDetailForm("variantDefaultStockQty", event.target.value)}
+                              />
+                            </label>
+                            <label>
+                              Price override
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={detailForm.variantPriceOverride}
+                                onChange={(event) => updateDetailForm("variantPriceOverride", event.target.value)}
+                                placeholder="Optional"
+                              />
+                            </label>
+                          </div>
+                          <div className="inventory-variant-builder-action-block">
+                            <p className="inventory-variant-builder-note">
+                              Starting stock and any price override are applied to each new combination.
+                            </p>
+                            <button
+                              type="button"
+                              className="admin-secondary inventory-variant-generate-btn"
+                              onClick={generateDetailVariants}
+                              disabled={variantGenerateSaving}
+                            >
+                              <span className="inventory-variant-generate-btn-icon" aria-hidden="true">
+                                <AppIcon icon={faRotateRight} size={13} />
+                              </span>
+                              <span>{variantGenerateSaving ? "Generating..." : "Generate Variants"}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const variantList = getItemVariants(detailForm);
+                    if (!variantList.length) return null;
+                    const savedVariantList = getItemVariants(detailItem);
+                    const showName =
+                      variantList.some((v) => v.variantName) || savedVariantList.some((v) => v.variantName);
+                    const showNumber =
+                      variantList.some((v) => v.variantNumber) || savedVariantList.some((v) => v.variantNumber);
+                    const showColor =
+                      variantList.some((v) => v.color) || savedVariantList.some((v) => v.color);
+                    const showSize =
+                      variantList.some((v) => v.size) || savedVariantList.some((v) => v.size);
+                    const showVariantActions = canAdjustInventoryStockDirectly;
+                    const showPriceOverride =
+                      variantList.some(
+                        (v) => v.priceOverride !== null && v.priceOverride !== "" && typeof v.priceOverride !== "undefined"
+                      ) || savedVariantList.some(
+                        (v) => v.priceOverride !== null && v.priceOverride !== "" && typeof v.priceOverride !== "undefined"
+                      );
+                    return (
+                      <div className="inventory-variant-table-wrap">
+                        <table className="inventory-variant-table">
+                          <colgroup>
+                            {showName && <col className="ivcol-dim" />}
+                            {showNumber && <col className="ivcol-dim" />}
+                            {showColor && <col className="ivcol-dim" />}
+                            {showSize && <col className="ivcol-dim" />}
+                            <col className="ivcol-sku" />
+                            <col className="ivcol-num" />
+                            <col className="ivcol-num" />
+                            <col className="ivcol-status" />
+                            {showPriceOverride && <col className="ivcol-price" />}
+                            {showVariantActions && <col className="ivcol-actions" />}
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              {showName && <th>Name</th>}
+                              {showNumber && <th>Number</th>}
+                              {showColor && <th>Color</th>}
+                              {showSize && <th>Size</th>}
+                              <th>SKU</th>
+                              <th>Stock</th>
+                              <th>Available</th>
+                              <th>Status</th>
+                              {showPriceOverride && <th>Price</th>}
+                              {showVariantActions && <th className="inventory-variant-actions-head">Actions</th>}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {variantList.map((variant) => {
+                              const savedVariant = savedVariantList.find(
+                                (entry) => Number(entry.id) === Number(variant.id)
+                              );
+                              return (
+                                <tr key={variant.id}>
+                                  {showName && (
+                                    <td>
+                                      {variant.variantName || savedVariant?.variantName ? (
+                                        <input
+                                          type="text"
+                                          value={variant.variantName || ""}
+                                          onChange={(event) => updateDetailVariant(variant.id, "variantName", event.target.value)}
+                                          aria-label="Variant name"
+                                          disabled={!canAdjustInventoryStockDirectly}
+                                        />
+                                      ) : null}
+                                    </td>
+                                  )}
+                                  {showNumber && (
+                                    <td>
+                                      {variant.variantNumber || savedVariant?.variantNumber ? (
+                                        <input
+                                          type="text"
+                                          value={variant.variantNumber || ""}
+                                          onChange={(event) => updateDetailVariant(variant.id, "variantNumber", event.target.value)}
+                                          aria-label="Variant number"
+                                          disabled={!canAdjustInventoryStockDirectly}
+                                        />
+                                      ) : null}
+                                    </td>
+                                  )}
+                                  {showColor && (
+                                    <td>
+                                      {variant.color || savedVariant?.color ? (
+                                        <input
+                                          type="text"
+                                          value={variant.color || ""}
+                                          onChange={(event) => updateDetailVariant(variant.id, "color", event.target.value)}
+                                          aria-label="Color"
+                                          disabled={!canAdjustInventoryStockDirectly}
+                                        />
+                                      ) : null}
+                                    </td>
+                                  )}
+                                  {showSize && (
+                                    <td>
+                                      {variant.size || savedVariant?.size ? (
+                                        <input
+                                          type="text"
+                                          value={variant.size || ""}
+                                          onChange={(event) => updateDetailVariant(variant.id, "size", event.target.value)}
+                                          aria-label="Size"
+                                          disabled={!canAdjustInventoryStockDirectly}
+                                        />
+                                      ) : null}
+                                    </td>
+                                  )}
+                                  <td>
+                                    <input
+                                      type="text"
+                                      value={variant.sku || ""}
+                                      onChange={(event) => updateDetailVariant(variant.id, "sku", event.target.value)}
+                                      disabled={!canAdjustInventoryStockDirectly}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={variant.stockQty ?? 0}
+                                      onChange={(event) => updateDetailVariant(variant.id, "stockQty", event.target.value)}
+                                      disabled={!canAdjustInventoryStockDirectly}
+                                    />
+                                  </td>
+                                  <td>
+                                    <SelectField
+                                      value={variant.status || "active"}
+                                      onChangeValue={(nextValue) => updateDetailVariant(variant.id, "status", String(nextValue))}
+                                      disabled={!canAdjustInventoryStockDirectly}
+                                      ariaLabel="Variant status"
+                                    >
+                                      <option value="active">Active</option>
+                                      <option value="inactive">Inactive</option>
+                                    </SelectField>
+                                  </td>
+                                  {showPriceOverride && (
+                                    <td>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={variant.priceOverride ?? ""}
+                                        onChange={(event) => updateDetailVariant(variant.id, "priceOverride", event.target.value)}
+                                        placeholder={String(detailForm.price || "0")}
+                                        disabled={!canAdjustInventoryStockDirectly}
+                                      />
+                                    </td>
+                                  )}
+                                  {showVariantActions && (
+                                    <td className="inventory-variant-row-actions">
+                                      <button
+                                        type="button"
+                                        className="inventory-variant-icon-btn inventory-variant-icon-btn--danger"
+                                        onClick={() => deleteDetailVariant(variant.id)}
+                                        disabled={variantActionId === variant.id}
+                                        aria-label="Delete variant"
+                                        title="Delete"
+                                      >
+                                        <AppIcon icon={faTrash} size={13} />
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                  {getItemVariants(detailForm).length === 0 && (
+                    <div className="inventory-variant-empty-state">
+                      <strong>No variants yet</strong>
+                      <span>
+                        Use the builder above to generate the combinations you want. Parent stock will be calculated from the rows you create.
+                      </span>
                     </div>
-                  ) : (
-                    <p className="admin-field-hint">
-                      Generate 0-9 number variants to track each balloon number separately.
-                    </p>
                   )}
                 </section>
               )}

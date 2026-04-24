@@ -32,20 +32,23 @@ export async function handler(event) {
 
     const result = await client.query(`
       SELECT
-        id,
-        name,
-        "productId",
-        quantity,
-        price,
-        rate,
-        availability,
-        category,
-        image,
-        page,
-        "piecesTotal",
-        "piecesMissing"
-      FROM "indoor_games"
-      ORDER BY id ASC
+        ig.id,
+        ig.name,
+        ig."productId",
+        ig.quantity,
+        ig.price,
+        ig.rate,
+        ig.availability,
+        ig.category,
+        COALESCE(NULLIF(ig.image, ''), NULLIF(p."imageUrl", '')) AS image,
+        ig.page,
+        ig."piecesTotal",
+        ig."piecesMissing"
+      FROM "indoor_games" ig
+      LEFT JOIN "product" p
+        ON p.id = ig."productId"
+       AND p."organizationId" = ig."organizationId"
+      ORDER BY ig.id ASC
     `);
 
     return {

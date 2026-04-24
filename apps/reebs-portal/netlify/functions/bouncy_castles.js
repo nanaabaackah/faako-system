@@ -53,10 +53,12 @@ export async function handler(event) {
         END AS availability,
         b."bestFor",
         b.features,
-        b.image,
+        COALESCE(NULLIF(b.image, ''), NULLIF(b.images[1], ''), NULLIF(p."imageUrl", '')) AS image,
         b.images
       FROM "bouncy_castles" b
-      LEFT JOIN "product" p ON p.id = b."productId"
+      LEFT JOIN "product" p
+        ON p.id = b."productId"
+       AND p."organizationId" = b."organizationId"
       ORDER BY b.id ASC
     `);
 

@@ -135,7 +135,9 @@ const getBookingVariantAvailableQty = (variant) => {
 const getBookingLineKey = (productId, variantId = "") => `${productId}:${variantId || "standard"}`;
 
 const formatBookingVariantName = (product, variant) =>
-  [product?.name, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
+  [product?.name, variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
+    .filter(Boolean)
+    .join(" / ");
 
 const normalizeStatus = (status) => {
   if (typeof status !== "string") return "";
@@ -1233,7 +1235,7 @@ function AdminBookings() {
     if (!needle) return list;
     return list.filter((product) => {
       const variantMatch = getBookingVariants(product).some((variant) =>
-        [variant.sku, variant.variantNumber, variant.color, variant.size]
+        [variant.sku, variant.variantName, variant.variantNumber, variant.color, variant.size]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(needle))
       );

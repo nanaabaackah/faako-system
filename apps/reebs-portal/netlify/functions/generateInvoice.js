@@ -73,7 +73,7 @@ export async function handler(event = {}) {
          oi.quantity,
          oi.unit_price,
          oi.total_amount,
-         COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size), ''), p.name) AS name,
+         COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size), ''), p.name) AS name,
          p.sku,
          p.rate,
          p."attendantsNeeded",

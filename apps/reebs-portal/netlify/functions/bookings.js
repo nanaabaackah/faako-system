@@ -196,7 +196,7 @@ const fullSelectColumns = `
           'quantity', bi.quantity,
           'price', bi.price,
           'productName', p.name,
-          'variantLabel', CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size),
+          'variantLabel', CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size),
           'productImage', p."imageUrl"
         )
         ORDER BY bi.id

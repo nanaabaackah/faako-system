@@ -9,7 +9,7 @@ import {
   slugifySourceCategory,
 } from "./_shared/inventoryExtensions.js";
 
-const METHODS = "GET,POST,PATCH,OPTIONS";
+const METHODS = "GET,POST,PATCH,DELETE,OPTIONS";
 
 const json = (event, statusCode, payload) =>
   respond(event, statusCode, payload, { methods: METHODS });
@@ -76,6 +76,7 @@ const selectVariants = async (client, organizationId, itemId) => {
        v."organizationId",
        v."inventoryItemId",
        v.sku,
+       v."variantName",
        v."variantNumber",
        v.color,
        v.size,
@@ -96,6 +97,7 @@ const selectVariants = async (client, organizationId, itemId) => {
      WHERE v."organizationId" = $1
        AND v."inventoryItemId" = $2
      ORDER BY
+       lower(COALESCE(v."variantName", '')),
        NULLIF(regexp_replace(COALESCE(v."variantNumber", ''), '[^0-9]', '', 'g'), '')::int NULLS LAST,
        lower(COALESCE(v.color, '')),
        lower(COALESCE(v.size, '')),
@@ -118,8 +120,9 @@ const getParent = async (client, organizationId, itemId) => {
   return result.rows[0] || null;
 };
 
-const buildVariantSku = (parentSku, { variantNumber, color, size }, index = 0) => {
+const buildVariantSku = (parentSku, { variantName, variantNumber, color, size }, index = 0) => {
   const suffix = [
+    variantName ? slugifySourceCategory(variantName).toUpperCase().slice(0, 8) : "",
     variantNumber ? `N${variantNumber}` : "",
     color ? slugifySourceCategory(color).toUpperCase().slice(0, 8) : "",
     size ? slugifySourceCategory(size).toUpperCase().slice(0, 8) : "",
@@ -136,6 +139,7 @@ const createVariant = async (client, organizationId, body) => {
     throw error;
   }
 
+  const variantName = cleanInventoryText(body.variantName || "", 80) || null;
   const variantNumber = cleanInventoryText(String(body.variantNumber ?? ""), 40) || null;
   const color = cleanInventoryText(body.color || "", 80) || null;
   const size = cleanInventoryText(body.size || "", 80) || null;
@@ -149,13 +153,17 @@ const createVariant = async (client, organizationId, body) => {
   const reorderLevel = toInt(body.reorderLevel, 2);
   const priceOverride = readPriceOverrideCents(body);
   const status = cleanInventoryText(body.status || "active", 32).toLowerCase() || "active";
-  const sku = cleanInventoryText(body.sku || buildVariantSku(parent.sku, { variantNumber, color, size }), 120);
+  const sku = cleanInventoryText(
+    body.sku || buildVariantSku(parent.sku, { variantName, variantNumber, color, size }),
+    120
+  );
 
   const result = await client.query(
     `INSERT INTO "inventoryVariant" (
        "organizationId",
        "inventoryItemId",
        sku,
+       "variantName",
        "variantNumber",
        color,
        size,
@@ -167,13 +175,14 @@ const createVariant = async (client, organizationId, body) => {
        "createdAt",
        "updatedAt"
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
      ON CONFLICT DO NOTHING
      RETURNING
        id,
        "organizationId",
        "inventoryItemId",
        sku,
+       "variantName",
        "variantNumber",
        color,
        size,
@@ -189,6 +198,7 @@ const createVariant = async (client, organizationId, body) => {
       organizationId,
       parent.id,
       sku,
+      variantName,
       variantNumber,
       color,
       size,
@@ -219,7 +229,8 @@ const createVariant = async (client, organizationId, body) => {
   const variants = await selectVariants(client, organizationId, parent.id);
   const existingVariant = variants.find(
     (variant) =>
-      String(variant.variantNumber || "") === String(variantNumber || "")
+      String(variant.variantName || "") === String(variantName || "")
+      && String(variant.variantNumber || "") === String(variantNumber || "")
       && String(variant.color || "") === String(color || "")
       && String(variant.size || "") === String(size || "")
   );
@@ -238,7 +249,7 @@ const normalizeList = (value) => {
   return cleaned.split(",").map((entry) => cleanInventoryText(entry, 80)).filter(Boolean);
 };
 
-const generateNumberVariants = async (client, organizationId, body) => {
+const generateVariants = async (client, organizationId, body) => {
   const parent = await getParent(client, organizationId, body.inventoryItemId || body.itemId || body.productId);
   if (!parent) {
     const error = new Error("Inventory item not found.");
@@ -246,22 +257,22 @@ const generateNumberVariants = async (client, organizationId, body) => {
     throw error;
   }
 
-  const numbersInput = Array.isArray(body.numbers) && body.numbers.length
-    ? body.numbers
-    : Array.from({ length: 10 }, (_, index) => index);
-  const numbers = [...new Set(
-    numbersInput
-      .map((entry) => cleanInventoryText(String(entry).trim(), 40))
-      .filter(Boolean)
-  )];
-  if (!numbers.length) {
-    const error = new Error("Choose at least one variant number.");
+  const names = normalizeList(body.names);
+  const numbersInput = Array.isArray(body.numbers) ? body.numbers : null;
+  const numbers = numbersInput !== null
+    ? [...new Set(numbersInput.map((entry) => cleanInventoryText(String(entry).trim(), 40)).filter(Boolean))]
+    : [];
+  const colors = normalizeList(body.colors);
+  const sizes = normalizeList(body.sizes);
+
+  if (!names.length && !numbers.length && !colors.length && !sizes.length) {
+    const error = new Error("Provide at least one variant dimension: names, numbers, colors, or sizes.");
     error.statusCode = 400;
     throw error;
   }
 
-  const colors = normalizeList(body.colors);
-  const sizes = normalizeList(body.sizes);
+  const nameValues = names.length ? names : [null];
+  const numberValues = numbers.length ? numbers : [null];
   const colorValues = colors.length ? colors : [null];
   const sizeValues = sizes.length ? sizes : [null];
   const stockQty = toInt(body.stockQty ?? body.defaultStockQty, 0);
@@ -278,61 +289,66 @@ const generateNumberVariants = async (client, organizationId, body) => {
 
   await client.query("BEGIN");
   try {
-    for (const variantNumber of numbers) {
-      for (const color of colorValues) {
-        for (const size of sizeValues) {
-          const sku = buildVariantSku(parent.sku, { variantNumber, color, size });
-          const result = await client.query(
-            `INSERT INTO "inventoryVariant" (
-               "organizationId",
-               "inventoryItemId",
-               sku,
-               "variantNumber",
-               color,
-               size,
-               "stockQty",
-               "reservedQty",
-               "reorderLevel",
-               "priceOverride",
-               status,
-               "createdAt",
-               "updatedAt"
-             )
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',NOW(),NOW())
-             ON CONFLICT DO NOTHING
-             RETURNING
-               id,
-               "organizationId",
-               "inventoryItemId",
-               sku,
-               "variantNumber",
-               color,
-               size,
-               "stockQty",
-               "reservedQty",
-               GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
-               "reorderLevel",
-               "priceOverride",
-               status,
-               "createdAt",
-               "updatedAt"`,
-            [
-              organizationId,
-              parent.id,
-              sku,
-              variantNumber,
-              color,
-              size,
-              stockQty,
-              reservedQty,
-              reorderLevel,
-              priceOverride,
-            ]
-          );
-          if (result.rowCount > 0) {
-            created.push(serializeVariant(result.rows[0]));
-          } else {
-            skipped.push({ variantNumber, color, size });
+    for (const variantName of nameValues) {
+      for (const variantNumber of numberValues) {
+        for (const color of colorValues) {
+          for (const size of sizeValues) {
+            const sku = buildVariantSku(parent.sku, { variantName, variantNumber, color, size });
+            const result = await client.query(
+              `INSERT INTO "inventoryVariant" (
+                 "organizationId",
+                 "inventoryItemId",
+                 sku,
+                 "variantName",
+                 "variantNumber",
+                 color,
+                 size,
+                 "stockQty",
+                 "reservedQty",
+                 "reorderLevel",
+                 "priceOverride",
+                 status,
+                 "createdAt",
+                 "updatedAt"
+               )
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'active',NOW(),NOW())
+               ON CONFLICT DO NOTHING
+               RETURNING
+                 id,
+                 "organizationId",
+                 "inventoryItemId",
+                 sku,
+                 "variantName",
+                 "variantNumber",
+                 color,
+                 size,
+                 "stockQty",
+                 "reservedQty",
+                 GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
+                 "reorderLevel",
+                 "priceOverride",
+                 status,
+                 "createdAt",
+                 "updatedAt"`,
+              [
+                organizationId,
+                parent.id,
+                sku,
+                variantName,
+                variantNumber,
+                color,
+                size,
+                stockQty,
+                reservedQty,
+                reorderLevel,
+                priceOverride,
+              ]
+            );
+            if (result.rowCount > 0) {
+              created.push(serializeVariant(result.rows[0]));
+            } else {
+              skipped.push({ variantName, variantNumber, color, size });
+            }
           }
         }
       }
@@ -394,6 +410,9 @@ const updateVariant = async (client, organizationId, body, actor) => {
   }
   if (Object.prototype.hasOwnProperty.call(body, "variantNumber")) {
     assign(`"variantNumber"`, cleanInventoryText(String(body.variantNumber || ""), 40) || null);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "variantName")) {
+    assign(`"variantName"`, cleanInventoryText(body.variantName || "", 80) || null);
   }
   if (Object.prototype.hasOwnProperty.call(body, "color")) {
     assign("color", cleanInventoryText(body.color || "", 80) || null);
@@ -461,13 +480,14 @@ const updateVariant = async (client, organizationId, body, actor) => {
        WHERE id = $${params.length - 1}
          AND "organizationId" = $${params.length}
        RETURNING
-         id,
-         "organizationId",
-         "inventoryItemId",
-         sku,
-         "variantNumber",
-         color,
-         size,
+       id,
+       "organizationId",
+       "inventoryItemId",
+       sku,
+       "variantName",
+       "variantNumber",
+       color,
+       size,
          "stockQty",
          "reservedQty",
          GREATEST("stockQty" - "reservedQty", 0) AS "availableQty",
@@ -534,10 +554,73 @@ const updateVariant = async (client, organizationId, body, actor) => {
   }
 };
 
+const deleteVariant = async (client, organizationId, variantId) => {
+  const parsedId = Number(variantId);
+  if (!Number.isFinite(parsedId) || parsedId <= 0) {
+    const error = new Error("Variant id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await client.query("BEGIN");
+  try {
+    const currentRes = await client.query(
+      `SELECT id, "inventoryItemId", "stockQty", "reservedQty"
+       FROM "inventoryVariant"
+       WHERE id = $1 AND "organizationId" = $2
+       FOR UPDATE`,
+      [parsedId, organizationId]
+    );
+    if (currentRes.rowCount === 0) {
+      const error = new Error("Variant not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+    const current = currentRes.rows[0];
+
+    await client.query(
+      `DELETE FROM "inventoryVariant" WHERE id = $1 AND "organizationId" = $2`,
+      [parsedId, organizationId]
+    );
+
+    await client.query(
+      `UPDATE "product"
+       SET stock = COALESCE((
+             SELECT SUM(v."stockQty")::int
+             FROM "inventoryVariant" v
+             WHERE v."organizationId" = $2
+               AND v."inventoryItemId" = $1
+               AND lower(COALESCE(v.status, 'active')) <> 'inactive'
+           ), 0),
+           "updatedAt" = NOW()
+       WHERE id = $1 AND "organizationId" = $2`,
+      [current.inventoryItemId, organizationId]
+    );
+
+    const remaining = await client.query(
+      `SELECT COUNT(*) AS cnt FROM "inventoryVariant" WHERE "inventoryItemId" = $1 AND "organizationId" = $2`,
+      [current.inventoryItemId, organizationId]
+    );
+    if (Number(remaining.rows[0]?.cnt || 0) === 0) {
+      await client.query(
+        `UPDATE "product" SET "itemType" = 'STANDARD', "updatedAt" = NOW()
+         WHERE id = $1 AND "organizationId" = $2`,
+        [current.inventoryItemId, organizationId]
+      );
+    }
+
+    await client.query("COMMIT");
+    return { deleted: true, id: parsedId, inventoryItemId: current.inventoryItemId };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  }
+};
+
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") return json(event, 204, {});
-  if (!["GET", "POST", "PATCH"].includes(method)) {
+  if (!["GET", "POST", "PATCH", "DELETE"].includes(method)) {
     return json(event, 405, { error: "Method not allowed." });
   }
 
@@ -551,7 +634,7 @@ export async function handler(event = {}) {
     await ensureAuditColumns(client);
     const auth = await requireInternalUser(client, event, {
       methods: METHODS,
-      roles: method === "GET" ? [] : ["owner", "admin", "manager"],
+      roles: ["GET"].includes(method) ? [] : ["owner", "admin", "manager"],
       roleError: "Only owners, admins, and managers can manage inventory variants.",
     });
     if (auth.errorResponse) return auth.errorResponse;
@@ -567,6 +650,12 @@ export async function handler(event = {}) {
       return json(event, 200, variants);
     }
 
+    if (method === "DELETE") {
+      const variantId = event.queryStringParameters?.id || event.queryStringParameters?.variantId;
+      const result = await deleteVariant(client, organizationId, variantId);
+      return json(event, 200, result);
+    }
+
     const body = parseBody(event);
     if (!body) return json(event, 400, { error: "Invalid JSON body." });
 
@@ -580,8 +669,8 @@ export async function handler(event = {}) {
     }
 
     const action = cleanInventoryText(body.action || "", 80).toLowerCase();
-    if (action === "generate-number-variants") {
-      const result = await generateNumberVariants(client, organizationId, body);
+    if (action === "generate-number-variants" || action === "generate-variants") {
+      const result = await generateVariants(client, organizationId, body);
       return json(event, 201, result);
     }
 

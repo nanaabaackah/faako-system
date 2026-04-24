@@ -244,6 +244,30 @@ const withInventoryAliases = (item = {}) => {
   };
 };
 
+const INVENTORY_IMAGE_FALLBACK_SQL = `COALESCE(
+  NULLIF(p."imageUrl", ''),
+  NULLIF(si.image, ''),
+  NULLIF(m.image, ''),
+  NULLIF(ig.image, ''),
+  NULLIF(bc.image, ''),
+  NULLIF(bc.images[1], '')
+)`;
+
+const INVENTORY_IMAGE_FALLBACK_JOINS = `
+  LEFT JOIN "shop_items" si
+    ON si."productId" = p.id
+   AND si."organizationId" = p."organizationId"
+  LEFT JOIN "machines" m
+    ON m."productId" = p.id
+   AND m."organizationId" = p."organizationId"
+  LEFT JOIN "indoor_games" ig
+    ON ig."productId" = p.id
+   AND ig."organizationId" = p."organizationId"
+  LEFT JOIN "bouncy_castles" bc
+    ON bc."productId" = p.id
+   AND bc."organizationId" = p."organizationId"
+`;
+
 const resolveSourceCategoryForSpecificCategory = (_value, fallbackSourceCode = "") => ({
   sourceName: "",
   sourceCode: normalizeSourceCategoryCodeValue(fallbackSourceCode) || DEFAULT_SOURCE_CATEGORY_CODE,
@@ -492,8 +516,8 @@ export async function handler(event = {}) {
            p.age,
            (p."price"::numeric / 100) AS price,
            p.stock AS quantity,
-           p."imageUrl" AS image,
-           p."imageUrl" AS "imageUrl",
+           ${INVENTORY_IMAGE_FALLBACK_SQL} AS image,
+           ${INVENTORY_IMAGE_FALLBACK_SQL} AS "imageUrl",
            p."isActive" AS status,
            CASE
              WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
@@ -509,6 +533,7 @@ export async function handler(event = {}) {
                  'id', v.id,
                  'inventoryItemId', v."inventoryItemId",
                  'sku', v.sku,
+                 'variantName', v."variantName",
                  'variantNumber', v."variantNumber",
                  'color', v.color,
                  'size', v.size,
@@ -526,6 +551,7 @@ export async function handler(event = {}) {
                AND v."inventoryItemId" = p.id
            ), '[]'::json) AS variants
          FROM "product" p
+         ${INVENTORY_IMAGE_FALLBACK_JOINS}
          LEFT JOIN "sourceCategory" sc
            ON sc.id = p."sourceCategoryId"
           AND sc."organizationId" = p."organizationId"
@@ -592,8 +618,8 @@ export async function handler(event = {}) {
             (p."stockValue"::numeric / 100) AS "stockValue",
             (p."saleValue"::numeric / 100) AS "saleValue",
             p.stock AS quantity,
-            p."imageUrl" AS image,
-            p."imageUrl" AS "imageUrl",
+            ${INVENTORY_IMAGE_FALLBACK_SQL} AS image,
+            ${INVENTORY_IMAGE_FALLBACK_SQL} AS "imageUrl",
             p."isActive" AS status,
             CASE
               WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
@@ -619,6 +645,7 @@ export async function handler(event = {}) {
                   'id', v.id,
                   'inventoryItemId', v."inventoryItemId",
                   'sku', v.sku,
+                  'variantName', v."variantName",
                   'variantNumber', v."variantNumber",
                   'color', v.color,
                   'size', v.size,
@@ -637,6 +664,7 @@ export async function handler(event = {}) {
             ), '[]'::json) AS variants
           FROM "product" p
           LEFT JOIN "user" updater ON updater.id = p."lastUpdatedByUserId"
+          ${INVENTORY_IMAGE_FALLBACK_JOINS}
           LEFT JOIN "sourceCategory" sc
             ON sc.id = p."sourceCategoryId"
            AND sc."organizationId" = p."organizationId"
@@ -746,8 +774,8 @@ export async function handler(event = {}) {
           (p."stockValue"::numeric / 100) AS "stockValue",
           (p."saleValue"::numeric / 100) AS "saleValue",
           p.stock AS quantity,
-          p."imageUrl" AS image,
-          p."imageUrl" AS "imageUrl",
+          ${INVENTORY_IMAGE_FALLBACK_SQL} AS image,
+          ${INVENTORY_IMAGE_FALLBACK_SQL} AS "imageUrl",
           p."isActive" AS status,
           CASE
             WHEN COALESCE(p."isActive", true) = false THEN 'Unavailable'
@@ -773,6 +801,7 @@ export async function handler(event = {}) {
                 'id', v.id,
                 'inventoryItemId', v."inventoryItemId",
                 'sku', v.sku,
+                'variantName', v."variantName",
                 'variantNumber', v."variantNumber",
                 'color', v.color,
                 'size', v.size,
@@ -791,6 +820,7 @@ export async function handler(event = {}) {
           ), '[]'::json) AS variants
         FROM "product" p
         LEFT JOIN "user" updater ON updater.id = p."lastUpdatedByUserId"
+        ${INVENTORY_IMAGE_FALLBACK_JOINS}
         LEFT JOIN "sourceCategory" sc
           ON sc.id = p."sourceCategoryId"
          AND sc."organizationId" = p."organizationId"

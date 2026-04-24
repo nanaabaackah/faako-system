@@ -139,7 +139,12 @@ function BookingDetailModal({
   const buildLineKey = getLineKey || ((productId, variantId = "") => `${productId}:${variantId || "standard"}`);
   const listVariants = getProductVariants || (() => []);
   const availableForVariant = getVariantAvailableQty || (() => 0);
-  const formatVariant = formatVariantName || ((product, variant) => [product?.name, variant?.variantNumber].filter(Boolean).join(" / "));
+  const formatVariant =
+    formatVariantName
+    || ((product, variant) =>
+      [product?.name, variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
+        .filter(Boolean)
+        .join(" / "));
   const productIsVariantParent = isVariantParent || (() => false);
   const canInlineEdit = Boolean(detailEditing && form && setForm && save && CustomerPicker);
   const displayStatus = canInlineEdit ? form.status || booking.status || "pending" : booking.status || "pending";

@@ -204,6 +204,7 @@ export const ensureInventoryVariantSchema = async (client) => {
         "organizationId" INTEGER NOT NULL DEFAULT 1,
         "inventoryItemId" INTEGER NOT NULL,
         "sku" TEXT NOT NULL,
+        "variantName" TEXT,
         "variantNumber" TEXT,
         "color" TEXT,
         "size" TEXT,
@@ -215,12 +216,26 @@ export const ensureInventoryVariantSchema = async (client) => {
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`,
+      `ALTER TABLE "inventoryVariant" ADD COLUMN IF NOT EXISTS "variantName" TEXT`,
       `CREATE UNIQUE INDEX IF NOT EXISTS "inventoryVariant_organizationId_sku_key"
         ON "inventoryVariant" ("organizationId", "sku")`,
+      `DO $$
+       BEGIN
+         IF EXISTS (
+           SELECT 1
+           FROM pg_indexes
+           WHERE schemaname = current_schema()
+             AND indexname = 'inventoryVariant_org_item_dimensions_key'
+             AND indexdef NOT LIKE '%variantName%'
+         ) THEN
+           DROP INDEX IF EXISTS "inventoryVariant_org_item_dimensions_key";
+         END IF;
+       END $$`,
       `CREATE UNIQUE INDEX IF NOT EXISTS "inventoryVariant_org_item_dimensions_key"
         ON "inventoryVariant" (
           "organizationId",
           "inventoryItemId",
+          COALESCE("variantName", ''),
           COALESCE("variantNumber", ''),
           COALESCE("color", ''),
           COALESCE("size", '')
@@ -397,6 +412,7 @@ export const createSpecificCategory = async (
 export const formatVariantLabel = (productName, variant) => {
   const parts = [
     productName,
+    variant?.variantName,
     variant?.variantNumber,
     variant?.color,
     variant?.size,

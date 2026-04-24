@@ -45,6 +45,13 @@ export async function handler(event) {
       : hasColumn("status")
         ? 'status AS availability'
         : "NULL AS availability";
+    const imageExpr = hasColumn("image")
+      ? 'COALESCE(NULLIF(image, \'\'), NULLIF(p."imageUrl", \'\')) AS image'
+      : 'p."imageUrl" AS image';
+    const productJoin = hasColumn("productId")
+      ? `LEFT JOIN "product" p
+           ON p.id = "productId"${hasColumn("organizationId") ? ' AND p."organizationId" = "organizationId"' : ""}`
+      : 'LEFT JOIN "product" p ON 1 = 0';
     const orderBy = hasColumn("id")
       ? "ORDER BY id ASC"
       : hasColumn("name")
@@ -61,13 +68,14 @@ export async function handler(event) {
         ${selectExpr("rate", "rate")},
         ${availabilityExpr},
         ${selectExpr("category", "category")},
-        ${selectExpr("image", "image")},
+        ${imageExpr},
         ${selectExpr("page", "page")},
         ${selectExpr("power", "power")},
         ${selectExpr("footprint", "footprint")},
         ${selectExpr("output", "output")},
         ${selectExpr("notes", "notes")}
       FROM "machines"
+      ${productJoin}
       ${orderBy}
     `);
 

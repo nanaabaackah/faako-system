@@ -88,7 +88,7 @@ export async function handler(event = {}) {
                'variantId', bi."variantId",
                'quantity', bi.quantity,
                'price', bi.price,
-               'productName', COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size), ''), p.name),
+               'productName', COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size), ''), p.name),
                'attendantsNeeded', p."attendantsNeeded",
                'rate', p.rate
              )

@@ -135,7 +135,7 @@ export async function handler(event = {}) {
                    'productId', oi."productId",
                    'variantId', oi."variantId",
                    'productName', p.name,
-                   'variantLabel', CONCAT_WS(' / ', p.name, v."variantNumber", v.color, v.size),
+                   'variantLabel', CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size),
                    'sku', p.sku,
                    'quantity', oi.quantity,
                    'unitPrice', oi.unit_price,

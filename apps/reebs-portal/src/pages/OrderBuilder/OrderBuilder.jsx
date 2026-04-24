@@ -50,7 +50,9 @@ const getVariantPrice = (product, variant) => {
 };
 
 const formatVariantName = (product, variant) =>
-  [product?.name, variant?.variantNumber, variant?.color, variant?.size].filter(Boolean).join(" / ");
+  [product?.name, variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
+    .filter(Boolean)
+    .join(" / ");
 
 const getOrderLineKey = (productId, variantId = "") => `${productId}:${variantId || "standard"}`;
 
@@ -202,7 +204,7 @@ function OrderBuilder() {
     if (!query) return list;
     return list.filter((item) => {
       const variantMatch = getVariants(item).some((variant) =>
-        [variant.sku, variant.variantNumber, variant.color, variant.size]
+        [variant.sku, variant.variantName, variant.variantNumber, variant.color, variant.size]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query))
       );

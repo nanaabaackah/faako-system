@@ -124,14 +124,16 @@ export const createCatalogCssImageStyle = (
   [cssVariableName]: toCatalogCssImageValue(value, fallback),
 });
 
+const getFirstCatalogImage = (item = {}) => {
+  const galleryImage = Array.isArray(item.images)
+    ? item.images.find((value) => String(value || "").trim())
+    : "";
+
+  return galleryImage || item.image || item.imageUrl || item.image_url || item.productImage;
+};
+
 export const getCatalogItemImage = (item = {}) =>
-  sanitizeCatalogMediaUrl(
-    item.image ||
-      item.imageUrl ||
-      item.image_url ||
-      item.productImage,
-    PLACEHOLDER_IMAGE
-  );
+  sanitizeCatalogMediaUrl(getFirstCatalogImage(item), PLACEHOLDER_IMAGE);
 
 const hasCatalogMachineMeta = (item = {}) =>
   [item.power, item.footprint, item.output].some((value) => value !== undefined && value !== null && `${value}`.trim());
@@ -242,6 +244,9 @@ const toDisplayTitleCase = (value = "") =>
     .replace(/\b[a-z]/g, (match) => match.toUpperCase());
 
 export const getCatalogItemDisplayName = (item = {}, fallback = "Item") => {
+  const explicit = `${item?.displayName || ""}`.trim();
+  if (explicit) return explicit;
+
   const raw = `${getItemName(item) || ""}`.trim();
   if (!raw) return fallback;
 

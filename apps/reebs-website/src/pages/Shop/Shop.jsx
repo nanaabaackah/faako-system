@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./Shop.css";
 import { Link, useSearchParams } from "react-router-dom";
+import { SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faMagnifyingGlass,
+  faShoppingCart,
   faTimes,
 } from "/src/icons/iconSet";
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
@@ -112,6 +114,143 @@ const getCategoryPageState = (items, currentPage = 0) => {
   };
 };
 
+const getItemType = (item = {}) => String(item?.itemType || "STANDARD").trim().toUpperCase();
+
+const isVariantParentItem = (item = {}) => getItemType(item) === "VARIANT_PARENT";
+
+const getActiveVariants = (item = {}) =>
+  (Array.isArray(item?.variants) ? item.variants : []).filter(
+    (variant) => String(variant?.status || "active").toLowerCase() === "active"
+  );
+
+const getVariantAvailableQty = (variant = {}) => {
+  const explicit = Number(variant?.availableQty);
+  if (Number.isFinite(explicit)) return Math.max(0, explicit);
+  return Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
+};
+
+const getInventoryQuantityValue = (item = {}) =>
+  Math.max(0, Number(item?.quantity ?? item?.stock ?? 0) || 0);
+
+const getCatalogItemAvailableQty = (item = {}) =>
+  isVariantParentItem(item)
+    ? getActiveVariants(item).reduce((sum, variant) => sum + getVariantAvailableQty(variant), 0)
+    : getInventoryQuantityValue(item);
+
+const getBaseItemPrice = (item = {}) => {
+  const rawPrice =
+    item?.price ??
+    (typeof item?.priceCents === "number" ? item.priceCents / 100 : undefined);
+  const parsed = Number(rawPrice);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getCatalogUnitPrice = (item = {}, variant = null) => {
+  if (
+    variant
+    && variant?.priceOverride !== null
+    && typeof variant?.priceOverride !== "undefined"
+    && variant?.priceOverride !== ""
+  ) {
+    const override = Number(variant.priceOverride);
+    if (Number.isFinite(override)) return override;
+  }
+  return getBaseItemPrice(item);
+};
+
+const VARIANT_DIMENSION_DEFINITIONS = [
+  {
+    key: "variantNumber",
+    label: "Number",
+    placeholder: "Choose a number",
+  },
+  {
+    key: "variantName",
+    label: "Name",
+    placeholder: "Choose a name",
+  },
+  {
+    key: "color",
+    label: "Color",
+    placeholder: "Choose a color",
+  },
+  {
+    key: "size",
+    label: "Size",
+    placeholder: "Choose a size",
+  },
+];
+
+const getVariantDimensionsForItem = (item = {}) =>
+  VARIANT_DIMENSION_DEFINITIONS.filter((dimension) =>
+    getActiveVariants(item).some((variant) => String(variant?.[dimension.key] ?? "").trim())
+  );
+
+const formatVariantDimensionPart = (label, value) =>
+  `${label} "${String(value ?? "").trim()}"`;
+
+const getVariantDetailLabel = (variant = {}) =>
+  [variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" / ");
+
+const getVariantOptionLabel = (variant = {}, dimensions = [], index = 0) => {
+  const labeledParts = dimensions
+    .map((dimension) => {
+      const value = String(variant?.[dimension.key] ?? "").trim();
+      if (!value) return "";
+      return formatVariantDimensionPart(dimension.label, value);
+    })
+    .filter(Boolean);
+
+  return labeledParts.join(" · ") || getVariantDetailLabel(variant) || String(variant?.sku || "").trim() || `Option ${index + 1}`;
+};
+
+const getVariantFieldMeta = (item = {}) => {
+  const dimensions = getVariantDimensionsForItem(item);
+  if (dimensions.length === 1) {
+    return {
+      label: dimensions[0].label,
+      placeholder: dimensions[0].placeholder,
+      dimensions,
+    };
+  }
+
+  return {
+    label: "Variant",
+    placeholder: "Choose a variant",
+    dimensions,
+  };
+};
+
+const buildVariantDisplayName = (productLabel, variant = {}) => {
+  const optionLabel = getVariantDetailLabel(variant);
+  return optionLabel ? `${productLabel} / ${optionLabel}` : productLabel;
+};
+
+const buildVariantCartItem = (item, productLabel, variant) => {
+  const productId = Number(item?.id ?? item?.productId);
+  const variantId = Number(variant?.id);
+  const availableQty = getVariantAvailableQty(variant);
+
+  return {
+    ...item,
+    id: `shop-${Number.isFinite(productId) && productId > 0 ? productId : "item"}-${variantId}`,
+    productId: Number.isFinite(productId) && productId > 0 ? productId : null,
+    variantId: Number.isFinite(variantId) && variantId > 0 ? variantId : null,
+    displayName: buildVariantDisplayName(productLabel, variant),
+    quantity: availableQty,
+    stock: availableQty,
+    price: getCatalogUnitPrice(item, variant),
+    sku: variant?.sku || item?.sku,
+    variantName: variant?.variantName ?? null,
+    variantNumber: variant?.variantNumber ?? null,
+    color: variant?.color ?? null,
+    size: variant?.size ?? null,
+  };
+};
+
 function Shop() {
   const [inventory, setInventory] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,22 +264,21 @@ function Shop() {
   const [activeCategory, setActiveCategory] = useState(null);
   const [showSideNav, setShowSideNav] = useState(false);
   const [categoryPages, setCategoryPages] = useState({});
+  const [selectedVariantIds, setSelectedVariantIds] = useState({});
   const [pendingScrollTarget, setPendingScrollTarget] = useState("");
   const gridRef = useRef(null);
   const [searchParams] = useSearchParams();
 
   const { isAuthenticated, authReady } = useAuth();
-  const { convertPrice, formatCurrency, openCart } = useCart();
+  const { cart, convertPrice, formatCurrency, openCart } = useCart();
   const routeSearchQuery = clampShopQuery(searchParams.get("q") || "");
 
   const getPrice = useCallback(
-    (item) =>
-      item.price ??
-      (typeof item.priceCents === "number" ? item.priceCents / 100 : undefined),
+    (item, variant = null) => getCatalogUnitPrice(item, variant),
     []
   );
 
-  const getQuantity = useCallback((item) => item.quantity ?? item.stock ?? 0, []);
+  const getQuantity = useCallback((item) => getCatalogItemAvailableQty(item), []);
 
   const getCategoryLabel = useCallback((item) => {
     const raw = item.sourceCategory || item.sourcecategory || item.source_category || "";
@@ -229,6 +367,19 @@ function Shop() {
     () =>
       visibleInventory.map((item) => {
         const categoryLabel = getCategoryLabel(item);
+        const variantSearchText = getActiveVariants(item)
+          .map((variant) =>
+            [
+              variant?.sku,
+              variant?.variantName,
+              variant?.variantNumber,
+              variant?.color,
+              variant?.size,
+            ]
+              .filter(Boolean)
+              .join(" ")
+          )
+          .join(" ");
         return {
           item,
           categoryLabel,
@@ -241,6 +392,7 @@ function Shop() {
               item?.sourceCategory,
               item?.sourcecategory,
               item?.source_category,
+              variantSearchText,
             ]
               .filter(Boolean)
               .join(" ")
@@ -375,6 +527,75 @@ function Shop() {
       return changed ? next : prev;
     });
   }, [groupedProducts]);
+
+  useEffect(() => {
+    setSelectedVariantIds((current) => {
+      const next = {};
+      const cartVariantByProductId = new Map();
+
+      cart.forEach((entry) => {
+        const productId = Number(entry?.productId);
+        const variantId = Number(entry?.variantId);
+        if (
+          Number.isFinite(productId)
+          && productId > 0
+          && Number.isFinite(variantId)
+          && variantId > 0
+          && !cartVariantByProductId.has(productId)
+        ) {
+          cartVariantByProductId.set(productId, variantId);
+        }
+      });
+
+      inventory.forEach((item) => {
+        if (!isVariantParentItem(item)) return;
+        const itemKey = String(item?.id ?? item?.productId ?? "").trim();
+        if (!itemKey) return;
+
+        const activeVariants = getActiveVariants(item);
+        const availableVariants = activeVariants.filter(
+          (variant) => getVariantAvailableQty(variant) > 0
+        );
+        const selectableIds = new Set(
+          availableVariants
+            .map((variant) => Number(variant?.id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+
+        if (!selectableIds.size) return;
+
+        const currentSelectedId = Number(current[itemKey]);
+        let nextSelectedId = selectableIds.has(currentSelectedId)
+          ? currentSelectedId
+          : null;
+
+        if (!nextSelectedId) {
+          const cartSelectedId = cartVariantByProductId.get(Number(itemKey));
+          if (selectableIds.has(cartSelectedId)) {
+            nextSelectedId = cartSelectedId;
+          }
+        }
+
+        if (!nextSelectedId && availableVariants.length === 1) {
+          nextSelectedId = Number(availableVariants[0]?.id);
+        }
+
+        if (Number.isFinite(nextSelectedId) && nextSelectedId > 0) {
+          next[itemKey] = nextSelectedId;
+        }
+      });
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (
+        currentKeys.length === nextKeys.length
+        && nextKeys.every((key) => String(current[key]) === String(next[key]))
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [cart, inventory]);
 
   const heroProducts = useMemo(() => {
     const picturedItems = visibleInventory.filter(hasRealImage);
@@ -773,11 +994,77 @@ function Shop() {
 
                     <div className="shop-grid">
                       {visibleItems.map((item) => {
+                        const activeVariants = getActiveVariants(item);
+                        const availableVariants = activeVariants.filter(
+                          (variant) => getVariantAvailableQty(variant) > 0
+                        );
+                        const variantFieldMeta = getVariantFieldMeta(item);
+                        const variantDimensions = variantFieldMeta.dimensions;
+                        const hasVariants = isVariantParentItem(item) && activeVariants.length > 0;
+                        const selectedVariantId = selectedVariantIds[
+                          String(item?.id ?? item?.productId ?? "").trim()
+                        ];
+                        const selectedVariant = hasVariants
+                          ? activeVariants.find(
+                            (variant) => Number(variant?.id) === Number(selectedVariantId)
+                          ) || null
+                          : null;
+                        const effectiveSelectedVariant = selectedVariant
+                          || (availableVariants.length === 1 ? availableVariants[0] : null);
                         const isSoldOut = isSoldOutItem(item);
                         const imageSrc = getImage(item);
                         const canPreviewImage = !isUnavailableImageSource(imageSrc);
                         const categoryBg = getShopCategoryBackground(item);
                         const itemDisplayName = getCatalogItemDisplayName(item, "Shop item");
+                        const displayVariants = availableVariants.length
+                          ? availableVariants
+                          : activeVariants;
+                        const displayPriceValues = hasVariants
+                          ? displayVariants
+                            .map((variant) => getPrice(item, variant))
+                            .filter((value) => Number.isFinite(value))
+                          : [];
+                        const displayPrice = effectiveSelectedVariant
+                          ? getPrice(item, effectiveSelectedVariant)
+                          : displayPriceValues.length
+                            ? Math.min(...displayPriceValues)
+                            : getPrice(item);
+                        const showFromPrice = !effectiveSelectedVariant
+                          && hasVariants
+                          && new Set(
+                            displayPriceValues.map((value) => Number(value).toFixed(2))
+                          ).size > 1;
+                        const selectedVariantLabel = effectiveSelectedVariant
+                          ? getVariantOptionLabel(
+                            effectiveSelectedVariant,
+                            variantDimensions,
+                            activeVariants.findIndex(
+                              (variant) => Number(variant?.id) === Number(effectiveSelectedVariant?.id)
+                            )
+                          )
+                          : "";
+                        const selectedVariantQty = effectiveSelectedVariant
+                          ? getVariantAvailableQty(effectiveSelectedVariant)
+                          : 0;
+                        const selectedCartItem = effectiveSelectedVariant
+                          ? buildVariantCartItem(item, itemDisplayName, effectiveSelectedVariant)
+                          : null;
+                        const addTargetItem = selectedCartItem || {
+                          ...item,
+                          quantity: getQuantity(item),
+                        };
+                        const addTargetName = selectedCartItem?.displayName || itemDisplayName;
+                        const stockLabel = hasVariants
+                          ? effectiveSelectedVariant
+                            ? selectedVariantQty > 0
+                              ? `${selectedVariantQty} left in stock`
+                              : "This option is out of stock"
+                            : availableVariants.length > 0
+                              ? `${availableVariants.length} option${availableVariants.length === 1 ? "" : "s"} available`
+                              : "Unavailable"
+                          : isSoldOut
+                            ? "Unavailable"
+                            : `${getQuantity(item)} left in stock`;
                         return (
                           <article
                             key={item.id || item.productId || `${item.name}-${category}`}
@@ -819,28 +1106,108 @@ function Shop() {
                               <span className="shop-pill">{getCategoryLabel(item)}</span>
                               <h3>{itemDisplayName}</h3>
                               <p className="price">
-                                {formatCurrency(convertPrice(getPrice(item) || 0))}
+                                {showFromPrice ? "From " : ""}
+                                {formatCurrency(convertPrice(displayPrice || 0))}
                               </p>
-                              <p className="shop-stock">
-                                {isSoldOut
-                                  ? "Unavailable"
-                                  : `${getQuantity(item)} left in stock`}
-                              </p>
-                              <AddToCartButton
-                                item={{ ...item, quantity: getQuantity(item) }}
-                                onCartChange={(action) => {
-                                  if (action === "removed") {
-                                    setAnnounce(`${itemDisplayName} removed from cart`);
-                                  } else if (action === "decremented") {
-                                    setAnnounce(`${itemDisplayName} quantity reduced`);
-                                  } else if (action === "incremented") {
-                                    setAnnounce(`${itemDisplayName} quantity increased`);
-                                  } else {
-                                    setAnnounce(`${itemDisplayName} added to cart`);
-                                  }
-                                  openCart();
-                                }}
-                              />
+                              <p className="shop-stock">{stockLabel}</p>
+                              {hasVariants ? (
+                                <div className="shop-variant-picker">
+                                  {activeVariants.length > 1 ? (
+                                    <SelectField
+                                        id={`shop-variant-${item.id || item.productId}`}
+                                        label={variantFieldMeta.label}
+                                        fieldClassName="shop-variant-field"
+                                        inputClassName="shop-variant-select"
+                                        placeholder={variantFieldMeta.placeholder}
+                                        value={selectedVariantId || ""}
+                                        disabled={!activeVariants.length}
+                                        onChange={(event) => {
+                                          const nextValue = String(event.target.value || "").trim();
+                                          setSelectedVariantIds((current) => {
+                                            const itemKey = String(
+                                              item?.id ?? item?.productId ?? ""
+                                            ).trim();
+                                            if (!itemKey) return current;
+                                            if (!nextValue) {
+                                              if (!current[itemKey]) return current;
+                                              const next = { ...current };
+                                              delete next[itemKey];
+                                              return next;
+                                            }
+                                            if (String(current[itemKey] || "") === nextValue) {
+                                              return current;
+                                            }
+                                            return { ...current, [itemKey]: Number(nextValue) };
+                                          });
+                                        }}
+                                        ariaLabel={`${variantFieldMeta.label} for ${itemDisplayName}`}
+                                      >
+                                        {activeVariants.map((variant, index) => {
+                                          const optionQty = getVariantAvailableQty(variant);
+                                          return (
+                                            <option
+                                              key={variant.id || `${item.id}-variant-${index}`}
+                                              value={variant.id}
+                                              disabled={optionQty <= 0}
+                                            >
+                                              {`${getVariantOptionLabel(variant, variantDimensions, index)}${optionQty > 0 ? ` · ${optionQty} left` : " · Out of stock"}`}
+                                            </option>
+                                          );
+                                        })}
+                                      </SelectField>
+                                  ) : selectedVariantLabel ? (
+                                    <div className="shop-variant-single" aria-label="Selected variant">
+                                      {selectedVariantLabel}
+                                    </div>
+                                  ) : null}
+
+                                  {selectedCartItem ? (
+                                    <AddToCartButton
+                                      item={selectedCartItem}
+                                      onCartChange={(action) => {
+                                        if (action === "removed") {
+                                          setAnnounce(`${addTargetName} removed from cart`);
+                                        } else if (action === "decremented") {
+                                          setAnnounce(`${addTargetName} quantity reduced`);
+                                        } else if (action === "incremented") {
+                                          setAnnounce(`${addTargetName} quantity increased`);
+                                        } else {
+                                          setAnnounce(`${addTargetName} added to cart`);
+                                        }
+                                        openCart();
+                                      }}
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="shop-add-to-cart"
+                                      disabled
+                                      aria-label={`Select a variant for ${itemDisplayName}`}
+                                    >
+                                      <AppIcon icon={faShoppingCart} />
+                                      <span>
+                                        {availableVariants.length ? "Choose a variant" : "Out of stock"}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <AddToCartButton
+                                  item={addTargetItem}
+                                  onCartChange={(action) => {
+                                    if (action === "removed") {
+                                      setAnnounce(`${addTargetName} removed from cart`);
+                                    } else if (action === "decremented") {
+                                      setAnnounce(`${addTargetName} quantity reduced`);
+                                    } else if (action === "incremented") {
+                                      setAnnounce(`${addTargetName} quantity increased`);
+                                    } else {
+                                      setAnnounce(`${addTargetName} added to cart`);
+                                    }
+                                    openCart();
+                                  }}
+                                />
+                              )}
                             </div>
                           </article>
                         );

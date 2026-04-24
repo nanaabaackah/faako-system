@@ -1,4 +1,4 @@
-const INVENTORY_CACHE_KEY = "reebs_inventory_cache_v1";
+const INVENTORY_CACHE_KEY = "reebs_inventory_cache_v2";
 const INVENTORY_CACHE_TTL = 5 * 60 * 1000;
 let inventoryRequestPromise = null;
 

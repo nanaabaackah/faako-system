@@ -481,11 +481,20 @@ const Checkout = () => {
 
   const createCheckoutItems = (items) =>
     items
-      .map((item) => ({
-        productId: Number(item.productId ?? item.id),
-        quantity: getCartItemBillingQuantity(item),
-        price: getCartItemPrice(item),
-      }))
+      .map((item) => {
+        const productId = Number(item.productId ?? item.id);
+        const variantId = Number(item.variantId);
+
+        return {
+          productId,
+          variantId:
+            Number.isFinite(variantId) && variantId > 0
+              ? variantId
+              : undefined,
+          quantity: getCartItemBillingQuantity(item),
+          price: getCartItemPrice(item),
+        };
+      })
       .filter((item) => Number.isFinite(item.productId));
 
   useEffect(() => {
