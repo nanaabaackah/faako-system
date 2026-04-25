@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import {
   ErpBottomNav,
@@ -6,7 +6,12 @@ import {
   ErpShellFrame,
   useSidebarCollapsedState,
 } from "@faako/ui";
-import { filterItemsByRole, getErpPageTitle, toTitleCase } from "@faako/utils";
+import {
+  filterItemsByRole,
+  getErpPageTitle,
+  observeElementHeightVar,
+  toTitleCase,
+} from "@faako/utils";
 import Dashboard from "./pages/Dashboard.jsx";
 import Orders from "./pages/Orders.jsx";
 import Inventory from "./pages/Inventory.jsx";
@@ -211,6 +216,8 @@ function AppLayout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
     storageKey: "faako-erp.sidebar-collapsed",
   });
+  const shellContentRef = useRef(null);
+  const topbarRef = useRef(null);
 
   useEffect(() => {
     document.title = getErpPageTitle(
@@ -220,6 +227,20 @@ function AppLayout() {
       "/",
     );
   }, [location.pathname]);
+
+  useEffect(() => {
+    const fallbackHeight =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches
+        ? 68
+        : 72;
+
+    return observeElementHeightVar({
+      source: topbarRef.current,
+      target: shellContentRef.current,
+      cssVar: "--erp-topbar-height",
+      fallback: fallbackHeight,
+    });
+  }, []);
 
   return (
     <ErpShellFrame
@@ -249,8 +270,8 @@ function AppLayout() {
         ) : null
       }
     >
-      <div className="erp-app-content">
-        <header className="erp-topbar">
+      <div ref={shellContentRef} className="erp-app-content">
+        <header ref={topbarRef} className="erp-topbar">
           <div className="topbar-title">
             <span>{getTopbarLabel(location.pathname)}</span>
           </div>

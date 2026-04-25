@@ -1,6 +1,7 @@
 .erp-shell-frame {
   --erp-sidebar-width: var(--ui-app-sidebar-width, 304px);
   --erp-sidebar-collapsed-width: var(--ui-app-sidebar-collapsed-width, 104px);
+  --erp-sidebar-active-width: var(--erp-sidebar-width);
   --erp-bottom-clearance: calc(5.8rem + env(safe-area-inset-bottom));
   min-height: 100vh;
   background: var(--erp-frame-background, var(--erp-bg));
@@ -9,12 +10,12 @@
 
 .erp-shell-frame--split {
   display: grid;
-  grid-template-columns: var(--erp-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--erp-sidebar-active-width) minmax(0, 1fr);
   transition: grid-template-columns 0.22s ease;
 }
 
 .erp-shell-frame--split.is-sidebar-collapsed {
-  grid-template-columns: var(--erp-sidebar-collapsed-width) minmax(0, 1fr);
+  --erp-sidebar-active-width: var(--erp-sidebar-collapsed-width);
 }
 
 .erp-shell-frame__content {

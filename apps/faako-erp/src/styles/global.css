@@ -116,6 +116,7 @@ a {
 }
 
 .erp-app-content {
+  --erp-topbar-height: 72px;
   min-width: 0;
 }
 
@@ -132,11 +133,11 @@ a {
   gap: 1rem;
   position: fixed;
   top: 0;
-  left: var(--erp-sidebar-width);
-  width: calc(100% - var(--erp-sidebar-width));
-  max-width: calc(100% - var(--erp-sidebar-width));
+  left: var(--erp-sidebar-active-width, var(--erp-sidebar-width));
+  width: calc(100% - var(--erp-sidebar-active-width, var(--erp-sidebar-width)));
+  max-width: calc(100% - var(--erp-sidebar-active-width, var(--erp-sidebar-width)));
   z-index: 80;
-  min-height: 72px;
+  min-height: var(--erp-topbar-height);
   box-sizing: border-box;
   transition: left 0.22s ease, width 0.22s ease, max-width 0.22s ease, padding 0.22s ease;
 }
@@ -189,7 +190,7 @@ a {
 }
 
 .erp-content {
-  padding: calc(2rem + 72px) 2rem max(2rem, var(--erp-bottom-clearance));
+  padding: calc(2rem + var(--erp-topbar-height)) 2rem max(2rem, var(--erp-bottom-clearance));
   min-width: 0;
 }
 
@@ -787,9 +788,12 @@ a {
     left: 0;
     width: 100%;
     max-width: 100%;
-    padding: 0.8rem 1rem;
+    padding:
+      calc(0.8rem + env(safe-area-inset-top, 0px))
+      1rem
+      0.8rem;
     column-gap: 0.6rem;
-    min-height: 68px;
+    min-height: var(--erp-topbar-height, 68px);
   }
 
   .topbar-title {
@@ -822,7 +826,7 @@ a {
   }
 
   .erp-content {
-    padding: calc(1rem + 68px) 1rem var(--erp-bottom-clearance);
+    padding: calc(1rem + var(--erp-topbar-height, 68px)) 1rem var(--erp-bottom-clearance);
   }
 }
 

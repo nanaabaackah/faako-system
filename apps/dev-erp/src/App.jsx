@@ -37,6 +37,9 @@ import {
   useSidebarCollapsedState,
 } from "@faako/ui";
 import {
+  observeElementHeightVar,
+} from "@faako/utils";
+import {
   clearAuthStore,
   refreshAuthSession,
   useAuthSnapshot,
@@ -99,6 +102,8 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
+  const shellRef = useRef(null);
+  const topbarRef = useRef(null);
   const navSwipeRef = useRef({
     active: false,
     horizontal: false,
@@ -147,6 +152,20 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    const fallbackHeight =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches
+        ? 68
+        : 72;
+
+    return observeElementHeightVar({
+      source: topbarRef.current,
+      target: shellRef.current,
+      cssVar: "--topbar-height",
+      fallback: fallbackHeight,
+    });
   }, []);
 
   useEffect(() => {
@@ -300,6 +319,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
 
   return (
     <div
+      ref={shellRef}
       className={[
         "erp-shell",
         isOffline ? "is-offline" : "",
@@ -328,7 +348,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onTouchCancel={handleSidebarTouchEnd}
       />
       <div className="erp-main">
-        <header className="erp-topbar">
+        <header ref={topbarRef} className="erp-topbar">
           <div className="topbar-title">
             <button
               className="nav-toggle"

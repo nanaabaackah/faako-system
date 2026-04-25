@@ -65,3 +65,4 @@ export const getErpPageTitle = (
 };
 
 export * from "./mobileBrowserChrome";
+export * from "./observeElementHeightVar";

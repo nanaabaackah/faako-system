@@ -2451,7 +2451,10 @@ textarea.input {
   .erp-topbar {
     left: 0;
     right: 0;
-    padding: 0.8rem 1rem;
+    padding:
+      calc(0.8rem + env(safe-area-inset-top, 0px))
+      1rem
+      0.8rem;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
