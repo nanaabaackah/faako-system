@@ -14,14 +14,14 @@ syncMobileBrowserChrome({ fallbackColor: "#fbfbfb" });
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <UiSystemProvider appSystem={appSystem}>
-      <AuthProvider>
-        <CurrencyProvider>
-          <BrowserRouter>
+    <BrowserRouter>
+      <UiSystemProvider appSystem={appSystem}>
+        <AuthProvider>
+          <CurrencyProvider>
             <App />
-          </BrowserRouter>
-        </CurrencyProvider>
-      </AuthProvider>
-    </UiSystemProvider>
+          </CurrencyProvider>
+        </AuthProvider>
+      </UiSystemProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

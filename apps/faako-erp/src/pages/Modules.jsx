@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   demoJourneys,
   featuredDemoModules,
@@ -17,12 +16,12 @@ export default function Modules() {
           </p>
         </div>
         <div className="header-actions">
-          <Link className="button button-primary" to="/orders">
+          <a className="button button-primary" href="/orders">
             Open live workflow
-          </Link>
-          <Link className="button button-ghost" to="/">
+          </a>
+          <a className="button button-ghost" href="/">
             Back to dashboard
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -58,9 +57,9 @@ export default function Modules() {
               <div className="table-strong">{module.metric}</div>
               <p className="muted">{module.outcome}</p>
             </div>
-            <Link className="button button-primary module-card__link" to={module.path}>
+            <a className="button button-primary module-card__link" href={module.path}>
               Open module
-            </Link>
+            </a>
           </article>
         ))}
       </div>

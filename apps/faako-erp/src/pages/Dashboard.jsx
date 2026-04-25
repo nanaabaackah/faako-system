@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { demoJourneys, featuredDemoModules } from "../data/demoModules.js";
 
 const kpis = [
@@ -186,12 +185,12 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="hero-actions">
-          <Link className="button button-primary" to="/modules">
+          <a className="button button-primary" href="/modules">
             Explore modules
-          </Link>
-          <Link className="button button-ghost" to="/reports">
+          </a>
+          <a className="button button-ghost" href="/reports">
             View reports
-          </Link>
+          </a>
         </div>
       </div>
 
@@ -214,18 +213,18 @@ export default function Dashboard() {
               through the shared ERP shell.
             </p>
           </div>
-          <Link className="button button-ghost" to="/modules">
+          <a className="button button-ghost" href="/modules">
             See all modules
-          </Link>
+          </a>
         </div>
         <div className="quick-access-grid">
           {featuredDemoModules.slice(0, 6).map((module) => (
-            <Link className="module-card quick-access-card" key={module.id} to={module.path}>
+            <a className="module-card quick-access-card" href={module.path} key={module.id}>
               <span className="eyebrow">{module.metric}</span>
               <div className="table-strong">{module.title}</div>
               <p className="muted">{module.summary}</p>
               <span className={`status-pill is-${module.tone}`}>{module.status}</span>
-            </Link>
+            </a>
           ))}
         </div>
       </section>

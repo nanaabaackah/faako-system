@@ -285,7 +285,7 @@
 .mega-link-copy {
   font-size: 0.82rem;
   line-height: 1.42;
-  color: color-mix(in srgb, var(--ink) 74%, var(--muted));
+  color: color-mix(in srgb, var(--ink) 82%, var(--muted));
 }
 
 .mega-link:hover .mega-link-copy,
@@ -394,7 +394,7 @@
 .theme-toggle {
   border: 1px solid var(--card);
   background: var(--card);
-  color: var(--muted);
+  color: color-mix(in srgb, var(--ink) 68%, var(--muted));
   padding: 0.55rem 1.1rem;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -438,7 +438,8 @@
 }
 
 @media (max-width: 1000px) {
-  .site-header {
+  .site-header,
+  .site-header.is-scrolled {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -451,6 +452,9 @@
     width: 100%;
     border-radius: 0;
     padding: 0.65rem 1rem;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    border-bottom: 1px solid var(--header-border);
+    box-shadow: 0 14px 28px rgba(12, 20, 34, 0.12);
   }
 
   .brand-block {
@@ -458,7 +462,8 @@
     text-align: left;
   }
 
-  .logo img {
+  .logo img,
+  .site-header.is-scrolled .logo img {
     height: 58px;
   }
 
@@ -470,11 +475,11 @@
     padding: 1rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: var(--card);
+    background: color-mix(in srgb, var(--card) 94%, var(--surface));
     box-shadow: var(--loose-shadow);
     order: 3;
     width: 100%;
-    max-height: calc(100dvh - 8.5rem);
+    max-height: calc(100dvh - var(--header-height) - 1.2rem);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -594,17 +599,19 @@
 }
 
 @media (max-width: 700px) {
-  .site-header {
+  .site-header,
+  .site-header.is-scrolled {
     padding: 0.5rem 0.7rem;
     gap: 0.45rem;
   }
 
-  .logo img {
+  .logo img,
+  .site-header.is-scrolled .logo img {
     height: 46px;
   }
 
   .site-nav {
-    max-height: calc(100dvh - 7.2rem);
+    max-height: calc(100dvh - var(--header-height) - 0.75rem);
     padding: 0.78rem;
   }
 

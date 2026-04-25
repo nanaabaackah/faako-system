@@ -73,7 +73,7 @@
   --bg-gradient: #fbfbfb00;
   --ink: #262626;
   --inkup: #235842;
-  --muted: #388364;
+  --muted: #2e6b52;
   --accent: #388364;
   --accent-strong: #235842;
   --accent-soft: #68c8a2;
@@ -99,7 +99,7 @@
   --section-warm-bg: color-mix(in srgb, #68c8a2 8%, #fbfbfb);
   --section-warm-ink: #262626;
   --section-warm-title: #235842;
-  --section-warm-muted: #388364;
+  --section-warm-muted: #2e6b52;
   --radius: 24px;
   --radius-sm: 14px;
   --radius-lg: 32px;
