@@ -297,6 +297,7 @@
   bottom: 1rem;
   z-index: 1200;
   display: none;
+  align-items: stretch;
   gap: 0.5rem;
   padding: 0.5rem;
   border: 1px solid var(--erp-border);
@@ -308,6 +309,8 @@
 }
 
 .erp-bottom-nav__button {
+  flex: 1 1 0;
+  min-width: 0;
   display: grid;
   justify-items: center;
   gap: 0.25rem;
@@ -317,6 +320,14 @@
   text-decoration: none;
   font-size: 0.75rem;
   font-weight: 600;
+  text-align: center;
+}
+
+.erp-bottom-nav__button span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .erp-bottom-nav__button.is-active {
@@ -395,7 +406,7 @@
   }
 
   .erp-bottom-nav {
-    display: grid;
+    display: flex;
   }
 
   .erp-content-header {

@@ -202,7 +202,7 @@ const getTopbarLabel = (pathname) => {
 
 function AppLayout() {
   const location = useLocation();
-  const { revokeAccess, user } = useAuth();
+  const { isAuthed, revokeAccess, user } = useAuth();
 
   useEffect(() => {
     document.title = getErpPageTitle(
@@ -228,12 +228,14 @@ function AppLayout() {
         />
       }
       bottomNav={
-        <ErpBottomNav
-          currentPath={location.pathname}
-          fallbackPath="/"
-          items={filterItemsByRole(shellConfig.bottomNavItems, null)}
-          renderIcon={renderShellIcon}
-        />
+        isAuthed ? (
+          <ErpBottomNav
+            currentPath={location.pathname}
+            fallbackPath="/"
+            items={filterItemsByRole(shellConfig.bottomNavItems, null)}
+            renderIcon={renderShellIcon}
+          />
+        ) : null
       }
     >
       <div className="erp-app-content">
