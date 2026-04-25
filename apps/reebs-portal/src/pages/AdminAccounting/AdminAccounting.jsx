@@ -2956,7 +2956,6 @@ function AdminAccounting() {
                   <select
                     value={journalsFilter}
                     onChange={(e) => setJournalsFilter(e.target.value)}
-                    style={{ padding: "0.5rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--admin-border,#e2e8f0)" }}
                   >
                     <option value="all">All</option>
                     <option value="draft">Draft</option>
@@ -3326,7 +3325,6 @@ function AdminAccounting() {
                       type="date"
                       value={tbAsOf}
                       onChange={(e) => setTbAsOf(e.target.value)}
-                      style={{ padding: "0.45rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--admin-border,#e2e8f0)" }}
                     />
                   </label>
                   <button type="button" className="accounting-secondary" onClick={() => fetchTrialBalance(tbAsOf)} disabled={tbLoading}>

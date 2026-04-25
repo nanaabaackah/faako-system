@@ -405,8 +405,12 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   if (isMobile) setOverlayOpen(false);
                 }}
               >
-                <AppIcon icon={app.icon} />
-                <span>{app.label}</span>
+                <span className="portal-sidebar__link-main">
+                  <span className="portal-sidebar__link-icon" aria-hidden="true">
+                    <AppIcon icon={app.icon} />
+                  </span>
+                  <span className="portal-sidebar__link-label">{app.label}</span>
+                </span>
               </a>
             </li>
           );
@@ -422,8 +426,12 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 if (isMobile && overlayOpen) setOverlayOpen(false);
               }}
             >
-              <AppIcon icon={app.icon} />
-              <span>{app.label}</span>
+              <span className="portal-sidebar__link-main">
+                <span className="portal-sidebar__link-icon" aria-hidden="true">
+                  <AppIcon icon={app.icon} />
+                </span>
+                <span className="portal-sidebar__link-label">{app.label}</span>
+              </span>
             </Link>
           </li>
         );
@@ -764,6 +772,17 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     </div>
   );
 
+  const brandContent = (
+    <>
+      <span className="portal-sidebar__brand-mark" aria-hidden="true">
+        R
+      </span>
+      <span className="portal-sidebar__brand-copy">
+        <span className="portal-sidebar__brand-full">Reebs ERP</span>
+      </span>
+    </>
+  );
+
   const mobileOverlay =
     isMobile && overlayOpen && typeof document !== "undefined"
       ? createPortal(
@@ -774,17 +793,24 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             onClick={() => setOverlayOpen(false)}
           >
             <div className="portal-sidebar__overlay-content" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="portal-sidebar__overlay-close"
-                onClick={() => setOverlayOpen(false)}
-                aria-label="Close menu"
-              >
-                <AppIcon icon={faXmark} />
-              </button>
-              {renderUserSection("overlay")}
-              {renderNotifications("overlay")}
-              <nav aria-label="Portal apps">{renderLinks("overlay")}</nav>
+              <div className="portal-sidebar__overlay-header">
+                <div className="portal-sidebar__brand">{brandContent}</div>
+                <button
+                  type="button"
+                  className="portal-sidebar__overlay-close"
+                  onClick={() => setOverlayOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <AppIcon icon={faXmark} />
+                </button>
+              </div>
+              <nav className="portal-sidebar__overlay-nav" aria-label="Portal apps">
+                {renderLinks("overlay")}
+              </nav>
+              <div className="portal-sidebar__footer">
+                {renderNotifications("overlay")}
+                {renderUserSection("overlay")}
+              </div>
             </div>
           </div>,
           document.body
@@ -794,25 +820,30 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   return (
     <>
       <aside className={`portal-sidebar ${expanded ? "is-expanded" : ""}`} aria-label="Portal navigation">
-        <div className="portal-sidebar__brand">
-          <span className="portal-sidebar__brand-short">R</span>
-          <span className="portal-sidebar__brand-full">Reebs ERP</span>
-        </div>
-        {!isMobile && renderUserSection()}
-        {isMobile ? (
-          <div className="portal-sidebar__toggle">
-            <button
-              type="button"
-              onClick={() => setOverlayOpen(true)}
-              className="portal-sidebar__toggle-btn"
-              aria-label="Open menu"
-            >
-              <AppIcon icon={faBars} />
-            </button>
+        <div className="portal-sidebar__panel">
+          <div className="portal-sidebar__header">
+            <div className="portal-sidebar__brand">{brandContent}</div>
+            {isMobile ? (
+              <div className="portal-sidebar__toggle">
+                <button
+                  type="button"
+                  onClick={() => setOverlayOpen(true)}
+                  className="portal-sidebar__toggle-btn"
+                  aria-label="Open menu"
+                >
+                  <AppIcon icon={faBars} />
+                </button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        {!isMobile && renderNotifications()}
-        {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
+          {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
+          {!isMobile && (
+            <div className="portal-sidebar__footer">
+              {renderNotifications()}
+              {renderUserSection()}
+            </div>
+          )}
+        </div>
         {!isMobile ? (
           <SidebarEdgeToggle
             className="portal-sidebar__edge-toggle"

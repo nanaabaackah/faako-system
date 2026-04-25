@@ -132,10 +132,51 @@
   color: var(--sys-danger);
 }
 
+:where(.erp-shell, .erp-shell-frame, .portal-app-shell) {
+  --ui-app-sidebar-width: 304px;
+  --ui-app-sidebar-collapsed-width: 104px;
+  --ui-app-sidebar-outer-padding: 0.9rem;
+  --ui-app-sidebar-panel-gap: 1rem;
+  --ui-app-sidebar-panel-padding: 1.15rem;
+  --ui-app-sidebar-panel-radius: 1.5rem;
+  --ui-app-sidebar-brand-gap: 0.85rem;
+  --ui-app-sidebar-brand-mark-size: 2.9rem;
+  --ui-app-sidebar-brand-mark-radius: 1rem;
+  --ui-app-sidebar-brand-kicker-size: 0.72rem;
+  --ui-app-sidebar-brand-kicker-tracking: 0.12em;
+  --ui-app-sidebar-brand-title-size: 1.08rem;
+  --ui-app-sidebar-control-size: 2.8rem;
+  --ui-app-sidebar-control-radius: 1rem;
+  --ui-app-sidebar-compact-control-size: 3rem;
+  --ui-app-sidebar-search-gap: 0.8rem;
+  --ui-app-sidebar-search-padding-block: 0.78rem;
+  --ui-app-sidebar-search-padding-inline: 0.95rem;
+  --ui-app-sidebar-search-radius: 1.1rem;
+  --ui-app-sidebar-search-font-size: 0.98rem;
+  --ui-app-sidebar-search-hint-size: 0.72rem;
+  --ui-app-sidebar-nav-gap: 0.42rem;
+  --ui-app-sidebar-link-gap: 0.8rem;
+  --ui-app-sidebar-link-padding-block: 0.88rem;
+  --ui-app-sidebar-link-padding-inline: 0.98rem;
+  --ui-app-sidebar-link-padding-inline-start: 1.15rem;
+  --ui-app-sidebar-link-radius: 1.05rem;
+  --ui-app-sidebar-icon-box-size: 2rem;
+  --ui-app-sidebar-icon-box-radius: 0.8rem;
+  --ui-app-sidebar-icon-size: 1rem;
+  --ui-app-sidebar-label-size: 0.98rem;
+  --ui-app-sidebar-description-size: 0.78rem;
+  --ui-app-sidebar-empty-size: 0.9rem;
+  --ui-app-sidebar-footer-gap: 0.85rem;
+  --ui-app-sidebar-footer-padding-top: 0.85rem;
+  --ui-app-sidebar-collapsed-panel-padding-inline: 0.75rem;
+  --ui-app-sidebar-collapsed-link-padding: 0.75rem;
+  --ui-app-sidebar-collapsed-marker-inset: 0.35rem;
+}
+
 .ui-sidebar-edge-toggle {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: var(--ui-sidebar-toggle-inline-offset, var(--ui-app-sidebar-outer-padding, 0));
   width: 2.2rem;
   height: 4.4rem;
   padding: 0;

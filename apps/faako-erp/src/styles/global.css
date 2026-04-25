@@ -133,9 +133,12 @@ a {
   position: fixed;
   top: 0;
   left: var(--erp-sidebar-width);
-  right: 0;
+  width: calc(100% - var(--erp-sidebar-width));
+  max-width: calc(100% - var(--erp-sidebar-width));
   z-index: 80;
   min-height: 72px;
+  box-sizing: border-box;
+  transition: left 0.22s ease, width 0.22s ease, max-width 0.22s ease, padding 0.22s ease;
 }
 
 .topbar-title {
@@ -782,7 +785,8 @@ a {
 
   .erp-topbar {
     left: 0;
-    right: 0;
+    width: 100%;
+    max-width: 100%;
     padding: 0.8rem 1rem;
     column-gap: 0.6rem;
     min-height: 68px;

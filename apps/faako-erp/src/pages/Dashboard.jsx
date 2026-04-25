@@ -219,7 +219,7 @@ export default function Dashboard() {
         </div>
         <div className="quick-access-grid">
           {featuredDemoModules.slice(0, 6).map((module) => (
-            <a className="module-card quick-access-card" href={module.path} key={module.id}>
+            <a className="module-card quick-access-card bubble-card" href={module.path} key={module.id}>
               <span className="eyebrow">{module.metric}</span>
               <div className="table-strong">{module.title}</div>
               <p className="muted">{module.summary}</p>
@@ -370,7 +370,7 @@ export default function Dashboard() {
 
       <section className="workflow-grid">
         {demoJourneys.map((journey) => (
-          <article className="panel glass-card workflow-card" key={journey.id}>
+          <article className="panel glass-card bubble-card workflow-card" key={journey.id}>
             <p className="eyebrow">Connected workflow</p>
             <h3>{journey.title}</h3>
             <p className="muted">{journey.summary}</p>

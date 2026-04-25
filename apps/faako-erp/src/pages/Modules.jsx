@@ -37,7 +37,7 @@ export default function Modules() {
 
       <div className="module-grid">
         {featuredDemoModules.map((module) => (
-          <article className="panel glass-card module-card" key={module.id}>
+          <article className="panel glass-card bubble-card module-card" key={module.id}>
             <div className="module-card__header">
               <div>
                 <p className="eyebrow">Important module</p>
@@ -66,7 +66,7 @@ export default function Modules() {
 
       <div className="workflow-grid">
         {demoJourneys.map((journey) => (
-          <article className="panel glass-card workflow-card" key={journey.id}>
+          <article className="panel glass-card bubble-card workflow-card" key={journey.id}>
             <p className="eyebrow">Demo story</p>
             <h3>{journey.title}</h3>
             <p className="muted">{journey.summary}</p>

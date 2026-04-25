@@ -434,7 +434,8 @@
 
 .rent-payment-main-row .input,
 .rent-payment-main-row select.input {
-  height: 2.8rem;
+  min-height: 3rem;
+  height: auto;
 }
 
 .rent-payment-summary {

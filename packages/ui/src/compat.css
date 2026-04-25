@@ -263,12 +263,11 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   border-color: var(--sys-info) !important;
 }
 
-[data-faako-theme] :where(
-  select:not(.ui-dropdown-field__native):not([multiple]),
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-) {
+[data-faako-theme] select:not(.ui-dropdown-field__native):not([multiple]),
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native) {
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -285,29 +284,26 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-[data-faako-theme] :where(
-  select:not(.ui-dropdown-field__native):not([multiple]),
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-):focus,
-[data-faako-theme] :where(
-  select:not(.ui-dropdown-field__native):not([multiple]),
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-):focus-visible {
+[data-faako-theme] select:not(.ui-dropdown-field__native):not([multiple]):focus,
+[data-faako-theme] select:not(.ui-dropdown-field__native):not([multiple]):focus-visible,
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native):focus,
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native):focus-visible,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native):focus,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native):focus-visible,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native):focus,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native):focus-visible,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native):focus,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native):focus-visible {
   border-color: var(--sys-accent) !important;
   box-shadow: 0 0 0 2px var(--sys-accent-soft) !important;
   outline: none;
 }
 
-[data-faako-theme] :where(
-  select:not(.ui-dropdown-field__native):not([multiple]),
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-):disabled {
+[data-faako-theme] select:not(.ui-dropdown-field__native):not([multiple]):disabled,
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native):disabled,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native):disabled,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native):disabled,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native):disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -327,45 +323,77 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   background-repeat: no-repeat;
 }
 
-[data-faako-theme] :where(
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-) {
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.75rem;
+  background-origin: content-box;
+  background-position: calc(100% - 0.95rem) 50%;
+  background-size: 1rem 1rem;
+  background-repeat: no-repeat;
   color-scheme: light dark;
 }
 
-[data-faako-theme] :where(
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-)::-webkit-date-and-time-value {
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native),
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2374879b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4.5' width='14' height='12' rx='2.5'/%3E%3Cpath d='M6 3v3'/%3E%3Cpath d='M14 3v3'/%3E%3Cpath d='M3.5 8.5h13'/%3E%3C/svg%3E");
+}
+
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2374879b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='6.5'/%3E%3Cpath d='M10 6.8v3.5l2.4 1.6'/%3E%3C/svg%3E");
+}
+
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-date-and-time-value,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-date-and-time-value,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-date-and-time-value,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.2em;
+  width: 100%;
+  max-width: 100%;
 }
 
-[data-faako-theme] :where(
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-)::-webkit-datetime-edit,
-[data-faako-theme] :where(
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-)::-webkit-datetime-edit-fields-wrapper {
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-datetime-edit,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-datetime-edit,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-datetime-edit,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-datetime-edit,
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-datetime-edit-fields-wrapper,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-datetime-edit-fields-wrapper,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-datetime-edit-fields-wrapper,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-datetime-edit-fields-wrapper {
   padding: 0;
   color: inherit;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-[data-faako-theme] :where(
-  input[type="date"]:not(.ui-date-field__native),
-  input[type="datetime-local"],
-  input[type="month"]
-)::-webkit-calendar-picker-indicator {
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-clear-button,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-clear-button,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-clear-button,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-clear-button,
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-inner-spin-button,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-inner-spin-button,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-inner-spin-button,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-inner-spin-button {
+  display: none;
+}
+
+[data-faako-theme] input[type="date"]:not(.ui-date-field__native)::-webkit-calendar-picker-indicator,
+[data-faako-theme] input[type="time"]:not(.ui-date-field__native)::-webkit-calendar-picker-indicator,
+[data-faako-theme] input[type="datetime-local"]:not(.ui-date-field__native)::-webkit-calendar-picker-indicator,
+[data-faako-theme] input[type="month"]:not(.ui-date-field__native)::-webkit-calendar-picker-indicator {
   cursor: pointer;
   margin: 0;
-  opacity: 0.8;
+  opacity: 0;
+  width: 1rem;
+  min-width: 1rem;
+  height: 1rem;
 }
 
 @media (max-width: 720px) {
