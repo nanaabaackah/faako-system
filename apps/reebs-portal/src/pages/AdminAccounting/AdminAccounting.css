@@ -252,6 +252,54 @@ body.admin-theme .ui-dropdown-field__option.is-selected {
   margin: 0;
 }
 
+/* ── Double-entry import grid ─────────────────────────────────────────────── */
+.acct-import-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.acct-import-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.55rem 0.4rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  background: var(--admin-surface, #f8fafc);
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.acct-import-cell--posted {
+  border-color: var(--success, #16a34a);
+  background: color-mix(in srgb, var(--success, #16a34a) 8%, transparent);
+}
+
+.acct-import-cell--draft {
+  border-color: var(--accent, #6366f1);
+  background: color-mix(in srgb, var(--accent, #6366f1) 8%, transparent);
+}
+
+.acct-import-cell-label {
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.acct-import-cell-status {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+.acct-import-cell-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 @media (max-width: 980px) {
   .accounting-page .accounting-kpis-activity {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -396,5 +444,9 @@ body.admin-theme .ui-dropdown-field__option.is-selected {
   .accounting-page .accounting-breakdown-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .acct-import-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

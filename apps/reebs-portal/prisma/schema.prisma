@@ -601,7 +601,8 @@ model Booking {
   createdByUserId Int?
   updatedByUserId Int?
   lastModifiedAt  DateTime?   @default(now())
-  delivery   Delivery?
+  delivery        Delivery?
+  deferredRevenue DeferredRevenue?
 
   @@map("booking")
 }
@@ -738,6 +739,177 @@ model ManagerDevice {
   updatedAt  DateTime @default(now())
 
   @@map("managerDevice")
+}
+
+model SystemConfig {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @default(1)
+  key            String
+  value          String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@map("systemConfig")
+}
+
+model ChartOfAccount {
+  id              Int              @id @default(autoincrement())
+  organizationId  Int              @default(1)
+  accountCode     String
+  accountName     String
+  accountType     String           // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  normalBalance   String           // DEBIT | CREDIT
+  parentAccountId Int?
+  parentAccount   ChartOfAccount?  @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  subAccounts     ChartOfAccount[] @relation("AccountHierarchy")
+  isSystemAccount Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  journalLines    JournalLine[]
+  openingBalances OpeningBalance[]
+  taxRates        TaxRate[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([organizationId, accountCode])
+  @@index([organizationId, accountType, isActive])
+  @@map("chartOfAccount")
+}
+
+model TaxRate {
+  id             Int             @id @default(autoincrement())
+  organizationId Int             @default(1)
+  taxType        String          // VAT | NHIL | GETFUND | COVID_HRL | WHT_INDIVIDUAL | WHT_COMPANY | PAYE | SSNIT_EMPLOYER | SSNIT_EMPLOYEE
+  label          String
+  rateInBps      Int             // basis points: 1500 = 15.00%, 250 = 2.50%, 100 = 1.00%
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  isActive       Boolean         @default(true)
+  accountId      Int?
+  account        ChartOfAccount? @relation(fields: [accountId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, taxType, isActive])
+  @@map("taxRate")
+}
+
+model HistoricalImportBatch {
+  id              Int              @id @default(autoincrement())
+  organizationId  Int              @default(1)
+  batchName       String
+  periodStart     DateTime
+  periodEnd       DateTime
+  source          String
+  summary         Json?
+  isPosted        Boolean          @default(false)
+  postedAt        DateTime?
+  postedByUserId  Int?
+  notes           String?
+  journalEntries  JournalEntry[]
+  openingBalances OpeningBalance[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([organizationId, batchName])
+  @@index([organizationId, periodStart])
+  @@map("historicalImportBatch")
+}
+
+model JournalEntry {
+  id              Int                    @id @default(autoincrement())
+  organizationId  Int                    @default(1)
+  date            DateTime
+  reference       String
+  description     String?
+  createdByUserId Int?
+  isPosted        Boolean                @default(false)
+  postedAt        DateTime?
+  postedByUserId  Int?
+  isReversed      Boolean                @default(false)
+  reversalOfId    Int?
+  reversalOf      JournalEntry?          @relation("JournalReversal", fields: [reversalOfId], references: [id])
+  reversals       JournalEntry[]         @relation("JournalReversal")
+  importBatchId   Int?
+  importBatch     HistoricalImportBatch? @relation(fields: [importBatchId], references: [id])
+  lines           JournalLine[]
+  recognitionLines RevenueRecognitionLine[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, date])
+  @@index([importBatchId])
+  @@map("journalEntry")
+}
+
+model JournalLine {
+  id             Int            @id @default(autoincrement())
+  journalEntryId Int
+  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id])
+  accountId      Int
+  account        ChartOfAccount @relation(fields: [accountId], references: [id])
+  debit          Int            @default(0) // pesewas
+  credit         Int            @default(0) // pesewas
+  description    String?
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journalLine")
+}
+
+model OpeningBalance {
+  id              Int                    @id @default(autoincrement())
+  organizationId  Int                    @default(1)
+  accountId       Int
+  account         ChartOfAccount         @relation(fields: [accountId], references: [id])
+  amount          Int                    // pesewas; positive = normal balance direction
+  balanceDate     DateTime
+  notes           String?
+  importBatchId   Int?
+  importBatch     HistoricalImportBatch? @relation(fields: [importBatchId], references: [id])
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([organizationId, accountId, balanceDate])
+  @@index([organizationId, balanceDate])
+  @@map("openingBalance")
+}
+
+model DeferredRevenue {
+  id                   Int                      @id @default(autoincrement())
+  bookingId            Int                      @unique
+  booking              Booking                  @relation(fields: [bookingId], references: [id])
+  totalAmount          Int                      // in pesewas
+  recognisedAmount     Int                      @default(0)
+  unrecognisedAmount   Int                      // totalAmount - recognisedAmount; kept in sync on each recognition
+  startDate            DateTime
+  endDate              DateTime
+  recognitionSchedule  RevenueRecognitionLine[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  @@index([bookingId])
+  @@map("deferredRevenue")
+}
+
+model RevenueRecognitionLine {
+  id                String          @id @default(cuid())
+  deferredRevenueId Int
+  deferredRevenue   DeferredRevenue @relation(fields: [deferredRevenueId], references: [id])
+  periodDate        DateTime        // e.g. 2025-03-01 = March recognition
+  amountToRecognise Int             // in pesewas
+  isRecognised      Boolean         @default(false)
+  recognisedAt      DateTime?
+  journalEntryId    Int?            // links to journalEntry.id once posted
+  journalEntry      JournalEntry?   @relation(fields: [journalEntryId], references: [id])
+
+  @@index([deferredRevenueId])
+  @@index([journalEntryId])
+  @@index([periodDate, isRecognised])
+  @@map("revenueRecognitionLine")
 }
 
 model AuditLog {

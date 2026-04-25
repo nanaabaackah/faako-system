@@ -43,7 +43,7 @@ const getWindowRange = (windowKey = "thisMonth") => {
     if (Number.isInteger(targetYear)) {
       const start = new Date(Date.UTC(targetYear, 0, 1));
       const end = new Date(Date.UTC(targetYear + 1, 0, 1));
-      return { start, end, label: String(targetYear) };
+      return { start, end, label: `${targetYear} full year` };
     }
   }
 
@@ -81,7 +81,7 @@ const getWindowRange = (windowKey = "thisMonth") => {
     case "thisQuarter": {
       const start = startOfQuarter(year, month);
       const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, 1));
-      return { start, end, label: "This quarter" };
+      return { start, end, label: "Quarter to date" };
     }
     case "lastQuarter": {
       const start = startOfQuarter(year, month - 3);
@@ -91,7 +91,7 @@ const getWindowRange = (windowKey = "thisMonth") => {
     case "thisYear": {
       const start = new Date(Date.UTC(year, 0, 1));
       const end = new Date(Date.UTC(year + 1, 0, 1));
-      return { start, end, label: "This year" };
+      return { start, end, label: "Year to date" };
     }
     case "lastYear": {
       const start = new Date(Date.UTC(year - 1, 0, 1));
@@ -112,7 +112,7 @@ const getWindowRange = (windowKey = "thisMonth") => {
     default: {
       const start = startOfMonth(year, month);
       const end = endOfMonth(year, month);
-      return { start, end, label: "This month" };
+      return { start, end, label: "Month to date" };
     }
   }
 };

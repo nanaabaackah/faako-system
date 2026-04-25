@@ -17,6 +17,8 @@ import Modules from "./pages/Modules.jsx";
 import Settings from "./pages/Settings.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import shellConfig from "./config/erpShell.js";
+import DemoAccessGate from "./components/DemoAccessGate.jsx";
+import { useAuth } from "./contexts/AuthContext.jsx";
 import "./styles/components/panel.css";
 
 const iconStrokeProps = {
@@ -200,6 +202,7 @@ const getTopbarLabel = (pathname) => {
 
 function AppLayout() {
   const location = useLocation();
+  const { revokeAccess, user } = useAuth();
 
   useEffect(() => {
     document.title = getErpPageTitle(
@@ -240,6 +243,18 @@ function AppLayout() {
           </div>
           <div className="topbar-actions">
             <span className="erp-topbar__context">{shellConfig.brand.topbarLabel}</span>
+            {user?.email ? (
+              <span className="erp-topbar__viewer">{user.email}</span>
+            ) : null}
+            {user?.email ? (
+              <button
+                className="button button-ghost button-compact"
+                onClick={revokeAccess}
+                type="button"
+              >
+                Change access
+              </button>
+            ) : null}
           </div>
         </header>
         <main className="erp-content">
@@ -260,6 +275,7 @@ function AppLayout() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <DemoAccessGate />
       </div>
     </ErpShellFrame>
   );

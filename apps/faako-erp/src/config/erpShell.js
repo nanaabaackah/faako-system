@@ -28,9 +28,9 @@ export default defineErpShellConfig({
   brand: {
     name: "Faako ERP",
     shortName: "FAAKO",
-    sidebarTitle: "Faako Operations",
+    sidebarTitle: "Faako ERP Demo",
     homePath: "/",
-    topbarLabel: "Workspace overview",
+    topbarLabel: "Live product walkthrough",
     shellVars: {
       "--erp-accent": "var(--accent)",
       "--erp-bg": "var(--surface)",

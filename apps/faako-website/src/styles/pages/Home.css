@@ -1942,8 +1942,8 @@
 
 @media (max-width: 700px) {
   .hero {
-    padding: 0 1.5rem;
-    gap: 1.8rem;
+    padding: 0 1.25rem;
+    gap: 1.4rem;
     overflow: visible;
     min-height: 100vh;
     height: auto;
@@ -1951,15 +1951,23 @@
   }
 
   .hero-content {
-    padding-top: clamp(6.6rem, 20vw, 8.2rem);
-    padding-bottom: 2.5rem;
-    gap: 1.8rem;
+    padding-top: clamp(5.5rem, 18vw, 7.5rem);
+    padding-bottom: 2rem;
+    gap: 1.4rem;
   }
 
   .hero-content h1 {
     font-size: 2.8rem;
     line-height: 1.16;
-    margin-bottom: 2rem;
+    margin: 0 0 1.4rem;
+  }
+
+  .hero-type-line--base {
+    font-size: clamp(2.4rem, 9vw, 3.2rem);
+  }
+
+  .hero-type-line--accent {
+    font-size: clamp(1.6rem, 6.5vw, 2rem);
   }
 
   .hero-visual {
@@ -4341,5 +4349,62 @@
   .home-page .home-faq-item p {
     font-size: 0.97rem;
     line-height: 1.6;
+  }
+}
+
+/* ================================================
+   Small phone (≤ 420px) — tighten hero further
+   ================================================ */
+@media (max-width: 420px) {
+  .hero {
+    padding: 0 1rem;
+    gap: 1.2rem;
+  }
+
+  .hero-content {
+    padding-top: clamp(4.8rem, 24vw, 6rem);
+    padding-bottom: 1.5rem;
+    gap: 1.1rem;
+  }
+
+  .hero-content h1 {
+    margin-bottom: 1rem;
+  }
+
+  .hero-type-line--base {
+    font-size: clamp(2rem, 10vw, 2.6rem);
+  }
+
+  .hero-type-line--accent {
+    font-size: clamp(1.35rem, 7vw, 1.7rem);
+  }
+
+  .hero-visual {
+    margin: 0 auto 0.75rem;
+  }
+
+  .hero-stats-block {
+    margin-top: 0.4rem;
+    gap: 0.7rem;
+  }
+
+  .hero-stats {
+    gap: 0.55rem;
+    margin-top: 0.4rem;
+  }
+
+  .hero-stat-value {
+    font-size: clamp(2rem, 12vw, 2.6rem);
+  }
+
+  .hero-actions .button,
+  .hero-actions .button-ghost {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .home-page :is(.trust-indicators, .features-section, .pricing-preview, .page.case-studies, .home-discovery, .home-faq, .cta.cta-compact) {
+    padding-inline: 1rem;
+    padding-block: 1.8rem;
   }
 }

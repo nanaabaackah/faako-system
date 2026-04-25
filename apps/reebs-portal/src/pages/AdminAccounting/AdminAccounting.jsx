@@ -103,6 +103,10 @@ const CORPORATE_RATE_MAP = {
   custom: { label: "Custom rate", rate: null },
 };
 
+const ACCOUNT_TYPES = ["ASSET","LIABILITY","EQUITY","REVENUE","EXPENSE"];
+const NORMAL_BALANCE_FOR = { ASSET:"DEBIT", EXPENSE:"DEBIT", LIABILITY:"CREDIT", EQUITY:"CREDIT", REVENUE:"CREDIT" };
+const TYPE_LABELS = { ASSET:"Assets", LIABILITY:"Liabilities", EQUITY:"Equity", REVENUE:"Revenue", EXPENSE:"Expenses" };
+
 const HISTORICAL_START_YEAR = 2024;
 const HISTORICAL_INPUT_YEARS = (() => {
   const currentYear = new Date().getFullYear();
@@ -112,6 +116,13 @@ const HISTORICAL_INPUT_YEARS = (() => {
     (_, index) => HISTORICAL_START_YEAR + index
   );
 })();
+const ACCOUNTING_REPORT_WINDOWS = [
+  { value: "thisMonth", label: "Month to date" },
+  { value: "lastMonth", label: "Last month" },
+  { value: "thisQuarter", label: "Quarter to date" },
+  { value: "lastQuarter", label: "Last quarter" },
+  { value: "thisYear", label: "Year to date" },
+];
 const DEFAULT_HISTORICAL_YEAR = HISTORICAL_INPUT_YEARS[0] || HISTORICAL_START_YEAR;
 const MANUAL_SALES_MONTHS = [
   { key: "jan", label: "Jan", monthIndex: 0 },
@@ -127,44 +138,40 @@ const MANUAL_SALES_MONTHS = [
   { key: "nov", label: "Nov", monthIndex: 10 },
   { key: "dec", label: "Dec", monthIndex: 11 },
 ];
-const MANUAL_SALES_DEFAULTS = Object.fromEntries(
-  MANUAL_SALES_MONTHS.map(({ key }) => [key, "0"])
-);
-const EMPTY_MANUAL_SALES_PAYLOAD = Object.fromEntries(
-  MANUAL_SALES_MONTHS.map(({ key }) => [key, 0])
-);
-
-const normalizeManualSalesPayload = (value) => {
+const DEFAULT_IMPORT_EXPENSE_LINE = { accountCode: "6000", description: "", amountPesewas: "" };
+const createDefaultImportForm = (overrides = {}) => ({
+  year: DEFAULT_HISTORICAL_YEAR,
+  month: 1,
+  grossSales: "",
+  retailSplit: "",
+  rentalSplit: "",
+  cashReceived: "",
+  arOutstanding: "",
+  vatPayablePaid: "0",
+  graPaymentDate: "",
+  cogsPesewas: "",
+  expenseLines: [{ ...DEFAULT_IMPORT_EXPENSE_LINE }],
+  ...overrides,
+});
+const toCurrencyUnitsFromPesewas = (value) => Math.max(0, toNumber(value)) / 100;
+const createEmptyHistoricalSalesRecordMap = () =>
+  Object.fromEntries(
+    HISTORICAL_INPUT_YEARS.map((year) => [
+      year,
+      Object.fromEntries(MANUAL_SALES_MONTHS.map(({ key }) => [key, 0])),
+    ])
+  );
+const normalizeHistoricalMonthlySales = (value) => {
   const source = value && typeof value === "object" ? value : {};
   return MANUAL_SALES_MONTHS.reduce((acc, month) => {
-    const amount = Math.max(0, toNumber(source[month.key]));
-    acc[month.key] = Math.round(amount * 100) / 100;
+    acc[month.key] = Math.max(0, Math.round(toNumber(source[month.key]) * 100) / 100);
     return acc;
-  }, { ...EMPTY_MANUAL_SALES_PAYLOAD });
+  }, Object.fromEntries(MANUAL_SALES_MONTHS.map(({ key }) => [key, 0])));
 };
-
-const toHistoricalSalesInputs = (value) => {
-  const normalized = normalizeManualSalesPayload(value);
-  return MANUAL_SALES_MONTHS.reduce((acc, month) => {
-    acc[month.key] = String(normalized[month.key] || 0);
-    return acc;
-  }, { ...MANUAL_SALES_DEFAULTS });
-};
-
-const serializeHistoricalSalesInputs = (value) =>
-  JSON.stringify(normalizeManualSalesPayload(value));
-
-const createEmptyHistoricalSalesRecordMap = () =>
-  Object.fromEntries(HISTORICAL_INPUT_YEARS.map((year) => [year, { ...EMPTY_MANUAL_SALES_PAYLOAD }]));
-
-const createHistoricalSalesDraftMap = (value = {}) =>
-  Object.fromEntries(
-    HISTORICAL_INPUT_YEARS.map((year) => [year, toHistoricalSalesInputs(value[year])])
-  );
 
 function AdminAccounting() {
-  const [windowKey, setWindowKey] = useState("allTime");
-  const [viewMode, setViewMode] = useState("overview"); // overview | activity | statements | taxes
+  const [windowKey, setWindowKey] = useState("thisMonth");
+  const [viewMode, setViewMode] = useState("overview"); // overview | activity | statements | taxes | coa | journals | import | trialBalance
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -224,16 +231,47 @@ function AdminAccounting() {
   const [accountingConfigLoaded, setAccountingConfigLoaded] = useState(false);
   const [accountingConfigSaving, setAccountingConfigSaving] = useState("");
   const [accountingConfigError, setAccountingConfigError] = useState("");
-  const [historicalSalesByYear, setHistoricalSalesByYear] = useState(() =>
+  const [selectedHistoricalYear, setSelectedHistoricalYear] = useState(DEFAULT_HISTORICAL_YEAR);
+  const [legacyHistoricalSalesByYear, setLegacyHistoricalSalesByYear] = useState(() =>
     createEmptyHistoricalSalesRecordMap()
   );
-  const [historicalSalesDrafts, setHistoricalSalesDrafts] = useState(() =>
-    createHistoricalSalesDraftMap(createEmptyHistoricalSalesRecordMap())
-  );
-  const [selectedHistoricalYear, setSelectedHistoricalYear] = useState(DEFAULT_HISTORICAL_YEAR);
-  const [historicalSalesLoaded, setHistoricalSalesLoaded] = useState(false);
-  const [historicalSalesSaving, setHistoricalSalesSaving] = useState(false);
-  const [historicalSalesError, setHistoricalSalesError] = useState("");
+  const [legacyHistoricalLoaded, setLegacyHistoricalLoaded] = useState(false);
+  const [legacyHistoricalError, setLegacyHistoricalError] = useState("");
+  // ── Double-entry accounting state ─────────────────────────────────────────
+  const [coaAccounts, setCoaAccounts] = useState([]);
+  const [coaLoading, setCoaLoading] = useState(false);
+  const [coaError, setCoaError] = useState("");
+  const [coaLoaded, setCoaLoaded] = useState(false);
+  const [coaShowForm, setCoaShowForm] = useState(false);
+  const [coaNewForm, setCoaNewForm] = useState({ accountCode: "", accountName: "", accountType: "ASSET", normalBalance: "DEBIT" });
+  const [coaFormError, setCoaFormError] = useState("");
+  const [coaFormSaving, setCoaFormSaving] = useState(false);
+
+  const [journals, setJournals] = useState([]);
+  const [journalsLoading, setJournalsLoading] = useState(false);
+  const [journalsError, setJournalsError] = useState("");
+  const [journalsLoaded, setJournalsLoaded] = useState(false);
+  const [journalsFilter, setJournalsFilter] = useState("all");
+  const [expandedJournalId, setExpandedJournalId] = useState(null);
+  const [journalDetailCache, setJournalDetailCache] = useState({});
+  const [journalPosting, setJournalPosting] = useState(null);
+
+  const [importBatches, setImportBatches] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importLoaded, setImportLoaded] = useState(false);
+  const [importPostingId, setImportPostingId] = useState(null);
+  const [importDeletingId, setImportDeletingId] = useState(null);
+  const [importShowForm, setImportShowForm] = useState(false);
+  const [importForm, setImportForm] = useState(() => createDefaultImportForm());
+  const [importFormError, setImportFormError] = useState("");
+  const [importFormSaving, setImportFormSaving] = useState(false);
+
+  const [trialBalance, setTrialBalance] = useState(null);
+  const [tbLoading, setTbLoading] = useState(false);
+  const [tbError, setTbError] = useState("");
+  const [tbAsOf, setTbAsOf] = useState(() => new Date().toISOString().slice(0, 10));
+
   const balanceInputsEditedRef = useRef(false);
   const taxInputsEditedRef = useRef(false);
   const ghanaTaxConfigEditedRef = useRef(false);
@@ -299,7 +337,7 @@ function AdminAccounting() {
     let cancelled = false;
 
     (async () => {
-      setHistoricalSalesError("");
+      setLegacyHistoricalError("");
       try {
         const result = await fetchJson("/.netlify/functions/accounting-history");
         if (cancelled) return;
@@ -308,18 +346,16 @@ function AdminAccounting() {
         rows.forEach((row) => {
           const year = Number(row?.year);
           if (!HISTORICAL_INPUT_YEARS.includes(year)) return;
-          nextRecords[year] = normalizeManualSalesPayload(row?.monthlySales);
+          nextRecords[year] = normalizeHistoricalMonthlySales(row?.monthlySales);
         });
-        setHistoricalSalesByYear(nextRecords);
-        setHistoricalSalesDrafts(createHistoricalSalesDraftMap(nextRecords));
+        setLegacyHistoricalSalesByYear(nextRecords);
       } catch (err) {
         if (cancelled) return;
-        setHistoricalSalesError(err.message || "Unable to load saved historical sales.");
-        setHistoricalSalesByYear(createEmptyHistoricalSalesRecordMap());
-        setHistoricalSalesDrafts(createHistoricalSalesDraftMap(createEmptyHistoricalSalesRecordMap()));
+        setLegacyHistoricalError(err.message || "Unable to load legacy historical carry-over.");
+        setLegacyHistoricalSalesByYear(createEmptyHistoricalSalesRecordMap());
       } finally {
         if (!cancelled) {
-          setHistoricalSalesLoaded(true);
+          setLegacyHistoricalLoaded(true);
         }
       }
     })();
@@ -375,7 +411,7 @@ function AdminAccounting() {
   }, [windowKey]);
 
   useEffect(() => {
-    fetchData("allTime");
+    fetchData("thisMonth");
     return () => {
       if (fetchDataTimeoutRef.current) {
         clearTimeout(fetchDataTimeoutRef.current);
@@ -408,50 +444,121 @@ function AdminAccounting() {
   };
 
   useEffect(() => {
-    if (viewMode !== "overview" && viewMode !== "activity") return;
+    if (viewMode !== "activity") return;
     if (listLoaded) return;
     fetchListData();
   }, [viewMode, listLoaded]);
 
-  const selectedHistoricalInputs = useMemo(
-    () => historicalSalesDrafts[selectedHistoricalYear] || { ...MANUAL_SALES_DEFAULTS },
-    [historicalSalesDrafts, selectedHistoricalYear]
-  );
-  const selectedHistoricalSavedValues = useMemo(
-    () => historicalSalesByYear[selectedHistoricalYear] || { ...EMPTY_MANUAL_SALES_PAYLOAD },
-    [historicalSalesByYear, selectedHistoricalYear]
-  );
-  const historicalSalesDirty =
-    serializeHistoricalSalesInputs(selectedHistoricalInputs)
-    !== serializeHistoricalSalesInputs(selectedHistoricalSavedValues);
-  const lastHistoricalYear =
-    HISTORICAL_INPUT_YEARS[HISTORICAL_INPUT_YEARS.length - 1] || selectedHistoricalYear;
-  const selectedHistoricalYearTotal = useMemo(
-    () =>
-      MANUAL_SALES_MONTHS.reduce(
-        (sum, month) => sum + Math.max(0, toNumber(selectedHistoricalInputs[month.key])),
-        0
-      ),
-    [selectedHistoricalInputs]
-  );
+  useEffect(() => {
+    if (viewMode !== "coa" || coaLoaded) return;
+    fetchCoa();
+  }, [viewMode, coaLoaded]);
+
+  useEffect(() => {
+    if (viewMode !== "journals" || journalsLoaded) return;
+    fetchJournals();
+  }, [viewMode, journalsLoaded]);
+
+  useEffect(() => {
+    if (!["overview", "statements", "taxes", "import"].includes(viewMode)) return;
+    if (importLoaded || importLoading) return;
+    fetchImportBatches();
+  }, [viewMode, importLoaded, importLoading]);
+
+  useEffect(() => {
+    if (viewMode !== "trialBalance" || trialBalance !== null) return;
+    fetchTrialBalance(tbAsOf);
+  }, [viewMode]);
+
   const historicalSalesMonths = useMemo(
-    () =>
-      HISTORICAL_INPUT_YEARS.flatMap((year) =>
-        MANUAL_SALES_MONTHS.map((month) => {
-          const start = new Date(Date.UTC(year, month.monthIndex, 1));
-          const end = new Date(Date.UTC(year, month.monthIndex + 1, 1));
-          const savedValues = historicalSalesByYear[year] || EMPTY_MANUAL_SALES_PAYLOAD;
+    () => {
+      const importedMonths = (Array.isArray(importBatches) ? importBatches : [])
+        .map((batch) => {
+          const start = batch?.periodStart ? new Date(batch.periodStart) : null;
+          const end = batch?.periodEnd ? new Date(batch.periodEnd) : null;
+          if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) {
+            return null;
+          }
+          const monthMeta = MANUAL_SALES_MONTHS[start.getUTCMonth()];
+          const summary = batch?.summary && typeof batch.summary === "object" ? batch.summary : {};
           return {
-            ...month,
-            year,
-            amount: Math.max(0, toNumber(savedValues[month.key])),
+            id: batch.id,
+            batchName: batch.batchName || `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")} Historical`,
+            key: monthMeta?.key || String(start.getUTCMonth() + 1),
+            label: monthMeta?.label || start.toLocaleDateString("en-GB", { month: "short" }),
+            monthIndex: start.getUTCMonth(),
+            year: start.getUTCFullYear(),
+            amount: toCurrencyUnitsFromPesewas(summary.grossSales),
+            retailAmount: toCurrencyUnitsFromPesewas(summary.retailSplit),
+            rentalAmount: toCurrencyUnitsFromPesewas(summary.rentalSplit),
+            cogsAmount: toCurrencyUnitsFromPesewas(summary.cogs),
+            expenseAmount: toCurrencyUnitsFromPesewas(summary.expenseTotal),
             start,
             end,
             dateKey: start.toISOString().slice(0, 10),
+            isPosted: Boolean(batch?.isPosted),
+            source: "import",
           };
         })
-      ),
-    [historicalSalesByYear]
+        .filter(Boolean);
+
+      const coveredMonths = new Set(
+        importedMonths.map((month) => `${month.year}-${String(month.monthIndex + 1).padStart(2, "0")}`)
+      );
+
+      const legacyMonths = legacyHistoricalLoaded
+        ? HISTORICAL_INPUT_YEARS.flatMap((year) =>
+            MANUAL_SALES_MONTHS.map((monthMeta) => {
+              const amount = Math.max(0, toNumber(legacyHistoricalSalesByYear?.[year]?.[monthMeta.key]));
+              const monthKey = `${year}-${String(monthMeta.monthIndex + 1).padStart(2, "0")}`;
+              if (!amount || coveredMonths.has(monthKey)) return null;
+              const start = new Date(Date.UTC(year, monthMeta.monthIndex, 1));
+              const end = new Date(Date.UTC(year, monthMeta.monthIndex + 1, 1));
+              return {
+                id: `legacy-${monthKey}`,
+                batchName: `Legacy carry-over · ${monthMeta.label} ${year}`,
+                key: monthMeta.key,
+                label: monthMeta.label,
+                monthIndex: monthMeta.monthIndex,
+                year,
+                amount,
+                retailAmount: amount,
+                rentalAmount: 0,
+                cogsAmount: 0,
+                expenseAmount: 0,
+                start,
+                end,
+                dateKey: start.toISOString().slice(0, 10),
+                isPosted: false,
+                source: "legacy",
+              };
+            }).filter(Boolean)
+          )
+        : [];
+
+      return [...importedMonths, ...legacyMonths].sort((a, b) => a.start - b.start);
+    },
+    [importBatches, legacyHistoricalLoaded, legacyHistoricalSalesByYear]
+  );
+  const selectedHistoricalYearImports = useMemo(
+    () => historicalSalesMonths.filter((month) => month.year === selectedHistoricalYear),
+    [historicalSalesMonths, selectedHistoricalYear]
+  );
+  const selectedHistoricalYearTotal = useMemo(
+    () => selectedHistoricalYearImports.reduce((sum, month) => sum + month.amount, 0),
+    [selectedHistoricalYearImports]
+  );
+  const selectedHistoricalYearPostedCount = useMemo(
+    () => selectedHistoricalYearImports.filter((month) => month.source === "import" && month.isPosted).length,
+    [selectedHistoricalYearImports]
+  );
+  const selectedHistoricalYearImportCount = useMemo(
+    () => selectedHistoricalYearImports.filter((month) => month.source === "import").length,
+    [selectedHistoricalYearImports]
+  );
+  const selectedHistoricalYearLegacyCount = useMemo(
+    () => selectedHistoricalYearImports.filter((month) => month.source === "legacy").length,
+    [selectedHistoricalYearImports]
   );
   const historicalSalesInWindow = useMemo(() => {
     if (!data?.startDate || !data?.endDate) return [];
@@ -462,14 +569,36 @@ function AdminAccounting() {
       (month) => month.amount > 0 && month.end > start && month.start < end
     );
   }, [data?.endDate, data?.startDate, historicalSalesMonths]);
-  const historicalSalesWindowTotal = useMemo(
-    () => historicalSalesInWindow.reduce((sum, month) => sum + month.amount, 0),
+  const historicalImportWindowSummary = useMemo(
+    () => historicalSalesInWindow.reduce((summary, month) => ({
+      grossSales: summary.grossSales + month.amount,
+      retailSales: summary.retailSales + month.retailAmount,
+      rentalSales: summary.rentalSales + month.rentalAmount,
+      cogs: summary.cogs + month.cogsAmount,
+      expenses: summary.expenses + month.expenseAmount,
+      count: summary.count + 1,
+      draftCount: summary.draftCount + (month.source === "import" && !month.isPosted ? 1 : 0),
+      legacyCount: summary.legacyCount + (month.source === "legacy" ? 1 : 0),
+    }), {
+      grossSales: 0,
+      retailSales: 0,
+      rentalSales: 0,
+      cogs: 0,
+      expenses: 0,
+      count: 0,
+      draftCount: 0,
+      legacyCount: 0,
+    }),
     [historicalSalesInWindow]
+  );
+  const historicalSalesWindowTotal = useMemo(
+    () => historicalImportWindowSummary.grossSales,
+    [historicalImportWindowSummary]
   );
 
   const revenueSplit = useMemo(() => {
-    const retail = (data?.revenueByCategory?.retail || 0) + historicalSalesWindowTotal;
-    const rental = data?.revenueByCategory?.rental || 0;
+    const retail = (data?.revenueByCategory?.retail || 0) + historicalImportWindowSummary.retailSales;
+    const rental = (data?.revenueByCategory?.rental || 0) + historicalImportWindowSummary.rentalSales;
     const other = data?.revenueByCategory?.other || 0;
     const total = retail + rental + other || 1;
     return {
@@ -480,13 +609,11 @@ function AdminAccounting() {
       rentalPct: Math.round((rental / total) * 100),
       otherPct: Math.round((other / total) * 100),
     };
-  }, [data?.revenueByCategory, historicalSalesWindowTotal]);
+  }, [data?.revenueByCategory, historicalImportWindowSummary]);
 
   const cashflowTrend = useMemo(() => {
     const baseRows = Array.isArray(data?.cashflow) ? data.cashflow : [];
-    if (!baseRows.length) return [];
-    
-    if (!historicalSalesInWindow.length) return baseRows;
+    if (!baseRows.length && !historicalImportWindowSummary.count) return [];
     
     const totals = new Map();
     baseRows.forEach((entry) => {
@@ -505,7 +632,7 @@ function AdminAccounting() {
     });
     
     return Array.from(totals.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [data?.cashflow, historicalSalesInWindow]);
+  }, [data?.cashflow, historicalImportWindowSummary.count, historicalSalesInWindow]);
   const totalRevenue = useMemo(() => data?.revenue || 0, [data]);
   const grossRevenue = useMemo(
     () => totalRevenue + historicalSalesWindowTotal,
@@ -513,17 +640,15 @@ function AdminAccounting() {
   );
   const financeSummary = useMemo(() => data?.summary || null, [data]);
   const expenseWindowLabel = data?.expenseWindowLabel || data?.windowLabel || "";
-  const hasHistoricalSalesInWindow = historicalSalesWindowTotal > 0;
+  const hasHistoricalSalesInWindow = historicalImportWindowSummary.count > 0;
   const windowLabel = data?.windowLabel || "";
   const cashflowWindowLabel = hasHistoricalSalesInWindow
-    ? `${windowLabel || "Selected window"} + saved historical carry-over`
+    ? `${windowLabel || "Selected window"} + imported historical batches`
     : windowLabel
       ? `Daily revenue in ${windowLabel}`
       : "Daily revenue";
   const expenseBreakdown = useMemo(() => {
     const rows = Array.isArray(data?.expenseBreakdown) ? data.expenseBreakdown : [];
-    if (!rows.length) return [];
-    
     const totals = new Map();
     rows.forEach((row) => {
       const category = normalizeExpenseCategory(row?.category) || "Operational";
@@ -532,6 +657,15 @@ function AdminAccounting() {
         totals.set(category, (totals.get(category) || 0) + amount);
       }
     });
+
+    if (historicalImportWindowSummary.expenses > 0) {
+      totals.set(
+        "Historical imports",
+        (totals.get("Historical imports") || 0) + historicalImportWindowSummary.expenses
+      );
+    }
+
+    if (!totals.size) return [];
     
     const customCategories = Array.from(totals.keys())
       .filter((category) => !EXPENSE_CATEGORY_LABELS.includes(category))
@@ -544,7 +678,7 @@ function AdminAccounting() {
         amount: totals.get(category) || 0,
       }))
       .filter((entry) => entry.amount > 0);
-  }, [data?.expenseBreakdown]);
+  }, [data?.expenseBreakdown, historicalImportWindowSummary.expenses]);
   const expenseBreakdownTotal = useMemo(
     () => expenseBreakdown.reduce((sum, entry) => sum + toNumber(entry.amount), 0),
     [expenseBreakdown]
@@ -703,10 +837,10 @@ function AdminAccounting() {
   const statementSummary = useMemo(() => {
     if (!financeSummary) return null;
     
-    const revenue = receiptsTotalDisplay;
-    const rentalIncome = invoicesTotalDisplay;
-    const cogs = toNumber(financeSummary.cogs);
-    const operatingExpenses = expensesTotal;
+    const revenue = receiptsTotalDisplay + historicalImportWindowSummary.retailSales;
+    const rentalIncome = invoicesTotalDisplay + historicalImportWindowSummary.rentalSales;
+    const cogs = toNumber(financeSummary.cogs) + historicalImportWindowSummary.cogs;
+    const operatingExpenses = expensesTotal + historicalImportWindowSummary.expenses;
     const grossProfit = revenue + rentalIncome - cogs;
     const netProfit = grossProfit - operatingExpenses;
 
@@ -719,7 +853,16 @@ function AdminAccounting() {
       grossProfit,
       netProfit,
     };
-  }, [expensesTotal, financeSummary, invoicesTotalDisplay, receiptsTotalDisplay]);
+  }, [
+    expensesTotal,
+    financeSummary,
+    historicalImportWindowSummary.cogs,
+    historicalImportWindowSummary.expenses,
+    historicalImportWindowSummary.retailSales,
+    historicalImportWindowSummary.rentalSales,
+    invoicesTotalDisplay,
+    receiptsTotalDisplay,
+  ]);
   const recentLinkedRows = useMemo(() => listRows.slice(0, 8), [listRows]);
   const updateBalance = (field) => (event) => {
     const value = event.target.value;
@@ -731,18 +874,6 @@ function AdminAccounting() {
     const value = event.target.value;
     taxInputsEditedRef.current = true;
     setTaxInputs((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const updateHistoricalSales = (field) => (event) => {
-    const value = event.target.value;
-    const sanitized = typeof value === "string" ? value.replace(/^-+/, "") : value;
-    setHistoricalSalesDrafts((prev) => ({
-      ...prev,
-      [selectedHistoricalYear]: {
-        ...(prev[selectedHistoricalYear] || MANUAL_SALES_DEFAULTS),
-        [field]: sanitized,
-      },
-    }));
   };
 
   const updateGhanaTax = (field) => (event) => {
@@ -766,6 +897,38 @@ function AdminAccounting() {
       corporateCategory: value,
       corporateRate: mapped?.rate == null ? prev.corporateRate : String(mapped.rate),
     }));
+  };
+
+  const updateImportField = (field) => (event) => {
+    const value = event.target.value;
+    setImportForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateImportExpenseLine = (index, field) => (event) => {
+    const value = event.target.value;
+    setImportForm((prev) => ({
+      ...prev,
+      expenseLines: prev.expenseLines.map((line, lineIndex) =>
+        lineIndex === index ? { ...line, [field]: value } : line
+      ),
+    }));
+  };
+
+  const addImportExpenseLine = () => {
+    setImportForm((prev) => ({
+      ...prev,
+      expenseLines: [...prev.expenseLines, { ...DEFAULT_IMPORT_EXPENSE_LINE }],
+    }));
+  };
+
+  const removeImportExpenseLine = (index) => {
+    setImportForm((prev) => {
+      const nextLines = prev.expenseLines.filter((_, lineIndex) => lineIndex !== index);
+      return {
+        ...prev,
+        expenseLines: nextLines.length ? nextLines : [{ ...DEFAULT_IMPORT_EXPENSE_LINE }],
+      };
+    });
   };
 
   const cashOnHand = toNumber(balanceInputs.cashOnHand);
@@ -1080,57 +1243,227 @@ function AdminAccounting() {
     await fetchData(nextWindowKey);
   };
 
-  const saveHistoricalSales = async () => {
-    if (!historicalSalesLoaded || historicalSalesSaving || !historicalSalesDirty) return;
+  // ── Double-entry functions ─────────────────────────────────────────────────
 
-    const year = selectedHistoricalYear;
-    const currentInputs = selectedHistoricalInputs;
-    setHistoricalSalesSaving(true);
-    setHistoricalSalesError("");
-
+  const fetchCoa = async () => {
+    setCoaLoading(true);
+    setCoaError("");
     try {
-      const result = await fetchJson("/.netlify/functions/accounting-history", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          year,
-          monthlySales: normalizeManualSalesPayload(currentInputs),
-        }),
-      });
-
-      const savedValues = normalizeManualSalesPayload(result?.monthlySales);
-      setHistoricalSalesByYear((prev) => ({
-        ...prev,
-        [year]: savedValues,
-      }));
-      setHistoricalSalesDrafts((prev) => ({
-        ...prev,
-        [year]: toHistoricalSalesInputs(savedValues),
-      }));
-
-      const nextYear = HISTORICAL_INPUT_YEARS.find((candidate) => candidate > year);
-      if (nextYear) {
-        await changeHistoricalYear(nextYear);
-        pushNotice(`Saved ${year} historical sales. Continue with ${nextYear}.`, "success");
-      } else {
-        pushNotice(`Saved ${year} historical sales.`, "success");
-      }
+      const result = await fetchJson("/.netlify/functions/accounting-coa");
+      setCoaAccounts(Array.isArray(result) ? result : []);
+      setCoaLoaded(true);
     } catch (err) {
-      setHistoricalSalesError(err.message || `Unable to save ${year} sales to the database.`);
+      setCoaError(err.message || "Unable to load chart of accounts.");
     } finally {
-      setHistoricalSalesSaving(false);
+      setCoaLoading(false);
     }
   };
 
-  const clearHistoricalSales = () => {
-    setHistoricalSalesDrafts((prev) => ({
-      ...prev,
-      [selectedHistoricalYear]: { ...MANUAL_SALES_DEFAULTS },
-    }));
-    setHistoricalSalesError("");
+  const createCoaAccount = async () => {
+    if (!coaNewForm.accountCode) return setCoaFormError("Account code is required.");
+    if (!coaNewForm.accountName) return setCoaFormError("Account name is required.");
+    setCoaFormError("");
+    setCoaFormSaving(true);
+    try {
+      await fetchJson("/.netlify/functions/accounting-coa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(coaNewForm),
+      });
+      setCoaNewForm({ accountCode: "", accountName: "", accountType: "ASSET", normalBalance: "DEBIT" });
+      setCoaShowForm(false);
+      await fetchCoa();
+    } catch (err) {
+      setCoaFormError(err.message || "Failed to create account.");
+    } finally {
+      setCoaFormSaving(false);
+    }
   };
+
+  const toggleCoaActive = async (acct) => {
+    setCoaError("");
+    try {
+      await fetchJson("/.netlify/functions/accounting-coa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: acct.id, isActive: !acct.isActive }),
+      });
+      await fetchCoa();
+    } catch (err) {
+      setCoaError(err.message || "Failed to update account.");
+    }
+  };
+
+  const fetchJournals = async () => {
+    setJournalsLoading(true);
+    setJournalsError("");
+    try {
+      const result = await fetchJson("/.netlify/functions/accounting-journals?limit=200");
+      setJournals(Array.isArray(result) ? result : []);
+      setJournalsLoaded(true);
+    } catch (err) {
+      setJournalsError(err.message || "Unable to load journals.");
+    } finally {
+      setJournalsLoading(false);
+    }
+  };
+
+  const toggleJournalExpand = async (journalId) => {
+    if (expandedJournalId === journalId) { setExpandedJournalId(null); return; }
+    setExpandedJournalId(journalId);
+    if (journalDetailCache[journalId]) return;
+    try {
+      const result = await fetchJson(`/.netlify/functions/accounting-journals?id=${journalId}`);
+      setJournalDetailCache((prev) => ({ ...prev, [journalId]: result?.lines || [] }));
+    } catch { /* fail silently */ }
+  };
+
+  const postJournal = async (journalId) => {
+    setJournalPosting(journalId);
+    setJournalsError("");
+    try {
+      await fetchJson("/.netlify/functions/accounting-journals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: journalId, action: "post" }),
+      });
+      await fetchJournals();
+      setJournalDetailCache((prev) => { const n = { ...prev }; delete n[journalId]; return n; });
+    } catch (err) {
+      setJournalsError(err.message || "Failed to post journal.");
+    } finally {
+      setJournalPosting(null);
+    }
+  };
+
+  const fetchImportBatches = async () => {
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const result = await fetchJson("/.netlify/functions/accounting-import");
+      setImportBatches(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setImportBatches([]);
+      setImportError(err.message || "Unable to load import batches.");
+    } finally {
+      setImportLoaded(true);
+      setImportLoading(false);
+    }
+  };
+
+  const submitImportBatch = async () => {
+    setImportFormError("");
+    const gross  = Math.round(Number(importForm.grossSales)     * 100);
+    const retail = Math.round(Number(importForm.retailSplit)    * 100);
+    const rental = Math.round(Number(importForm.rentalSplit)    * 100);
+    const cash   = Math.round(Number(importForm.cashReceived)   * 100);
+    const ar     = Math.round(Number(importForm.arOutstanding)  * 100);
+    const vatPd  = Math.round(Number(importForm.vatPayablePaid) * 100);
+    const cogsAmt = Math.round(Number(importForm.cogsPesewas)   * 100);
+    const graPaymentDate = String(importForm.graPaymentDate || "").trim();
+    if (!gross) return setImportFormError("Gross sales is required.");
+    if (retail + rental !== gross)
+      return setImportFormError(`Retail + rental must equal gross. Got ${((retail + rental) / 100).toFixed(2)} vs ${(gross / 100).toFixed(2)}.`);
+    if (cash + ar !== gross)
+      return setImportFormError(`Cash received + AR must equal gross. Got ${((cash + ar) / 100).toFixed(2)} vs ${(gross / 100).toFixed(2)}.`);
+    if (vatPd > 0 && !graPaymentDate) {
+      return setImportFormError("GRA payment date is required when VAT paid is greater than zero.");
+    }
+
+    const y = Number(importForm.year);
+    const m = Number(importForm.month);
+    const mm = String(m).padStart(2, "0");
+    const lastDay = new Date(y, m, 0).getDate();
+    const batchName  = `${y}-${mm} Historical`;
+    const periodStart = `${y}-${mm}-01`;
+    const periodEnd   = `${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
+
+    const expenses = importForm.expenseLines
+      .filter((l) => l.accountCode && Number(l.amountPesewas) > 0)
+      .map((l) => ({
+        accountCode: String(l.accountCode).trim(),
+        description: l.description || "",
+        amount: Math.round(Number(l.amountPesewas) * 100),
+      }));
+
+    setImportFormSaving(true);
+    try {
+      await fetchJson("/.netlify/functions/accounting-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchName, periodStart, periodEnd,
+          source: "VAT_RETURN + BANK_STATEMENT",
+          grossSales: gross, retailSplit: retail, rentalSplit: rental,
+          cashReceived: cash, arOutstanding: ar,
+          vatRemitted: vatPd,
+          graPaymentDate: graPaymentDate || null,
+          cogs: cogsAmt || null,
+          expenses,
+        }),
+      });
+      setImportForm(createDefaultImportForm({ year: y, month: m }));
+      setImportShowForm(false);
+      await fetchImportBatches();
+      pushNotice(`Historical import batch ${batchName} created. Review and post when ready.`, "success");
+    } catch (err) {
+      setImportFormError(err.message || "Import failed.");
+    } finally {
+      setImportFormSaving(false);
+    }
+  };
+
+  const postImportBatch = async (batchId) => {
+    setImportPostingId(batchId);
+    setImportError("");
+    try {
+      await fetchJson("/.netlify/functions/accounting-import", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: batchId, action: "post" }),
+      });
+      await fetchImportBatches();
+      pushNotice("Historical import batch posted.", "success");
+    } catch (err) {
+      setImportError(err.message || "Failed to post import batch.");
+    } finally {
+      setImportPostingId(null);
+    }
+  };
+
+  const deleteImportBatch = async (batchId) => {
+    if (!window.confirm("Delete this draft batch and all its journals?")) return;
+    setImportDeletingId(batchId);
+    setImportError("");
+    try {
+      await fetchJson("/.netlify/functions/accounting-import", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: batchId, action: "delete" }),
+      });
+      await fetchImportBatches();
+      pushNotice("Historical import batch deleted.", "success");
+    } catch (err) {
+      setImportError(err.message || "Failed to delete batch.");
+    } finally {
+      setImportDeletingId(null);
+    }
+  };
+
+  const fetchTrialBalance = async (asOf) => {
+    setTbLoading(true);
+    setTbError("");
+    try {
+      const result = await fetchJson(`/.netlify/functions/accounting-trial-balance?asOf=${asOf}&summary=true`);
+      setTrialBalance(result);
+    } catch (err) {
+      setTbError(err.message || "Unable to load trial balance.");
+    } finally {
+      setTbLoading(false);
+    }
+  };
+
+  const fmtPesewas = (p) => formatCurrency((Number(p) || 0) / 100);
 
   return (
     <div className="accounting-page">
@@ -1146,7 +1479,7 @@ function AdminAccounting() {
             <div className="accounting-filters-left">
               <SelectField
                 fieldClassName="accounting-filter"
-                label="Date filter"
+                label="Reporting period"
                 value={windowKey}
                 onChange={(event) => {
                   const next = event.target.value;
@@ -1154,19 +1487,17 @@ function AdminAccounting() {
                   debouncedFetchData(next);
                 }}
               >
-                <option value="today">Today</option>
-                <option value="allTime">All time</option>
-                {HISTORICAL_INPUT_YEARS.map((year) => (
-                  <option key={year} value={`year${year}`}>
-                    {year}
+                {ACCOUNTING_REPORT_WINDOWS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
-                <option value="thisMonth">This month</option>
-                <option value="lastMonth">Last month</option>
-                <option value="thisQuarter">This quarter</option>
-                <option value="lastQuarter">Last quarter</option>
-                <option value="thisYear">This year</option>
-                <option value="lastYear">Last year</option>
+                {HISTORICAL_INPUT_YEARS.map((year) => (
+                  <option key={year} value={`year${year}`}>
+                    {year} full year
+                  </option>
+                ))}
+                <option value="allTime">All time</option>
               </SelectField>
             </div>
             <div className="accounting-right">
@@ -1207,6 +1538,42 @@ function AdminAccounting() {
                     onClick={() => setViewMode("taxes")}
                   >
                     Tax
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "coa"}
+                    className={viewMode === "coa" ? "is-active" : ""}
+                    onClick={() => setViewMode("coa")}
+                  >
+                    Accounts
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "journals"}
+                    className={viewMode === "journals" ? "is-active" : ""}
+                    onClick={() => setViewMode("journals")}
+                  >
+                    Journals
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "import"}
+                    className={viewMode === "import" ? "is-active" : ""}
+                    onClick={() => setViewMode("import")}
+                  >
+                    Imports
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "trialBalance"}
+                    className={viewMode === "trialBalance" ? "is-active" : ""}
+                    onClick={() => setViewMode("trialBalance")}
+                  >
+                    Trial Balance
                   </button>
                 </div>
               </div>
@@ -1261,10 +1628,10 @@ function AdminAccounting() {
             <div className="glass-card accounting-panel">
               <div className="accounting-panel-head">
                 <div>
-                  <p className="accounting-panel-label">Historical carry-over</p>
-                  <h3>Enter {selectedHistoricalYear} monthly sales</h3>
+                  <p className="accounting-panel-label">Historical imports</p>
+                  <h3>{selectedHistoricalYear} historical summary</h3>
                   <p className="accounting-panel-sub">
-                    Use the handwritten book totals, save each year, then move forward. Ongoing sales still flow in automatically as new orders are recorded.
+                    Historical backfill is now managed in Imports. The same batches feed reporting carry-over here and the accounting journals in the import workflow.
                   </p>
                 </div>
                 <div className="accounting-panel-actions">
@@ -1273,7 +1640,7 @@ function AdminAccounting() {
                     label="Historical year"
                     value={selectedHistoricalYear}
                     onChange={(event) => changeHistoricalYear(event.target.value)}
-                    disabled={!historicalSalesLoaded || historicalSalesSaving}
+                    disabled={importLoading && !importLoaded}
                   >
                     {HISTORICAL_INPUT_YEARS.map((year) => (
                       <option key={year} value={year}>
@@ -1284,69 +1651,93 @@ function AdminAccounting() {
                   <button
                     type="button"
                     className="accounting-secondary"
-                    onClick={saveHistoricalSales}
-                    disabled={!historicalSalesLoaded || historicalSalesSaving || !historicalSalesDirty}
+                    onClick={() => setViewMode("import")}
                   >
-                    {historicalSalesSaving ? "Saving..." : `Save ${selectedHistoricalYear}`}
-                  </button>
-                  <button
-                    type="button"
-                    className="accounting-secondary"
-                    onClick={clearHistoricalSales}
-                    disabled={!historicalSalesLoaded || historicalSalesSaving}
-                  >
-                    Clear {selectedHistoricalYear}
+                    Manage imports
                   </button>
                 </div>
               </div>
-              <div className="accounting-form-grid">
-                {historicalSalesMonths.map((month) => (
-                  month.year === selectedHistoricalYear ? (
-                    <label key={`${month.year}-${month.key}`} className="accounting-field">
-                      {month.label} {selectedHistoricalYear}
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        value={selectedHistoricalInputs[month.key]}
-                        onChange={updateHistoricalSales(month.key)}
-                        disabled={!historicalSalesLoaded || historicalSalesSaving}
-                      />
-                    </label>
-                  ) : null
-                ))}
-              </div>
-              {historicalSalesError && (
+
+              {(importError || legacyHistoricalError) && (
                 <InlineNotice
                   tone="error"
-                  title="Historical sales not saved"
-                  message={historicalSalesError}
+                  title="Historical imports unavailable"
+                  message={importError || legacyHistoricalError}
                   compact
                 />
               )}
+
               <div className="accounting-pnl">
                 <div className="accounting-pnl-row">
-                  <span>Input total for {selectedHistoricalYear}</span>
+                  <span>Imported in {selectedHistoricalYear}</span>
                   <strong>{formatCurrency(selectedHistoricalYearTotal)}</strong>
                 </div>
                 <div className="accounting-pnl-row">
                   <span>Applied in {windowLabel || "selected window"}</span>
                   <strong>{formatCurrency(historicalSalesWindowTotal)}</strong>
                 </div>
+                <div className="accounting-pnl-row">
+                  <span>Posted import batches in {selectedHistoricalYear}</span>
+                  <strong>
+                    {selectedHistoricalYearImportCount
+                      ? `${selectedHistoricalYearPostedCount} / ${selectedHistoricalYearImportCount}`
+                      : "—"}
+                  </strong>
+                </div>
+                {selectedHistoricalYearLegacyCount > 0 && (
+                  <div className="accounting-pnl-row">
+                    <span>Legacy carry-over months in {selectedHistoricalYear}</span>
+                    <strong>{selectedHistoricalYearLegacyCount}</strong>
+                  </div>
+                )}
+                {hasHistoricalSalesInWindow && (
+                  <div className="accounting-pnl-row">
+                    <span>Non-posted carry-over in this window</span>
+                    <strong>
+                      {historicalImportWindowSummary.draftCount}
+                      {historicalImportWindowSummary.legacyCount ? ` drafts + ${historicalImportWindowSummary.legacyCount} legacy` : " drafts"}
+                    </strong>
+                  </div>
+                )}
               </div>
+
+              {importLoading && !importLoaded ? (
+                <p className="accounting-muted">Loading historical import batches…</p>
+              ) : selectedHistoricalYearImports.length ? (
+                <div className="accounting-table-shell admin-table-scroll" style={{ marginTop: "0.95rem" }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>Batch</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: "right" }}>Sales</th>
+                        <th style={{ textAlign: "right" }}>COGS</th>
+                        <th style={{ textAlign: "right" }}>Expenses</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedHistoricalYearImports.map((month) => (
+                        <tr key={month.id}>
+                          <td>{month.label} {month.year}</td>
+                          <td>{month.batchName}</td>
+                          <td>{month.source === "legacy" ? "Legacy carry-over" : (month.isPosted ? "Posted" : "Draft")}</td>
+                          <td style={{ textAlign: "right" }}>{formatCurrency(month.amount)}</td>
+                          <td style={{ textAlign: "right" }}>{month.cogsAmount ? formatCurrency(month.cogsAmount) : "—"}</td>
+                          <td style={{ textAlign: "right" }}>{month.expenseAmount ? formatCurrency(month.expenseAmount) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="accounting-muted">
+                  No import batches for {selectedHistoricalYear} yet. Use Imports to backfill that year.
+                </p>
+              )}
+
               <p className="accounting-muted">
-                {historicalSalesError
-                  ? "The current values are still on screen. Edit and save again to retry."
-                  : !historicalSalesLoaded
-                  ? "Loading saved historical sales from the database…"
-                  : historicalSalesSaving
-                    ? `Saving ${selectedHistoricalYear} sales to the database…`
-                    : historicalSalesDirty
-                      ? `Unsaved changes for ${selectedHistoricalYear}. Click Save to store them${selectedHistoricalYear < lastHistoricalYear ? ` and continue with ${selectedHistoricalYear + 1}` : ""}.`
-                      : `Saved per organization in the database. ${selectedHistoricalYear} is up to date.`}
-              </p>
-              <p className="accounting-muted">
-                Saved historical totals are included in gross revenue, revenue mix, cash flow, and VAT sales. They do not change COGS, item-level sales, or profit-based taxes until detailed receipts are entered.
+                Imported batches now drive historical carry-over. Their sales feed revenue, cash flow, and VAT here, and any imported COGS or expense summaries also flow into the statement and tax calculations. Older legacy carry-over stays visible until you replace those months with imports. Posting is still required for the ledgers and trial balance.
               </p>
             </div>
           </section>
@@ -1357,13 +1748,19 @@ function AdminAccounting() {
             <section className="accounting-kpis">
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Money in</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(linkedMoneyIn)}</h3>
-                <p className="accounting-kpi-sub">{receiptCount} receipts · {invoiceCount} invoices</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(linkedMoneyIn + historicalSalesWindowTotal)}</h3>
+                <p className="accounting-kpi-sub">
+                  {receiptCount} receipts · {invoiceCount} invoices
+                  {hasHistoricalSalesInWindow ? ` + ${formatCurrency(historicalSalesWindowTotal)} imported history` : ""}
+                </p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Money out</p>
-                <h3 className="accounting-kpi-value">{formatCurrency(expensesTotal)}</h3>
-                <p className="accounting-kpi-sub">{expenseWindowLabel || data.windowLabel || ""}</p>
+                <h3 className="accounting-kpi-value">{formatCurrency(expensesTotal + historicalImportWindowSummary.expenses)}</h3>
+                <p className="accounting-kpi-sub">
+                  {expenseWindowLabel || data.windowLabel || ""}
+                  {historicalImportWindowSummary.expenses > 0 ? ` + ${formatCurrency(historicalImportWindowSummary.expenses)} imported` : ""}
+                </p>
               </div>
               <div className="bubble-card accounting-kpi-card">
                 <p className="accounting-kpi-label">Gross profit</p>
@@ -1445,7 +1842,7 @@ function AdminAccounting() {
                 )}
                 {hasHistoricalSalesInWindow && (
                   <p className="accounting-muted">
-                    Saved historical sales of {formatCurrency(historicalSalesWindowTotal)} are included in gross revenue above, but this margin view stays live-only until detailed receipts are entered.
+                    Imported historical batches add {formatCurrency(historicalSalesWindowTotal)} to revenue here, and any COGS or expense figures captured in those batches are also reflected in this margin view.
                   </p>
                 )}
               </div>
@@ -1461,6 +1858,8 @@ function AdminAccounting() {
                   <p className="accounting-error">{listError}</p>
                 ) : listLoading && !recentLinkedRows.length ? (
                   <p className="accounting-muted">Loading linked activity…</p>
+                ) : !listLoaded ? (
+                  <p className="accounting-muted">Open the Activity tab to load detailed receipts, invoices, and expenses for this window.</p>
                 ) : recentLinkedRows.length === 0 ? (
                   <p className="accounting-muted">No linked activity in this window.</p>
                 ) : (
@@ -1726,7 +2125,7 @@ function AdminAccounting() {
                 )}
                 {hasHistoricalSalesInWindow && (
                   <p className="accounting-muted">
-                    Saved historical sales of {formatCurrency(historicalSalesWindowTotal)} remain outside this profit statement until detailed line items are backfilled.
+                    Imported historical batches of {formatCurrency(historicalSalesWindowTotal)} are included in this profit statement using the sales, COGS, and expense summaries captured in Imports.
                   </p>
                 )}
               </div>
@@ -2236,7 +2635,7 @@ function AdminAccounting() {
               </div>
               <p className="accounting-muted">
                 {hasHistoricalSalesInWindow
-                  ? "Saved historical sales are included in taxable sales and VAT. Profit-based taxes still follow tracked profit only."
+                  ? "Historical imports are included in taxable sales and VAT, and any imported COGS or expense summaries also flow into the profit-based tax view."
                   : "Rates are editable—confirm current GRA requirements before filing."}
               </p>
             </div>
@@ -2427,6 +2826,588 @@ function AdminAccounting() {
             </div>
           </section>
         )}
+
+        {/* ── Chart of Accounts view ──────────────────────────────────────────── */}
+        {viewMode === "coa" && (
+          <section className="accounting-panels accounting-panels-stack">
+            <div className="glass-card accounting-panel">
+              <div className="accounting-panel-head">
+                <div>
+                  <p className="accounting-panel-label">Double-entry accounting</p>
+                  <h3>Chart of accounts</h3>
+                  <p className="accounting-panel-sub">{coaAccounts.length} accounts · system accounts are locked</p>
+                </div>
+                <div className="accounting-panel-actions">
+                  <button type="button" className="accounting-secondary" onClick={fetchCoa} disabled={coaLoading}>
+                    {coaLoading ? "Loading…" : "Refresh"}
+                  </button>
+                  <button type="button" className="accounting-secondary" onClick={() => setCoaShowForm((p) => !p)}>
+                    {coaShowForm ? "Cancel" : "Add account"}
+                  </button>
+                </div>
+              </div>
+
+              {coaShowForm && (
+                <div style={{ marginBottom: "1rem", padding: "0.9rem", background: "var(--admin-surface,#f8fafc)", borderRadius: "0.75rem" }}>
+                  <div className="accounting-form-grid" style={{ marginBottom: "0.75rem" }}>
+                    <label className="accounting-field">
+                      Account code
+                      <input type="text" value={coaNewForm.accountCode}
+                        onChange={(e) => setCoaNewForm((p) => ({ ...p, accountCode: e.target.value }))} />
+                    </label>
+                    <label className="accounting-field">
+                      Account name
+                      <input type="text" value={coaNewForm.accountName}
+                        onChange={(e) => setCoaNewForm((p) => ({ ...p, accountName: e.target.value }))} />
+                    </label>
+                    <label className="accounting-field">
+                      Type
+                      <select value={coaNewForm.accountType} onChange={(e) => {
+                        const t = e.target.value;
+                        setCoaNewForm((p) => ({ ...p, accountType: t, normalBalance: NORMAL_BALANCE_FOR[t] || "DEBIT" }));
+                      }}>
+                        {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </label>
+                    <label className="accounting-field">
+                      Normal balance
+                      <select value={coaNewForm.normalBalance} onChange={(e) => setCoaNewForm((p) => ({ ...p, normalBalance: e.target.value }))}>
+                        <option value="DEBIT">DEBIT</option>
+                        <option value="CREDIT">CREDIT</option>
+                      </select>
+                    </label>
+                  </div>
+                  {coaFormError && <InlineNotice tone="error" title="Error" message={coaFormError} compact />}
+                  <button type="button" className="accounting-secondary" onClick={createCoaAccount} disabled={coaFormSaving}>
+                    {coaFormSaving ? "Creating…" : "Create account"}
+                  </button>
+                </div>
+              )}
+
+              {coaError && <InlineNotice tone="error" title="Error" message={coaError} compact />}
+
+              {coaLoading && !coaAccounts.length ? (
+                <p className="accounting-muted">Loading accounts…</p>
+              ) : (
+                ACCOUNT_TYPES.map((type) => {
+                  const group = coaAccounts.filter((a) => a.accountType === type);
+                  if (!group.length) return null;
+                  return (
+                    <div key={type} style={{ marginBottom: "1.25rem" }}>
+                      <p style={{ fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 0.5rem", opacity: 0.7 }}>
+                        {TYPE_LABELS[type]}
+                      </p>
+                      <div className="accounting-table-shell admin-table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th style={{ width: "5rem" }}>Code</th>
+                              <th>Name</th>
+                              <th>Normal</th>
+                              <th style={{ width: "4rem" }}>System</th>
+                              <th style={{ width: "5rem" }}>Active</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.map((acct) => (
+                              <tr key={acct.id} style={{ opacity: acct.isActive ? 1 : 0.5 }}>
+                                <td style={{ fontFamily: "monospace" }}>{acct.accountCode}</td>
+                                <td>{acct.accountName}</td>
+                                <td style={{ fontSize: "0.8em" }}>{acct.normalBalance}</td>
+                                <td style={{ fontSize: "0.8em" }}>{acct.isSystemAccount ? "Yes" : "—"}</td>
+                                <td>
+                                  {acct.isSystemAccount ? (
+                                    <span style={{ fontSize: "0.8em", opacity: 0.5 }}>Locked</span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="accounting-secondary"
+                                      style={{ fontSize: "0.72rem", padding: "0.15rem 0.5rem" }}
+                                      onClick={() => toggleCoaActive(acct)}
+                                    >
+                                      {acct.isActive ? "Deactivate" : "Activate"}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Journals view ───────────────────────────────────────────────────── */}
+        {viewMode === "journals" && (
+          <section className="accounting-panels accounting-panels-stack">
+            <div className="glass-card accounting-panel">
+              <div className="accounting-panel-head">
+                <div>
+                  <p className="accounting-panel-label">Double-entry accounting</p>
+                  <h3>Journal entries</h3>
+                  <p className="accounting-panel-sub">{journals.length} journals loaded</p>
+                </div>
+                <div className="accounting-panel-actions">
+                  <select
+                    value={journalsFilter}
+                    onChange={(e) => setJournalsFilter(e.target.value)}
+                    style={{ padding: "0.5rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--admin-border,#e2e8f0)" }}
+                  >
+                    <option value="all">All</option>
+                    <option value="draft">Draft</option>
+                    <option value="posted">Posted</option>
+                  </select>
+                  <button type="button" className="accounting-secondary" onClick={fetchJournals} disabled={journalsLoading}>
+                    {journalsLoading ? "Loading…" : "Refresh"}
+                  </button>
+                </div>
+              </div>
+
+              {journalsError && <InlineNotice tone="error" title="Error" message={journalsError} compact />}
+
+              {journalsLoading && !journals.length ? (
+                <p className="accounting-muted">Loading journals…</p>
+              ) : (
+                <div className="accounting-table-shell admin-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style={{ width: "7rem" }}>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th style={{ width: "5rem" }}>Status</th>
+                        <th style={{ width: "5rem" }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {journals
+                        .filter((j) => journalsFilter === "all" || (journalsFilter === "draft" ? !j.isPosted : j.isPosted))
+                        .map((j) => (
+                          <React.Fragment key={j.id}>
+                            <tr
+                              style={{ cursor: "pointer", opacity: j.isReversed ? 0.5 : 1 }}
+                              onClick={() => toggleJournalExpand(j.id)}
+                            >
+                              <td style={{ fontFamily: "monospace", fontSize: "0.85em" }}>{formatDate(j.date)}</td>
+                              <td style={{ fontFamily: "monospace", fontSize: "0.85em" }}>{j.reference}</td>
+                              <td style={{ fontSize: "0.9em", color: "var(--admin-muted,#64748b)" }}>{j.description || "—"}</td>
+                              <td>
+                                <span style={{
+                                  fontSize: "0.75rem",
+                                  fontWeight: 700,
+                                  color: j.isPosted ? "var(--success,#16a34a)" : "var(--admin-muted,#64748b)"
+                                }}>
+                                  {j.isReversed ? "Reversed" : j.isPosted ? "Posted" : "Draft"}
+                                </span>
+                              </td>
+                              <td>
+                                {!j.isPosted && (
+                                  <button
+                                    type="button"
+                                    className="accounting-secondary"
+                                    style={{ fontSize: "0.72rem", padding: "0.15rem 0.5rem" }}
+                                    onClick={(e) => { e.stopPropagation(); postJournal(j.id); }}
+                                    disabled={journalPosting === j.id}
+                                  >
+                                    {journalPosting === j.id ? "Posting…" : "Post"}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {expandedJournalId === j.id && (
+                              <tr>
+                                <td colSpan={5} style={{ padding: "0 0.5rem 0.75rem", background: "var(--admin-surface,#f8fafc)" }}>
+                                  {journalDetailCache[j.id] ? (
+                                    <table style={{ width: "100%", fontSize: "0.85em" }}>
+                                      <thead>
+                                        <tr>
+                                          <th>Account</th>
+                                          <th>Description</th>
+                                          <th style={{ textAlign: "right" }}>Debit</th>
+                                          <th style={{ textAlign: "right" }}>Credit</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {journalDetailCache[j.id].map((line) => (
+                                          <tr key={line.id}>
+                                            <td style={{ fontFamily: "monospace" }}>{line.accountCode} {line.accountName}</td>
+                                            <td>{line.description || "—"}</td>
+                                            <td style={{ textAlign: "right" }}>{line.debit ? fmtPesewas(line.debit) : "—"}</td>
+                                            <td style={{ textAlign: "right" }}>{line.credit ? fmtPesewas(line.credit) : "—"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  ) : (
+                                    <p className="accounting-muted" style={{ padding: "0.5rem 0" }}>Loading lines…</p>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Historical Imports view ─────────────────────────────────────────── */}
+        {viewMode === "import" && (
+          <section className="accounting-panels accounting-panels-stack">
+            <div className="glass-card accounting-panel">
+              <div className="accounting-panel-head">
+                <div>
+                  <p className="accounting-panel-label">Double-entry accounting</p>
+                  <h3>Historical imports</h3>
+                  <p className="accounting-panel-sub">
+                    Build monthly historical batches here. These batches now drive both historical reporting carry-over and the accounting journals for backfilled periods.
+                  </p>
+                </div>
+                <div className="accounting-panel-actions">
+                  <button type="button" className="accounting-secondary" onClick={fetchImportBatches} disabled={importLoading}>
+                    {importLoading ? "Loading…" : "Refresh"}
+                  </button>
+                  <button
+                    type="button"
+                    className="accounting-secondary"
+                    onClick={() => {
+                      setImportFormError("");
+                      setImportShowForm((prev) => !prev);
+                    }}
+                  >
+                    {importShowForm ? "Cancel" : "New import batch"}
+                  </button>
+                </div>
+              </div>
+
+              {importShowForm && (
+                <div
+                  style={{
+                    marginBottom: "1rem",
+                    padding: "1rem",
+                    background: "var(--admin-surface,#f8fafc)",
+                    border: "1px solid var(--admin-border,#e2e8f0)",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  <div style={{ marginBottom: "0.85rem" }}>
+                    <h4 style={{ margin: 0 }}>Create historical batch</h4>
+                    <p className="accounting-muted" style={{ margin: "0.35rem 0 0" }}>
+                      This is now the single historical backfill workflow. If you record any VAT payment, include the actual GRA payment date so the remittance journal is created too.
+                    </p>
+                  </div>
+
+                  <div className="accounting-form-grid" style={{ marginBottom: "0.85rem" }}>
+                    <SelectField
+                      fieldClassName="accounting-field"
+                      label="Year"
+                      value={String(importForm.year)}
+                      onChange={updateImportField("year")}
+                    >
+                      {HISTORICAL_INPUT_YEARS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <SelectField
+                      fieldClassName="accounting-field"
+                      label="Month"
+                      value={String(importForm.month)}
+                      onChange={updateImportField("month")}
+                    >
+                      {MANUAL_SALES_MONTHS.map((month, index) => (
+                        <option key={month.key} value={index + 1}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <label className="accounting-field">
+                      Gross sales
+                      <input type="number" inputMode="decimal" value={importForm.grossSales} onChange={updateImportField("grossSales")} />
+                    </label>
+                    <label className="accounting-field">
+                      Retail split
+                      <input type="number" inputMode="decimal" value={importForm.retailSplit} onChange={updateImportField("retailSplit")} />
+                    </label>
+                    <label className="accounting-field">
+                      Rental split
+                      <input type="number" inputMode="decimal" value={importForm.rentalSplit} onChange={updateImportField("rentalSplit")} />
+                    </label>
+                    <label className="accounting-field">
+                      Cash received
+                      <input type="number" inputMode="decimal" value={importForm.cashReceived} onChange={updateImportField("cashReceived")} />
+                    </label>
+                    <label className="accounting-field">
+                      Accounts receivable
+                      <input type="number" inputMode="decimal" value={importForm.arOutstanding} onChange={updateImportField("arOutstanding")} />
+                    </label>
+                    <label className="accounting-field">
+                      VAT paid to GRA
+                      <input type="number" inputMode="decimal" value={importForm.vatPayablePaid} onChange={updateImportField("vatPayablePaid")} />
+                    </label>
+                    <label className="accounting-field">
+                      GRA payment date
+                      <input type="date" value={importForm.graPaymentDate} onChange={updateImportField("graPaymentDate")} />
+                    </label>
+                    <label className="accounting-field">
+                      COGS
+                      <input type="number" inputMode="decimal" value={importForm.cogsPesewas} onChange={updateImportField("cogsPesewas")} />
+                    </label>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.75rem",
+                      flexWrap: "wrap",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: 0 }}>Expense lines</h4>
+                      <p className="accounting-muted" style={{ margin: "0.35rem 0 0" }}>
+                        Add only the operating expenses that should be journaled into this month.
+                      </p>
+                    </div>
+                    <button type="button" className="accounting-secondary" onClick={addImportExpenseLine}>
+                      Add line
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gap: "0.75rem" }}>
+                    {importForm.expenseLines.map((line, index) => (
+                      <div
+                        key={`import-expense-${index}`}
+                        style={{
+                          padding: "0.85rem",
+                          border: "1px solid var(--admin-border,#e2e8f0)",
+                          borderRadius: "0.9rem",
+                          background: "rgba(255,255,255,0.55)",
+                        }}
+                      >
+                        <div className="accounting-form-grid">
+                          <label className="accounting-field">
+                            Account code
+                            <input
+                              type="text"
+                              value={line.accountCode}
+                              onChange={updateImportExpenseLine(index, "accountCode")}
+                            />
+                          </label>
+                          <label className="accounting-field">
+                            Description
+                            <input
+                              type="text"
+                              value={line.description}
+                              onChange={updateImportExpenseLine(index, "description")}
+                            />
+                          </label>
+                          <label className="accounting-field">
+                            Amount
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={line.amountPesewas}
+                              onChange={updateImportExpenseLine(index, "amountPesewas")}
+                            />
+                          </label>
+                          <div className="accounting-field" style={{ display: "flex", alignItems: "end" }}>
+                            <button
+                              type="button"
+                              className="accounting-secondary"
+                              onClick={() => removeImportExpenseLine(index)}
+                              disabled={importForm.expenseLines.length === 1}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {importFormError && (
+                    <div style={{ marginTop: "0.85rem" }}>
+                      <InlineNotice tone="error" title="Import error" message={importFormError} compact />
+                    </div>
+                  )}
+
+                  <div className="accounting-panel-actions" style={{ marginTop: "1rem" }}>
+                    <button
+                      type="button"
+                      className="accounting-secondary"
+                      onClick={submitImportBatch}
+                      disabled={importFormSaving}
+                    >
+                      {importFormSaving ? "Creating…" : "Create draft batch"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {importError && <InlineNotice tone="error" title="Error" message={importError} compact />}
+
+              {importLoading && !importBatches.length ? (
+                <p className="accounting-muted">Loading historical import batches…</p>
+              ) : importBatches.length ? (
+                <div className="acct-import-grid">
+                  {importBatches.map((batch) => (
+                    <div
+                      key={batch.id}
+                      className={`acct-import-cell ${batch.isPosted ? "acct-import-cell--posted" : "acct-import-cell--draft"}`}
+                    >
+                      <div className="acct-import-cell-label">{batch.batchName}</div>
+                      <div className="acct-import-cell-status">
+                        {batch.isPosted ? "Posted" : "Draft"} · {Number(batch.journalCount || 0)} journals
+                      </div>
+                      <div className="accounting-muted">
+                        {formatDate(batch.periodStart)} to {formatDate(batch.periodEnd)}
+                      </div>
+                      <div className="accounting-muted">
+                        {batch.postedAt ? `Posted ${formatDate(batch.postedAt)}` : "Ready for review and posting"}
+                      </div>
+                      <div className="acct-import-cell-actions">
+                        {!batch.isPosted && (
+                          <button
+                            type="button"
+                            className="accounting-secondary"
+                            onClick={() => postImportBatch(batch.id)}
+                            disabled={importPostingId === batch.id || importDeletingId === batch.id}
+                          >
+                            {importPostingId === batch.id ? "Posting…" : "Post"}
+                          </button>
+                        )}
+                        {!batch.isPosted && (
+                          <button
+                            type="button"
+                            className="accounting-secondary"
+                            onClick={() => deleteImportBatch(batch.id)}
+                            disabled={importDeletingId === batch.id || importPostingId === batch.id}
+                          >
+                            {importDeletingId === batch.id ? "Deleting…" : "Delete"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="accounting-muted">No historical import batches yet. Create one to backfill accounting history.</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Trial Balance view ──────────────────────────────────────────────── */}
+        {viewMode === "trialBalance" && (
+          <section className="accounting-panels accounting-panels-stack">
+            <div className="glass-card accounting-panel">
+              <div className="accounting-panel-head">
+                <div>
+                  <p className="accounting-panel-label">Double-entry accounting</p>
+                  <h3>Trial balance</h3>
+                  <p className="accounting-panel-sub">All posted journal entries up to and including the selected date.</p>
+                </div>
+                <div className="accounting-panel-actions">
+                  <label className="accounting-field">
+                    As at date
+                    <input
+                      type="date"
+                      value={tbAsOf}
+                      onChange={(e) => setTbAsOf(e.target.value)}
+                      style={{ padding: "0.45rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--admin-border,#e2e8f0)" }}
+                    />
+                  </label>
+                  <button type="button" className="accounting-secondary" onClick={() => fetchTrialBalance(tbAsOf)} disabled={tbLoading}>
+                    {tbLoading ? "Loading…" : "Load"}
+                  </button>
+                </div>
+              </div>
+
+              {tbError && <InlineNotice tone="error" title="Error" message={tbError} compact />}
+
+              {tbLoading && !trialBalance ? (
+                <p className="accounting-muted">Loading trial balance…</p>
+              ) : trialBalance ? (
+                <>
+                  <div
+                    className={`accounting-balance-check ${trialBalance.isBalanced ? "is-balanced" : "is-off"}`}
+                    style={{ marginBottom: "1rem" }}
+                  >
+                    {trialBalance.isBalanced
+                      ? `Balanced as at ${trialBalance.asOf} · Total debits = Total credits = ${fmtPesewas(trialBalance.grandDebit)}`
+                      : `NOT BALANCED as at ${trialBalance.asOf} · Debits ${fmtPesewas(trialBalance.grandDebit)} vs Credits ${fmtPesewas(trialBalance.grandCredit)}`}
+                  </div>
+
+                  {Object.entries(trialBalance.byType || {}).map(([type, group]) => (
+                    <div key={type} style={{ marginBottom: "1.25rem" }}>
+                      <p style={{ fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 0.5rem", opacity: 0.7 }}>
+                        {TYPE_LABELS[type] || type}
+                      </p>
+                      <div className="accounting-table-shell admin-table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th style={{ width: "5rem" }}>Code</th>
+                              <th>Account</th>
+                              <th style={{ textAlign: "right" }}>Debit</th>
+                              <th style={{ textAlign: "right" }}>Credit</th>
+                              <th style={{ textAlign: "right" }}>Net</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.accounts || []).map((acct) => (
+                              <tr key={acct.id} style={{ opacity: acct.totalDebit || acct.totalCredit ? 1 : 0.4 }}>
+                                <td style={{ fontFamily: "monospace", fontSize: "0.85em" }}>{acct.accountCode}</td>
+                                <td>{acct.accountName}</td>
+                                <td style={{ textAlign: "right" }}>{acct.totalDebit ? fmtPesewas(acct.totalDebit) : "—"}</td>
+                                <td style={{ textAlign: "right" }}>{acct.totalCredit ? fmtPesewas(acct.totalCredit) : "—"}</td>
+                                <td style={{ textAlign: "right", fontWeight: 600 }}>{fmtPesewas(acct.netBalance)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr style={{ fontWeight: 700, borderTop: "2px solid var(--admin-border,#e2e8f0)" }}>
+                              <td colSpan={2}>{TYPE_LABELS[type] || type} total</td>
+                              <td style={{ textAlign: "right" }}>{fmtPesewas(group.totalDebit)}</td>
+                              <td style={{ textAlign: "right" }}>{fmtPesewas(group.totalCredit)}</td>
+                              <td style={{ textAlign: "right" }}>{fmtPesewas(group.netBalance)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="accounting-pnl" style={{ marginTop: "1rem" }}>
+                    <div className="accounting-pnl-row total">
+                      <strong>Grand total debits</strong>
+                      <strong>{fmtPesewas(trialBalance.grandDebit)}</strong>
+                    </div>
+                    <div className="accounting-pnl-row total">
+                      <strong>Grand total credits</strong>
+                      <strong>{fmtPesewas(trialBalance.grandCredit)}</strong>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="accounting-muted">Select a date and click Load to view the trial balance.</p>
+              )}
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );

@@ -209,6 +209,8 @@ const pricingPlans = [
 
 const formatGhs = (amount) => `GH₵ ${new Intl.NumberFormat("en-GH").format(amount)}`;
 
+const ERP_DEMO_URL = import.meta.env.VITE_ERP_DEMO_URL || "https://faako-erp.nanaabaackah.com";
+
 export default function Home() {
   const [typedLineOne, setTypedLineOne] = useState("");
   const [typedLineTwo, setTypedLineTwo] = useState("");
@@ -543,7 +545,14 @@ export default function Home() {
             />
           </div>
           <div className="hero-actions">
-            <PrimaryButton to="/contact">See How It Works <FontAwesomeIcon icon={faArrowRight} /></PrimaryButton>
+            <a
+              className="button button-primary"
+              href={ERP_DEMO_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              See How It Works <FontAwesomeIcon icon={faArrowRight} />
+            </a>
             <Link className="button button-ghost" to="/contact">
               Talk to Us
             </Link>

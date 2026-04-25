@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { demoJourneys, featuredDemoModules } from "../data/demoModules.js";
 
 const kpis = [
   {
@@ -167,6 +169,11 @@ const cashflow = [
 export default function Dashboard() {
   const [ordersView, setOrdersView] = useState("today");
   const orders = orderSets[ordersView];
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  }).format(new Date());
 
   return (
     <section className="page dashboard">
@@ -175,16 +182,16 @@ export default function Dashboard() {
           <p className="eyebrow">Operations overview</p>
           <h1>Faako Foods — Accra HQ</h1>
           <p className="muted">
-            Wednesday, 12 June • 14 workflows running • Demo environment
+            {dateLabel} • 14 workflows running • Demo environment
           </p>
         </div>
         <div className="hero-actions">
-          <button className="button button-primary" type="button">
-            New order
-          </button>
-          <button className="button button-ghost" type="button">
-            Export report
-          </button>
+          <Link className="button button-primary" to="/modules">
+            Explore modules
+          </Link>
+          <Link className="button button-ghost" to="/reports">
+            View reports
+          </Link>
         </div>
       </div>
 
@@ -197,6 +204,31 @@ export default function Dashboard() {
           </article>
         ))}
       </div>
+
+      <section className="panel glass-card">
+        <div className="panel-header">
+          <div>
+            <h3>Core modules in this demo</h3>
+            <p className="muted">
+              The most important workflows are visible right away and connected
+              through the shared ERP shell.
+            </p>
+          </div>
+          <Link className="button button-ghost" to="/modules">
+            See all modules
+          </Link>
+        </div>
+        <div className="quick-access-grid">
+          {featuredDemoModules.slice(0, 6).map((module) => (
+            <Link className="module-card quick-access-card" key={module.id} to={module.path}>
+              <span className="eyebrow">{module.metric}</span>
+              <div className="table-strong">{module.title}</div>
+              <p className="muted">{module.summary}</p>
+              <span className={`status-pill is-${module.tone}`}>{module.status}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="dashboard-grid">
         <article className="panel glass-card panel-span-2">
@@ -336,6 +368,23 @@ export default function Dashboard() {
           </div>
         </article>
       </div>
+
+      <section className="workflow-grid">
+        {demoJourneys.map((journey) => (
+          <article className="panel glass-card workflow-card" key={journey.id}>
+            <p className="eyebrow">Connected workflow</p>
+            <h3>{journey.title}</h3>
+            <p className="muted">{journey.summary}</p>
+            <div className="pill-group">
+              {journey.modules.map((module) => (
+                <span className="status-pill" key={module}>
+                  {module}
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
     </section>
   );
 }

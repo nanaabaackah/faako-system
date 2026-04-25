@@ -56,3 +56,19 @@ The publish folder is `apps/faako-erp/dist`, and selective deploys use:
 ```bash
 node ./scripts/netlify-ignore.mjs @faako/faako-erp
 ```
+
+### Demo Access Popup
+
+The deployed demo includes a Netlify function at `/api/demo-access` that
+requests and verifies one-time access codes for the popup gate.
+
+Set these server-side environment variables in Netlify:
+
+- `FAAKO_ERP_DEMO_ACCESS_SECRET`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `RESEND_FROM_NAME` (optional)
+
+In preview-style environments without Resend configured, the function falls
+back to a preview mode and returns the generated code directly so the UI can
+still be tested.
