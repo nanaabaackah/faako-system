@@ -121,6 +121,9 @@ importers:
       '@faako/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@faako/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@fortawesome/free-brands-svg-icons':
         specifier: ^6.7.2
         version: 6.7.2

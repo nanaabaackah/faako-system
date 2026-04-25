@@ -12,6 +12,14 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     resolve: {
+      alias: {
+        '@faako/config': fileURLToPath(new URL('../../packages/config/src', import.meta.url)),
+        '@faako/core': fileURLToPath(new URL('../../packages/core/src', import.meta.url)),
+        '@faako/theme': fileURLToPath(new URL('../../packages/theme/src', import.meta.url)),
+        '@faako/types': fileURLToPath(new URL('../../packages/types/src', import.meta.url)),
+        '@faako/ui': fileURLToPath(new URL('../../packages/ui/src', import.meta.url)),
+        '@faako/utils': fileURLToPath(new URL('../../packages/utils/src', import.meta.url)),
+      },
       dedupe: ['react', 'react-dom'],
     },
     optimizeDeps: {
