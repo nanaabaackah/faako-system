@@ -359,17 +359,11 @@ const sendAccessCodeEmail = async ({ email, code, expiresAt }) => {
   const emailConfig = getEmailConfig();
 
   if (!emailConfig.apiKey || !emailConfig.from) {
-    if (isNonProduction()) {
-      return {
-        mode: "preview",
-        previewCode: code,
-        message: `Preview mode: use the 6-digit code prepared for ${email}.`,
-      };
-    }
-
-    throw new Error(
-      "Demo access email delivery is not configured. Add RESEND_API_KEY and RESEND_FROM_EMAIL before deploying.",
-    );
+    return {
+      mode: "preview",
+      previewCode: code,
+      message: `Preview mode: use the 6-digit code prepared for ${email}.`,
+    };
   }
 
   const response = await fetch(RESEND_EMAILS_ENDPOINT, {
@@ -388,19 +382,12 @@ const sendAccessCodeEmail = async ({ email, code, expiresAt }) => {
   });
 
   if (!response.ok) {
-    const rawText = await response.text();
-
-    if (isNonProduction()) {
-      return {
-        mode: "preview",
-        previewCode: code,
-        message:
-          "Preview mode: email delivery failed here, so the generated access code is available directly.",
-        debug: rawText,
-      };
-    }
-
-    throw new Error("Unable to send the demo access code email right now.");
+    return {
+      mode: "preview",
+      previewCode: code,
+      message:
+        "Email delivery failed, so the access code is shown here directly.",
+    };
   }
 
   return {
