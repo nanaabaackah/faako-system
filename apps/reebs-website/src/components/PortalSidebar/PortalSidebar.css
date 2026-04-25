@@ -48,7 +48,16 @@
   color: var(--muted);
   transition: width 0.3s ease, padding 0.3s ease, box-shadow 0.3s ease;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: visible;
+  --ui-sidebar-toggle-bg: color-mix(in srgb, var(--card) 84%, var(--surface) 16%);
+  --ui-sidebar-toggle-bg-hover: var(--surface);
+  --ui-sidebar-toggle-border: var(--border);
+  --ui-sidebar-toggle-border-hover: var(--accent);
+  --ui-sidebar-toggle-ink: var(--muted);
+  --ui-sidebar-toggle-ink-hover: var(--ink);
+  --ui-sidebar-toggle-focus: var(--accent);
+  --ui-sidebar-toggle-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  --ui-sidebar-toggle-shadow-hover: 0 18px 36px rgba(15, 23, 42, 0.16);
 }
 
 .portal-sidebar.is-expanded {

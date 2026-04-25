@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -35,7 +36,6 @@ import {
   faUsers,
   faSun,
   faMoon,
-  faChevronLeft,
   faChevronDown,
   faBell,
   faBoxesStacked,
@@ -285,7 +285,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const notificationsRef = useRef(null);
   const notificationsPanelRef = useRef(null);
   const userMenuRef = useRef(null);
-  const [expanded, setExpanded] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
+    storageKey: "reebs-portal.sidebar-collapsed",
+  });
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia(MOBILE_QUERY).matches;
@@ -343,6 +345,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const searchShortcutLabel = useMemo(() => getSearchShortcutLabel(), []);
   const portalLogoSrc =
     resolvedAdminTheme === "dark" ? REEBS_PORTAL_LOGO_DARK : REEBS_PORTAL_LOGO_LIGHT;
+  const expanded = !isSidebarCollapsed;
 
   const normalizedPath = useMemo(() => normalizePath(location.pathname), [location.pathname]);
 
@@ -467,7 +470,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       }
 
       if (!expanded) {
-        setExpanded(true);
+        setIsSidebarCollapsed(false);
         return;
       }
 
@@ -478,7 +481,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [expanded, isMobile]);
+  }, [expanded, isMobile, setIsSidebarCollapsed]);
 
   useEffect(() => {
     if (!pendingSearchFocusRef.current) return;
@@ -1477,22 +1480,18 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 <span className="portal-sidebar__brand-full">REEBS Portal</span>
               </span>
             </Link>
-            <div className="portal-sidebar__toggle">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isMobile) {
-                    setOverlayOpen(true);
-                    return;
-                  }
-                  setExpanded((prev) => !prev);
-                }}
-                className="portal-sidebar__toggle-btn"
-                aria-label={isMobile ? "Open menu" : expanded ? "Collapse navigation" : "Expand navigation"}
-              >
-                <AppIcon icon={isMobile ? faBars : expanded ? faChevronLeft : faBars} />
-              </button>
-            </div>
+            {isMobile ? (
+              <div className="portal-sidebar__toggle">
+                <button
+                  type="button"
+                  onClick={() => setOverlayOpen(true)}
+                  className="portal-sidebar__toggle-btn"
+                  aria-label="Open menu"
+                >
+                  <AppIcon icon={faBars} />
+                </button>
+              </div>
+            ) : null}
           </div>
           {!isMobile && expanded && renderSearchRow("sidebar")}
           {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderSearchResults()}</nav>}
@@ -1503,6 +1502,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             </div>
           )}
         </div>
+        {!isMobile ? (
+          <SidebarEdgeToggle
+            className="portal-sidebar__edge-toggle"
+            collapsed={isSidebarCollapsed}
+            onClick={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
+          />
+        ) : null}
       </aside>
       {mobileOverlay}
     </>

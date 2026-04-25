@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { Link } from "react-router-dom";
 import type { ErpBranding, ErpNavItem, IconRenderer } from "@faako/types";
 import { isPathActive } from "@faako/utils";
+import { SidebarEdgeToggle } from "./SidebarEdgeToggle";
 
 interface ErpNavSidebarProps {
   brand: ErpBranding;
@@ -11,6 +12,8 @@ interface ErpNavSidebarProps {
   footer?: ReactNode;
   fallbackPath?: string;
   searchPlaceholder?: string;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 const DESKTOP_QUERY = "(min-width: 901px)";
@@ -48,9 +51,12 @@ export function ErpNavSidebar({
   footer,
   fallbackPath = "/",
   searchPlaceholder = "Search modules...",
+  collapsed = false,
+  onToggleCollapsed,
 }: ErpNavSidebarProps) {
   const searchFieldId = useId();
   const searchFieldRef = useRef<HTMLInputElement | null>(null);
+  const pendingSearchFocusRef = useRef(false);
   const [navQuery, setNavQuery] = useState("");
   const brandMark = useMemo(() => renderBrandMark(brand), [brand]);
   const searchShortcutLabel = useMemo(() => getSearchShortcutLabel(), []);
@@ -74,19 +80,42 @@ export function ErpNavSidebar({
       if (event.key.toLowerCase() !== "k") return;
 
       event.preventDefault();
+      if (collapsed && onToggleCollapsed) {
+        pendingSearchFocusRef.current = true;
+        onToggleCollapsed();
+        return;
+      }
       searchFieldRef.current?.focus();
       searchFieldRef.current?.select();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [collapsed, onToggleCollapsed]);
+
+  useEffect(() => {
+    if (!pendingSearchFocusRef.current || collapsed) return;
+    if (typeof window === "undefined") return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      searchFieldRef.current?.focus();
+      searchFieldRef.current?.select();
+      pendingSearchFocusRef.current = false;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [collapsed]);
 
   return (
-    <aside className="erp-nav-sidebar">
+    <aside className={["erp-nav-sidebar", collapsed ? "is-collapsed" : ""].filter(Boolean).join(" ")}>
       <div className="erp-nav-sidebar__panel">
         <div className="erp-nav-sidebar__header">
-          <Link className="erp-nav-sidebar__brand-link" to={brand.homePath || fallbackPath}>
+          <Link
+            className="erp-nav-sidebar__brand-link"
+            to={brand.homePath || fallbackPath}
+            title={collapsed ? brand.sidebarTitle || brand.name : undefined}
+            aria-label={collapsed ? brand.sidebarTitle || brand.name : undefined}
+          >
             <span className="erp-nav-sidebar__brand-mark" aria-hidden="true">
               {brandMark}
             </span>
@@ -125,6 +154,8 @@ export function ErpNavSidebar({
               const icon = renderIcon
                 ? renderIcon(item.iconKey, item.label)
                 : renderFallbackIcon(item.label, item.iconKey);
+              const itemLabel =
+                item.description && collapsed ? `${item.label}: ${item.description}` : item.label;
 
               const content = (
                 <span className="erp-nav-sidebar__link-main">
@@ -148,6 +179,8 @@ export function ErpNavSidebar({
                     href={item.path}
                     rel="noreferrer"
                     target="_blank"
+                    title={collapsed ? itemLabel : undefined}
+                    aria-label={collapsed ? itemLabel : undefined}
                   >
                     {content}
                   </a>
@@ -159,6 +192,8 @@ export function ErpNavSidebar({
                   key={item.id}
                   className={`erp-nav-sidebar__link ${isActive ? "is-active" : ""}`}
                   to={item.path}
+                  title={collapsed ? itemLabel : undefined}
+                  aria-label={collapsed ? itemLabel : undefined}
                 >
                   {content}
                 </Link>
@@ -173,6 +208,14 @@ export function ErpNavSidebar({
 
         {footer ? <div className="erp-nav-sidebar__footer">{footer}</div> : null}
       </div>
+      {onToggleCollapsed ? (
+        <SidebarEdgeToggle
+          collapsed={collapsed}
+          onClick={onToggleCollapsed}
+          expandedLabel="Collapse navigation"
+          collapsedLabel="Expand navigation"
+        />
+      ) : null}
     </aside>
   );
 }

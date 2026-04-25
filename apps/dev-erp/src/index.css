@@ -121,6 +121,16 @@ button {
   height: 100vh;
   overflow: visible;
   overscroll-behavior: contain;
+  z-index: 5;
+  --ui-sidebar-toggle-bg: color-mix(in oklab, var(--surface), var(--card) 18%);
+  --ui-sidebar-toggle-bg-hover: color-mix(in oklab, var(--surface), var(--card) 10%);
+  --ui-sidebar-toggle-border: var(--border);
+  --ui-sidebar-toggle-border-hover: color-mix(in oklab, var(--accent), var(--border) 54%);
+  --ui-sidebar-toggle-ink: var(--muted);
+  --ui-sidebar-toggle-ink-hover: var(--ink);
+  --ui-sidebar-toggle-focus: var(--accent);
+  --ui-sidebar-toggle-shadow: 0 16px 32px rgba(59, 47, 47, 0.14);
+  --ui-sidebar-toggle-shadow-hover: 0 18px 36px rgba(59, 47, 47, 0.18);
 }
 
 .erp-sidebar__panel {
@@ -226,40 +236,6 @@ button {
 
 .erp-sidebar__close {
   display: none;
-}
-
-.erp-sidebar__edge-toggle {
-  position: absolute;
-  top: 50%;
-  right: -1.05rem;
-  width: 2.2rem;
-  height: 4.4rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--card), var(--surface) 12%);
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 16px 32px rgba(59, 47, 47, 0.14);
-  transform: translateY(-50%);
-  transition: transform 0.18s ease, color 0.18s ease, border-color 0.18s ease,
-    background 0.18s ease, box-shadow 0.18s ease;
-  z-index: 2;
-}
-
-.erp-sidebar__edge-toggle:hover {
-  transform: translateY(-50%) translateX(1px);
-  color: var(--ink);
-  border-color: color-mix(in oklab, var(--accent), var(--border) 54%);
-  background: color-mix(in oklab, var(--card), var(--surface) 4%);
-  box-shadow: 0 18px 36px rgba(59, 47, 47, 0.18);
-}
-
-.erp-sidebar__edge-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
 }
 
 .erp-sidebar__search {
@@ -2551,10 +2527,6 @@ textarea.input {
   .nav-toggle,
   .erp-sidebar__close {
     display: inline-flex;
-  }
-
-  .erp-sidebar__edge-toggle {
-    display: none;
   }
 
   .nav-scrim {

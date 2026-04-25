@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -25,7 +26,6 @@ import {
   faUserGroup,
   faUserTie,
   faUsers,
-  faChevronLeft,
   faChevronDown,
   faBell,
   faBoxesStacked,
@@ -205,7 +205,9 @@ const formatNotificationTime = (date) => {
 function PortalSidebar({ apps = DEFAULT_APPS }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
+    storageKey: "reebs-website.sidebar-collapsed",
+  });
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia(MOBILE_QUERY).matches;
@@ -240,6 +242,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     () => `reebs_notifications_read_${user?.id || "guest"}`,
     [user?.id]
   );
+  const expanded = !isSidebarCollapsed;
 
   const normalizedPath = useMemo(() => normalizePath(location.pathname), [location.pathname]);
 
@@ -796,25 +799,27 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
           <span className="portal-sidebar__brand-full">Reebs ERP</span>
         </div>
         {!isMobile && renderUserSection()}
-        <div className="portal-sidebar__toggle">
-          <button
-            type="button"
-            onClick={() => {
-              if (isMobile) {
-                setOverlayOpen(true);
-                return;
-              }
-              setExpanded((prev) => !prev);
-            }}
-            className="portal-sidebar__toggle-btn"
-            aria-label={isMobile ? "Open menu" : "Toggle navigation"}
-          >
-            <AppIcon icon={isMobile ? faBars : expanded ? faChevronLeft : faBars} />
-            {!isMobile && <span>{expanded ? "Collapse" : "Explore"}</span>}
-          </button>
-        </div>
+        {isMobile ? (
+          <div className="portal-sidebar__toggle">
+            <button
+              type="button"
+              onClick={() => setOverlayOpen(true)}
+              className="portal-sidebar__toggle-btn"
+              aria-label="Open menu"
+            >
+              <AppIcon icon={faBars} />
+            </button>
+          </div>
+        ) : null}
         {!isMobile && renderNotifications()}
         {!isMobile && <nav className="portal-sidebar__nav" aria-label="Portal apps">{renderLinks()}</nav>}
+        {!isMobile ? (
+          <SidebarEdgeToggle
+            className="portal-sidebar__edge-toggle"
+            collapsed={isSidebarCollapsed}
+            onClick={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
+          />
+        ) : null}
       </aside>
       {mobileOverlay}
     </>

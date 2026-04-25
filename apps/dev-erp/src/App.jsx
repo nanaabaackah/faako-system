@@ -34,6 +34,9 @@ import ErrorPage from "./pages/ErrorPage/ErrorPage";
 import useScrollAnimations from "./hooks/useScrollAnimations";
 import { apiGet, apiPost } from "./api/client";
 import {
+  useSidebarCollapsedState,
+} from "@faako/ui";
+import {
   clearAuthStore,
   refreshAuthSession,
   useAuthSnapshot,
@@ -58,17 +61,6 @@ import {
 const NAV_SWIPE_CLOSE_THRESHOLD = 72;
 const NAV_SWIPE_VERTICAL_TOLERANCE = 72;
 const NAV_SWIPE_MIN_HORIZONTAL_DELTA = 12;
-const SIDEBAR_COLLAPSE_STORAGE_KEY = "dev-erp.sidebar-collapsed";
-
-const getInitialSidebarCollapsed = () => {
-  if (typeof window === "undefined") return false;
-
-  try {
-    return window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-};
 
 const PrivateRoute = ({ authReady, currentUser, children }) => {
   if (!authReady) {
@@ -98,7 +90,9 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const visibleNavItems = getVisibleNavItems(currentUser);
   const visibleMobileTabItems = getVisibleMobileTabItems(currentUser);
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
+    storageKey: "dev-erp.sidebar-collapsed",
+  });
   const [navSwipeOffset, setNavSwipeOffset] = useState(0);
   const [isNavDragging, setIsNavDragging] = useState(false);
   const [navNotifications, setNavNotifications] = useState({});
@@ -135,19 +129,6 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
     document.body.classList.toggle("nav-open", isNavOpen);
     return () => document.body.classList.remove("nav-open");
   }, [isNavOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.localStorage.setItem(
-        SIDEBAR_COLLAPSE_STORAGE_KEY,
-        isSidebarCollapsed ? "true" : "false"
-      );
-    } catch {
-      // ignore storage write failures and keep the in-memory preference
-    }
-  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     if (isNavOpen) return;

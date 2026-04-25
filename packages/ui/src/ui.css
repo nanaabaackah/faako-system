@@ -132,6 +132,60 @@
   color: var(--sys-danger);
 }
 
+.ui-sidebar-edge-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 2.2rem;
+  height: 4.4rem;
+  padding: 0;
+  border: 1px solid var(--ui-sidebar-toggle-border, var(--sys-border));
+  border-radius: 999px;
+  background: var(--ui-sidebar-toggle-bg, var(--sys-surface-strong));
+  color: var(--ui-sidebar-toggle-ink, var(--sys-muted));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--ui-sidebar-toggle-shadow, var(--sys-shadow-md));
+  transform: translate(50%, -50%);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+  z-index: 6;
+}
+
+.ui-sidebar-edge-toggle:hover {
+  border-color: var(--ui-sidebar-toggle-border-hover, var(--sys-border-strong));
+  background: var(--ui-sidebar-toggle-bg-hover, var(--sys-surface));
+  color: var(--ui-sidebar-toggle-ink-hover, var(--sys-text));
+  box-shadow: var(--ui-sidebar-toggle-shadow-hover, var(--sys-shadow-lg));
+}
+
+.ui-sidebar-edge-toggle:focus-visible {
+  outline: 2px solid var(--ui-sidebar-toggle-focus, var(--sys-accent));
+  outline-offset: 3px;
+}
+
+.ui-sidebar-edge-toggle__icon {
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-sidebar-edge-toggle__icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .ui-filter-bar {
   display: flex;
   align-items: center;

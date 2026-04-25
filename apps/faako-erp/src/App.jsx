@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { ErpBottomNav, ErpNavSidebar, ErpShellFrame } from "@faako/ui";
+import {
+  ErpBottomNav,
+  ErpNavSidebar,
+  ErpShellFrame,
+  useSidebarCollapsedState,
+} from "@faako/ui";
 import { filterItemsByRole, getErpPageTitle, toTitleCase } from "@faako/utils";
 import Dashboard from "./pages/Dashboard.jsx";
 import Orders from "./pages/Orders.jsx";
@@ -203,6 +208,9 @@ const getTopbarLabel = (pathname) => {
 function AppLayout() {
   const location = useLocation();
   const { isAuthed, revokeAccess, user } = useAuth();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
+    storageKey: "faako-erp.sidebar-collapsed",
+  });
 
   useEffect(() => {
     document.title = getErpPageTitle(
@@ -218,6 +226,7 @@ function AppLayout() {
       brand={shellConfig.brand}
       layout="split"
       contentClassName="faako-erp-shell-content"
+      sidebarCollapsed={isSidebarCollapsed}
       sidebar={
         <ErpNavSidebar
           brand={shellConfig.brand}
@@ -225,6 +234,8 @@ function AppLayout() {
           fallbackPath="/"
           items={filterItemsByRole(shellConfig.sidebarItems, null)}
           renderIcon={renderShellIcon}
+          collapsed={isSidebarCollapsed}
+          onToggleCollapsed={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
         />
       }
       bottomNav={

@@ -6,6 +6,7 @@ interface ErpShellFrameProps {
   layout?: "overlay" | "split";
   className?: string;
   contentClassName?: string;
+  sidebarCollapsed?: boolean;
   sidebar?: ReactNode;
   bottomNav?: ReactNode;
   children: ReactNode;
@@ -27,6 +28,7 @@ export function ErpShellFrame({
   layout = "overlay",
   className,
   contentClassName,
+  sidebarCollapsed = false,
   sidebar,
   bottomNav,
   children,
@@ -34,6 +36,7 @@ export function ErpShellFrame({
   const shellClassName = [
     "erp-shell-frame",
     `erp-shell-frame--${layout}`,
+    sidebarCollapsed ? "is-sidebar-collapsed" : "",
     className,
   ]
     .filter(Boolean)

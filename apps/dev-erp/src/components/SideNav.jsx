@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SidebarEdgeToggle } from "@faako/ui";
 import { NavLink } from "react-router-dom";
 import {
-  FiChevronLeft,
-  FiChevronRight,
   FiLogOut,
   FiSearch,
   FiUser,
@@ -260,19 +259,10 @@ const SideNav = ({
           </div>
         </div>
         {!isMobile ? (
-          <button
-            className="erp-sidebar__edge-toggle"
-            type="button"
+          <SidebarEdgeToggle
             onClick={onToggleCollapsed}
-            aria-label={isDesktopCollapsed ? "Expand navigation" : "Collapse navigation"}
-            title={isDesktopCollapsed ? "Expand navigation" : "Collapse navigation"}
-          >
-            {isDesktopCollapsed ? (
-              <FiChevronRight aria-hidden="true" />
-            ) : (
-              <FiChevronLeft aria-hidden="true" />
-            )}
-          </button>
+            collapsed={isDesktopCollapsed}
+          />
         ) : null}
       </aside>
       <button

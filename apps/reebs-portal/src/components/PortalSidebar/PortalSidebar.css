@@ -122,6 +122,20 @@
   color: var(--portal-sidebar-ink);
   transition: width 0.3s ease, padding 0.3s ease;
   box-sizing: border-box;
+  overflow: visible;
+  --ui-sidebar-toggle-bg: color-mix(in srgb, var(--portal-sidebar-panel) 90%, white 10%);
+  --ui-sidebar-toggle-bg-hover: var(--portal-sidebar-tile-hover);
+  --ui-sidebar-toggle-border: var(--portal-sidebar-border);
+  --ui-sidebar-toggle-border-hover: var(--portal-sidebar-link-active-border);
+  --ui-sidebar-toggle-ink: var(--portal-sidebar-muted);
+  --ui-sidebar-toggle-ink-hover: var(--portal-sidebar-link-active-ink);
+  --ui-sidebar-toggle-focus: var(--portal-sidebar-focus-ring);
+  --ui-sidebar-toggle-shadow:
+    0 20px 42px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  --ui-sidebar-toggle-shadow-hover:
+    0 24px 48px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .portal-sidebar.is-expanded {
@@ -146,6 +160,8 @@
   box-shadow: var(--portal-sidebar-shadow);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
+  overflow: hidden;
+  transition: padding 0.3s ease, gap 0.3s ease;
 }
 
 .portal-sidebar__header,
