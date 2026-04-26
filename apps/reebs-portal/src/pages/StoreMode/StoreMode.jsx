@@ -6,14 +6,23 @@ import { StoreModeLayout } from "./components/StoreModeLayout";
 import {
   EMAIL_PATTERN,
   LOW_STOCK_THRESHOLD,
+  applyInventoryLineQuantityDelta,
   clearStoreModeDraft,
+  buildProductSearchText,
+  findVariantById,
   getAvailableQuantity,
+  getActiveItemVariants,
   getCategory,
   getCustomerLabel,
   getQuantity,
   getStoreModeDraftKey,
+  getProductLineKey,
   getUnitPrice,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  formatVariantLabel,
   isSaleableProduct,
+  isVariantParentItem,
   normalizePhoneDigits,
   normalizeText,
   parseReceiptContact,
@@ -35,6 +44,7 @@ function StoreMode() {
   const [hoveredImage, setHoveredImage] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedVariantIds, setSelectedVariantIds] = useState({});
   const [items, setItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -164,8 +174,23 @@ function StoreMode() {
     return Array.from(values).sort((left, right) => left.localeCompare(right));
   }, [items]);
 
-  const orderQtyById = useMemo(
-    () => new Map(orderItems.map((item) => [item.productId, item.quantity])),
+  const orderQtyByLineKey = useMemo(
+    () =>
+      orderItems.reduce((map, item) => {
+        const lineKey = item.lineKey || getProductLineKey(item.productId, item.variantId);
+        map.set(lineKey, (map.get(lineKey) || 0) + item.quantity);
+        return map;
+      }, new Map()),
+    [orderItems]
+  );
+
+  const orderQtyByProductId = useMemo(
+    () =>
+      orderItems.reduce((map, item) => {
+        const productId = Number(item.productId);
+        map.set(productId, (map.get(productId) || 0) + item.quantity);
+        return map;
+      }, new Map()),
     [orderItems]
   );
 
@@ -173,12 +198,9 @@ function StoreMode() {
     const needle = search.trim().toLowerCase();
     return items
       .filter((item) => {
-        const quantityInOrder = orderQtyById.get(Number(item?.id)) || 0;
-        const stock = getAvailableQuantity(item, quantityInOrder);
+        const stock = getAvailableQuantity(item, orderQtyByLineKey);
         if (needle) {
-          const haystack = [item?.name || "", item?.sku || "", item?.barcode || ""]
-            .join(" ")
-            .toLowerCase();
+          const haystack = buildProductSearchText(item);
           if (!haystack.includes(needle)) return false;
         }
         if (categoryFilter !== "all" && getCategory(item) !== categoryFilter) return false;
@@ -188,7 +210,7 @@ function StoreMode() {
         return true;
       })
       .sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || "")));
-  }, [categoryFilter, items, orderQtyById, search, stockFilter]);
+  }, [categoryFilter, items, orderQtyByLineKey, search, stockFilter]);
 
   const searchTerm = search.trim();
   const hasSearchQuery = Boolean(searchTerm);
@@ -323,18 +345,28 @@ function StoreMode() {
       const next = current.map((item) => {
         const latest = inventoryById.get(Number(item.productId));
         if (!latest) return item;
+        const liveVariant = item.variantId ? findVariantById(latest, item.variantId) : null;
+        const syncedName = liveVariant
+          ? formatVariantLabel(latest, liveVariant)
+          : latest?.name || item.name;
         const synced = {
           ...item,
-          name: latest?.name || item.name,
-          unitPrice: getUnitPrice(latest),
-          stock: getQuantity(latest),
+          lineKey: item.lineKey || getProductLineKey(item.productId, item.variantId),
+          name: syncedName,
+          productName: latest?.name || item.productName || item.name,
+          variantLabel: liveVariant ? formatVariantLabel(latest, liveVariant) : item.variantLabel || "",
+          unitPrice: liveVariant ? getVariantUnitPrice(latest, liveVariant) : getUnitPrice(latest),
+          stock: liveVariant ? getVariantAvailableQty(liveVariant) : getQuantity(latest),
           currency: latest?.currency || item.currency || "GHS",
         };
         if (
           synced.name !== item.name ||
+          synced.productName !== item.productName ||
+          synced.variantLabel !== item.variantLabel ||
           synced.unitPrice !== item.unitPrice ||
           synced.stock !== item.stock ||
-          synced.currency !== item.currency
+          synced.currency !== item.currency ||
+          synced.lineKey !== item.lineKey
         ) {
           changed = true;
         }
@@ -343,6 +375,44 @@ function StoreMode() {
       return changed ? next : current;
     });
   }, [inventoryById, items.length]);
+
+  useEffect(() => {
+    setSelectedVariantIds((current) => {
+      const next = {};
+
+      items.forEach((item) => {
+        if (!isVariantParentItem(item)) return;
+
+        const itemKey = String(item.id);
+        const variants = getActiveItemVariants(item);
+        if (!variants.length) return;
+
+        const currentSelected = findVariantById(item, current[itemKey]);
+        const orderSelected = orderItems.find(
+          (entry) => Number(entry.productId) === Number(item.id) && Number(entry.variantId) > 0
+        );
+        const preferredVariant =
+          currentSelected
+          || findVariantById(item, orderSelected?.variantId)
+          || variants.find((variant) => getVariantAvailableQty(variant) > 0)
+          || variants[0];
+
+        if (preferredVariant?.id) {
+          next[itemKey] = Number(preferredVariant.id);
+        }
+      });
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (
+        currentKeys.length === nextKeys.length
+        && nextKeys.every((key) => Number(current[key]) === Number(next[key]))
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [items, orderItems]);
 
   const itemCount = useMemo(
     () => orderItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -400,27 +470,53 @@ function StoreMode() {
     selectedProductId,
   ]);
 
-  const addToOrder = (product) => {
+  const addToOrder = (product, variant = null) => {
     const productId = Number(product?.id);
-    const stock = getQuantity(product);
-    if (!Number.isFinite(productId) || productId <= 0 || stock <= 0) return;
+    if (!Number.isFinite(productId) || productId <= 0) return;
+
+    const chosenVariant = isVariantParentItem(product)
+      ? variant
+        || findVariantById(product, selectedVariantIds[String(productId)])
+        || getActiveItemVariants(product).find((entry) => getVariantAvailableQty(entry) > 0)
+        || null
+      : null;
+    const lineKey = getProductLineKey(productId, chosenVariant?.id);
+    const stock = chosenVariant
+      ? Math.max(0, getVariantAvailableQty(chosenVariant) - (orderQtyByLineKey.get(lineKey) || 0))
+      : getAvailableQuantity(product, orderQtyByLineKey);
+    if (stock <= 0) return;
+
     setSelectedProductId(productId);
+    if (chosenVariant?.id) {
+      setSelectedVariantIds((prev) => {
+        if (Number(prev[String(productId)]) === Number(chosenVariant.id)) return prev;
+        return { ...prev, [productId]: Number(chosenVariant.id) };
+      });
+    }
     setOrderItems((current) => {
-      const existing = current.find((item) => item.productId === productId);
+      const existing = current.find(
+        (item) => (item.lineKey || getProductLineKey(item.productId, item.variantId)) === lineKey
+      );
       if (existing) {
-        if (existing.quantity >= stock) return current;
+        if (existing.quantity >= existing.stock) return current;
         return current.map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
+          (item.lineKey || getProductLineKey(item.productId, item.variantId)) === lineKey
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         );
       }
       return [
         ...current,
         {
+          lineKey,
           productId,
-          name: product?.name || "Untitled",
-          unitPrice: getUnitPrice(product),
+          variantId: chosenVariant?.id || null,
+          productName: product?.name || "Untitled",
+          variantLabel: chosenVariant ? formatVariantLabel(product, chosenVariant) : "",
+          name: chosenVariant ? formatVariantLabel(product, chosenVariant) : product?.name || "Untitled",
+          unitPrice: chosenVariant ? getVariantUnitPrice(product, chosenVariant) : getUnitPrice(product),
           quantity: 1,
-          stock,
+          stock: chosenVariant ? getVariantAvailableQty(chosenVariant) : getQuantity(product),
           currency: product?.currency || "GHS",
         },
       ];
@@ -429,11 +525,13 @@ function StoreMode() {
     setSuccess("");
   };
 
-  const removeFromOrder = (productId) => {
+  const removeFromOrder = (lineKey) => {
     setOrderItems((current) =>
       current
         .map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
+          (item.lineKey || getProductLineKey(item.productId, item.variantId)) === lineKey
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
         )
         .filter((item) => item.quantity > 0)
     );
@@ -441,8 +539,10 @@ function StoreMode() {
     setSuccess("");
   };
 
-  const clearLineFromOrder = (productId) => {
-    setOrderItems((current) => current.filter((item) => item.productId !== productId));
+  const clearLineFromOrder = (lineKey) => {
+    setOrderItems((current) =>
+      current.filter((item) => (item.lineKey || getProductLineKey(item.productId, item.variantId)) !== lineKey)
+    );
     setSubmitError("");
     setSuccess("");
   };
@@ -639,6 +739,7 @@ function StoreMode() {
               },
           items: orderItems.map((item) => ({
             productId: item.productId,
+            variantId: item.variantId || undefined,
             quantity: item.quantity,
             price: item.unitPrice,
           })),
@@ -658,10 +759,12 @@ function StoreMode() {
 
       setItems((current) =>
         current.map((product) => {
-          const line = orderItems.find((item) => item.productId === Number(product.id));
-          if (!line) return product;
-          const nextStock = Math.max(getQuantity(product) - line.quantity, 0);
-          return { ...product, quantity: nextStock, stock: nextStock };
+          const lines = orderItems.filter((item) => Number(item.productId) === Number(product.id));
+          if (!lines.length) return product;
+          return lines.reduce(
+            (nextProduct, lineItem) => applyInventoryLineQuantityDelta(nextProduct, lineItem, -1),
+            product
+          );
         })
       );
 
@@ -719,8 +822,12 @@ function StoreMode() {
         visibleItems,
         emptyStateMessage,
         sortedVisibleItems,
-        orderQtyById,
+        orderQtyByLineKey,
+        orderQtyByProductId,
         selectedProductId,
+        selectedVariantIds,
+        onSelectVariant: (productId, variantId) =>
+          setSelectedVariantIds((prev) => ({ ...prev, [productId]: Number(variantId) })),
         isMobileViewport,
         showImagePreview,
         hideImagePreview,
@@ -755,6 +862,7 @@ function StoreMode() {
         inventoryById,
         submitting,
         removeFromOrder,
+        clearLineFromOrder,
         addToOrder,
         subtotal,
         discountAmount,

@@ -70,9 +70,12 @@ export async function handler(event = {}) {
     const itemsRes = await client.query(
       `SELECT
          oi.id,
+         oi."productId",
+         oi."variantId",
          oi.quantity,
          oi.unit_price,
          oi.total_amount,
+         NULLIF(CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size), '') AS "variantLabel",
          COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size), ''), p.name) AS name,
          p.sku,
          p.rate,
@@ -105,6 +108,9 @@ export async function handler(event = {}) {
 
     const items = itemsRes.rows.map((row) => ({
       id: row.id,
+      productId: Number(row.productId) || null,
+      variantId: Number(row.variantId) || null,
+      variantLabel: row.variantLabel || "",
       name: row.name,
       sku: row.sku,
       rate: row.rate || "",

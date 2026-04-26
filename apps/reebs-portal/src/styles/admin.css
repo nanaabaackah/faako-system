@@ -783,6 +783,7 @@ body.admin-theme .admin-table:not(.inventory-table-scroll) tbody td.table-row-in
   padding: 20px 20px 20px calc(20px + var(--portal-modal-inline-offset, 0px));
   box-sizing: border-box;
   z-index: 1000;
+  overflow-y: auto;
 }
 
 .admin-modal-panel {
@@ -9933,6 +9934,7 @@ body.admin-readonly .delivery-form .delivery-primary {
   padding: 20px 20px 20px calc(20px + var(--portal-modal-inline-offset, 0px));
   box-sizing: border-box;
   z-index: 1200;
+  overflow-y: auto;
 }
 
 .orders-detail-panel {
@@ -9947,6 +9949,39 @@ body.admin-readonly .delivery-form .delivery-primary {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+
+@media (max-width: 720px) {
+  .admin-modal,
+  .customers-modal,
+  .orders-detail-modal,
+  .hr-overlay,
+  .admin-new-item-overlay {
+    align-items: flex-start;
+    padding:
+      calc(var(--portal-mobile-header-clearance, 0px) + 0.9rem)
+      0.9rem
+      calc(var(--portal-bottom-nav-clearance, 0px) + 0.9rem);
+  }
+
+  .admin-modal-panel,
+  .customers-modal-panel,
+  .orders-detail-panel,
+  .hr-modal,
+  .admin-detail-panel,
+  .admin-new-item-panel,
+  .bookings-detail-panel,
+  .crm-detail-panel,
+  .roles-detail {
+    max-width: 100%;
+    max-height: calc(
+      100dvh - var(--portal-mobile-header-clearance, 0px) - var(--portal-bottom-nav-clearance, 0px) - 1.8rem
+    );
+    margin: 0 auto;
+    overflow: auto;
+  }
 }
 
 .orders-detail-panel h2{

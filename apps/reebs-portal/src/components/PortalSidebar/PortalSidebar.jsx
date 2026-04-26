@@ -49,6 +49,15 @@ import {
 import { useAuth } from "../AuthContext/AuthContext";
 import { WEBSITE_URL } from "../../utils/website";
 import { DASHBOARD_PATHS } from "../../utils/adminDashboardLinks";
+import {
+  canAccessPortalBookings,
+  canAccessPortalCustomerDirectory,
+  canAccessPortalInventory,
+  canAccessPortalNavigationItem,
+  canAccessPortalOrders,
+  canAccessPrivilegedPortalArea,
+  isWaterPortalRole,
+} from "../../utils/adminAccess";
 
 const MOBILE_QUERY = "(max-width: 720px)";
 const REEBS_PORTAL_LOGO_LIGHT = "/imgs/brand/reebs_logo2.svg";
@@ -316,8 +325,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   );
   const isAuthenticated = Boolean(user);
   const userRole = String(user?.role || "staff").toLowerCase();
-  const isWaterUser = userRole === "water";
-  const canSearchInvoices = userRole === "admin" || userRole === "manager";
+  const isWaterUser = isWaterPortalRole(userRole);
+  const canSearchInvoices = canAccessPrivilegedPortalArea(userRole);
+  const canAccessCustomers = canAccessPortalCustomerDirectory(userRole);
+  const canAccessInventoryRecords = canAccessPortalInventory(userRole);
+  const canAccessOrdersModule = canAccessPortalOrders(userRole);
+  const canAccessBookingsModule = canAccessPortalBookings(userRole);
+  const canViewNotifications = canAccessOrdersModule || canAccessBookingsModule;
   const authLabel = isAuthenticated ? "Sign out" : "Sign in";
   const authIcon = isAuthenticated ? faArrowRightFromBracket : faArrowRightToBracket;
   const displayName =
@@ -499,7 +513,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   }, [expanded, isMobile, overlayOpen]);
 
   useEffect(() => {
-    if (!authReady || !isAuthenticated || isWaterUser) {
+    if (!authReady || !isAuthenticated || !canViewNotifications) {
       setNotificationPayload({ orders: [], bookings: [] });
       setNotificationsError("");
       setNotificationsLoading(false);
@@ -512,22 +526,29 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setNotificationsLoading(true);
       setNotificationsError("");
       try {
-        const [ordersRes, bookingsRes] = await Promise.all([
-          fetch("/.netlify/functions/orders"),
-          fetch("/.netlify/functions/bookings"),
-        ]);
-        const [ordersData, bookingsData] = await Promise.all([
-          ordersRes.json().catch(() => null),
-          bookingsRes.json().catch(() => null),
-        ]);
-
-        if (!ordersRes.ok) throw new Error(ordersData?.error || "Failed to load orders.");
-        if (!bookingsRes.ok) throw new Error(bookingsData?.error || "Failed to load bookings.");
+        const requests = [
+          canAccessOrdersModule ? { key: "orders", path: "/.netlify/functions/orders" } : null,
+          canAccessBookingsModule ? { key: "bookings", path: "/.netlify/functions/bookings" } : null,
+        ].filter(Boolean);
+        const settled = await Promise.all(
+          requests.map(async (request) => {
+            const response = await fetch(request.path);
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+              throw new Error(data?.error || `Failed to load ${request.key}.`);
+            }
+            return { key: request.key, data: Array.isArray(data) ? data : [] };
+          })
+        );
 
         if (active) {
+          const nextPayload = { orders: [], bookings: [] };
+          settled.forEach((entry) => {
+            nextPayload[entry.key] = entry.data;
+          });
           setNotificationPayload({
-            orders: Array.isArray(ordersData) ? ordersData : [],
-            bookings: Array.isArray(bookingsData) ? bookingsData : [],
+            orders: nextPayload.orders,
+            bookings: nextPayload.bookings,
           });
         }
       } catch (err) {
@@ -544,7 +565,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return () => {
       active = false;
     };
-  }, [authReady, isAuthenticated, isWaterUser]);
+  }, [authReady, canAccessBookingsModule, canAccessOrdersModule, canViewNotifications, isAuthenticated]);
 
   useEffect(() => {
     if (authReady && isAuthenticated) return;
@@ -564,11 +585,26 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setSearchLoading(true);
       setSearchError("");
       const requests = [
-        { key: "customers", label: "customers", path: "/.netlify/functions/customers" },
-        { key: "inventory", label: "inventory", path: "/.netlify/functions/inventory" },
-        { key: "orders", label: "orders", path: "/.netlify/functions/orders" },
-        { key: "bookings", label: "bookings", path: "/.netlify/functions/bookings" },
-      ];
+        canAccessCustomers
+          ? { key: "customers", label: "customers", path: "/.netlify/functions/customers" }
+          : null,
+        canAccessInventoryRecords
+          ? { key: "inventory", label: "inventory", path: "/.netlify/functions/inventory" }
+          : null,
+        canAccessOrdersModule
+          ? { key: "orders", label: "orders", path: "/.netlify/functions/orders" }
+          : null,
+        canAccessBookingsModule
+          ? { key: "bookings", label: "bookings", path: "/.netlify/functions/bookings" }
+          : null,
+      ].filter(Boolean);
+
+      if (!requests.length) {
+        setSearchPayload({ customers: [], inventory: [], orders: [], bookings: [] });
+        setSearchLoaded(true);
+        setSearchLoading(false);
+        return;
+      }
 
       try {
         const settled = await Promise.allSettled(requests.map((request) => fetch(request.path)));
@@ -609,7 +645,17 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return () => {
       active = false;
     };
-  }, [authReady, isAuthenticated, navQuery, searchLoaded, searchLoading]);
+  }, [
+    authReady,
+    canAccessBookingsModule,
+    canAccessCustomers,
+    canAccessInventoryRecords,
+    canAccessOrdersModule,
+    isAuthenticated,
+    navQuery,
+    searchLoaded,
+    searchLoading,
+  ]);
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
@@ -639,14 +685,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const canSeeApp = (app) => {
-    if (!isAuthenticated) {
-      return false;
-    }
-    if (isWaterUser) {
-      return app.path === "/admin/water";
-    }
-    if (!app.roles || app.roles.length === 0) return true;
-    return app.roles.some((role) => String(role).toLowerCase() === userRole);
+    if (!isAuthenticated) return false;
+    return canAccessPortalNavigationItem(userRole, app);
   };
 
   const visibleApps = useMemo(
@@ -686,9 +726,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
     pushMatches(
       results,
-      searchPayload.customers.filter((customer) =>
-        matchesText(customer?.name) || matchesText(customer?.phone) || matchesText(customer?.email)
-      ),
+      canAccessCustomers
+        ? searchPayload.customers.filter((customer) =>
+            matchesText(customer?.name) || matchesText(customer?.phone) || matchesText(customer?.email)
+          )
+        : [],
       (customer) => ({
         key: `customer-${customer.id}`,
         kind: "Customer",
@@ -702,9 +744,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
     pushMatches(
       results,
-      orders.filter((order) =>
-        matchesText(order?.orderNumber) || matchesText(order?.customerName) || matchesText(order?.status)
-      ),
+      canAccessOrdersModule
+        ? orders.filter((order) =>
+            matchesText(order?.orderNumber) || matchesText(order?.customerName) || matchesText(order?.status)
+          )
+        : [],
       (order) => ({
         key: `order-${order.id}`,
         kind: "Order",
@@ -718,9 +762,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
     pushMatches(
       results,
-      bookings.filter((booking) =>
-        matchesText(booking?.id) || matchesText(booking?.customerName) || matchesText(booking?.status)
-      ),
+      canAccessBookingsModule
+        ? bookings.filter((booking) =>
+            matchesText(booking?.id) || matchesText(booking?.customerName) || matchesText(booking?.status)
+          )
+        : [],
       (booking) => ({
         key: `booking-${booking.id}`,
         kind: "Booking",
@@ -734,9 +780,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
     pushMatches(
       results,
-      searchPayload.inventory.filter((item) =>
-        matchesText(item?.name) || matchesText(item?.sku) || matchesText(item?.barcode)
-      ),
+      canAccessInventoryRecords
+        ? searchPayload.inventory.filter((item) =>
+            matchesText(item?.name) || matchesText(item?.sku) || matchesText(item?.barcode)
+          )
+        : [],
       (item) => ({
         key: `product-${item.id}`,
         kind: "Product",
@@ -748,7 +796,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       12
     );
 
-    if (canSearchInvoices) {
+    if (canSearchInvoices && canAccessOrdersModule) {
       pushMatches(
         results,
         orders.filter((order) =>
@@ -764,6 +812,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
         }),
         14
       );
+    }
+    if (canSearchInvoices && canAccessBookingsModule) {
       pushMatches(
         results,
         bookings.filter((booking) =>
@@ -784,6 +834,10 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return results.slice(0, 8);
   }, [
     canSearchInvoices,
+    canAccessBookingsModule,
+    canAccessCustomers,
+    canAccessInventoryRecords,
+    canAccessOrdersModule,
     isAuthenticated,
     navQuery,
     notificationPayload.bookings,
@@ -1039,7 +1093,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const notifications = useMemo(() => {
-    if (!isAuthenticated || !user?.id || isWaterUser) return [];
+    if (!isAuthenticated || !user?.id || !canViewNotifications) return [];
     const userId = Number(user.id);
     if (!Number.isFinite(userId)) return [];
 
@@ -1159,7 +1213,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return [...map.values()]
       .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0))
       .slice(0, 8);
-  }, [isAuthenticated, isWaterUser, notificationPayload, user?.id]);
+  }, [canViewNotifications, isAuthenticated, notificationPayload, user?.id]);
 
   const unreadNotifications = useMemo(
     () => notifications.filter((note) => !readNotifications.has(note.id)),
@@ -1218,7 +1272,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const renderNotifications = (context = "sidebar") => {
-    if (isWaterUser) return null;
+    if (!canViewNotifications) return null;
     const toolbarContext = context.endsWith("-toolbar");
     const compactCollapsedSidebar = context === "sidebar" && !isMobile && !expanded;
     const iconOnly = toolbarContext || compactCollapsedSidebar;
@@ -1263,7 +1317,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   };
 
   const renderNotificationsPanel = (context = "sidebar") => {
-    if (isWaterUser || !notificationsOpen) return null;
+    if (!canViewNotifications || !notificationsOpen) return null;
 
     return (
       <div

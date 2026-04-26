@@ -5515,7 +5515,7 @@ function Admin() {
                 </div>
               </div>
 
-              {(canAdjustInventoryStockDirectly || detailForm.itemType === "VARIANT_PARENT" || getItemVariants(detailForm).length > 0) && (
+              {detailForm.itemType === "VARIANT_PARENT" && (
                 <section className="inventory-variant-section">
                   <div className="inventory-variant-section-head">
                     <div className="inventory-variant-section-title">

@@ -19,6 +19,7 @@ import {
   faRotateRight,
   faTrash,
   faBolt,
+  faUser,
   faXmark,
 } from "/src/icons/iconSet";
 import { useAuth } from "../../components/AuthContext/AuthContext";
@@ -31,12 +32,35 @@ import {
   saveInventorySnapshot,
   saveOfflineQueue,
 } from "../../utils/offlineQueue";
-import { ADMIN_QUICK_ACTIONS } from "../../utils/adminQuickActions";
+import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
   DASHBOARD_PATHS,
 } from "../../utils/adminDashboardLinks";
 import SearchField from "../../components/SearchField/SearchField";
 import { AdminWorkspaceHomeView } from "./components/AdminWorkspaceHomeView";
+import {
+  canAccessPortalBookings,
+  canAccessPortalCustomerDirectory,
+  canAccessPortalInventory,
+  canAccessPortalOrders,
+  canAccessPortalRoute,
+  canAccessPrivilegedPortalArea,
+  isWaterPortalRole,
+  normalizeAdminRole,
+} from "../../utils/adminAccess";
+import {
+  applyInventoryLineQuantityDelta,
+  buildProductSearchText,
+  buildVariantOptionLabel,
+  findVariantById,
+  getActiveItemVariants,
+  getBaseItemPrice,
+  getProductAvailableQty,
+  getProductLineKey,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  isVariantParentItem,
+} from "../../utils/productVariants";
 
 const STOCK_ACTION_OPTIONS = [1, 5, 10];
 const LOW_STOCK_THRESHOLD = 3;
@@ -92,17 +116,13 @@ const buildPathWithParams = (basePath, params = {}) => {
   return nextSearch ? `${pathname}?${nextSearch}` : pathname;
 };
 
-const normalizeRole = (value) => String(value || "").trim().toLowerCase();
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const getQuantity = (item) => {
-  const raw = item?.quantity ?? item?.stock ?? 0;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const getQuantity = (item, quantityByLineKey = new Map()) =>
+  getProductAvailableQty(item, quantityByLineKey);
 
 const isRentalItem = (item) => {
   const code = String(
@@ -113,10 +133,8 @@ const isRentalItem = (item) => {
   return sku.startsWith("REN");
 };
 
-const getPrice = (item) => {
-  const parsed = Number(item?.price);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const getPrice = (item, variant = null) =>
+  variant ? getVariantUnitPrice(item, variant) : getBaseItemPrice(item);
 
 const toCurrency = (value, currency = "GHS") => {
   try {
@@ -429,9 +447,21 @@ const SECTION_CONFIG = {
 function AdminWorkspace({ section = "home" }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const roleKey = normalizeRole(user?.role);
+  const roleKey = normalizeAdminRole(user?.role);
   const isSystemAdmin = roleKey === "admin";
-  const canViewHomeKpis = roleKey === "admin" || roleKey === "manager";
+  const canViewHomeKpis = canAccessPrivilegedPortalArea(roleKey);
+  const isWaterUser = isWaterPortalRole(roleKey);
+  const canAccessCustomers = canAccessPortalCustomerDirectory(roleKey);
+  const canAccessInventoryModule = canAccessPortalInventory(roleKey);
+  const canAccessOrdersModule = canAccessPortalOrders(roleKey);
+  const canAccessBookingsModule = canAccessPortalBookings(roleKey);
+  const canAccessOfflineModule = canAccessPortalRoute(roleKey, DASHBOARD_PATHS.offline);
+  const canAccessTimesheetsModule = canAccessPortalRoute(roleKey, "/admin/timesheets");
+  const canAccessActivityFeed =
+    canAccessOrdersModule
+    || canAccessBookingsModule
+    || canAccessInventoryModule
+    || canAccessOfflineModule;
 
   const [inventory, setInventory] = useState([]);
   const [inventoryLoading, setInventoryLoading] = useState(true);
@@ -455,6 +485,7 @@ function AdminWorkspace({ section = "home" }) {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedVariantIds, setSelectedVariantIds] = useState({});
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [purchaseSubmitting, setPurchaseSubmitting] = useState(false);
 
@@ -572,6 +603,13 @@ function AdminWorkspace({ section = "home" }) {
   }, []);
 
   const loadInventory = useCallback(async ({ quiet = false } = {}) => {
+    if (!canAccessInventoryModule) {
+      setInventory([]);
+      setUsingInventorySnapshot(false);
+      setInventoryError("");
+      if (!quiet) setInventoryLoading(false);
+      return true;
+    }
     if (!quiet) {
       setInventoryLoading(true);
       setInventoryError("");
@@ -602,9 +640,15 @@ function AdminWorkspace({ section = "home" }) {
     } finally {
       if (!quiet) setInventoryLoading(false);
     }
-  }, []);
+  }, [canAccessInventoryModule]);
 
   const loadCustomers = useCallback(async () => {
+    if (!canAccessCustomers) {
+      setCustomers([]);
+      setUsingCustomerSnapshot(false);
+      setCustomerError("");
+      return true;
+    }
     setCustomerError("");
     try {
       const response = await fetch("/.netlify/functions/customers");
@@ -628,25 +672,59 @@ function AdminWorkspace({ section = "home" }) {
       }
       return false;
     }
-  }, []);
+  }, [canAccessCustomers]);
 
-  const setProductQuantity = useCallback((productId, nextQty) => {
+  const setProductQuantity = useCallback((productId, nextQty, options = {}) => {
     const safeQty = Math.max(0, Number(nextQty) || 0);
-    setInventory((prev) =>
-      prev.map((item) =>
-        Number(item.id) === Number(productId)
-          ? { ...item, quantity: safeQty, stock: safeQty }
-          : item
-      )
-    );
-  }, []);
+    const variantId = Number(options?.variantId);
+    const variantAvailableQty = Number(options?.variantAvailableQty);
 
-  const adjustProductQuantity = useCallback((productId, delta) => {
     setInventory((prev) =>
       prev.map((item) => {
         if (Number(item.id) !== Number(productId)) return item;
-        const nextQty = Math.max(0, getQuantity(item) + delta);
-        return { ...item, quantity: nextQty, stock: nextQty };
+        if (!Number.isFinite(variantId) || variantId <= 0) {
+          return { ...item, quantity: safeQty, stock: safeQty };
+        }
+
+        const variants = (Array.isArray(item.variants) ? item.variants : []).map((variant) => {
+          if (Number(variant.id) !== variantId) return variant;
+          const reservedQty = Math.max(0, Number(variant.reservedQty) || 0);
+          return {
+            ...variant,
+            stockQty: safeQty,
+            availableQty: Number.isFinite(variantAvailableQty)
+              ? Math.max(0, variantAvailableQty)
+              : Math.max(safeQty - reservedQty, 0),
+          };
+        });
+        const totalQty = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+        return { ...item, variants, quantity: totalQty, stock: totalQty };
+      })
+    );
+  }, []);
+
+  const adjustProductQuantity = useCallback((productId, delta, options = {}) => {
+    const variantId = Number(options?.variantId);
+    setInventory((prev) =>
+      prev.map((item) => {
+        if (Number(item.id) !== Number(productId)) return item;
+        if (!Number.isFinite(variantId) || variantId <= 0) {
+          const nextQty = Math.max(0, getQuantity(item) + delta);
+          return { ...item, quantity: nextQty, stock: nextQty };
+        }
+
+        const variants = (Array.isArray(item.variants) ? item.variants : []).map((variant) => {
+          if (Number(variant.id) !== variantId) return variant;
+          const nextStock = Math.max(0, (Number(variant.stockQty) || 0) + delta);
+          const reservedQty = Math.max(0, Number(variant.reservedQty) || 0);
+          return {
+            ...variant,
+            stockQty: nextStock,
+            availableQty: Math.max(nextStock - reservedQty, 0),
+          };
+        });
+        const totalQty = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+        return { ...item, variants, quantity: totalQty, stock: totalQty };
       })
     );
   }, []);
@@ -770,7 +848,7 @@ function AdminWorkspace({ section = "home" }) {
       return normalized.charAt(0).toUpperCase() + normalized.slice(1);
     };
 
-    const orders = Array.isArray(details.orders)
+    const orders = canAccessOrdersModule && Array.isArray(details.orders)
       ? details.orders.map((order) => ({
           id: `activity-order-${order.id}`,
           kind: "order",
@@ -792,7 +870,7 @@ function AdminWorkspace({ section = "home" }) {
         }))
       : [];
 
-    const bookings = Array.isArray(details.bookings)
+    const bookings = canAccessBookingsModule && Array.isArray(details.bookings)
       ? details.bookings.map((booking) => ({
           id: `activity-booking-${booking.id}`,
           kind: "booking",
@@ -814,7 +892,7 @@ function AdminWorkspace({ section = "home" }) {
         }))
       : [];
 
-    const stockMovements = Array.isArray(details.stockMovements)
+    const stockMovements = canAccessInventoryModule && Array.isArray(details.stockMovements)
       ? details.stockMovements.map((movement) => {
           const isStockOut = String(movement.type || "").trim().toLowerCase() === "stockout";
           const movementLabel = isStockOut ? "Stock out" : "Stock in";
@@ -850,7 +928,7 @@ function AdminWorkspace({ section = "home" }) {
           new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()
       )
       .slice(0, 8);
-  }, []);
+  }, [canAccessBookingsModule, canAccessInventoryModule, canAccessOrdersModule]);
 
   const fetchWorkflowData = useCallback(async () => {
     if (!user?.id) {
@@ -864,34 +942,35 @@ function AdminWorkspace({ section = "home" }) {
     setWorkflowLoading(true);
     setWorkflowError("");
     try {
-      const requests = [
-        fetch(`/.netlify/functions/orders?ts=${Date.now()}`),
-        fetch(`/.netlify/functions/bookings?ts=${Date.now()}`),
-      ];
-      if (canViewHomeKpis) {
-        requests.push(fetch(`/.netlify/functions/users?ts=${Date.now()}`));
-      }
+      const [ordersRes, bookingsRes, usersRes] = await Promise.all([
+        canAccessOrdersModule
+          ? fetch(`/.netlify/functions/orders?ts=${Date.now()}`)
+          : Promise.resolve(null),
+        canAccessBookingsModule
+          ? fetch(`/.netlify/functions/bookings?ts=${Date.now()}`)
+          : Promise.resolve(null),
+        canViewHomeKpis
+          ? fetch(`/.netlify/functions/users?ts=${Date.now()}`)
+          : Promise.resolve(null),
+      ]);
+      const [ordersData, bookingsData, usersData] = await Promise.all([
+        ordersRes?.json().catch(() => null) || Promise.resolve(null),
+        bookingsRes?.json().catch(() => null) || Promise.resolve(null),
+        usersRes?.json().catch(() => null) || Promise.resolve(null),
+      ]);
 
-      const responses = await Promise.all(requests);
-      const payloads = await Promise.all(
-        responses.map((response) => response.json().catch(() => null))
-      );
-
-      const [ordersRes, bookingsRes, usersRes] = responses;
-      const [ordersData, bookingsData, usersData] = payloads;
-
-      if (!ordersRes.ok) {
+      if (ordersRes && !ordersRes.ok) {
         throw new Error(ordersData?.error || "Failed to load orders.");
       }
-      if (!bookingsRes.ok) {
+      if (bookingsRes && !bookingsRes.ok) {
         throw new Error(bookingsData?.error || "Failed to load bookings.");
       }
       if (canViewHomeKpis && usersRes && !usersRes.ok) {
         throw new Error(usersData?.error || "Failed to load team members.");
       }
 
-      setWorkflowOrders(Array.isArray(ordersData) ? ordersData : []);
-      setWorkflowBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      setWorkflowOrders(canAccessOrdersModule && Array.isArray(ordersData) ? ordersData : []);
+      setWorkflowBookings(canAccessBookingsModule && Array.isArray(bookingsData) ? bookingsData : []);
       setTeamUsers(canViewHomeKpis && Array.isArray(usersData) ? usersData : []);
       setHomeUpdatedAt(new Date().toISOString());
     } catch (error) {
@@ -899,7 +978,7 @@ function AdminWorkspace({ section = "home" }) {
     } finally {
       setWorkflowLoading(false);
     }
-  }, [canViewHomeKpis, user?.id]);
+  }, [canAccessBookingsModule, canAccessOrdersModule, canViewHomeKpis, user?.id]);
 
   const fetchHomeKpis = useCallback(async () => {
     if (!canViewHomeKpis) {
@@ -1050,6 +1129,11 @@ function AdminWorkspace({ section = "home" }) {
       setActivityError("");
       return;
     }
+    if (!canAccessActivityFeed) {
+      setActivityItems([]);
+      setActivityError("");
+      return;
+    }
     setActivityLoading(true);
     setActivityError("");
     try {
@@ -1081,7 +1165,7 @@ function AdminWorkspace({ section = "home" }) {
     } finally {
       setActivityLoading(false);
     }
-  }, [activityScope, canViewHomeKpis, normalizeActivityItems, user?.id]);
+  }, [activityScope, canAccessActivityFeed, canViewHomeKpis, normalizeActivityItems, user?.id]);
 
   const syncQueue = useCallback(
     async ({ silent = false } = {}) => {
@@ -1623,7 +1707,8 @@ function AdminWorkspace({ section = "home" }) {
   }, [currentDateTime, sessionFallbackStartedAt, signedInAt]);
   const pendingSyncActivity = useMemo(
     () =>
-      queue
+      canAccessOfflineModule
+        ? queue
         .filter((item) => item.status !== "synced")
         .map((item) => ({
           id: `queue-${item.id}`,
@@ -1640,8 +1725,9 @@ function AdminWorkspace({ section = "home" }) {
           badgeLabel: item.status === "failed" ? "Sync failed" : "Pending sync",
           href: DASHBOARD_PATHS.offline,
           lastError: item.lastError,
-        })),
-    [queue]
+        }))
+        : [],
+    [canAccessOfflineModule, queue]
   );
   const recentStaffActivity = useMemo(
     () =>
@@ -1685,7 +1771,8 @@ function AdminWorkspace({ section = "home" }) {
   );
   const allAssignedWorkItems = useMemo(() => {
     const items = [
-      ...myOpenOrders.map((order) => ({
+      ...(canAccessOrdersModule
+        ? myOpenOrders.map((order) => ({
         key: `my-order-${order.id}`,
         type: "Order",
         title: order.orderNumber || `Order #${order.id}`,
@@ -1694,8 +1781,10 @@ function AdminWorkspace({ section = "home" }) {
         overdue: isOverdue(getOrderWorkDate(order)),
         dueToday: isToday(getOrderWorkDate(order)),
         path: buildPathWithParams(DASHBOARD_PATHS.orders, { id: order.id, assigned: currentUserId }),
-      })),
-      ...myOpenBookings.map((booking) => ({
+      }))
+        : []),
+      ...(canAccessBookingsModule
+        ? myOpenBookings.map((booking) => ({
         key: `my-booking-${booking.id}`,
         type: "Booking",
         title: `Booking #${booking.id}`,
@@ -1704,7 +1793,8 @@ function AdminWorkspace({ section = "home" }) {
         overdue: isOverdue(getBookingWorkDate(booking)),
         dueToday: isToday(getBookingWorkDate(booking)),
         path: buildPathWithParams("/admin/bookings", { id: booking.id, assigned: currentUserId }),
-      })),
+      }))
+        : []),
     ];
 
     return items
@@ -1713,7 +1803,7 @@ function AdminWorkspace({ section = "home" }) {
         if (left.dueToday !== right.dueToday) return left.dueToday ? -1 : 1;
         return new Date(left.when || 0).getTime() - new Date(right.when || 0).getTime();
       });
-  }, [currentUserId, myOpenBookings, myOpenOrders]);
+  }, [canAccessBookingsModule, canAccessOrdersModule, currentUserId, myOpenBookings, myOpenOrders]);
   useEffect(() => {
     setAssignedWorkFilter((current) => {
       if (current) return current;
@@ -1758,9 +1848,11 @@ function AdminWorkspace({ section = "home" }) {
       return assignedWorkItems.find((item) => item.overdue)?.key || "";
     });
   }, [assignedWorkItems]);
-  const myWorkCards = useMemo(
-    () => [
-      {
+  const myWorkCards = useMemo(() => {
+    const cards = [];
+
+    if (canAccessOrdersModule) {
+      cards.push({
         key: "my-orders",
         label: "My orders",
         value: myOpenOrders.length,
@@ -1771,8 +1863,11 @@ function AdminWorkspace({ section = "home" }) {
             : "No order backlog",
         onClick: () => handleAssignedWorkFilterClick("my-orders"),
         isActive: assignedWorkFilter === "my-orders",
-      },
-      {
+      });
+    }
+
+    if (canAccessBookingsModule) {
+      cards.push({
         key: "my-bookings",
         label: "My bookings",
         value: myOpenBookings.length,
@@ -1783,35 +1878,56 @@ function AdminWorkspace({ section = "home" }) {
             : "No booking backlog",
         onClick: () => handleAssignedWorkFilterClick("my-bookings"),
         isActive: assignedWorkFilter === "my-bookings",
-      },
-      {
-        key: "my-today",
-        label: "Due today",
-        value: myDueTodayOrders.length + myDueTodayBookings.length,
-        meta: `${myDueTodayOrders.length} orders • ${myDueTodayBookings.length} bookings`,
-        onClick: () => handleAssignedWorkFilterClick("my-today"),
-        isActive: assignedWorkFilter === "my-today",
-      },
-      {
-        key: "my-overdue",
-        label: "Overdue",
-        value: myOverdueOrders.length + myOverdueBookings.length,
-        meta: `${myOverdueOrders.length} orders • ${myOverdueBookings.length} bookings`,
-        onClick: () => handleAssignedWorkFilterClick("my-overdue"),
-        isActive: assignedWorkFilter === "my-overdue",
-      },
-    ],
-    [
-      assignedWorkFilter,
-      handleAssignedWorkFilterClick,
-      myDueTodayBookings.length,
-      myDueTodayOrders.length,
-      myOpenBookings.length,
-      myOpenOrders.length,
-      myOverdueBookings.length,
-      myOverdueOrders.length,
-    ]
-  );
+      });
+    }
+
+    if (canAccessOrdersModule || canAccessBookingsModule) {
+      const todayMeta = [
+        canAccessOrdersModule ? `${myDueTodayOrders.length} orders` : "",
+        canAccessBookingsModule ? `${myDueTodayBookings.length} bookings` : "",
+      ].filter(Boolean).join(" • ");
+      const overdueMeta = [
+        canAccessOrdersModule ? `${myOverdueOrders.length} orders` : "",
+        canAccessBookingsModule ? `${myOverdueBookings.length} bookings` : "",
+      ].filter(Boolean).join(" • ");
+
+      cards.push(
+        {
+          key: "my-today",
+          label: "Due today",
+          value:
+            (canAccessOrdersModule ? myDueTodayOrders.length : 0)
+            + (canAccessBookingsModule ? myDueTodayBookings.length : 0),
+          meta: todayMeta,
+          onClick: () => handleAssignedWorkFilterClick("my-today"),
+          isActive: assignedWorkFilter === "my-today",
+        },
+        {
+          key: "my-overdue",
+          label: "Overdue",
+          value:
+            (canAccessOrdersModule ? myOverdueOrders.length : 0)
+            + (canAccessBookingsModule ? myOverdueBookings.length : 0),
+          meta: overdueMeta,
+          onClick: () => handleAssignedWorkFilterClick("my-overdue"),
+          isActive: assignedWorkFilter === "my-overdue",
+        }
+      );
+    }
+
+    return cards;
+  }, [
+    assignedWorkFilter,
+    canAccessBookingsModule,
+    canAccessOrdersModule,
+    handleAssignedWorkFilterClick,
+    myDueTodayBookings.length,
+    myDueTodayOrders.length,
+    myOpenBookings.length,
+    myOpenOrders.length,
+    myOverdueBookings.length,
+    myOverdueOrders.length,
+  ]);
   const exceptionsFirstItems = useMemo(
     () =>
       [
@@ -1918,7 +2034,7 @@ function AdminWorkspace({ section = "home" }) {
   }, [currentDateTime, currentWindowCustomers.length, customers]);
   const recommendationItems = useMemo(() => {
     const items = [];
-    if (lowStockCount > 0) {
+    if (canAccessInventoryModule && lowStockCount > 0) {
       items.push({
         key: "reorder",
         title: `Reorder ${Math.min(lowStockCount, 3)} item${lowStockCount === 1 ? "" : "s"} today`,
@@ -1926,7 +2042,7 @@ function AdminWorkspace({ section = "home" }) {
         path: DASHBOARD_PATHS.inventoryLow,
       });
     }
-    if (pendingConfirmationBookings.length > 0) {
+    if (canAccessBookingsModule && pendingConfirmationBookings.length > 0) {
       items.push({
         key: "pending-bookings",
         title: `${pendingConfirmationBookings.length} booking${pendingConfirmationBookings.length === 1 ? "" : "s"} need confirmation`,
@@ -1936,7 +2052,7 @@ function AdminWorkspace({ section = "home" }) {
         path: buildPathWithParams("/admin/bookings", { status: "pending", timing: "next7" }),
       });
     }
-    if (customerHealth.inactiveVipCustomers.length > 0) {
+    if (canAccessCustomers && customerHealth.inactiveVipCustomers.length > 0) {
       items.push({
         key: "inactive-vip",
         title: `${customerHealth.inactiveVipCustomers.length} high-value customer${customerHealth.inactiveVipCustomers.length === 1 ? "" : "s"} inactive 30+ days`,
@@ -1960,21 +2076,24 @@ function AdminWorkspace({ section = "home" }) {
       items.push({
         key: "clear",
         title: "No urgent recommendations",
-        note: roleKey === "water"
+        note: isWaterUser
           ? "Open the water desk for the next live task."
           : "Open Store Mode to continue the day’s work.",
-        path: roleKey === "water" ? DASHBOARD_PATHS.water : DASHBOARD_PATHS.pos,
+        path: isWaterUser ? DASHBOARD_PATHS.water : DASHBOARD_PATHS.pos,
       });
     }
     return items.slice(0, 4);
   }, [
     approvalItems,
+    canAccessBookingsModule,
+    canAccessCustomers,
+    canAccessInventoryModule,
     canViewHomeKpis,
     customerHealth.inactiveVipCustomers,
     directoryStats.avgLeadTime,
+    isWaterUser,
     lowStockCount,
     pendingConfirmationBookings,
-    roleKey,
   ]);
   const teamLoadRows = useMemo(() => {
     if (!teamUsers.length) return [];
@@ -2029,54 +2148,64 @@ function AdminWorkspace({ section = "home" }) {
       })
       .slice(0, 5);
   }, [openWorkflowBookings, openWorkflowOrders, teamUsers]);
-  const homeSummaryCards = useMemo(
-    () =>
-      canViewHomeKpis
-        ? []
-        : [
-            {
-              key: "session",
-              label: "Logged in",
-              value: sessionDurationLabel,
-              meta: signedInAt ? `Since ${formatDateTime(signedInAt)}` : "Active now",
-              path: "/admin/timesheets",
-            },
-            {
-              key: "queue",
-              label: "Sync queue",
-              value: pendingQueue.length,
-              meta: pendingQueue.length
-                ? `${failedQueueCount} failed • ${syncedQueueCount} synced`
-                : "Nothing waiting to sync",
-              path: DASHBOARD_PATHS.offline,
-            },
-            {
-              key: "stock",
-              label: "Low stock",
-              value: inventoryLowStockItems.length,
-              meta: inventoryLowStockItems.length ? "Needs action" : "Healthy",
-              path: DASHBOARD_PATHS.inventoryLow,
-            },
-            {
-              key: "customers",
-              label: "Customers",
-              value: customers.length,
-              meta: usingCustomerSnapshot ? "Using saved snapshot" : "Directory ready",
-              path: DASHBOARD_PATHS.customerDirectory,
-            },
-          ],
-    [
-      canViewHomeKpis,
-      customers.length,
-      failedQueueCount,
-      inventoryLowStockItems.length,
-      pendingQueue.length,
-      sessionDurationLabel,
-      signedInAt,
-      syncedQueueCount,
-      usingCustomerSnapshot,
-    ]
-  );
+  const homeSummaryCards = useMemo(() => {
+    const cards = [
+      {
+        key: "session",
+        label: "Logged in",
+        value: sessionDurationLabel,
+        meta: signedInAt ? `Since ${formatDateTime(signedInAt)}` : "Active now",
+        path: canAccessTimesheetsModule ? "/admin/timesheets" : "/admin/profile",
+      },
+    ];
+
+    if (canAccessOfflineModule) {
+      cards.push({
+        key: "queue",
+        label: "Sync queue",
+        value: pendingQueue.length,
+        meta: pendingQueue.length
+          ? `${failedQueueCount} failed • ${syncedQueueCount} synced`
+          : "Nothing waiting to sync",
+        path: DASHBOARD_PATHS.offline,
+      });
+    }
+
+    if (canAccessInventoryModule) {
+      cards.push({
+        key: "stock",
+        label: "Low stock",
+        value: inventoryLowStockItems.length,
+        meta: inventoryLowStockItems.length ? "Needs action" : "Healthy",
+        path: DASHBOARD_PATHS.inventoryLow,
+      });
+    }
+
+    if (canAccessCustomers) {
+      cards.push({
+        key: "customers",
+        label: "Customers",
+        value: customers.length,
+        meta: usingCustomerSnapshot ? "Using saved snapshot" : "Directory ready",
+        path: DASHBOARD_PATHS.customerDirectory,
+      });
+    }
+
+    return cards.slice(0, 4);
+  }, [
+    canAccessCustomers,
+    canAccessInventoryModule,
+    canAccessOfflineModule,
+    canAccessTimesheetsModule,
+    customers.length,
+    failedQueueCount,
+    inventoryLowStockItems.length,
+    pendingQueue.length,
+    sessionDurationLabel,
+    signedInAt,
+    syncedQueueCount,
+    usingCustomerSnapshot,
+  ]);
 
   const refreshHomeDashboard = useCallback(() => {
     fetchWorkflowData();
@@ -2358,6 +2487,54 @@ function AdminWorkspace({ section = "home" }) {
     ]
   );
 
+  const purchaseQtyByLineKey = useMemo(
+    () =>
+      purchaseItems.reduce((map, item) => {
+        const lineKey = item.lineKey || getProductLineKey(item.productId, item.variantId);
+        map.set(lineKey, (map.get(lineKey) || 0) + item.quantity);
+        return map;
+      }, new Map()),
+    [purchaseItems]
+  );
+
+  useEffect(() => {
+    setSelectedVariantIds((current) => {
+      const next = {};
+
+      inventory.forEach((item) => {
+        if (!isVariantParentItem(item)) return;
+
+        const itemKey = String(item.id);
+        const variants = getActiveItemVariants(item);
+        if (!variants.length) return;
+
+        const currentSelected = findVariantById(item, current[itemKey]);
+        const purchaseSelected = purchaseItems.find(
+          (entry) => Number(entry.productId) === Number(item.id) && Number(entry.variantId) > 0
+        );
+        const preferredVariant =
+          currentSelected
+          || findVariantById(item, purchaseSelected?.variantId)
+          || variants.find((variant) => getVariantAvailableQty(variant) > 0)
+          || variants[0];
+
+        if (preferredVariant?.id) {
+          next[itemKey] = Number(preferredVariant.id);
+        }
+      });
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (
+        currentKeys.length === nextKeys.length
+        && nextKeys.every((key) => Number(current[key]) === Number(next[key]))
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [inventory, purchaseItems]);
+
   const searchedInventory = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const sorted = [...inventory].sort((a, b) =>
@@ -2365,23 +2542,20 @@ function AdminWorkspace({ section = "home" }) {
     );
     if (!needle) return sorted;
     return sorted.filter((item) => {
-      const name = String(item?.name || "").toLowerCase();
-      const sku = String(item?.sku || "").toLowerCase();
-      const barcode = String(item?.barcode || "").toLowerCase();
-      return name.includes(needle) || sku.includes(needle) || barcode.includes(needle);
+      return buildProductSearchText(item).includes(needle);
     });
   }, [inventory, search]);
 
   const visibleInventory = useMemo(() => {
     return searchedInventory.filter((item) => {
-      const quantity = getQuantity(item);
+      const quantity = getQuantity(item, purchaseQtyByLineKey);
       if (stockFilter === "rental") return isRentalItem(item);
       if (stockFilter === "in") return quantity > 0 && !isRentalItem(item);
       if (stockFilter === "out") return quantity <= 0;
       if (stockFilter === "low") return quantity <= LOW_STOCK_THRESHOLD && !isRentalItem(item);
       return true;
     });
-  }, [searchedInventory, stockFilter]);
+  }, [purchaseQtyByLineKey, searchedInventory, stockFilter]);
 
   const filteredCustomers = useMemo(() => {
     const needle = customerSearch.trim().toLowerCase();
@@ -2398,33 +2572,40 @@ function AdminWorkspace({ section = "home" }) {
   }, [customerSearch, customers]);
 
   const homeQuickActions = useMemo(() => {
-    if (roleKey === "water") {
-      return [
-        { key: "water", label: "Water Desk", icon: faPlus, path: DASHBOARD_PATHS.water },
-        { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
-        { key: "vendors", label: "Vendors", icon: faBoxesStacked, path: DASHBOARD_PATHS.vendors },
-      ];
-    }
-    if (canViewHomeKpis) {
-      return [
-        { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
-        { key: "approval", label: "Review Approvals", icon: faReceipt, path: DASHBOARD_PATHS.orderApprovals },
-        { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
-      ];
-    }
-    return [
-      { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
-      { key: "stock", label: "Record Stock", icon: faBoxesStacked, path: DASHBOARD_PATHS.inventory },
-      { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
-    ];
-  }, [canViewHomeKpis, roleKey]);
+    const candidates = isWaterUser
+      ? [
+          { key: "water", label: "Water Desk", icon: faPlus, path: DASHBOARD_PATHS.water },
+          { key: "profile", label: "My Profile", icon: faUser, path: "/admin/profile" },
+        ]
+      : canViewHomeKpis
+        ? [
+            { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
+            { key: "approval", label: "Review Approvals", icon: faReceipt, path: DASHBOARD_PATHS.orderApprovals },
+            { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
+          ]
+        : [
+            { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
+            { key: "stock", label: "Record Stock", icon: faBoxesStacked, path: DASHBOARD_PATHS.inventory },
+            { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
+          ];
+
+    const filtered = candidates.filter(
+      (item) => item.path === "/admin/profile" || canAccessPortalRoute(roleKey, item.path)
+    );
+
+    return filtered.length
+      ? filtered
+      : [{ key: "profile", label: "My Profile", icon: faUser, path: "/admin/profile" }];
+  }, [canViewHomeKpis, isWaterUser, roleKey]);
+
+  const legacyModuleLinks = useMemo(() => getAdminQuickActions(roleKey), [roleKey]);
 
   const purchaseCatalog = useMemo(() => {
     const products = searchedInventory.filter(
-      (item) => getQuantity(item) > 0 && !isRentalItem(item)
+      (item) => getQuantity(item, purchaseQtyByLineKey) > 0 && !isRentalItem(item)
     );
     return products.slice(0, 80);
-  }, [searchedInventory]);
+  }, [purchaseQtyByLineKey, searchedInventory]);
 
   const purchaseCount = useMemo(
     () => purchaseItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -2436,38 +2617,71 @@ function AdminWorkspace({ section = "home" }) {
     [purchaseItems]
   );
 
-  const addProductToPurchase = (item) => {
-    const maxStock = getQuantity(item);
+  const addProductToPurchase = (item, variant = null) => {
+    const productId = Number(item?.id);
+    if (!Number.isFinite(productId) || productId <= 0) return;
+
+    const chosenVariant = isVariantParentItem(item)
+      ? variant
+        || findVariantById(item, selectedVariantIds[String(productId)])
+        || getActiveItemVariants(item).find((entry) => getVariantAvailableQty(entry) > 0)
+        || null
+      : null;
+    const lineKey = getProductLineKey(productId, chosenVariant?.id);
+    const maxStock = chosenVariant
+      ? Math.max(0, getVariantAvailableQty(chosenVariant) - (purchaseQtyByLineKey.get(lineKey) || 0))
+      : getQuantity(item, purchaseQtyByLineKey);
     if (maxStock <= 0) return;
+
+    if (chosenVariant?.id) {
+      setSelectedVariantIds((prev) => {
+        if (Number(prev[String(productId)]) === Number(chosenVariant.id)) return prev;
+        return { ...prev, [productId]: Number(chosenVariant.id) };
+      });
+    }
+
     setPurchaseItems((prev) => {
-      const existing = prev.find((row) => row.productId === item.id);
+      const existing = prev.find(
+        (row) => (row.lineKey || getProductLineKey(row.productId, row.variantId)) === lineKey
+      );
       if (existing) {
-        if (existing.quantity >= maxStock) return prev;
+        if (existing.quantity >= existing.stock) return prev;
         return prev.map((row) =>
-          row.productId === item.id ? { ...row, quantity: row.quantity + 1 } : row
+          (row.lineKey || getProductLineKey(row.productId, row.variantId)) === lineKey
+            ? { ...row, quantity: row.quantity + 1 }
+            : row
         );
       }
       return [
         ...prev,
         {
-          productId: item.id,
-          name: item.name,
+          lineKey,
+          productId,
+          variantId: chosenVariant?.id || null,
+          productName: item.name,
+          variantLabel: chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : "",
+          name: chosenVariant ? `${item.name} / ${buildVariantOptionLabel(item, chosenVariant)}` : item.name,
           quantity: 1,
-          unitPrice: getPrice(item),
+          unitPrice: chosenVariant ? getPrice(item, chosenVariant) : getPrice(item),
+          stock: chosenVariant ? getVariantAvailableQty(chosenVariant) : getQuantity(item),
           currency: item.currency || "GHS",
         },
       ];
     });
   };
 
-  const changePurchaseQuantity = (productId, delta) => {
-    const product = inventory.find((item) => Number(item.id) === Number(productId));
-    const maxStock = product ? getQuantity(product) : Infinity;
+  const changePurchaseQuantity = (lineKey, delta) => {
+    const currentLine = purchaseItems.find(
+      (item) => (item.lineKey || getProductLineKey(item.productId, item.variantId)) === lineKey
+    );
+    const product = inventory.find((item) => Number(item.id) === Number(currentLine?.productId));
+    const variant = currentLine?.variantId ? findVariantById(product, currentLine.variantId) : null;
+    const maxStock = variant ? getVariantAvailableQty(variant) : product ? getQuantity(product) : Infinity;
 
     setPurchaseItems((prev) =>
       prev
         .map((item) => {
-          if (item.productId !== productId) return item;
+          if ((item.lineKey || getProductLineKey(item.productId, item.variantId)) !== lineKey) return item;
           const nextQty = Math.max(0, Math.min(maxStock, item.quantity + delta));
           return { ...item, quantity: nextQty };
         })
@@ -2475,17 +2689,21 @@ function AdminWorkspace({ section = "home" }) {
     );
   };
 
-  const removePurchaseLine = (productId) => {
-    setPurchaseItems((prev) => prev.filter((item) => item.productId !== productId));
+  const removePurchaseLine = (lineKey) => {
+    setPurchaseItems((prev) =>
+      prev.filter((item) => (item.lineKey || getProductLineKey(item.productId, item.variantId)) !== lineKey)
+    );
   };
 
   const applyPurchaseToLocalStock = (items) => {
     setInventory((prev) =>
       prev.map((product) => {
-        const line = items.find((entry) => Number(entry.productId) === Number(product.id));
-        if (!line) return product;
-        const nextQty = Math.max(0, getQuantity(product) - Number(line.quantity || 0));
-        return { ...product, quantity: nextQty, stock: nextQty };
+        const lines = items.filter((entry) => Number(entry.productId) === Number(product.id));
+        if (!lines.length) return product;
+        return lines.reduce(
+          (nextProduct, lineItem) => applyInventoryLineQuantityDelta(nextProduct, lineItem, -1),
+          product
+        );
       })
     );
   };
@@ -2507,6 +2725,7 @@ function AdminWorkspace({ section = "home" }) {
       status: INITIAL_PURCHASE_STATUS,
       items: purchaseItems.map((item) => ({
         productId: Number(item.productId),
+        variantId: item.variantId || undefined,
         quantity: Number(item.quantity),
         price: Number(item.unitPrice),
       })),
@@ -2561,7 +2780,7 @@ function AdminWorkspace({ section = "home" }) {
     }
   };
 
-  const handleQuickStock = async (item, direction) => {
+  const handleQuickStock = async (item, direction, variant = null) => {
     const quantity = quickQuantity;
     if (quantity <= 0) return;
     if (isRentalItem(item)) {
@@ -2569,10 +2788,23 @@ function AdminWorkspace({ section = "home" }) {
       return;
     }
 
+    const chosenVariant = isVariantParentItem(item)
+      ? variant
+        || findVariantById(item, selectedVariantIds[String(item.id)])
+        || getActiveItemVariants(item).find((entry) => getVariantAvailableQty(entry) > 0)
+        || null
+      : null;
+    if (isVariantParentItem(item) && !chosenVariant) {
+      setSurfaceError(`Choose a variant for "${item.name}" before updating stock.`);
+      return;
+    }
+    const busyKey = `${item.id}:${chosenVariant?.id || "standard"}-${direction}`;
+
     const movementType = direction === "in" ? "StockIn" : "StockOut";
     const delta = direction === "in" ? quantity : -quantity;
     const payload = {
       productId: item.id,
+      variantId: chosenVariant?.id || undefined,
       type: movementType,
       quantity,
       notes: "Quick mobile stock update",
@@ -2585,27 +2817,30 @@ function AdminWorkspace({ section = "home" }) {
     const queueItem = createQueueItem({
       type: "stock",
       payload,
-      label: `${item.name} · ${movementType} ${quantity}`,
+      label: `${chosenVariant ? `${item.name} / ${buildVariantOptionLabel(item, chosenVariant)}` : item.name} · ${movementType} ${quantity}`,
     });
 
     setSurfaceError("");
     setSurfaceNotice("");
-    setStockBusyId(`${item.id}-${direction}`);
+    setStockBusyId(busyKey);
 
     try {
       if (!isOnline) {
         queueAction(queueItem);
-        adjustProductQuantity(item.id, delta);
-        setSurfaceNotice(`${item.name}: saved offline.`);
+        adjustProductQuantity(item.id, delta, { variantId: chosenVariant?.id });
+        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: saved offline.`);
         return;
       }
 
       const result = await sendStockUpdate(payload);
       const nextStock = Number(result?.newStock);
       if (Number.isFinite(nextStock)) {
-        setProductQuantity(item.id, nextStock);
+        setProductQuantity(item.id, nextStock, {
+          variantId: result?.variantId || chosenVariant?.id,
+          variantAvailableQty: result?.variantAvailableQty,
+        });
       } else {
-        adjustProductQuantity(item.id, delta);
+        adjustProductQuantity(item.id, delta, { variantId: chosenVariant?.id });
       }
       await Promise.all([
         fetchActivityFeed(),
@@ -2614,14 +2849,14 @@ function AdminWorkspace({ section = "home" }) {
       ]);
       setSurfaceNotice(
         direction === "in"
-          ? `${item.name}: +${quantity} added.`
-          : `${item.name}: -${quantity} removed.`
+          ? `${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: +${quantity} added.`
+          : `${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: -${quantity} removed.`
       );
     } catch (error) {
       if (isLikelyOfflineError(error)) {
         queueAction(queueItem);
-        adjustProductQuantity(item.id, delta);
-        setSurfaceNotice(`${item.name}: queued for sync.`);
+        adjustProductQuantity(item.id, delta, { variantId: chosenVariant?.id });
+        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: queued for sync.`);
       } else {
         setSurfaceError(error.message || "Stock update failed.");
       }
@@ -2747,19 +2982,50 @@ function AdminWorkspace({ section = "home" }) {
         ) : (
           <div className="aw-stock-list">
             {visibleInventory.map((item) => {
-              const outBusy = stockBusyId === `${item.id}-out`;
-              const inBusy = stockBusyId === `${item.id}-in`;
-              const quantity = getQuantity(item);
+              const itemKey = String(item.id);
+              const variants = getActiveItemVariants(item);
+              const selectedVariant = findVariantById(item, selectedVariantIds[itemKey])
+                || variants.find((variant) => getVariantAvailableQty(variant) > 0)
+                || variants[0]
+                || null;
+              const variantBusyPrefix = `${item.id}:${selectedVariant?.id || "standard"}`;
+              const outBusy = stockBusyId === `${variantBusyPrefix}-out`;
+              const inBusy = stockBusyId === `${variantBusyPrefix}-in`;
+              const quantity = getQuantity(item, purchaseQtyByLineKey);
               const isLow = quantity <= LOW_STOCK_THRESHOLD;
               const isRental = isRentalItem(item);
+              const hasVariants = isVariantParentItem(item) && variants.length > 0;
+              const selectedVariantStock = selectedVariant ? getVariantAvailableQty(selectedVariant) : 0;
               return (
                 <article key={item.id} className="glass-card aw-stock-card">
                   <div className="aw-stock-meta">
                     <h3>{item.name}</h3>
                     <p>{item.sku || "No SKU"}</p>
+                    {hasVariants ? (
+                      <div className="aw-variant-meta">
+                        <SelectField
+                          value={selectedVariant?.id ? String(selectedVariant.id) : ""}
+                          onChangeValue={(nextValue) =>
+                            setSelectedVariantIds((prev) => ({ ...prev, [item.id]: Number(nextValue) }))
+                          }
+                          ariaLabel={`Choose variant for ${item.name}`}
+                          inputClassName="aw-select aw-select--variant"
+                        >
+                          {variants.map((variant) => (
+                            <option key={variant.id} value={variant.id}>
+                              {buildVariantOptionLabel(item, variant)} · {getVariantAvailableQty(variant)} in stock
+                            </option>
+                          ))}
+                        </SelectField>
+                      </div>
+                    ) : null}
                     {isRental ? (
                       <span className="aw-stock-badge is-rental">
                         {quantity} unit{quantity !== 1 ? "s" : ""} · Rental
+                      </span>
+                    ) : hasVariants ? (
+                      <span className={`aw-stock-badge ${isLow ? "is-low" : ""}`}>
+                        {quantity} total · {selectedVariantStock} selected
                       </span>
                     ) : (
                       <span className={`aw-stock-badge ${isLow ? "is-low" : ""}`}>
@@ -2777,8 +3043,8 @@ function AdminWorkspace({ section = "home" }) {
                         <button
                           type="button"
                           className="aw-icon-btn danger"
-                          onClick={() => handleQuickStock(item, "out")}
-                          disabled={outBusy}
+                          onClick={() => handleQuickStock(item, "out", selectedVariant)}
+                          disabled={outBusy || (hasVariants && !selectedVariant)}
                           aria-label={`Reduce stock for ${item.name}`}
                         >
                           <AppIcon icon={faMinus} />
@@ -2786,8 +3052,8 @@ function AdminWorkspace({ section = "home" }) {
                         <button
                           type="button"
                           className="aw-icon-btn success"
-                          onClick={() => handleQuickStock(item, "in")}
-                          disabled={inBusy}
+                          onClick={() => handleQuickStock(item, "in", selectedVariant)}
+                          disabled={inBusy || (hasVariants && !selectedVariant)}
                           aria-label={`Increase stock for ${item.name}`}
                         >
                           <AppIcon icon={faPlus} />
@@ -2842,17 +3108,62 @@ function AdminWorkspace({ section = "home" }) {
           <span className="aw-count-pill">{purchaseCatalog.length}</span>
         </div>
         <div className="aw-product-grid">
-          {purchaseCatalog.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="aw-product-btn"
-              onClick={() => addProductToPurchase(item)}
-            >
-              <span>{item.name}</span>
-              <small>{toCurrency(getPrice(item), item.currency || "GHS")}</small>
-            </button>
-          ))}
+          {purchaseCatalog.map((item) => {
+            const itemKey = String(item.id);
+            const variants = getActiveItemVariants(item);
+            const selectedVariant = findVariantById(item, selectedVariantIds[itemKey])
+              || variants.find((variant) => getVariantAvailableQty(variant) > 0)
+              || variants[0]
+              || null;
+            const hasVariants = isVariantParentItem(item) && variants.length > 0;
+            const lineKey = getProductLineKey(item.id, selectedVariant?.id);
+            const remainingStock = hasVariants
+              ? Math.max(0, getVariantAvailableQty(selectedVariant) - (purchaseQtyByLineKey.get(lineKey) || 0))
+              : getQuantity(item, purchaseQtyByLineKey);
+
+            return (
+              <div key={item.id} className="aw-product-entry">
+                {hasVariants ? (
+                  <SelectField
+                    value={selectedVariant?.id ? String(selectedVariant.id) : ""}
+                    onChangeValue={(nextValue) =>
+                      setSelectedVariantIds((prev) => ({ ...prev, [item.id]: Number(nextValue) }))
+                    }
+                    ariaLabel={`Choose variant for ${item.name}`}
+                    inputClassName="aw-select aw-select--variant"
+                  >
+                    {variants.map((variant) => {
+                      const variantLineKey = getProductLineKey(item.id, variant.id);
+                      const variantRemaining = Math.max(
+                        0,
+                        getVariantAvailableQty(variant) - (purchaseQtyByLineKey.get(variantLineKey) || 0)
+                      );
+                      return (
+                        <option key={variant.id} value={variant.id} disabled={variantRemaining <= 0}>
+                          {buildVariantOptionLabel(item, variant)} · {variantRemaining} left
+                        </option>
+                      );
+                    })}
+                  </SelectField>
+                ) : null}
+                <button
+                  type="button"
+                  className="aw-product-btn"
+                  onClick={() => addProductToPurchase(item, selectedVariant)}
+                  disabled={remainingStock <= 0}
+                >
+                  <span>{item.name}</span>
+                  <small>
+                    {toCurrency(
+                      hasVariants && selectedVariant ? getPrice(item, selectedVariant) : getPrice(item),
+                      item.currency || "GHS"
+                    )}
+                    {hasVariants ? ` · ${remainingStock} left` : ""}
+                  </small>
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -2866,16 +3177,19 @@ function AdminWorkspace({ section = "home" }) {
         ) : (
           <ul className="aw-basket-list">
             {purchaseItems.map((item) => (
-              <li key={item.productId} className="aw-basket-item">
+              <li key={item.lineKey || getProductLineKey(item.productId, item.variantId)} className="aw-basket-item">
                 <div className="aw-basket-main">
-                  <strong>{item.name}</strong>
+                  <strong>{item.productName || item.name}</strong>
                   <span>{toCurrency(item.unitPrice, item.currency || "GHS")}</span>
                 </div>
+                {item.variantLabel ? (
+                  <p className="aw-basket-variant">{item.variantLabel.replace(`${item.productName || ""} / `, "")}</p>
+                ) : null}
                 <div className="aw-basket-actions">
                   <button
                     type="button"
                     className="aw-icon-btn danger"
-                    onClick={() => changePurchaseQuantity(item.productId, -1)}
+                    onClick={() => changePurchaseQuantity(item.lineKey || getProductLineKey(item.productId, item.variantId), -1)}
                     aria-label={`Reduce quantity for ${item.name}`}
                   >
                     <AppIcon icon={faMinus} />
@@ -2884,7 +3198,7 @@ function AdminWorkspace({ section = "home" }) {
                   <button
                     type="button"
                     className="aw-icon-btn success"
-                    onClick={() => changePurchaseQuantity(item.productId, 1)}
+                    onClick={() => changePurchaseQuantity(item.lineKey || getProductLineKey(item.productId, item.variantId), 1)}
                     aria-label={`Increase quantity for ${item.name}`}
                   >
                     <AppIcon icon={faPlus} />
@@ -2892,7 +3206,7 @@ function AdminWorkspace({ section = "home" }) {
                   <button
                     type="button"
                     className="aw-icon-btn"
-                    onClick={() => removePurchaseLine(item.productId)}
+                    onClick={() => removePurchaseLine(item.lineKey || getProductLineKey(item.productId, item.variantId))}
                     aria-label={`Remove ${item.name}`}
                   >
                     <AppIcon icon={faTrash} />
@@ -3000,7 +3314,7 @@ function AdminWorkspace({ section = "home" }) {
           <h2>Legacy Modules</h2>
         </div>
         <div className="aw-link-grid">
-          {ADMIN_QUICK_ACTIONS.map((item) => (
+          {legacyModuleLinks.map((item) => (
             <button
               key={item.path}
               type="button"

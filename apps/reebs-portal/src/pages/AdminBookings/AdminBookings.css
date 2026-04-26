@@ -1679,12 +1679,14 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
 
   .bookings-modal {
     align-items: flex-start;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 5rem);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+    padding-top: calc(var(--portal-mobile-header-clearance, 0px) + 0.9rem);
+    padding-bottom: calc(var(--portal-bottom-nav-clearance, 0px) + 0.9rem);
   }
 
   .bookings-modal .customers-modal-panel {
-    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 6rem);
+    max-height: calc(
+      100dvh - var(--portal-mobile-header-clearance, 0px) - var(--portal-bottom-nav-clearance, 0px) - 1.8rem
+    );
   }
 
   .bookings-toolbar {

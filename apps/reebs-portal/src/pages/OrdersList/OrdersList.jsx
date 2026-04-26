@@ -8,6 +8,7 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 
 const formatCurrency = (amount, currency = "GHS") => {
   try {
@@ -208,7 +209,7 @@ function OrdersList() {
   const { user } = useAuth();
   const location = useLocation();
   const roleKey = String(user?.role || "").trim().toLowerCase();
-  const canAccessInvoicing = roleKey === "admin" || roleKey === "manager";
+  const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

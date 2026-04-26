@@ -33,6 +33,16 @@ import {
   DEFAULT_SERVICE_PAYMENT_NOTE,
   DEFAULT_SERVICE_PAYMENT_TERMS,
 } from "../../../shared/paymentCopy.js";
+import {
+  buildProductSearchText,
+  findVariantById,
+  formatVariantLabel,
+  getActiveItemVariants,
+  getProductLineKey,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  isVariantParentItem,
+} from "../../utils/productVariants";
 
 const COMPANY = {
   name: "REEBS Party Themes",
@@ -508,11 +518,6 @@ const isPerHeadRateLabel = (value) => /\bhead\b/i.test(String(value || ""));
 
 const resolveProductUnitLabel = (product) => normalizeLineUnitLabel(product?.rate || product?.unitLabel);
 
-const isRentalProduct = (product) =>
-  String(product?.sourceCategoryCode || product?.sourcecategorycode || "")
-    .trim()
-    .toUpperCase() === "RENTAL";
-
 const shouldManageInvoiceInventory = (sourceType) =>
   INVENTORY_MANAGED_SOURCE_TYPES.has(String(sourceType || "").trim().toLowerCase());
 
@@ -524,29 +529,35 @@ const isDocumentInventoryCommitted = (document) =>
 const shouldReuseCommittedInventory = (document) =>
   isDocumentInventoryCommitted(document) || hasSourceManagedInventory(document);
 
-const getProductStockQuantity = (product) =>
-  Math.max(0, normalizeLineQuantity(product?.quantity ?? product?.stock, 0));
+const getProductStockQuantity = (product, variant = null) => {
+  if (variant) return Math.max(0, getVariantAvailableQty(variant));
+  if (isVariantParentItem(product)) {
+    return getActiveItemVariants(product).reduce((sum, entry) => sum + Math.max(0, getVariantAvailableQty(entry)), 0);
+  }
+  return Math.max(0, normalizeLineQuantity(product?.quantity ?? product?.stock, 0));
+};
 
-const buildProductSearchBlob = (product) =>
-  normalizeSearchText(
-    [
-      product?.name,
-      product?.sku,
-      product?.barcode,
-      product?.description,
-      product?.specificCategory,
-      product?.sourceCategoryCode,
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
+const getLineItemInventoryKey = (item) => {
+  const productId = Number(item?.productId);
+  if (!Number.isFinite(productId) || productId <= 0) return "";
+  return getProductLineKey(productId, item?.variantId);
+};
+
+const resolveLineItemVariant = (product, item) =>
+  product && item?.variantId ? findVariantById(product, item.variantId) : null;
+
+const buildLineItemDisplayName = (product, variant, fallbackName = "") => {
+  if (product && variant) return formatVariantLabel(product, variant);
+  if (product?.name) return product.name;
+  return fallbackName || "Item";
+};
 
 const matchesProductSearch = (product, query) => {
   const tokens = normalizeSearchText(query)
     .split(" ")
     .filter(Boolean);
   if (!tokens.length) return true;
-  const blob = buildProductSearchBlob(product);
+  const blob = normalizeSearchText(buildProductSearchText(product));
   return tokens.every((token) => blob.includes(token));
 };
 
@@ -567,6 +578,8 @@ const createLineItem = (overrides = {}) => ({
         id,
         rowType: "heading",
         productId: null,
+        variantId: null,
+        variantLabel: "",
         name: overrides.name || "",
         unitLabel: "",
         quantity: 0,
@@ -579,6 +592,8 @@ const createLineItem = (overrides = {}) => ({
         id,
         rowType: "note",
         productId: null,
+        variantId: null,
+        variantLabel: "",
         name: overrides.name || "",
         unitLabel: "",
         quantity: 0,
@@ -590,6 +605,8 @@ const createLineItem = (overrides = {}) => ({
       id,
       rowType: "item",
       productId: Number.isFinite(Number(overrides.productId)) ? Number(overrides.productId) : null,
+      variantId: Number.isFinite(Number(overrides.variantId)) ? Number(overrides.variantId) : null,
+      variantLabel: String(overrides.variantLabel || ""),
       name: overrides.name || "",
       unitLabel: normalizeLineUnitLabel(overrides.unitLabel),
       quantity: normalizeLineQuantity(overrides.quantity, 1),
@@ -648,24 +665,27 @@ const buildDocumentSourceLineItems = (items, mapItem) => {
 const buildLineItemProductQuantityMap = (items) =>
   normalizeLineItems(items).reduce((map, item) => {
     if (isHeadingLineItem(item) || isNoteLineItem(item) || !Number(item.productId)) return map;
-    const productId = Number(item.productId);
+    const inventoryKey = getLineItemInventoryKey(item);
+    if (!inventoryKey) return map;
     const quantity = isPerHeadRateLabel(item.unitLabel)
       ? normalizeLineQuantity(item.quantity, 0) > 0
         ? 1
         : 0
       : normalizeLineQuantity(item.quantity, 0);
     if (quantity <= 0) return map;
-    map.set(productId, (map.get(productId) || 0) + quantity);
+    map.set(inventoryKey, (map.get(inventoryKey) || 0) + quantity);
     return map;
   }, new Map());
 
-const resolveProductRemainingStock = (document, item, product) => {
+const resolveProductRemainingStock = (document, item, product, variant = null) => {
   const productId = Number(product?.id ?? item?.productId);
   if (!Number.isFinite(productId) || productId <= 0) return null;
+  const variantId = Number(variant?.id ?? item?.variantId) || null;
+  const inventoryKey = getProductLineKey(productId, variantId);
   const documentQuantities = buildLineItemProductQuantityMap(document?.lineItems);
-  const currentProductQuantity = documentQuantities.get(productId) || 0;
+  const currentProductQuantity = documentQuantities.get(inventoryKey) || 0;
   const currentLineQuantity =
-    Number(item?.productId) === productId
+    Number(item?.productId) === productId && Number(item?.variantId) === Number(variantId)
       ? isPerHeadRateLabel(item?.unitLabel || resolveProductUnitLabel(product))
         ? normalizeLineQuantity(item?.quantity, 0) > 0
           ? 1
@@ -674,7 +694,7 @@ const resolveProductRemainingStock = (document, item, product) => {
       : 0;
   const siblingQuantity = Math.max(0, currentProductQuantity - currentLineQuantity);
   const reusableCommittedQuantity = shouldReuseCommittedInventory(document) ? currentProductQuantity : 0;
-  return Math.max(0, getProductStockQuantity(product) + reusableCommittedQuantity - siblingQuantity);
+  return Math.max(0, getProductStockQuantity(product, variant) + reusableCommittedQuantity - siblingQuantity);
 };
 
 const resolveLineItemMaxQuantity = (document, item, productById) => {
@@ -685,7 +705,7 @@ const resolveLineItemMaxQuantity = (document, item, productById) => {
   if (isPerHeadRateLabel(item?.unitLabel || resolveProductUnitLabel(product))) {
     return null;
   }
-  return resolveProductRemainingStock(document, item, product);
+  return resolveProductRemainingStock(document, item, product, resolveLineItemVariant(product, item));
 };
 
 const clearLegacyDraftLineItemPlaceholders = (items, sourceType) => {
@@ -1012,7 +1032,9 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
         return {
           id: item.id || `${item.productId || "item"}-${index}`,
           productId: item.productId || null,
-          name: item.name || item.Product?.name || "Item",
+          variantId: item.variantId || null,
+          variantLabel: item.variantLabel || "",
+          name: item.name || item.variantLabel || item.Product?.name || "Item",
           unitLabel: resolveProductUnitLabel(item),
           quantity,
           unitPrice: isCents ? unitPriceRaw / 100 : unitPriceRaw,
@@ -1077,6 +1099,8 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
       lineItems: ensureEditableLineItems(buildDocumentSourceLineItems(items, (item, index) => ({
         id: item.id || `${item.productId || "item"}-${index}`,
         productId: item.productId || null,
+        variantId: item.variantId || null,
+        variantLabel: item.variantLabel || item.productName || "",
         name: item.productName || item.name || "Item",
         unitLabel: resolveProductUnitLabel(item),
         quantity: normalizeLineQuantity(item.quantity, 1),
@@ -1375,31 +1399,68 @@ function InvoiceProductPicker({
   document,
   currentItem,
   selectedProductId,
+  selectedVariantId,
   disabled = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const normalizedQuery = normalizeSearchText(value);
-  const availableProducts = useMemo(
-    () =>
-      Array.isArray(products)
-        ? products.filter((product) => {
-            if (getProductStockQuantity(product) <= 0) return false;
-            if (!document || !currentItem) return true;
-            if (String(product.id) === String(selectedProductId)) return true;
-            if (!isRentalProduct(product)) return true;
-            return (resolveProductRemainingStock(document, currentItem, product) || 0) > 0;
-          })
-        : [],
-    [currentItem, document, products, selectedProductId]
-  );
+  const normalizedSelectedVariantId = Number(selectedVariantId) || null;
+  const availableOptions = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+
+    return products.flatMap((product) => {
+      const productId = Number(product?.id);
+      if (!Number.isFinite(productId) || productId <= 0) return [];
+
+      const isSelectedProduct = String(productId) === String(selectedProductId);
+      if (isVariantParentItem(product)) {
+        return getActiveItemVariants(product).flatMap((variant) => {
+          const isSelectedVariant =
+            isSelectedProduct && Number(variant?.id) === Number(normalizedSelectedVariantId);
+          const remainingStock =
+            document && currentItem
+              ? resolveProductRemainingStock(document, currentItem, product, variant)
+              : getVariantAvailableQty(variant);
+          if (!isSelectedVariant && (remainingStock || 0) <= 0) return [];
+          return [
+            {
+              key: getProductLineKey(productId, variant?.id),
+              product,
+              variant,
+              label: buildLineItemDisplayName(product, variant, product?.name),
+              stock: Math.max(0, Number(remainingStock) || 0),
+            },
+          ];
+        });
+      }
+
+      const remainingStock =
+        document && currentItem
+          ? resolveProductRemainingStock(document, currentItem, product)
+          : getProductStockQuantity(product);
+      if (!isSelectedProduct && (remainingStock || 0) <= 0) return [];
+      return [
+        {
+          key: getProductLineKey(productId),
+          product,
+          variant: null,
+          label: buildLineItemDisplayName(product, null, product?.name),
+          stock: Math.max(0, Number(remainingStock) || 0),
+        },
+      ];
+    });
+  }, [currentItem, document, normalizedSelectedVariantId, products, selectedProductId]);
 
   const filteredOptions = useMemo(() => {
-    if (!availableProducts.length) return [];
+    if (!availableOptions.length) return [];
     const source = normalizedQuery
-      ? availableProducts.filter((product) => matchesProductSearch(product, normalizedQuery))
-      : availableProducts;
+      ? availableOptions.filter((option) => {
+          if (matchesProductSearch(option.product, normalizedQuery)) return true;
+          return normalizeSearchText(option.label).includes(normalizedQuery);
+        })
+      : availableOptions;
     return source.slice(0, normalizedQuery ? 12 : 8);
-  }, [availableProducts, normalizedQuery]);
+  }, [availableOptions, normalizedQuery]);
 
   const commitTypedProduct = useCallback(() => {
     const typedValue = String(value || "").trim();
@@ -1408,18 +1469,18 @@ function InvoiceProductPicker({
       return;
     }
     const lowered = typedValue.toLowerCase();
-    const matchedProduct =
-      availableProducts.find((product) => {
-        const nameMatch = normalizeSearchText(product.name) === normalizeSearchText(typedValue);
-        const skuMatch = String(product.sku || "").trim().toLowerCase() === lowered;
-        const barcodeMatch = String(product.barcode || "").trim().toLowerCase() === lowered;
+    const matchedOption =
+      availableOptions.find((option) => {
+        const nameMatch = normalizeSearchText(option.label) === normalizeSearchText(typedValue);
+        const skuMatch = String(option.variant?.sku || option.product?.sku || "").trim().toLowerCase() === lowered;
+        const barcodeMatch = String(option.product?.barcode || "").trim().toLowerCase() === lowered;
         return nameMatch || skuMatch || barcodeMatch;
       }) || null;
-    if (matchedProduct) {
-      onSelectProduct(matchedProduct);
+    if (matchedOption) {
+      onSelectProduct(matchedOption.product, matchedOption.variant);
     }
     setMenuOpen(false);
-  }, [availableProducts, onSelectProduct, value]);
+  }, [availableOptions, onSelectProduct, value]);
 
   return (
     <div className="invoice-product-picker">
@@ -1456,20 +1517,23 @@ function InvoiceProductPicker({
       {menuOpen && !disabled ? (
         filteredOptions.length ? (
           <div className="invoice-product-picker-menu" role="listbox" aria-label="Product directory">
-            {filteredOptions.map((product) => {
-              const isActive = String(product.id) === String(selectedProductId);
+            {filteredOptions.map((option) => {
+              const isActive =
+                String(option.product?.id) === String(selectedProductId)
+                && Number(option.variant?.id || 0) === Number(normalizedSelectedVariantId || 0);
               return (
                 <button
-                  key={product.id}
+                  key={option.key}
                   type="button"
                   className={`invoice-product-picker-option ${isActive ? "is-active" : ""}`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onSelectProduct(product);
+                    onSelectProduct(option.product, option.variant);
                     setMenuOpen(false);
                   }}
                 >
-                  <span>{product.name}</span>
+                  <span>{option.label}</span>
+                  <small>{option.stock} in stock</small>
                 </button>
               );
             })}
@@ -1477,7 +1541,7 @@ function InvoiceProductPicker({
         ) : (
           <div className="invoice-product-picker-menu invoice-product-picker-menu--empty">
             <span className="invoice-product-picker-empty">
-              {availableProducts.length ? "No matching in-stock product" : "No in-stock products"}
+              {availableOptions.length ? "No matching in-stock product" : "No in-stock products"}
             </span>
           </div>
         )
@@ -1880,11 +1944,12 @@ function EditableDocumentTemplate({
                       <InvoiceProductPicker
                         value={item.name}
                         onChange={(nextValue) => onLineItemDescriptionChange(item.id, nextValue, "item")}
-                        onSelectProduct={(product) => onLineItemSelectProduct(item.id, product)}
+                        onSelectProduct={(product, variant) => onLineItemSelectProduct(item.id, product, variant)}
                         products={productOptions}
                         document={document}
                         currentItem={item}
                         selectedProductId={item.productId}
+                        selectedVariantId={item.variantId}
                       />
                     </td>
                     <td className="invoice-editable-col-qty" data-column="quantity" data-label="Qty">
@@ -3113,6 +3178,8 @@ function AdminInvoicing() {
               ...item,
               name: value,
               productId: rowType === "item" ? null : item.productId,
+              variantId: rowType === "item" ? null : item.variantId,
+              variantLabel: rowType === "item" ? "" : item.variantLabel,
               unitLabel: rowType === "item" ? DEFAULT_LINE_ITEM_UNIT : item.unitLabel,
               unitPrice: rowType === "item" ? 0 : item.unitPrice,
             }
@@ -3121,49 +3188,49 @@ function AdminInvoicing() {
     }));
   };
 
-  const handleLineItemSelectProduct = (itemId, product) => {
+  const handleLineItemSelectProduct = (itemId, product, variant = null) => {
     handleDocumentChange((current) => ({
       ...current,
       lineItems: current.lineItems.map((item) =>
         item.id === itemId
           ? (() => {
               const nextProductId = Number(product?.id) || null;
-              const hasChangedProduct = nextProductId !== (Number(item?.productId) || null);
+              const nextVariantId = Number(variant?.id) || null;
+              const hasChangedProduct =
+                nextProductId !== (Number(item?.productId) || null)
+                || nextVariantId !== (Number(item?.variantId) || null);
               const nextBaseItem = {
                 ...item,
                 rowType: "item",
                 productId: nextProductId,
-                name: product?.name || item.name,
+                variantId: nextVariantId,
+                variantLabel: variant ? formatVariantLabel(product, variant) : "",
+                name: buildLineItemDisplayName(product, variant, item.name),
                 unitLabel: resolveProductUnitLabel(product),
-                unitPrice: Math.max(0, toNumber(product?.price, item.unitPrice)),
+                unitPrice: Math.max(
+                  0,
+                  toNumber(variant ? getVariantUnitPrice(product, variant) : product?.price, item.unitPrice)
+                ),
+              };
+              const nextDraftLine = {
+                ...nextBaseItem,
+                quantity: hasChangedProduct ? 0 : item.quantity,
               };
               const draftDocument = {
                 ...current,
                 lineItems: current.lineItems.map((line) =>
                   line.id === itemId
-                    ? {
-                        ...nextBaseItem,
-                        quantity: hasChangedProduct ? 0 : item.quantity,
-                      }
+                    ? nextDraftLine
                     : line
                 ),
               };
               const selectableStock = resolveProductRemainingStock(
                 draftDocument,
-                {
-                  ...nextBaseItem,
-                  quantity: hasChangedProduct ? 0 : item.quantity,
-                },
-                product
+                nextDraftLine,
+                product,
+                variant
               );
-              const maxQuantity = resolveLineItemMaxQuantity(
-                draftDocument,
-                {
-                  ...nextBaseItem,
-                  quantity: hasChangedProduct ? 0 : item.quantity,
-                },
-                productById
-              );
+              const maxQuantity = resolveLineItemMaxQuantity(draftDocument, nextDraftLine, productById);
               return {
                 ...nextBaseItem,
                 quantity: hasChangedProduct

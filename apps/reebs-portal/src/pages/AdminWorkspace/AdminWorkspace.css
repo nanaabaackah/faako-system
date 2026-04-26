@@ -2161,6 +2161,8 @@ body.admin-theme.aw-theme :is(
 
 body.admin-theme.aw-theme .portal-app-content {
   padding: clamp(1rem, 2vw, 2rem);
+  padding-bottom: calc(var(--portal-bottom-nav-clearance) + clamp(1rem, 2vw, 2rem));
+  scroll-padding-bottom: calc(var(--portal-bottom-nav-clearance) + clamp(1rem, 2vw, 2rem));
 }
 
 body.admin-theme.aw-theme .aw-shell {

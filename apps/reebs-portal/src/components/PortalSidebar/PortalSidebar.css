@@ -1,6 +1,7 @@
 .portal-app-shell {
   --portal-sidebar-collapsed: var(--ui-app-sidebar-collapsed-width, 104px);
   --portal-sidebar-expanded: var(--ui-app-sidebar-width, 304px);
+  --portal-mobile-header-clearance: 0px;
   --portal-bottom-nav-clearance: calc(6.6rem + env(safe-area-inset-bottom));
   --portal-sidebar-accent: var(--other, #ff9932);
   --portal-sidebar-bg:
@@ -1227,6 +1228,7 @@
   .portal-app-shell {
     --portal-sidebar-collapsed: 0px;
     --portal-sidebar-expanded: 0px;
+    --portal-mobile-header-clearance: calc(5rem + env(safe-area-inset-top, 0px));
     --portal-bottom-nav-clearance: calc(6.9rem + env(safe-area-inset-bottom));
   }
 

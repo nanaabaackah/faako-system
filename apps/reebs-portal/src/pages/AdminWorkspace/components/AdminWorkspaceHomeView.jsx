@@ -835,24 +835,31 @@ export function AdminWorkspaceHomeView({
   formatRelativeTime,
   formatDateTime,
 }) {
+  const hasAssignedWorkPanel =
+    Boolean(workflowError)
+    || myWorkCards.length > 0
+    || assignedWorkItems.length > 0;
+
   return (
     <section className="aw-section-grid aw-home-view">
       <StoreModeHero storeModePath={storeModePath} onNavigate={onNavigate} />
 
       <QuickActionsPanel actions={homeQuickActions} onNavigate={onNavigate} />
 
-      <AssignedWorkPanel
-        workflowError={workflowError}
-        myWorkCards={myWorkCards}
-        assignedWorkItems={assignedWorkItems}
-        isAssignedWorkListVisible={isAssignedWorkListVisible}
-        workflowLoading={workflowLoading}
-        assignedWorkFilter={assignedWorkFilter}
-        expandedAssignedWorkKey={expandedAssignedWorkKey}
-        onToggleAssignedWorkItem={onToggleAssignedWorkItem}
-        onNavigate={onNavigate}
-        formatDate={formatDate}
-      />
+      {hasAssignedWorkPanel && (
+        <AssignedWorkPanel
+          workflowError={workflowError}
+          myWorkCards={myWorkCards}
+          assignedWorkItems={assignedWorkItems}
+          isAssignedWorkListVisible={isAssignedWorkListVisible}
+          workflowLoading={workflowLoading}
+          assignedWorkFilter={assignedWorkFilter}
+          expandedAssignedWorkKey={expandedAssignedWorkKey}
+          onToggleAssignedWorkItem={onToggleAssignedWorkItem}
+          onNavigate={onNavigate}
+          formatDate={formatDate}
+        />
+      )}
 
       {homeSummaryCards.length > 0 && (
         <div className="aw-home-summary-grid">

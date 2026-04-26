@@ -1,3 +1,18 @@
+import {
+  applyInventoryLineQuantityDelta,
+  buildProductSearchText,
+  buildVariantOptionLabel,
+  findVariantById,
+  formatVariantLabel,
+  getActiveItemVariants,
+  getBaseItemPrice,
+  getProductAvailableQty,
+  getProductLineKey,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  isVariantParentItem,
+} from "../../utils/productVariants";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOW_STOCK_THRESHOLD = 3;
 
@@ -11,28 +26,13 @@ const DISCOUNT_OPTIONS = [
   { value: "percent", label: "%" },
 ];
 
-const getQuantity = (item) => {
-  const raw = item?.quantity ?? item?.stock ?? 0;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const getQuantity = (item, quantityByLineKey = new Map()) =>
+  getProductAvailableQty(item, quantityByLineKey);
 
-const getAvailableQuantity = (item, quantityInOrder = 0) =>
-  Math.max(0, getQuantity(item) - Math.max(0, Number(quantityInOrder) || 0));
+const getAvailableQuantity = (item, quantityByLineKey = new Map()) =>
+  getProductAvailableQty(item, quantityByLineKey);
 
-const getUnitPrice = (item) => {
-  if (typeof item?.price === "number") return item.price;
-  if (typeof item?.price === "string") {
-    const parsed = Number(item.price);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (typeof item?.priceCents === "number") return item.priceCents / 100;
-  if (typeof item?.priceCents === "string") {
-    const parsed = Number(item.priceCents);
-    return Number.isFinite(parsed) ? parsed / 100 : 0;
-  }
-  return 0;
-};
+const getUnitPrice = (item) => getBaseItemPrice(item);
 
 const getCategory = (item) =>
   item?.specificCategory || item?.specificcategory || item?.sourceCategoryCode || "General";
@@ -105,12 +105,20 @@ const sanitizeDraftOrderItems = (value) => {
   return value
     .map((item) => {
       const productId = Number(item?.productId);
+      const variantId = Number(item?.variantId);
       const quantity = Math.max(1, Math.round(Number(item?.quantity) || 0));
       const unitPrice = Number(item?.unitPrice);
       const stock = Number(item?.stock);
       if (!Number.isFinite(productId) || productId <= 0) return null;
       return {
+        lineKey: sanitizeDraftString(
+          item?.lineKey || getProductLineKey(productId, Number.isFinite(variantId) && variantId > 0 ? variantId : ""),
+          80
+        ),
         productId,
+        variantId: Number.isFinite(variantId) && variantId > 0 ? variantId : null,
+        productName: sanitizeDraftString(item?.productName || "Untitled", 160) || "Untitled",
+        variantLabel: sanitizeDraftString(item?.variantLabel || "", 220),
         name: sanitizeDraftString(item?.name || "Untitled", 160) || "Untitled",
         quantity,
         unitPrice: Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
@@ -180,14 +188,24 @@ export {
   DISCOUNT_OPTIONS,
   clearStoreModeDraft,
   formatMoney,
+  applyInventoryLineQuantityDelta,
+  buildProductSearchText,
+  buildVariantOptionLabel,
+  findVariantById,
   getAvailableQuantity,
+  getActiveItemVariants,
   getCategory,
   getCustomerLabel,
   getCustomerMeta,
   getQuantity,
   getStoreModeDraftKey,
+  getProductLineKey,
   getUnitPrice,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  formatVariantLabel,
   isSaleableProduct,
+  isVariantParentItem,
   normalizePhoneDigits,
   normalizeText,
   parseReceiptContact,

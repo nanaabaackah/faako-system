@@ -17,6 +17,7 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 import BookingEditorModal from "./components/BookingEditorModal";
 import BookingDetailModal from "./components/BookingDetailModal";
+import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 import {
   fetchBookingInvoiceDetails,
   fetchInvoiceDocumentById,
@@ -596,7 +597,7 @@ function AdminBookings() {
   const [bouncyCastles, setBouncyCastles] = useState([]);
   const { user } = useAuth();
   const roleKey = String(user?.role || "").trim().toLowerCase();
-  const canAccessInvoicing = roleKey === "admin" || roleKey === "manager";
+  const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
   const navigate = useNavigate();
   const supportLoadStateRef = useRef({
     products: { loaded: false, promise: null },

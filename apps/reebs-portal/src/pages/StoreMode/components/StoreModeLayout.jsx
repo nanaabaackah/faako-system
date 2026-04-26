@@ -18,13 +18,20 @@ import {
   DISCOUNT_OPTIONS,
   LOW_STOCK_THRESHOLD,
   PAYMENT_OPTIONS,
+  buildVariantOptionLabel,
+  findVariantById,
   formatMoney,
   getAvailableQuantity,
+  getActiveItemVariants,
   getCategory,
   getCustomerLabel,
   getCustomerMeta,
   getQuantity,
+  getProductLineKey,
   getUnitPrice,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  isVariantParentItem,
 } from "../storeModeShared";
 
 const STOCK_FILTER_OPTIONS = [
@@ -118,8 +125,11 @@ function StoreModeInventoryPanel({
   visibleItems,
   emptyStateMessage,
   sortedVisibleItems,
-  orderQtyById,
+  orderQtyByLineKey,
+  orderQtyByProductId,
   selectedProductId,
+  selectedVariantIds,
+  onSelectVariant,
   isMobileViewport,
   showImagePreview,
   hideImagePreview,
@@ -276,40 +286,56 @@ function StoreModeInventoryPanel({
               )}
               {sortedVisibleItems.map((item, index) => {
                 const productId = Number(item.id);
-                const currentQty = orderQtyById.get(productId) || 0;
-                const stock = getAvailableQuantity(item, currentQty);
+                const currentQty = orderQtyByProductId.get(productId) || 0;
+                const stock = getAvailableQuantity(item, orderQtyByLineKey);
                 const isOut = stock <= 0;
                 const isLow = !isOut && stock <= LOW_STOCK_THRESHOLD;
                 const isSelected = selectedProductId === productId || currentQty > 0;
                 const productName = item.name || "Untitled";
                 const productImage = getCatalogItemImage(item);
-                const productPrice = formatMoney(getUnitPrice(item), item.currency || "GHS");
+                const variants = getActiveItemVariants(item);
+                const selectedVariant = findVariantById(item, selectedVariantIds[String(productId)])
+                  || variants.find((variant) => getVariantAvailableQty(variant) > 0)
+                  || variants[0]
+                  || null;
+                const selectedVariantLineKey = getProductLineKey(productId, selectedVariant?.id);
+                const selectedVariantStock = selectedVariant
+                  ? Math.max(0, getVariantAvailableQty(selectedVariant) - (orderQtyByLineKey.get(selectedVariantLineKey) || 0))
+                  : 0;
+                const hasVariantOptions = isVariantParentItem(item) && variants.length > 0;
+                const productPrice = formatMoney(
+                  hasVariantOptions && selectedVariant
+                    ? getVariantUnitPrice(item, selectedVariant)
+                    : getUnitPrice(item),
+                  item.currency || "GHS"
+                );
                 const productSku = item.sku || `ID ${item.id}`;
                 const productCategory = getCategory(item);
+                const canAdd = hasVariantOptions ? selectedVariantStock > 0 : stock > 0;
 
                 return (
                   <tr
                     key={item.id}
                     className={`${isOut ? "is-out" : isLow ? "is-low" : ""} ${isSelected ? "is-selected" : ""} ${!isOut ? "store-mode-row--clickable" : ""}`}
                     onClick={
-                      !isOut
+                      canAdd
                         ? () => {
-                            addToOrder(item);
+                            addToOrder(item, selectedVariant);
                           }
                         : undefined
                     }
                     onKeyDown={
-                      !isOut
+                      canAdd
                         ? (event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              addToOrder(item);
+                              addToOrder(item, selectedVariant);
                             }
                           }
                         : undefined
                     }
-                    tabIndex={!isOut ? 0 : undefined}
-                    role={!isOut ? "button" : undefined}
+                    tabIndex={canAdd ? 0 : undefined}
+                    role={canAdd ? "button" : undefined}
                   >
                     <td className="store-mode-cell store-mode-cell--index table-row-index">
                       {index}
@@ -343,6 +369,33 @@ function StoreModeInventoryPanel({
                         <div className="store-mode-product-copy">
                           <strong>{productName}</strong>
                           <span className="store-mode-product-price">{productPrice}</span>
+                          {hasVariantOptions ? (
+                            <div
+                              className="store-mode-product-variant"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
+                              <SelectField
+                                value={selectedVariant?.id ? String(selectedVariant.id) : ""}
+                                onChangeValue={(nextValue) => onSelectVariant(productId, nextValue)}
+                                ariaLabel={`Choose variant for ${productName}`}
+                                inputClassName="store-mode-product-variant-select"
+                              >
+                                {variants.map((variant) => {
+                                  const lineKey = getProductLineKey(productId, variant.id);
+                                  const remaining = Math.max(
+                                    0,
+                                    getVariantAvailableQty(variant) - (orderQtyByLineKey.get(lineKey) || 0)
+                                  );
+                                  return (
+                                    <option key={variant.id} value={variant.id} disabled={remaining <= 0}>
+                                      {buildVariantOptionLabel(item, variant)} · {remaining} left
+                                    </option>
+                                  );
+                                })}
+                              </SelectField>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -363,6 +416,11 @@ function StoreModeInventoryPanel({
                       <span className={`store-mode-stock-pill ${isOut ? "is-out" : isLow ? "is-low" : ""}`}>
                         {stock}
                       </span>
+                      {hasVariantOptions ? (
+                        <small className="store-mode-stock-caption">
+                          {variants.length} variant{variants.length === 1 ? "" : "s"}
+                        </small>
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -532,6 +590,7 @@ function StoreModeOrderPanel({
   inventoryById,
   submitting,
   removeFromOrder,
+  clearLineFromOrder,
   addToOrder,
   subtotal,
   discountAmount,
@@ -559,12 +618,14 @@ function StoreModeOrderPanel({
           <div className="store-builder-strip">
             {orderItems.map((item) => {
               const liveProduct = inventoryById.get(Number(item.productId));
-              const maxStock = getQuantity(liveProduct || item);
+              const liveVariant = item.variantId ? findVariantById(liveProduct, item.variantId) : null;
+              const maxStock = liveVariant ? getVariantAvailableQty(liveVariant) : getQuantity(liveProduct || item);
               const productImage = getCatalogItemImage(liveProduct || item);
               const itemCurrency = item.currency || "GHS";
               const lineTotalLabel = formatMoney(item.unitPrice * item.quantity, itemCurrency);
+              const lineKey = item.lineKey || getProductLineKey(item.productId, item.variantId);
               return (
-                <div key={item.productId} className="store-builder-chip">
+                <div key={lineKey} className="store-builder-chip">
                   <div className="store-builder-chip-main">
                     <img
                       className="store-builder-chip-image"
@@ -573,9 +634,12 @@ function StoreModeOrderPanel({
                       loading="lazy"
                     />
                     <div className="store-builder-chip-copy">
-                      <strong>{item.name}</strong>
+                      <strong>{item.productName || item.name}</strong>
                       <div className="store-builder-chip-pricing">
                         <strong className="store-builder-chip-line-total">{lineTotalLabel}</strong>
+                        {item.variantLabel ? (
+                          <span>{item.variantLabel.replace(`${item.productName || ""} / `, "")}</span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -585,7 +649,7 @@ function StoreModeOrderPanel({
                       <button
                         type="button"
                         className="store-mode-stepper-btn"
-                        onClick={() => removeFromOrder(item.productId)}
+                        onClick={() => removeFromOrder(lineKey)}
                         disabled={submitting}
                       >
                         <AppIcon icon={faMinus} />
@@ -594,10 +658,19 @@ function StoreModeOrderPanel({
                       <button
                         type="button"
                         className="store-mode-stepper-btn"
-                        onClick={() => liveProduct && addToOrder(liveProduct)}
+                        onClick={() => liveProduct && addToOrder(liveProduct, liveVariant)}
                         disabled={submitting || !liveProduct || item.quantity >= maxStock}
                       >
                         <AppIcon icon={faPlus} />
+                      </button>
+                      <button
+                        type="button"
+                        className="store-mode-stepper-btn"
+                        onClick={() => clearLineFromOrder(lineKey)}
+                        disabled={submitting}
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <AppIcon icon={faTrash} />
                       </button>
                     </div>
                   </div>

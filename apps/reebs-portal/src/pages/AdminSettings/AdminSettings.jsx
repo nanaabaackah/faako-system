@@ -7,7 +7,7 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
-import { ADMIN_QUICK_ACTIONS } from "../../utils/adminQuickActions";
+import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
   ADMIN_FONT_SIZE_OPTIONS,
   ADMIN_THEME_OPTIONS,
@@ -178,7 +178,7 @@ function AdminSettings({ profileOnly = false }) {
     () => `reebs_admin_view_mode_${user?.id || "guest"}`,
     [user?.id]
   );
-  const legacyModuleLinks = useMemo(() => ADMIN_QUICK_ACTIONS, []);
+  const legacyModuleLinks = useMemo(() => getAdminQuickActions(roleKey), [roleKey]);
 
   const syncUserProfile = (data) => {
     const nextFirstName = String(data?.firstName || "").trim();

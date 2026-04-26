@@ -968,6 +968,16 @@ body.admin-theme .store-mode-page {
   text-overflow: ellipsis;
 }
 
+.store-mode-product-variant {
+  max-width: 18rem;
+}
+
+.store-mode-product-variant-select {
+  min-height: 2rem;
+  font-size: 0.74rem;
+  padding: 0 0.65rem;
+}
+
 .store-mode-product-price {
   display: none;
   color: var(--admin-muted);
@@ -1026,6 +1036,14 @@ body.admin-theme .store-mode-page {
 .store-mode-stock-pill.is-out {
   background: var(--store-mode-stock-out-bg);
   color: var(--store-mode-stock-out-text);
+}
+
+.store-mode-stock-caption {
+  display: block;
+  margin-top: 0.32rem;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .store-mode-stepper {
@@ -1370,6 +1388,7 @@ body.admin-theme .store-mode-page {
   display: flex;
   align-items: center;
   gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .store-builder-chip-side {

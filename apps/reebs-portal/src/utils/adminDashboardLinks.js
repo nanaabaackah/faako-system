@@ -10,7 +10,9 @@ import {
   faUserGroup,
   faUserPlus,
   faUsers,
+  faUser,
 } from "/src/icons/iconSet";
+import { canAccessPortalRoute } from "./adminAccess";
 
 export const normalizeAdminRole = (role) => String(role || "").trim().toLowerCase();
 
@@ -29,6 +31,7 @@ export const DASHBOARD_PATHS = {
   orderApprovals: "/admin/orders?status=pending",
   orders: "/admin/orders",
   pos: "/admin/store-mode",
+  profile: "/admin/profile",
   expenses: "/admin/expenses",
   userDirectory: "/admin/directory?tab=users",
   vendors: "/admin/vendors",
@@ -174,18 +177,11 @@ const WATER_ACTION_SET = {
       path: DASHBOARD_PATHS.water,
     },
     {
-      key: "customers",
-      label: "New customer",
-      description: "Opens Customer Directory with the create modal already open.",
-      icon: faUserPlus,
-      path: DASHBOARD_PATHS.addCustomer,
-    },
-    {
-      key: "vendors",
-      label: "Vendors",
-      description: "Opens the supplier list directly.",
-      icon: faUsers,
-      path: DASHBOARD_PATHS.vendors,
+      key: "profile",
+      label: "My profile",
+      description: "Update your account details and sign-in preferences.",
+      icon: faUser,
+      path: DASHBOARD_PATHS.profile,
     },
   ],
   shortcuts: [
@@ -197,36 +193,27 @@ const WATER_ACTION_SET = {
       path: DASHBOARD_PATHS.water,
     },
     {
-      key: "customers",
-      label: "Customer directory",
-      description: "Search or update water buyers.",
-      icon: faUserGroup,
-      path: DASHBOARD_PATHS.customerDirectory,
-    },
-    {
-      key: "vendors",
-      label: "Vendors",
-      description: "Supplier contacts and lead times.",
-      icon: faUsers,
-      path: DASHBOARD_PATHS.vendors,
-    },
-    {
-      key: "offline",
-      label: "Sync queue",
-      description: "Check anything waiting to sync.",
-      icon: faCloudArrowUp,
-      path: DASHBOARD_PATHS.offline,
+      key: "profile",
+      label: "My profile",
+      description: "Review your account and preferences.",
+      icon: faUser,
+      path: DASHBOARD_PATHS.profile,
     },
   ],
 };
 
 export const getDashboardActionSet = (role) => {
   const normalizedRole = normalizeAdminRole(role);
-  if (normalizedRole === "admin" || normalizedRole === "manager") {
-    return ADMIN_MANAGER_ACTION_SET;
-  }
-  if (normalizedRole === "water") {
-    return WATER_ACTION_SET;
-  }
-  return STAFF_ACTION_SET;
+  const selectedSet =
+    normalizedRole === "admin" || normalizedRole === "manager"
+      ? ADMIN_MANAGER_ACTION_SET
+      : normalizedRole === "water"
+        ? WATER_ACTION_SET
+        : STAFF_ACTION_SET;
+
+  return {
+    ...selectedSet,
+    steps: selectedSet.steps.filter((item) => canAccessPortalRoute(normalizedRole, item.path)),
+    shortcuts: selectedSet.shortcuts.filter((item) => canAccessPortalRoute(normalizedRole, item.path)),
+  };
 };

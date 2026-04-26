@@ -9,6 +9,11 @@ import {
   faReceipt,
 } from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
+import {
+  canAccessStandardPortalArea,
+  canAccessWaterPortalArea,
+  isWaterPortalRole,
+} from "../../utils/adminAccess";
 
 const BASE_NAV_ITEMS = [
   { id: "home", label: "Home", path: "/admin", icon: faHome },
@@ -19,8 +24,6 @@ const BASE_NAV_ITEMS = [
 
 const WATER_NAV_ITEMS = [{ id: "water", label: "Water", path: "/admin/water", icon: faBoxesStacked }];
 
-const normalizeRole = (value) => String(value || "").trim().toLowerCase();
-
 const normalizePath = (pathname) => {
   if (!pathname) return "/admin";
   const trimmed = pathname.replace(/\/+$/, "");
@@ -28,13 +31,12 @@ const normalizePath = (pathname) => {
 };
 
 const getNavItems = (role) => {
-  const roleKey = normalizeRole(role);
-  if (roleKey === "water") {
+  if (isWaterPortalRole(role)) {
     return WATER_NAV_ITEMS;
   }
 
-  const items = [...BASE_NAV_ITEMS];
-  if (roleKey === "admin" || roleKey === "manager") {
+  const items = canAccessStandardPortalArea(role) ? [...BASE_NAV_ITEMS] : [];
+  if (canAccessWaterPortalArea(role)) {
     items.push(WATER_NAV_ITEMS[0]);
   }
   return items;

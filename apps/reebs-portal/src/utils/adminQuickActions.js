@@ -1,4 +1,7 @@
-export const normalizeAdminRole = (role) => String(role || "").trim().toLowerCase();
+import {
+  canAccessPortalRoute,
+  normalizeAdminRole,
+} from "./adminAccess";
 
 export const ADMIN_QUICK_ACTIONS = [
   { label: "Directory", path: "/admin/directory" },
@@ -11,10 +14,11 @@ export const ADMIN_QUICK_ACTIONS = [
   { label: "Water", path: "/admin/water" },
 ];
 
+export { normalizeAdminRole };
+
 export const getAdminQuickActions = (role) => {
   const normalizedRole = normalizeAdminRole(role);
-  if (normalizedRole === "water") {
-    return ADMIN_QUICK_ACTIONS.filter((item) => item.path === "/admin/water");
-  }
-  return ADMIN_QUICK_ACTIONS;
+  return ADMIN_QUICK_ACTIONS.filter((item) =>
+    canAccessPortalRoute(normalizedRole, item.path)
+  );
 };

@@ -19,6 +19,15 @@ import {
   clearAppliedAdminPreferences,
   readAdminPreferences,
 } from "./utils/adminPreferences";
+import {
+  canAccessOwnerAdminPortalArea,
+  canAccessPrivilegedPortalArea,
+  canAccessStandardPortalArea,
+  canAccessWaterPortalArea,
+  getPortalAccessFallbackPath,
+  normalizeAdminRole,
+  roleMatchesAllowedRoles,
+} from "./utils/adminAccess";
 
 const PortalSidebar = lazy(() => import("./components/PortalSidebar/PortalSidebar"));
 const AdminBottomNav = lazy(() => import("./components/AdminBottomNav/AdminBottomNav"));
@@ -53,8 +62,6 @@ const AdminBookings = lazy(() => import("./pages/AdminBookings/AdminBookings"));
 const AdminRentals = lazy(() => import("./pages/AdminRentals/AdminRentals"));
 const AdminInventoryProducts = lazy(() => import("./pages/AdminInventorySettings/AdminInventoryProducts"));
 const AdminInventoryTemplates = lazy(() => import("./pages/AdminInventorySettings/AdminInventoryTemplates"));
-
-const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
 function RouteFallback() {
   return (
@@ -93,10 +100,31 @@ function RequireAuth({ children }) {
 function RequireRole({ children, allowedRoles = [] }) {
   const { user, authReady } = useAuth();
   if (!authReady) return <RouteFallback />;
-  const role = normalizeRole(user?.role);
+  const role = normalizeAdminRole(user?.role);
 
-  if (!allowedRoles.includes(role)) {
-    return <Navigate to="/admin" replace />;
+  if (!roleMatchesAllowedRoles(role, allowedRoles)) {
+    return <Navigate to={getPortalAccessFallbackPath(role)} replace />;
+  }
+
+  return children;
+}
+
+function RequirePortalAccess({ children, access = "standard" }) {
+  const { user, authReady } = useAuth();
+  if (!authReady) return <RouteFallback />;
+
+  const role = normalizeAdminRole(user?.role);
+  const canAccess =
+    access === "ownerAdmin"
+      ? canAccessOwnerAdminPortalArea(role)
+      : access === "privileged"
+        ? canAccessPrivilegedPortalArea(role)
+        : access === "water"
+          ? canAccessWaterPortalArea(role)
+          : canAccessStandardPortalArea(role);
+
+  if (!canAccess) {
+    return <Navigate to={getPortalAccessFallbackPath(role)} replace />;
   }
 
   return children;
@@ -135,7 +163,9 @@ function AppRoutes() {
         path="/admin/store-mode"
         element={
           <RequireAuth>
-            <StoreMode />
+            <RequirePortalAccess access="standard">
+              <StoreMode />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -143,7 +173,9 @@ function AppRoutes() {
         path="/admin/inventory"
         element={
           <RequireAuth>
-            <Admin />
+            <RequirePortalAccess access="standard">
+              <Admin />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -151,9 +183,9 @@ function AppRoutes() {
         path="/admin/inventory/products"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['owner', 'admin']}>
+            <RequirePortalAccess access="ownerAdmin">
               <AdminInventoryProducts />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -161,9 +193,9 @@ function AppRoutes() {
         path="/admin/inventory/templates"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['owner', 'admin']}>
+            <RequirePortalAccess access="ownerAdmin">
               <AdminInventoryTemplates />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -171,7 +203,9 @@ function AppRoutes() {
         path="/admin/purchases"
         element={
           <RequireAuth>
-            <AdminWorkspace section="purchases" />
+            <RequirePortalAccess access="standard">
+              <AdminWorkspace section="purchases" />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -179,7 +213,9 @@ function AppRoutes() {
         path="/admin/offline"
         element={
           <RequireAuth>
-            <AdminWorkspace section="offline" />
+            <RequirePortalAccess access="standard">
+              <AdminWorkspace section="offline" />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -194,7 +230,9 @@ function AppRoutes() {
         path="/admin/orders"
         element={
           <RequireAuth>
-            <OrdersList />
+            <RequirePortalAccess access="standard">
+              <OrdersList />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -202,7 +240,9 @@ function AppRoutes() {
         path="/admin/orders/new"
         element={
           <RequireAuth>
-            <OrderBuilder />
+            <RequirePortalAccess access="standard">
+              <OrderBuilder />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -210,7 +250,9 @@ function AppRoutes() {
         path="/admin/crm"
         element={
           <RequireAuth>
-            <AdminCustomers />
+            <RequirePortalAccess access="standard">
+              <AdminCustomers />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -219,7 +261,9 @@ function AppRoutes() {
         path="/admin/users"
         element={
           <RequireAuth>
-            <AdminDirectory />
+            <RequirePortalAccess access="standard">
+              <AdminDirectory />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -227,7 +271,9 @@ function AppRoutes() {
         path="/admin/employees"
         element={
           <RequireAuth>
-            <AdminDirectory />
+            <RequirePortalAccess access="standard">
+              <AdminDirectory />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -237,7 +283,9 @@ function AppRoutes() {
         path="/admin/directory"
         element={
           <RequireAuth>
-            <AdminDirectory />
+            <RequirePortalAccess access="standard">
+              <AdminDirectory />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -245,9 +293,9 @@ function AppRoutes() {
         path="/admin/accounting"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminAccounting />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -255,9 +303,9 @@ function AppRoutes() {
         path="/admin/expenses"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminExpenses />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -265,9 +313,9 @@ function AppRoutes() {
         path="/admin/water"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['owner', 'admin', 'manager', 'water']}>
+            <RequirePortalAccess access="water">
               <AdminWater />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -275,9 +323,9 @@ function AppRoutes() {
         path="/admin/vendors"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminVendors />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -285,7 +333,9 @@ function AppRoutes() {
         path="/admin/delivery"
         element={
           <RequireAuth>
-            <AdminDelivery />
+            <RequirePortalAccess access="privileged">
+              <AdminDelivery />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -293,9 +343,9 @@ function AppRoutes() {
         path="/admin/documents"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminDocuments />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -303,7 +353,9 @@ function AppRoutes() {
         path="/admin/timesheets"
         element={
           <RequireAuth>
-            <AdminTimesheets />
+            <RequirePortalAccess access="standard">
+              <AdminTimesheets />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -319,9 +371,9 @@ function AppRoutes() {
         path="/admin/settings"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminSettings />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -329,9 +381,9 @@ function AppRoutes() {
         path="/admin/hr"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminHR />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -339,9 +391,9 @@ function AppRoutes() {
         path="/admin/roles"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminRoles />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -349,7 +401,9 @@ function AppRoutes() {
         path="/admin/maintenance"
         element={
           <RequireAuth>
-            <AdminMaintenance />
+            <RequirePortalAccess access="standard">
+              <AdminMaintenance />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -357,9 +411,9 @@ function AppRoutes() {
         path="/admin/invoicing"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminInvoicing />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -367,9 +421,9 @@ function AppRoutes() {
         path="/admin/marketing"
         element={
           <RequireAuth>
-            <RequireRole allowedRoles={['admin', 'manager']}>
+            <RequirePortalAccess access="privileged">
               <AdminMarketing />
-            </RequireRole>
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -377,7 +431,9 @@ function AppRoutes() {
         path="/admin/schedule"
         element={
           <RequireAuth>
-            <AdminScheduler />
+            <RequirePortalAccess access="privileged">
+              <AdminScheduler />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -385,7 +441,9 @@ function AppRoutes() {
         path="/admin/bookings"
         element={
           <RequireAuth>
-            <AdminBookings />
+            <RequirePortalAccess access="privileged">
+              <AdminBookings />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -393,7 +451,9 @@ function AppRoutes() {
         path="/admin/rentals"
         element={
           <RequireAuth>
-            <AdminRentals />
+            <RequirePortalAccess access="standard">
+              <AdminRentals />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />

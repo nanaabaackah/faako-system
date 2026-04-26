@@ -1,4 +1,5 @@
 const roleColors = {
+  owner: "purple",
   admin: "purple",
   manager: "red",
   staff: "blue",

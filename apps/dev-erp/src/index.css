@@ -2535,7 +2535,8 @@ textarea.input {
   }
 
   .erp-content {
-    padding: calc(1rem + var(--topbar-height)) 0.9rem var(--mobile-tabbar-clearance);
+    padding: calc(1rem + var(--topbar-height)) 0.9rem calc(var(--mobile-tabbar-clearance) + 1rem);
+    scroll-padding-bottom: calc(var(--mobile-tabbar-clearance) + 1rem);
   }
 
   .offline-banner {
@@ -2634,13 +2635,16 @@ textarea.input {
 
   .modal-backdrop {
     align-items: flex-start;
-    padding: 1rem 0.9rem calc(var(--mobile-tabbar-clearance) + 1rem);
+    padding:
+      calc(var(--topbar-height) + 0.9rem)
+      0.9rem
+      calc(var(--mobile-tabbar-clearance) + 0.9rem);
     overflow-y: auto;
   }
 
   .modal-card {
     width: min(900px, 100%);
-    max-height: calc(100dvh - var(--mobile-tabbar-clearance) - 2rem);
+    max-height: calc(100dvh - var(--topbar-height) - var(--mobile-tabbar-clearance) - 1.8rem);
     margin: 0 auto;
     padding: 1rem;
   }

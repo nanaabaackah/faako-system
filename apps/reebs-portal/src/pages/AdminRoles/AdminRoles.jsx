@@ -10,6 +10,7 @@ import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
 
 const ROLE_OPTIONS = [
+  "Owner",
   "Admin",
   "Manager",
   "Staff",
@@ -21,6 +22,15 @@ const ROLE_OPTIONS = [
   "Water",
 ];
 const SYSTEM_ADMIN_EMAIL = "system_admin@reebs.com";
+const normalizeRoleKey = (value) => String(value || "").trim().toLowerCase();
+const formatRoleLabel = (value) => {
+  const normalized = normalizeRoleKey(value);
+  if (!normalized) return "Unassigned";
+  return (
+    ROLE_OPTIONS.find((option) => normalizeRoleKey(option) === normalized)
+    || `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+  );
+};
 
 const generateEmailFromNames = (firstName, lastName) => {
   const clean = (value) => (value || "").trim().replace(/\s+/g, "").toLowerCase();
@@ -77,7 +87,7 @@ const describeSessionDevice = (userAgent = "") => {
 };
 
 const buildDefaultPermissions = (role = "") => {
-  const normalized = (role || "").toLowerCase();
+  const normalized = normalizeRoleKey(role);
   const isAdmin = normalized === "admin";
   return {
     inventoryView: true,
@@ -184,23 +194,53 @@ function AdminRoles() {
     };
   }, [openMenu]);
 
-  const roleCounts = useMemo(() => {
-    const counts = { admin: 0, staff: 0, custodian: 0, manager: 0 };
-    for (const user of users) {
-      const role = (user.role || "").toLowerCase();
-      if (role === "admin") counts.admin += 1;
-      else if (role === "custodian") counts.custodian += 1;
-      else if (role === "manager") counts.manager += 1;
-      else counts.staff += 1;
-    }
-    return counts;
+  const roleSummary = useMemo(() => {
+    const counts = new Map();
+    users.forEach((entry) => {
+      const roleKey = normalizeRoleKey(entry.role) || "unassigned";
+      counts.set(roleKey, (counts.get(roleKey) || 0) + 1);
+    });
+
+    const orderedKeys = [
+      ...ROLE_OPTIONS.map((option) => normalizeRoleKey(option)),
+      ...Array.from(counts.keys())
+        .filter((key) => !ROLE_OPTIONS.some((option) => normalizeRoleKey(option) === key))
+        .sort(),
+    ];
+
+    return orderedKeys
+      .filter((key, index, array) => array.indexOf(key) === index && counts.has(key))
+      .map((key) => ({
+        key,
+        label: formatRoleLabel(key),
+        count: counts.get(key) || 0,
+        colorClass: roleColors[key] || "blue",
+      }));
+  }, [users]);
+
+  const roleFilterOptions = useMemo(() => {
+    const knownKeys = new Set(ROLE_OPTIONS.map((option) => normalizeRoleKey(option)));
+    const extras = [...new Set(users.map((entry) => normalizeRoleKey(entry.role)).filter(Boolean))]
+      .filter((key) => !knownKeys.has(key))
+      .sort();
+
+    return [
+      ...ROLE_OPTIONS.map((option) => ({
+        key: normalizeRoleKey(option),
+        label: option,
+      })),
+      ...extras.map((key) => ({
+        key,
+        label: formatRoleLabel(key),
+      })),
+    ];
   }, [users]);
 
   const filteredUsers = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return users
       .filter((user) => {
-        if (roleFilter !== "all" && (user.role || "").toLowerCase() !== roleFilter) return false;
+        if (roleFilter !== "all" && normalizeRoleKey(user.role) !== roleFilter) return false;
         if (!needle) return true;
         const name = (user.fullName || user.name || `${user.firstName || ""} ${user.lastName || ""}` || "").toLowerCase();
         return (
@@ -351,12 +391,12 @@ function AdminRoles() {
   return (
     <div className="roles-page">
       <div className="roles-shell">
-        <AdminBreadcrumb items={[{ label: "Staff & Permissions" }]} />
+        <AdminBreadcrumb items={[{ label: "Users & Permissions" }]} />
 
         <AdminPageHeader
           eyebrow="Security Command Center"
-          title="Staff & Permissions"
-          subtitle="Monitor access, roles, and permissions across your ERP."
+          title="Users & Permissions"
+          subtitle="Monitor access, roles, and active sessions across your portal."
           actionsClassName="admin-header-actions roles-actions"
           actions={
             <>
@@ -392,16 +432,17 @@ function AdminRoles() {
                 ? "Checking live sessions"
                 : usersWithActiveSessions
                   ? `${usersWithActiveSessions} user${usersWithActiveSessions === 1 ? "" : "s"} signed in`
-                  : "No signed-in staff"}
+                  : "No signed-in users"}
             </p>
           </div>
           <div className="glass-card roles-card">
             <p className="roles-label">Role distribution</p>
             <div className="roles-legend">
-              <span className="pill purple">Admin {roleCounts.admin}</span>
-              <span className="pill blue">Staff {roleCounts.staff}</span>
-              <span className="pill green">Custodian {roleCounts.custodian}</span>
-              <span className="pill purple">Manager {roleCounts.manager}</span>
+              {roleSummary.map((role) => (
+                <span key={role.key} className={`pill ${role.colorClass}`}>
+                  {role.label} {role.count}
+                </span>
+              ))}
             </div>
           </div>
         </section>
@@ -410,8 +451,8 @@ function AdminRoles() {
           <div className="roles-panel-head">
             <div>
               <p className="roles-label">User management</p>
-              <h3>Team directory</h3>
-              <p className="roles-sub">Edit permissions, reset credentials, or deactivate.</p>
+              <h3>User directory</h3>
+              <p className="roles-sub">Edit permissions, reset credentials, or deactivate portal access.</p>
             </div>
             <div className="roles-filters">
               <label className="roles-search">
@@ -432,10 +473,11 @@ function AdminRoles() {
                   ariaLabel="Filter by role"
                 >
                   <option value="all">All</option>
-                  <option value="admin">Admin</option>
-                  <option value="staff">Staff</option>
-                  <option value="custodian">Custodian</option>
-                  <option value="manager">Manager</option>
+                  {roleFilterOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
                 </SelectField>
               </label>
               <div className="roles-count">
@@ -462,7 +504,7 @@ function AdminRoles() {
                 </thead>
                 <tbody>
                   {filteredUsers.map((user, index) => {
-                    const roleKey = (user.role || "").toLowerCase();
+                    const roleKey = normalizeRoleKey(user.role);
                     const menuOpen = openMenu?.userId === user.id;
                     return (
                         <tr key={user.id} onClick={() => openDetailModal(user)} className="roles-row">
@@ -615,11 +657,11 @@ function AdminRoles() {
                   onChangeValue={(nextValue) => setInviteForm((prev) => ({ ...prev, role: String(nextValue) }))}
                   ariaLabel="Invite role"
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Staff">Staff</option>
-                  <option value="Custodian">Custodian</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Water">Water</option>
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
                 </SelectField>
               </label>
               {inviteError && <p className="customers-error">{inviteError}</p>}

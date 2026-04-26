@@ -712,12 +712,15 @@
   }
 
   .slot-modal {
-    padding: 1rem 0.9rem calc(var(--mobile-tabbar-clearance) + 1rem);
+    padding:
+      calc(var(--topbar-height) + 0.9rem)
+      0.9rem
+      calc(var(--mobile-tabbar-clearance) + 0.9rem);
   }
 
   .slot-modal__card {
     width: min(520px, 100%);
-    max-height: calc(100dvh - var(--mobile-tabbar-clearance) - 2rem);
+    max-height: calc(100dvh - var(--topbar-height) - var(--mobile-tabbar-clearance) - 1.8rem);
     margin: 0 auto;
     padding: 1rem;
   }
@@ -731,6 +734,6 @@
   .slot-modal {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
-    padding-bottom: calc(var(--mobile-tabbar-clearance) + 0.85rem);
+    padding-bottom: calc(var(--mobile-tabbar-clearance) + 0.75rem);
   }
 }

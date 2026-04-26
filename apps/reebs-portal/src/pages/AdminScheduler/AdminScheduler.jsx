@@ -9,6 +9,15 @@ import SearchField from "../../components/SearchField/SearchField";
 import { GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faArrowLeft, faArrowRight } from "/src/icons/iconSet";
+import {
+  buildProductSearchText,
+  buildVariantOptionLabel,
+  getActiveItemVariants,
+  getProductLineKey,
+  getVariantAvailableQty,
+  getVariantUnitPrice,
+  isVariantParentItem,
+} from "../../utils/productVariants";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -182,6 +191,9 @@ const formatMoney = (value, currency = "GHS") => {
     return `${normalized} ${amount}`;
   }
 };
+
+const getSchedulerLineLabel = (product, variant = null) =>
+  variant ? `${product?.name || "Product"} / ${buildVariantOptionLabel(product, variant)}` : product?.name || "Product";
 
 const normalizeVenueAddress = (value) =>
   String(value || "")
@@ -383,18 +395,26 @@ function AdminScheduler() {
     const list = [...products].sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
     if (!needle) return list;
     return list.filter((product) => {
-      return (
-        product.name?.toLowerCase().includes(needle) ||
-        product.sku?.toLowerCase().includes(needle)
-      );
+      return buildProductSearchText(product).includes(needle);
     });
   }, [productQuery, products]);
 
   const bookingTotalCents = useMemo(() => {
     return bookingForm.items.reduce((sum, item) => {
       const product = productMap.get(Number(item.productId));
-      const priceValue = Number(product?.price ?? product?.priceCents ?? 0);
-      const priceCents = Number.isFinite(priceValue) ? priceValue : 0;
+      const variant = Array.isArray(product?.variants)
+        ? product.variants.find((entry) => Number(entry?.id) === Number(item.variantId))
+        : null;
+      const basePrice = variant
+        ? getVariantUnitPrice(product, variant)
+        : Number(product?.price ?? product?.priceCents ?? 0);
+      const normalizedUnitPrice =
+        variant
+          ? basePrice
+          : product?.priceCents != null && product?.price == null
+            ? basePrice / 100
+            : basePrice;
+      const priceCents = Number.isFinite(normalizedUnitPrice) ? Math.round(normalizedUnitPrice * 100) : 0;
       const quantity = Number(item.quantity) || 1;
       return sum + priceCents * quantity;
     }, 0);
@@ -428,38 +448,54 @@ function AdminScheduler() {
     setBookingError("");
   };
 
-  const addItem = (product) => {
+  const addItem = (product, variant = null) => {
+    const lineKey = getProductLineKey(product.id, variant?.id);
     setBookingForm((prev) => {
-      const existing = prev.items.find((item) => Number(item.productId) === Number(product.id));
+      const existing = prev.items.find(
+        (item) => getProductLineKey(item.productId, item.variantId) === lineKey
+      );
       if (existing) {
         return {
           ...prev,
           items: prev.items.map((item) =>
-            Number(item.productId) === Number(product.id)
+            getProductLineKey(item.productId, item.variantId) === lineKey
               ? { ...item, quantity: (Number(item.quantity) || 1) + 1 }
               : item
           ),
         };
       }
-      return { ...prev, items: [...prev.items, { productId: product.id, quantity: 1 }] };
+      return {
+        ...prev,
+        items: [
+          ...prev.items,
+          {
+            productId: product.id,
+            variantId: variant?.id || null,
+            variantLabel: variant ? getSchedulerLineLabel(product, variant) : "",
+            quantity: 1,
+          },
+        ],
+      };
     });
   };
 
-  const updateItemQuantity = (productId, nextValue) => {
+  const updateItemQuantity = (lineKey, nextValue) => {
     setBookingForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => {
-        if (Number(item.productId) !== Number(productId)) return item;
+        if (getProductLineKey(item.productId, item.variantId) !== lineKey) return item;
         const next = Math.max(1, parseInt(nextValue, 10) || 1);
         return { ...item, quantity: next };
       }),
     }));
   };
 
-  const removeItem = (productId) => {
+  const removeItem = (lineKey) => {
     setBookingForm((prev) => ({
       ...prev,
-      items: prev.items.filter((item) => Number(item.productId) !== Number(productId)),
+      items: prev.items.filter(
+        (item) => getProductLineKey(item.productId, item.variantId) !== lineKey
+      ),
     }));
   };
 
@@ -473,6 +509,7 @@ function AdminScheduler() {
     const normalizedItems = bookingForm.items
       .map((item) => ({
         productId: Number(item.productId),
+        variantId: Number(item.variantId) || undefined,
         quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
       }))
       .filter((item) => Number.isFinite(item.productId));
@@ -1220,35 +1257,60 @@ function AdminScheduler() {
 
               <div className="booking-items-picker">
                 <div className="booking-items-list">
-                  {filteredProducts.slice(0, 10).map((product) => (
-                    <button
-                      key={product.id}
-                      type="button"
-                      className="booking-item-add"
-                      onClick={() => addItem(product)}
-                    >
-                      {product.name}
-                    </button>
-                  ))}
+                  {filteredProducts.slice(0, 10).map((product) => {
+                    const variants = getActiveItemVariants(product);
+                    if (isVariantParentItem(product) && variants.length) {
+                      return (
+                        <div key={product.id} className="booking-item-add booking-item-add--variants">
+                          <strong>{product.name}</strong>
+                          <div className="booking-item-variant-buttons">
+                            {variants.map((variant) => (
+                              <button
+                                key={variant.id}
+                                type="button"
+                                onClick={() => addItem(product, variant)}
+                                disabled={getVariantAvailableQty(variant) <= 0}
+                              >
+                                {buildVariantOptionLabel(product, variant)}
+                                <small>{getVariantAvailableQty(variant)} left</small>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        className="booking-item-add"
+                        onClick={() => addItem(product)}
+                      >
+                        {product.name}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {bookingForm.items.length > 0 && (
                   <div className="booking-items-selected">
                     {bookingForm.items.map((item) => {
                       const product = productMap.get(Number(item.productId));
+                      const lineKey = getProductLineKey(item.productId, item.variantId);
                       return (
-                        <div key={item.productId} className="booking-item-row">
-                          <span>{product?.name || `Product ${item.productId}`}</span>
+                        <div key={lineKey} className="booking-item-row">
+                          <span>{item.variantLabel || product?.name || `Product ${item.productId}`}</span>
                           <div className="booking-item-controls">
                             <input
                               type="number"
                               min="1"
                               value={item.quantity}
                               onChange={(event) =>
-                                updateItemQuantity(item.productId, event.target.value)
+                                updateItemQuantity(lineKey, event.target.value)
                               }
                             />
-                            <button type="button" onClick={() => removeItem(item.productId)}>
+                            <button type="button" onClick={() => removeItem(lineKey)}>
                               Remove
                             </button>
                           </div>
