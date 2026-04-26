@@ -1,7 +1,18 @@
-const normalizeAdminRole = (role) => String(role || "").trim().toLowerCase();
+const LEGACY_ROLE_ALIASES = {
+  viewer: "staff",
+  custodian: "staff",
+  sales: "staff",
+};
 
+const normalizeAdminRole = (role) => {
+  const normalized = String(role || "").trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[normalized] || normalized;
+};
+
+const STANDARD_PORTAL_ROLES = ["owner", "admin", "manager", "staff", "warehouse"];
 const OWNER_ADMIN_ROLES = ["owner", "admin"];
 const PRIVILEGED_PORTAL_ROLES = ["owner", "admin", "manager"];
+const DRIVER_PORTAL_ROLES = ["driver"];
 const WATER_PORTAL_ROLES = ["owner", "admin", "manager", "water"];
 
 const roleMatchesAllowedRoles = (role, allowedRoles = []) => {
@@ -25,10 +36,10 @@ const roleMatchesAllowedRoles = (role, allowedRoles = []) => {
 };
 
 const isWaterPortalRole = (role) => normalizeAdminRole(role) === "water";
+const isDriverPortalRole = (role) => roleMatchesAllowedRoles(role, DRIVER_PORTAL_ROLES);
 
 const canAccessStandardPortalArea = (role) => {
-  const normalizedRole = normalizeAdminRole(role);
-  return Boolean(normalizedRole) && normalizedRole !== "water";
+  return roleMatchesAllowedRoles(role, STANDARD_PORTAL_ROLES);
 };
 
 const canAccessOwnerAdminPortalArea = (role) =>
@@ -40,10 +51,14 @@ const canAccessPrivilegedPortalArea = (role) =>
 const canAccessWaterPortalArea = (role) =>
   roleMatchesAllowedRoles(role, WATER_PORTAL_ROLES);
 
-const canAccessPortalCustomerDirectory = (role) => canAccessStandardPortalArea(role);
+const canAccessPortalCustomerDirectory = (role) =>
+  canAccessStandardPortalArea(role) || isDriverPortalRole(role);
 const canAccessPortalInventory = (role) => canAccessStandardPortalArea(role);
 const canAccessPortalOrders = (role) => canAccessStandardPortalArea(role);
-const canAccessPortalBookings = (role) => canAccessPrivilegedPortalArea(role);
+const canAccessPortalBookings = (role) =>
+  canAccessPrivilegedPortalArea(role) || isDriverPortalRole(role);
+const canAccessPortalDelivery = (role) =>
+  canAccessPrivilegedPortalArea(role) || isDriverPortalRole(role);
 const canAccessPortalTimesheets = (role) => canAccessStandardPortalArea(role);
 
 const normalizeAdminPath = (path) => {
@@ -70,11 +85,19 @@ const canAccessPortalRoute = (role, path = "") => {
 
   if (
     normalizedPath === "/admin/bookings"
-    || normalizedPath === "/admin/schedule"
+  ) {
+    return canAccessPortalBookings(role);
+  }
+
+  if (normalizedPath === "/admin/delivery") {
+    return canAccessPortalDelivery(role);
+  }
+
+  if (
+    normalizedPath === "/admin/schedule"
     || normalizedPath === "/admin/accounting"
     || normalizedPath === "/admin/expenses"
     || normalizedPath === "/admin/vendors"
-    || normalizedPath === "/admin/delivery"
     || normalizedPath === "/admin/documents"
     || normalizedPath === "/admin/settings"
     || normalizedPath === "/admin/hr"
@@ -87,6 +110,14 @@ const canAccessPortalRoute = (role, path = "") => {
     return canAccessPrivilegedPortalArea(role);
   }
 
+  if (normalizedPath === "/admin/directory") {
+    return canAccessPortalCustomerDirectory(role);
+  }
+
+  if (normalizedPath === "/admin/crm" || normalizedPath === "/admin/customers") {
+    return canAccessStandardPortalArea(role);
+  }
+
   if (
     normalizedPath === "/admin/store-mode"
     || normalizedPath === "/admin/inventory"
@@ -94,11 +125,8 @@ const canAccessPortalRoute = (role, path = "") => {
     || normalizedPath === "/admin/offline"
     || normalizedPath === "/admin/orders"
     || normalizedPath === "/admin/orders/new"
-    || normalizedPath === "/admin/crm"
-    || normalizedPath === "/admin/customers"
     || normalizedPath === "/admin/users"
     || normalizedPath === "/admin/employees"
-    || normalizedPath === "/admin/directory"
     || normalizedPath === "/admin/maintenance"
     || normalizedPath === "/admin/timesheets"
     || normalizedPath === "/admin/rentals"
@@ -128,9 +156,12 @@ const getPortalAccessFallbackPath = (role) =>
   isWaterPortalRole(role) ? "/admin/water" : "/admin";
 
 export {
+  DRIVER_PORTAL_ROLES,
   OWNER_ADMIN_ROLES,
   PRIVILEGED_PORTAL_ROLES,
+  STANDARD_PORTAL_ROLES,
   WATER_PORTAL_ROLES,
+  canAccessPortalDelivery,
   canAccessOwnerAdminPortalArea,
   canAccessPortalBookings,
   canAccessPortalCustomerDirectory,
@@ -143,6 +174,7 @@ export {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
   getPortalAccessFallbackPath,
+  isDriverPortalRole,
   isWaterPortalRole,
   normalizeAdminRole,
   normalizeAdminPath,

@@ -15,17 +15,16 @@ import {
     getCatalogItemDisplayName,
     getCatalogItemImage,
 } from '/src/utils/itemMediaBackgrounds';
+import {
+    getFrontendRentalCategory,
+    getFrontendRentalDetailPath,
+    isFrontendRentalItem,
+    shouldExcludeFrontendRental,
+    slugifyRentalValue,
+} from '/src/utils/rentalCatalog';
 
 const MAX_RENTALS_QUERY_LENGTH = 80;
 const SEARCH_DIACRITICS = /[\u0300-\u036f]/g;
-
-const slugify = (value = "") =>
-    value
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
 
 const CATEGORY_ORDER = ["Bouncy Castles", "Kids Rentals", "Indoor Games", "Setup"];
 const RENTALS_CACHE_KEY = "reebs_rentals_cache_v1";
@@ -81,12 +80,7 @@ const sortCategories = (a, b) => {
     return a.localeCompare(b);
 };
 
-const rentalPath = (item) => {
-    const idSlug = String(item?.id || item?.productId || "").trim();
-    const nameSlug = slugify(item?.name);
-    const pageSlug = slugify(item?.page?.split("/").filter(Boolean).pop() || "");
-    return `/Rentals/${idSlug || nameSlug || pageSlug || ""}`;
-};
+const rentalPath = (item) => getFrontendRentalDetailPath(item);
 
 const clampRentalsQuery = (value = "") =>
     value
@@ -103,45 +97,11 @@ const normalizeSearchText = (value = "") =>
         .trim()
         .replace(/\s+/g, " ");
 
-const normalizeCategory = (value) => {
-    const raw = (value || "").toString().trim();
-    const lowered = raw.toLowerCase();
-    if (!raw) return "Other";
-    if (lowered.includes("bouncy")) return "Bouncy Castles";
-    if (lowered.includes("kid") && lowered.includes("rental")) {
-        return "Kids Rentals";
-    }
-    if (lowered.includes("machine") || lowered.includes("setup")) {
-        return "Setup";
-    }
-    if (lowered.includes("indoor") || lowered.includes("board game") || lowered.includes("jenga")) {
-        return "Indoor Games";
-    }
-    return raw;
-};
-
-const isKidsPartyMachine = (item = {}) => {
-    const name = `${item?.name || ""}`.toLowerCase();
-    return (
-        name.includes("popcorn") ||
-        name.includes("snow cone") ||
-        name.includes("snowcone") ||
-        name.includes("cotton candy")
-    );
-};
-
 const getCategory = (item = {}) => {
-    if (isKidsPartyMachine(item)) return "Kids Rentals";
-    return normalizeCategory(item.specificCategory || item.specificcategory || item.category || "Other");
-};
-const isKnownRentalCategory = (item = {}) => {
-    const category = getCategory(item);
-    if (!category) return false;
-    if (["Setup", "Indoor Games", "Bouncy Castles", "Kids Rentals"].includes(category)) return true;
-    return category.toLowerCase().includes("rental");
+    return getFrontendRentalCategory(item);
 };
 const isCategoryStub = (item = {}) => {
-    const nameSlug = slugify(item?.name);
+    const nameSlug = slugifyRentalValue(item?.name);
     return [
         "bouncy-castle",
         "bouncy-castles",
@@ -150,20 +110,7 @@ const isCategoryStub = (item = {}) => {
         "indoor-board-games"
     ].includes(nameSlug);
 };
-const shouldExcludeFromRentals = (item = {}) => {
-    const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toLowerCase();
-    if (source === "water") return true;
-    const category = getCategory(item);
-    if (category.toLowerCase() === "party supplies") return true;
-    if (category !== "Setup") return false;
-    const name = `${item?.name || ""}`.toLowerCase();
-    return (
-        name.includes("air blower") ||
-        name.includes("air-blower") ||
-        name.includes("airblower") ||
-        name.includes("blower pump")
-    );
-};
+const shouldExcludeFromRentals = (item = {}) => shouldExcludeFrontendRental(item);
 const isContactPricing = (item = {}) => {
     const text = `${item.specificCategory || item.specificcategory || ""} ${item.category || ""} ${item.name || ""}`.toLowerCase(); 
     return (
@@ -206,7 +153,7 @@ const getPopularityScore = (item = {}) => {
 };
 
 const getRentalIdentityKey = (item = {}) =>
-    item.productId || item.id || `${slugify(item.name)}-${getCategory(item)}`;
+    item.productId || item.id || `${slugifyRentalValue(item.name)}-${getCategory(item)}`;
 
 const uniqueByKey = (items = []) => {
     const unique = new Map();
@@ -262,12 +209,8 @@ function Rentals() {
 
                 const rentalItems = (Array.isArray(inventoryData) ? inventoryData : [])
                     .filter((item) => {
-                        const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toLowerCase();
-                        const isRental = source
-                            ? source === "rental"
-                            : (item.sku || "").toString().toUpperCase().startsWith("REN") || isKnownRentalCategory(item);
                         const isActive = (item.status ?? item.isActive) !== false;
-                        return isRental && isActive;
+                        return isFrontendRentalItem(item) && isActive;
                     });
 
                 const baseCombined = rentalItems.filter(
@@ -319,7 +262,7 @@ function Rentals() {
                     sourceCategoryCode: "RENTAL",
                     specificCategory: "Bouncy Castles",
                     imageUrl: item.image,
-                    page: `/Rentals/${slugify(item.name)}`,
+                    page: `/rentals/${slugifyRentalValue(item.name)}`,
                     price: item.priceRange || item.price,
                     rate: item.rate || "per day",
                 }));
@@ -433,7 +376,7 @@ function Rentals() {
         const categories = Array.from(grouped.keys()).sort(sortCategories);
         return categories.map((category) => ({
             category,
-            id: slugify(category),
+            id: slugifyRentalValue(category),
             items: grouped.get(category),
         }));
     }, [filteredRentals]);

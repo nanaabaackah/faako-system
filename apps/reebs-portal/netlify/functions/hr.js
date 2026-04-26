@@ -12,11 +12,30 @@ const VALID_USER_ROLES = new Set([
   "staff",
   "warehouse",
   "driver",
-  "viewer",
-  "custodian",
-  "sales",
   "water",
 ]);
+
+const LEGACY_ROLE_ALIASES = {
+  viewer: "staff",
+  custodian: "staff",
+  sales: "staff",
+};
+
+const normalizeEmployeeRoleKey = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[normalized] || normalized;
+};
+
+const formatEmployeeRole = (value) => {
+  const normalized = normalizeEmployeeRoleKey(value);
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+
+const normalizeEmployeeRecord = (row = {}) => ({
+  ...row,
+  role: formatEmployeeRole(row.role),
+});
 
 const profileTableStatements = [
   `CREATE TABLE IF NOT EXISTS "employeeProfile" (
@@ -126,7 +145,12 @@ export async function handler(event = {}) {
         ORDER BY u."fullName" ASC NULLS LAST, u.id ASC`,
         [organizationId]
       );
-      return respond(event, 200, staff.rows || [], { methods: HR_METHODS });
+      return respond(
+        event,
+        200,
+        (staff.rows || []).map((row) => normalizeEmployeeRecord(row)),
+        { methods: HR_METHODS }
+      );
     }
 
     if (event.httpMethod !== "PUT") {
@@ -287,7 +311,7 @@ export async function handler(event = {}) {
       [id, organizationId]
     );
 
-    return respond(event, 200, updated.rows[0], { methods: HR_METHODS });
+    return respond(event, 200, normalizeEmployeeRecord(updated.rows[0]), { methods: HR_METHODS });
   } catch (err) {
     console.error("❌ HR error:", err);
     return respond(event, 500, { error: "Failed to process HR request" }, { methods: HR_METHODS });

@@ -7,6 +7,7 @@ import {
   faMoneyCheckDollar,
   faReceipt,
   faStore,
+  faTruck,
   faUserGroup,
   faUserPlus,
   faUsers,
@@ -202,11 +203,70 @@ const WATER_ACTION_SET = {
   ],
 };
 
+const DRIVER_ACTION_SET = {
+  badge: "Delivery Flow",
+  steps: [
+    {
+      key: "bookings",
+      label: "Upcoming bookings",
+      description: "Open the bookings board with the next 7 days in view.",
+      icon: faCalendarDays,
+      path: DASHBOARD_PATHS.bookingsConfirmed,
+    },
+    {
+      key: "delivery",
+      label: "Delivery board",
+      description: "Jump into handoffs, routes, and stop updates.",
+      icon: faTruck,
+      path: "/admin/delivery",
+    },
+    {
+      key: "customers",
+      label: "Customer directory",
+      description: "Delivery contacts and account details in one view.",
+      icon: faUserGroup,
+      path: DASHBOARD_PATHS.customerDirectory,
+    },
+  ],
+  shortcuts: [
+    {
+      key: "delivery",
+      label: "Delivery board",
+      description: "Update route groups, ETAs, and stop status.",
+      icon: faTruck,
+      path: "/admin/delivery",
+    },
+    {
+      key: "bookings",
+      label: "Bookings",
+      description: "See the upcoming delivery queue.",
+      icon: faCalendarDays,
+      path: "/admin/bookings",
+    },
+    {
+      key: "customers",
+      label: "Customers",
+      description: "Open customer contact records for delivery follow-ups.",
+      icon: faUserGroup,
+      path: DASHBOARD_PATHS.customerDirectory,
+    },
+    {
+      key: "profile",
+      label: "My profile",
+      description: "Review your account and session details.",
+      icon: faUser,
+      path: DASHBOARD_PATHS.profile,
+    },
+  ],
+};
+
 export const getDashboardActionSet = (role) => {
   const normalizedRole = normalizeAdminRole(role);
   const selectedSet =
     normalizedRole === "admin" || normalizedRole === "manager"
       ? ADMIN_MANAGER_ACTION_SET
+      : normalizedRole === "driver"
+        ? DRIVER_ACTION_SET
       : normalizedRole === "water"
         ? WATER_ACTION_SET
         : STAFF_ACTION_SET;

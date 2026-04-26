@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./AdminDirectory.css";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -7,6 +7,8 @@ import { faPlus, faRotateRight, faXmark, faPen, faEye } from "/src/icons/iconSet
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import { useAuth } from "../../components/AuthContext/AuthContext";
+import { normalizeAdminRole } from "../../utils/adminAccess";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import roleColors from "../../utils/roleColors";
 
@@ -82,7 +84,14 @@ const generateEmailFromNames = (firstName, lastName) => {
 function AdminDirectory() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("users");
+  const { user } = useAuth();
+  const roleKey = normalizeAdminRole(user?.role);
+  const isDriverUser = roleKey === "driver";
+  const availableTabs = useMemo(
+    () => (isDriverUser ? tabs.filter((tab) => tab.key === "customers") : tabs),
+    [isDriverUser]
+  );
+  const [activeTab, setActiveTab] = useState(() => (isDriverUser ? "customers" : "users"));
   const [users, setUsers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -121,20 +130,25 @@ function AdminDirectory() {
     setLoading(true);
     setError("");
     try {
-      const [usersRes, customersRes, vendorsRes] = await Promise.all([
-        fetch("/.netlify/functions/users"),
-        fetch("/.netlify/functions/customers"),
-        fetch("/.netlify/functions/vendors"),
-      ]);
-      const [usersData, customersData, vendorsData] = await Promise.all([
-        usersRes.json().catch(() => null),
-        customersRes.json().catch(() => null),
-        vendorsRes.json().catch(() => null),
-      ]);
+      const requests = isDriverUser
+        ? [fetch("/.netlify/functions/customers")]
+        : [
+            fetch("/.netlify/functions/users"),
+            fetch("/.netlify/functions/customers"),
+            fetch("/.netlify/functions/vendors"),
+          ];
+      const responses = await Promise.all(requests);
+      const payloads = await Promise.all(responses.map((response) => response.json().catch(() => null)));
+      const [usersRes, customersRes, vendorsRes] = isDriverUser
+        ? [null, responses[0], null]
+        : responses;
+      const [usersData, customersData, vendorsData] = isDriverUser
+        ? [[], payloads[0], []]
+        : payloads;
       const errors = [];
-      if (!usersRes.ok) errors.push(usersData?.error || "Failed to load users.");
-      if (!customersRes.ok) errors.push(customersData?.error || "Failed to load customers.");
-      if (!vendorsRes.ok) errors.push(vendorsData?.error || "Failed to load vendors.");
+      if (usersRes && !usersRes.ok) errors.push(usersData?.error || "Failed to load users.");
+      if (customersRes && !customersRes.ok) errors.push(customersData?.error || "Failed to load customers.");
+      if (vendorsRes && !vendorsRes.ok) errors.push(vendorsData?.error || "Failed to load vendors.");
       if (errors.length) {
         setError(errors.join(" "));
       }
@@ -259,7 +273,8 @@ function AdminDirectory() {
     return { count: paginatedList.length };
   }, [activeTab, paginatedList]);
 
-  const openCreateModal = () => {
+  const openCreateModal = useCallback(() => {
+    if (isDriverUser) return;
     setEditing(null);
     setSaveError("");
     if (activeTab === "customers") {
@@ -268,9 +283,10 @@ function AdminDirectory() {
       setUserForm({ firstName: "", lastName: "", password: "", role: "Staff" });
     }
     setModalOpen(true);
-  };
+  }, [activeTab, isDriverUser]);
 
-  const openEditModal = (row) => {
+  const openEditModal = useCallback((row) => {
+    if (isDriverUser) return;
     setEditing(row);
     setSaveError("");
     if (activeTab === "customers") {
@@ -288,7 +304,7 @@ function AdminDirectory() {
       });
     }
     setModalOpen(true);
-  };
+  }, [activeTab, isDriverUser]);
 
   const closeModal = () => {
     setModalOpen(false);
@@ -296,7 +312,7 @@ function AdminDirectory() {
     setSaveError("");
   };
 
-  const openDetail = async (row) => {
+  const openDetail = useCallback(async (row) => {
     setDetailOpen(true);
     setDetailError("");
     setDetailRecord(null);
@@ -322,7 +338,7 @@ function AdminDirectory() {
       setDetailRecord(row);
       setDetailLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const closeDetail = () => {
     setDetailOpen(false);
@@ -336,7 +352,7 @@ function AdminDirectory() {
     event.preventDefault();
     setSaveError("");
 
-    if (activeTab === "vendors") return;
+    if (activeTab === "vendors" || isDriverUser) return;
 
     const trimmedFirst = userForm.firstName.trim();
     const trimmedLast = userForm.lastName.trim();
@@ -425,7 +441,7 @@ function AdminDirectory() {
         ? "Track vendor contacts, coverage, and lead times."
         : "Manage staff, admin accounts, and roles.";
 
-  const canMutate = activeTab !== "vendors";
+  const canMutate = !isDriverUser && activeTab !== "vendors";
   const columnCount = activeTab === "customers" ? 9 : activeTab === "vendors" ? 8 : 6;
   const searchPlaceholder =
     activeTab === "customers"
@@ -436,18 +452,18 @@ function AdminDirectory() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const nextTab = normalizeDirectoryTab(params.get("tab"));
+    const nextTab = isDriverUser ? "customers" : normalizeDirectoryTab(params.get("tab"));
     const nextQuery = params.get("q") || "";
     setActiveTab((current) => (current === nextTab ? current : nextTab));
     setQuery((current) => (current === nextQuery ? current : nextQuery));
-  }, [location.search]);
+  }, [isDriverUser, location.search]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const action = String(params.get("action") || "").trim().toLowerCase();
     if (!action || loading) return;
 
-    const targetTab = normalizeDirectoryTab(params.get("tab"));
+    const targetTab = isDriverUser ? "customers" : normalizeDirectoryTab(params.get("tab"));
     if (targetTab !== activeTab) return;
 
     const resetSearch = () =>
@@ -499,10 +515,14 @@ function AdminDirectory() {
     activeTab,
     canMutate,
     customers,
+    isDriverUser,
     loading,
     location.pathname,
     location.search,
     navigate,
+    openCreateModal,
+    openDetail,
+    openEditModal,
     users,
     vendors,
   ]);
@@ -522,10 +542,12 @@ function AdminDirectory() {
                 <AppIcon icon={faRotateRight} />
                 Refresh
               </button>
-              <button type="button" className="customers-primary" onClick={openCreateModal} disabled={!canMutate}>
-                <AppIcon icon={faPlus} />
-                Add
-              </button>
+              {canMutate ? (
+                <button type="button" className="customers-primary" onClick={openCreateModal}>
+                  <AppIcon icon={faPlus} />
+                  Add
+                </button>
+              ) : null}
             </>
           }
         />
@@ -537,7 +559,7 @@ function AdminDirectory() {
               <span>{query ? `${currentList.length} match${currentList.length === 1 ? "" : "es"} / ${totalRecords} total` : `${totalRecords} total`}</span>
             </div>
             <div className="directory-tabs">
-              {tabs.map((tab) => (
+              {availableTabs.map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
@@ -660,14 +682,16 @@ function AdminDirectory() {
                                 <AppIcon icon={faEye} />
                                 View
                               </button>
-                              <button
-                                type="button"
-                                className="directory-edit"
-                                onClick={() => openEditModal(row)}
-                              >
-                                <AppIcon icon={faPen} />
-                                Edit
-                              </button>
+                              {canMutate ? (
+                                <button
+                                  type="button"
+                                  className="directory-edit"
+                                  onClick={() => openEditModal(row)}
+                                >
+                                  <AppIcon icon={faPen} />
+                                  Edit
+                                </button>
+                              ) : null}
                             </>
                           )}
                           {activeTab === "vendors" && (
@@ -868,7 +892,6 @@ function AdminDirectory() {
                       <option value="Admin">Admin</option>
                       <option value="Staff">Staff</option>
                       <option value="Water">Water</option>
-                      <option value="Viewer">Viewer</option>
                     </SelectField>
                   </label>
 

@@ -1,7 +1,16 @@
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./http.js";
 import { requireUser } from "./userAuth.js";
 
-export const normalizeRole = (role) => String(role || "").trim().toLowerCase();
+const LEGACY_ROLE_ALIASES = {
+  viewer: "staff",
+  custodian: "staff",
+  sales: "staff",
+};
+
+export const normalizeRole = (role) => {
+  const normalized = String(role || "").trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[normalized] || normalized;
+};
 
 export const hasAnyRole = (user, roles = []) => {
   if (!Array.isArray(roles) || roles.length === 0) return true;

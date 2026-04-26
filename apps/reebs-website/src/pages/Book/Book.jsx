@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Book.css";
 import { Link, useSearchParams } from "react-router-dom";
 import { DateField, SelectField } from "@faako/ui";
@@ -22,20 +22,16 @@ import {
   loadExpiringDraft,
   saveExpiringDraft,
 } from "/src/utils/formDrafts";
+import {
+  getFrontendRentalDetailSlug,
+  isFrontendRentalItem,
+  shouldExcludeFrontendRental,
+  slugifyRentalValue,
+} from "/src/utils/rentalCatalog";
 // Bouncy castles are loaded from the database
 
-const slugify = (value = "") =>
-  value
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-
 const rentalSlug = (item) => {
-  const pageSlug = item?.page?.split("/").filter(Boolean).pop();
-  const nameSlug = slugify(item?.name);
-  return pageSlug || nameSlug || item?.id || "";
+  return getFrontendRentalDetailSlug(item);
 };
 
 const getCategory = (item) =>
@@ -234,10 +230,13 @@ function Book() {
         const bouncyData = bouncyRes.ok ? await bouncyRes.json() : [];
 
         const rentalsOnly = (Array.isArray(inventoryData) ? inventoryData : []).filter((item) => {
-          const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toLowerCase();
-          const isRental = source ? source === "rental" : (item.sku || "").toString().toUpperCase().startsWith("REN");
           const isActive = (item.status ?? item.isActive) !== false;
-          return isRental && isActive && !shouldExcludeFromBooking(item);
+          return (
+            isFrontendRentalItem(item)
+            && isActive
+            && !shouldExcludeFrontendRental(item)
+            && !shouldExcludeFromBooking(item)
+          );
         });
 
         if (!active) return;
@@ -272,7 +271,7 @@ function Book() {
       Number.isFinite(Number(type.productId))
     );
     const bouncyOptions = availableBouncy.map((type) => ({
-      id: `bouncy-${slugify(type.name)}`,
+      id: `bouncy-${slugifyRentalValue(type.name)}`,
       name: type.name,
       image: type.image,
       imageUrl: type.image,
@@ -420,12 +419,12 @@ function Book() {
     return currentMinutes >= option.endMinutes;
   };
 
-  const pruneEventWindow = (selectedDate, selectedValue) => {
+  const pruneEventWindow = useCallback((selectedDate, selectedValue) => {
     if (!selectedDate || selectedDate !== today) return selectedValue;
     const match = EVENT_WINDOW_OPTIONS.find((option) => option.value === selectedValue);
     if (!match || typeof match.endMinutes !== "number") return selectedValue;
     return currentMinutes >= match.endMinutes ? "" : selectedValue;
-  };
+  }, [currentMinutes, today]);
 
   const updateFormValue = (field) => (event) => {
     const value = event.target.value;
@@ -448,7 +447,7 @@ function Book() {
       if (pruned === prev.eventWindow) return prev;
       return { ...prev, eventWindow: pruned };
     });
-  }, [today, currentMinutes]);
+  }, [pruneEventWindow, today]);
 
   const itemsSummaryValue = [
     ...selectedRentals.map(
@@ -673,7 +672,7 @@ function Book() {
                 <a className="hero-btn hero-btn-primary" href="#booking-form">
                   Start booking
                 </a>
-                <Link className="hero-btn hero-btn-ghost" to="/Rentals">
+                <Link className="hero-btn hero-btn-ghost" to="/rentals">
                   Browse rentals
                 </Link>
               </div>
@@ -1080,7 +1079,7 @@ function Book() {
                           >
                             {selected ? "Remove" : "Add to booking"}
                           </button>
-                          <Link className="hero-btn hero-btn-ghost" to={`/Rentals/${detailSlug}`}>
+                          <Link className="hero-btn hero-btn-ghost" to={`/rentals/${detailSlug}`}>
                             View details
                           </Link>
                         </div>

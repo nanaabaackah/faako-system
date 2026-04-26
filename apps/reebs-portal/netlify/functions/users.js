@@ -22,6 +22,54 @@ const buildEmailFromNames = (firstName, lastName) => {
 const buildFullName = (firstName, lastName) => {
   return [cleanNamePart(firstName), cleanNamePart(lastName)].filter(Boolean).join(" ").trim();
 };
+const LEGACY_ROLE_ALIASES = {
+  viewer: "staff",
+  custodian: "staff",
+  sales: "staff",
+};
+const VALID_USER_ROLE_KEYS = new Set([
+  "owner",
+  "admin",
+  "manager",
+  "staff",
+  "warehouse",
+  "driver",
+  "water",
+]);
+const normalizeRoleKey = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return LEGACY_ROLE_ALIASES[normalized] || normalized;
+};
+const formatStoredRole = (value) => {
+  const normalized = normalizeRoleKey(value);
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+const resolveRoleFilterKeys = (value) => {
+  const normalized = normalizeRoleKey(value);
+  if (!normalized) return [];
+  if (normalized === "staff") {
+    return ["staff", "viewer", "custodian", "sales"];
+  }
+  return [normalized];
+};
+const normalizeUserRecord = (row = {}, { limited = false } = {}) => {
+  const normalized = {
+    ...row,
+    role: formatStoredRole(row.role),
+  };
+  if (!limited) return normalized;
+  return {
+    id: normalized.id,
+    email: normalized.email,
+    firstName: normalized.firstName,
+    lastName: normalized.lastName,
+    fullName: normalized.fullName,
+    role: normalized.role,
+    createdAt: normalized.createdAt,
+    updatedAt: normalized.updatedAt,
+  };
+};
 const cleanPermissions = (value) => {
   if (!value) return null;
   if (typeof value === "object") return value;
@@ -68,16 +116,24 @@ export async function handler(event) {
     }
     const organizationId = authUser.organizationId;
     const isSystemAdmin = (authUser.email || "").toLowerCase() === SYSTEM_ADMIN_EMAIL;
+    const requesterRoleKey = normalizeRoleKey(authUser.role);
 
     if (method === "POST") {
       const firstName = cleanNamePart(payload.firstName);
       const lastName = cleanNamePart(payload.lastName);
       const password = typeof payload.password === "string" ? payload.password.trim() : "";
-      const role = typeof payload.role === "string" && payload.role.trim() ? payload.role.trim() : "Staff";
+      const roleKey = normalizeRoleKey(
+        typeof payload.role === "string" && payload.role.trim() ? payload.role.trim() : "Staff"
+      );
+      const role = formatStoredRole(roleKey) || "Staff";
       const permissions = cleanPermissions(payload.permissions) || {};
 
       if (!firstName || !lastName) {
         return respond(event, 400, { error: "firstName and lastName are required." });
+      }
+
+      if (!VALID_USER_ROLE_KEYS.has(roleKey)) {
+        return respond(event, 400, { error: "Invalid user role." });
       }
 
       const email = buildEmailFromNames(firstName, lastName);
@@ -100,7 +156,7 @@ export async function handler(event) {
           [organizationId, email, passwordHash, firstName, lastName, fullName, role, permissions]
         );
 
-        return respond(event, 201, result.rows[0]);
+        return respond(event, 201, normalizeUserRecord(result.rows[0]));
       } catch (err) {
         if (err?.code === "23505") {
           return respond(event, 409, { error: "User already exists (duplicate email)." });
@@ -122,7 +178,8 @@ export async function handler(event) {
       const requestedRole =
         typeof payload.role === "string" && payload.role.trim() ? payload.role.trim() : null;
       const parsedPermissions = cleanPermissions(payload.permissions);
-      const role = requestedRole;
+      const requestedRoleNormalized = requestedRole ? normalizeRoleKey(requestedRole) : null;
+      const role = requestedRoleNormalized ? formatStoredRole(requestedRoleNormalized) : null;
       const password = typeof payload.password === "string" ? payload.password.trim() : null;
 
       const existingRes = await client.query(
@@ -138,12 +195,15 @@ export async function handler(event) {
       const nextFirstName = firstName === null ? current.firstName : firstName;
       const nextLastName = lastName === null ? current.lastName : lastName;
 
-      const currentRoleNormalized = (current.role || "").toLowerCase();
-      const requestedRoleNormalized = requestedRole ? requestedRole.toLowerCase() : null;
+      const currentRoleNormalized = normalizeRoleKey(current.role);
       const wantsRoleChange =
         requestedRoleNormalized && requestedRoleNormalized !== currentRoleNormalized;
       if (wantsRoleChange && !isSystemAdmin) {
         return respond(event, 403, { error: "Only system administrator can change roles." });
+      }
+
+      if (requestedRoleNormalized && !VALID_USER_ROLE_KEYS.has(requestedRoleNormalized)) {
+        return respond(event, 400, { error: "Invalid user role." });
       }
 
       if (!nextFirstName || !nextLastName) {
@@ -210,7 +270,7 @@ export async function handler(event) {
           return respond(event, 404, { error: "User not found." });
         }
 
-        return respond(event, 200, result.rows[0]);
+        return respond(event, 200, normalizeUserRecord(result.rows[0]));
       } catch (err) {
         if (err?.code === "23505") {
           return respond(event, 409, { error: "Duplicate email." });
@@ -224,6 +284,18 @@ export async function handler(event) {
     }
 
     await ensureUserSessionsTable(client);
+    const requestedRoleFilter = event.queryStringParameters?.role || "";
+    const effectiveRoleFilterKeys =
+      requesterRoleKey === "driver"
+        ? ["driver"]
+        : resolveRoleFilterKeys(requestedRoleFilter);
+    const values = [organizationId];
+    const roleFilterClause = effectiveRoleFilterKeys.length
+      ? ` AND LOWER(u.role) = ANY($2)`
+      : "";
+    if (effectiveRoleFilterKeys.length) {
+      values.push(effectiveRoleFilterKeys);
+    }
 
     const result = await client.query(
       `SELECT
@@ -239,7 +311,7 @@ export async function handler(event) {
          COALESCE(session_meta."activeSessionCount", 0) AS "activeSessionCount",
          session_meta."lastSessionAt",
          COALESCE(session_meta.sessions, '[]'::json) AS sessions
-       FROM "user" u
+         FROM "user" u
        LEFT JOIN LATERAL (
          SELECT
            (
@@ -290,12 +362,16 @@ export async function handler(event) {
              ) active
            ) AS sessions
        ) session_meta ON TRUE
-       WHERE u."organizationId" = $1
+       WHERE u."organizationId" = $1${roleFilterClause}
        ORDER BY u.id DESC`,
-      [organizationId]
+      values
     );
 
-    return respond(event, 200, result.rows);
+    return respond(
+      event,
+      200,
+      (result.rows || []).map((row) => normalizeUserRecord(row, { limited: requesterRoleKey === "driver" }))
+    );
   } catch (err) {
     console.error("❌ Database error:", err);
     return respond(event, 500, { error: err.message || "Database error" });

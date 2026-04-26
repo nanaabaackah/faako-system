@@ -84,6 +84,7 @@ function BookingDetailModal({
 }) {
   if (!booking) return null;
 
+  const canOpenEdit = typeof openEdit === "function";
   const expenseQuery = String(detailExpenseDraft?.query || "").trim().toLowerCase();
   const filteredExpenses = detailExpenses.filter((expense) => {
     if (!expenseQuery) return true;
@@ -642,7 +643,7 @@ function BookingDetailModal({
                   {saving ? "Saving..." : "Save"}
                 </button>
               </div>
-            ) : (
+            ) : canOpenEdit ? (
               <button
                 type="button"
                 className={`bookings-edit${isMobileView ? " bookings-edit--icon" : ""}`}
@@ -654,7 +655,7 @@ function BookingDetailModal({
                 <AppIcon icon={bookingLocked ? faLock : faPen} />
                 {!isMobileView ? (bookingLocked ? "Locked" : "Edit") : null}
               </button>
-            )}
+            ) : null}
             {!detailEditing && isMobileView ? (
               <button
                 type="button"

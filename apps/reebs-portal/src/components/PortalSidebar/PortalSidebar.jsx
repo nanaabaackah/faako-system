@@ -56,8 +56,11 @@ import {
   canAccessPortalNavigationItem,
   canAccessPortalOrders,
   canAccessPrivilegedPortalArea,
+  normalizeAdminRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
+
+const STANDARD_NAV_ROLES = ["admin", "manager", "staff", "warehouse"];
 
 const MOBILE_QUERY = "(max-width: 720px)";
 const REEBS_PORTAL_LOGO_LIGHT = "/imgs/brand/reebs_logo2.svg";
@@ -116,7 +119,6 @@ const DEFAULT_APPS = [
     label: "Bookings",
     path: "/admin/bookings",
     icon: faCalendarDays,
-    roles: ["admin", "manager"],
   },
   {
     label: "Scheduling",
@@ -141,6 +143,7 @@ const DEFAULT_APPS = [
     path: "/admin/directory",
     matchPaths: ["/admin/directory", "/admin/users", "/admin/employees"],
     icon: faUsers,
+    roles: STANDARD_NAV_ROLES,
   },
   {
     label: "Expenses",
@@ -175,7 +178,6 @@ const DEFAULT_APPS = [
     label: "Delivery",
     path: "/admin/delivery",
     icon: faTruck,
-    roles: ["admin", "manager"],
   },
   {
     label: "Documents",
@@ -324,7 +326,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     getResolvedAdminTheme(activeAdminUserId)
   );
   const isAuthenticated = Boolean(user);
-  const userRole = String(user?.role || "staff").toLowerCase();
+  const userRole = normalizeAdminRole(user?.role);
   const isWaterUser = isWaterPortalRole(userRole);
   const canSearchInvoices = canAccessPrivilegedPortalArea(userRole);
   const canAccessCustomers = canAccessPortalCustomerDirectory(userRole);
@@ -684,14 +686,29 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     });
   };
 
+  const resolvedApps = useMemo(
+    () =>
+      apps.map((app) => {
+        if (userRole !== "driver" || app.path !== "/admin/crm") return app;
+        return {
+          ...app,
+          label: "Customers",
+          path: "/admin/directory?tab=customers",
+          matchPaths: ["/admin/directory", "/admin/customers"],
+          description: "Delivery customer records and contact details",
+        };
+      }),
+    [apps, userRole]
+  );
+
   const canSeeApp = (app) => {
     if (!isAuthenticated) return false;
     return canAccessPortalNavigationItem(userRole, app);
   };
 
   const visibleApps = useMemo(
-    () => sortPortalApps(apps.filter((app) => canSeeApp(app))),
-    [apps, isAuthenticated, isWaterUser, userRole]
+    () => sortPortalApps(resolvedApps.filter((app) => canSeeApp(app))),
+    [isAuthenticated, resolvedApps, isWaterUser, userRole]
   );
 
   const moduleSearchResults = useMemo(() => {

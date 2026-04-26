@@ -17,7 +17,10 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
 import BookingEditorModal from "./components/BookingEditorModal";
 import BookingDetailModal from "./components/BookingDetailModal";
-import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
+import {
+  canAccessPrivilegedPortalArea,
+  normalizeAdminRole,
+} from "../../utils/adminAccess";
 import {
   fetchBookingInvoiceDetails,
   fetchInvoiceDocumentById,
@@ -596,8 +599,9 @@ function AdminBookings() {
   });
   const [bouncyCastles, setBouncyCastles] = useState([]);
   const { user } = useAuth();
-  const roleKey = String(user?.role || "").trim().toLowerCase();
-  const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
+  const roleKey = normalizeAdminRole(user?.role);
+  const canManageBookings = canAccessPrivilegedPortalArea(roleKey);
+  const canAccessInvoicing = canManageBookings;
   const navigate = useNavigate();
   const supportLoadStateRef = useRef({
     products: { loaded: false, promise: null },
@@ -844,32 +848,37 @@ function AdminBookings() {
     setLoading(true);
     setError("");
     try {
-      const [bookingsRes, usersRes, documentsRes] = await Promise.all([
-        fetch("/.netlify/functions/bookings?compact=1"),
-        fetch("/.netlify/functions/users"),
-        fetch("/.netlify/functions/invoice-documents?compact=1"),
-      ]);
-
-      const [bookingsPayload, usersPayload, documentsPayload] = await Promise.all([
-        parseJsonResponse(bookingsRes),
-        parseJsonResponse(usersRes),
-        parseJsonResponse(documentsRes),
-      ]);
+      const requests = [fetch("/.netlify/functions/bookings?compact=1")];
+      if (canManageBookings) {
+        requests.push(fetch("/.netlify/functions/users"));
+        requests.push(fetch("/.netlify/functions/invoice-documents?compact=1"));
+      }
+      const responses = await Promise.all(requests);
+      const payloads = await Promise.all(responses.map((response) => parseJsonResponse(response)));
+      const bookingsRes = responses[0];
+      const bookingsPayload = payloads[0];
+      const usersRes = canManageBookings ? responses[1] : null;
+      const usersPayload = canManageBookings ? payloads[1] : [];
+      const documentsRes = canManageBookings ? responses[2] : null;
+      const documentsPayload = canManageBookings ? payloads[2] : [];
 
       if (!bookingsRes.ok) {
         throw new Error(bookingsPayload?.error || `Failed to fetch bookings (${bookingsRes.status}).`);
       }
-      if (!usersRes.ok) {
+      if (usersRes && !usersRes.ok) {
         throw new Error(usersPayload?.error || `Failed to fetch team members (${usersRes.status}).`);
       }
-      if (!documentsRes.ok) {
+      if (documentsRes && !documentsRes.ok) {
         throw new Error(documentsPayload?.error || `Failed to fetch invoice documents (${documentsRes.status}).`);
       }
 
       setBookings(Array.isArray(bookingsPayload) ? bookingsPayload : []);
       setUsers(Array.isArray(usersPayload) ? usersPayload : []);
       setDocuments(Array.isArray(documentsPayload) ? documentsPayload : []);
-      void ensureSupportData({ deliveries: true, expenses: true }, { force: true }).catch((err) => {
+      void ensureSupportData(
+        canManageBookings ? { deliveries: true, expenses: true } : { deliveries: true },
+        { force: true }
+      ).catch((err) => {
         console.warn("Failed to hydrate booking support data", err);
       });
     } catch (err) {
@@ -882,7 +891,7 @@ function AdminBookings() {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [canManageBookings]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1612,6 +1621,7 @@ function AdminBookings() {
   };
 
   const openCreate = () => {
+    if (!canManageBookings) return;
     ensureSupportData({ customers: true, products: true, bouncyCastles: true })
       .then(() => {
         setDetailEditing(false);
@@ -1641,6 +1651,11 @@ function AdminBookings() {
   };
 
   const openEdit = (booking, { inline = false } = {}) => {
+    if (!canManageBookings) {
+      openBookingDetail(booking);
+      return;
+    }
+
     if (isCompletedBooking(booking)) {
       openBookingDetail(booking);
       return;
@@ -1951,15 +1966,17 @@ function AdminBookings() {
               >
                 <AppIcon icon={faRotateRight} />
               </button>
-              <button
-                type="button"
-                className="bookings-primary"
-                onClick={openCreate}
-                aria-label="Create booking"
-                title="Create booking"
-              >
-                <AppIcon icon={faPlus} />
-              </button>
+              {canManageBookings ? (
+                <button
+                  type="button"
+                  className="bookings-primary"
+                  onClick={openCreate}
+                  aria-label="Create booking"
+                  title="Create booking"
+                >
+                  <AppIcon icon={faPlus} />
+                </button>
+              ) : null}
             </>
           )}
         />
@@ -2434,7 +2451,7 @@ function AdminBookings() {
         updateBookingStatus={updateBookingStatus}
         viewInvoice={viewInvoice}
         viewDelivery={viewDelivery}
-        openEdit={(booking) => openEdit(booking, { inline: true })}
+        openEdit={canManageBookings ? (booking) => openEdit(booking, { inline: true }) : undefined}
         closeInlineEdit={cancelDetailEdit}
         closeDetail={closeDetail}
         viewCustomer={viewCustomer}

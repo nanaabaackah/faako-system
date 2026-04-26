@@ -100,7 +100,7 @@ function AdminDelivery() {
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const res = await fetch("/.netlify/functions/users");
+        const res = await fetch("/.netlify/functions/users?role=driver");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load users.");
         const driverList = (Array.isArray(data) ? data : [])

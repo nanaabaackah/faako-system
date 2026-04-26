@@ -17,6 +17,7 @@ import {
   faPlus,
   faReceipt,
   faRotateRight,
+  faTruck,
   faTrash,
   faBolt,
   faUser,
@@ -45,6 +46,7 @@ import {
   canAccessPortalOrders,
   canAccessPortalRoute,
   canAccessPrivilegedPortalArea,
+  isDriverPortalRole,
   isWaterPortalRole,
   normalizeAdminRole,
 } from "../../utils/adminAccess";
@@ -449,6 +451,7 @@ function AdminWorkspace({ section = "home" }) {
   const { user, logout } = useAuth();
   const roleKey = normalizeAdminRole(user?.role);
   const isSystemAdmin = roleKey === "admin";
+  const isDriverUser = isDriverPortalRole(roleKey);
   const canViewHomeKpis = canAccessPrivilegedPortalArea(roleKey);
   const isWaterUser = isWaterPortalRole(roleKey);
   const canAccessCustomers = canAccessPortalCustomerDirectory(roleKey);
@@ -2577,6 +2580,17 @@ function AdminWorkspace({ section = "home" }) {
           { key: "water", label: "Water Desk", icon: faPlus, path: DASHBOARD_PATHS.water },
           { key: "profile", label: "My Profile", icon: faUser, path: "/admin/profile" },
         ]
+      : isDriverUser
+        ? [
+            { key: "bookings", label: "Bookings", icon: faCalendarDays, path: "/admin/bookings" },
+            { key: "delivery", label: "Delivery Board", icon: faTruck, path: "/admin/delivery" },
+            {
+              key: "customer",
+              label: "Customers",
+              icon: faClipboardList,
+              path: DASHBOARD_PATHS.customerDirectory,
+            },
+          ]
       : canViewHomeKpis
         ? [
             { key: "order", label: "Create Order", icon: faPlus, path: DASHBOARD_PATHS.newOrder },
@@ -2596,7 +2610,7 @@ function AdminWorkspace({ section = "home" }) {
     return filtered.length
       ? filtered
       : [{ key: "profile", label: "My Profile", icon: faUser, path: "/admin/profile" }];
-  }, [canViewHomeKpis, isWaterUser, roleKey]);
+  }, [canViewHomeKpis, isDriverUser, isWaterUser, roleKey]);
 
   const legacyModuleLinks = useMemo(() => getAdminQuickActions(roleKey), [roleKey]);
 

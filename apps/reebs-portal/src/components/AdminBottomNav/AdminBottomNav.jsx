@@ -4,14 +4,18 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faBoxesStacked,
-  faStore,
+  faCalendarDays,
   faHome,
   faReceipt,
+  faStore,
+  faTruck,
+  faUserGroup,
 } from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
 import {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
+  isDriverPortalRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
 
@@ -22,17 +26,28 @@ const BASE_NAV_ITEMS = [
   { id: "store-mode", label: "POS", path: "/admin/store-mode", icon: faStore },
 ];
 
+const DRIVER_NAV_ITEMS = [
+  { id: "home", label: "Home", path: "/admin", icon: faHome },
+  { id: "bookings", label: "Bookings", path: "/admin/bookings", icon: faCalendarDays },
+  { id: "delivery", label: "Delivery", path: "/admin/delivery", icon: faTruck },
+  { id: "customers", label: "Customers", path: "/admin/directory?tab=customers", icon: faUserGroup },
+];
+
 const WATER_NAV_ITEMS = [{ id: "water", label: "Water", path: "/admin/water", icon: faBoxesStacked }];
 
 const normalizePath = (pathname) => {
-  if (!pathname) return "/admin";
-  const trimmed = pathname.replace(/\/+$/, "");
+  const [basePath = ""] = String(pathname || "").split("?");
+  const trimmed = basePath.replace(/\/+$/, "");
   return trimmed || "/admin";
 };
 
 const getNavItems = (role) => {
   if (isWaterPortalRole(role)) {
     return WATER_NAV_ITEMS;
+  }
+
+  if (isDriverPortalRole(role)) {
+    return DRIVER_NAV_ITEMS;
   }
 
   const items = canAccessStandardPortalArea(role) ? [...BASE_NAV_ITEMS] : [];
@@ -62,9 +77,10 @@ function AdminBottomNav() {
       }}
     >
       {navItems.map((item) => {
+        const itemPath = normalizePath(item.path);
         const isActive =
-          normalizedPath === item.path ||
-          (item.path !== "/admin" && normalizedPath.startsWith(`${item.path}/`));
+          normalizedPath === itemPath ||
+          (itemPath !== "/admin" && normalizedPath.startsWith(`${itemPath}/`));
 
         return (
           <button

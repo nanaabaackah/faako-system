@@ -21,6 +21,7 @@ import {
 } from "./utils/adminPreferences";
 import {
   canAccessOwnerAdminPortalArea,
+  canAccessPortalRoute,
   canAccessPrivilegedPortalArea,
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
@@ -109,13 +110,14 @@ function RequireRole({ children, allowedRoles = [] }) {
   return children;
 }
 
-function RequirePortalAccess({ children, access = "standard" }) {
+function RequirePortalAccess({ children, access = "standard", path = "" }) {
   const { user, authReady } = useAuth();
   if (!authReady) return <RouteFallback />;
 
   const role = normalizeAdminRole(user?.role);
-  const canAccess =
-    access === "ownerAdmin"
+  const canAccess = path
+    ? canAccessPortalRoute(role, path)
+    : access === "ownerAdmin"
       ? canAccessOwnerAdminPortalArea(role)
       : access === "privileged"
         ? canAccessPrivilegedPortalArea(role)
@@ -283,7 +285,7 @@ function AppRoutes() {
         path="/admin/directory"
         element={
           <RequireAuth>
-            <RequirePortalAccess access="standard">
+            <RequirePortalAccess path="/admin/directory">
               <AdminDirectory />
             </RequirePortalAccess>
           </RequireAuth>
@@ -333,7 +335,7 @@ function AppRoutes() {
         path="/admin/delivery"
         element={
           <RequireAuth>
-            <RequirePortalAccess access="privileged">
+            <RequirePortalAccess path="/admin/delivery">
               <AdminDelivery />
             </RequirePortalAccess>
           </RequireAuth>
@@ -441,7 +443,7 @@ function AppRoutes() {
         path="/admin/bookings"
         element={
           <RequireAuth>
-            <RequirePortalAccess access="privileged">
+            <RequirePortalAccess path="/admin/bookings">
               <AdminBookings />
             </RequirePortalAccess>
           </RequireAuth>

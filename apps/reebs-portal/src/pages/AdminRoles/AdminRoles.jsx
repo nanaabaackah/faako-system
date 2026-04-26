@@ -16,9 +16,6 @@ const ROLE_OPTIONS = [
   "Staff",
   "Warehouse",
   "Driver",
-  "Viewer",
-  "Custodian",
-  "Sales",
   "Water",
 ];
 const SYSTEM_ADMIN_EMAIL = "system_admin@reebs.com";

@@ -7,6 +7,7 @@ import {
   createCatalogCssImageStyle,
   getCatalogItemDisplayName,
 } from "/src/utils/itemMediaBackgrounds";
+import { getFrontendRentalDetailPath } from "/src/utils/rentalCatalog";
 
 function HomeFeaturedRentalsSection({
   suggestedRentals,
@@ -36,7 +37,7 @@ function HomeFeaturedRentalsSection({
             return (
               <Link
                 key={rental.productId || rental.id || rental.slug || `${rental.name}-${index}`}
-                to={`/Rentals/${rental.slug || rental.id || rental.productId}`}
+                to={getFrontendRentalDetailPath(rental)}
                 className={`featured-rental-panel ${isActive ? "is-active" : ""}`}
                 role="listitem"
                 onMouseEnter={() => setActiveFeaturedRentalIndex(index)}
@@ -72,7 +73,7 @@ function HomeFeaturedRentalsSection({
         </div>
 
         <div className="featured-more">
-          <Link to="/Rentals" className="btn btn-primary btn-lg">Browse All Rentals</Link>
+          <Link to="/rentals" className="btn btn-primary btn-lg">Browse All Rentals</Link>
         </div>
       </div>
     </section>

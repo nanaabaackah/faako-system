@@ -159,7 +159,7 @@ const pickAutoAssignee = async (client, organizationId) => {
          GROUP BY "assignedUserId"
        ) b ON b.user_id = u.id
        WHERE u."organizationId" = $1
-         AND LOWER(u.role) IN ('admin', 'manager', 'staff', 'sales')
+         AND LOWER(u.role) IN ('admin', 'manager', 'staff')
        ORDER BY load ASC, u."updatedAt" DESC
        LIMIT 1`,
       [organizationId]

@@ -22,27 +22,22 @@ import {
   getCatalogItemDisplayName,
   getCatalogItemImage,
 } from "/src/utils/itemMediaBackgrounds";
+import {
+  getFrontendRentalCategory,
+  getFrontendRentalDetailPath,
+  isFrontendRentalItem,
+  matchesFrontendRentalDetailSlug,
+  shouldExcludeFrontendRental,
+  slugifyRentalValue,
+} from "/src/utils/rentalCatalog";
 // Bouncy castle variants are fetched from the database
 
-const slugify = (value = "") =>
-  value
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-
-const rentalPath = (item) => {
-  const idSlug = String(item?.id || item?.productId || "").trim();
-  const nameSlug = slugify(item?.name);
-  const pageSlug = slugify(item?.page?.split("/").filter(Boolean).pop() || "");
-  return `/Rentals/${idSlug || nameSlug || pageSlug || ""}`;
-};
+const rentalPath = (item) => getFrontendRentalDetailPath(item);
 
 const getRentalCategoryBackground = (item = {}) => getCatalogItemBackground(item);
 
 const getRentalIdentity = (item = {}) =>
-  String(item.id || item.productId || slugify(item.name || ""));
+  String(item.id || item.productId || slugifyRentalValue(item.name || ""));
 
 const sortRecommendationItems = (a, b) => {
   const aQuantity = Number(a.quantity ?? a.stock ?? 0);
@@ -97,8 +92,8 @@ const formatAttendantsNeeded = (value) => {
 
 const isBouncyCastleRental = (item) => {
   if (!item) return false;
-  const nameSlug = slugify(item.name);
-  const pageSlug = slugify(item.page?.split("/").filter(Boolean).pop() || "");
+  const nameSlug = slugifyRentalValue(item.name);
+  const pageSlug = slugifyRentalValue(item.page?.split("/").filter(Boolean).pop() || "");
   return nameSlug.includes("bouncy") || pageSlug.includes("bouncy");
 };
 
@@ -181,10 +176,8 @@ function RentalItem() {
     fetchInventoryWithCache({ signal: controller.signal })
       .then(({ items }) => {
         const rentalsOnly = (Array.isArray(items) ? items : []).filter((item) => {
-          const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toLowerCase();
-          const isRental = source ? source === "rental" : (item.sku || "").toString().toUpperCase().startsWith("REN");
           const isActive = (item.status ?? item.isActive) !== false;
-          return isRental && isActive;
+          return isFrontendRentalItem(item) && isActive && !shouldExcludeFrontendRental(item);
         });
         if (!active) return;
         setRentals(rentalsOnly);
@@ -223,13 +216,10 @@ const rental = useMemo(() => {
   const normalized = slug.toLowerCase();
   const directMatch =
     rentals.find((item) => {
-      const pageSlug = slugify(item.page?.split("/").filter(Boolean).pop() || "");
-      const nameSlug = slugify(item.name);
-      const idSlug = String(item.id || "").toLowerCase();
-      return pageSlug === normalized || nameSlug === normalized || idSlug === normalized;
+      return matchesFrontendRentalDetailSlug(item, normalized);
     }) || null;
   if (directMatch) return directMatch;
-  const bouncyMatch = bouncyTypes.find((type) => slugify(type.name) === normalized);
+  const bouncyMatch = bouncyTypes.find((type) => slugifyRentalValue(type.name) === normalized);
   if (bouncyMatch) {
     return rentals.find((item) => isBouncyCastleRental(item)) || null;
   }
@@ -239,7 +229,7 @@ const rental = useMemo(() => {
 useEffect(() => {
   if (!slug || !bouncyTypes.length) return;
   const normalized = slug.toLowerCase();
-  const matched = bouncyTypes.find((type) => slugify(type.name) === normalized);
+  const matched = bouncyTypes.find((type) => slugifyRentalValue(type.name) === normalized);
   if (matched) {
     setSelectedBouncyType(matched);
   }
@@ -275,7 +265,7 @@ useEffect(() => {
   const similar = useMemo(() => {
     if (!rental) return [];
     const currentId = getRentalIdentity(rental);
-    const currentCategory = getRentalCategoryKey(rental) || "other";
+    const currentCategory = getFrontendRentalCategory(rental).toLowerCase() || "other";
     const maxItems = 3;
     const sameCategoryLimit = currentCategory === "bouncy castles" ? 1 : 2;
 
@@ -284,7 +274,7 @@ useEffect(() => {
     const otherCategories = [];
 
     candidates.forEach((item) => {
-      const itemCategory = getRentalCategoryKey(item) || "other";
+      const itemCategory = getFrontendRentalCategory(item).toLowerCase() || "other";
       if (itemCategory === currentCategory) {
         sameCategory.push(item);
       } else {
@@ -325,7 +315,7 @@ useEffect(() => {
   const isAvailable = statusValue === "available";
   const showBouncyTable = isBouncyCastleRental(rental);
   const bookingSlug = rentalPath(rental).split("/").filter(Boolean).pop();
-  const selectedBouncySlug = selectedBouncyType ? slugify(selectedBouncyType.name) : "";
+  const selectedBouncySlug = selectedBouncyType ? slugifyRentalValue(selectedBouncyType.name) : "";
   const bookingLink = showBouncyTable
     ? `/Book?rental=${bookingSlug}${selectedBouncySlug ? `&bouncy=${selectedBouncySlug}` : ""}`
     : `/Book?rental=${bookingSlug}`;
@@ -395,7 +385,7 @@ useEffect(() => {
         description: "This rental item may have moved or become unavailable. Explore current REEBS rental options.",
       });
     }
-  }, [displayRental, isAvailable, loading, rental, slug]);
+  }, [displayRental, displayRentalName, isAvailable, loading, rental, slug]);
 
   useEffect(() => {
     const scrollHost = document.querySelector(".main");
@@ -447,7 +437,7 @@ useEffect(() => {
                 <button
                   type="button"
                   className="hero-btn hero-btn-primary"
-                  onClick={() => navigate("/Rentals")}
+                  onClick={() => navigate("/rentals")}
                 >
                   Back to rentals
                 </button>
@@ -488,7 +478,7 @@ useEffect(() => {
             >
               <AppIcon icon={faArrowLeftLong} /> Back
             </button>
-            <Link to="/Rentals">Rentals</Link>
+            <Link to="/rentals">Rentals</Link>
             <AppIcon icon={faArrowRightLong} aria-hidden="true" />
             <span>{displayRentalName}</span>
           </nav>
@@ -545,7 +535,7 @@ useEffect(() => {
                     <AddToCartButton item={cartReadyRental} />
                   </div>
                 ) : null}
-                <Link className="hero-btn hero-btn-ghost" to="/Rentals">
+                <Link className="hero-btn hero-btn-ghost" to="/rentals">
                   Browse all rentals
                 </Link>
               </div>

@@ -213,7 +213,6 @@ function AdminHR() {
                 <option value="staff">Staff</option>
                 <option value="warehouse">Warehouse</option>
                 <option value="driver">Driver</option>
-                <option value="sales">Sales</option>
               </SelectField>
             </label>
           </div>
@@ -318,7 +317,6 @@ function AdminHR() {
                     <option value="Water">Water</option>
                     <option value="Warehouse">Warehouse</option>
                     <option value="Driver">Driver</option>
-                    <option value="Sales">Sales</option>
                   </SelectField>
                 </label>
                 <label>
