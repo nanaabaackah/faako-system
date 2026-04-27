@@ -2,7 +2,7 @@
 
 Workspace package: `@faako/reebs-portal`
 
-Reebs Portal is the admin portal and Netlify Functions backend for the Reebs product. It owns the operational frontend, Prisma-backed backend functions, admin accounting workflows, bookings, content, and internal product modules used by the Reebs stack.
+Reebs Portal is the admin portal and Netlify Functions backend for REEBS. It owns the operational frontend, Prisma-backed backend functions, product and variant management, bookings, invoicing, delivery, accounting, website content, and the internal modules used by the REEBS stack.
 
 ## What Lives Here
 
@@ -27,13 +27,13 @@ Backend/functions only:
 pnpm --filter @faako/reebs-portal run dev:backend
 ```
 
-Full local Reebs stack from the repo root:
+Full local REEBS stack from the repo root:
 
 ```bash
 pnpm run dev:reebs
 ```
 
-Default local ports:
+Typical local ports:
 
 - portal frontend: `5174`
 - functions/backend: `8888`
@@ -49,54 +49,75 @@ pnpm --filter @faako/reebs-portal run db:deploy:dev
 pnpm --filter @faako/reebs-portal run db:status:dev
 pnpm --filter @faako/reebs-portal run source-categories:seed
 pnpm --filter @faako/reebs-portal run source-categories:relink:dry
+pnpm --filter @faako/reebs-portal run source-categories:relink:apply
 pnpm --filter @faako/reebs-portal run test:e2e
 ```
 
-## Inventory Products And Variants
+## Current Shared Shell
 
-Inventory products are stored in the legacy `sourceCategory` table, scoped per organization for compatibility with existing data. Inventory categories are stored in the legacy `specificCategory` table and linked to those products. The database also exposes read aliases `inventoryProduct` and `inventoryCategory`, and the API returns `inventoryProduct*` plus `category` aliases for the current product/category wording. Admin users can create products and categories from the stock form combobox or from bulk reassignment, and duplicate names are rejected case-insensitively within the same organization.
+- the portal follows the current shared shell system used across the repo
+- sidebar width, collapse behavior, edge toggle placement, shared modal spacing, and mobile-safe bottom-nav padding should stay aligned with the other ERP apps
+- shared form styling should be preferred over browser-native control chrome
 
-Numbered balloon stock uses a parent `product` row with `itemType = VARIANT_PARENT` and child rows in `inventoryVariant`. Each variant tracks `stockQty`, `reservedQty`, `reorderLevel`, optional `priceOverride`, and dimensions such as `variantNumber`, `color`, and `size`. Available stock is calculated as `max(stockQty - reservedQty, 0)`. Orders and bookings can reference `variantId`; standard inventory items continue to use the original product stock flow.
+## Current Access Model
 
-To generate number balloon variants, open the item in Admin > Inventory, set the item type to `Variant parent`, then use the variants section to generate digits `0-9` with optional comma-separated colors and sizes. The order builder can expand a typed number like `18` into variant `1` and variant `8`.
+Role assignment currently uses these primary roles:
 
-Existing Toys-linked items are relinked only through an explicit mapping script. Review first:
+- `Owner`
+- `Admin`
+- `Manager`
+- `Staff`
+- `Warehouse`
+- `Driver`
+- `Water`
+
+Current route and navigation behavior:
+
+- `Owner`, `Admin`, and `Manager` can access the standard portal modules plus the privileged admin modules
+- `Owner` and `Admin` also keep the inventory product and template admin routes
+- `Staff` and `Warehouse` stay in the standard operations modules
+- `Driver` is intentionally narrow and should only see the dashboard, bookings, delivery, and customer-directory related flows
+- `Water` keeps dashboard/profile access plus the water module
+- legacy `viewer`, `custodian`, and `sales` values are normalized to `staff`
+
+Current module groups:
+
+- standard operations: Store Mode, Inventory, Purchases, Offline, Orders, New Order, CRM, Users, Employees, Directory, Maintenance, Timesheets, Rentals
+- privileged admin: Bookings, Schedule, Accounting, Expenses, Vendors, Delivery, Documents, Settings, HR, Roles, Invoicing, Marketing, Advanced, Website Template
+- owner/admin inventory admin: Inventory Products, Inventory Templates
+- water access: Water
+
+## Products And Variants
+
+- inventory still maps through the legacy `sourceCategory` and `specificCategory` tables for compatibility with existing REEBS data
+- variant parents use `itemType = VARIANT_PARENT`, with child rows stored in `inventoryVariant`
+- orders, bookings, scheduling, and invoicing should preserve `variantId` and `variantLabel` instead of collapsing everything to the parent product
+- the product modal only shows the variant creation section when the item type is a variant parent
+
+To relink Toys-era source categories safely, review first:
 
 ```bash
 pnpm --filter @faako/reebs-portal run source-categories:relink:dry
 ```
 
-After confirming the exact matched item names, apply:
+Then apply only after confirming the matches:
 
 ```bash
 pnpm --filter @faako/reebs-portal run source-categories:relink:apply
 ```
 
-The script creates `Household` and `Supplies` first, moves only explicitly mapped product names currently under Toys, and logs the moved count per target category. Anything not mapped stays under Toys for admin review and can be bulk-moved from the stock module.
+## Auth And Security
 
-## Auth Security
-
-### Account Lockout
-
-After 5 consecutive failed login attempts the account is locked for 15 minutes. Lock state is stored in `loginAttempts` and `lockedUntil` on the `user` row and reset on successful login. The login function returns a `429` with a `Retry-After` header while the lock is active.
-
-### Manager Login Rate Limiting
-
-The manager login endpoint uses in-memory per-IP rate limiting (10 requests per 10-minute window derived from the `x-forwarded-for` header). Exceeding the limit returns `429` with `Retry-After: 600`. This prevents brute-force of the shared manager PIN without creating a global account lockout.
-
-### Input Validation
-
-Login and related auth functions cap input lengths (email ≤ 254, password ≤ 1024) before processing.
-
-### Logging
-
-All functions use `@faako/logger` for structured JSON output, compatible with Netlify's log drain.
+- failed login attempts are lockout-protected
+- manager login uses additional rate limiting
+- backend functions log through `@faako/logger`
+- keep secrets out of any `VITE_*` values
 
 ## Relationship To Reebs Website
 
 - `apps/reebs-website` is the public customer-facing site
-- `apps/reebs-portal` owns the backend and admin experience
-- local full-stack Reebs work normally runs both together through `pnpm run dev:reebs`
+- `apps/reebs-portal` owns the admin experience and backend
+- full local REEBS development normally runs both together through `pnpm run dev:reebs`
 
 ## Deployment
 
@@ -105,10 +126,10 @@ This app has its own Netlify config in `apps/reebs-portal/netlify.toml`.
 Netlify builds with:
 
 ```bash
-pnpm --filter @faako/reebs-portal build
+pnpm --filter @faako/reebs-portal run build
 ```
 
-Functions are served from `apps/reebs-portal/netlify/functions`, and selective deploys use:
+Functions are served from `apps/reebs-portal/netlify/functions`, and selective deploy checks use:
 
 ```bash
 node ./scripts/netlify-ignore.mjs @faako/reebs-portal
@@ -116,5 +137,5 @@ node ./scripts/netlify-ignore.mjs @faako/reebs-portal
 
 ## More Detail
 
-- `apps/reebs-portal/docs/FRONTEND.md`
-- `apps/reebs-portal/docs/BACKEND.md`
+- [docs/FRONTEND.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/docs/FRONTEND.md)
+- [docs/BACKEND.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/docs/BACKEND.md)

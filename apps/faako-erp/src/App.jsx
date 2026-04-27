@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import {
   ErpBottomNav,
@@ -29,6 +29,7 @@ import NotFound from "./pages/NotFound.jsx";
 import shellConfig from "./config/erpShell.js";
 import DemoAccessGate from "./components/DemoAccessGate.jsx";
 import { useAuth } from "./contexts/AuthContext.jsx";
+import useDemoScenario from "./hooks/useDemoScenario.jsx";
 import "./styles/components/panel.css";
 
 const iconStrokeProps = {
@@ -50,10 +51,11 @@ const ShellNavIcon = ({ children }) => (
   </svg>
 );
 
-const renderShellIcon = (_iconKey, label) => {
-  const normalized = String(label || "").trim().toLowerCase();
+// Uses iconKey (item.id) not label so icons stay correct when labels are renamed per scenario
+const renderShellIcon = (iconKey, _label) => {
+  const normalized = String(iconKey || _label || "").trim().toLowerCase();
 
-  if (normalized === "dashboard" || normalized === "home") {
+  if (normalized === "dashboard") {
     return (
       <ShellNavIcon>
         <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" {...iconStrokeProps} />
@@ -75,7 +77,7 @@ const renderShellIcon = (_iconKey, label) => {
     );
   }
 
-  if (normalized === "inventory" || normalized === "stock") {
+  if (normalized === "inventory") {
     return (
       <ShellNavIcon>
         <path d="M12 3.8 19 7.5v9L12 20.2 5 16.5v-9L12 3.8Z" {...iconStrokeProps} />
@@ -147,7 +149,7 @@ const renderShellIcon = (_iconKey, label) => {
     );
   }
 
-  if (normalized === "customers" || normalized === "crm") {
+  if (normalized === "customers") {
     return (
       <ShellNavIcon>
         <circle cx="12" cy="8.5" r="3" {...iconStrokeProps} />
@@ -157,7 +159,7 @@ const renderShellIcon = (_iconKey, label) => {
     );
   }
 
-  if (normalized === "alerts" || normalized === "notifications") {
+  if (normalized === "notifications") {
     return (
       <ShellNavIcon>
         <path d="M12 4.5a4 4 0 0 1 4 4v2.2c0 .8.2 1.5.7 2.1l1.1 1.4H6.2l1.1-1.4c.5-.6.7-1.3.7-2.1V8.5a4 4 0 0 1 4-4Z" {...iconStrokeProps} />
@@ -196,37 +198,64 @@ const renderShellIcon = (_iconKey, label) => {
   );
 };
 
-const getTopbarLabel = (pathname) => {
-  const currentPath = pathname.replace(/\/+$/, "") || "/";
-
-  if (shellConfig.pageTitles?.[currentPath]) {
-    return shellConfig.pageTitles[currentPath];
-  }
-
-  if (currentPath === "/") {
-    return "Dashboard";
-  }
-
-  return toTitleCase(currentPath.replace(/^\/+/, "")) || "Dashboard";
-};
-
 function AppLayout() {
   const location = useLocation();
   const { isAuthed, revokeAccess, user } = useAuth();
+  const { scenario, scenarioId, scenarioOptions, setScenarioId } = useDemoScenario();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
     storageKey: "faako-erp.sidebar-collapsed",
   });
   const shellContentRef = useRef(null);
   const topbarRef = useRef(null);
 
+  // Apply scenario CSS custom properties to document root
+  useEffect(() => {
+    const root = document.documentElement;
+    const vars = scenario?.brand?.shellVars;
+    if (!vars) return;
+    Object.entries(vars).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
+    });
+    const browserColor = vars["--browser-chrome-color"];
+    if (browserColor) {
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", browserColor);
+    }
+  }, [scenario?.id]);
+
+  // Build nav items with scenario-specific labels; iconKey = item.id so icon matching is stable
+  const activeSidebarItems = useMemo(() => (
+    shellConfig.sidebarItems.map((item) => ({
+      ...item,
+      iconKey: item.id,
+      label: scenario.navigation.labels[item.id] || item.label,
+    }))
+  ), [scenario.id]);
+
+  const activeBottomNavItems = useMemo(() => (
+    shellConfig.bottomNavItems.map((item) => ({
+      ...item,
+      iconKey: item.id,
+      label: scenario.navigation.bottomLabels[item.id] || item.label,
+    }))
+  ), [scenario.id]);
+
+  // Build page titles for document.title from scenario nav labels
+  const activePageTitles = useMemo(() => {
+    const titles = {};
+    shellConfig.sidebarItems.forEach((item) => {
+      titles[item.path] = scenario.navigation.labels[item.id] || item.label;
+    });
+    return titles;
+  }, [scenario.id]);
+
   useEffect(() => {
     document.title = getErpPageTitle(
       location.pathname,
-      shellConfig.brand.name,
-      shellConfig.pageTitles,
+      scenario.brand.name,
+      activePageTitles,
       "/",
     );
-  }, [location.pathname]);
+  }, [location.pathname, scenario.id, activePageTitles]);
 
   useEffect(() => {
     const fallbackHeight =
@@ -244,16 +273,16 @@ function AppLayout() {
 
   return (
     <ErpShellFrame
-      brand={shellConfig.brand}
+      brand={scenario.brand}
       layout="split"
       contentClassName="faako-erp-shell-content"
       sidebarCollapsed={isSidebarCollapsed}
       sidebar={
         <ErpNavSidebar
-          brand={shellConfig.brand}
+          brand={scenario.brand}
           currentPath={location.pathname}
           fallbackPath="/"
-          items={filterItemsByRole(shellConfig.sidebarItems, null)}
+          items={filterItemsByRole(activeSidebarItems, null)}
           renderIcon={renderShellIcon}
           collapsed={isSidebarCollapsed}
           onToggleCollapsed={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
@@ -264,7 +293,7 @@ function AppLayout() {
           <ErpBottomNav
             currentPath={location.pathname}
             fallbackPath="/"
-            items={filterItemsByRole(shellConfig.bottomNavItems, null)}
+            items={filterItemsByRole(activeBottomNavItems, null)}
             renderIcon={renderShellIcon}
           />
         ) : null
@@ -273,10 +302,22 @@ function AppLayout() {
       <div ref={shellContentRef} className="erp-app-content">
         <header ref={topbarRef} className="erp-topbar">
           <div className="topbar-title">
-            <span>{getTopbarLabel(location.pathname)}</span>
+            <span>{activePageTitles[location.pathname] || toTitleCase(location.pathname.replace(/^\/+/, "")) || "Dashboard"}</span>
           </div>
           <div className="topbar-actions">
-            <span className="erp-topbar__context">{shellConfig.brand.topbarLabel}</span>
+            <div className="segmented scenario-switcher" aria-label="Switch demo scenario">
+              {scenarioOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  className={`segment ${scenarioId === opt.id ? "is-active" : ""}`}
+                  onClick={() => setScenarioId(opt.id)}
+                  type="button"
+                >
+                  {opt.shortLabel}
+                </button>
+              ))}
+            </div>
+            <span className="erp-topbar__context">{scenario.brand.topbarLabel}</span>
             {user?.email ? (
               <span className="erp-topbar__viewer">{user.email}</span>
             ) : null}

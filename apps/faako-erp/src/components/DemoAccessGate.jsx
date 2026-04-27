@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { featuredDemoModules } from "../data/demoModules.js";
+import {
+  DEMO_SCENARIO_OPTIONS,
+  getDemoScenarioById,
+} from "../data/demoScenarios.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -56,7 +59,7 @@ const postDemoAccess = async (payload) => {
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
 export default function DemoAccessGate() {
-  const { grantAccess, isAuthed } = useAuth();
+  const { grantAccess, isAuthed, demoScenarioId, setDemoScenarioId } = useAuth();
   const emailInputRef = useRef(null);
   const codeInputRef = useRef(null);
   const previousAuthedRef = useRef(isAuthed);
@@ -70,6 +73,9 @@ export default function DemoAccessGate() {
   const [previewCode, setPreviewCode] = useState("");
   const [isRequesting, setIsRequesting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const activeScenario = getDemoScenarioById(demoScenarioId);
+  const featuredModules = activeScenario.modules.featuredModules.slice(0, 6);
 
   useEffect(() => {
     if (previousAuthedRef.current && !isAuthed) {
@@ -194,7 +200,7 @@ export default function DemoAccessGate() {
         throw new Error("The demo access session could not be created.");
       }
 
-      grantAccess(result.session);
+      grantAccess({ ...result.session, scenarioId: demoScenarioId });
     } catch (verifyError) {
       setError(getApiError(verifyError));
     } finally {
@@ -218,13 +224,32 @@ export default function DemoAccessGate() {
             Enter your email and we will send a generated 6-digit access code so
             visitors can unlock the live demo from the same page.
           </p>
+
+          <div className="demo-scenario-picker">
+            <p className="table-strong">Choose a use case</p>
+            <div className="demo-scenario-options">
+              {DEMO_SCENARIO_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  className={`demo-scenario-option ${demoScenarioId === opt.id ? "is-active" : ""}`}
+                  onClick={() => setDemoScenarioId(opt.id)}
+                  type="button"
+                >
+                  <span className="demo-scenario-option__label">{opt.label}</span>
+                  <span className="demo-scenario-option__desc muted">{opt.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="demo-access-module-pills">
-            {featuredDemoModules.slice(0, 6).map((module) => (
+            {featuredModules.map((module) => (
               <span className="status-pill" key={module.id}>
                 {module.title}
               </span>
             ))}
           </div>
+
           <div className="demo-access-benefits">
             <article className="demo-access-benefit">
               <div className="table-strong">Important modules are already staged</div>

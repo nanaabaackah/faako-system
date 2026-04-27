@@ -2,13 +2,13 @@
 
 Workspace package: `@faako/ui-workbench`
 
-UI Workbench is the local playground for the shared Faako UI system. Use it to inspect components, theme behavior, shell primitives, and visual changes before they land in product apps.
+UI Workbench is the local playground for the current shared UI system. Use it to inspect `@faako/ui`, `@faako/theme`, responsive shell behavior, shared form styling, and Safari/WebKit compatibility work before those changes land in product apps.
 
 ## What Lives Here
 
-- `src/`: React and Vite workbench frontend
+- `src/`: React + Vite workbench screens and examples
 - shared components from `@faako/ui`
-- theme integration from `@faako/theme`
+- theme and shell CSS from `@faako/theme`
 
 ## Run It Locally
 
@@ -16,15 +16,20 @@ UI Workbench is the local playground for the shared Faako UI system. Use it to i
 pnpm --filter @faako/ui-workbench run dev
 ```
 
-Equivalent root command:
+Equivalent root shortcut:
 
 ```bash
 pnpm run dev:workbench
 ```
 
-Local frontend URL:
+Typical local URL:
 
 - `http://localhost:5181`
+
+## Current System Notes
+
+- useful for checking shared sidebar width, collapse behavior, field sizing, and modal shells in isolation
+- the best place to confirm cross-app shared UI changes before touching product-specific screens
 
 ## Common Commands
 
@@ -32,4 +37,3 @@ Local frontend URL:
 pnpm --filter @faako/ui-workbench run build
 pnpm --filter @faako/ui-workbench run preview
 ```
-

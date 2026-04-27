@@ -2,15 +2,15 @@
 
 Workspace package: `@faako/faako-api`
 
-Faako API is the Netlify Functions backend for the Faako signup flow. It validates signup requests, talks to the Faako database through Prisma, and can run as a standalone API site or as the source for mirrored functions in `apps/faako-website`.
+Faako API is the Netlify Functions backend for the current Faako signup flow. It owns the `signup` and `health` functions, Prisma schema, and env-driven runtime config. It can run as its own Netlify site or as the source of mirrored functions inside `apps/faako-website`.
 
 ## What Lives Here
 
 - `netlify/functions/`: serverless API functions
 - `prisma/`: Prisma schema and migrations
 - `src/`: runtime config and database helpers
-- `netlify/static/`: placeholder publish folder for the API-only Netlify site
-- `.env.example`: required environment variable reference
+- `netlify/static/`: intentionally minimal publish folder for the API-only site
+- `.env.example`: environment variable reference
 
 Current functions:
 
@@ -23,11 +23,17 @@ Current functions:
 pnpm --filter @faako/faako-api run dev:backend
 ```
 
-Local backend URL:
+Typical local backend URL:
 
 - `http://localhost:8889`
 
-Useful commands:
+Run the full Faako local stack from the repo root:
+
+```bash
+pnpm run dev:faako
+```
+
+## Common Commands
 
 ```bash
 pnpm --filter @faako/faako-api run netlify
@@ -35,12 +41,6 @@ pnpm --filter @faako/faako-api run prisma:generate
 pnpm --filter @faako/faako-api run prisma:migrate
 pnpm --filter @faako/faako-api run prisma:migrate:deploy
 pnpm --filter @faako/faako-api run prisma:migrate:status
-```
-
-Run the full Faako local stack from the repo root:
-
-```bash
-pnpm run dev:faako
 ```
 
 ## Configuration
@@ -52,9 +52,8 @@ Important behavior:
 - local commands load `.env.dev`
 - local development refuses the production database unless `ALLOW_PRODUCTION_DATABASE_IN_DEV=true`
 - use `DATABASE_URL_DEVELOPMENT` or `DATABASE_URL_LOCAL` for local work
-- non-production signup emails should route to a QA inbox unless `EMAIL_FORCE_TO` overrides it
 - keep `EXPOSE_DEBUG_ERRORS=false` outside local debugging
-- set `RATE_LIMIT_SECRET` in hosted environments for stable hashed throttle keys
+- `VITE_*` values do not belong here because this package is backend-only
 
 ## Relationship To Faako Website
 
@@ -69,7 +68,7 @@ This app has its own Netlify config in `apps/faako-api/netlify.toml`.
 Netlify runs Prisma deploy before publish:
 
 ```bash
-pnpm --filter @faako/faako-api prisma:migrate:deploy
+pnpm --filter @faako/faako-api run prisma:migrate:deploy
 ```
 
 The publish folder is `apps/faako-api/netlify/static`.

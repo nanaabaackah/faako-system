@@ -247,7 +247,7 @@ a {
 
 .button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(35, 88, 66, 0.12);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-strong) 14%, transparent);
 }
 
 .button-primary {
@@ -336,7 +336,7 @@ a {
 .segment.is-active {
   background: var(--card);
   color: var(--ink);
-  box-shadow: 0 6px 16px rgba(35, 88, 66, 0.1);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-strong) 14%, transparent);
 }
 
 .data-table {
@@ -587,7 +587,7 @@ a {
 }
 
 .quick-access-card:hover {
-  box-shadow: 0 16px 34px rgba(35, 88, 66, 0.12);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--accent-strong) 14%, transparent);
 }
 
 .spotlight-card,
@@ -754,6 +754,55 @@ a {
 .demo-access-footnote {
   margin: 0;
   font-size: 0.84rem;
+}
+
+/* Scenario picker in DemoAccessGate */
+.demo-scenario-picker {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.demo-scenario-options {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.demo-scenario-option {
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in srgb, var(--surface-alt) 24%, var(--card));
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.demo-scenario-option:hover {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--card));
+}
+
+.demo-scenario-option.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
+.demo-scenario-option__label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.demo-scenario-option__desc {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* Topbar scenario switcher */
+.scenario-switcher {
+  flex-shrink: 0;
 }
 
 @media (max-width: 1100px) {

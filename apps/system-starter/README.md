@@ -2,13 +2,13 @@
 
 Workspace package: `@faako/system-starter`
 
-System Starter is a small starter app for quickly testing or bootstrapping a Faako-style system frontend. It uses the shared UI package and React Router so new shells can start from the same baseline patterns as the production apps.
+System Starter is the smallest current app shell in the repo. Use it when you want a new frontend to start from the same shared shell system, provider stack, and router conventions as the active apps without carrying over product-specific code.
 
 ## What Lives Here
 
-- `src/`: React and Vite starter frontend
-- shared UI primitives from `@faako/ui`
-- a minimal route shell for experimenting with app structure
+- `src/`: React + Vite starter routes and shell wiring
+- shared shell primitives from `@faako/ui`
+- shared theme tokens from `@faako/theme`
 
 ## Run It Locally
 
@@ -16,15 +16,20 @@ System Starter is a small starter app for quickly testing or bootstrapping a Faa
 pnpm --filter @faako/system-starter run dev
 ```
 
-Equivalent root command:
+Equivalent root shortcut:
 
 ```bash
 pnpm run dev:starter
 ```
 
-Local frontend URL:
+Typical local URL:
 
 - `http://localhost:5182`
+
+## Current System Notes
+
+- mirrors the shared sidebar, topbar, and field foundations used across the ERP apps
+- good for validating shared shell changes before copying product-specific flows into a new app
 
 ## Common Commands
 
@@ -32,4 +37,3 @@ Local frontend URL:
 pnpm --filter @faako/system-starter run build
 pnpm --filter @faako/system-starter run preview
 ```
-

@@ -1,120 +1,28 @@
-const peopleStats = [
-  {
-    id: "headcount",
-    label: "Headcount",
-    value: "48",
-    delta: "+3 this quarter",
-    tone: "positive"
-  },
-  {
-    id: "open",
-    label: "Open roles",
-    value: "4",
-    delta: "2 awaiting approval",
-    tone: "warning"
-  },
-  {
-    id: "hours",
-    label: "Hours logged",
-    value: "1,420",
-    delta: "Last 14 days",
-    tone: "neutral"
-  }
-];
-
-const teamRoster = [
-  {
-    id: "team-1",
-    name: "Ama Serwaa",
-    role: "Operations Lead",
-    location: "Accra HQ",
-    status: "Active"
-  },
-  {
-    id: "team-2",
-    name: "Kojo Asante",
-    role: "Warehouse Supervisor",
-    location: "Tema Hub",
-    status: "Active"
-  },
-  {
-    id: "team-3",
-    name: "Efua Mensah",
-    role: "Finance Manager",
-    location: "Accra HQ",
-    status: "On leave"
-  },
-  {
-    id: "team-4",
-    name: "Yaw Darko",
-    role: "Fleet Coordinator",
-    location: "Accra HQ",
-    status: "Active"
-  }
-];
-
-const timeOff = [
-  {
-    id: "leave-1",
-    name: "Efua Mensah",
-    detail: "Annual leave",
-    dates: "Jun 12 - Jun 16"
-  },
-  {
-    id: "leave-2",
-    name: "Sena Boateng",
-    detail: "Training",
-    dates: "Jun 18 - Jun 19"
-  },
-  {
-    id: "leave-3",
-    name: "Kweku Owusu",
-    detail: "Sick leave",
-    dates: "Jun 20"
-  }
-];
-
-const hiring = [
-  {
-    id: "hire-1",
-    role: "Customer Success Lead",
-    stage: "Offer",
-    owner: "HR"
-  },
-  {
-    id: "hire-2",
-    role: "Inventory Analyst",
-    stage: "Interview",
-    owner: "Ops"
-  },
-  {
-    id: "hire-3",
-    role: "Dispatch Coordinator",
-    stage: "Screening",
-    owner: "Ops"
-  }
-];
+import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function People() {
+  const { scenario } = useDemoScenario();
+  const page = scenario.pages.people;
+
   return (
     <section className="page">
       <div className="page-header">
         <div>
-          <h1>People</h1>
-          <p className="muted">Track headcount, time off, and hiring.</p>
+          <h1>{page.title}</h1>
+          <p className="muted">{page.description}</p>
         </div>
         <div className="header-actions">
           <button className="button button-primary" type="button">
-            Add team member
+            {page.actions.primary}
           </button>
           <button className="button button-ghost" type="button">
-            Request headcount
+            {page.actions.secondary}
           </button>
         </div>
       </div>
 
       <div className="kpi-grid">
-        {peopleStats.map((stat) => (
+        {page.stats.map((stat) => (
           <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
@@ -127,16 +35,16 @@ export default function People() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>Team roster</h3>
-              <p className="muted">Active members across locations.</p>
+              <h3>{page.rosterTitle}</h3>
+              <p className="muted">{page.rosterCopy}</p>
             </div>
           </div>
           <div className="list">
-            {teamRoster.map((person) => (
+            {page.roster.map((person) => (
               <div className="list-row" key={person.id}>
                 <div className="table-strong">{person.name}</div>
                 <p className="muted">
-                  {person.role} • {person.location}
+                  {person.role} &bull; {person.location}
                 </p>
                 <span
                   className={`status-pill ${
@@ -154,12 +62,12 @@ export default function People() {
           <article className="panel glass-card">
             <div className="panel-header">
               <div>
-                <h3>Time off calendar</h3>
-                <p className="muted">Upcoming leaves and training.</p>
+                <h3>{page.timeOffTitle}</h3>
+                <p className="muted">{page.timeOffCopy}</p>
               </div>
             </div>
             <div className="list">
-              {timeOff.map((entry) => (
+              {page.timeOff.map((entry) => (
                 <div className="list-row" key={entry.id}>
                   <div className="table-strong">{entry.name}</div>
                   <p className="muted">{entry.detail}</p>
@@ -172,12 +80,12 @@ export default function People() {
           <article className="panel glass-card">
             <div className="panel-header">
               <div>
-                <h3>Hiring pipeline</h3>
-                <p className="muted">Roles in progress.</p>
+                <h3>{page.hiringTitle}</h3>
+                <p className="muted">{page.hiringCopy}</p>
               </div>
             </div>
             <div className="list">
-              {hiring.map((role) => (
+              {page.hiring.map((role) => (
                 <div className="list-row" key={role.id}>
                   <div className="table-strong">{role.role}</div>
                   <p className="muted">Owner: {role.owner}</p>

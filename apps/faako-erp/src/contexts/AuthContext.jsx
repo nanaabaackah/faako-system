@@ -4,11 +4,18 @@ import {
   readStoredDemoAccess,
   writeStoredDemoAccess,
 } from "../utils/demoAccessSession.js";
+import {
+  DEFAULT_DEMO_SCENARIO_ID,
+  normalizeDemoScenarioId,
+} from "../data/demoScenarios.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => readStoredDemoAccess());
+  const [demoScenarioId, setDemoScenarioIdState] = useState(
+    () => readStoredDemoAccess()?.scenarioId || DEFAULT_DEMO_SCENARIO_ID,
+  );
 
   useEffect(() => {
     if (user) {
@@ -19,15 +26,49 @@ export function AuthProvider({ children }) {
     clearStoredDemoAccess();
   }, [user]);
 
+  useEffect(() => {
+    if (!user?.scenarioId) {
+      return;
+    }
+
+    const normalizedScenarioId = normalizeDemoScenarioId(user.scenarioId);
+
+    if (normalizedScenarioId !== demoScenarioId) {
+      setDemoScenarioIdState(normalizedScenarioId);
+    }
+  }, [demoScenarioId, user?.scenarioId]);
+
   const value = useMemo(
     () => ({
       user,
       setUser,
-      grantAccess: (session) => setUser(session),
+      demoScenarioId,
+      setDemoScenarioId: (nextScenarioId) => {
+        const normalizedScenarioId = normalizeDemoScenarioId(nextScenarioId);
+        setDemoScenarioIdState(normalizedScenarioId);
+        setUser((currentUser) =>
+          currentUser
+            ? {
+                ...currentUser,
+                scenarioId: normalizedScenarioId,
+              }
+            : currentUser,
+        );
+      },
+      grantAccess: (session) => {
+        const normalizedScenarioId = normalizeDemoScenarioId(
+          session?.scenarioId || demoScenarioId,
+        );
+        setDemoScenarioIdState(normalizedScenarioId);
+        setUser({
+          ...session,
+          scenarioId: normalizedScenarioId,
+        });
+      },
       revokeAccess: () => setUser(null),
       isAuthed: Boolean(user)
     }),
-    [user]
+    [demoScenarioId, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

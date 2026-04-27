@@ -1,116 +1,28 @@
-const customerStats = [
-  {
-    id: "accounts",
-    label: "Active accounts",
-    value: "128",
-    delta: "+9 this quarter",
-    tone: "positive"
-  },
-  {
-    id: "pipeline",
-    label: "Expansion pipeline",
-    value: "$48,000",
-    delta: "12 opportunities",
-    tone: "neutral"
-  },
-  {
-    id: "nps",
-    label: "NPS score",
-    value: "56",
-    delta: "Surveyed last week",
-    tone: "positive"
-  }
-];
-
-const accounts = [
-  {
-    id: "ACC-402",
-    name: "Lighthouse Hotels",
-    owner: "Ama S.",
-    tier: "Enterprise",
-    health: "Healthy",
-    lastTouch: "Today"
-  },
-  {
-    id: "ACC-421",
-    name: "Oceanview Events",
-    owner: "Kojo A.",
-    tier: "Mid-market",
-    health: "Watch",
-    lastTouch: "Yesterday"
-  },
-  {
-    id: "ACC-433",
-    name: "Greenleaf Catering",
-    owner: "Esther B.",
-    tier: "Growth",
-    health: "Healthy",
-    lastTouch: "2 days ago"
-  }
-];
-
-const healthSignals = [
-  {
-    id: "signal-1",
-    label: "High intent",
-    detail: "14 accounts requested new quotes",
-    status: "Positive"
-  },
-  {
-    id: "signal-2",
-    label: "Usage drop",
-    detail: "6 accounts below 50% volume",
-    status: "At risk"
-  },
-  {
-    id: "signal-3",
-    label: "Renewals",
-    detail: "4 contracts renew this month",
-    status: "Upcoming"
-  }
-];
-
-const pipelineStages = [
-  {
-    id: "stage-1",
-    label: "Discovery",
-    value: "$18,500",
-    fill: 55
-  },
-  {
-    id: "stage-2",
-    label: "Proposal",
-    value: "$21,000",
-    fill: 38
-  },
-  {
-    id: "stage-3",
-    label: "Negotiation",
-    value: "$8,500",
-    fill: 20
-  }
-];
+import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Customers() {
+  const { scenario } = useDemoScenario();
+  const page = scenario.pages.customers;
+
   return (
     <section className="page">
       <div className="page-header">
         <div>
-          <h1>Customers</h1>
-          <p className="muted">Monitor account health and growth signals.</p>
+          <h1>{page.title}</h1>
+          <p className="muted">{page.description}</p>
         </div>
         <div className="header-actions">
           <button className="button button-primary" type="button">
-            Add account
+            {page.actions.primary}
           </button>
           <button className="button button-ghost" type="button">
-            Launch survey
+            {page.actions.secondary}
           </button>
         </div>
       </div>
 
       <div className="kpi-grid">
-        {customerStats.map((stat) => (
+        {page.stats.map((stat) => (
           <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
@@ -123,19 +35,17 @@ export default function Customers() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>Key accounts</h3>
-              <p className="muted">Highest ARR customers.</p>
+              <h3>{page.table.title}</h3>
+              <p className="muted">{page.table.description}</p>
             </div>
           </div>
           <div className="data-table">
             <div className="table-row table-head is-5">
-              <span>Account</span>
-              <span>Owner</span>
-              <span>Tier</span>
-              <span>Health</span>
-              <span>Last touch</span>
+              {page.table.columns.map((col) => (
+                <span key={col}>{col}</span>
+              ))}
             </div>
-            {accounts.map((account) => (
+            {page.table.rows.map((account) => (
               <div className="table-row is-5" key={account.id}>
                 <span className="table-strong">{account.name}</span>
                 <span>{account.owner}</span>
@@ -157,12 +67,12 @@ export default function Customers() {
           <article className="panel glass-card">
             <div className="panel-header">
               <div>
-                <h3>Health signals</h3>
-                <p className="muted">Auto-detected insights.</p>
+                <h3>{page.signalsTitle}</h3>
+                <p className="muted">{page.signalsCopy}</p>
               </div>
             </div>
             <div className="list">
-              {healthSignals.map((signal) => (
+              {page.healthSignals.map((signal) => (
                 <div className="list-row" key={signal.id}>
                   <div className="table-strong">{signal.label}</div>
                   <p className="muted">{signal.detail}</p>
@@ -185,12 +95,12 @@ export default function Customers() {
           <article className="panel glass-card">
             <div className="panel-header">
               <div>
-                <h3>Expansion pipeline</h3>
-                <p className="muted">Active opportunities.</p>
+                <h3>{page.pipelineTitle}</h3>
+                <p className="muted">{page.pipelineCopy}</p>
               </div>
             </div>
             <div className="list">
-              {pipelineStages.map((stage) => (
+              {page.pipelineStages.map((stage) => (
                 <div className="list-row" key={stage.id}>
                   <div className="table-strong">{stage.label}</div>
                   <p className="muted">{stage.value}</p>

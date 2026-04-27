@@ -1,3 +1,8 @@
+import {
+  DEFAULT_DEMO_SCENARIO_ID,
+  normalizeDemoScenarioId,
+} from "../data/demoScenarios.js";
+
 const DEMO_ACCESS_STORAGE_KEY = "faako-erp-demo-access";
 
 const canUseStorage = () =>
@@ -25,6 +30,7 @@ const normalizeSession = (value) => {
     accessToken: String(value.accessToken || "").trim(),
     grantedAt: String(value.grantedAt || "").trim(),
     expiresAt,
+    scenarioId: normalizeDemoScenarioId(value.scenarioId || DEFAULT_DEMO_SCENARIO_ID),
   };
 };
 

@@ -1,34 +1,31 @@
-import {
-  demoJourneys,
-  featuredDemoModules,
-  sharedUiShowcase,
-} from "../data/demoModules.js";
+import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Modules() {
+  const { scenario } = useDemoScenario();
+  const { modules } = scenario;
+  const page = scenario.pages.modulesPage;
+
   return (
     <section className="page">
       <div className="page-header">
         <div>
-          <h1>Modules</h1>
-          <p className="muted">
-            This demo is set up to show the shared shell and the most important
-            ERP workflows working together.
-          </p>
+          <h1>{page.title}</h1>
+          <p className="muted">{page.description}</p>
         </div>
         <div className="header-actions">
           <a className="button button-primary" href="/orders">
-            Open live workflow
+            {page.primaryActionLabel}
           </a>
           <a className="button button-ghost" href="/">
-            Back to dashboard
+            {page.secondaryActionLabel}
           </a>
         </div>
       </div>
 
       <div className="spotlight-grid">
-        {sharedUiShowcase.map((item) => (
+        {modules.sharedUiShowcase.map((item) => (
           <article className="panel bubble-card spotlight-card" key={item.id}>
-            <p className="eyebrow">Shared UI</p>
+            <p className="eyebrow">{page.workspaceTitle}</p>
             <h3>{item.title}</h3>
             <p className="muted">{item.detail}</p>
           </article>
@@ -36,7 +33,7 @@ export default function Modules() {
       </div>
 
       <div className="module-grid">
-        {featuredDemoModules.map((module) => (
+        {modules.featuredModules.map((module) => (
           <article className="panel glass-card bubble-card module-card" key={module.id}>
             <div className="module-card__header">
               <div>
@@ -65,9 +62,9 @@ export default function Modules() {
       </div>
 
       <div className="workflow-grid">
-        {demoJourneys.map((journey) => (
+        {modules.journeys.map((journey) => (
           <article className="panel glass-card bubble-card workflow-card" key={journey.id}>
-            <p className="eyebrow">Demo story</p>
+            <p className="eyebrow">{page.journeyEyebrow}</p>
             <h3>{journey.title}</h3>
             <p className="muted">{journey.summary}</p>
             <div className="pill-group">

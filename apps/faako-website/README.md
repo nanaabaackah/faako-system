@@ -2,13 +2,13 @@
 
 Workspace package: `@faako/faako-website`
 
-Faako Website is the public marketing site and signup funnel for Faako. It presents product information, pricing, plan selection, and onboarding entry points, then hands signup work to the Faako API.
+Faako Website is the public marketing site and signup funnel for Faako. It presents product information, pricing, and onboarding entry points, then hands signup work to the Faako API or to mirrored local functions depending on the environment.
 
 ## What Lives Here
 
-- `src/`: React and Vite public website
-- `netlify/functions/`: mirrored signup functions copied from `apps/faako-api`
-- `scripts/sync-netlify-functions.mjs`: prebuild sync for the mirrored functions
+- `src/`: React + Vite public website
+- `netlify/functions/`: mirrored functions copied from `apps/faako-api`
+- `scripts/sync-netlify-functions.mjs`: prebuild sync for mirrored functions
 - `netlify.toml`: deploy, headers, and function routing
 - `.env.example`: public and server-side env reference for this site
 
@@ -18,18 +18,9 @@ Faako Website is the public marketing site and signup funnel for Faako. It prese
 pnpm --filter @faako/faako-website run dev:frontend
 ```
 
-Local frontend URL:
+Typical local frontend URL:
 
 - `http://localhost:5175`
-
-Useful commands:
-
-```bash
-pnpm --filter @faako/faako-website run build
-pnpm --filter @faako/faako-website run preview
-pnpm --filter @faako/faako-website run netlify
-pnpm --filter @faako/faako-website run lint
-```
 
 Run the website, API, and ERP together from the repo root:
 
@@ -37,12 +28,20 @@ Run the website, API, and ERP together from the repo root:
 pnpm run dev:faako
 ```
 
-## API Wiring
+## Current System Notes
 
-- if `VITE_API_BASE_URL` is set, the signup flow calls a dedicated `@faako/faako-api` deployment
-- if `VITE_API_BASE_URL` is not set, the site can serve mirrored functions through `/api/signup`
-- the prebuild step copies `apps/faako-api/netlify/functions` into this app
-- backend secrets belong on the site that owns the serverless function at runtime
+- the prebuild step keeps the site's local `/api/*` functions in sync with `apps/faako-api`
+- if `VITE_API_BASE_URL` is set, the signup flow calls a dedicated API deployment
+- if `VITE_API_BASE_URL` is not set, the site can serve the mirrored functions itself
+
+## Common Commands
+
+```bash
+pnpm --filter @faako/faako-website run build
+pnpm --filter @faako/faako-website run preview
+pnpm --filter @faako/faako-website run netlify
+pnpm --filter @faako/faako-website run lint
+```
 
 ## Configuration
 
@@ -62,10 +61,10 @@ This app has its own Netlify config in `apps/faako-website/netlify.toml`.
 Netlify builds with:
 
 ```bash
-pnpm --filter @faako/faako-website build
+pnpm --filter @faako/faako-website run build
 ```
 
-The publish folder is `apps/faako-website/dist`, and selective deploys use:
+The publish folder is `apps/faako-website/dist`, and selective deploy checks use:
 
 ```bash
 node ./scripts/netlify-ignore.mjs @faako/faako-website

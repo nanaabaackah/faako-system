@@ -2,13 +2,14 @@
 
 Workspace package: `@faako/bynana-portfolio`
 
-ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents the portfolio, projects, writing, resume, and contact flow, and it owns the serverless integrations needed by that public site.
+ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents projects, writing, resume material, and contact entry points, and it owns the serverless integrations needed by that public site.
 
 ## What Lives Here
 
-- `src/`: React and Vite frontend
+- `src/`: React + Vite frontend
 - `netlify/functions/contact-submit`: contact form submission handler
 - `netlify/functions/trust-stats-proxy`: proxy for public trust-stat metrics
+- `public/fonts/`: current custom font assets used by the site
 - `netlify.toml`: redirects, headers, function routing, and deploy settings
 - `.env.example`: local reference for function-side configuration
 
@@ -18,15 +19,15 @@ ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents the port
 pnpm --filter @faako/bynana-portfolio run dev
 ```
 
-Useful commands:
+The frontend uses the normal Vite dev port unless another process already owns it.
+
+## Common Commands
 
 ```bash
 pnpm --filter @faako/bynana-portfolio run build
 pnpm --filter @faako/bynana-portfolio run preview
 pnpm --filter @faako/bynana-portfolio run lint
 ```
-
-The frontend uses the normal Vite dev port unless another process already owns it.
 
 ## Configuration
 
@@ -59,10 +60,10 @@ This app has its own Netlify site and config in `apps/bynana-portfolio/netlify.t
 Netlify builds with:
 
 ```bash
-pnpm --filter @faako/bynana-portfolio build
+pnpm --filter @faako/bynana-portfolio run build
 ```
 
-The publish folder is `apps/bynana-portfolio/dist`, and selective deploys use:
+The publish folder is `apps/bynana-portfolio/dist`, and selective deploy checks use:
 
 ```bash
 node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio

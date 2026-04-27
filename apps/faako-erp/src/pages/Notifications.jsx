@@ -1,78 +1,30 @@
-const notificationStats = [
-  {
-    id: "unread",
-    label: "Unread alerts",
-    value: "6",
-    delta: "2 critical",
-    tone: "warning"
-  },
-  {
-    id: "tasks",
-    label: "Tasks waiting",
-    value: "14",
-    delta: "Ops and finance",
-    tone: "neutral"
-  },
-  {
-    id: "resolved",
-    label: "Resolved today",
-    value: "21",
-    delta: "Since 8:00 AM",
-    tone: "positive"
-  }
-];
-
-const notifications = [
-  {
-    id: "note-1",
-    title: "Low stock: Cold Brew Beans",
-    detail: "Inventory dropped below reorder point.",
-    time: "5 min ago",
-    status: "Critical"
-  },
-  {
-    id: "note-2",
-    title: "Invoice overdue: Oceanview Events",
-    detail: "Payment is 2 days late.",
-    time: "25 min ago",
-    status: "Warning"
-  },
-  {
-    id: "note-3",
-    title: "Dispatch run ready",
-    detail: "Accra Central route is ready to depart.",
-    time: "1 hour ago",
-    status: "Info"
-  },
-  {
-    id: "note-4",
-    title: "New hire approved",
-    detail: "Warehouse lead access granted.",
-    time: "2 hours ago",
-    status: "Resolved"
-  }
-];
+import { useState } from "react";
+import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Notifications() {
+  const { scenario } = useDemoScenario();
+  const page = scenario.pages.notifications;
+  const [activeFilter, setActiveFilter] = useState(page.filters[0]);
+
   return (
     <section className="page">
       <div className="page-header">
         <div>
-          <h1>Notifications</h1>
-          <p className="muted">Alerts across ops, finance, and people.</p>
+          <h1>{page.title}</h1>
+          <p className="muted">{page.description}</p>
         </div>
         <div className="header-actions">
           <button className="button button-primary" type="button">
-            Mark all read
+            {page.actions.primary}
           </button>
           <button className="button button-ghost" type="button">
-            Manage rules
+            {page.actions.secondary}
           </button>
         </div>
       </div>
 
       <div className="kpi-grid">
-        {notificationStats.map((stat) => (
+        {page.stats.map((stat) => (
           <article className="panel kpi-card bubble-card" key={stat.id}>
             <span className="kpi-label">{stat.label}</span>
             <div className="kpi-value">{stat.value}</div>
@@ -84,26 +36,24 @@ export default function Notifications() {
       <div className="panel glass-card">
         <div className="panel-header">
           <div>
-            <h3>Latest alerts</h3>
-            <p className="muted">Most recent system updates.</p>
+            <h3>{page.listTitle}</h3>
+            <p className="muted">{page.listCopy}</p>
           </div>
           <div className="segmented">
-            <button className="segment is-active" type="button">
-              All
-            </button>
-            <button className="segment" type="button">
-              Ops
-            </button>
-            <button className="segment" type="button">
-              Finance
-            </button>
-            <button className="segment" type="button">
-              People
-            </button>
+            {page.filters.map((filter) => (
+              <button
+                key={filter}
+                className={`segment ${activeFilter === filter ? "is-active" : ""}`}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
         </div>
         <div className="list">
-          {notifications.map((note) => (
+          {page.items.map((note) => (
             <div className="list-row" key={note.id}>
               <div className="table-strong">{note.title}</div>
               <p className="muted">{note.detail}</p>

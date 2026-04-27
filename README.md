@@ -1,201 +1,121 @@
 # Faako System Monorepo
 
-PNPM and Turborepo workspace for the Faako, Reebs, ByNana, and Dev ERP apps.
+Faako System is a PNPM + Turborepo workspace for the active Faako, Reebs, Dev ERP, ByNana, and support apps. The monorepo is organized around real running products plus shared shell, UI, theme, security, logging, and backend packages.
 
-This repo is not a fresh boilerplate monorepo. It preserves the existing app logic and extracts only the structure that is already shared across apps.
+## Current Workspace
 
-## Workspace Layout
+This repo currently contains 19 workspace packages:
 
-```text
-apps/
-  faako-api
-  faako-erp
-  faako-website
-  reebs-portal
-  reebs-website
-  dev-erp
-  bynana-portfolio
-packages/
-  config
-  core
-  theme
-  types
-  ui
-  utils
-scripts/
-  affected-apps.mjs
-  create-app-from-reference.mjs
-  netlify-ignore.mjs
-  workspace-graph.mjs
-docs/
-  app-platform.md
-  monorepo-restructure.md
-  security_best_practices_report.md
-```
+- 10 deployable apps in `apps/`
+- 9 shared packages in `packages/`
+
+Main directories:
+
+- `apps/`: deployable frontends, APIs, and full-stack app shells
+- `packages/`: shared UI, theme, config, utils, types, core, security, logger, and email helpers
+- `scripts/`: stack runners, selective deploy helpers, database refresh tools, and security checks
+- `docs/`: platform notes, local database refresh guidance, monorepo notes, and security reports
 
 ## Apps
 
-| Workspace package | App | Purpose | Local command | Default port |
-| --- | --- | --- | --- | --- |
-| `@faako/faako-api` | `apps/faako-api` | Faako Netlify Functions API | `pnpm --filter @faako/faako-api run dev:backend` | `8889` |
-| `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` | `5175` |
-| `@faako/faako-erp` | `apps/faako-erp` | Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` | `5176` |
-| `@faako/reebs-portal` | `apps/reebs-portal` | Reebs admin portal plus Netlify backend | `pnpm run dev:reebs` | `5174` and `8888` |
-| `@faako/reebs-website` | `apps/reebs-website` | Reebs public website | `pnpm --filter @faako/reebs-website run dev:with-backend` | `5173` |
-| `@faako/dev-erp` | `apps/dev-erp` | Standalone KPI dashboard and backend | `pnpm --filter @faako/dev-erp run dev:with-backend` | `5173` and `8080` |
-| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | Nana's portfolio site | `pnpm --filter @faako/bynana-portfolio run dev` | Vite default |
-| `@faako/stroane-web` | `apps/stroane-web` | Stroane e-commerce store frontend and Express backend | `pnpm --filter stroane-web run dev:with-backend` | `5175` and `3000` |
-| `@faako/system-starter` | `apps/system-starter` | Minimal Faako-style starter shell for rapid bootstrapping | `pnpm --filter @faako/system-starter run dev` | `5182` |
-| `@faako/ui-workbench` | `apps/ui-workbench` | Local component playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` | `5181` |
+| Workspace package | Path | Purpose | Primary local command |
+| --- | --- | --- | --- |
+| `@faako/faako-api` | `apps/faako-api` | Faako Netlify Functions API for signup and health flows | `pnpm --filter @faako/faako-api run dev:backend` |
+| `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` |
+| `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
+| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus Netlify backend | `pnpm --filter @faako/reebs-portal run dev:frontend` |
+| `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
+| `@faako/dev-erp` | `apps/dev-erp` | Full-stack internal ERP and operations portal | `pnpm --filter @faako/dev-erp run dev:with-backend` |
+| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and serverless contact flows | `pnpm --filter @faako/bynana-portfolio run dev` |
+| `@faako/stroane-web` | `apps/stroane-web` | Full-stack Stroane commerce app | `pnpm --filter @faako/stroane-web run dev:with-backend` |
+| `@faako/system-starter` | `apps/system-starter` | Minimal starter app for the current shared shell system | `pnpm --filter @faako/system-starter run dev` |
+| `@faako/ui-workbench` | `apps/ui-workbench` | Local playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` |
 
 ## Shared Packages
 
 | Package | Purpose |
 | --- | --- |
-| `@faako/config` | App-local config builders for ERP branding and navigation |
-| `@faako/config-eslint` | Shared ESLint rule presets |
-| `@faako/config-typescript` | Shared TypeScript config presets |
-| `@faako/core` | Shared organization/auth helpers and template-config state |
-| `@faako/email-kit` | Email layout renderer and theme helpers used by Express backends |
-| `@faako/logger` | Structured Pino logger for Node.js backends; falls back to console JSON on Netlify |
-| `@faako/security` | Shared security primitives (CSRF, secret crypto, rate limiting helpers) |
-| `@faako/shared-utils` | Low-level utilities shared across packages |
-| `@faako/theme` | Shared shell theme tokens and CSS |
-| `@faako/types` | Shared contracts |
-| `@faako/ui` | Shared ERP shell primitives |
-| `@faako/utils` | Shared path, title, and role helpers |
+| `@faako/config` | App-local ERP and shell configuration builders |
+| `@faako/core` | Shared auth, organization, and template-config helpers |
+| `@faako/email-kit` | Shared email rendering and theme helpers |
+| `@faako/logger` | Structured application logging for Node.js and serverless runtimes |
+| `@faako/security` | Shared CSRF, throttling, secret, and security utilities |
+| `@faako/theme` | Shared shell tokens and CSS foundations |
+| `@faako/types` | Shared contracts and type definitions |
+| `@faako/ui` | Shared shell primitives, navigation, fields, modal foundations, and compat styles |
+| `@faako/utils` | Shared title, path, role, and layout observer helpers |
 
-## Getting Started
+## Current Shared System
 
-1. Install dependencies from the repo root.
+- `@faako/ui` and `@faako/theme` now define the common shell system used across the ERP and portal apps, including uniform sidebar widths, the edge collapse toggle, shared field sizing, and mobile-safe topbar behavior.
+- The shared compat layer normalizes `select`, `date`, `time`, `month`, and related controls so Safari and other WebKit browsers do not fall back to mismatched native chrome unexpectedly.
+- `@faako/utils`, `@faako/security`, `@faako/logger`, and `@faako/email-kit` hold the shared runtime helpers used by the current full-stack apps.
+
+## Common Commands
+
+Install dependencies from the repo root:
 
 ```bash
 pnpm install
 ```
 
-2. Copy the relevant app `.env.example` files into untracked local env files where needed.
-
-3. Start the app you want to work on.
-
-Common root commands:
+Helpful stack shortcuts:
 
 ```bash
 pnpm dev
 pnpm dev:faako
-pnpm dev:dev-erp
 pnpm dev:reebs
-pnpm build
-pnpm lint
-pnpm test
-```
-
-Quick app cheat sheet:
-
-```bash
-# Faako full stack
-pnpm dev:faako
-
-# Reebs full stack
-pnpm dev:reebs
-
-# Dev ERP full stack
 pnpm dev:dev-erp
-
-# ByNana portfolio
-pnpm --filter @faako/bynana-portfolio run dev
-
-# UI workbench
 pnpm dev:workbench
-
-# System starter
 pnpm dev:starter
 ```
 
-Useful scoped commands:
+Common workspace operations:
 
 ```bash
-pnpm --filter @faako/faako-website run dev:frontend
-pnpm --filter @faako/faako-api run dev:backend
-pnpm --filter @faako/dev-erp run dev:with-backend
-pnpm --filter @faako/faako-erp run build
-pnpm --filter @faako/reebs-portal run db:migrate:dev
+pnpm build
+pnpm lint
+pnpm test
+pnpm affected:apps -- --files <path>
+pnpm deploy:check -- <workspace-package> --files <path>
+pnpm db:refresh:local
+pnpm db:refresh:local:dry
+pnpm db:refresh:local:biweekly
+pnpm security:all
 ```
 
-## Selective Deploys
+## Environment And Data Safety
 
-Each deployable app keeps its own `netlify.toml`.
+- Use each app's `.env.example` file as the source of truth for local setup.
+- `VITE_*` values are browser-visible and must stay non-secret.
+- Local database refresh flows live in [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md).
+- Pre-commit and manual security scripts help catch secrets before they enter git history.
 
-This repo uses the workspace graph in `scripts/workspace-graph.mjs` and the ignore command in `scripts/netlify-ignore.mjs` so a site can skip deploys when a change does not affect it.
+## Deployment
 
-Useful commands:
+- `dev-erp` backend/server deploys through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml).
+- The other deployable apps use Netlify, and each app owns its own `netlify.toml`.
+- `faako-website` mirrors `faako-api` functions during build when it serves signup endpoints itself.
+- Selective deploy checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs) and [scripts/netlify-ignore.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/netlify-ignore.mjs).
 
-```bash
-pnpm affected:apps -- --files apps/faako-website/src/App.jsx
-pnpm deploy:check -- @faako/faako-website --files apps/faako-api/netlify/functions/signup.js
-```
+## Docs
 
-Current explicit cross-app build relationship:
+Platform docs:
 
-- `@faako/faako-website` depends on `@faako/faako-api`
-  Reason: the website mirrors API Netlify functions during build.
+- [docs/app-platform.md](/Users/Nana/Desktop/Developer/faako-system/docs/app-platform.md)
+- [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md)
+- [docs/monorepo-restructure.md](/Users/Nana/Desktop/Developer/faako-system/docs/monorepo-restructure.md)
+- [docs/security_best_practices_report.md](/Users/Nana/Desktop/Developer/faako-system/docs/security_best_practices_report.md)
 
-## Template Flow
+App docs:
 
-New apps should be cloned from the closest real working app, not generated from generic scaffolding.
-
-Examples:
-
-```bash
-pnpm create:app -- --source faako-erp --package @faako/acme-erp
-pnpm create:app -- --source faako-website --package @faako/acme-website
-pnpm create:app -- --source faako-api --package @faako/acme-api
-```
-
-That flow:
-
-- keeps existing business logic patterns intact
-- copies only from a real source app
-- skips local env files and common key material
-- leaves company branding and content changes for a deliberate manual pass
-
-More detail lives in [docs/app-platform.md](/Users/Nana/Desktop/Developer/faako-system/docs/app-platform.md).
-
-## Security Notes
-
-- Real `.env` files are ignored by the repo.
-- README files should reference `.env.example` files or placeholder values only.
-- `VITE_*` values are public browser config and must not contain secrets.
-- A pre-commit hook in `.husky/pre-commit` runs `scripts/security-scan.mjs` to catch secrets before they enter git history. Patterns include JWT secrets, OpenAI keys, Resend keys, and PostgreSQL connection strings with credentials.
-
-### Auth Architecture (dev-erp and reebs-portal)
-
-Both apps with login enforce the following security layers:
-
-| Layer | Detail |
-| --- | --- |
-| Short-lived access tokens | JWT signed with HS256, 15-minute TTL, includes `tokenVersion` |
-| Rotating refresh tokens | 7-day HttpOnly cookie, raw token never stored — only its SHA-256 hash |
-| Server-side session invalidation | `tokenVersion` on the User row incremented at logout; stale tokens rejected immediately |
-| Account lockout | 5 failed attempts trigger a 15-minute lockout enforced in the database |
-| CSRF protection | Double-submit cookie pattern; CSRF token rotated with every access token |
-| Input validation | Zod schemas validated at the route layer before handlers run |
-| Structured logging | `@faako/logger` (Pino on Node.js, console JSON on Netlify) used across all backends |
-
-### Deployment
-
-- dev-erp backend deploys to Railway. The repo root `nixpacks.toml` installs pnpm, runs `prisma generate`, and runs `prisma migrate deploy` before starting the Express server.
-- All other apps deploy to Netlify. Each app has its own `netlify.toml`.
-- The Faako API deploy runs `prisma migrate deploy` before publish so security tables are created during deploy.
-
-## App Docs
-
-- [faako-api](/Users/Nana/Desktop/Developer/faako-system/apps/faako-api/README.md)
-- [faako-website](/Users/Nana/Desktop/Developer/faako-system/apps/faako-website/README.md)
-- [faako-erp](/Users/Nana/Desktop/Developer/faako-system/apps/faako-erp/README.md)
-- [reebs-portal](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/README.md)
-- [reebs-website](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-website/README.md)
-- [dev-erp](/Users/Nana/Desktop/Developer/faako-system/apps/dev-erp/README.md)
-- [bynana-portfolio](/Users/Nana/Desktop/Developer/faako-system/apps/bynana-portfolio/README.md)
-- [stroane-web](/Users/Nana/Desktop/Developer/faako-system/apps/stroane-web/README.md)
-- [system-starter](/Users/Nana/Desktop/Developer/faako-system/apps/system-starter/README.md)
-- [ui-workbench](/Users/Nana/Desktop/Developer/faako-system/apps/ui-workbench/README.md)
+- [apps/faako-api/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-api/README.md)
+- [apps/faako-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-website/README.md)
+- [apps/faako-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-erp/README.md)
+- [apps/reebs-portal/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/README.md)
+- [apps/reebs-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-website/README.md)
+- [apps/dev-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/dev-erp/README.md)
+- [apps/bynana-portfolio/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/bynana-portfolio/README.md)
+- [apps/stroane-web/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/stroane-web/README.md)
+- [apps/system-starter/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/system-starter/README.md)
+- [apps/ui-workbench/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/ui-workbench/README.md)
