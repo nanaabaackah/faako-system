@@ -85,6 +85,13 @@ export async function handler(event) {
       body: JSON.stringify(result.rows),
     };
   } catch (err) {
+    if (err.code === "42P01") {
+      return {
+        statusCode: 200,
+        headers: responseHeaders(event),
+        body: JSON.stringify([]),
+      };
+    }
     console.error("❌ Database error:", err);
     return json(event, 500, { error: "Failed to fetch machines" }, { methods: "GET,OPTIONS" });
   } finally {

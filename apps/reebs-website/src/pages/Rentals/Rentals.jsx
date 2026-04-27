@@ -153,7 +153,7 @@ const getPopularityScore = (item = {}) => {
 };
 
 const getRentalIdentityKey = (item = {}) =>
-    item.productId || item.id || `${slugifyRentalValue(item.name)}-${getCategory(item)}`;
+    item.productId || item.id || `${slugifyRentalValue(item?.name ?? "")}-${getCategory(item)}`;
 
 const uniqueByKey = (items = []) => {
     const unique = new Map();
@@ -262,7 +262,7 @@ function Rentals() {
                     sourceCategoryCode: "RENTAL",
                     specificCategory: "Bouncy Castles",
                     imageUrl: item.image,
-                    page: `/rentals/${slugifyRentalValue(item.name)}`,
+                    page: `/rentals/${slugifyRentalValue(item?.name ?? "")}`,
                     price: item.priceRange || item.price,
                     rate: item.rate || "per day",
                 }));

@@ -47,17 +47,17 @@ const normalizeCategoryKey = (value) => {
 };
 
 const getSourceCode = (item = {}) =>
-  String(item.sourceCategoryCode || item.sourcecategorycode || "")
+  String((item != null ? item.sourceCategoryCode || item.sourcecategorycode : null) || "")
     .trim()
     .toLowerCase();
 
 const getSku = (item = {}) =>
-  String(item.sku || "")
+  String((item != null ? item.sku : null) || "")
     .trim()
     .toUpperCase();
 
 const getItemName = (item = {}) =>
-  item.name || item.productName || "";
+  (item != null ? item.name || item.productName : null) || "";
 
 const getItemCategory = (item = {}) =>
   item.specificCategory ||

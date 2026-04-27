@@ -1,12 +1,14 @@
 const normalizeRentalText = (value) => String(value || "").trim().toLowerCase();
 
-const slugifyRentalValue = (value = "") =>
-  value
+const slugifyRentalValue = (value = "") => {
+  if (value == null) return "";
+  return value
     .toString()
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+};
 
 const getRentalPageLeaf = (value = "") =>
   String(value || "")
