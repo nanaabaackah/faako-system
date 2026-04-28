@@ -470,44 +470,6 @@ function OrderBuilder() {
 
         {!loading && !error && (
           <div className="order-grid">
-            <section className="glass-card order-panel">
-              <div className="order-panel-header">
-                <h3>Customer</h3>
-                <span>{customers.length} profiles</span>
-              </div>
-              <label className="order-field">
-                Search customer
-                <SearchField
-                  value={customerQuery}
-                  onChange={(event) => setCustomerQuery(event.target.value)}
-                  onClear={() => setCustomerQuery("")}
-                  placeholder="Search by name, email, phone"
-                  aria-label="Search customer"
-                />
-              </label>
-              <label className="order-field">
-                Select customer
-                <SelectField
-                  value={selectedCustomerId}
-                  onChange={(event) => setSelectedCustomerId(event.target.value)}
-                >
-                  <option value="">Choose a customer</option>
-                  {filteredCustomers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} {customer.email ? `- ${customer.email}` : ""}
-                    </option>
-                  ))}
-                </SelectField>
-              </label>
-              {selectedCustomer && (
-                <div className="glass-card order-customer-card">
-                  <h4>{selectedCustomer.name}</h4>
-                  <p>{selectedCustomer.email || "No email on file"}</p>
-                  <p>{selectedCustomer.phone || "No phone on file"}</p>
-                </div>
-              )}
-            </section>
-
             <section className="glass-card order-panel order-products">
               <div className="order-panel-header">
                 <h3>Products</h3>
@@ -603,7 +565,46 @@ function OrderBuilder() {
               </div>
             </section>
 
-            <section className="glass-card order-panel order-summary">
+            <div className="order-right-col">
+              <section className="glass-card order-panel">
+                <div className="order-panel-header">
+                  <h3>Customer</h3>
+                  <span>{customers.length} profiles</span>
+                </div>
+                <label className="order-field">
+                  Search customer
+                  <SearchField
+                    value={customerQuery}
+                    onChange={(event) => setCustomerQuery(event.target.value)}
+                    onClear={() => setCustomerQuery("")}
+                    placeholder="Search by name, email, phone"
+                    aria-label="Search customer"
+                  />
+                </label>
+                <label className="order-field">
+                  Select customer
+                  <SelectField
+                    value={selectedCustomerId}
+                    onChange={(event) => setSelectedCustomerId(event.target.value)}
+                  >
+                    <option value="">Choose a customer</option>
+                    {filteredCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} {customer.email ? `- ${customer.email}` : ""}
+                      </option>
+                    ))}
+                  </SelectField>
+                </label>
+                {selectedCustomer && (
+                  <div className="glass-card order-customer-card">
+                    <h4>{selectedCustomer.name}</h4>
+                    <p>{selectedCustomer.email || "No email on file"}</p>
+                    <p>{selectedCustomer.phone || "No phone on file"}</p>
+                  </div>
+                )}
+              </section>
+
+              <section className="glass-card order-panel order-summary">
               <div className="order-panel-header">
                 <h3>Order summary</h3>
                 <span>{cartItems.length} items</span>
@@ -689,6 +690,7 @@ function OrderBuilder() {
                 {submitting ? "Creating order..." : "Create order"}
               </button>
             </section>
+            </div>
           </div>
         )}
       </div>

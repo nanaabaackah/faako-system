@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { StoreModeLayout } from "./components/StoreModeLayout";
@@ -194,13 +194,23 @@ function StoreMode() {
     [orderItems]
   );
 
+  const searchIndex = useMemo(() => {
+    const map = new Map();
+    for (const item of items) {
+      map.set(item.id, buildProductSearchText(item));
+    }
+    return map;
+  }, [items]);
+
+  const deferredSearch = useDeferredValue(search);
+
   const filteredItems = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const needle = deferredSearch.trim().toLowerCase();
     return items
       .filter((item) => {
         const stock = getAvailableQuantity(item, orderQtyByLineKey);
         if (needle) {
-          const haystack = buildProductSearchText(item);
+          const haystack = searchIndex.get(item.id) ?? "";
           if (!haystack.includes(needle)) return false;
         }
         if (categoryFilter !== "all" && getCategory(item) !== categoryFilter) return false;
@@ -210,7 +220,7 @@ function StoreMode() {
         return true;
       })
       .sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || "")));
-  }, [categoryFilter, items, orderQtyByLineKey, search, stockFilter]);
+  }, [categoryFilter, deferredSearch, items, orderQtyByLineKey, searchIndex, stockFilter]);
 
   const searchTerm = search.trim();
   const hasSearchQuery = Boolean(searchTerm);
@@ -266,8 +276,8 @@ function StoreMode() {
     const compareNumber = (left, right) => (left - right) * direction;
 
     return [...visibleItems].sort((left, right) => {
-      const leftOutOfStock = getAvailableQuantity(left, orderQtyById.get(Number(left?.id)) || 0) <= 0;
-      const rightOutOfStock = getAvailableQuantity(right, orderQtyById.get(Number(right?.id)) || 0) <= 0;
+      const leftOutOfStock = getAvailableQuantity(left, orderQtyByLineKey) <= 0;
+      const rightOutOfStock = getAvailableQuantity(right, orderQtyByLineKey) <= 0;
       if (leftOutOfStock !== rightOutOfStock) {
         return leftOutOfStock ? 1 : -1;
       }
@@ -284,15 +294,15 @@ function StoreMode() {
           return compareNumber(getUnitPrice(left), getUnitPrice(right));
         case "stock":
           return compareNumber(
-            getAvailableQuantity(left, orderQtyById.get(Number(left?.id)) || 0),
-            getAvailableQuantity(right, orderQtyById.get(Number(right?.id)) || 0)
+            getAvailableQuantity(left, orderQtyByLineKey),
+            getAvailableQuantity(right, orderQtyByLineKey)
           );
         case "item":
         default:
           return compareText(String(left?.name || ""), String(right?.name || ""));
       }
     });
-  }, [orderQtyById, sortConfig.direction, sortConfig.key, visibleItems]);
+  }, [orderQtyByLineKey, sortConfig.direction, sortConfig.key, visibleItems]);
 
   const requestSort = (key) => {
     setSortConfig((prev) => {
@@ -804,6 +814,7 @@ function StoreMode() {
       error={error}
       submitError={submitError}
       success={success}
+      user={user}
       inventoryProps={{
         search,
         onSearchChange: (event) => setSearch(event.target.value),

@@ -122,7 +122,7 @@ body.admin-theme.aw-theme.aw-home-bg .portal-app-shell {
 
 .aw-shell {
   min-height: 100vh;
-  padding: 1rem 1rem 5rem;
+  padding: 1rem;
   color: var(--aw-ink);
   font-family: "Inter", "Segoe UI", sans-serif;
 }
@@ -445,6 +445,7 @@ button.aw-home-summary-card:focus-visible {
   display: grid;
   align-content: start;
   gap: 0.55rem;
+  padding: 1rem;
 }
 
 .aw-home-customer-column .aw-home-kpi-label {
@@ -1889,8 +1890,8 @@ button.aw-activity-item {
 
 @media (min-width: 900px) {
   .aw-shell {
-    max-width: 1200px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0 2rem;
     padding-bottom: 3rem;
   }
 
@@ -2005,6 +2006,7 @@ button.aw-activity-item {
 .aw-home-top-performers {
   display: grid;
   gap: 0.6rem;
+  padding: 1rem;
 }
 
 .aw-home-top-performers-grids {
@@ -2160,7 +2162,7 @@ body.admin-theme.aw-theme :is(
 }
 
 body.admin-theme.aw-theme .portal-app-content {
-  padding: clamp(1rem, 2vw, 2rem);
+  padding: 0;
   padding-bottom: calc(var(--portal-bottom-nav-clearance) + clamp(1rem, 2vw, 2rem));
   scroll-padding-bottom: calc(var(--portal-bottom-nav-clearance) + clamp(1rem, 2vw, 2rem));
 }

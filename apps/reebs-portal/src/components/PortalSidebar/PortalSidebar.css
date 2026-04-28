@@ -1,8 +1,41 @@
 .portal-app-shell {
-  --portal-sidebar-collapsed: var(--ui-app-sidebar-collapsed-width, 104px);
-  --portal-sidebar-expanded: var(--ui-app-sidebar-width, 304px);
+  --portal-sidebar-collapsed: var(--ui-app-sidebar-collapsed-width, 88px);
+  --portal-sidebar-expanded: var(--ui-app-sidebar-width, 272px);
   --portal-mobile-header-clearance: 0px;
   --portal-bottom-nav-clearance: calc(6.6rem + env(safe-area-inset-bottom));
+  --ui-app-sidebar-outer-padding: 0.75rem;
+  --ui-app-sidebar-panel-padding: 0.9rem;
+  --ui-app-sidebar-collapsed-panel-padding-inline: 0.6rem;
+  --ui-app-sidebar-panel-gap: 0.7rem;
+  --ui-app-sidebar-panel-radius: 1.2rem;
+  --ui-app-sidebar-brand-mark-size: 2.4rem;
+  --ui-app-sidebar-brand-mark-radius: 0.85rem;
+  --ui-app-sidebar-brand-gap: 0.7rem;
+  --ui-app-sidebar-brand-kicker-size: 0.64rem;
+  --ui-app-sidebar-brand-kicker-tracking: 0.1em;
+  --ui-app-sidebar-brand-title-size: 0.92rem;
+  --ui-app-sidebar-search-font-size: 0.84rem;
+  --ui-app-sidebar-search-gap: 0.65rem;
+  --ui-app-sidebar-search-padding-block: 0.58rem;
+  --ui-app-sidebar-search-padding-inline: 0.8rem;
+  --ui-app-sidebar-search-radius: 0.9rem;
+  --ui-app-sidebar-search-hint-size: 0.66rem;
+  --ui-app-sidebar-nav-gap: 0.22rem;
+  --ui-app-sidebar-link-padding-block: 0.6rem;
+  --ui-app-sidebar-link-padding-inline: 0.75rem;
+  --ui-app-sidebar-link-padding-inline-start: 0.85rem;
+  --ui-app-sidebar-link-gap: 0.62rem;
+  --ui-app-sidebar-link-radius: 0.85rem;
+  --ui-app-sidebar-label-size: 0.82rem;
+  --ui-app-sidebar-icon-box-size: 1.6rem;
+  --ui-app-sidebar-icon-box-radius: 0.6rem;
+  --ui-app-sidebar-control-size: 2.3rem;
+  --ui-app-sidebar-control-radius: 0.85rem;
+  --ui-app-sidebar-compact-control-size: 2.4rem;
+  --ui-app-sidebar-collapsed-marker-inset: 0.3rem;
+  --ui-app-sidebar-footer-padding-top: 0.6rem;
+  --ui-app-sidebar-footer-gap: 0.55rem;
+  --ui-app-sidebar-empty-size: 0.82rem;
   --portal-sidebar-accent: var(--other, #ff9932);
   --portal-sidebar-bg:
     radial-gradient(circle at top left, rgba(255, 153, 50, 0.1), transparent 24%),
@@ -149,7 +182,7 @@
 }
 
 .portal-sidebar__panel {
-  height: calc(var(--app-vh) - 1.8rem);
+  height: calc(var(--app-vh) - 1.5rem);
   display: flex;
   flex-direction: column;
   gap: var(--ui-app-sidebar-panel-gap, 1rem);
@@ -198,8 +231,8 @@
 }
 
 .portal-sidebar__brand-mark img {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 1.52rem;
+  height: 1.52rem;
   object-fit: contain;
 }
 
@@ -642,10 +675,10 @@
   border-radius: var(--ui-app-sidebar-control-radius, 1rem);
   background: var(--portal-sidebar-soft);
   color: var(--portal-sidebar-ink);
-  padding: 0.72rem 0.85rem;
+  padding: 0.55rem 0.7rem;
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.55rem;
   cursor: pointer;
   text-align: left;
 }
@@ -911,14 +944,14 @@
 }
 
 .portal-sidebar__user-avatar {
-  width: 2.9rem;
-  height: 2.9rem;
-  flex: 0 0 2.9rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 2.4rem;
   border-radius: 50%;
   border: 1px solid var(--portal-sidebar-link-hover-border);
   background: var(--portal-sidebar-avatar-bg);
   color: var(--portal-sidebar-avatar-ink);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -941,7 +974,7 @@
 
 .portal-sidebar__user-name {
   color: var(--portal-sidebar-ink);
-  font-size: 0.96rem;
+  font-size: 0.84rem;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -949,7 +982,7 @@
 }
 
 .portal-sidebar__user-email {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -959,14 +992,14 @@
 .portal-sidebar__signout-btn {
   width: 100%;
   border: 1px solid var(--portal-sidebar-border);
-  border-radius: 0.9rem;
-  padding: 0.72rem 0.85rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.7rem;
   background: var(--portal-sidebar-soft);
   color: var(--portal-sidebar-ink);
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.88rem;
+  gap: 0.5rem;
+  font-size: 0.78rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -1279,22 +1312,22 @@
   }
 
   .portal-sidebar__brand-mark {
-    width: 2.65rem;
-    height: 2.65rem;
-    flex-basis: 2.65rem;
+    width: 2.3rem;
+    height: 2.3rem;
+    flex-basis: 2.3rem;
   }
 
   .portal-sidebar__brand-mark img {
-    width: 1.7rem;
-    height: 1.7rem;
+    width: 1.45rem;
+    height: 1.45rem;
   }
 
   .portal-sidebar__brand-kicker {
-    font-size: 0.64rem;
+    font-size: 0.6rem;
   }
 
   .portal-sidebar__brand-full {
-    font-size: 0.96rem;
+    font-size: 0.88rem;
   }
 
   .portal-sidebar__nav,

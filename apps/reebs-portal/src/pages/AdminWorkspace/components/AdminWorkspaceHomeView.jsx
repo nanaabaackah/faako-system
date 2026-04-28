@@ -522,7 +522,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
           </div>
 
           {(panel.topProducts?.length > 0 || panel.topRentalBookings?.length > 0) && (
-            <div className="aw-home-top-performers">
+            <div className="aw-home-top-performers glass-card" style={{ marginTop: "1rem" }}>
               <p className="aw-home-kpi-label">Top performers</p>
               <div className="aw-home-top-performers-grids">
                 {panel.topProducts?.length > 0 && (
@@ -679,8 +679,8 @@ function CustomerHealthPanel({ panel, onNavigate }) {
           </button>
         ))}
       </div>
-      <div className="aw-home-grid">
-        <div className="aw-home-customer-column">
+      <div className="aw-home-grid" style={{ marginTop: "1rem" }}>
+        <div className="aw-home-customer-column glass-card">
           <p className="aw-home-kpi-label">Top customers</p>
           <ul className="aw-home-search-results aw-home-search-results--compact">
             {topCustomers.map((customer) => (
@@ -694,7 +694,7 @@ function CustomerHealthPanel({ panel, onNavigate }) {
             ))}
           </ul>
         </div>
-        <div className="aw-home-customer-column">
+        <div className="aw-home-customer-column glass-card">
           <p className="aw-home-kpi-label">Inactive VIPs</p>
           {inactiveVipCustomers.length ? (
             <ul className="aw-home-search-results aw-home-search-results--compact">

@@ -215,76 +215,12 @@ function StoreModeInventoryPanel({
       </div>
 
       {hasSearchQuery ? (
-        <div className="store-mode-table-scroll">
-          <table className="store-mode-table">
-            <thead>
-              <tr>
-                <th className="store-mode-col store-mode-col--index table-row-index">#</th>
-                <th className="store-mode-col store-mode-col--item">
-                  <button
-                    type="button"
-                    className={sortHeaderClassName("item")}
-                    onClick={() => requestSort("item")}
-                    aria-pressed={sortKey === "item"}
-                  >
-                    Item <span className="sort-indicator">{sortIndicator("item")}</span>
-                  </button>
-                </th>
-                {!isCompactSearchLayout ? (
-                  <>
-                    <th className="store-mode-col store-mode-col--sku">
-                      <button
-                        type="button"
-                        className={sortHeaderClassName("sku")}
-                        onClick={() => requestSort("sku")}
-                        aria-pressed={sortKey === "sku"}
-                      >
-                        SKU <span className="sort-indicator">{sortIndicator("sku")}</span>
-                      </button>
-                    </th>
-                    <th className="store-mode-col store-mode-col--category">
-                      <button
-                        type="button"
-                        className={sortHeaderClassName("category")}
-                        onClick={() => requestSort("category")}
-                        aria-pressed={sortKey === "category"}
-                      >
-                        Category <span className="sort-indicator">{sortIndicator("category")}</span>
-                      </button>
-                    </th>
-                    <th className="store-mode-col store-mode-col--price">
-                      <button
-                        type="button"
-                        className={sortHeaderClassName("price")}
-                        onClick={() => requestSort("price")}
-                        aria-pressed={sortKey === "price"}
-                      >
-                        Price <span className="sort-indicator">{sortIndicator("price")}</span>
-                      </button>
-                    </th>
-                  </>
-                ) : null}
-                <th className="store-mode-col store-mode-col--stock">
-                  <button
-                    type="button"
-                    className={sortHeaderClassName("stock")}
-                    onClick={() => requestSort("stock")}
-                    aria-pressed={sortKey === "stock"}
-                  >
-                    Stock <span className="sort-indicator">{sortIndicator("stock")}</span>
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && visibleItems.length === 0 && emptyStateMessage && (
-                <tr>
-                  <td colSpan={isCompactSearchLayout ? 3 : 6} className="store-mode-empty">
-                    {emptyStateMessage}
-                  </td>
-                </tr>
-              )}
-              {sortedVisibleItems.map((item, index) => {
+        <div className="store-mode-card-grid-wrap">
+          {!loading && sortedVisibleItems.length === 0 && emptyStateMessage ? (
+            <p className="store-mode-empty store-mode-empty--grid">{emptyStateMessage}</p>
+          ) : (
+            <div className="store-mode-card-grid">
+              {sortedVisibleItems.map((item) => {
                 const productId = Number(item.id);
                 const currentQty = orderQtyByProductId.get(productId) || 0;
                 const stock = getAvailableQuantity(item, orderQtyByLineKey);
@@ -294,10 +230,11 @@ function StoreModeInventoryPanel({
                 const productName = item.name || "Untitled";
                 const productImage = getCatalogItemImage(item);
                 const variants = getActiveItemVariants(item);
-                const selectedVariant = findVariantById(item, selectedVariantIds[String(productId)])
-                  || variants.find((variant) => getVariantAvailableQty(variant) > 0)
-                  || variants[0]
-                  || null;
+                const selectedVariant =
+                  findVariantById(item, selectedVariantIds[String(productId)]) ||
+                  variants.find((v) => getVariantAvailableQty(v) > 0) ||
+                  variants[0] ||
+                  null;
                 const selectedVariantLineKey = getProductLineKey(productId, selectedVariant?.id);
                 const selectedVariantStock = selectedVariant
                   ? Math.max(0, getVariantAvailableQty(selectedVariant) - (orderQtyByLineKey.get(selectedVariantLineKey) || 0))
@@ -309,160 +246,60 @@ function StoreModeInventoryPanel({
                     : getUnitPrice(item),
                   item.currency || "GHS"
                 );
-                const productSku = item.sku || `ID ${item.id}`;
-                const productCategory = getCategory(item);
                 const canAdd = hasVariantOptions ? selectedVariantStock > 0 : stock > 0;
 
                 return (
-                  <tr
+                  <button
                     key={item.id}
-                    className={`${isOut ? "is-out" : isLow ? "is-low" : ""} ${isSelected ? "is-selected" : ""} ${!isOut ? "store-mode-row--clickable" : ""}`}
-                    onClick={
-                      canAdd
-                        ? () => {
-                            addToOrder(item, selectedVariant);
-                          }
-                        : undefined
-                    }
-                    onKeyDown={
-                      canAdd
-                        ? (event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              addToOrder(item, selectedVariant);
-                            }
-                          }
-                        : undefined
-                    }
-                    tabIndex={canAdd ? 0 : undefined}
-                    role={canAdd ? "button" : undefined}
+                    type="button"
+                    className={`store-mode-item-card${isOut ? " is-out" : isLow ? " is-low" : ""}${isSelected ? " is-selected" : ""}`}
+                    onClick={canAdd ? () => addToOrder(item, selectedVariant) : undefined}
+                    disabled={!canAdd}
+                    onMouseEnter={() => { if (!isMobileViewport) showImagePreview(productImage, productName); }}
+                    onMouseLeave={() => { if (!isMobileViewport) hideImagePreview(); }}
+                    onFocus={() => { if (!isMobileViewport) showImagePreview(productImage, productName); }}
+                    onBlur={() => { if (!isMobileViewport) hideImagePreview(); }}
+                    aria-label={`Add ${productName} to order`}
                   >
-                    <td className="store-mode-cell store-mode-cell--index table-row-index">
-                      {index}
-                    </td>
-                    <td className="store-mode-cell store-mode-cell--item">
-                      <div className="store-mode-product">
-                        <button
-                          type="button"
-                          className="store-mode-product-image-trigger"
-                          onMouseEnter={() => {
-                            if (!isMobileViewport) showImagePreview(productImage, productName);
-                          }}
-                          onMouseLeave={() => {
-                            if (!isMobileViewport) hideImagePreview();
-                          }}
-                          onFocus={() => {
-                            if (!isMobileViewport) showImagePreview(productImage, productName);
-                          }}
-                          onBlur={() => {
-                            if (!isMobileViewport) hideImagePreview();
-                          }}
-                          aria-label={`Preview ${productName}`}
-                        >
-                          <img
-                            className="store-mode-product-image"
-                            src={productImage}
-                            alt={productName}
-                            loading="lazy"
-                          />
-                        </button>
-                        <div className="store-mode-product-copy">
-                          <strong>{productName}</strong>
-                          <span className="store-mode-product-price">{productPrice}</span>
-                          {hasVariantOptions ? (
-                            <div
-                              className="store-mode-product-variant"
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                            >
-                              <SelectField
-                                value={selectedVariant?.id ? String(selectedVariant.id) : ""}
-                                onChangeValue={(nextValue) => onSelectVariant(productId, nextValue)}
-                                ariaLabel={`Choose variant for ${productName}`}
-                                inputClassName="store-mode-product-variant-select"
-                              >
-                                {variants.map((variant) => {
-                                  const lineKey = getProductLineKey(productId, variant.id);
-                                  const remaining = Math.max(
-                                    0,
-                                    getVariantAvailableQty(variant) - (orderQtyByLineKey.get(lineKey) || 0)
-                                  );
-                                  return (
-                                    <option key={variant.id} value={variant.id} disabled={remaining <= 0}>
-                                      {buildVariantOptionLabel(item, variant)} · {remaining} left
-                                    </option>
-                                  );
-                                })}
-                              </SelectField>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </td>
-                    {!isCompactSearchLayout ? (
-                      <>
-                        <td className="store-mode-cell store-mode-cell--sku" data-label="SKU">
-                          {productSku}
-                        </td>
-                        <td className="store-mode-cell store-mode-cell--category" data-label="Category">
-                          {productCategory}
-                        </td>
-                        <td className="store-mode-cell store-mode-cell--price" data-label="Price">
-                          {productPrice}
-                        </td>
-                      </>
-                    ) : null}
-                    <td className="store-mode-cell store-mode-cell--stock" data-label="Stock">
-                      <span className={`store-mode-stock-pill ${isOut ? "is-out" : isLow ? "is-low" : ""}`}>
+                    <div className="store-mode-item-card-img">
+                      <img src={productImage} alt={productName} loading="lazy" />
+                    </div>
+                    <div className="store-mode-item-card-body">
+                      <strong>{productName}</strong>
+                      <span className="store-mode-item-card-price">{productPrice}</span>
+                      <span className={`store-mode-stock-pill store-mode-item-card-stock${isOut ? " is-out" : isLow ? " is-low" : ""}`}>
                         {stock}
                       </span>
-                      {hasVariantOptions ? (
-                        <small className="store-mode-stock-caption">
-                          {variants.length} variant{variants.length === 1 ? "" : "s"}
-                        </small>
-                      ) : null}
-                    </td>
-                  </tr>
+                    </div>
+                    {hasVariantOptions && (
+                      <div
+                        className="store-mode-item-card-variant"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <SelectField
+                          value={selectedVariant?.id ? String(selectedVariant.id) : ""}
+                          onChangeValue={(nextValue) => onSelectVariant(productId, nextValue)}
+                          ariaLabel={`Choose variant for ${productName}`}
+                          inputClassName="store-mode-product-variant-select"
+                        >
+                          {variants.map((variant) => {
+                            const lineKey = getProductLineKey(productId, variant.id);
+                            const remaining = Math.max(0, getVariantAvailableQty(variant) - (orderQtyByLineKey.get(lineKey) || 0));
+                            return (
+                              <option key={variant.id} value={variant.id} disabled={remaining <= 0}>
+                                {buildVariantOptionLabel(item, variant)} · {remaining} left
+                              </option>
+                            );
+                          })}
+                        </SelectField>
+                      </div>
+                    )}
+                  </button>
                 );
               })}
-            </tbody>
-            {sortedVisibleItems.length > 0 && (
-              <tfoot className="admin-table-footer">
-                {isCompactSearchLayout ? (
-                  <tr>
-                    <td className="admin-table-summary-cell is-count">
-                      <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
-                    </td>
-                    <td className="admin-table-summary-cell is-empty" />
-                    <td className="admin-table-summary-cell">
-                      <span className="admin-table-summary-value">{inventoryTableSummary.stock}</span>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr>
-                    <td className="admin-table-summary-cell is-count">
-                      <span className="admin-table-summary-value">{inventoryTableSummary.count} items</span>
-                    </td>
-                    <td className="admin-table-summary-cell is-empty" />
-                    <td className="admin-table-summary-cell is-empty" />
-                    <td className="admin-table-summary-cell is-empty" />
-                    <td className="admin-table-summary-cell">
-                      <span className="admin-table-summary-value">
-                        {formatMoney(
-                          inventoryTableSummary.count
-                            ? inventoryTableSummary.price / inventoryTableSummary.count
-                            : 0
-                        )}
-                      </span>
-                    </td>
-                    <td className="admin-table-summary-cell">
-                      <span className="admin-table-summary-value">{inventoryTableSummary.stock}</span>
-                    </td>
-                  </tr>
-                )}
-              </tfoot>
-            )}
-          </table>
+            </div>
+          )}
         </div>
       ) : null}
     </section>
@@ -488,7 +325,7 @@ function StoreModeCustomerPanel({
   customersError,
 }) {
   return (
-    <section className="glass-card store-builder-panel store-builder-panel--customer">
+    <section className="store-builder-panel store-builder-panel--customer">
       <div className="store-builder-controls">
         <div className="store-builder-inline-fields">
           <label className="store-builder-field">
@@ -511,7 +348,6 @@ function StoreModeCustomerPanel({
                     <>
                       {customerMatches.map((customer) => {
                         const label = getCustomerLabel(customer);
-                        const initial = String(label || "C").trim().charAt(0).toUpperCase() || "C";
                         return (
                           <button
                             key={customer.id}
@@ -520,14 +356,7 @@ function StoreModeCustomerPanel({
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => onSelectCustomer(customer)}
                           >
-                            <span className="store-builder-customer-option-mark" aria-hidden="true">
-                              {initial}
-                            </span>
-                            <span className="store-builder-customer-option-copy">
-                              <strong>{label}</strong>
-                              <span>{getCustomerMeta(customer)}</span>
-                            </span>
-                            <span className="store-builder-customer-option-tag">Saved</span>
+                            {label}
                           </button>
                         );
                       })}
@@ -598,7 +427,7 @@ function StoreModeOrderPanel({
   orderCurrency,
 }) {
   return (
-    <section className="glass-card store-builder-panel store-builder-panel--order">
+    <section className="store-builder-panel store-builder-panel--order">
       <div className="store-builder-summary">
         <div>
           <h2>{itemCount} items</h2>
@@ -615,64 +444,44 @@ function StoreModeOrderPanel({
 
       <div className="store-builder-main">
         {orderItems.length ? (
-          <div className="store-builder-strip">
+          <div className="store-builder-order-list">
             {orderItems.map((item) => {
               const liveProduct = inventoryById.get(Number(item.productId));
               const liveVariant = item.variantId ? findVariantById(liveProduct, item.variantId) : null;
               const maxStock = liveVariant ? getVariantAvailableQty(liveVariant) : getQuantity(liveProduct || item);
-              const productImage = getCatalogItemImage(liveProduct || item);
-              const itemCurrency = item.currency || "GHS";
-              const lineTotalLabel = formatMoney(item.unitPrice * item.quantity, itemCurrency);
               const lineKey = item.lineKey || getProductLineKey(item.productId, item.variantId);
               return (
-                <div key={lineKey} className="store-builder-chip">
-                  <div className="store-builder-chip-main">
-                    <img
-                      className="store-builder-chip-image"
-                      src={productImage}
-                      alt={item.name}
-                      loading="lazy"
-                    />
-                    <div className="store-builder-chip-copy">
-                      <strong>{item.productName || item.name}</strong>
-                      <div className="store-builder-chip-pricing">
-                        <strong className="store-builder-chip-line-total">{lineTotalLabel}</strong>
-                        {item.variantLabel ? (
-                          <span>{item.variantLabel.replace(`${item.productName || ""} / `, "")}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="store-builder-chip-side">
-                    <strong className="store-builder-chip-qty">{item.quantity}</strong>
-                    <div className="store-builder-chip-actions">
-                      <button
-                        type="button"
-                        className="store-mode-stepper-btn"
-                        onClick={() => removeFromOrder(lineKey)}
-                        disabled={submitting}
-                      >
-                        <AppIcon icon={faMinus} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="store-mode-stepper-btn"
-                        onClick={() => liveProduct && addToOrder(liveProduct, liveVariant)}
-                        disabled={submitting || !liveProduct || item.quantity >= maxStock}
-                      >
-                        <AppIcon icon={faPlus} />
-                      </button>
-                      <button
-                        type="button"
-                        className="store-mode-stepper-btn"
-                        onClick={() => clearLineFromOrder(lineKey)}
-                        disabled={submitting}
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <AppIcon icon={faTrash} />
-                      </button>
-                    </div>
+                <div key={lineKey} className="store-builder-order-row">
+                  <span className="store-builder-order-name">{item.productName || item.name}</span>
+                  <div className="store-builder-order-actions">
+                    <button
+                      type="button"
+                      className="store-mode-stepper-btn"
+                      onClick={() => removeFromOrder(lineKey)}
+                      disabled={submitting}
+                      aria-label="Decrease"
+                    >
+                      <AppIcon icon={faMinus} />
+                    </button>
+                    <strong className="store-builder-order-qty">{item.quantity}</strong>
+                    <button
+                      type="button"
+                      className="store-mode-stepper-btn"
+                      onClick={() => liveProduct && addToOrder(liveProduct, liveVariant)}
+                      disabled={submitting || !liveProduct || item.quantity >= maxStock}
+                      aria-label="Increase"
+                    >
+                      <AppIcon icon={faPlus} />
+                    </button>
+                    <button
+                      type="button"
+                      className="store-mode-stepper-btn"
+                      onClick={() => clearLineFromOrder(lineKey)}
+                      disabled={submitting}
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <AppIcon icon={faTrash} />
+                    </button>
                   </div>
                 </div>
               );
@@ -728,7 +537,7 @@ function StoreModeCartPanel({
   clearOrder,
 }) {
   return (
-    <section className="glass-card store-builder-panel store-builder-panel--cart">
+    <section className="store-builder-panel store-builder-panel--cart">
       <div className="store-builder-section-head">
         <h3>Checkout</h3>
       </div>
@@ -910,6 +719,57 @@ function StoreModeImageLightbox({ hoveredImage }) {
   );
 }
 
+function StoreModeUserCard({ user }) {
+  if (!user) return null;
+  const displayName =
+    user.name ||
+    user.fullName ||
+    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+    user.email ||
+    "Staff";
+  const displayEmail = user.personalEmail || user.email || "";
+  const avatarSrc = String(user.imageUrl || user.profilePhoto || "").trim();
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || "")
+    .join("") || "??";
+
+  return (
+    <div className="store-mode-user-card">
+      <div className="store-mode-user-avatar">
+        {avatarSrc ? (
+          <img src={avatarSrc} alt={displayName} />
+        ) : (
+          <span>{initials}</span>
+        )}
+      </div>
+      <div className="store-mode-user-info">
+        <strong>{displayName}</strong>
+        {displayEmail && <span>{displayEmail}</span>}
+      </div>
+    </div>
+  );
+}
+
+function StoreModeProductPreview({ hoveredImage }) {
+  return (
+    <div className="store-mode-product-preview">
+      {hoveredImage ? (
+        <>
+          <div className="store-mode-product-preview-img">
+            <img src={hoveredImage.src} alt={hoveredImage.name} />
+          </div>
+          <span className="store-mode-product-preview-name">{hoveredImage.name}</span>
+        </>
+      ) : (
+        <span className="store-mode-product-preview-empty">Select an item to preview</span>
+      )}
+    </div>
+  );
+}
+
 export function StoreModeLayout({
   onExit,
   onRefresh,
@@ -922,31 +782,26 @@ export function StoreModeLayout({
   orderProps,
   cartProps,
   hoveredImage,
+  user,
 }) {
   return (
     <div className="store-mode-page">
-      <div className="store-mode-shell">
-        <StoreModeHeader onExit={onExit} onRefresh={onRefresh} loading={loading} />
-        <StoreModeFeedback
-          loading={loading}
-          error={error}
-          submitError={submitError}
-          success={success}
-        />
+      <StoreModeHeader onExit={onExit} onRefresh={onRefresh} loading={loading} />
+      <StoreModeFeedback
+        loading={loading}
+        error={error}
+        submitError={submitError}
+        success={success}
+      />
+      <div className="store-mode-left-col">
         <StoreModeInventoryPanel {...inventoryProps} />
+        <StoreModeOrderPanel {...orderProps} />
       </div>
-
-      <aside className="store-builder-dock" aria-label="Order builder">
-        <div className="store-builder-bar">
-          <div className="store-builder-left">
-            <StoreModeCustomerPanel {...customerProps} />
-            <StoreModeOrderPanel {...orderProps} />
-          </div>
-          <StoreModeCartPanel {...cartProps} />
-        </div>
+      <aside className="store-mode-builder-col" aria-label="Order builder">
+        <StoreModeUserCard user={user} />
+        <StoreModeCustomerPanel {...customerProps} />
+        <StoreModeCartPanel {...cartProps} />
       </aside>
-
-      <StoreModeImageLightbox hoveredImage={hoveredImage} />
     </div>
   );
 }

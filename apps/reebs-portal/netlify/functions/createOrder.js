@@ -277,9 +277,11 @@ export async function handler(event) {
     const organizationId = authUser
       ? authUser.organizationId
       : await resolveOrganizationId(client, event, payload);
-    await ensureAuditColumns(client);
-    await ensureInventoryVariantSchema(client);
-    await ensureOrderColumns(client);
+    await Promise.all([
+      ensureAuditColumns(client),
+      ensureInventoryVariantSchema(client),
+      ensureOrderColumns(client),
+    ]);
 
     const actor = authUser
       ? { userId: authUser.id, userName: authUser.fullName, userEmail: authUser.email }
@@ -642,6 +644,7 @@ export async function handler(event) {
     }
 
     await client.query('COMMIT');
+
     const orderEmailPayload = {
       orderNumber,
       customerName,
@@ -657,8 +660,10 @@ export async function handler(event) {
         productName: item.variantLabel || productMap.get(item.productId)?.name || `Item ${item.productId}`,
       })),
     };
-    try {
-      await sendManagerWhatsApp({
+
+    // Fire all notifications in parallel — order is already committed, don't block response on any of these
+    Promise.allSettled([
+      sendManagerWhatsApp({
         lines: buildWhatsAppLines({
           orderNumber,
           customerName,
@@ -669,12 +674,8 @@ export async function handler(event) {
           pickupDetails: normalizedPickup,
           itemsCount: pricedItems.length,
         }),
-      });
-    } catch (err) {
-      console.warn("WhatsApp notify failed:", err?.message || err);
-    }
-    try {
-      await notifyManager(
+      }),
+      notifyManager(
         client,
         buildOrderNotification({
           orderId,
@@ -687,39 +688,35 @@ export async function handler(event) {
           deliveryDetails: normalizedDelivery,
           pickupDetails: normalizedPickup,
         })
-      );
-    } catch (err) {
-      console.warn("Manager push failed:", err?.message || err);
-    }
-    const emailResults = await Promise.allSettled(
-      [
-        sendNotificationEmail({
-          to: getNotificationCatchallEmail(),
-          subject: `New order ${orderNumber}`,
-          text: buildInternalOrderEmailText(orderEmailPayload),
-          html: buildInternalOrderEmailHtml(orderEmailPayload),
-        }),
-        customerEmail
-          ? sendNotificationEmail({
-              to: customerEmail,
-              subject: `We received your order ${orderNumber}`,
-              text: buildCustomerOrderEmailText({
-                ...orderEmailPayload,
-                supportEmail: getNotificationCatchallEmail(),
-              }),
-              html: buildCustomerOrderEmailHtml({
-                ...orderEmailPayload,
-                supportEmail: getNotificationCatchallEmail(),
-              }),
-            })
-          : null,
-      ].filter(Boolean)
-    );
-    emailResults.forEach((result) => {
-      if (result.status === "rejected") {
-        console.warn("Order email failed:", result.reason?.message || result.reason);
-      }
+      ),
+      sendNotificationEmail({
+        to: getNotificationCatchallEmail(),
+        subject: `New order ${orderNumber}`,
+        text: buildInternalOrderEmailText(orderEmailPayload),
+        html: buildInternalOrderEmailHtml(orderEmailPayload),
+      }),
+      customerEmail
+        ? sendNotificationEmail({
+            to: customerEmail,
+            subject: `We received your order ${orderNumber}`,
+            text: buildCustomerOrderEmailText({
+              ...orderEmailPayload,
+              supportEmail: getNotificationCatchallEmail(),
+            }),
+            html: buildCustomerOrderEmailHtml({
+              ...orderEmailPayload,
+              supportEmail: getNotificationCatchallEmail(),
+            }),
+          })
+        : Promise.resolve(),
+    ]).then((results) => {
+      results.forEach((result) => {
+        if (result.status === "rejected") {
+          console.warn("Post-order notification failed:", result.reason?.message || result.reason);
+        }
+      });
     });
+
     return json(event, 200, {
       message: "Order created successfully",
       orderId,
