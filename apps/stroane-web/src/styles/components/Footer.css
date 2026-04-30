@@ -1,0 +1,192 @@
+.site-footer {
+  min-height: 100vh;
+  background: var(--footer-bg);
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text-inverse);
+  /* break out of #root's 1rem padding */
+  margin: 0 -1rem -1rem -1rem;
+  width: calc(100% + 2rem);
+}
+
+/* ── CTA ── */
+.footer__cta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 5rem 2rem 4rem;
+}
+
+.footer__cta-eyebrow {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--footer-text-subtle);
+  margin: 0 0 1.25rem;
+}
+
+.footer__cta-heading {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 800;
+  color: var(--color-text-inverse);
+  line-height: 1.15;
+  margin: 0 0 1.25rem;
+}
+
+.footer__cta-sub {
+  color: var(--footer-text-sub);
+  font-size: 1.05rem;
+  max-width: 460px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.65;
+}
+
+.footer__cta-btn {
+  display: inline-block;
+  background: var(--color-white);
+  color: var(--footer-bg);
+  font-weight: 700;
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  padding: 0.9rem 2.25rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.footer__cta-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+/* ── Divider + Emblem ── */
+.footer__emblem-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 4rem;
+  margin-bottom: 3rem;
+}
+
+.footer__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--footer-rule);
+}
+
+.footer__emblem {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: brightness(0) invert(1);
+  opacity: var(--footer-emblem-opacity);
+}
+
+/* ── Body: nav + social ── */
+.footer__body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 4rem 3.5rem;
+}
+
+.footer__nav {
+  display: flex;
+  gap: 3.5rem;
+}
+
+.footer__col-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--footer-text-muted);
+  margin: 0 0 1rem;
+}
+
+.footer__col-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.footer__col-links a {
+  color: var(--footer-text);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  transition: color 0.15s;
+}
+
+.footer__col-links a:hover {
+  color: var(--color-text-inverse);
+}
+
+/* ── Social icons ── */
+.footer__social {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.footer__social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--footer-overlay);
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.footer__social-btn:hover {
+  background: var(--footer-overlay-hover);
+}
+
+/* ── Bottom bar ── */
+.footer__bottom {
+  border-top: 1px solid var(--footer-border);
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footer__bottom span {
+  font-size: 0.78rem;
+  padding-right: 1rem;
+  color: var(--footer-text-muted);
+  font-family: var(--font-family);
+  border-right: 1px solid var(--footer-border);
+}
+
+.footer__bottom span:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.footer__bottom-powered {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.footer__faako-logo {
+  width: 25px;
+  height: auto;
+  object-fit: contain;
+  opacity: var(--footer-logo-opacity);
+}

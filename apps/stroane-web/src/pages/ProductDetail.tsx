@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Product } from "../types/index";
-import { productApi } from "../api/products";
+import type { Product } from "../types/index";
+import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
+import "../styles/pages/ProductDetail.css";
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  usePageTitle(product ? product.name : "Product");
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -29,55 +33,80 @@ const ProductDetail: React.FC = () => {
     fetchProduct();
   }, [id]);
 
-  if (loading) return <div className="p-8">Loading product...</div>;
-  if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
+  if (loading) {
+    return (
+      <Layout>
+        <p className="product-detail-status">Loading product…</p>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <p className="product-detail-status product-detail-status--error">
+          Error: {error}
+        </p>
+      </Layout>
+    );
+  }
+
   if (!product) {
     return (
-      <div className="p-8">
-        <p className="text-gray-600 mb-4">Product not found</p>
-        <Link to="/products" className="text-blue-600 hover:text-blue-700 underline">
-          Back to Products
-        </Link>
-      </div>
+      <Layout>
+        <div className="product-detail__not-found">
+          <p>Product not found.</p>
+          <Link to="/products" className="product-detail__back">
+            ← Back to Products
+          </Link>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-2xl mx-auto">
-        <Link to="/products" className="text-blue-600 hover:text-blue-700 underline mb-8 block">
+    <Layout>
+      <div className="product-detail-page">
+        <Link to="/products" className="product-detail__back">
           ← Back to Products
         </Link>
 
-        <div className="bg-white rounded-lg shadow p-8">
-          <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
-          <p className="text-gray-600 mb-6">{product.description}</p>
+        <div className="product-detail__card">
+          <h1 className="product-detail__name">{product.name}</h1>
+          <p className="product-detail__desc">{product.description}</p>
 
-          <div className="space-y-4 mb-8">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold">Price:</span>
-              <span className="text-3xl font-bold text-blue-600">
-                ${product.price.toFixed(2)}
+          <div className="product-detail__meta">
+            <div className="product-detail__meta-row">
+              <span className="product-detail__meta-label">Price</span>
+              <span className="product-detail__price">
+                GHS {product.price.toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold">Stock:</span>
-              <span className="text-xl">{product.inventory} units</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold">Created:</span>
-              <span className="text-gray-600">
-                {new Date(product.createdAt).toLocaleDateString()}
+            <div className="product-detail__meta-row">
+              <span className="product-detail__meta-label">Availability</span>
+              <span
+                className={
+                  product.inventory > 0
+                    ? "product-detail__in-stock"
+                    : "product-detail__out-of-stock"
+                }
+              >
+                {product.inventory > 0
+                  ? `${product.inventory} in stock`
+                  : "Out of stock"}
               </span>
             </div>
           </div>
 
-          <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-            Add to Cart
-          </button>
+          <a href="mailto:info@stroane.com" className="product-detail__cta">
+            Enquire to Order
+          </a>
+          <p className="product-detail__note">
+            Online checkout coming soon. Contact us to place an order.
+          </p>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

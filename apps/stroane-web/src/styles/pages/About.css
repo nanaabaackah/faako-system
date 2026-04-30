@@ -1,0 +1,458 @@
+/* ── Page wrapper — negates #root's 1rem gutter for the entire page ── */
+.about-page {
+  margin: -1rem -1rem 0 -1rem;
+  width: calc(100% + 2rem);
+}
+
+/* ── Hero ── */
+.about-hero {
+  position: relative;
+  height: 60vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.about-hero__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: var(--color-img-placeholder);
+}
+
+.about-hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    var(--overlay-dark-heavy) 0%,
+    var(--overlay-dark-soft) 55%,
+    transparent 100%
+  );
+}
+
+.about-hero__content {
+  position: relative;
+  z-index: 1;
+  padding: 0 4rem;
+  max-width: 860px;
+}
+
+.about-hero__heading {
+  font-size: clamp(4rem, 5vw, 4.25rem);
+  font-weight: 600;
+  color: var(--color-text-inverse);
+  line-height: 1.15;
+  margin: 0 0 1.25rem;
+  text-shadow: var(--text-shadow-hero);
+}
+
+.about-hero__para {
+  color: var(--footer-text-sub);
+  font-size: var(--font-size-lg);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 420px;
+}
+
+/* ── Shared About styles ── */
+.about-kicker,
+.about-card-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.about-kicker::before {
+  content: "";
+  width: 34px;
+  height: 2px;
+  background: var(--color-primary);
+  margin-right: 0.75rem;
+  border-radius: var(--radius-pill);
+}
+
+/* Keeps your original .section__heading class, but adjusts layout per About section */
+.about-story .section__heading,
+.about-beliefs .section__heading,
+.about-standards .section__heading,
+.about-cta .section__heading {
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.about-story .section__heading {
+  max-width: 760px;
+  margin-bottom: 1.5rem;
+}
+
+.about-beliefs .section__heading {
+  margin: 1.25rem 0 1rem;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.about-section-intro .section__heading {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.about-standards .section__heading {
+  margin-top: 1.25rem;
+}
+
+.about-cta .section__heading {
+  max-width: 760px;
+  margin: 1rem 0 0;
+}
+
+/* ── Story ── */
+.about-story {
+  padding: 6rem 4rem;
+  background: var(--color-surface);
+}
+
+.about-story__grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 0.8fr 1.6fr;
+  gap: 4rem;
+  align-items: start;
+}
+
+.about-story__content p {
+  max-width: 760px;
+  color: var(--color-text-secondary);
+  line-height: 1.8;
+  margin: 0 0 1.25rem;
+}
+
+/* ── Mission / Vision ── */
+.about-beliefs {
+  background: var(--color-surface);
+  padding: 0 4rem 6rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin: 0 auto;
+}
+
+.about-belief-card {
+  min-height: 360px;
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.about-belief-card--blue {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-accent) 100%
+  );
+}
+
+.about-belief-card p {
+  margin: 0;
+  line-height: 1.75;
+  max-width: 560px;
+}
+
+.about-belief-card--blue .section__heading,
+.about-belief-card--blue p,
+.about-belief-card--blue .about-card-label {
+  color: var(--color-text-inverse);
+}
+
+.about-belief-card--blue p {
+  color: var(--color-text-inverse-sub);
+}
+
+/* ── Values ── */
+.about-values {
+  padding: 6rem 4rem;
+  background: var(--color-surface);
+}
+
+.about-values__grid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.about-value-card {
+  min-height: 290px;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-soft);
+  background:
+    linear-gradient(180deg, var(--color-primary-tint), transparent 45%),
+    var(--color-bg);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.about-value-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--color-primary-border-hover);
+  box-shadow: var(--shadow-elevated);
+}
+
+.about-value-card__number {
+  display: block;
+  color: var(--color-primary);
+  font-weight: 900;
+  font-size: 2.25rem;
+  line-height: 1;
+  margin-bottom: 3rem;
+  opacity: 0.75;
+}
+
+.about-value-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.about-value-card p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+/* ── Audience ── */
+.about-audience {
+  padding: 6rem 4rem;
+  background: var(--color-bg);
+}
+
+.about-section-intro {
+  max-width: 780px;
+  margin: 0 auto 3rem;
+  text-align: center;
+}
+
+.about-section-intro .about-kicker {
+  margin: 0 auto 1rem;
+}
+
+.about-section-intro p {
+  margin: 0 auto;
+  line-height: 1.75;
+  max-width: 680px;
+}
+
+.about-audience__grid {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.about-list-card {
+  padding: 2.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.about-list-card h3 {
+  margin: 0 0 1.25rem;
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.about-list-card ul,
+.about-standard-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.about-list-card li,
+.about-standard-card li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.about-list-card li::before,
+.about-standard-card li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6rem;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+}
+
+/* ── Standards ── */
+.about-standards {
+  padding: 6rem 4rem;
+  background: var(--color-surface);
+  display: grid;
+  grid-template-columns: 0.9fr 1.4fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.about-standards__content {
+  max-width: 520px;
+}
+
+.about-standards__content p {
+  color: var(--color-text-secondary);
+  line-height: 1.75;
+}
+
+.about-standards__cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.about-standard-card {
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.about-standard-card h3 {
+  color: var(--color-text-primary);
+  margin: 0 0 1.25rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.about-standard-card li {
+  color: var(--color-text-secondary);
+}
+
+.about-standard-card li::before {
+  background: var(--color-primary);
+}
+
+/* ── CTA ── */
+.about-cta {
+  margin: 6rem 4rem;
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.about-cta__button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 1.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: var(--shadow-elevated);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.about-cta__button:hover {
+  transform: translateY(-2px);
+  background: var(--color-primary-dark);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .about-values__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .about-standards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .about-hero {
+    height: 70vh;
+  }
+
+  .about-hero__content,
+  .about-story,
+  .about-values,
+  .about-audience,
+  .about-standards {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .about-hero__heading {
+    font-size: clamp(3rem, 14vw, 4rem);
+  }
+
+  .about-story__grid,
+  .about-beliefs,
+  .about-audience__grid,
+  .about-standards__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .about-beliefs {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .about-belief-card {
+    min-height: auto;
+    padding: 2rem;
+  }
+
+  .about-values__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-cta {
+    margin: 4rem 1.5rem;
+    padding: 2rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1915,9 +1915,21 @@ const accountInviteFromEmail =
 const invoiceFromEmail =
   String(INVOICE_FROM_EMAIL_RAW || DEFAULT_ADMIN_EMAIL).trim() || DEFAULT_ADMIN_EMAIL;
 
-const isGlobalAdmin = createIsGlobalAdmin(
-  parseRecipients(process.env.GLOBAL_ADMIN_EMAILS ?? DEFAULT_ADMIN_EMAIL)
-);
+// GLOBAL_ADMIN_EMAILS must be explicitly set in production.
+// Falling back to DEFAULT_ADMIN_EMAIL would grant a hardcoded address cross-org access.
+const _rawGlobalAdminEmails = String(process.env.GLOBAL_ADMIN_EMAILS || "").trim();
+if (isProduction && !_rawGlobalAdminEmails) {
+  throw new Error(
+    "[SECURITY] GLOBAL_ADMIN_EMAILS is not set. " +
+    "Set it to a comma-separated list of authorised global-admin email addresses, " +
+    "or set it to 'none' to disable global admin access."
+  );
+}
+const _globalAdminEmailList =
+  _rawGlobalAdminEmails.toLowerCase() === "none"
+    ? []
+    : parseRecipients(_rawGlobalAdminEmails || DEFAULT_ADMIN_EMAIL);
+const isGlobalAdmin = createIsGlobalAdmin(_globalAdminEmailList);
 const resolveOrganizationReadScope = createResolveOrganizationReadScope({
   prisma,
   isGlobalAdmin,

@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Product } from "../types/index";
-import { productApi } from "../api/products";
+import type { Product } from "../types/index";
+import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
+import "../styles/pages/ProductList.css";
 
 const ProductList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  usePageTitle("Products");
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -26,48 +30,77 @@ const ProductList: React.FC = () => {
     fetchProducts();
   }, []);
 
-  if (loading) return <div className="p-8">Loading products...</div>;
-  if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
+  if (loading) {
+    return (
+      <Layout>
+        <p className="products-status">Loading products…</p>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <p className="products-status products-status--error">Error: {error}</p>
+      </Layout>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8">Products</h1>
+    <Layout>
+      <div className="products-page">
+        <h1 className="products-page__heading">Products</h1>
+        <p className="products-page__sub">
+          Food safety equipment and supplies available for order. All prices in
+          GHS inclusive of VAT.
+        </p>
 
         {products.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 mb-4">No products available yet</p>
-            <Link
-              to="/"
-              className="text-blue-600 hover:text-blue-700 underline"
-            >
-              Back to Home
-            </Link>
+          <div className="products-empty">
+            <p className="products-empty__title">Product listings are being added.</p>
+            <p className="products-empty__sub">
+              Contact us directly to enquire about availability and pricing.
+            </p>
+            <div className="products-empty__actions">
+              <Link to="/shop" className="products-empty__btn products-empty__btn--outline">
+                Browse categories
+              </Link>
+              <a
+                href="mailto:info@stroane.com"
+                className="products-empty__btn products-empty__btn--primary"
+              >
+                Contact us
+              </a>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="products-grid">
             {products.map((product) => (
               <Link
                 key={product.id}
                 to={`/products/${product.id}`}
-                className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition"
+                className="product-card-link"
               >
-                <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
-                <p className="text-gray-600 mb-4">{product.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-blue-600">
-                    ${product.price.toFixed(2)}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    Stock: {product.inventory}
-                  </span>
-                </div>
+                <article className="product-card">
+                  <h2 className="product-card__name">{product.name}</h2>
+                  <p className="product-card__desc">{product.description}</p>
+                  <div className="product-card__footer">
+                    <span className="product-card__price">
+                      GHS {product.price.toFixed(2)}
+                    </span>
+                    <span className="product-card__stock">
+                      {product.inventory > 0
+                        ? `${product.inventory} in stock`
+                        : "Out of stock"}
+                    </span>
+                  </div>
+                </article>
               </Link>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 };
 

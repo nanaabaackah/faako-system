@@ -1,68 +1,177 @@
 import React from "react";
+import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
+import "../styles/pages/Resources.css";
+
+const guides = [
+  {
+    title: "The 5 Keys to Safer Food",
+    description:
+      "A simple guide to the food safety habits every food handler should know: keep clean, separate raw and cooked food, cook thoroughly, keep food at safe temperatures, and use safe water.",
+    audience: "Food handlers, business owners, kitchen teams.",
+  },
+  {
+    title: "What Is HACCP and Do You Need It?",
+    description:
+      "A plain-language explanation of HACCP, why it matters, and how food businesses can use it to prevent food safety risks.",
+    audience: "Food producers, processors, caterers, exporters.",
+  },
+  {
+    title: "How to Register a Food Product with Ghana FDA",
+    description:
+      "A step-by-step overview of the product registration process, including documents, labels, timelines, and common reasons applications get delayed.",
+    audience: "Food and beverage manufacturers, importers.",
+  },
+  {
+    title: "Safe Food Temperatures in Ghana",
+    description:
+      "A practical guide to fridge, freezer, cooking, holding, and delivery temperatures — especially important in Ghana's hot climate.",
+    audience: "Restaurants, caterers, supermarkets, hospitals.",
+  },
+  {
+    title: "How Germs Spread in Ghanaian Kitchens",
+    description:
+      "Common ways contamination happens in local food environments, from shared boards to poor storage, and how to prevent it.",
+    audience: "Restaurant kitchens, chop bars, catering teams.",
+  },
+  {
+    title: "Food Allergens: What You Need to Declare",
+    description:
+      "A guide to the major allergens food businesses should identify clearly on labels, menus, and customer-facing materials.",
+    audience: "Packaged food producers, bakeries, caterers.",
+  },
+];
+
+const faqs = [
+  {
+    q: "Do I need a Ghana FDA licence to sell food?",
+    a: "Most food businesses that make, import, distribute, or sell food in Ghana need the right Ghana FDA approvals. The exact requirement depends on what you sell and how your business operates.",
+  },
+  {
+    q: "What is the difference between a Stroane audit and an FDA inspection?",
+    a: "An FDA inspection is an official regulatory visit. A Stroane audit is a private review that helps you prepare, identify risks, and fix issues before they become bigger problems.",
+  },
+  {
+    q: "How often should a food business do a food safety check?",
+    a: "At least once a year is a good starting point. Higher-risk businesses such as schools, hospitals, large caterers, and manufacturers may need more frequent checks.",
+  },
+  {
+    q: "What temperature should a fridge be?",
+    a: "Commercial fridges should usually stay at 5°C or colder, while freezers should stay at -18°C or colder. Regular checks and records are important.",
+  },
+];
+
+const standards = [
+  "Ghana Food and Drugs Authority",
+  "Ghana Standards Authority",
+  "Codex Alimentarius",
+  "HACCP",
+  "ISO 22000",
+  "Good Manufacturing Practice",
+];
 
 const Resources: React.FC = () => {
+  usePageTitle("Resources");
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-8">Resources</h1>
+    <Layout>
+      <div className="resources-page">
+        <section className="resources-hero">
+          <img
+            src="/imgs/bg_imgs/resources_hero.png"
+            alt=""
+            aria-hidden="true"
+            className="resources-hero__bg"
+          />
+          <div className="resources-hero__overlay" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-semibold mb-4">📚 Help Center</h2>
-            <ul className="space-y-2 text-gray-600">
-              <li>• Getting started with Stroane</li>
-              <li>• How to place an order</li>
-              <li>• Tracking your shipment</li>
-              <li>• Return and refund policy</li>
-              <li>• Account security tips</li>
-            </ul>
+          <div className="resources-hero__content">
+            <h1 className="resources-hero__heading">
+              Food Safety Resources
+            </h1>
+            <p className="resources-hero__para">
+              Plain-language guides, FAQs, and practical tools to help Ghanaian
+              food businesses stay safe, compliant, and prepared.
+            </p>
+          </div>
+        </section>
+
+        <section className="resources-guides">
+          <div className="resources-intro">
+            <span className="resources-kicker">Guides & Explainers</span>
+            <h2 className="section__heading">
+              Learn the rules without getting lost in the wording.
+            </h2>
+            <p className="section__sub resources-intro__sub">
+              These guides break food safety topics into simple actions your team
+              can understand and use.
+            </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-semibold mb-4">❓ FAQs</h2>
-            <ul className="space-y-2 text-gray-600">
-              <li>• What payment methods do you accept?</li>
-              <li>• How long does shipping take?</li>
-              <li>• Can I modify my order?</li>
-              <li>• Do you ship internationally?</li>
-              <li>• How do I reset my password?</li>
-            </ul>
+          <div className="resources-grid">
+            {guides.map((guide, index) => (
+              <article key={guide.title} className="resource-card">
+                <span className="resource-card__number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <h3>{guide.title}</h3>
+                <p>{guide.description}</p>
+                <span className="resource-card__audience">
+                  For: {guide.audience}
+                </span>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="resources-faq">
+          <div className="resources-faq__intro">
+            <span className="resources-kicker">FAQs</span>
+            <h2 className="section__heading">
+              Common questions from food businesses.
+            </h2>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-semibold mb-4">📖 Guides & Tutorials</h2>
-            <ul className="space-y-2 text-gray-600">
-              <li>• Beginner's guide to online shopping</li>
-              <li>• How to compare products</li>
-              <li>• Reading product reviews</li>
-              <li>• Setting up your wishlist</li>
-              <li>• Maximizing loyalty points</li>
-            </ul>
+          <div className="resources-faq__list">
+            {faqs.map((faq) => (
+              <article key={faq.q} className="faq-card">
+                <h3>{faq.q}</h3>
+                <p>{faq.a}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="resources-standards">
+          <div>
+            <span className="resources-kicker">Standards We Reference</span>
+            <h2 className="section__heading">
+              Local compliance, global food safety thinking.
+            </h2>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-semibold mb-4">🔗 Useful Links</h2>
-            <ul className="space-y-2 text-gray-600">
-              <li>• <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a></li>
-              <li>• <a href="#" className="text-blue-600 hover:underline">Terms of Service</a></li>
-              <li>• <a href="#" className="text-blue-600 hover:underline">Blog</a></li>
-              <li>• <a href="#" className="text-blue-600 hover:underline">Community Forum</a></li>
-              <li>• <a href="#" className="text-blue-600 hover:underline">Contact Us</a></li>
-            </ul>
+          <div className="resources-standards__tags">
+            {standards.map((standard) => (
+              <span key={standard}>{standard}</span>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 mt-8 text-center">
-          <h3 className="text-xl font-semibold mb-2">Still need help?</h3>
-          <p className="text-gray-600 mb-4">
-            Our support team is ready to assist you.
-          </p>
-          <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-            Contact Support
-          </button>
-        </div>
+        <section className="resources-cta">
+          <div>
+            <span className="resources-kicker">Need something specific?</span>
+            <h2 className="section__heading">
+              We can prepare custom checklists, templates, and training notes for
+              your team.
+            </h2>
+          </div>
+
+          <a href="mailto:info@stroane.com" className="resources-cta__button">
+            Request a Resource
+          </a>
+        </section>
       </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,0 +1,259 @@
+.hero-section {
+  height: 70vh;
+  border-radius: var(--radius-hero);
+}
+
+.hero-bg-container {
+  border-radius: var(--radius-hero);
+}
+
+.hero-bg-img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.seller-img {
+  max-height: 55vh;
+  transform: translateX(-50%) translateY(-120px);
+}
+
+.hero-heading {
+  color: var(--color-text-inverse);
+  text-shadow: var(--text-shadow-hero);
+}
+
+.trust-stats {
+  z-index: 10;
+  max-width: 1050px;
+  height: 250px;
+  width: 100%;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-elevated);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.trust-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 2.5rem;
+}
+
+.trust-stat:last-child {
+  border-right: none;
+}
+
+.trust-stat__value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.trust-stat__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+}
+
+/* ── Why section ── */
+.why-section {
+  max-width: 100%;
+  margin: 0;
+  padding: 5rem 1rem;
+}
+
+/* ── Services section — full bleed, breaks out of root's 1rem padding ── */
+.services-section {
+  margin-left: -1rem;
+  margin-right: -1rem;
+  width: calc(100% + 2rem);
+  padding: 5rem 0;
+}
+
+/* ── Services alternating rows ── */
+
+.service-list {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.service-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.service-row--reverse {
+  flex-direction: row-reverse;
+}
+
+.service-row__img-wrap {
+  flex: 0 0 50%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.service-row__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.45s ease;
+  background-color: var(--color-img-placeholder);
+}
+
+.service-row:hover .service-row__img {
+  transform: scale(1.04);
+}
+
+.service-row__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 4rem;
+  background: var(--color-surface);
+}
+
+.service-row__subtitle {
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.service-row__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem;
+  line-height: 1.2;
+}
+
+.service-row__desc {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── Featured Products ── */
+.products-section {
+  padding: 5rem 1rem;
+}
+
+.product-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 4rem;
+}
+
+.product-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-elevated);
+}
+
+.product-card__img-wrap {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--color-img-placeholder);
+  overflow: hidden;
+}
+
+.product-card__img {
+  width: 250px;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  align-self: center;
+  transition: transform 0.4s ease;
+}
+
+.product-card:hover .product-card__img {
+  transform: scale(1.04);
+}
+
+.product-card__tag {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+}
+
+.product-card__body {
+  padding: 1.25rem 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.product-card__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.4rem;
+}
+
+.product-card__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin: 0 0 1.25rem;
+  flex: 1;
+}
+
+.product-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.product-card__price {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.product-card__cta {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: gap 0.2s ease;
+}
+
+.product-card:hover .product-card__cta {
+  gap: 0.5rem;
+}

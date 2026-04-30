@@ -1,17 +1,19 @@
 import React from "react";
+import Header from "./Header";
+import Footer from "./Footer";
+import { useScrollAnimations } from "../hooks/useScrollAnimations";
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const Layout: React.FC<{ children: React.ReactNode; hideHeader?: boolean }> = ({
+  children,
+  hideHeader,
+}) => {
+  useScrollAnimations();
+
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white shadow">
-        <nav className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold">Stroane</h1>
-        </nav>
-      </header>
-      <main className="flex-grow">{children}</main>
-      <footer className="bg-gray-100 text-center py-4">
-        <p className="text-gray-600">© 2026 Stroane. All rights reserved.</p>
-      </footer>
+      {!hideHeader && <Header />}
+      <main className="flex-grow relative">{children}</main>
+      <Footer />
     </div>
   );
 };

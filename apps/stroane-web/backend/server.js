@@ -26,8 +26,28 @@ if (connectionString) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// CORS — only allow explicitly configured origins; fail closed in production.
+const isProduction = (process.env.NODE_ENV || "").toLowerCase() === "production";
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+if (!isProduction && allowedOrigins.size === 0) {
+  allowedOrigins.add("http://localhost:5173");
+  allowedOrigins.add("http://localhost:3000");
+}
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server (no origin header) and explicitly listed origins.
+      if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Health check route

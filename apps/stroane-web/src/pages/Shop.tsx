@@ -1,51 +1,156 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import Layout from "../components/Layout";
+import usePageTitle from "../hooks/usePageTitle";
+import "../styles/pages/Shop.css";
+
+const categories = [
+  {
+    name: "Thermometers & Temperature Monitoring",
+    description:
+      "Tools that help you confirm food is stored, cooked, and delivered at safe temperatures.",
+    products: [
+      "Digital fridge and freezer thermometers",
+      "Food probe thermometers",
+      "Infrared thermometers",
+      "Temperature data loggers",
+      "Min/max thermometers",
+    ],
+  },
+  {
+    name: "Food Safety Testing Kits",
+    description:
+      "Simple kits for checking safety conditions on the spot, without always needing a lab.",
+    products: [
+      "pH test strips and meters",
+      "Surface cleanliness swab kits",
+      "Allergen rapid test kits",
+      "Sanitiser strength test strips",
+      "Water quality test kits",
+    ],
+  },
+  {
+    name: "Food Storage & Cold Chain",
+    description:
+      "Products that help food stay protected during storage, transport, and delivery.",
+    products: [
+      "Insulated food delivery bags",
+      "Hard-shell cool boxes",
+      "Food-grade storage containers",
+      "Vacuum-sealed storage bags",
+      "Fridge organiser bins",
+    ],
+  },
+  {
+    name: "Protective Clothing & Equipment",
+    description:
+      "Affordable items that help protect food from contamination during handling.",
+    products: [
+      "Disposable gloves",
+      "Hair nets and beard covers",
+      "Disposable aprons",
+      "Sleeve covers",
+      "Disposable face masks",
+    ],
+  },
+  {
+    name: "Kitchen Hygiene & Cleaning",
+    description:
+      "Cleaning and hygiene tools that support safer food preparation spaces.",
+    products: [
+      "Colour-coded chopping boards",
+      "Colour-coded knife sets",
+      "Food-safe sanitisers",
+      "Probe wipes",
+      "Cleaning log books",
+    ],
+  },
+  {
+    name: "Labels & Record Keeping",
+    description:
+      "Simple tools for traceability, food rotation, allergen warnings, and inspection readiness.",
+    products: [
+      "Date and use-by labels",
+      "Allergen warning labels",
+      "Food rotation label dispensers",
+      "Food safety record sheets",
+      "Temperature log books",
+    ],
+  },
+];
 
 const Shop: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <h1 className="text-4xl font-bold mb-4">Shop</h1>
-        <p className="text-gray-600 mb-8">
-          Browse our complete collection of products and find what you're looking for.
-        </p>
+  usePageTitle("Shop");
 
-        <div className="bg-white rounded-lg shadow p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Categories</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { name: "Electronics", description: "Latest gadgets and devices" },
-              { name: "Fashion", description: "Trendy clothing and accessories" },
-              { name: "Home & Garden", description: "Products for your home" },
-              { name: "Sports & Outdoors", description: "Adventure gear and equipment" },
-              { name: "Books & Media", description: "Digital and physical content" },
-              { name: "Health & Beauty", description: "Personal care products" },
-            ].map((category) => (
-              <div
-                key={category.name}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer"
-              >
-                <h3 className="font-semibold mb-2">{category.name}</h3>
-                <p className="text-sm text-gray-600">{category.description}</p>
-              </div>
+  return (
+    <Layout>
+      <div className="shop-page">
+        <section className="shop-hero">
+          <img
+            src="/imgs/bg_imgs/shop_hero.png"
+            alt=""
+            aria-hidden="true"
+            className="shop-hero__bg"
+          />
+          <div className="shop-hero__overlay" />
+
+          <div className="shop-hero__content">
+            <h1 className="shop-hero__heading">
+              Shop Food Safety Products
+            </h1>
+            <p className="shop-hero__para">
+              Professional food safety equipment and supplies, sourced for food
+              businesses operating in Ghana.
+            </p>
+          </div>
+        </section>
+
+        <section className="shop-categories">
+          <div className="shop-intro">
+            <span className="shop-kicker">Product Categories</span>
+            <h2 className="section__heading">
+              Practical tools for safer kitchens, storage, and production.
+            </h2>
+            <p className="section__sub shop-intro__sub">
+              These are the tools our advisors recommend most for monitoring,
+              hygiene, cold chain control, and inspection readiness.
+            </p>
+          </div>
+
+          <div className="shop-category-grid">
+            {categories.map((category) => (
+              <article key={category.name} className="shop-category-card">
+                <h3>{category.name}</h3>
+                <p>{category.description}</p>
+                <ul>
+                  {category.products.map((product) => (
+                    <li key={product}>{product}</li>
+                  ))}
+                </ul>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-          <h3 className="text-xl font-semibold mb-2">Ready to browse?</h3>
-          <p className="text-gray-600 mb-4">
-            Visit our products page to see our full collection.
-          </p>
-          <Link
-            to="/products"
-            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            View Products
+        <section className="shop-order">
+          <div>
+            <span className="shop-kicker">How to Order</span>
+            <h2 className="section__heading">
+              Online checkout is coming soon. For now, order directly.
+            </h2>
+            <p>
+              Contact us to check availability, request a quote, or place a bulk
+              order. We supply businesses in Accra and can arrange delivery to
+              other regions.
+            </p>
+          </div>
+
+          <Link to="/products" className="shop-order__button">
+            View Product Listings
           </Link>
-        </div>
+        </section>
       </div>
-    </div>
+    </Layout>
   );
 };
 

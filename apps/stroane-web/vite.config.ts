@@ -16,6 +16,10 @@ export default defineConfig({
     },
   },
   server: {
+    hmr: {
+      protocol: "ws",
+      host: "localhost",
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3000",

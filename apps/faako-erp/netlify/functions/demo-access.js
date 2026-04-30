@@ -250,9 +250,17 @@ const getSecret = () => {
   }
 
   if (isNonProduction()) {
+    // This fallback is intentional for local dev only. The value is public knowledge
+    // (committed to source). Set FAAKO_ERP_DEMO_ACCESS_SECRET in all deployed envs.
+    console.warn(
+      "[demo-access] FAAKO_ERP_DEMO_ACCESS_SECRET is not set. " +
+      "Using the well-known dev fallback — tokens signed here can be forged by anyone " +
+      "who has read access to this repo. Set the env var before deploying."
+    );
     return "faako-erp-demo-access-dev-secret";
   }
 
+  // Production with no secret → caller gets a clear 500.
   return "";
 };
 

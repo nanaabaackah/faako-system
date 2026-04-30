@@ -1,15 +1,193 @@
-@import "@faako/theme";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Brand colours */
+  --color-primary:       #2563EB;
+  --color-primary-light: #60A5FA;
+  --color-primary-dark:  #071640;
+  --color-accent:        #0EA5E9;
+
+  /* Neutral */
+  --color-white:         #ffffff;
+  --color-bg:            #f9fafb;
+  --color-surface:       #ffffff;
+  --color-border:        #242424;
+
+  /* Text */
+  --color-text-primary:  #111827;
+  --color-text-secondary:#4B5563;
+  --color-text-muted:    #9CA3AF;
+  --color-text-inverse:  #ffffff;
+
+  /* Typography */
+  --font-family:         'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-base:      1.2rem;
+  --font-size-sm:        0.875rem;
+  --font-size-lg:        1.125rem;
+  --font-size-xl:        1.25rem;
+  --font-size-hero:      6rem;
+
+  /* Shadows */
+  --text-shadow-hero:    0 4px 16px rgba(0, 0, 0, 0.25);
+  --text-shadow-sm:      0 1px 4px rgba(0, 0, 0, 0.15);
+  --shadow-card:         0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-elevated:     0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* Spacing & radius */
+  --radius-sm:           8px;
+  --radius-md:           12px;
+  --radius-lg:           20px;
+  --radius-hero:         20px;
+  --radius-pill:         9999px;
+
+  /* Overlays */
+  --overlay-dark:        rgba(0, 0, 0, 0.90);
+  --overlay-dark-mid:    rgba(0, 0, 0, 0.70);
+  --overlay-dark-heavy:  rgba(0, 0, 0, 0.82);
+  --overlay-dark-soft:   rgba(0, 0, 0, 0.45);
+
+  /* Image placeholders */
+  --color-img-placeholder: #d1d5db;
+
+  /* Text on dark surfaces */
+  --color-text-on-dark:  rgba(255, 255, 255, 0.65);
+  --color-text-inverse-sub: rgba(255, 255, 255, 0.82);
+
+  /* Borders */
+  --color-border-soft:   rgba(17, 24, 39, 0.08);
+
+  /* Primary tints */
+  --color-primary-tint:         rgba(37, 99, 235, 0.05);
+  --color-primary-border:       rgba(37, 99, 235, 0.16);
+  --color-primary-border-hover: rgba(37, 99, 235, 0.35);
+
+  /* Footer */
+  --footer-bg:             var(--color-primary-dark);
+  --footer-text:           rgba(255, 255, 255, 0.75);
+  --footer-text-sub:       rgba(255, 255, 255, 0.65);
+  --footer-text-subtle:    rgba(255, 255, 255, 0.5);
+  --footer-text-muted:     rgba(255, 255, 255, 0.4);
+  --footer-rule:           rgba(255, 255, 255, 0.15);
+  --footer-border:         rgba(255, 255, 255, 0.1);
+  --footer-overlay:        rgba(255, 255, 255, 0.1);
+  --footer-overlay-hover:  rgba(255, 255, 255, 0.22);
+  --footer-emblem-opacity: 0.7;
+  --footer-logo-opacity:   0.5;
+}
 
 html,
 body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
 }
 
 * {
   box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+}
+
+p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+.section__heading {
+  text-align: center;
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  text-shadow: var(--text-shadow-sm);
+  margin-bottom: 1rem;
+}
+
+.section__sub {
+  text-align: center;
+  color: var(--color-text-secondary);
+  max-width: 800px;
+  margin: 0 auto 3rem;
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  padding: 1rem 4rem;
+}
+
+.card {
+  position: relative;
+  height: 460px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  background-color: var(--color-img-placeholder);
+}
+
+.card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+  display: block;
+}
+
+.card:hover .card__img {
+  transform: scale(1.06);
+}
+
+.card__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--overlay-dark) 0%, transparent 100%);
+  transition: background 0.3s ease;
+  pointer-events: none;
+}
+
+.card:hover .card__overlay {
+  background: var(--overlay-dark-mid);
+}
+
+.card__content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.75rem 1.5rem 1.5rem;
+  pointer-events: none;
+}
+
+.card__subtitle {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-on-dark);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.card__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text-inverse);
+  margin: 0;
+  line-height: 1.2;
 }

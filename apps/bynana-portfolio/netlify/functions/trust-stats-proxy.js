@@ -105,7 +105,10 @@ const getAllowedOrigins = () => {
 };
 
 const isAllowedOrigin = (requestOrigin, allowedOrigins) => {
-  if (!requestOrigin || allowedOrigins.length === 0) return true;
+  // No origin header = server-to-server call: always allow.
+  if (!requestOrigin) return true;
+  // No allowlist configured = deny all cross-origin browser requests until env is set.
+  if (allowedOrigins.length === 0) return false;
   return allowedOrigins.includes(requestOrigin);
 };
 
