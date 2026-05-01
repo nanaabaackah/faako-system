@@ -1,7 +1,7 @@
 import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Settings() {
-  const { scenario, scenarioId, scenarioOptions, setScenarioId } = useDemoScenario();
+  const { scenario } = useDemoScenario();
   const page = scenario.pages.settings;
 
   return (
@@ -40,32 +40,6 @@ export default function Settings() {
         </article>
 
         <div className="stack">
-          <article className="panel glass-card">
-            <div className="panel-header">
-              <div>
-                <h3>Demo scenario</h3>
-                <p className="muted">Switch use case to see tailored data and theme.</p>
-              </div>
-            </div>
-            <div className="list">
-              {scenarioOptions.map((opt) => (
-                <div className="list-row" key={opt.id}>
-                  <div>
-                    <div className="table-strong">{opt.label}</div>
-                    <p className="muted">{opt.description}</p>
-                  </div>
-                  <button
-                    className={`button ${scenarioId === opt.id ? "button-primary" : "button-ghost"} button-compact`}
-                    onClick={() => setScenarioId(opt.id)}
-                    type="button"
-                  >
-                    {scenarioId === opt.id ? "Active" : "Switch"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </article>
-
           <article className="panel glass-card">
             <div className="panel-header">
               <div>

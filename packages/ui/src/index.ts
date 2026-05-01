@@ -7,6 +7,7 @@ export * from "./ErpBreadcrumb";
 export * from "./ErpNavSidebar";
 export * from "./ErpShellFrame";
 export * from "./SidebarEdgeToggle";
+export * from "./components/AppBottomBar";
 export * from "./components/SystemProvider";
 export * from "./components/Primitives";
 export * from "./components/Fields";

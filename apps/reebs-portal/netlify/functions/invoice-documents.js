@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 import { ensureAuditColumns } from "./auditHelpers.js";
 
 const INVOICE_DOCUMENT_METHODS = "GET,POST,PUT,DELETE,OPTIONS";
@@ -665,9 +665,14 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authResult = await requireInternalUser(client, event, {
-      methods: INVOICE_DOCUMENT_METHODS,
-    });
+    const authResult =
+      event.httpMethod === "GET"
+        ? await requirePermission(client, event, "invoices:read", {
+            methods: INVOICE_DOCUMENT_METHODS,
+          })
+        : await requirePermission(client, event, "invoices:write", {
+            methods: INVOICE_DOCUMENT_METHODS,
+          });
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }

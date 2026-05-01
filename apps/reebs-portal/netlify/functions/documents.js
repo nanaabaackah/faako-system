@@ -1,11 +1,25 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const DOCUMENT_METHODS = "GET,POST,OPTIONS";
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+// Only allow safe, non-executable document MIME types.
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "text/plain",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "document" (
@@ -56,11 +70,14 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authResult = await requireInternalUser(client, event, {
-      methods: DOCUMENT_METHODS,
-      roles: ["owner", "admin", "manager"],
-      roleError: "Only owners, admins, and managers can access documents.",
-    });
+    const authResult =
+      event.httpMethod === "GET"
+        ? await requirePermission(client, event, "documents:read", {
+            methods: DOCUMENT_METHODS,
+          })
+        : await requirePermission(client, event, "documents:write", {
+            methods: DOCUMENT_METHODS,
+          });
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }
@@ -115,9 +132,17 @@ export async function handler(event = {}) {
     const title = cleanText(payload.title) || cleanText(payload.fileName);
     const category = cleanText(payload.category) || "Other";
     const fileName = cleanText(payload.fileName);
-    const mimeType = cleanText(payload.mimeType) || "application/octet-stream";
+    const mimeType = cleanText(payload.mimeType);
     const data = cleanText(payload.data).replace(/\s+/g, "");
     const source = cleanText(payload.source) || "upload";
+
+    if (!mimeType) {
+      return respond(event, 400, { error: "mimeType is required." }, { methods: DOCUMENT_METHODS });
+    }
+
+    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+      return respond(event, 415, { error: `Unsupported file type: ${mimeType}. Allowed: PDF, images, Word, Excel, PowerPoint, plain text, CSV.` }, { methods: DOCUMENT_METHODS });
+    }
 
     if (!title) {
       return respond(event, 400, { error: "Title is required." }, { methods: DOCUMENT_METHODS });

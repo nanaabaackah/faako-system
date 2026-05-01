@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
 import { Link, useNavigate } from 'react-router-dom';
 import { Call, Location, Sms } from 'iconsax-react';
@@ -242,11 +243,7 @@ function Footer() {
         </div>
       </section>
 
-      <div className="footer-bottom">
-        <span>&copy; {new Date().getFullYear()} REEBS Party Themes. All rights reserved.</span>
-        <span>Made to matter. Made By Nana.</span>
-        <span>Powered By Faako <img src='/imgs/icons/logo2-white.svg' alt="Faako Logo"/></span>
-      </div>
+      <AppBottomBar variant="footer" />
     </footer>
   );
 }

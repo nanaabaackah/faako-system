@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
+import { AppBottomBar } from "@faako/ui";
 import FooterLanguagePicker from "./FooterLanguagePicker.jsx";
 import { moduleShowcaseItems } from "../data/modules.js";
 
 export default function Footer({ footerLogo }) {
-  const year = new Date().getFullYear();
   const featuredModules = moduleShowcaseItems.slice(0, 4);
 
   return (
@@ -68,12 +68,12 @@ export default function Footer({ footerLogo }) {
         </div>
 
         <div className="footer-bottom">
-          <span>&copy; {year} Faako Systems</span>
           <div className="footer-legal-links">
             <Link to="/privacy">Privacy Policy</Link>
             <Link to="/terms">Terms of Service</Link>
           </div>
         </div>
+        <AppBottomBar variant="footer" />
       </div>
     </footer>
   );

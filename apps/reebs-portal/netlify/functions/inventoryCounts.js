@@ -1,16 +1,12 @@
 /* eslint-disable no-undef */
+// Intentionally public: storefront inventory counts for the configured public organization only.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { buildResponseHeaders } from "./_shared/http.js";
-
-const resolvePublicOrganizationId = () => {
-  const raw =
-    process.env.PUBLIC_ORGANIZATION_ID ||
-    process.env.REEBS_PUBLIC_ORGANIZATION_ID ||
-    "1";
-  const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
-};
+import {
+  applyRequestOrganizationContext,
+  resolveConfiguredPublicOrganizationId,
+} from "./_shared/organization.js";
 
 const json = (event, statusCode, body) => ({
   statusCode,
@@ -34,7 +30,6 @@ export async function handler(event = {}) {
     return json(event, 405, { error: "Method not allowed" });
   }
 
-  const organizationId = resolvePublicOrganizationId();
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: resolvePgSslConfig(),
@@ -42,6 +37,8 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
+    await applyRequestOrganizationContext(client, organizationId);
     const result = await client.query(
       `SELECT
          SUM(

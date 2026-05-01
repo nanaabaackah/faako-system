@@ -7,7 +7,11 @@
  */
 import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  assertSeedActionsAllowed,
+  requireAdmin,
+  respond,
+} from "./_shared/internalApi.js";
 
 const METHODS = "POST,OPTIONS";
 const json = (event, code, payload) => respond(event, code, payload, { methods: METHODS });
@@ -150,13 +154,20 @@ export async function handler(event = {}) {
   if (method === "OPTIONS") return json(event, 204, {});
   if (method !== "POST") return json(event, 405, { error: "Method not allowed." });
 
+  try {
+    assertSeedActionsAllowed();
+  } catch (error) {
+    return json(event, error?.statusCode || 403, {
+      error: error?.message || "Seed actions are disabled.",
+    });
+  }
+
   const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: resolvePgSslConfig() });
   try {
     await client.connect();
-    const auth = await requireInternalUser(client, event, {
+    const auth = await requireAdmin(client, event, {
       methods: METHODS,
-      roles: ["owner"],
-      roleError: "Only owners can seed accounting data.",
+      roleError: "Only owners and admins can seed accounting data.",
     });
     if (auth.errorResponse) return auth.errorResponse;
 

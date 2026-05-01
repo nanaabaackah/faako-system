@@ -221,8 +221,9 @@ export default function DemoAccessGate() {
           <p className="eyebrow">Live ERP demo</p>
           <h1 id="faako-demo-access-title">Request access to the Faako ERP walkthrough</h1>
           <p className="muted demo-access-copy">
-            Enter your email and we will send a generated 6-digit access code so
-            visitors can unlock the live demo from the same page.
+            Choose the business use case you want to explore, then enter your
+            email and we will send a generated 6-digit access code so visitors
+            can unlock the live demo from the same page.
           </p>
 
           <div className="demo-scenario-picker">
@@ -233,10 +234,14 @@ export default function DemoAccessGate() {
                   key={opt.id}
                   className={`demo-scenario-option ${demoScenarioId === opt.id ? "is-active" : ""}`}
                   onClick={() => setDemoScenarioId(opt.id)}
+                  style={{ "--demo-scenario-accent": opt.accentPreview }}
                   type="button"
                 >
                   <span className="demo-scenario-option__label">{opt.label}</span>
                   <span className="demo-scenario-option__desc muted">{opt.description}</span>
+                  <span className="demo-scenario-option__modules">
+                    {opt.sampleModules.join(" - ")}
+                  </span>
                 </button>
               ))}
             </div>
@@ -254,16 +259,14 @@ export default function DemoAccessGate() {
             <article className="demo-access-benefit">
               <div className="table-strong">Important modules are already staged</div>
               <p className="muted">
-                Orders, inventory, finance, customers, people, and reporting are
-                all visible in the shared shell.
+                {activeScenario.description}
               </p>
             </article>
             <article className="demo-access-benefit">
-              <div className="table-strong">Works for demo sharing</div>
+              <div className="table-strong">One shell, multiple business stories</div>
               <p className="muted">
-                The access code flow is designed for a hosted Netlify deployment
-                and also has a safe preview mode when email delivery is not
-                configured yet.
+                Shared navigation, cards, forms, and responsive behavior stay in
+                place while the theme and live records adapt to the selected use case.
               </p>
             </article>
           </div>

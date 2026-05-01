@@ -51,11 +51,16 @@ import {
   registerHealthRoute,
 } from "./http/app.js";
 import {
+  createAllowedOriginPolicy,
+  createCorsOriginValidator,
+} from "./http/corsConfig.js";
+import {
   createIsGlobalAdmin,
   createResolveOrganizationReadScope,
   createResolveOrganizationWriteScope,
   scopeOrganizationHierarchySummary,
 } from "./organizations/scope.js";
+import { createCsrfMiddleware } from "./security/csrf.js";
 import { createGetDashboardVerseHandler } from "./dashboard/verse.js";
 import { createGetDashboardWeatherHandler } from "./dashboard/weather.js";
 import { registerDashboardRoutes } from "./dashboard/dashboard.routes.js";
@@ -357,29 +362,14 @@ const { PrismaClient } = prismaPkg;
 const prisma = new PrismaClient({ adapter });
 const reebsDatabaseUrl = process.env.REEBS_DATABASE_URL;
 const faakoDatabaseUrl = process.env.FAAKO_DATABASE_URL;
-const normalizeOrigin = (origin) => origin.replace(/\/$/, "");
 const ALLOW_START_WITHOUT_DATABASE = parseEnvBoolean(
   process.env.ALLOW_START_WITHOUT_DATABASE,
   !isProduction
 );
-const allowedOrigins = (process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map((origin) => normalizeOrigin(origin.trim()))
-  .filter(Boolean);
-// In development, fall back to safe localhost defaults only when CORS_ORIGINS is unset.
-// In production, CORS_ORIGINS must be explicitly configured — no implicit fallback.
-const defaultDevOrigins =
-  !isProduction && allowedOrigins.length === 0
-    ? [
-        "http://localhost:5173",
-        "http://localhost:5177",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://localhost:8888",
-      ]
-    : [];
-const allowedOriginSet = new Set([...allowedOrigins, ...defaultDevOrigins]);
-const allowAllOrigins = !isProduction && allowedOriginSet.size === 0;
+const { allowedOriginSet, allowAllOrigins } = createAllowedOriginPolicy({
+  isProduction,
+  corsOriginsEnv: process.env.CORS_ORIGINS || "",
+});
 const API_RATE_LIMIT_WINDOW_MS = parsePositiveInt(
   process.env.API_RATE_LIMIT_WINDOW_MS ?? process.env.RATE_LIMIT_WINDOW_MS,
   15 * 60 * 1000,
@@ -4482,36 +4472,12 @@ const capabilityAccessMiddleware = createCapabilityAccessMiddleware({
   publicPathMatchers: MODULE_CAPABILITY_PUBLIC_PATHS,
 });
 
-const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const CSRF_EXCLUDED_PATHS = [
-  "/auth/login",
-  "/auth/logout",
-  "/auth/forgot-password",
-  "/public/",
-  "/webhooks/",
-];
-
-const csrfMiddleware = (req, res, next) => {
-  if (CSRF_SAFE_METHODS.has(req.method)) {
-    return next();
-  }
-  if (CSRF_EXCLUDED_PATHS.some((path) => req.path.startsWith(path))) {
-    return next();
-  }
-
-  const authCookieToken = getCookieValue(req, AUTH_COOKIE_NAME);
-  if (!authCookieToken) {
-    return next();
-  }
-
-  const csrfCookieToken = getCookieValue(req, AUTH_CSRF_COOKIE_NAME);
-  const csrfHeaderToken = String(req.header("x-csrf-token") || "").trim();
-  if (!csrfCookieToken || !csrfHeaderToken || !timingSafeEqual(csrfCookieToken, csrfHeaderToken)) {
-    return res.status(403).json({ error: "Invalid CSRF token" });
-  }
-
-  return next();
-};
+const csrfMiddleware = createCsrfMiddleware({
+  getCookieValue,
+  authCookieName: AUTH_COOKIE_NAME,
+  csrfCookieName: AUTH_CSRF_COOKIE_NAME,
+  timingSafeEqual,
+});
 
 const requireAdmin = createRequireAdmin();
 const requireGlobalAdmin = (req, res, next) => {
@@ -4672,17 +4638,7 @@ configureBaseHttpMiddleware(app, {
   express,
   corsOptions: {
     credentials: true,
-    origin: (origin, callback) => {
-      if (!origin || allowAllOrigins) {
-        callback(null, true);
-        return;
-      }
-      if (allowedOriginSet.has(normalizeOrigin(origin))) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: createCorsOriginValidator({ allowedOriginSet, allowAllOrigins }),
   },
   securityHeaders,
   apiRequestLogger,

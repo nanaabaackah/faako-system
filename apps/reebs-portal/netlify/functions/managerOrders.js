@@ -5,11 +5,21 @@ import { getManagerFromEvent } from "./_shared/managerAuth.js";
 import { ensureManagerDeviceTable } from "./_shared/managerPush.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 
+const MANAGER_ORIGIN = String(process.env.MANAGER_APP_ORIGIN || process.env.URL || "").trim();
+const allowedOrigin = MANAGER_ORIGIN || null;
+
+const corsHeaders = (extraAllow = "GET,OPTIONS") => ({
+  ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": extraAllow,
+  "Vary": "Origin",
+});
+
 const json = (statusCode, body, extraHeaders = {}) => ({
   statusCode,
   headers: {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    ...corsHeaders(),
     ...extraHeaders,
   },
   body: JSON.stringify(body),
@@ -34,23 +44,22 @@ const withDeliveryTotals = (order) => {
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
-      },
-      body: "",
-    };
+    return { statusCode: 204, headers: corsHeaders(), body: "" };
   }
   if (event.httpMethod !== "GET") {
-    return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "GET,OPTIONS" });
+    return json(405, { error: "Method Not Allowed" });
   }
 
-  const manager = getManagerFromEvent(event);
+  const manager = getManagerFromEvent(event, {
+    requiredScopes: ["manager:orders:read"],
+  });
   if (!manager) {
     return json(401, { error: "Unauthorized" });
+  }
+
+  const organizationId = Number(manager.organizationId);
+  if (!Number.isFinite(organizationId) || organizationId <= 0) {
+    return json(403, { error: "Manager token is missing organization context." });
   }
 
   const client = new Client({
@@ -90,11 +99,13 @@ export async function handler(event = {}) {
            '[]'::json
          ) AS items
        FROM "order" o
-       LEFT JOIN "orderItem" oi ON oi."orderId" = o.id
-       LEFT JOIN "product" p ON p.id = oi."productId"
+       LEFT JOIN "orderItem" oi ON oi."orderId" = o.id AND oi."organizationId" = o."organizationId"
+       LEFT JOIN "product" p ON p.id = oi."productId" AND p."organizationId" = o."organizationId"
+       WHERE o."organizationId" = $1
        GROUP BY o.id
        ORDER BY o."orderDate" DESC, o.id DESC
-       LIMIT 200`
+       LIMIT 200`,
+      [organizationId]
     );
     return json(200, (result.rows || []).map(withDeliveryTotals));
   } catch (err) {

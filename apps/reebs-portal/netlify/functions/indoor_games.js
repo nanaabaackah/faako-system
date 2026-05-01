@@ -1,6 +1,8 @@
+// Intentionally public: storefront catalog for the configured public organization only.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { buildResponseHeaders, json } from "./_shared/http.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 
 const responseHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -29,6 +31,7 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
 
     const result = await client.query(`
       SELECT
@@ -48,8 +51,9 @@ export async function handler(event) {
       LEFT JOIN "product" p
         ON p.id = ig."productId"
        AND p."organizationId" = ig."organizationId"
+      WHERE ig."organizationId" = $1
       ORDER BY ig.id ASC
-    `);
+    `, [organizationId]);
 
     return {
       statusCode: 200,

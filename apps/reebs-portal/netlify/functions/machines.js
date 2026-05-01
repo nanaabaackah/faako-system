@@ -1,6 +1,8 @@
+// Intentionally public: storefront catalog for the configured public organization only.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { buildResponseHeaders, json } from "./_shared/http.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 
 const responseHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -29,6 +31,7 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
 
     const columnsResult = await client.query(`
       SELECT column_name
@@ -52,6 +55,13 @@ export async function handler(event) {
       ? `LEFT JOIN "product" p
            ON p.id = "productId"${hasColumn("organizationId") ? ' AND p."organizationId" = "organizationId"' : ""}`
       : 'LEFT JOIN "product" p ON 1 = 0';
+    if (!hasColumn("organizationId")) {
+      return {
+        statusCode: 503,
+        headers: responseHeaders(event),
+        body: JSON.stringify({ error: "Machines catalog is missing organization scoping." }),
+      };
+    }
     const orderBy = hasColumn("id")
       ? "ORDER BY id ASC"
       : hasColumn("name")
@@ -76,8 +86,9 @@ export async function handler(event) {
         ${selectExpr("notes", "notes")}
       FROM "machines"
       ${productJoin}
+      WHERE "organizationId" = $1
       ${orderBy}
-    `);
+    `, [organizationId]);
 
     return {
       statusCode: 200,

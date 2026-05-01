@@ -41,8 +41,8 @@ export default function Expenses() {
           </div>
           <div className="data-table">
             <div className="table-row table-head is-5">
-              {page.table.columns.map((col) => (
-                <span key={col}>{col}</span>
+              {page.table.columns.map((column) => (
+                <span key={column}>{column}</span>
               ))}
             </div>
             {page.table.rows.map((expense) => (
@@ -80,7 +80,7 @@ export default function Expenses() {
                 <div className="list-row" key={alert.id}>
                   <div className="table-strong">{alert.title}</div>
                   <p className="muted">{alert.detail}</p>
-                  <span className="status-pill is-danger">{alert.status}</span>
+                  <span className="status-pill is-warning">{alert.status}</span>
                 </div>
               ))}
             </div>
@@ -94,12 +94,12 @@ export default function Expenses() {
               </div>
             </div>
             <div className="list">
-              {page.cardLimits.map((card) => (
-                <div className="list-row" key={card.id}>
-                  <div className="table-strong">{card.title}</div>
-                  <p className="muted">{card.detail}</p>
+              {page.cardLimits.map((item) => (
+                <div className="list-row" key={item.id}>
+                  <div className="table-strong">{item.title}</div>
+                  <p className="muted">{item.detail}</p>
                   <div className="progress">
-                    <span style={{ width: `${card.fill}%` }} />
+                    <span style={{ width: `${item.fill}%` }} />
                   </div>
                 </div>
               ))}

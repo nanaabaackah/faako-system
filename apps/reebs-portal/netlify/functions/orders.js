@@ -4,7 +4,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 import { sanitizeOrderLogisticsDetails } from "./_shared/orderDetails.js";
 import { ensureInventoryVariantSchema } from "./_shared/inventoryExtensions.js";
 
@@ -71,9 +71,14 @@ export async function handler(event = {}) {
     await ensureAuditColumns(client);
     await ensureInventoryVariantSchema(client);
     await ensureOrderColumns(client);
-    const authResult = await requireInternalUser(client, event, {
-      methods: ORDER_METHODS,
-    });
+    const authResult =
+      event.httpMethod === "GET"
+        ? await requirePermission(client, event, "orders:read", {
+            methods: ORDER_METHODS,
+          })
+        : await requirePermission(client, event, "orders:write", {
+            methods: ORDER_METHODS,
+          });
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }

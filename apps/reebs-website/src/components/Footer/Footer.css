@@ -1,4 +1,10 @@
 .site-footer {
+  --ui-bottom-bar-border-color: rgba(var(--white-rgb), 0.12);
+  --ui-bottom-bar-text-color: rgba(var(--white-rgb), 0.92);
+  --ui-bottom-bar-muted-color: rgba(var(--white-rgb), 0.7);
+  --ui-bottom-bar-link-color: rgba(var(--white-rgb), 0.96);
+  --ui-bottom-bar-link-hover-color: var(--back2);
+  --ui-bottom-bar-mark-color: var(--other);
   --footer-content-offset: clamp(7.5rem, 14vw, 9.5rem);
   position: relative;
   display: flex;

@@ -2,6 +2,7 @@ export default {
   appId: "@faako/system-starter",
   brand: {
     name: "System Starter",
+    businessName: "Faako",
     shortName: "START",
     browserChromeColor: "#f6f7fb",
   },

@@ -2,6 +2,7 @@ export default {
   appId: "@faako/stroane-web",
   brand: {
     name: "Stroane",
+    businessName: "Stroane Solutions",
     shortName: "STROANE",
     browserChromeColor: "#ffffff",
   },

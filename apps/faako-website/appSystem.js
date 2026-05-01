@@ -2,6 +2,7 @@ export default {
   appId: "@faako/faako-website",
   brand: {
     name: "Faako Website",
+    businessName: "Faako",
     shortName: "FAAKO",
     browserChromeColor: "#fbfbfb",
   },

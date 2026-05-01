@@ -1,10 +1,8 @@
-import { useState } from "react";
 import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Notifications() {
   const { scenario } = useDemoScenario();
   const page = scenario.pages.notifications;
-  const [activeFilter, setActiveFilter] = useState(page.filters[0]);
 
   return (
     <section className="page">
@@ -40,12 +38,11 @@ export default function Notifications() {
             <p className="muted">{page.listCopy}</p>
           </div>
           <div className="segmented">
-            {page.filters.map((filter) => (
+            {page.filters.map((filter, index) => (
               <button
                 key={filter}
-                className={`segment ${activeFilter === filter ? "is-active" : ""}`}
+                className={`segment ${index === 0 ? "is-active" : ""}`}
                 type="button"
-                onClick={() => setActiveFilter(filter)}
               >
                 {filter}
               </button>

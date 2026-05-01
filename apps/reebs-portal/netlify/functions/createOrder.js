@@ -10,7 +10,11 @@ import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.
 import { notifyManager } from "./_shared/managerPush.js";
 import { sanitizeOrderLogisticsDetails } from "./_shared/orderDetails.js";
 import { sendManagerWhatsApp } from "./_shared/whatsapp.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import {
+  applyRequestOrganizationContext,
+  resolveCheckoutOrganizationId,
+} from "./_shared/organization.js";
+import { requireInternalUser } from "./_shared/internalApi.js";
 import { requireUser } from "./_shared/userAuth.js";
 import {
   getNotificationCatchallEmail,
@@ -18,6 +22,10 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
+import {
+  applyWindowRateLimit,
+  getRequestClientIp,
+} from "./_shared/requestRateLimit.js";
 import {
   buildCustomerOrderEmailHtml,
   buildCustomerOrderEmailText,
@@ -198,18 +206,11 @@ export async function handler(event) {
     deliveryDetails,
     pickupDetails,
     paymentPreference,
-    discount,
     source,
   } = payload;
   if (!customerId || !Array.isArray(items) || items.length === 0) {
     return json(event, 400, { error: "Missing customerId or items." });
   }
-
-  const toCents = (value) => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return 0;
-    return Math.round(parsed * 100);
-  };
 
   const normalizedItems = items
     .map((item) => ({
@@ -221,7 +222,6 @@ export async function handler(event) {
         .replace(/\D/g, "")
         .slice(0, 40),
       quantity: Math.max(1, parseInt(item.quantity, 10) || 0),
-      price: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
     }))
     .filter((item) => Number.isFinite(item.productId) && item.quantity > 0);
   if (normalizedItems.length === 0) {
@@ -270,13 +270,42 @@ export async function handler(event) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
+    let authUser = await requireUser(client, event);
     if (!authUser && source !== "checkout") {
       return json(event, 401, { error: "Unauthorized" });
     }
-    const organizationId = authUser
-      ? authUser.organizationId
-      : await resolveOrganizationId(client, event, payload);
+
+    let organizationId;
+    if (authUser) {
+      const internal = await requireInternalUser(client, event, {
+        methods: "POST,OPTIONS",
+        body: payload,
+      });
+      if (internal.errorResponse) {
+        return internal.errorResponse;
+      }
+      authUser = internal.authUser;
+      organizationId = internal.organizationId;
+    } else {
+      try {
+        organizationId = await resolveCheckoutOrganizationId(client, event, payload);
+      } catch (error) {
+        return json(event, error?.statusCode || 403, {
+          error: error?.message || "Checkout is not enabled for this organization.",
+        });
+      }
+
+      const guestRateLimit = await applyWindowRateLimit(client, {
+        scope: `guest-checkout:${organizationId}:ip`,
+        identifier: getRequestClientIp(event),
+        limit: 10,
+        windowMs: 15 * 60 * 1000,
+      });
+      if (!guestRateLimit.allowed) {
+        return json(event, 429, { error: "Too many checkout attempts. Try again later." });
+      }
+      await applyRequestOrganizationContext(client, organizationId);
+    }
     await Promise.all([
       ensureAuditColumns(client),
       ensureInventoryVariantSchema(client),
@@ -344,7 +373,7 @@ export async function handler(event) {
     const aggregatedItems = [];
     const aggregateMap = new Map();
     for (const item of digitExpandedItems) {
-      const key = `${item.productId}:${item.variantId || ""}:${Number.isFinite(item.price) ? item.price : ""}`;
+      const key = `${item.productId}:${item.variantId || ""}`;
       const existing = aggregateMap.get(key);
       if (existing) {
         existing.quantity += item.quantity;
@@ -453,18 +482,13 @@ export async function handler(event) {
       }
     }
 
-    const allowPriceOverride = Boolean(authUser);
     const pricedItems = aggregatedItems.map((item) => {
       const product = productMap.get(item.productId);
       const dbPriceCents = Number(product?.price);
       const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
       const variantPriceCents = Number(variant?.priceOverride);
-      const overrideCents = allowPriceOverride && Number.isFinite(item.price)
-        ? Math.max(0, toCents(item.price))
-        : null;
-      const unitPriceCents = Number.isFinite(overrideCents)
-        ? overrideCents
-        : Number.isFinite(variantPriceCents) && variantPriceCents >= 0
+      const unitPriceCents =
+        Number.isFinite(variantPriceCents) && variantPriceCents >= 0
           ? variantPriceCents
           : dbPriceCents;
       return {
@@ -473,12 +497,11 @@ export async function handler(event) {
         variantLabel: variant ? formatVariantLabel(product?.name, variant) : null,
       };
     });
-    const discountCents = allowPriceOverride ? Math.max(0, toCents(discount || 0)) : 0;
     const itemsTotalCents = pricedItems.reduce(
       (sum, item) => sum + item.unitPriceCents * item.quantity,
       0
     );
-    const totalAmountCents = Math.max(0, itemsTotalCents - discountCents);
+    const totalAmountCents = Math.max(0, itemsTotalCents);
 
     await client.query(
       `SELECT setval(pg_get_serial_sequence('"order"', 'id'), COALESCE((SELECT MAX(id) FROM "order"), 0) + 1, false)`
@@ -687,7 +710,8 @@ export async function handler(event) {
           deliveryMethod: normalizedMethod,
           deliveryDetails: normalizedDelivery,
           pickupDetails: normalizedPickup,
-        })
+        }),
+        { organizationId }
       ),
       sendNotificationEmail({
         to: getNotificationCatchallEmail(),

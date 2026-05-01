@@ -2,8 +2,8 @@ import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Modules() {
   const { scenario } = useDemoScenario();
-  const { modules } = scenario;
   const page = scenario.pages.modulesPage;
+  const { featuredModules, journeys, sharedUiShowcase } = scenario.modules;
 
   return (
     <section className="page">
@@ -23,7 +23,7 @@ export default function Modules() {
       </div>
 
       <div className="spotlight-grid">
-        {modules.sharedUiShowcase.map((item) => (
+        {sharedUiShowcase.map((item) => (
           <article className="panel bubble-card spotlight-card" key={item.id}>
             <p className="eyebrow">{page.workspaceTitle}</p>
             <h3>{item.title}</h3>
@@ -33,7 +33,7 @@ export default function Modules() {
       </div>
 
       <div className="module-grid">
-        {modules.featuredModules.map((module) => (
+        {featuredModules.map((module) => (
           <article className="panel glass-card bubble-card module-card" key={module.id}>
             <div className="module-card__header">
               <div>
@@ -62,7 +62,7 @@ export default function Modules() {
       </div>
 
       <div className="workflow-grid">
-        {modules.journeys.map((journey) => (
+        {journeys.map((journey) => (
           <article className="panel glass-card bubble-card workflow-card" key={journey.id}>
             <p className="eyebrow">{page.journeyEyebrow}</p>
             <h3>{journey.title}</h3>

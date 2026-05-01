@@ -1,4 +1,10 @@
 .site-footer {
+  --ui-bottom-bar-border-color: color-mix(in srgb, #ffffff 18%, transparent);
+  --ui-bottom-bar-text-color: #f3fff9;
+  --ui-bottom-bar-muted-color: color-mix(in srgb, #f3fff9 66%, #9fcab8);
+  --ui-bottom-bar-link-color: color-mix(in srgb, #f3fff9 92%, #9fcab8);
+  --ui-bottom-bar-link-hover-color: color-mix(in srgb, var(--accent-soft) 88%, #f3fff9);
+  --ui-bottom-bar-mark-color: color-mix(in srgb, var(--accent-soft) 88%, #f3fff9);
   background: #062416;
   border-top: 1px solid color-mix(in srgb, #ffffff 18%, transparent);
   padding: clamp(2.8rem, 5vw, 4rem) var(--page-gutter) clamp(2rem, 4vw, 2.8rem);

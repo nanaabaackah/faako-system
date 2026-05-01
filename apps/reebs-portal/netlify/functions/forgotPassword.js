@@ -11,7 +11,7 @@ import {
   getNotificationCatchallEmail,
   sendNotificationEmail,
 } from "./_shared/email.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 import {
   createPasswordResetToken,
   ensurePasswordResetTokensTable,
@@ -280,7 +280,8 @@ export async function handler(event = {}) {
     await maybeCleanupPasswordResetTokens(client).catch((error) => {
       logger.warn({ err: error }, "Password reset token cleanup skipped");
     });
-    const organizationId = await resolveOrganizationId(client, event, payload);
+    // Intentionally public: password reset requests are limited to the configured public organization.
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
 
     const isUsernameOnly = !identifier.includes("@");
     const result = isUsernameOnly

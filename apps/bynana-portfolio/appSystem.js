@@ -2,6 +2,7 @@ export default {
   appId: "@faako/bynana-portfolio",
   brand: {
     name: "By Nana Portfolio",
+    businessName: "By Nana",
     shortName: "BN",
     browserChromeColor: "#ebe5d4",
   },

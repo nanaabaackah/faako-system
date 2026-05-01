@@ -2,10 +2,15 @@
 // Filename: bookingAvailability.js
 // GET /.netlify/functions/bookingAvailability?productId=X&variantId=Y&eventDate=2024-03-15
 // Returns availability for a rental item on a specific date.
+// Intentionally public: storefront rental availability for the configured public organization only.
 
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
+import {
+  applyRequestOrganizationContext,
+  resolveConfiguredPublicOrganizationId,
+} from "./_shared/organization.js";
 
 const METHODS = "GET,OPTIONS";
 
@@ -52,12 +57,8 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-
-    // Resolve organizationId from cookie/session or default org.
-    const orgRes = await client.query(
-      `SELECT id FROM "organization" ORDER BY id ASC LIMIT 1`
-    );
-    const organizationId = Number(orgRes.rows[0]?.id || 1);
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
+    await applyRequestOrganizationContext(client, organizationId);
 
     // Fetch product to confirm it exists and is a rental.
     const productRes = await client.query(

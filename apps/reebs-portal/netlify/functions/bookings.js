@@ -12,7 +12,11 @@ import {
 } from "./auditHelpers.js";
 import { notifyManager } from "./_shared/managerPush.js";
 import { sendManagerWhatsApp } from "./_shared/whatsapp.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import {
+  applyRequestOrganizationContext,
+  resolveConfiguredPublicOrganizationId,
+} from "./_shared/organization.js";
+import { requireInternalUser } from "./_shared/internalApi.js";
 import { requireUser } from "./_shared/userAuth.js";
 import {
   getNotificationCatchallEmail,
@@ -20,6 +24,10 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
+import {
+  applyWindowRateLimit,
+  getRequestClientIp,
+} from "./_shared/requestRateLimit.js";
 import {
   buildResponseHeaders,
   isAllowedAppOrigin,
@@ -322,7 +330,7 @@ export async function handler(event) {
 
   try {
     await client.connect();
-    const authUser = await requireUser(client, event);
+    let authUser = await requireUser(client, event);
     let data = null;
     if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
       const contentType = getHeaderValue(event, "content-type").toLowerCase();
@@ -347,9 +355,32 @@ export async function handler(event) {
         return json(event, 403, { error: "Cross-site bookings are not allowed." });
       }
     }
-    const organizationId = authUser
-      ? authUser.organizationId
-      : await resolveOrganizationId(client, event, data);
+    let organizationId;
+    if (authUser) {
+      const internal = await requireInternalUser(client, event, {
+        methods: BOOKING_METHODS,
+        body: data,
+      });
+      if (internal.errorResponse) {
+        return internal.errorResponse;
+      }
+      authUser = internal.authUser;
+      organizationId = internal.organizationId;
+    } else {
+      organizationId = await resolveConfiguredPublicOrganizationId(client);
+      await applyRequestOrganizationContext(client, organizationId);
+    }
+    if (!authUser && event.httpMethod === "POST") {
+      const publicRateLimit = await applyWindowRateLimit(client, {
+        scope: `public-bookings:${organizationId}:ip`,
+        identifier: getRequestClientIp(event),
+        limit: 12,
+        windowMs: 15 * 60 * 1000,
+      });
+      if (!publicRateLimit.allowed) {
+        return json(event, 429, { error: "Too many booking attempts. Try again later." });
+      }
+    }
     await ensureAuditColumns(client);
     await ensureInventoryVariantSchema(client);
     const defaultActor = authUser
@@ -402,7 +433,7 @@ export async function handler(event) {
     const hasAssignedUser = Object.prototype.hasOwnProperty.call(data, "assignedUserId");
     const items = Array.isArray(data.items) ? data.items : [];
     const paymentPreference = sanitizePaymentPreference(data.paymentPreference);
-    let discountValue = Number.isFinite(Number(data.discount)) ? Math.max(0, Number(data.discount)) : 0;
+    let discountValue = 0;
     const applyBundleDiscount = data.applyBundleDiscount === true;
 
     const normalizedItems = items
@@ -413,7 +444,6 @@ export async function handler(event) {
           ? Number(item.variantId)
           : null,
         quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
-        price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price)) : null,
       }))
       .filter((item) => Number.isFinite(item.productId));
     let bookingId = null;
@@ -450,7 +480,6 @@ export async function handler(event) {
             ? Number(item.variantId)
             : null,
           quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
-          price: Number.isFinite(Number(item.price)) ? Math.max(0, Number(item.price) / 100) : null,
         }));
 
     if (!Number.isFinite(customerId)) return json(event, 400, { error: "customerId is required." });
@@ -522,6 +551,39 @@ export async function handler(event) {
         [productIds, organizationId]
       );
       const productMap = new Map(productRes.rows.map((row) => [row.id, row]));
+      const variantIds = [
+        ...new Set(
+          mergedItems
+            .map((item) => Number(item.variantId))
+            .filter((value) => Number.isFinite(value) && value > 0)
+        ),
+      ];
+      const variantMap = new Map();
+      if (variantIds.length) {
+        const variantRes = await client.query(
+          `SELECT
+             id,
+             "inventoryItemId",
+             sku,
+             "variantNumber",
+             color,
+             size,
+             "stockQty",
+             "reservedQty",
+             "priceOverride",
+             status
+           FROM "inventoryVariant"
+           WHERE id = ANY($1::int[])
+             AND "organizationId" = $2
+           FOR UPDATE`,
+          [variantIds, organizationId]
+        );
+        variantRes.rows.forEach((row) => variantMap.set(Number(row.id), row));
+        if (variantMap.size !== variantIds.length) {
+          await client.query("ROLLBACK");
+          return json(event, 404, { error: "One or more variants were not found." });
+        }
+      }
 
       for (const item of mergedItems) {
         const product = productMap.get(item.productId);
@@ -545,8 +607,10 @@ export async function handler(event) {
 
       const pricedItems = mergedItems.filter((item) => {
         const product = productMap.get(item.productId);
-        const priceCents = Number.isFinite(item.price)
-          ? Math.round(item.price * 100)
+        const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+        const variantPriceCents = Number(variant?.priceOverride);
+        const priceCents = Number.isFinite(variantPriceCents) && variantPriceCents >= 0
+          ? variantPriceCents
           : product?.price || 0;
         return priceCents > 0;
       });
@@ -556,8 +620,10 @@ export async function handler(event) {
         if (bundleEligible) {
           const bundleSubtotalCents = pricedItems.reduce((sum, item) => {
             const product = productMap.get(item.productId);
-            const priceCents = Number.isFinite(item.price)
-              ? Math.round(item.price * 100)
+            const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+            const variantPriceCents = Number(variant?.priceOverride);
+            const priceCents = Number.isFinite(variantPriceCents) && variantPriceCents >= 0
+              ? variantPriceCents
               : product.price;
             return sum + priceCents * item.quantity;
           }, 0);
@@ -613,7 +679,7 @@ export async function handler(event) {
         if (existingPump) {
           existingPump.quantity = pumpQuantity;
         } else {
-          finalItems.push({ productId: pumpProduct.id, quantity: pumpQuantity, price: null });
+          finalItems.push({ productId: pumpProduct.id, quantity: pumpQuantity });
         }
       }
 
@@ -639,40 +705,6 @@ export async function handler(event) {
              WHERE id = $2 AND "organizationId" = $3`,
             [row.quantity, row.variantId, organizationId]
           );
-        }
-      }
-
-      const variantIds = [
-        ...new Set(
-          finalItems
-            .map((item) => Number(item.variantId))
-            .filter((value) => Number.isFinite(value) && value > 0)
-        ),
-      ];
-      const variantMap = new Map();
-      if (variantIds.length) {
-        const variantRes = await client.query(
-          `SELECT
-             id,
-             "inventoryItemId",
-             sku,
-             "variantNumber",
-             color,
-             size,
-             "stockQty",
-             "reservedQty",
-             "priceOverride",
-             status
-           FROM "inventoryVariant"
-           WHERE id = ANY($1::int[])
-             AND "organizationId" = $2
-           FOR UPDATE`,
-          [variantIds, organizationId]
-        );
-        variantRes.rows.forEach((row) => variantMap.set(Number(row.id), row));
-        if (variantMap.size !== variantIds.length) {
-          await client.query("ROLLBACK");
-          return json(event, 404, { error: "One or more variants were not found." });
         }
       }
 
@@ -749,9 +781,7 @@ export async function handler(event) {
           const product = productMap.get(item.productId);
           const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
           const variantPrice = Number(variant?.priceOverride);
-          const priceCents = Number.isFinite(item.price)
-            ? Math.round(item.price * 100)
-            : Number.isFinite(variantPrice) && variantPrice >= 0
+          const priceCents = Number.isFinite(variantPrice) && variantPrice >= 0
               ? variantPrice
               : product.price;
           return sum + priceCents * item.quantity;
@@ -834,9 +864,7 @@ export async function handler(event) {
         const fallbackPrice = productMap.get(item.productId)?.price;
         const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
         const variantPrice = Number(variant?.priceOverride);
-        const price = Number.isFinite(item.price)
-          ? Math.round(item.price * 100)
-          : Number.isFinite(variantPrice) && variantPrice >= 0
+        const price = Number.isFinite(variantPrice) && variantPrice >= 0
             ? variantPrice
             : fallbackPrice;
         await client.query(
@@ -870,7 +898,9 @@ export async function handler(event) {
           console.warn("WhatsApp notify failed:", err?.message || err);
         }
         try {
-          await notifyManager(client, buildBookingNotification(persistedBooking));
+          await notifyManager(client, buildBookingNotification(persistedBooking), {
+            organizationId,
+          });
         } catch (err) {
           console.warn("Manager push failed:", err?.message || err);
         }

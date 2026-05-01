@@ -118,6 +118,9 @@ a {
 .erp-app-content {
   --erp-topbar-height: 72px;
   min-width: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .erp-topbar {
@@ -192,6 +195,7 @@ a {
 .erp-content {
   padding: calc(2rem + var(--erp-topbar-height)) 2rem max(2rem, var(--erp-bottom-clearance));
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .page {
@@ -777,16 +781,26 @@ a {
   background: color-mix(in srgb, var(--surface-alt) 24%, var(--card));
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-scenario-option::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.28rem;
+  background: var(--demo-scenario-accent, var(--accent));
 }
 
 .demo-scenario-option:hover {
-  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
-  background: color-mix(in srgb, var(--accent) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--demo-scenario-accent, var(--accent)) 36%, var(--border));
+  background: color-mix(in srgb, var(--demo-scenario-accent, var(--accent)) 6%, var(--card));
 }
 
 .demo-scenario-option.is-active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-color: var(--demo-scenario-accent, var(--accent));
+  background: color-mix(in srgb, var(--demo-scenario-accent, var(--accent)) 10%, var(--card));
 }
 
 .demo-scenario-option__label {
@@ -800,9 +814,24 @@ a {
   line-height: 1.4;
 }
 
+.demo-scenario-option__modules {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 /* Topbar scenario switcher */
 .scenario-switcher {
   flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-alt) 34%, var(--card));
+}
+
+.scenario-switcher .segment {
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 @media (max-width: 1100px) {
@@ -858,6 +887,10 @@ a {
     width: 100%;
     justify-content: flex-start;
     max-width: none;
+  }
+
+  .scenario-switcher {
+    width: 100%;
   }
 
   .erp-topbar__context {
@@ -939,6 +972,10 @@ a {
   .segment {
     flex: 1 1 calc(50% - 0.2rem);
     text-align: center;
+  }
+
+  .scenario-switcher .segment {
+    flex: 1 1 calc(33.33% - 0.2rem);
   }
 
   .header-actions,

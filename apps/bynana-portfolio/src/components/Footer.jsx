@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppBottomBar } from '@faako/ui';
 import { Link } from 'react-router-dom';
 import '../styles/components/Footer.css';
 
@@ -153,6 +154,9 @@ function Footer() {
           loading="lazy"
         />
         <p className="site-footer__copyright">© {year} MADE TO MATTER. MADE BY NANA</p>
+      </div>
+      <div className="site-footer__shell site-footer__shell--bottom-bar" data-scroll-reveal="fadeInUp">
+        <AppBottomBar variant="footer" />
       </div>
     </footer>
   );

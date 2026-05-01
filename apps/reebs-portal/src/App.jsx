@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { ErpShellFrame } from "@faako/ui";
+import { AppBottomBar, ErpShellFrame } from "@faako/ui";
 import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
@@ -575,7 +575,12 @@ function AppLayout() {
             <title>{pageTitle}</title>
           </Helmet>
           <div className="portal-app-shell portal-app-shell--store-mode">
-            <div className="portal-app-content portal-app-content--store-mode">{routes}</div>
+            <div className="portal-app-content portal-app-content--store-mode portal-app-content--with-bottom-bar">
+              <div className="portal-app-content__body">{routes}</div>
+              <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
+                <AppBottomBar />
+              </div>
+            </div>
           </div>
         </>
       );
@@ -589,7 +594,7 @@ function AppLayout() {
         <ErpShellFrame
           brand={shellConfig.brand}
           className="portal-app-shell"
-          contentClassName="portal-app-content"
+          contentClassName="portal-app-content portal-app-content--with-bottom-bar"
           layout="overlay"
           sidebar={(
             <Suspense fallback={null}>
@@ -602,7 +607,10 @@ function AppLayout() {
             </Suspense>
           )}
         >
-          {routes}
+          <div className="portal-app-content__body">{routes}</div>
+          <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
+            <AppBottomBar />
+          </div>
         </ErpShellFrame>
       </>
     );

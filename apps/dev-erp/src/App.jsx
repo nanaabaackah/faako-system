@@ -34,6 +34,7 @@ import ErrorPage from "./pages/ErrorPage/ErrorPage";
 import useScrollAnimations from "./hooks/useScrollAnimations";
 import { apiGet, apiPost } from "./api/client";
 import {
+  AppBottomBar,
   useSidebarCollapsedState,
 } from "@faako/ui";
 import {
@@ -376,7 +377,12 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
             Offline mode. Showing cached content where available.
           </div>
         ) : null}
-        <main className="erp-content">{children}</main>
+        <main className="erp-content">
+          <div className="erp-page-body">{children}</div>
+          <div className="ui-bottom-bar-shell erp-content-bottom-bar">
+            <AppBottomBar />
+          </div>
+        </main>
       </div>
       <nav className="mobile-tabbar" aria-label="Primary mobile navigation">
         {visibleMobileTabItems.map((item) => {

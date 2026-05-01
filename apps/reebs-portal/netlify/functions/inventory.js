@@ -12,7 +12,11 @@ import {
   parseVendorIdsInput,
   setProductVendorLinks,
 } from "./_shared/productVendors.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import {
+  applyRequestOrganizationContext,
+  resolveConfiguredPublicOrganizationId,
+} from "./_shared/organization.js";
+import { requireInternalUser } from "./_shared/internalApi.js";
 import { requireUser } from "./_shared/userAuth.js";
 import {
   cleanInventoryText,
@@ -484,10 +488,10 @@ export async function handler(event = {}) {
         };
       }
     }
-    const authenticatedUser = await requireUser(client, event);
+    const previewUser = await requireUser(client, event);
     const requestedView = (event.queryStringParameters?.view || "").toLowerCase();
 
-    if (method === "GET" && !authenticatedUser) {
+    if (method === "GET" && !previewUser) {
       if (requestedView && requestedView !== "default") {
         return {
           statusCode: 403,
@@ -496,7 +500,9 @@ export async function handler(event = {}) {
         };
       }
 
-      const organizationId = await resolveOrganizationId(client, event, null);
+      // Intentionally public: storefront inventory reads for the configured public organization only.
+      const organizationId = await resolveConfiguredPublicOrganizationId(client);
+      await applyRequestOrganizationContext(client, organizationId);
       await ensureInventoryReadSchema(client);
       await seedDefaultSourceCategories(client, organizationId);
       const result = await client.query(
@@ -569,7 +575,7 @@ export async function handler(event = {}) {
       };
     }
 
-    if (!authenticatedUser) {
+    if (!previewUser) {
       return {
         statusCode: 401,
         headers: getCorsHeaders(event),
@@ -577,7 +583,14 @@ export async function handler(event = {}) {
       };
     }
 
-    const organizationId = Number(authenticatedUser.organizationId);
+    const access = await requireInternalUser(client, event, {
+      methods: "GET,POST,PATCH,DELETE,OPTIONS",
+      body: payload,
+    });
+    if (access.errorResponse) {
+      return access.errorResponse;
+    }
+    const { authUser: authenticatedUser, organizationId } = access;
     const needsWriteSchema = method !== "GET" || requestedView === "edit-requests";
     if (needsWriteSchema) {
       await ensureInventoryWriteSchema(client);
@@ -585,6 +598,21 @@ export async function handler(event = {}) {
       await ensureInventoryReadSchema(client);
     }
     await seedDefaultSourceCategories(client, organizationId);
+
+    if (
+      method !== "GET" &&
+      !(
+        canApproveInventoryEditRequests(authenticatedUser.role) ||
+        canEditInventoryDirectly(authenticatedUser.role) ||
+        canRequestInventoryEdit(authenticatedUser.role)
+      )
+    ) {
+      return {
+        statusCode: 403,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({ error: "You do not have permission to edit inventory." }),
+      };
+    }
 
     if (method === "GET") {
       const view = requestedView;
@@ -2006,15 +2034,19 @@ export async function handler(event = {}) {
         );
 
         try {
-          await notifyManager(client, {
-            title: "Inventory edit approval",
-            body: `${actor.userName || "Staff"} requested changes for ${currentProduct.name || `Item #${parsedId}`}.`,
-            data: {
-              type: "inventory-edit-request",
-              requestId: requestResult.rows[0]?.id,
-              productId: parsedId,
+          await notifyManager(
+            client,
+            {
+              title: "Inventory edit approval",
+              body: `${actor.userName || "Staff"} requested changes for ${currentProduct.name || `Item #${parsedId}`}.`,
+              data: {
+                type: "inventory-edit-request",
+                requestId: requestResult.rows[0]?.id,
+                productId: parsedId,
+              },
             },
-          });
+            { organizationId }
+          );
         } catch (notifyError) {
           console.warn("Inventory edit approval notification failed:", notifyError?.message || notifyError);
         }

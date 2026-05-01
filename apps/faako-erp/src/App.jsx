@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import {
+  AppBottomBar,
   ErpBottomNav,
   ErpNavSidebar,
   ErpShellFrame,
@@ -26,7 +27,7 @@ import Notifications from "./pages/Notifications.jsx";
 import Modules from "./pages/Modules.jsx";
 import Settings from "./pages/Settings.jsx";
 import NotFound from "./pages/NotFound.jsx";
-import shellConfig from "./config/erpShell.js";
+import { getErpShellConfig } from "./config/erpShell.js";
 import DemoAccessGate from "./components/DemoAccessGate.jsx";
 import { useAuth } from "./contexts/AuthContext.jsx";
 import useDemoScenario from "./hooks/useDemoScenario.jsx";
@@ -202,6 +203,7 @@ function AppLayout() {
   const location = useLocation();
   const { isAuthed, revokeAccess, user } = useAuth();
   const { scenario, scenarioId, scenarioOptions, setScenarioId } = useDemoScenario();
+  const shellConfig = useMemo(() => getErpShellConfig(scenario), [scenario]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
     storageKey: "faako-erp.sidebar-collapsed",
   });
@@ -220,7 +222,12 @@ function AppLayout() {
     if (browserColor) {
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", browserColor);
     }
-  }, [scenario?.id]);
+    return () => {
+      Object.keys(vars).forEach((key) => {
+        root.style.removeProperty(key);
+      });
+    };
+  }, [scenario?.id, scenario?.brand?.shellVars]);
 
   // Build nav items with scenario-specific labels; iconKey = item.id so icon matching is stable
   const activeSidebarItems = useMemo(() => (
@@ -229,7 +236,7 @@ function AppLayout() {
       iconKey: item.id,
       label: scenario.navigation.labels[item.id] || item.label,
     }))
-  ), [scenario.id]);
+  ), [scenario.id, shellConfig.sidebarItems]);
 
   const activeBottomNavItems = useMemo(() => (
     shellConfig.bottomNavItems.map((item) => ({
@@ -237,7 +244,7 @@ function AppLayout() {
       iconKey: item.id,
       label: scenario.navigation.bottomLabels[item.id] || item.label,
     }))
-  ), [scenario.id]);
+  ), [scenario.id, shellConfig.bottomNavItems]);
 
   // Build page titles for document.title from scenario nav labels
   const activePageTitles = useMemo(() => {
@@ -246,7 +253,7 @@ function AppLayout() {
       titles[item.path] = scenario.navigation.labels[item.id] || item.label;
     });
     return titles;
-  }, [scenario.id]);
+  }, [scenario.id, shellConfig.sidebarItems]);
 
   useEffect(() => {
     document.title = getErpPageTitle(
@@ -255,7 +262,7 @@ function AppLayout() {
       activePageTitles,
       "/",
     );
-  }, [location.pathname, scenario.id, activePageTitles]);
+  }, [activePageTitles, location.pathname, scenario.brand.name, scenario.id]);
 
   useEffect(() => {
     const fallbackHeight =
@@ -350,6 +357,9 @@ function AppLayout() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <div className="ui-bottom-bar-shell faako-erp-bottom-bar-shell">
+          <AppBottomBar businessName={scenario.brand.name} />
+        </div>
         <DemoAccessGate />
       </div>
     </ErpShellFrame>

@@ -44,7 +44,7 @@ export default function People() {
               <div className="list-row" key={person.id}>
                 <div className="table-strong">{person.name}</div>
                 <p className="muted">
-                  {person.role} &bull; {person.location}
+                  {person.role} - {person.location}
                 </p>
                 <span
                   className={`status-pill ${

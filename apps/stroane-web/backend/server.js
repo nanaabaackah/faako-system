@@ -3,9 +3,17 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import { fileURLToPath } from "node:url";
 import prismaPkg from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  createApiRateLimitMiddleware,
+  createCorsOriginValidator,
+  createSecurityHeadersMiddleware,
+  createUnsafeApiDefaultDenyMiddleware,
+  resolveAllowedOrigins,
+} from "./security.js";
 
 dotenv.config();
 
@@ -27,28 +35,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // CORS — only allow explicitly configured origins; fail closed in production.
-const isProduction = (process.env.NODE_ENV || "").toLowerCase() === "production";
-const allowedOrigins = new Set(
-  (process.env.CORS_ORIGINS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-);
-if (!isProduction && allowedOrigins.size === 0) {
-  allowedOrigins.add("http://localhost:5173");
-  allowedOrigins.add("http://localhost:3000");
-}
+const allowedOrigins = resolveAllowedOrigins(process.env);
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow server-to-server (no origin header) and explicitly listed origins.
-      if (!origin || allowedOrigins.has(origin)) return callback(null, true);
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: createCorsOriginValidator({ allowedOrigins }),
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(createSecurityHeadersMiddleware());
+app.use(express.json({ limit: "1mb" }));
+app.use("/api", createApiRateLimitMiddleware());
+app.use("/api", createUnsafeApiDefaultDenyMiddleware());
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -80,14 +77,20 @@ app.get("/api/products/:id", async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Error:", err);
-  res.status(500).json({ error: "Internal server error" });
+  res.status(err?.statusCode || 500).json({
+    error: err?.statusCode ? err.message : "Internal server error",
+  });
 });
 
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+
 // Start server
-app.listen(PORT, () => {
-  console.log(`Stroane backend server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-});
+if (isDirectRun) {
+  app.listen(PORT, () => {
+    console.log(`Stroane backend server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  });
+}
 
 // Graceful shutdown
 process.on("SIGINT", async () => {

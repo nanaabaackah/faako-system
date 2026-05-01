@@ -12,6 +12,7 @@ export const ensureManagerDeviceTable = async (client) => {
   const statements = [
     `CREATE TABLE IF NOT EXISTS "managerDevice" (
       "id" SERIAL PRIMARY KEY,
+      "organizationId" INTEGER NOT NULL DEFAULT 1,
       "token" TEXT NOT NULL UNIQUE,
       "platform" TEXT,
       "deviceId" TEXT,
@@ -20,12 +21,14 @@ export const ensureManagerDeviceTable = async (client) => {
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "token" TEXT NOT NULL`,
+    `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER NOT NULL DEFAULT 1`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "platform" TEXT`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "deviceId" TEXT`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "lastSeenAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
     `ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "managerDevice_token_key" ON "managerDevice" ("token")`,
+    `CREATE INDEX IF NOT EXISTS "managerDevice_organizationId_idx" ON "managerDevice" ("organizationId")`,
   ];
 
   for (const statement of statements) {
@@ -37,11 +40,14 @@ export const ensureManagerDeviceTable = async (client) => {
   }
 };
 
-export const fetchManagerTokens = async (client) => {
+export const fetchManagerTokens = async (client, { organizationId = null } = {}) => {
+  const hasOrganizationId = Number.isInteger(Number(organizationId)) && Number(organizationId) > 0;
   const result = await client.query(
     `SELECT token
      FROM "managerDevice"
-     WHERE token IS NOT NULL`
+     WHERE token IS NOT NULL
+       ${hasOrganizationId ? `AND "organizationId" = $1` : ""}`,
+    hasOrganizationId ? [Number(organizationId)] : []
   );
   return result.rows.map((row) => row.token).filter(Boolean);
 };
@@ -75,8 +81,8 @@ export const sendManagerPush = async (tokens, message) => {
   }
 };
 
-export const notifyManager = async (client, message) => {
+export const notifyManager = async (client, message, { organizationId = null } = {}) => {
   await ensureManagerDeviceTable(client);
-  const tokens = await fetchManagerTokens(client);
+  const tokens = await fetchManagerTokens(client, { organizationId });
   await sendManagerPush(tokens, message);
 };

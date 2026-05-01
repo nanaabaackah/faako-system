@@ -2,7 +2,7 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
@@ -29,10 +29,8 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const internal = await requireInternalUser(client, event, {
+    const internal = await requirePermission(client, event, "invoices:read", {
       methods: "GET,OPTIONS",
-      roles: ["owner", "admin", "manager"],
-      roleError: "Manager access required.",
     });
     if (internal.errorResponse) {
       return internal.errorResponse;

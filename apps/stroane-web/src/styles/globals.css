@@ -83,7 +83,7 @@ body {
   padding: 0;
   font-family: var(--font-family);
   color: var(--color-text-primary);
-  background-color: var(--color-bg);
+  background-color: var(--color-white);
 }
 
 * {

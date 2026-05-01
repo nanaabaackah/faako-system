@@ -2,6 +2,7 @@ export default {
   appId: "@faako/ui-workbench",
   brand: {
     name: "UI Workbench",
+    businessName: "Faako",
     shortName: "UI",
     browserChromeColor: "#f8fafc",
   },

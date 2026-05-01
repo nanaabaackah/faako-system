@@ -32,6 +32,28 @@ const cleanKeyPart = (value, maxLength = 240, fallback = "unknown") => {
   return normalized || fallback;
 };
 
+export const getRequestClientIp = (event) => {
+  const candidates = [
+    event?.headers?.["x-nf-client-connection-ip"],
+    event?.headers?.["X-Nf-Client-Connection-Ip"],
+    event?.headers?.["client-ip"],
+    event?.headers?.["Client-Ip"],
+    event?.headers?.["x-forwarded-for"],
+    event?.headers?.["X-Forwarded-For"],
+    event?.headers?.["x-real-ip"],
+    event?.headers?.["X-Real-Ip"],
+  ];
+
+  for (const candidate of candidates) {
+    const first = String(candidate || "")
+      .split(",")[0]
+      .trim();
+    if (first) return cleanKeyPart(first, 120, "unknown");
+  }
+
+  return "unknown";
+};
+
 export const ensureRequestRateLimitTable = async (client) => {
   if (tableEnsured) return;
   for (const statement of tableStatements) {

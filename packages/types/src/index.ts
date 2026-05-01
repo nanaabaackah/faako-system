@@ -68,6 +68,7 @@ export interface SecurityPolicyConfig {
 
 export interface AppSystemBranding {
   name: string;
+  businessName?: string;
   shortName?: string;
   browserChromeColor?: string;
 }

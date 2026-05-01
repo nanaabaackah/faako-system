@@ -41,8 +41,8 @@ export default function Customers() {
           </div>
           <div className="data-table">
             <div className="table-row table-head is-5">
-              {page.table.columns.map((col) => (
-                <span key={col}>{col}</span>
+              {page.table.columns.map((column) => (
+                <span key={column}>{column}</span>
               ))}
             </div>
             {page.table.rows.map((account) => (

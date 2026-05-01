@@ -2,6 +2,7 @@ export default {
   appId: "@faako/dev-erp",
   brand: {
     name: "Dev ERP",
+    businessName: "Faako",
     shortName: "DEV",
     browserChromeColor: "#f6f1e8",
   },

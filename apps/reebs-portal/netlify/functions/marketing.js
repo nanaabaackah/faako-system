@@ -1,7 +1,11 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  assertSeedActionsAllowed,
+  requirePermission,
+  respond,
+} from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
@@ -113,11 +117,14 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const internal = await requireInternalUser(client, event, {
-      methods: "GET,POST,PUT,OPTIONS",
-      roles: ["owner", "admin", "manager"],
-      roleError: "Manager access required.",
-    });
+    const internal =
+      method === "GET"
+        ? await requirePermission(client, event, "marketing:read", {
+            methods: "GET,POST,PUT,OPTIONS",
+          })
+        : await requirePermission(client, event, "marketing:write", {
+            methods: "GET,POST,PUT,OPTIONS",
+          });
     if (internal.errorResponse) {
       return internal.errorResponse;
     }
@@ -166,6 +173,7 @@ export async function handler(event = {}) {
 
     if (method === "POST") {
       if (data.seed) {
+        assertSeedActionsAllowed();
         const countRes = await client.query(
           `SELECT COUNT(*)::int AS count
            FROM "discount"

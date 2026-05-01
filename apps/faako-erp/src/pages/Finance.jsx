@@ -41,8 +41,8 @@ export default function Finance() {
           </div>
           <div className="data-table">
             <div className="table-row table-head is-5">
-              {page.table.columns.map((col) => (
-                <span key={col}>{col}</span>
+              {page.table.columns.map((column) => (
+                <span key={column}>{column}</span>
               ))}
             </div>
             {page.table.rows.map((tx) => (
@@ -70,7 +70,7 @@ export default function Finance() {
                 <div className="list-row" key={invoice.id}>
                   <div className="table-strong">{invoice.customer}</div>
                   <p className="muted">
-                    {invoice.id} &bull; {invoice.due}
+                    {invoice.id} - {invoice.due}
                   </p>
                   <div className="table-strong">{invoice.amount}</div>
                   <span className="status-pill is-warning">{invoice.status}</span>

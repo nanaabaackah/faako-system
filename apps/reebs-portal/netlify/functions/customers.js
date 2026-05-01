@@ -1,11 +1,12 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-undef */
 // Filename: customers.js
+// Intentionally public lookup paths are restricted to the configured public organization.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 import { requireUser } from "./_shared/userAuth.js";
 
 const publicLookupHeaders = (event) => ({
@@ -91,7 +92,7 @@ export async function handler(event) {
     }
     const organizationId = authUser
       ? authUser.organizationId
-      : await resolveOrganizationId(client, event, data);
+      : await resolveConfiguredPublicOrganizationId(client);
 
     const lookupEmail = typeof event.queryStringParameters?.email === "string"
       ? event.queryStringParameters.email.trim()

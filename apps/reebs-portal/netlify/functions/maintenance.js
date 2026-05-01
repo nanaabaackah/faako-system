@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
@@ -67,9 +67,14 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const access = await requireInternalUser(client, event, {
-      methods: "GET,POST,PUT,OPTIONS",
-    });
+    const access =
+      event.httpMethod === "GET"
+        ? await requirePermission(client, event, "maintenance:read", {
+            methods: "GET,POST,PUT,OPTIONS",
+          })
+        : await requirePermission(client, event, "maintenance:write", {
+            methods: "GET,POST,PUT,OPTIONS",
+          });
     if (access.errorResponse) return access.errorResponse;
 
     const { organizationId } = access;

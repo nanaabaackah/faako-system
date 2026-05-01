@@ -143,6 +143,16 @@
   transition: margin-left 0.3s ease;
 }
 
+.portal-app-content--with-bottom-bar {
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-app-content__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .portal-sidebar {
   border-right: 1px solid var(--portal-sidebar-border);
   position: fixed;

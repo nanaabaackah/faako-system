@@ -4,11 +4,21 @@ import { Client } from "pg";
 import { getManagerFromEvent } from "./_shared/managerAuth.js";
 import { ensureManagerDeviceTable } from "./_shared/managerPush.js";
 
+const MANAGER_ORIGIN = String(process.env.MANAGER_APP_ORIGIN || process.env.URL || "").trim();
+const allowedOrigin = MANAGER_ORIGIN || null;
+
+const corsHeaders = (extraAllow = "POST,OPTIONS") => ({
+  ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": extraAllow,
+  "Vary": "Origin",
+});
+
 const json = (statusCode, body, extraHeaders = {}) => ({
   statusCode,
   headers: {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    ...corsHeaders(),
     ...extraHeaders,
   },
   body: JSON.stringify(body),
@@ -16,21 +26,15 @@ const json = (statusCode, body, extraHeaders = {}) => ({
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "POST,OPTIONS",
-      },
-      body: "",
-    };
+    return { statusCode: 204, headers: corsHeaders(), body: "" };
   }
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "POST,OPTIONS" });
   }
 
-  const manager = getManagerFromEvent(event);
+  const manager = getManagerFromEvent(event, {
+    requiredScopes: ["manager:device:write"],
+  });
   if (!manager) {
     return json(401, { error: "Unauthorized" });
   }
@@ -58,16 +62,17 @@ export async function handler(event = {}) {
     await client.connect();
     await ensureManagerDeviceTable(client);
     const result = await client.query(
-      `INSERT INTO "managerDevice" ("token", "platform", "deviceId", "lastSeenAt", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, NOW(), NOW(), NOW())
+      `INSERT INTO "managerDevice" ("organizationId", "token", "platform", "deviceId", "lastSeenAt", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW())
        ON CONFLICT ("token")
        DO UPDATE SET
+         "organizationId" = EXCLUDED."organizationId",
          "platform" = EXCLUDED."platform",
          "deviceId" = EXCLUDED."deviceId",
          "lastSeenAt" = NOW(),
          "updatedAt" = NOW()
        RETURNING id`,
-      [token, platform, deviceId]
+      [Number(manager.organizationId), token, platform, deviceId]
     );
     return json(200, { id: result.rows[0]?.id });
   } catch (err) {

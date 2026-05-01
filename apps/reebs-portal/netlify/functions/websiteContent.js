@@ -2,7 +2,7 @@
 import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
-import { resolveOrganizationId } from "./_shared/organization.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 
 const METHODS = "GET,POST,PATCH,OPTIONS";
 
@@ -190,13 +190,14 @@ export async function handler(event = {}) {
     await ensureWebsiteContentSchema(client);
 
     if (method === "GET") {
+      // Intentionally public: storefront website content for the configured public organization only.
       const section = normalizeToken(event.queryStringParameters?.section || event.queryStringParameters?.group);
       const key = normalizeToken(event.queryStringParameters?.key || event.queryStringParameters?.contentKey);
       if (!section) {
         return json(event, 400, { error: "Content section is required." });
       }
 
-      const organizationId = await resolveOrganizationId(client, event, null, 1);
+      const organizationId = await resolveConfiguredPublicOrganizationId(client);
       if (key) {
         const content = await getContent(client, organizationId, section, key);
         return json(event, 200, { content });

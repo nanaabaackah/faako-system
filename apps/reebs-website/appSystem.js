@@ -2,6 +2,7 @@ export default {
   appId: "@faako/reebs-website",
   brand: {
     name: "REEBS Website",
+    businessName: "REEBS Party Themes",
     shortName: "REEBS",
     browserChromeColor: "#ffffff",
   },

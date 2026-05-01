@@ -10,7 +10,12 @@ import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
-import { hasAnyRole, requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  assertSeedActionsAllowed,
+  hasAnyRole,
+  requirePermission,
+  respond,
+} from "./_shared/internalApi.js";
 
 const EXPENSE_METHODS = "GET,POST,OPTIONS";
 
@@ -47,11 +52,14 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authResult = await requireInternalUser(client, event, {
-      methods: EXPENSE_METHODS,
-      roles: ["owner", "admin", "manager"],
-      roleError: "Only owners, admins, and managers can access expenses.",
-    });
+    const authResult =
+      event.httpMethod === "GET"
+        ? await requirePermission(client, event, "expenses:read", {
+            methods: EXPENSE_METHODS,
+          })
+        : await requirePermission(client, event, "expenses:write", {
+            methods: EXPENSE_METHODS,
+          });
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }
@@ -180,6 +188,7 @@ export async function handler(event = {}) {
     }
 
     if (payload?.seed) {
+      assertSeedActionsAllowed();
       const existing = await client.query(`SELECT COUNT(*)::int AS count FROM ${table.queryRef}`);
       if ((existing.rows[0]?.count || 0) > 0) {
         return respond(event, 200, { seeded: false, count: existing.rows[0].count }, {

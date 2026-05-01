@@ -79,7 +79,7 @@
 .logo-tab {
   position: absolute;
   left: 0;
-  top: -8px;
+  top: -6px;
   height: 72px;
   width: 220px;
   display: flex;
@@ -91,7 +91,7 @@
 }
 
 .logo-tab__img {
-  width: 70px;
+  width: 150px;
   height: auto;
 }
 
@@ -140,20 +140,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0 1.5rem;
   height: 64px;
 }
 
 .scrolled-header__logo {
-  width: 80px;
+  width: 120px;
   height: auto;
 }
 
 .scrolled-header__links {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 2rem;
   list-style: none;
   margin: 0;

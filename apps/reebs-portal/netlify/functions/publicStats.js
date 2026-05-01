@@ -1,8 +1,12 @@
 /* eslint-disable no-undef */
+// Intentionally public: storefront aggregate stats for the configured public organization only.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { resolveOrganizationId } from "./_shared/organization.js";
 import { buildResponseHeaders } from "./_shared/http.js";
+import {
+  applyRequestOrganizationContext,
+  resolveConfiguredPublicOrganizationId,
+} from "./_shared/organization.js";
 
 const responseHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -33,7 +37,8 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const organizationId = await resolveOrganizationId(client, event, null);
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
+    await applyRequestOrganizationContext(client, organizationId);
 
     const [inventoryRes, bookingsRes, ordersRes] = await Promise.all([
       client.query(

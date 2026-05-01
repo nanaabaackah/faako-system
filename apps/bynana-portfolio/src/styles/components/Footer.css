@@ -1,4 +1,10 @@
 .site-footer {
+  --ui-bottom-bar-border-color: rgba(225, 219, 201, 0.16);
+  --ui-bottom-bar-text-color: rgba(225, 219, 201, 0.92);
+  --ui-bottom-bar-muted-color: rgba(225, 219, 201, 0.62);
+  --ui-bottom-bar-link-color: rgba(225, 219, 201, 0.94);
+  --ui-bottom-bar-link-hover-color: rgba(225, 219, 201, 1);
+  --ui-bottom-bar-mark-color: rgba(225, 219, 201, 0.94);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -22,6 +28,10 @@
   z-index: 1;
   width: min(1860px, 100%);
   margin: 0 auto;
+}
+
+.site-footer__shell--bottom-bar {
+  margin-top: 1.4rem;
 }
 
 .site-footer__grid {

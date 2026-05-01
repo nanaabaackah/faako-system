@@ -1,4 +1,10 @@
 .site-footer {
+  --ui-bottom-bar-border-color: var(--footer-border);
+  --ui-bottom-bar-text-color: var(--color-text-inverse);
+  --ui-bottom-bar-muted-color: var(--footer-text-muted);
+  --ui-bottom-bar-link-color: var(--color-text-inverse);
+  --ui-bottom-bar-link-hover-color: var(--color-white);
+  --ui-bottom-bar-mark-color: var(--color-text-inverse);
   min-height: 100vh;
   background: var(--footer-bg);
   display: flex;

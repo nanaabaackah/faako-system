@@ -2,7 +2,7 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import emailKit from "../../../../packages/email-kit/src/index.cjs";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 import { sendNotificationEmail } from "./_shared/email.js";
 import { DEFAULT_SERVICE_DEPOSIT_DUE_LABEL } from "../../shared/paymentCopy.js";
 
@@ -494,7 +494,7 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authResult = await requireInternalUser(client, event, {
+    const authResult = await requirePermission(client, event, "invoices:write", {
       methods: INVOICE_DOCUMENT_EMAIL_METHODS,
     });
     if (authResult.errorResponse) {

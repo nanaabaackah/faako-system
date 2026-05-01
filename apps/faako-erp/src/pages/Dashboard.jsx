@@ -3,9 +3,11 @@ import useDemoScenario from "../hooks/useDemoScenario.jsx";
 
 export default function Dashboard() {
   const { scenario } = useDemoScenario();
-  const page = scenario.pages.dashboard;
+  const dashboard = scenario.pages.dashboard;
+  const featuredModules = scenario.modules.featuredModules;
+  const demoJourneys = scenario.modules.journeys;
   const [ordersView, setOrdersView] = useState("today");
-  const orders = page.orderSets[ordersView];
+  const orders = dashboard.orderSets[ordersView] || [];
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     day: "numeric",
@@ -16,24 +18,24 @@ export default function Dashboard() {
     <section className="page dashboard">
       <div className="panel glass-card dashboard-hero">
         <div>
-          <p className="eyebrow">{page.heroEyebrow}</p>
-          <h1>{page.heroTitle}</h1>
+          <p className="eyebrow">{dashboard.heroEyebrow}</p>
+          <h1>{dashboard.heroTitle}</h1>
           <p className="muted">
-            {dateLabel} &bull; {page.heroMeta}
+            {dateLabel} - {dashboard.heroMeta}
           </p>
         </div>
         <div className="hero-actions">
           <a className="button button-primary" href="/modules">
-            {page.primaryActionLabel}
+            {dashboard.primaryActionLabel}
           </a>
           <a className="button button-ghost" href="/reports">
-            {page.secondaryActionLabel}
+            {dashboard.secondaryActionLabel}
           </a>
         </div>
       </div>
 
       <div className="kpi-grid">
-        {page.kpis.map((kpi) => (
+        {dashboard.kpis.map((kpi) => (
           <article className="panel kpi-card bubble-card" key={kpi.id}>
             <span className="kpi-label">{kpi.label}</span>
             <div className="kpi-value">{kpi.value}</div>
@@ -45,15 +47,15 @@ export default function Dashboard() {
       <section className="panel glass-card">
         <div className="panel-header">
           <div>
-            <h3>{page.modulesTitle}</h3>
-            <p className="muted">{page.modulesCopy}</p>
+            <h3>{dashboard.modulesTitle}</h3>
+            <p className="muted">{dashboard.modulesCopy}</p>
           </div>
           <a className="button button-ghost" href="/modules">
             See all modules
           </a>
         </div>
         <div className="quick-access-grid">
-          {scenario.modules.featuredModules.slice(0, 6).map((module) => (
+          {featuredModules.slice(0, 6).map((module) => (
             <a className="module-card quick-access-card bubble-card" href={module.path} key={module.id}>
               <span className="eyebrow">{module.metric}</span>
               <div className="table-strong">{module.title}</div>
@@ -68,8 +70,8 @@ export default function Dashboard() {
         <article className="panel glass-card panel-span-2">
           <div className="panel-header">
             <div>
-              <h3>{page.ordersTitle}</h3>
-              <p className="muted">{page.ordersCopy}</p>
+              <h3>{dashboard.ordersTitle}</h3>
+              <p className="muted">{dashboard.ordersCopy}</p>
             </div>
             <div className="segmented">
               <button
@@ -77,21 +79,21 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setOrdersView("today")}
               >
-                {page.ordersViewLabels.today}
+                {dashboard.ordersViewLabels.today}
               </button>
               <button
                 className={`segment ${ordersView === "week" ? "is-active" : ""}`}
                 type="button"
                 onClick={() => setOrdersView("week")}
               >
-                {page.ordersViewLabels.week}
+                {dashboard.ordersViewLabels.week}
               </button>
             </div>
           </div>
           <div className="data-table">
             <div className="table-row table-head">
-              <span>Ref</span>
-              <span>Customer</span>
+              <span>Item</span>
+              <span>Account</span>
               <span>Owner</span>
               <span>Due</span>
               <span>Status</span>
@@ -113,17 +115,17 @@ export default function Dashboard() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>{page.inventoryTitle}</h3>
-              <p className="muted">{page.inventoryCopy}</p>
+              <h3>{dashboard.inventoryTitle}</h3>
+              <p className="muted">{dashboard.inventoryCopy}</p>
             </div>
           </div>
           <div className="stack">
-            {page.inventoryWatchlist.map((item) => (
+            {dashboard.inventoryWatchlist.map((item) => (
               <div className="stack-row" key={item.id}>
                 <div>
                   <div className="table-strong">{item.item}</div>
                   <p className="muted">
-                    {item.onHand} on hand &bull; Target {item.target}
+                    {item.onHand} on hand - Target {item.target}
                   </p>
                 </div>
                 <div className="progress">
@@ -138,12 +140,12 @@ export default function Dashboard() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>{page.scheduleTitle}</h3>
-              <p className="muted">{page.scheduleCopy}</p>
+              <h3>{dashboard.scheduleTitle}</h3>
+              <p className="muted">{dashboard.scheduleCopy}</p>
             </div>
           </div>
           <div className="timeline">
-            {page.schedule.map((shift) => (
+            {dashboard.schedule.map((shift) => (
               <div className="timeline-row" key={shift.id}>
                 <span className="timeline-time">{shift.time}</span>
                 <div>
@@ -159,12 +161,12 @@ export default function Dashboard() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>{page.approvalsTitle}</h3>
-              <p className="muted">{page.approvalsCopy}</p>
+              <h3>{dashboard.approvalsTitle}</h3>
+              <p className="muted">{dashboard.approvalsCopy}</p>
             </div>
           </div>
           <div className="stack">
-            {page.approvals.map((item) => (
+            {dashboard.approvals.map((item) => (
               <div className="stack-row" key={item.id}>
                 <div>
                   <div className="table-strong">{item.title}</div>
@@ -183,12 +185,12 @@ export default function Dashboard() {
         <article className="panel glass-card">
           <div className="panel-header">
             <div>
-              <h3>{page.cashflowTitle}</h3>
-              <p className="muted">{page.cashflowCopy}</p>
+              <h3>{dashboard.cashflowTitle}</h3>
+              <p className="muted">{dashboard.cashflowCopy}</p>
             </div>
           </div>
           <div className="stack">
-            {page.cashflow.map((item) => (
+            {dashboard.cashflow.map((item) => (
               <div className="stack-row" key={item.id}>
                 <div>
                   <div className="table-strong">{item.label}</div>
@@ -204,7 +206,7 @@ export default function Dashboard() {
       </div>
 
       <section className="workflow-grid">
-        {scenario.modules.journeys.map((journey) => (
+        {demoJourneys.map((journey) => (
           <article className="panel glass-card bubble-card workflow-card" key={journey.id}>
             <p className="eyebrow">Connected workflow</p>
             <h3>{journey.title}</h3>

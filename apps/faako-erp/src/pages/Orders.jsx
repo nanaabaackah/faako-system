@@ -41,8 +41,8 @@ export default function Orders() {
           </div>
           <div className="data-table">
             <div className="table-row table-head is-7">
-              {page.table.columns.map((col) => (
-                <span key={col}>{col}</span>
+              {page.table.columns.map((column) => (
+                <span key={column}>{column}</span>
               ))}
             </div>
             {page.table.rows.map((order) => (
@@ -92,7 +92,7 @@ export default function Orders() {
                 <div className="list-row" key={stage.id}>
                   <div className="table-strong">{stage.label}</div>
                   <p className="muted">
-                    {stage.value} &bull; {stage.detail}
+                    {stage.value} active - {stage.detail}
                   </p>
                   <div className="progress">
                     <span style={{ width: `${stage.fill}%` }} />

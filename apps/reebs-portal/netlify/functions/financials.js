@@ -2,8 +2,7 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
-import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { requirePermission, respond } from "./_shared/internalApi.js";
 import {
   EXPENSE_CATEGORIES,
   buildExpenseFilter,
@@ -12,18 +11,8 @@ import {
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
 
-const responseHeaders = (event) => ({
-  "Content-Type": "application/json",
-  ...buildResponseHeaders(event, {
-    methods: "GET,OPTIONS",
-  }),
-});
-
-const json = (event, statusCode, body) => ({
-  statusCode,
-  headers: responseHeaders(event),
-  body: JSON.stringify(body),
-});
+const json = (event, statusCode, body) =>
+  respond(event, statusCode, body, { methods: "GET,OPTIONS" });
 
 const getWindowRange = (windowKey = "thisMonth") => {
   const now = new Date();
@@ -468,11 +457,7 @@ const buildExpenseBreakdown = async ({ client, start, end, organizationId }) => 
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: responseHeaders(event), body: "" };
-  }
-
-  if (isCrossSiteBrowserRequest(event)) {
-    return json(event, 403, { error: "Cross-site requests are not allowed" });
+    return respond(event, 204, {}, { methods: "GET,OPTIONS" });
   }
 
   const client = new Client({
@@ -485,13 +470,13 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(event, 401, { error: "Unauthorized" });
+    const access = await requirePermission(client, event, "financials:read", {
+      methods: "GET,OPTIONS",
+    });
+    if (access.errorResponse) {
+      return access.errorResponse;
     }
-
-    const organizationId = Number(authUser.organizationId);
+    const { organizationId } = access;
     await ensureOrderColumns(client);
 
     const [orderHasOrg, bookingHasOrg, invoiceDocumentHasTable] = await Promise.all([

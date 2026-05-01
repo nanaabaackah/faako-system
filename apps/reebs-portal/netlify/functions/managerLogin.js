@@ -2,28 +2,28 @@
 import "../../runtimeEnv.js";
 import { verifyPassword } from "../../utils/passwords.js";
 import { signManagerToken } from "./_shared/managerAuth.js";
+import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { Client } from "pg";
+import {
+  applyWindowRateLimit,
+  getRequestClientIp,
+} from "./_shared/requestRateLimit.js";
 
-const MANAGER_RATE_LIMIT_MAX = 10;
-const MANAGER_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const ipAttempts = new Map();
+const MANAGER_ORIGIN = String(process.env.MANAGER_APP_ORIGIN || process.env.URL || "").trim();
+const allowedOrigin = MANAGER_ORIGIN || null;
 
-const checkIpRateLimit = (ip) => {
-  const now = Date.now();
-  const bucket = ipAttempts.get(ip) || { count: 0, windowStart: now };
-  if (now - bucket.windowStart > MANAGER_RATE_LIMIT_WINDOW_MS) {
-    bucket.count = 0;
-    bucket.windowStart = now;
-  }
-  bucket.count += 1;
-  ipAttempts.set(ip, bucket);
-  return bucket.count > MANAGER_RATE_LIMIT_MAX;
-};
+const corsHeaders = (extraAllow = "POST,OPTIONS") => ({
+  ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": extraAllow,
+  "Vary": "Origin",
+});
 
 const json = (statusCode, body, extraHeaders = {}) => ({
   statusCode,
   headers: {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    ...corsHeaders(),
     ...extraHeaders,
   },
   body: JSON.stringify(body),
@@ -31,23 +31,10 @@ const json = (statusCode, body, extraHeaders = {}) => ({
 
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "POST,OPTIONS",
-      },
-      body: "",
-    };
+    return { statusCode: 204, headers: corsHeaders(), body: "" };
   }
   if (event.httpMethod !== "POST") {
     return json(405, { error: "Method Not Allowed" }, { "Access-Control-Allow-Methods": "POST,OPTIONS" });
-  }
-
-  const clientIp = event.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
-  if (checkIpRateLimit(clientIp)) {
-    return json(429, { error: "Too many attempts. Try again later." }, { "Retry-After": "600" });
   }
 
   let payload = {};
@@ -72,13 +59,53 @@ export async function handler(event = {}) {
     return json(401, { error: "Invalid PIN." });
   }
 
-  const token = signManagerToken({ role: "manager" });
-  if (!token) {
-    return json(500, { error: "Manager secret is not configured." });
+  const organizationId = Number(process.env.MANAGER_ORGANIZATION_ID);
+  if (!Number.isFinite(organizationId) || organizationId <= 0) {
+    return json(500, { error: "Manager organization is not configured." });
   }
 
-  return json(200, {
-    token,
-    expiresInHours: 24 * 7,
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: resolvePgSslConfig(),
   });
+
+  try {
+    await client.connect();
+    const limitResult = await applyWindowRateLimit(client, {
+      scope: `manager-login:${organizationId}:ip`,
+      identifier: getRequestClientIp(event),
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!limitResult.allowed) {
+      return json(
+        429,
+        { error: "Too many attempts. Try again later." },
+        { "Retry-After": String(limitResult.retryAfterSeconds) }
+      );
+    }
+
+    const token = signManagerToken({
+      role: "manager",
+      organizationId,
+      scopes: [
+        "manager:orders:read",
+        "manager:bookings:read",
+        "manager:device:write",
+      ],
+    });
+    if (!token) {
+      return json(500, { error: "Manager secret is not configured." });
+    }
+
+    return json(200, {
+      token,
+      expiresInHours: 24 * 7,
+    });
+  } catch (error) {
+    console.error("Manager login error", error);
+    return json(500, { error: "Manager login failed." });
+  } finally {
+    await client.end().catch(() => {});
+  }
 }

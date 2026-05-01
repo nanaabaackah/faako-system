@@ -44,7 +44,7 @@ export default function Inventory() {
               <div className="list-row" key={item.id}>
                 <div className="table-strong">{item.name}</div>
                 <p className="muted">
-                  {item.onHand} on hand &bull; Target {item.target}
+                  {item.onHand} on hand - Target {item.target}
                 </p>
                 <div className="progress">
                   <span style={{ width: `${item.fill}%` }} />
@@ -85,8 +85,8 @@ export default function Inventory() {
             </div>
             <div className="data-table">
               <div className="table-row table-head is-5">
-                {page.movementColumns.map((col) => (
-                  <span key={col}>{col}</span>
+                {page.movementColumns.map((column) => (
+                  <span key={column}>{column}</span>
                 ))}
               </div>
               {page.movements.map((move) => (

@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { FaWhatsapp, FaFacebook, FaInstagram } from "react-icons/fa";
+import { AppBottomBar } from "@faako/ui";
 import "../styles/components/Footer.css";
 
 const NAV_COLUMNS = [
@@ -34,8 +35,6 @@ const NAV_COLUMNS = [
 ];
 
 const Footer: React.FC = () => {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="site-footer">
 
@@ -96,15 +95,7 @@ const Footer: React.FC = () => {
       </div>
 
       {/* ── Bottom bar ── */}
-      <div className="footer__bottom">
-        <span>© {year} Stroane Solutions. All rights reserved.</span>
-        <span className="footer__bottom-powered">
-          Powered by
-          <img src="/assets/logos/logo2-white.svg" alt="Faako" className="footer__faako-logo" />
-          Faako
-        </span>
-        <span>Made to matter. Made by Nana.</span>
-      </div>
+      <AppBottomBar variant="footer" />
 
     </footer>
   );
