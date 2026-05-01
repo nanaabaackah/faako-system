@@ -197,6 +197,18 @@ const DEFAULT_APPS = [
     roles: ["admin", "manager"],
   },
   {
+    label: "Reports",
+    path: "/admin/reports",
+    icon: faChartLine,
+    roles: ["admin"],
+  },
+  {
+    label: "Audit Log",
+    path: "/admin/audit-logs",
+    icon: faFileLines,
+    roles: ["admin"],
+  },
+  {
     label: "Marketing",
     path: "/admin/marketing",
     icon: faBullhorn,

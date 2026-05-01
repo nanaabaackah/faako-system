@@ -1,3 +1,5 @@
+import { getRequestIp, writeAuditLog } from "../audit/audit.service.js";
+
 const normalizeModuleName = (value) =>
   String(value || "")
     .trim()
@@ -58,14 +60,6 @@ export const createIssueRefreshToken = ({ crypto, prisma }) => async (userId) =>
     },
   });
   return raw;
-};
-
-const getClientIp = (req) =>
-  String(req.headers?.["x-forwarded-for"] || req.ip || "").split(",")[0].trim() || null;
-
-const writeAudit = (prisma, data) => {
-  if (!prisma?.auditLog?.create) return;
-  prisma.auditLog.create({ data }).catch(() => {});
 };
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -144,12 +138,20 @@ export const createLoginHandler =
           lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
         },
       });
-      writeAudit(prisma, {
+      writeAuditLog(prisma, {
         userId: user.id,
         organizationId: user.organizationId ?? null,
         action: "LOGIN_FAILED",
+        source: "auth",
+        category: "access",
+        severity: shouldLock ? "warning" : "info",
+        status: "failed",
+        summary: shouldLock
+          ? "Login failed and the account was temporarily locked."
+          : "Login failed.",
+        actorLabel: user.fullName || user.email,
         metadata: { attempts: newAttempts, locked: shouldLock },
-        ipAddress: getClientIp(req),
+        ipAddress: getRequestIp(req),
       });
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -168,11 +170,17 @@ export const createLoginHandler =
       setRefreshCookie(res, rawRefresh);
     }
 
-    writeAudit(prisma, {
+    writeAuditLog(prisma, {
       userId: user.id,
       organizationId: user.organizationId ?? null,
       action: "LOGIN_SUCCESS",
-      ipAddress: getClientIp(req),
+      source: "auth",
+      category: "access",
+      severity: "info",
+      status: "ok",
+      summary: "User logged in successfully.",
+      actorLabel: user.fullName || user.email,
+      ipAddress: getRequestIp(req),
     });
 
     return res.json({
@@ -223,10 +231,15 @@ export const createLogoutHandler =
             data: { revokedAt: new Date() },
           }).catch(() => {});
         }
-        writeAudit(prisma, {
+        writeAuditLog(prisma, {
           userId,
           action: "LOGOUT",
-          ipAddress: getClientIp(req),
+          source: "auth",
+          category: "access",
+          severity: "info",
+          status: "ok",
+          summary: "User logged out.",
+          ipAddress: getRequestIp(req),
         });
       }
     } catch {
@@ -238,7 +251,7 @@ export const createLogoutHandler =
   };
 
 export const createRefreshHandler =
-  ({ prisma, crypto, buildToken, setAuthCookies, createCsrfToken, issueRefreshToken, setRefreshCookie, clearRefreshCookie, getCookieValue, refreshCookieName }) =>
+  ({ prisma, crypto, buildToken, setAuthCookies, createCsrfToken, issueRefreshToken, setRefreshCookie, getCookieValue, refreshCookieName }) =>
   async (req, res) => {
     const rawToken = getCookieValue(req, refreshCookieName);
     if (!rawToken) {
@@ -396,11 +409,17 @@ export const createSetupAccountCompleteHandler =
       },
     });
 
-    writeAudit(prisma, {
+    writeAuditLog(prisma, {
       userId: user.id,
       organizationId: user.organizationId ?? null,
       action: "ACCOUNT_SETUP",
-      ipAddress: getClientIp(req),
+      source: "auth",
+      category: "access",
+      severity: "info",
+      status: "ok",
+      summary: "Account setup completed.",
+      actorLabel: user.fullName || user.email,
+      ipAddress: getRequestIp(req),
     });
 
     return res.json({

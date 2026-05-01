@@ -1,6 +1,11 @@
 .hero-section {
   height: 70vh;
+  min-height: 38rem;
   border-radius: var(--radius-hero);
+}
+
+.hero-section__content {
+  padding: 9rem 2.5rem 0;
 }
 
 .hero-bg-container {
@@ -19,6 +24,9 @@
 }
 
 .hero-heading {
+  font-size: clamp(3.4rem, 9vw, 6rem);
+  line-height: 0.96;
+  font-weight: 900;
   color: var(--color-text-inverse);
   text-shadow: var(--text-shadow-hero);
 }
@@ -256,4 +264,109 @@
 
 .product-card:hover .product-card__cta {
   gap: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .trust-stats {
+    height: auto;
+    margin: 0 1.5rem;
+  }
+
+  .product-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 1.5rem;
+  }
+
+  .cards {
+    padding: 1rem 1.5rem;
+  }
+
+  .service-row__text {
+    padding: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 42rem;
+    height: min(88svh, 46rem);
+  }
+
+  .hero-section__content {
+    padding: 7.75rem 1.5rem 0;
+  }
+
+  .hero-heading {
+    font-size: clamp(2.9rem, 13vw, 4.4rem);
+    line-height: 1;
+  }
+
+  .seller-img {
+    width: min(80vw, 22rem);
+    max-height: none;
+    transform: translateX(-50%) translateY(-54px);
+  }
+
+  .trust-stats {
+    max-width: calc(100% - 2rem);
+    grid-template-columns: 1fr;
+  }
+
+  .trust-stat {
+    padding: 1.6rem 1.5rem;
+  }
+
+  .why-section,
+  .products-section {
+    padding: 4rem 1rem;
+  }
+
+  .services-section {
+    padding: 4rem 0;
+  }
+
+  .cards,
+  .product-cards {
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .card {
+    height: 380px;
+  }
+
+  .service-row,
+  .service-row--reverse {
+    flex-direction: column;
+  }
+
+  .service-row__img-wrap {
+    flex-basis: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  .service-row__text {
+    padding: 2rem 1.5rem;
+  }
+
+  .product-card__img {
+    width: min(100%, 220px);
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .trust-stat__value {
+    font-size: 2.2rem;
+  }
+
+  .service-row__title {
+    font-size: 1.45rem;
+  }
+
+  .product-card__footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
 }

@@ -6,25 +6,11 @@ const logger = createLogger("reebs:logout");
 import { Client } from "pg";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { clearUserSessionCookie, getUserFromEvent } from "./_shared/userAuth.js";
+import { getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { ensureUserSessionsTable, revokeUserSession } from "./_shared/userSessions.js";
 
 const respond = (event, statusCode, body = {}, extraHeaders = {}) =>
   json(event, statusCode, body, { methods: "POST, OPTIONS", extraHeaders });
-
-const getClientIp = (event) =>
-  String(event.headers?.["x-forwarded-for"] || event.headers?.["x-real-ip"] || "")
-    .split(",")[0]
-    .trim() || null;
-
-const writeAudit = (client, data) => {
-  client
-    .query(
-      `INSERT INTO "auditLog" ("organizationId","userId","action","metadata","ipAddress","createdAt")
-       VALUES ($1,$2,$3,$4,$5,NOW())`,
-      [data.organizationId ?? null, data.userId ?? null, data.action, data.metadata ? JSON.stringify(data.metadata) : null, data.ipAddress ?? null]
-    )
-    .catch(() => {});
-};
 
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
@@ -59,11 +45,16 @@ export async function handler(event) {
     await ensureUserSessionsTable(client);
     const revoked = await revokeUserSession(client, sessionTokenId);
     if (revoked && payload?.userId) {
-      writeAudit(client, {
+      await writeAuditLog(client, {
         userId: Number(payload.userId) || null,
         organizationId: Number(payload.organizationId) || null,
         action: "LOGOUT",
-        ipAddress: getClientIp(event),
+        source: "auth",
+        category: "access",
+        severity: "info",
+        status: "ok",
+        summary: "User logged out.",
+        ipAddress: getEventIpAddress(event),
       });
     }
     return respond(event, 200, { revoked }, {

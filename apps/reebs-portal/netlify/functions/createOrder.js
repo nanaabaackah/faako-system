@@ -21,6 +21,7 @@ import {
   sendNotificationEmail,
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
 import {
   applyWindowRateLimit,
@@ -739,6 +740,27 @@ export async function handler(event) {
           console.warn("Post-order notification failed:", result.reason?.message || result.reason);
         }
       });
+    });
+
+    await writeAuditLog(client, {
+      userId: actor.userId,
+      organizationId,
+      action: "ORDER_CREATED",
+      targetType: "order",
+      targetId: String(orderNumber || orderId),
+      source: authUser ? "api" : "integration",
+      category: "order",
+      severity: "info",
+      status: "ok",
+      summary: `Created order ${orderNumber} for ${customerName}.`,
+      actorLabel: actor.userName || actor.userEmail || "Checkout",
+      requestId: getEventHeader(event, "x-request-id"),
+      ipAddress: getEventIpAddress(event),
+      metadata: {
+        deliveryMethod: normalizedMethod,
+        itemCount: pricedItems.length,
+        totalAmountCents,
+      },
     });
 
     return json(event, 200, {

@@ -2,9 +2,34 @@
   gap: 1.5rem;
 }
 
+.reports-range-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 180px;
+}
+
+.reports-range-field span {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .reports-grid {
   display: grid;
   gap: 1rem;
+}
+
+.reports-analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.reports-summary-list {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .reports-kpi-value {
@@ -158,6 +183,7 @@
     gap: 1rem;
   }
 
+  .reports-analytics-grid,
   .report-card__meta,
   .report-editor__grid {
     grid-template-columns: 1fr;

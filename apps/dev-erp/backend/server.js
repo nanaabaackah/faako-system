@@ -64,6 +64,13 @@ import { createCsrfMiddleware } from "./security/csrf.js";
 import { createGetDashboardVerseHandler } from "./dashboard/verse.js";
 import { createGetDashboardWeatherHandler } from "./dashboard/weather.js";
 import { registerDashboardRoutes } from "./dashboard/dashboard.routes.js";
+import {
+  buildAuditEventData,
+  buildAuditLogWhere,
+  parseAuditTake,
+  serializeAuditLog,
+  writeAuditLog,
+} from "./audit/audit.service.js";
 import { createGetJobRecommendationsHandler } from "./jobs/jobs.controller.js";
 import { registerJobRoutes } from "./jobs/jobs.routes.js";
 import { createProductivityAiHandler } from "./productivity/ai.controller.js";
@@ -3832,6 +3839,241 @@ const rescheduleReportByKey = (key) => {
   return Promise.resolve();
 };
 
+const AUDIT_RANGE_LABELS = {
+  "24h": "Last 24 hours",
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  all: "All time",
+};
+
+const normalizeRailwayText = (value, max = 160) =>
+  String(value || "")
+    .trim()
+    .slice(0, max);
+
+const stringifyReason = (value) => {
+  if (value instanceof Error) return value.message || value.name || "Unknown error";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value || "Unknown error");
+  }
+};
+
+const formatAuditKpiValue = (value) => {
+  if (!Number.isFinite(Number(value))) return "0";
+  const count = Number(value);
+  return count.toLocaleString("en-US");
+};
+
+const buildAuditCountSeries = (logs = []) => {
+  const bucket = new Map();
+  logs.forEach((log) => {
+    const date = new Date(log.createdAt);
+    const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      date.getUTCDate()
+    ).padStart(2, "0")}`;
+    const current = bucket.get(key) || { date: key, total: 0, incidents: 0, failures: 0 };
+    current.total += 1;
+    if ((log.source || "") === "railway" || (log.category || "") === "incident") {
+      current.incidents += 1;
+    }
+    if (["error", "warning"].includes(String(log.severity || "").toLowerCase())) {
+      current.failures += 1;
+    }
+    bucket.set(key, current);
+  });
+  return [...bucket.values()].sort((left, right) => left.date.localeCompare(right.date));
+};
+
+const resolveAuditScopeOrganizationId = (organizationScope) =>
+  organizationScope?.includeAllOrganizations
+    ? null
+    : Number(organizationScope?.organizationFilter?.organizationId) || null;
+
+const buildScopedAuditWhere = (organizationScope, query = {}) =>
+  buildAuditLogWhere({
+    organizationId: resolveAuditScopeOrganizationId(organizationScope),
+    includeGlobalEvents: true,
+    range: query.range,
+    source: query.source,
+    category: query.category,
+    severity: query.severity,
+    q: query.q,
+  });
+
+const buildLabeledCounts = (entries = [], key) => {
+  const counts = entries.reduce((map, entry) => {
+    const label = normalizeRailwayText(entry?.[key] || "Unknown", 120);
+    map.set(label || "Unknown", (map.get(label || "Unknown") || 0) + 1);
+    return map;
+  }, new Map());
+
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count);
+};
+
+const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) => {
+  const where = buildScopedAuditWhere(organizationScope, query);
+  const [logs, totalEvents] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 250,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  const serializedLogs = logs.map(serializeAuditLog);
+  const incidentLogs = serializedLogs.filter(
+    (entry) => entry.source === "railway" || entry.category === "incident"
+  );
+  const failureLogs = serializedLogs.filter((entry) =>
+    ["warning", "error"].includes(String(entry.severity || "").toLowerCase())
+  );
+  const actorCounts = serializedLogs.reduce((counts, entry) => {
+    const label = normalizeRailwayText(entry.actorLabel || entry.targetId || "", 120);
+    if (!label) return counts;
+    counts.set(label, (counts.get(label) || 0) + 1);
+    return counts;
+  }, new Map());
+  const topActors = [...actorCounts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 6);
+
+  const organizationSummary = scopeOrganizationHierarchySummary(
+    await buildOrganizationHierarchySummary(),
+    user,
+    { isGlobalAdmin }
+  );
+
+  return {
+    range: query.range && AUDIT_RANGE_LABELS[query.range] ? query.range : "7d",
+    rangeLabel: AUDIT_RANGE_LABELS[query.range] || AUDIT_RANGE_LABELS["7d"],
+    generatedAt: new Date().toISOString(),
+    scope: {
+      includeAllOrganizations: Boolean(organizationScope?.includeAllOrganizations),
+      selectedOrganization: organizationScope?.selectedOrganization ?? null,
+    },
+    kpis: [
+      {
+        key: "events",
+        label: "Audit events",
+        value: formatAuditKpiValue(totalEvents),
+        helper: `${serializedLogs.length} events in the current view`,
+      },
+      {
+        key: "incidents",
+        label: "Incidents",
+        value: formatAuditKpiValue(incidentLogs.length),
+        helper: "Railway and system incidents",
+      },
+      {
+        key: "failures",
+        label: "Warnings and errors",
+        value: formatAuditKpiValue(failureLogs.length),
+        helper: "Events that need follow-up",
+      },
+      {
+        key: "organizations",
+        label: "Visible organizations",
+        value: formatAuditKpiValue(organizationSummary.totalOrganizations || 0),
+        helper: organizationScope?.includeAllOrganizations
+          ? "Full portfolio scope"
+          : "Current admin scope",
+      },
+    ],
+    series: buildAuditCountSeries(serializedLogs),
+    topActions: buildLabeledCounts(serializedLogs, "action").slice(0, 8),
+    topSources: buildLabeledCounts(serializedLogs, "source").slice(0, 6),
+    topSeverities: buildLabeledCounts(serializedLogs, "severity").slice(0, 4),
+    topActors,
+    recentIncidents: incidentLogs.slice(0, 8),
+    recentEvents: serializedLogs.slice(0, 12),
+  };
+};
+
+const buildRailwayWebhookAuditEvent = (payload = {}) => {
+  const eventType = normalizeRailwayText(
+    payload?.type || payload?.eventType || payload?.event || payload?.trigger || "event",
+    80
+  );
+  const deploymentStatus = normalizeRailwayText(
+    payload?.status || payload?.deployment?.status || payload?.alert?.state || "",
+    80
+  );
+  const serviceName = normalizeRailwayText(
+    payload?.service?.name
+      || payload?.deployment?.service?.name
+      || payload?.resource?.name
+      || payload?.alert?.service?.name
+      || "",
+    120
+  );
+  const environmentName = normalizeRailwayText(
+    payload?.environment?.name || payload?.deployment?.environment?.name || "",
+    80
+  );
+  const projectName = normalizeRailwayText(
+    payload?.project?.name || payload?.deployment?.project?.name || "",
+    120
+  );
+  const eventId =
+    normalizeRailwayText(
+      payload?.id || payload?.eventId || payload?.deliveryId || payload?.deployment?.id || "",
+      160
+    )
+    || crypto.createHash("sha256").update(JSON.stringify(payload || {})).digest("hex");
+  const severity = ["failed", "crashed", "error", "alert", "degraded"].some((token) =>
+    `${eventType} ${deploymentStatus}`.toLowerCase().includes(token)
+  )
+    ? "error"
+    : ["warning", "queued"].some((token) =>
+          `${eventType} ${deploymentStatus}`.toLowerCase().includes(token)
+        )
+      ? "warning"
+      : "info";
+
+  const summaryParts = [
+    projectName || "Railway project",
+    serviceName ? `service ${serviceName}` : "",
+    eventType,
+    deploymentStatus ? `(${deploymentStatus})` : "",
+  ].filter(Boolean);
+
+  return buildAuditEventData(
+    {
+      action: `RAILWAY_${eventType.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`,
+      targetType: "service",
+      targetId: serviceName || projectName || eventId,
+      source: "railway",
+      category: "incident",
+      severity,
+      status: deploymentStatus || "received",
+      summary: summaryParts.join(" "),
+      actorType: "system",
+      actorLabel: "Railway",
+      externalRef: eventId,
+      metadata: payload,
+    },
+    { environment: APP_ENV }
+  );
+};
+
+const logFatalAuditEvent = async (data) => {
+  try {
+    await prisma.auditLog.create({
+      data: buildAuditEventData(data, { environment: APP_ENV }),
+    });
+  } catch {
+    // Process is already failing, so console logging remains the fallback.
+  }
+};
+
 const resolveRentMonthlySummaryRecipients = (tenant) => {
   const recipients = [];
   const seen = new Set();
@@ -5322,6 +5564,24 @@ app.get("/api/reports", authMiddleware, requireAdmin, async (_req, res) => {
   res.json({ reports });
 });
 
+app.get("/api/reports/summary", authMiddleware, requireAdmin, async (req, res) => {
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam: req.query.organizationId,
+    requestedByAdmin: true,
+  });
+  if (organizationScope?.error) {
+    return res.status(organizationScope.status || 403).json({ error: organizationScope.error });
+  }
+
+  const summary = await buildAuditReportSummary({
+    organizationScope,
+    query: req.query,
+    user: req.user,
+  });
+  return res.json(summary);
+});
+
 app.patch("/api/reports/:key", authMiddleware, requireAdmin, async (req, res) => {
   const key = String(req.params.key || "").trim();
   const definition = getReportDefinitionByKey(key);
@@ -5369,6 +5629,29 @@ app.patch("/api/reports/:key", authMiddleware, requireAdmin, async (req, res) =>
   }
 
   await rescheduleReportByKey(key);
+  await writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: req.user?.organizationId,
+      action: "REPORT_CONFIG_UPDATED",
+      targetType: "report",
+      targetId: key,
+      source: "api",
+      category: "admin",
+      severity: "info",
+      status: "ok",
+      summary: `Updated report configuration for ${definition.title}.`,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata: {
+        enabled: normalizedEnabled,
+        scheduleFrequency: normalizedSchedule.scheduleFrequency || null,
+      },
+    },
+    { environment: APP_ENV }
+  );
 
   const reports = await buildReportOverviewList();
   const report = reports.find((item) => item.key === key) || null;
@@ -5386,6 +5669,26 @@ app.post("/api/reports/:key/send", authMiddleware, requireAdmin, async (req, res
   }
 
   const result = await runReportNowByKey(key, { ignoreEnabled: true });
+  await writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: req.user?.organizationId,
+      action: "REPORT_SENT",
+      targetType: "report",
+      targetId: key,
+      source: "job",
+      category: "admin",
+      severity: result?.ok === false ? "error" : "info",
+      status: result?.ok === false ? "failed" : "ok",
+      summary: `Manual report send triggered for ${definition.title}.`,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata: result ?? null,
+    },
+    { environment: APP_ENV }
+  );
   const reports = await buildReportOverviewList();
   const report = reports.find((item) => item.key === key) || null;
   return res.json({
@@ -5393,6 +5696,82 @@ app.post("/api/reports/:key/send", authMiddleware, requireAdmin, async (req, res
     result,
     report,
   });
+});
+
+app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam: req.query.organizationId,
+    requestedByAdmin: true,
+  });
+  if (organizationScope?.error) {
+    return res.status(organizationScope.status || 403).json({ error: organizationScope.error });
+  }
+
+  const where = buildScopedAuditWhere(organizationScope, req.query);
+  const take = parseAuditTake(req.query.take, 100, 300);
+  const logs = await prisma.auditLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take,
+  });
+  const entries = logs.map(serializeAuditLog);
+  const summary = {
+    total: entries.length,
+    incidents: entries.filter((entry) => entry.source === "railway" || entry.category === "incident")
+      .length,
+    failures: entries.filter((entry) =>
+      ["warning", "error"].includes(String(entry.severity || "").toLowerCase())
+    ).length,
+    actors: new Set(entries.map((entry) => entry.actorLabel).filter(Boolean)).size,
+  };
+
+  return res.json({
+    entries,
+    summary,
+    filters: {
+      range: req.query.range && AUDIT_RANGE_LABELS[req.query.range]
+        ? req.query.range
+        : "7d",
+      source: String(req.query.source || "").trim(),
+      category: String(req.query.category || "").trim(),
+      severity: String(req.query.severity || "").trim(),
+      q: String(req.query.q || "").trim(),
+    },
+    scope: {
+      includeAllOrganizations: Boolean(organizationScope?.includeAllOrganizations),
+      selectedOrganization: organizationScope?.selectedOrganization ?? null,
+    },
+  });
+});
+
+app.post("/api/webhooks/railway", async (req, res) => {
+  const configuredSecret = String(process.env.RAILWAY_WEBHOOK_SECRET || "").trim();
+  if (!configuredSecret) {
+    return res.status(503).json({ error: "RAILWAY_WEBHOOK_SECRET is not configured." });
+  }
+
+  const suppliedSecret = String(
+    req.query?.secret
+      || req.headers["x-faako-webhook-secret"]
+      || req.headers["x-railway-webhook-secret"]
+      || ""
+  ).trim();
+
+  if (!suppliedSecret || suppliedSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid webhook secret." });
+  }
+
+  const auditEvent = buildRailwayWebhookAuditEvent(req.body || {});
+  try {
+    await prisma.auditLog.create({ data: auditEvent });
+  } catch (error) {
+    if (error?.code !== "P2002") {
+      throw error;
+    }
+  }
+
+  return res.status(202).json({ ok: true });
 });
 
 app.get("/api/dashboard", authMiddleware, async (req, res) => {
@@ -10542,13 +10921,39 @@ const initializeBackgroundServices = async () => {
   }
 };
 
-process.on("unhandledRejection", (reason) => {
+process.on("unhandledRejection", async (reason) => {
   serverLogger.error({ err: reason }, "Unhandled promise rejection");
+  await logFatalAuditEvent({
+    action: "UNHANDLED_REJECTION",
+    source: "system",
+    category: "incident",
+    severity: "error",
+    status: "failed",
+    summary: "Unhandled promise rejection caused the process to exit.",
+    actorType: "system",
+    actorLabel: "Node.js runtime",
+    metadata: {
+      reason: stringifyReason(reason),
+    },
+  });
   process.exit(1);
 });
 
-process.on("uncaughtException", (error) => {
+process.on("uncaughtException", async (error) => {
   serverLogger.error({ err: error }, "Uncaught exception");
+  await logFatalAuditEvent({
+    action: "UNCAUGHT_EXCEPTION",
+    source: "system",
+    category: "incident",
+    severity: "error",
+    status: "failed",
+    summary: "Uncaught exception caused the process to exit.",
+    actorType: "system",
+    actorLabel: "Node.js runtime",
+    metadata: {
+      error: stringifyReason(error),
+    },
+  });
   process.exit(1);
 });
 

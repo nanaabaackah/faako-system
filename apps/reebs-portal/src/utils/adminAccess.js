@@ -110,6 +110,13 @@ const canAccessPortalRoute = (role, path = "") => {
     return canAccessPrivilegedPortalArea(role);
   }
 
+  if (
+    normalizedPath === "/admin/reports"
+    || normalizedPath === "/admin/audit-logs"
+  ) {
+    return canAccessOwnerAdminPortalArea(role);
+  }
+
   if (normalizedPath === "/admin/directory") {
     return canAccessPortalCustomerDirectory(role);
   }

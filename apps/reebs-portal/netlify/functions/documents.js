@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const DOCUMENT_METHODS = "GET,POST,OPTIONS";
@@ -81,7 +82,7 @@ export async function handler(event = {}) {
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }
-    const { organizationId } = authResult;
+    const { authUser, organizationId } = authResult;
     await ensureDocumentTable(client);
     const orgColumnRes = await client.query(
       `SELECT 1
@@ -184,6 +185,27 @@ export async function handler(event = {}) {
         ? [organizationId, title, category, fileName, mimeType, size, data, source]
         : [title, category, fileName, mimeType, size, data, source]
     );
+
+    await writeAuditLog(client, {
+      userId: authUser?.id,
+      organizationId,
+      action: "DOCUMENT_UPLOADED",
+      targetType: "document",
+      targetId: String(result.rows[0]?.id || ""),
+      source: "api",
+      category: "document",
+      severity: "info",
+      status: "ok",
+      summary: `Uploaded document ${title}.`,
+      actorLabel: authUser?.fullName || authUser?.email || null,
+      requestId: getEventHeader(event, "x-request-id"),
+      ipAddress: getEventIpAddress(event),
+      metadata: {
+        fileName,
+        mimeType,
+        size,
+      },
+    });
 
     return respond(event, 200, result.rows[0], { methods: DOCUMENT_METHODS });
   } catch (err) {

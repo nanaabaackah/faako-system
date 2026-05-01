@@ -55,6 +55,8 @@ const AdminTimesheets = lazy(() => import("./pages/AdminTimesheets/AdminTimeshee
 const AdminSettings = lazy(() => import("./pages/AdminSettings/AdminSettings"));
 const AdminHR = lazy(() => import("./pages/AdminHR/AdminHR"));
 const AdminRoles = lazy(() => import("./pages/AdminRoles/AdminRoles"));
+const AdminReports = lazy(() => import("./pages/AdminReports/AdminReports"));
+const AdminAuditLogs = lazy(() => import("./pages/AdminAuditLogs/AdminAuditLogs"));
 const AdminMaintenance = lazy(() => import("./pages/AdminMaintenance/AdminMaintenance"));
 const AdminInvoicing = lazy(() => import("./pages/AdminInvoicing/AdminInvoicing"));
 const AdminMarketing = lazy(() => import("./pages/AdminMarketing/AdminMarketing"));
@@ -395,6 +397,26 @@ function AppRoutes() {
           <RequireAuth>
             <RequirePortalAccess access="privileged">
               <AdminRoles />
+            </RequirePortalAccess>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <RequireAuth>
+            <RequirePortalAccess access="ownerAdmin">
+              <AdminReports />
+            </RequirePortalAccess>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/audit-logs"
+        element={
+          <RequireAuth>
+            <RequirePortalAccess access="ownerAdmin">
+              <AdminAuditLogs />
             </RequirePortalAccess>
           </RequireAuth>
         }

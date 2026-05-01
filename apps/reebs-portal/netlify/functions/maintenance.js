@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
@@ -77,7 +78,7 @@ export async function handler(event = {}) {
           });
     if (access.errorResponse) return access.errorResponse;
 
-    const { organizationId } = access;
+    const { authUser, organizationId } = access;
     await ensureMaintenanceTable(client);
 
     if (event.httpMethod === "GET") {
@@ -159,6 +160,22 @@ export async function handler(event = {}) {
         );
 
         await client.query("COMMIT");
+        await writeAuditLog(client, {
+          userId: authUser?.id,
+          organizationId,
+          action: "MAINTENANCE_CREATED",
+          targetType: "maintenance",
+          targetId: String(insert.rows[0]?.id || ""),
+          source: "api",
+          category: "maintenance",
+          severity: "info",
+          status: "ok",
+          summary: `Created maintenance log for product ${productId}.`,
+          actorLabel: authUser?.fullName || authUser?.email || null,
+          requestId: getEventHeader(event, "x-request-id"),
+          ipAddress: getEventIpAddress(event),
+          metadata: { productId, type, costCents },
+        });
         return json(event, 200, { id: insert.rows[0]?.id || null, status: "open" });
       } catch (err) {
         await client.query("ROLLBACK");
@@ -215,6 +232,22 @@ export async function handler(event = {}) {
       }
 
       await client.query("COMMIT");
+      await writeAuditLog(client, {
+        userId: authUser?.id,
+        organizationId,
+        action: "MAINTENANCE_UPDATED",
+        targetType: "maintenance",
+        targetId: String(logId),
+        source: "api",
+        category: "maintenance",
+        severity: "info",
+        status: "ok",
+        summary: `Updated maintenance log ${logId} to ${status}.`,
+        actorLabel: authUser?.fullName || authUser?.email || null,
+        requestId: getEventHeader(event, "x-request-id"),
+        ipAddress: getEventIpAddress(event),
+        metadata: { status, productId: productId || null },
+      });
       return json(event, 200, { id: logId, status });
     } catch (err) {
       await client.query("ROLLBACK");

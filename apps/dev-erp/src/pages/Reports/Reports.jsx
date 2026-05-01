@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import useDashboardData from "../../hooks/useDashboardData";
 import downloadCsv from "../../utils/exportCsv";
@@ -28,6 +28,14 @@ const WEEKDAY_OPTIONS = [
   { value: 4, label: "Thursday" },
   { value: 5, label: "Friday" },
   { value: 6, label: "Saturday" },
+];
+
+const REPORT_RANGE_OPTIONS = [
+  { value: "24h", label: "Last 24 hours" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "all", label: "All time" },
 ];
 
 const formatReportDate = (value, fallback) => {
@@ -86,6 +94,10 @@ const Reports = () => {
   const [sendingKey, setSendingKey] = useState("");
   const [savingKey, setSavingKey] = useState("");
   const [togglingKey, setTogglingKey] = useState("");
+  const [analyticsRange, setAnalyticsRange] = useState("7d");
+  const [reportSummary, setReportSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState("");
 
   const lastSyncedLabel = formatDateTime(kpiData?.lastSyncedAt);
   const enabledReports = reports.filter((report) => report.enabled);
@@ -98,26 +110,32 @@ const Reports = () => {
   }, [reports]);
 
   const handleExportSnapshot = () => {
-    if (!kpiData) return;
-    const organizations = Array.isArray(kpiData?.organizations) ? kpiData.organizations : [];
+    if (!reportSummary) return;
     const rows = [
       ["Metric", "Value"],
-      ["Total organizations", kpiData.totalOrganizations ?? 0],
-      ["Top-level groups", kpiData.topLevelOrganizations ?? 0],
-      ["Child organizations", kpiData.childOrganizations ?? 0],
+      ...((Array.isArray(reportSummary?.kpis) ? reportSummary.kpis : []).map((item) => [
+        item.label,
+        item.value,
+      ])),
       [],
-      ["Organization", "Parent", "Child orgs", "Manages"],
-      ...organizations.map((organization) => [
-        organization.name,
-        organization.parentOrganizationName || "",
-        organization.childOrganizationsCount ?? 0,
-        organization.managedOrganizationsCount ?? 0,
-      ]),
+      ["Top action", "Count"],
+      ...((Array.isArray(reportSummary?.topActions) ? reportSummary.topActions : []).map((item) => [
+        item.label,
+        item.count,
+      ])),
+      [],
+      ["Date", "Events", "Incidents", "Failures"],
+      ...((Array.isArray(reportSummary?.series) ? reportSummary.series : []).map((item) => [
+        item.date,
+        item.total,
+        item.incidents,
+        item.failures,
+      ])),
     ];
-    downloadCsv("dashboard_snapshot.csv", rows);
+    downloadCsv(`audit_report_${analyticsRange}.csv`, rows);
   };
 
-  const loadReports = async ({ silent = false } = {}) => {
+  const loadReports = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
       setReportsLoading(true);
     }
@@ -136,15 +154,41 @@ const Reports = () => {
         setReportsLoading(false);
       }
     }
-  };
+  }, []);
+
+  const loadReportSummary = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setSummaryLoading(true);
+    }
+
+    try {
+      const params = new URLSearchParams({ range: analyticsRange });
+      const payload = await apiGet(`/api/reports/summary?${params.toString()}`, {
+        fallbackMessage: "Unable to load report analytics.",
+      });
+      setReportSummary(payload || null);
+      setSummaryError("");
+    } catch (loadError) {
+      setSummaryError(loadError.message || "Unable to load report analytics.");
+    } finally {
+      if (!silent) {
+        setSummaryLoading(false);
+      }
+    }
+  }, [analyticsRange]);
 
   useEffect(() => {
     loadReports();
-  }, []);
+  }, [loadReports]);
+
+  useEffect(() => {
+    loadReportSummary();
+  }, [loadReportSummary]);
 
   const handleRefresh = () => {
     reload({ silent: true });
     loadReports({ silent: true });
+    loadReportSummary({ silent: true });
   };
 
   const handleEditToggle = (report) => {
@@ -270,24 +314,40 @@ const Reports = () => {
         <div>
           <p className="eyebrow">Email reports</p>
           <h1>Reports</h1>
-          <p className="muted">Last synced {lastSyncedLabel}</p>
+          <p className="muted">
+            Analytics and automation controls. Last synced {lastSyncedLabel}.
+          </p>
         </div>
         <div className="header-actions">
+          <label className="reports-range-field">
+            <span>Window</span>
+            <select
+              className="input"
+              value={analyticsRange}
+              onChange={(event) => setAnalyticsRange(event.target.value)}
+            >
+              {REPORT_RANGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             className="button button-ghost"
             type="button"
             onClick={handleRefresh}
-            disabled={loading || isRefreshing || reportsLoading}
+            disabled={loading || isRefreshing || reportsLoading || summaryLoading}
           >
-            {isRefreshing || reportsLoading ? "Refreshing..." : "Refresh"}
+            {isRefreshing || reportsLoading || summaryLoading ? "Refreshing..." : "Refresh"}
           </button>
           <button
             className="button button-primary"
             type="button"
             onClick={handleExportSnapshot}
-            disabled={!kpiData}
+            disabled={!reportSummary}
           >
-            Export dashboard snapshot
+            Export analytics
           </button>
         </div>
       </header>
@@ -296,7 +356,7 @@ const Reports = () => {
         <div className={`notice ${status.tone ? `is-${status.tone}` : ""}`.trim()}>{status.message}</div>
       ) : null}
 
-      {loading || reportsLoading ? (
+      {loading || reportsLoading || summaryLoading ? (
         <div className="panel loading-card" role="status" aria-live="polite">
           <span className="spinner" aria-hidden="true" />
           <span>Loading report data...</span>
@@ -313,6 +373,98 @@ const Reports = () => {
         <div className="notice is-error" role="alert">
           {reportsError}
         </div>
+      ) : null}
+
+      {summaryError ? (
+        <div className="notice is-error" role="alert">
+          {summaryError}
+        </div>
+      ) : null}
+
+      {reportSummary ? (
+        <>
+          <div className="panel-grid">
+            {(Array.isArray(reportSummary.kpis) ? reportSummary.kpis : []).map((item) => (
+              <article className="panel metric-card" key={item.key}>
+                <span className="kpi-label">{item.label}</span>
+                <div className="kpi-value reports-kpi-value">{item.value}</div>
+                <span className="kpi-delta">{item.helper}</span>
+              </article>
+            ))}
+          </div>
+
+          <div className="reports-analytics-grid">
+            <article className="panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Recent incidents</h3>
+                  <p className="muted">
+                    Railway and system events captured in the current reporting window.
+                  </p>
+                </div>
+              </div>
+              <div className="timeline">
+                {(Array.isArray(reportSummary.recentIncidents) ? reportSummary.recentIncidents : []).length ? (
+                  reportSummary.recentIncidents.map((entry) => (
+                    <div className="timeline-row" key={entry.id}>
+                      <span className="timeline-time">{formatDateTime(entry.createdAt)}</span>
+                      <div>
+                        <span className="table-strong">{entry.summary}</span>
+                        <p className="muted">
+                          {entry.action}
+                          {entry.targetId ? ` · ${entry.targetId}` : ""}
+                        </p>
+                      </div>
+                      <span className={`priority is-${entry.severity || "normal"}`}>
+                        {entry.status || entry.severity || "event"}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted">No incidents recorded in this window.</p>
+                )}
+              </div>
+            </article>
+
+            <article className="panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Activity hotspots</h3>
+                  <p className="muted">Top actions, sources, and actors from the audit stream.</p>
+                </div>
+              </div>
+              <div className="reports-summary-list">
+                <div className="report-card__meta-item">
+                  <span>Top actions</span>
+                  <strong>
+                    {(Array.isArray(reportSummary.topActions) ? reportSummary.topActions : [])
+                      .slice(0, 4)
+                      .map((item) => `${item.label} (${item.count})`)
+                      .join(", ") || "No data"}
+                  </strong>
+                </div>
+                <div className="report-card__meta-item">
+                  <span>Top sources</span>
+                  <strong>
+                    {(Array.isArray(reportSummary.topSources) ? reportSummary.topSources : [])
+                      .slice(0, 4)
+                      .map((item) => `${item.label} (${item.count})`)
+                      .join(", ") || "No data"}
+                  </strong>
+                </div>
+                <div className="report-card__meta-item">
+                  <span>Top actors</span>
+                  <strong>
+                    {(Array.isArray(reportSummary.topActors) ? reportSummary.topActors : [])
+                      .slice(0, 4)
+                      .map((item) => `${item.label} (${item.count})`)
+                      .join(", ") || "No data"}
+                  </strong>
+                </div>
+              </div>
+            </article>
+          </div>
+        </>
       ) : null}
 
       <div className="panel-grid">

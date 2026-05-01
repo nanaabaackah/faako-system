@@ -2,6 +2,7 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { hasAnyRole, requireInternalUser, respond } from "./_shared/internalApi.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,POST,OPTIONS" });
@@ -261,6 +262,25 @@ export async function handler(event = {}) {
         [clockOut.toISOString(), lat, lng, activeShift.id, organizationId]
       );
 
+      await writeAuditLog(client, {
+        userId: authUser?.id,
+        organizationId,
+        action: "TIMESHEET_CLOCK_OUT",
+        targetType: "timesheet",
+        targetId: String(activeShift.id),
+        source: "api",
+        category: "timesheet",
+        severity: "info",
+        status: "ok",
+        summary: "Recorded timesheet clock-out.",
+        actorLabel: authUser?.fullName || authUser?.email || null,
+        requestId: getEventHeader(event, "x-request-id"),
+        ipAddress: getEventIpAddress(event),
+        metadata: {
+          userId,
+        },
+      });
+
       return json(event, 200, { status: "out", id: activeShift.id });
     }
 
@@ -272,6 +292,25 @@ export async function handler(event = {}) {
        RETURNING id`,
       [organizationId, userId, clockIn.toISOString(), lat, lng]
     );
+
+    await writeAuditLog(client, {
+      userId: authUser?.id,
+      organizationId,
+      action: "TIMESHEET_CLOCK_IN",
+      targetType: "timesheet",
+      targetId: String(insertRes.rows[0]?.id || ""),
+      source: "api",
+      category: "timesheet",
+      severity: "info",
+      status: "ok",
+      summary: "Recorded timesheet clock-in.",
+      actorLabel: authUser?.fullName || authUser?.email || null,
+      requestId: getEventHeader(event, "x-request-id"),
+      ipAddress: getEventIpAddress(event),
+      metadata: {
+        userId,
+      },
+    });
 
     return json(event, 200, { status: "in", id: insertRes.rows[0]?.id || null });
   } catch (err) {

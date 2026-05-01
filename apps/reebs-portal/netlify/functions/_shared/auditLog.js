@@ -1,0 +1,406 @@
+/* eslint-disable no-undef */
+import crypto from "crypto";
+
+const DEFAULT_APP_KEY = "reebs-portal";
+const DEFAULT_RANGE = "7d";
+
+const RANGE_HOURS = {
+  "24h": 24,
+  "7d": 24 * 7,
+  "30d": 24 * 30,
+  "90d": 24 * 90,
+  all: null,
+};
+
+const ensureAuditLogSchemaStatements = [
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "appKey" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "environment" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "source" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "category" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "severity" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "status" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "summary" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "actorType" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "actorLabel" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "requestId" TEXT`,
+  `ALTER TABLE "auditLog" ADD COLUMN IF NOT EXISTS "externalRef" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "auditLog_externalRef_key" ON "auditLog"("externalRef")`,
+  `CREATE INDEX IF NOT EXISTS "auditLog_organizationId_createdAt_idx" ON "auditLog"("organizationId", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "auditLog_source_createdAt_idx" ON "auditLog"("source", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "auditLog_category_createdAt_idx" ON "auditLog"("category", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "auditLog_severity_createdAt_idx" ON "auditLog"("severity", "createdAt")`,
+];
+
+const normalizeString = (value) => String(value || "").trim();
+
+const normalizeOptionalString = (value, max = 255) => {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+  return normalized.slice(0, max);
+};
+
+const toNullableInt = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const normalizeMetadata = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value ?? null;
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
+  );
+};
+
+const inferSource = (action) => {
+  if (action.startsWith("LOGIN") || action.startsWith("LOGOUT")) return "auth";
+  if (action.startsWith("RAILWAY_")) return "railway";
+  if (action.includes("INVOICE")) return "integration";
+  return "api";
+};
+
+const inferCategory = (action) => {
+  if (action.startsWith("LOGIN") || action.startsWith("LOGOUT")) return "access";
+  if (action.startsWith("RAILWAY_")) return "incident";
+  if (action.includes("ORDER")) return "order";
+  if (action.includes("BOOKING")) return "booking";
+  if (action.includes("DELIVERY")) return "delivery";
+  if (action.includes("DOCUMENT") || action.includes("INVOICE")) return "document";
+  if (action.includes("MARKETING")) return "marketing";
+  if (action.includes("MAINTENANCE")) return "maintenance";
+  if (action.includes("TIMESHEET")) return "timesheet";
+  if (action.includes("INVENTORY") || action.includes("PRODUCT")) return "inventory";
+  return "admin";
+};
+
+const inferSeverity = (action, status) => {
+  const normalizedStatus = normalizeString(status).toLowerCase();
+  if (normalizedStatus === "failed" || normalizedStatus === "error") return "error";
+  if (action.includes("FAILED") || action.includes("ERROR")) return "error";
+  if (action.includes("WARN")) return "warning";
+  return "info";
+};
+
+const inferStatus = (action) =>
+  action.includes("FAILED") || action.includes("ERROR") ? "failed" : "ok";
+
+export const getAuditRangeKey = (value) =>
+  Object.prototype.hasOwnProperty.call(RANGE_HOURS, value) ? value : DEFAULT_RANGE;
+
+export const getAuditRangeStart = (value) => {
+  const rangeKey = getAuditRangeKey(value);
+  const hours = RANGE_HOURS[rangeKey];
+  if (!hours) return null;
+  return new Date(Date.now() - hours * 60 * 60 * 1000);
+};
+
+export const parseAuditTake = (value, fallback = 100, max = 300) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
+};
+
+export const getEventHeader = (event, key) => {
+  const headers = event?.headers;
+  if (!headers || typeof headers !== "object") return "";
+  return normalizeString(headers[key] || headers[key.toLowerCase()] || headers[key.toUpperCase()]);
+};
+
+export const getEventIpAddress = (event) =>
+  normalizeOptionalString(getEventHeader(event, "x-forwarded-for").split(",")[0], 120);
+
+export const ensureExtendedAuditLogSchema = async (client) => {
+  for (const statement of ensureAuditLogSchemaStatements) {
+    try {
+      await client.query(statement);
+    } catch (error) {
+      console.warn("Audit log schema check failed:", error?.message || error);
+    }
+  }
+};
+
+export const buildAuditSummary = ({
+  action,
+  summary,
+  targetType,
+  targetId,
+  actorLabel,
+} = {}) => {
+  const normalizedSummary = normalizeOptionalString(summary, 280);
+  if (normalizedSummary) return normalizedSummary;
+
+  const actionLabel = normalizeString(action).replace(/_/g, " ").toLowerCase();
+  if (!actionLabel) return "Audit event";
+  const sentence = actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1);
+  if (targetType && targetId) return `${sentence} for ${targetType} ${targetId}`;
+  if (targetType) return `${sentence} for ${targetType}`;
+  if (actorLabel) return `${sentence} by ${actorLabel}`;
+  return sentence;
+};
+
+export const buildAuditEventData = (data = {}, { environment = process.env.APP_ENV || process.env.NODE_ENV || "development" } = {}) => {
+  const action = normalizeOptionalString(data.action, 120) || "UNKNOWN";
+  const status = normalizeOptionalString(data.status, 80) || inferStatus(action);
+  const severity = normalizeOptionalString(data.severity, 40) || inferSeverity(action, status);
+  const source = normalizeOptionalString(data.source, 80) || inferSource(action);
+  const category = normalizeOptionalString(data.category, 80) || inferCategory(action);
+  const actorLabel = normalizeOptionalString(data.actorLabel, 160);
+  const targetType = normalizeOptionalString(data.targetType ?? data.resourceType, 80);
+  const targetId = normalizeOptionalString(data.targetId ?? data.resourceId, 120);
+
+  return {
+    organizationId: toNullableInt(data.organizationId),
+    userId: toNullableInt(data.userId),
+    action,
+    targetType,
+    targetId,
+    appKey: normalizeOptionalString(data.appKey, 80) || DEFAULT_APP_KEY,
+    environment: normalizeOptionalString(data.environment, 80) || normalizeOptionalString(environment, 80),
+    source,
+    category,
+    severity,
+    status,
+    summary: buildAuditSummary({
+      action,
+      summary: data.summary,
+      targetType,
+      targetId,
+      actorLabel,
+    }),
+    actorType: normalizeOptionalString(data.actorType, 40)
+      || (toNullableInt(data.userId) ? "user" : "system"),
+    actorLabel,
+    requestId: normalizeOptionalString(data.requestId, 120),
+    externalRef: normalizeOptionalString(data.externalRef, 160),
+    metadata: normalizeMetadata(data.metadata),
+    ipAddress: normalizeOptionalString(data.ipAddress, 120),
+  };
+};
+
+export const writeAuditLog = async (client, data = {}, options = {}) => {
+  await ensureExtendedAuditLogSchema(client);
+  const record = buildAuditEventData(data, options);
+  await client.query(
+    `INSERT INTO "auditLog" (
+      "organizationId",
+      "userId",
+      "action",
+      "targetType",
+      "targetId",
+      "appKey",
+      "environment",
+      "source",
+      "category",
+      "severity",
+      "status",
+      "summary",
+      "actorType",
+      "actorLabel",
+      "requestId",
+      "externalRef",
+      "metadata",
+      "ipAddress",
+      "createdAt"
+    ) VALUES (
+      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW()
+    )
+    ON CONFLICT ("externalRef") DO NOTHING`,
+    [
+      record.organizationId,
+      record.userId,
+      record.action,
+      record.targetType,
+      record.targetId,
+      record.appKey,
+      record.environment,
+      record.source,
+      record.category,
+      record.severity,
+      record.status,
+      record.summary,
+      record.actorType,
+      record.actorLabel,
+      record.requestId,
+      record.externalRef,
+      record.metadata,
+      record.ipAddress,
+    ]
+  );
+  return record;
+};
+
+export const serializeAuditRow = (row = {}) => ({
+  id: row.id,
+  organizationId: row.organizationId ?? null,
+  userId: row.userId ?? null,
+  action: row.action,
+  targetType: row.targetType ?? null,
+  targetId: row.targetId ?? null,
+  appKey: row.appKey ?? DEFAULT_APP_KEY,
+  environment: row.environment ?? null,
+  source: row.source ?? inferSource(row.action || ""),
+  category: row.category ?? inferCategory(row.action || ""),
+  severity: row.severity ?? inferSeverity(row.action || "", row.status || ""),
+  status: row.status ?? inferStatus(row.action || ""),
+  summary: buildAuditSummary(row),
+  actorType: row.actorType ?? (row.userId ? "user" : "system"),
+  actorLabel: row.actorLabel ?? null,
+  requestId: row.requestId ?? null,
+  externalRef: row.externalRef ?? null,
+  metadata: row.metadata ?? null,
+  ipAddress: row.ipAddress ?? null,
+  createdAt: row.createdAt,
+});
+
+const buildAuditWhereClause = ({
+  organizationId = null,
+  range = DEFAULT_RANGE,
+  source = "",
+  category = "",
+  severity = "",
+  q = "",
+} = {}) => {
+  const clauses = [];
+  const values = [];
+  let index = 1;
+
+  if (organizationId) {
+    clauses.push(`("organizationId" = $${index} OR "organizationId" IS NULL)`);
+    values.push(organizationId);
+    index += 1;
+  }
+
+  const since = getAuditRangeStart(range);
+  if (since) {
+    clauses.push(`"createdAt" >= $${index}`);
+    values.push(since.toISOString());
+    index += 1;
+  }
+
+  const normalizedSource = normalizeOptionalString(source, 80);
+  if (normalizedSource) {
+    clauses.push(`"source" = $${index}`);
+    values.push(normalizedSource);
+    index += 1;
+  }
+
+  const normalizedCategory = normalizeOptionalString(category, 80);
+  if (normalizedCategory) {
+    clauses.push(`"category" = $${index}`);
+    values.push(normalizedCategory);
+    index += 1;
+  }
+
+  const normalizedSeverity = normalizeOptionalString(severity, 40);
+  if (normalizedSeverity) {
+    clauses.push(`"severity" = $${index}`);
+    values.push(normalizedSeverity);
+    index += 1;
+  }
+
+  const searchTerm = normalizeOptionalString(q, 120);
+  if (searchTerm) {
+    clauses.push(
+      `(
+        "action" ILIKE $${index}
+        OR COALESCE("summary", '') ILIKE $${index}
+        OR COALESCE("targetType", '') ILIKE $${index}
+        OR COALESCE("targetId", '') ILIKE $${index}
+        OR COALESCE("actorLabel", '') ILIKE $${index}
+      )`
+    );
+    values.push(`%${searchTerm}%`);
+    index += 1;
+  }
+
+  return {
+    whereSql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    values,
+  };
+};
+
+export const listAuditLogs = async (client, options = {}) => {
+  await ensureExtendedAuditLogSchema(client);
+  const take = parseAuditTake(options.take, 100, 300);
+  const { whereSql, values } = buildAuditWhereClause(options);
+  const limitIndex = values.length + 1;
+  const result = await client.query(
+    `SELECT
+       id,
+       "organizationId",
+       "userId",
+       action,
+       "targetType",
+       "targetId",
+       "appKey",
+       environment,
+       source,
+       category,
+       severity,
+       status,
+       summary,
+       "actorType",
+       "actorLabel",
+       "requestId",
+       "externalRef",
+       metadata,
+       "ipAddress",
+       "createdAt"
+     FROM "auditLog"
+     ${whereSql}
+     ORDER BY "createdAt" DESC
+     LIMIT $${limitIndex}`,
+    [...values, take]
+  );
+
+  return result.rows.map(serializeAuditRow);
+};
+
+export const buildRailwayAuditEvent = (payload = {}) => {
+  const eventType = normalizeOptionalString(
+    payload?.type || payload?.eventType || payload?.event || payload?.trigger || "event",
+    80
+  ) || "event";
+  const status = normalizeOptionalString(
+    payload?.status || payload?.deployment?.status || payload?.alert?.state || "received",
+    80
+  ) || "received";
+  const serviceName = normalizeOptionalString(
+    payload?.service?.name
+      || payload?.deployment?.service?.name
+      || payload?.resource?.name
+      || payload?.alert?.service?.name
+      || payload?.project?.name,
+    120
+  );
+  const eventId =
+    normalizeOptionalString(
+      payload?.id || payload?.eventId || payload?.deliveryId || payload?.deployment?.id,
+      160
+    )
+    || crypto.createHash("sha256").update(JSON.stringify(payload || {})).digest("hex");
+  const combinedText = `${eventType} ${status}`.toLowerCase();
+  const severity = ["failed", "crashed", "error", "alert", "degraded"].some((token) =>
+    combinedText.includes(token)
+  )
+    ? "error"
+    : ["warning", "queued", "retry"].some((token) => combinedText.includes(token))
+      ? "warning"
+      : "info";
+
+  return buildAuditEventData({
+    action: `RAILWAY_${eventType.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`,
+    targetType: "service",
+    targetId: serviceName || eventId,
+    source: "railway",
+    category: "incident",
+    severity,
+    status,
+    summary: [serviceName, eventType, status ? `(${status})` : ""].filter(Boolean).join(" "),
+    actorType: "system",
+    actorLabel: "Railway",
+    externalRef: eventId,
+    metadata: payload,
+  });
+};

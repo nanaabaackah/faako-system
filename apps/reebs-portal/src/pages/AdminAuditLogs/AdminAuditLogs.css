@@ -1,0 +1,306 @@
+.admin-audit-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.admin-audit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.admin-report-range {
+  min-width: 12rem;
+}
+
+.admin-report-range select {
+  min-width: 12rem;
+}
+
+.admin-audit-filters,
+.admin-audit-log-list,
+.admin-reports-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-audit-filter-grid,
+.admin-report-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.admin-audit-filter-grid label,
+.admin-report-controls label {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  color: var(--admin-muted, #64748b);
+}
+
+.admin-audit-filter-grid.admin-form label,
+.admin-report-controls.admin-form label,
+.admin-report-range.admin-form {
+  color: var(--text-main);
+}
+
+.admin-audit-filter-grid :is(select, input),
+.admin-report-controls :is(select, input) {
+  min-width: 0;
+}
+
+.admin-audit-filter-search {
+  grid-column: span 4;
+}
+
+.admin-audit-kpis,
+.admin-reports-kpis {
+  align-items: stretch;
+}
+
+.admin-audit-error,
+.admin-reports-error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, #ef4444 12%, var(--admin-card, #fff) 88%);
+  border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.admin-audit-muted,
+.admin-reports-muted {
+  margin: 0;
+  color: var(--admin-muted, #64748b);
+}
+
+.admin-audit-panel-head,
+.admin-reports-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-audit-panel-head h2,
+.admin-reports-panel-head h2 {
+  margin: 0;
+}
+
+.admin-audit-entries,
+.admin-report-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-audit-entry,
+.admin-report-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--admin-border, #dbe3f0) 85%, transparent);
+  background: color-mix(in srgb, var(--admin-card, #fff) 92%, transparent);
+}
+
+.admin-audit-entry-main,
+.admin-report-list-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-audit-entry-head,
+.admin-report-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-audit-entry-head strong,
+.admin-report-list-head strong {
+  font-size: 0.97rem;
+}
+
+.admin-audit-entry-head span,
+.admin-report-list-head span {
+  color: var(--admin-muted, #64748b);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.admin-audit-entry p,
+.admin-report-list-body p {
+  margin: 0;
+  color: var(--admin-muted, #64748b);
+}
+
+.admin-audit-entry pre {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  overflow: auto;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--admin-ink, #0f172a) 4%, transparent);
+  color: var(--admin-ink, #0f172a);
+}
+
+.admin-audit-entry-badges,
+.admin-report-list-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.admin-audit-badge,
+.admin-report-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--admin-border, #dbe3f0) 82%, transparent);
+  background: color-mix(in srgb, var(--admin-card, #fff) 82%, transparent);
+  color: var(--admin-ink, #0f172a);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.admin-audit-badge.is-info,
+.admin-report-badge.is-info {
+  color: #0f766e;
+  border-color: color-mix(in srgb, #14b8a6 28%, transparent);
+  background: color-mix(in srgb, #14b8a6 10%, var(--admin-card, #fff));
+}
+
+.admin-audit-badge.is-warning,
+.admin-report-badge.is-warning {
+  color: #9a3412;
+  border-color: color-mix(in srgb, #fb923c 28%, transparent);
+  background: color-mix(in srgb, #fb923c 12%, var(--admin-card, #fff));
+}
+
+.admin-audit-badge.is-error,
+.admin-report-badge.is-error {
+  color: #991b1b;
+  border-color: color-mix(in srgb, #ef4444 30%, transparent);
+  background: color-mix(in srgb, #ef4444 12%, var(--admin-card, #fff));
+}
+
+.admin-audit-badge.is-neutral,
+.admin-report-badge.is-neutral {
+  color: var(--admin-muted, #64748b);
+}
+
+.admin-reports-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.admin-reports-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.admin-reports-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1rem;
+}
+
+.admin-reports-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-reports-series-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-reports-series-table th,
+.admin-reports-series-table td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--admin-border, #dbe3f0) 76%, transparent);
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.admin-reports-series-table th {
+  color: var(--admin-muted, #64748b);
+  font-weight: 700;
+}
+
+.admin-reports-panel-copy {
+  margin: 0;
+  color: var(--admin-muted, #64748b);
+}
+
+@media (max-width: 1080px) {
+  .admin-report-controls,
+  .admin-audit-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-audit-filter-search {
+    grid-column: span 2;
+  }
+
+  .admin-reports-grid,
+  .admin-reports-grid--three {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-audit-filter-grid,
+  .admin-report-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-audit-filter-search {
+    grid-column: span 1;
+  }
+
+  .admin-audit-entry,
+  .admin-report-list-item {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-audit-entry-badges,
+  .admin-report-list-badges {
+    justify-content: flex-start;
+  }
+
+  .admin-audit-entry-head,
+  .admin-report-list-head,
+  .admin-audit-panel-head,
+  .admin-reports-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-reports-actions,
+  .admin-audit-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-report-range,
+  .admin-report-range select {
+    width: 100%;
+    min-width: 0;
+  }
+}

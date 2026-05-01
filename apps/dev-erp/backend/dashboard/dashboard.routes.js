@@ -1,4 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { serializeAuditLog } from "../audit/audit.service.js";
 
 const RANGE_HOURS = { "24h": 24, "7d": 168, "30d": 720 };
 
@@ -16,9 +17,20 @@ export const registerDashboardRoutes = (
       const range = RANGE_HOURS[req.query.range] ? req.query.range : "7d";
       const hours = RANGE_HOURS[range];
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const organizationId = Number(req.user?.organizationId);
+
+      const orgWhere =
+        Number.isInteger(organizationId) && organizationId > 0
+          ? {
+              OR: [{ organizationId }, { organizationId: null }],
+            }
+          : {};
 
       const logs = await prisma.auditLog.findMany({
-        where: { createdAt: { gte: since } },
+        where: {
+          createdAt: { gte: since },
+          ...orgWhere,
+        },
         orderBy: { createdAt: "desc" },
         take: 100,
       });
@@ -35,13 +47,7 @@ export const registerDashboardRoutes = (
       const entries = logs.map((log) => {
         const user = log.userId ? (userMap[log.userId] ?? null) : null;
         return {
-          id: log.id,
-          action: log.action,
-          targetType: log.targetType ?? null,
-          targetId: log.targetId ?? null,
-          metadata: log.metadata ?? null,
-          organizationId: log.organizationId ?? null,
-          createdAt: log.createdAt,
+          ...serializeAuditLog(log),
           user: user ? { id: user.id, fullName: user.fullName } : null,
         };
       });

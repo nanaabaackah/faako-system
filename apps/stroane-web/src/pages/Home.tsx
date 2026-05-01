@@ -113,8 +113,8 @@ const Home: React.FC = () => {
 
         <FloatingHeader />
 
-        <div className="relative z-10 pt-36 px-10 md:px-16 text-center">
-          <h1 className="hero-heading text-[6rem] font-black leading-tight">
+        <div className="hero-section__content relative z-10 text-center">
+          <h1 className="hero-heading">
             Protect Your Food.
             <br />
             Protect Your Family.

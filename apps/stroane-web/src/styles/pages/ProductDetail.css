@@ -150,4 +150,10 @@
   .product-detail__card {
     padding: 1.75rem;
   }
+
+  .product-detail__meta-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
 }

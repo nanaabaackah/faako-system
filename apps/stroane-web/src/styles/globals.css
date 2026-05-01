@@ -84,6 +84,7 @@ body {
   font-family: var(--font-family);
   color: var(--color-text-primary);
   background-color: var(--color-white);
+  overflow-x: clip;
 }
 
 * {
@@ -190,4 +191,25 @@ a {
   color: var(--color-text-inverse);
   margin: 0;
   line-height: 1.2;
+}
+
+img {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .section__heading {
+    font-size: clamp(2rem, 9vw, 2.8rem);
+    margin-bottom: 0.85rem;
+  }
+
+  .section__sub {
+    margin-bottom: 2rem;
+    font-size: 1rem;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
 }

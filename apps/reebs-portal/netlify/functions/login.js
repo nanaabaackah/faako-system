@@ -8,27 +8,13 @@ import { hashPassword, verifyPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { buildUserSessionCookie, signUserToken } from "./_shared/userAuth.js";
 import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
+import { getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import {
   createUserSession,
   ensureUserSessionsTable,
   USER_SESSION_TTL_MS,
 } from "./_shared/userSessions.js";
 const SESSION_ONLY_TTL_MS = 1000 * 60 * 60 * 12;
-
-const getClientIp = (event) =>
-  String(event.headers?.["x-forwarded-for"] || event.headers?.["x-real-ip"] || "")
-    .split(",")[0]
-    .trim() || null;
-
-const writeAudit = (client, data) => {
-  client
-    .query(
-      `INSERT INTO "auditLog" ("organizationId","userId","action","metadata","ipAddress","createdAt")
-       VALUES ($1,$2,$3,$4,$5,NOW())`,
-      [data.organizationId ?? null, data.userId ?? null, data.action, data.metadata ? JSON.stringify(data.metadata) : null, data.ipAddress ?? null]
-    )
-    .catch(() => {});
-};
 
 const respond = (event, statusCode, payload = {}, extraHeaders = {}) =>
   json(event, statusCode, payload, { methods: "POST, OPTIONS", extraHeaders });
@@ -113,12 +99,20 @@ export async function handler(event) {
         `UPDATE "user" SET "loginAttempts" = $1, "lockedUntil" = $2 WHERE id = $3`,
         [newAttempts, shouldLock ? new Date(Date.now() + lockoutMs) : null, user.id]
       );
-      writeAudit(client, {
+      await writeAuditLog(client, {
         userId: user.id,
         organizationId: user.organizationId ?? null,
         action: "LOGIN_FAILED",
+        source: "auth",
+        category: "access",
+        severity: shouldLock ? "warning" : "info",
+        status: "failed",
+        summary: shouldLock
+          ? "Login failed and the account was temporarily locked."
+          : "Login failed.",
+        actorLabel: user.fullName || user.email,
         metadata: { attempts: newAttempts, locked: shouldLock },
-        ipAddress: getClientIp(event),
+        ipAddress: getEventIpAddress(event),
       });
       return respond(event, 401, { error: "Invalid credentials." });
     }
@@ -162,11 +156,17 @@ export async function handler(event) {
       return respond(event, 500, { error: "Auth secret is not configured." });
     }
 
-    writeAudit(client, {
+    await writeAuditLog(client, {
       userId: user.id,
       organizationId: user.organizationId ?? null,
       action: "LOGIN_SUCCESS",
-      ipAddress: getClientIp(event),
+      source: "auth",
+      category: "access",
+      severity: "info",
+      status: "ok",
+      summary: "User logged in successfully.",
+      actorLabel: user.fullName || user.email,
+      ipAddress: getEventIpAddress(event),
     });
 
     const sessionCookie = buildUserSessionCookie(event, token, { ttlMs: sessionTtlMs });

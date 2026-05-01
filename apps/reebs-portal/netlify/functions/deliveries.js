@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
@@ -139,7 +140,7 @@ export async function handler(event = {}) {
           });
     if (access.errorResponse) return access.errorResponse;
 
-    const { organizationId } = access;
+    const { authUser, organizationId } = access;
     await ensureDeliveryTable(client);
 
     if (event.httpMethod === "GET") {
@@ -261,6 +262,27 @@ export async function handler(event = {}) {
        RETURNING id, "bookingId", status, "driverName", "routeGroup", "routeOrder", eta, notes, "updatedAt"`,
       [bookingId, status, driverName, routeGroup, routeOrder, eta, notes]
     );
+
+    await writeAuditLog(client, {
+      userId: authUser?.id,
+      organizationId,
+      action: "DELIVERY_UPDATED",
+      targetType: "delivery",
+      targetId: String(upsert.rows[0]?.id || bookingId),
+      source: "api",
+      category: "delivery",
+      severity: "info",
+      status: "ok",
+      summary: `Updated delivery assignment for booking ${bookingId}.`,
+      actorLabel: authUser?.fullName || authUser?.email || null,
+      requestId: getEventHeader(event, "x-request-id"),
+      ipAddress: getEventIpAddress(event),
+      metadata: {
+        bookingId,
+        status,
+        driverName,
+      },
+    });
 
     return json(event, 200, upsert.rows[0]);
   } catch (err) {

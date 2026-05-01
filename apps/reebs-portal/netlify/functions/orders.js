@@ -4,6 +4,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 import { sanitizeOrderLogisticsDetails } from "./_shared/orderDetails.js";
 import { ensureInventoryVariantSchema } from "./_shared/inventoryExtensions.js";
@@ -382,6 +383,25 @@ export async function handler(event = {}) {
         [orderId, organizationId]
       );
       await client.query("COMMIT");
+      await writeAuditLog(client, {
+        userId: actor.userId,
+        organizationId,
+        action: "ORDER_UPDATED",
+        targetType: "order",
+        targetId: String(orderNumber || orderId),
+        source: "api",
+        category: "order",
+        severity: "info",
+        status: "ok",
+        summary: `Updated order ${orderNumber || orderId}.`,
+        actorLabel: actor.userName || actor.userEmail || "Admin",
+        requestId: getEventHeader(event, "x-request-id"),
+        ipAddress: getEventIpAddress(event),
+        metadata: {
+          status: nextStatus || null,
+          deliveryMethod: effectiveMethod,
+        },
+      });
       return respond(event, 200, updatedRes.rows[0] || { id: orderId, status: nextStatus }, {
         methods: ORDER_METHODS,
       });

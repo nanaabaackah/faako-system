@@ -47,6 +47,8 @@ export default defineErpShellConfig({
     "/admin/settings": "Settings",
     "/admin/hr": "HR",
     "/admin/roles": "Roles",
+    "/admin/reports": "Reports",
+    "/admin/audit-logs": "Audit Log",
     "/admin/maintenance": "Maintenance",
     "/admin/invoicing": "Invoicing",
     "/admin/marketing": "Marketing",

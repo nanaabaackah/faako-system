@@ -6,6 +6,7 @@ import {
   requirePermission,
   respond,
 } from "./_shared/internalApi.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
@@ -129,7 +130,7 @@ export async function handler(event = {}) {
       return internal.errorResponse;
     }
 
-    const { organizationId } = internal;
+    const { authUser, organizationId } = internal;
     await ensureDiscountTable(client);
 
     if (method === "GET") {
@@ -191,10 +192,25 @@ export async function handler(event = {}) {
              ($1, 'WELCOME10','PERCENTAGE',10,'2026-01-31',0,'both','all','10% off your first order',true),
              ($1, 'JANPOP','FIXED',25,'2026-01-31',150,'rental','rental clients','Free popcorn machine in January',true),
              ($1, 'XMAS20','PERCENTAGE',20,'2025-12-31',200,'retail','retail shoppers','Holiday promo',false)
-           RETURNING id, "organizationId", code, type, value, "minOrderValue", "expiryDate", scope, segment, reward,
-                     "usageCount", "isActive", "createdAt", "updatedAt"`,
+          RETURNING id, "organizationId", code, type, value, "minOrderValue", "expiryDate", scope, segment, reward,
+                    "usageCount", "isActive", "createdAt", "updatedAt"`,
           [organizationId]
         );
+        await writeAuditLog(client, {
+          userId: authUser?.id,
+          organizationId,
+          action: "MARKETING_SEEDED",
+          targetType: "discount",
+          targetId: "seed",
+          source: "api",
+          category: "marketing",
+          severity: "info",
+          status: "ok",
+          summary: "Seeded default marketing discounts.",
+          actorLabel: authUser?.fullName || authUser?.email || null,
+          requestId: getEventHeader(event, "x-request-id"),
+          ipAddress: getEventIpAddress(event),
+        });
         return json(event, 200, { seeded: true, items: seeded.rows.map(normalizeDiscount) });
       }
 
@@ -238,7 +254,24 @@ export async function handler(event = {}) {
           ]
         );
 
-        return json(event, 200, normalizeDiscount(result.rows[0]));
+        const discount = normalizeDiscount(result.rows[0]);
+        await writeAuditLog(client, {
+          userId: authUser?.id,
+          organizationId,
+          action: "MARKETING_CREATED",
+          targetType: "discount",
+          targetId: String(discount.id),
+          source: "api",
+          category: "marketing",
+          severity: "info",
+          status: "ok",
+          summary: `Created discount ${discount.code}.`,
+          actorLabel: authUser?.fullName || authUser?.email || null,
+          requestId: getEventHeader(event, "x-request-id"),
+          ipAddress: getEventIpAddress(event),
+          metadata: { code: discount.code, type: discount.type, isActive: discount.isActive },
+        });
+        return json(event, 200, discount);
       } catch (err) {
         if (err?.code === "23505") {
           return json(event, 409, { error: "Discount code already exists." });
@@ -269,7 +302,24 @@ export async function handler(event = {}) {
       return json(event, 404, { error: "Discount not found." });
     }
 
-    return json(event, 200, normalizeDiscount(result.rows[0]));
+    const discount = normalizeDiscount(result.rows[0]);
+    await writeAuditLog(client, {
+      userId: authUser?.id,
+      organizationId,
+      action: "MARKETING_UPDATED",
+      targetType: "discount",
+      targetId: String(discount.id),
+      source: "api",
+      category: "marketing",
+      severity: "info",
+      status: "ok",
+      summary: `Updated discount ${discount.code}.`,
+      actorLabel: authUser?.fullName || authUser?.email || null,
+      requestId: getEventHeader(event, "x-request-id"),
+      ipAddress: getEventIpAddress(event),
+      metadata: { code: discount.code, isActive: discount.isActive },
+    });
+    return json(event, 200, discount);
   } catch (err) {
     console.error("Marketing error:", err);
     return json(event, 500, { error: "Failed to process marketing data" });

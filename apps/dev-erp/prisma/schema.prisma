@@ -87,12 +87,27 @@ model AuditLog {
   action         String
   targetType     String?
   targetId       String?
+  appKey         String?
+  environment    String?
+  source         String?
+  category       String?
+  severity       String?
+  status         String?
+  summary        String?
+  actorType      String?
+  actorLabel     String?
+  requestId      String?
+  externalRef    String?   @unique
   metadata       Json?
   ipAddress      String?
   createdAt      DateTime @default(now())
 
   @@index([organizationId, action, createdAt])
   @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([source, createdAt])
+  @@index([category, createdAt])
+  @@index([severity, createdAt])
 }
 
 model Booking {

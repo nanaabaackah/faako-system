@@ -39,6 +39,7 @@ import {
   buildInternalBookingEmailHtml,
   buildInternalBookingEmailText,
 } from "./_shared/transactionEmailTemplates.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 
 const BOOKING_METHODS = "GET,POST,PUT,OPTIONS";
 const MAX_BOOKING_ITEMS = 100;
@@ -936,6 +937,31 @@ export async function handler(event) {
           }
         });
       }
+
+      await writeAuditLog(client, {
+        userId: actorUserId,
+        organizationId,
+        action: event.httpMethod === "POST" ? "BOOKING_CREATED" : "BOOKING_UPDATED",
+        targetType: "booking",
+        targetId: String(persistedBooking?.id || bookingId),
+        source: authUser ? "api" : "integration",
+        category: "booking",
+        severity: "info",
+        status: "ok",
+        summary:
+          event.httpMethod === "POST"
+            ? `Created booking ${persistedBooking?.id || bookingId}.`
+            : `Updated booking ${persistedBooking?.id || bookingId}.`,
+        actorLabel: actor.userName || actor.userEmail || "Guest",
+        requestId: getEventHeader(event, "x-request-id"),
+        ipAddress: getEventIpAddress(event),
+        metadata: {
+          customerId,
+          itemCount: finalItems.length,
+          totalAmount,
+          status,
+        },
+      });
 
       return json(event, event.httpMethod === "POST" ? 201 : 200, persistedBooking);
     } catch (err) {
