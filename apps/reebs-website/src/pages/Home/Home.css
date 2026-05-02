@@ -424,17 +424,6 @@
   padding: 0 2rem 5rem;
 }
 
-.home-services-stack {
-  --services-swirl-size: clamp(22rem, 22vw, 25rem);
-  --services-swirl-top-x: 0;
-  --services-swirl-top-y: -100%;
-  --services-swirl-bottom-x: 0;
-  --services-swirl-bottom-y: 5%;
-  position: relative;
-  isolation: isolate;
-  padding-bottom: calc(var(--services-swirl-size) * 0.22);
-}
-
 .home section.home-flow--services {
   min-height: var(--app-vh);
   padding: 4rem;
@@ -444,43 +433,9 @@
   overflow: visible;
 }
 
-.home section.home-flow--services::before {
-  content: "";
-  position: absolute;
-  width: var(--services-swirl-size);
-  aspect-ratio: 1 / 1;
-  pointer-events: none;
-  z-index: 0;
-  background-position: center;
-  background-size: contain;
-  background-repeat: no-repeat;
-}
-
-.home section.home-flow--services::before {
-  top: 0;
-  right: 0;
-  transform: translate(var(--services-swirl-top-x), var(--services-swirl-top-y));
-  background: url("/imgs/elements/swirl_1.svg") center / contain no-repeat;
-}
-
 .home-flow--services .container {
   width: 100%;
   overflow: visible;
-}
-
-.home-services-swirl-tail {
-  position: absolute;
-  left: 0;
-  bottom: -25%;
-  width: var(--services-swirl-size);
-  aspect-ratio: 1 / 1;
-  pointer-events: none;
-  z-index: 0;
-  background-position: center;
-  background-size: contain;
-  background-repeat: no-repeat;
-  transform: translate(var(--services-swirl-bottom-x), var(--services-swirl-bottom-y));
-  background: url("/imgs/elements/swirl_2.svg") center / contain no-repeat;
 }
 
 .home-flow--services .section-header {
@@ -1069,16 +1024,6 @@
     grid-template-columns: 1fr;
   }
 
-  .home-services-stack {
-    --services-swirl-size: clamp(8.5rem, 16vw, 13rem);
-  }
-
-  .home-services-swirl-tail {
-    position: absolute;
-    left: 0;
-    bottom: -5.2%;
-  }
-
   .service-row {
     gap: 0;
     height: 380px;
@@ -1153,10 +1098,6 @@
   .hero-content {
     gap: 0.8rem;
     padding-bottom: 1rem;
-  }
-
-  .home-services-stack {
-    --services-swirl-size: clamp(7rem, 24vw, 9.5rem);
   }
 
   .hero-kicker {
