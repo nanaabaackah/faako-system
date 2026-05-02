@@ -1,17 +1,20 @@
 [build]
-  command = "pnpm build"
-  publish = "dist"
+  command = "pnpm --filter @faako/stroane-web build"
+  ignore = "node ./scripts/netlify-ignore.mjs @faako/stroane-web"
+  publish = "apps/stroane-web/dist"
 
 [dev]
-  command = "pnpm dev:with-backend"
-  port = 5175
+  command = "pnpm --filter @faako/stroane-web dev:frontend"
+  targetPort = 5175
+  port = 8888
 
-[[redirects]]
-  from = "/api/*"
-  to = "http://localhost:3000/api/:splat"
-  status = 200
-  force = true
-  condition = "Role=admin"
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), geolocation=(), microphone=()"
 
 [[redirects]]
   from = "/*"

@@ -60,3 +60,17 @@ pnpm --filter @faako/stroane-web run build
 pnpm --filter @faako/stroane-web run db:deploy:prod
 pnpm --filter @faako/stroane-web run server:prod
 ```
+
+## Netlify Deployment
+
+Use Netlify for the deployed frontend and keep Hostinger as the domain/DNS host.
+
+Recommended Netlify settings:
+
+- Base directory: repo root
+- Build command: `pnpm --filter @faako/stroane-web build`
+- Publish directory: `apps/stroane-web/dist`
+- Config file: `apps/stroane-web/netlify.toml`
+- Environment variable: set `VITE_BACKEND_BASE_URL` only if the API is hosted outside the Netlify site
+
+If Hostinger manages DNS, point the Stroane domain to Netlify with Netlify's DNS records for the site. After the domain is attached in Netlify, add the deployed origin to backend `CORS_ORIGINS` when the backend runs separately.
