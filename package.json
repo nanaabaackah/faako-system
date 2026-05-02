@@ -28,7 +28,7 @@
     "security:gate": "node ./scripts/security-gate.mjs",
     "security:deps": "node ./scripts/security-deps.mjs",
     "security:all": "pnpm run security:scan && pnpm run security:gate",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "husky": "^9.0.0",
