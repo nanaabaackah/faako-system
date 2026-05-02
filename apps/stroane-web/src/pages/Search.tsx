@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { EmptyState } from "@faako/ui";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
 import "../styles/pages/Search.css";
@@ -166,14 +167,17 @@ const Search: React.FC = () => {
         </section>
 
         {q && results.length === 0 && (
-          <section className="search-empty">
-            <h2 className="section__heading">No matching results found.</h2>
-            <p>
-              Try a simpler word like <strong>audit</strong>,{" "}
-              <strong>fridge</strong>, <strong>training</strong>, or{" "}
-              <strong>licence</strong>.
-            </p>
-          </section>
+          <EmptyState
+            className="search-empty"
+            title="No matching results found."
+            message={
+              <>
+                Try a simpler word like <strong>audit</strong>,{" "}
+                <strong>fridge</strong>, <strong>training</strong>, or{" "}
+                <strong>licence</strong>.
+              </>
+            }
+          />
         )}
 
         {grouped.map(({ category, items }) => (

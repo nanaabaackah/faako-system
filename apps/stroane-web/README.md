@@ -74,3 +74,5 @@ Recommended Netlify settings:
 - Environment variable: set `VITE_BACKEND_BASE_URL` only if the API is hosted outside the Netlify site
 
 If Hostinger manages DNS, point the Stroane domain to Netlify with Netlify's DNS records for the site. After the domain is attached in Netlify, add the deployed origin to backend `CORS_ORIGINS` when the backend runs separately.
+
+If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.

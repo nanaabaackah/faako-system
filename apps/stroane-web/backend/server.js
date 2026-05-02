@@ -13,6 +13,7 @@ import {
   createSecurityHeadersMiddleware,
   createUnsafeApiDefaultDenyMiddleware,
   resolveAllowedOrigins,
+  resolveTrustProxySetting,
 } from "./security.js";
 
 dotenv.config();
@@ -33,6 +34,12 @@ if (connectionString) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const trustProxySetting = resolveTrustProxySetting(process.env);
+
+app.disable("x-powered-by");
+if (trustProxySetting) {
+  app.set("trust proxy", trustProxySetting);
+}
 
 // CORS — only allow explicitly configured origins; fail closed in production.
 const allowedOrigins = resolveAllowedOrigins(process.env);
@@ -66,12 +73,20 @@ app.get("/api/products", async (req, res) => {
 app.get("/api/products/:id", async (req, res) => {
   try {
     // TODO: Implement get product by id
-    const { id } = req.params;
+    const id = Number.parseInt(String(req.params.id || ""), 10);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid product ID" });
+    }
+
     res.json({ message: `Get product ${id} - not implemented yet` });
   } catch (error) {
     console.error("Error fetching product:", error);
     res.status(500).json({ error: "Failed to fetch product" });
   }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
 });
 
 // Error handling middleware

@@ -129,7 +129,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Why Stroane */}
-      <section className="pt-[17.5vh] pb-16">
+      <section className="trust-section pt-[17.5vh] pb-16">
         {/* Trust stats */}
         <div className="flex justify-center mb-16">
           <div className="trust-stats">

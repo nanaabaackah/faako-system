@@ -5,6 +5,7 @@ import {
   createCorsOriginValidator,
   createUnsafeApiDefaultDenyMiddleware,
   resolveAllowedOrigins,
+  resolveTrustProxySetting,
 } from "./security.js";
 
 const createMockResponse = () => {
@@ -46,6 +47,21 @@ test("resolveAllowedOrigins fails closed in production when CORS_ORIGINS is unse
   assert.equal(error?.statusCode, 403);
 });
 
+test("resolveAllowedOrigins includes the Stroane Vite dev port outside production", () => {
+  const allowedOrigins = resolveAllowedOrigins({
+    NODE_ENV: "development",
+    CORS_ORIGINS: "",
+  });
+
+  assert.equal(allowedOrigins.has("http://localhost:5175"), true);
+});
+
+test("resolveTrustProxySetting only enables explicit positive proxy hop counts", () => {
+  assert.equal(resolveTrustProxySetting({ TRUST_PROXY_HOPS: "" }), false);
+  assert.equal(resolveTrustProxySetting({ TRUST_PROXY_HOPS: "true" }), false);
+  assert.equal(resolveTrustProxySetting({ TRUST_PROXY_HOPS: "1" }), 1);
+});
+
 test("unsafe api default deny middleware blocks non-read methods", () => {
   const middleware = createUnsafeApiDefaultDenyMiddleware();
   const response = createMockResponse();
@@ -71,9 +87,8 @@ test("api rate limit middleware throttles repeated requests from the same client
   });
   const request = {
     method: "GET",
-    headers: {
-      "x-forwarded-for": "203.0.113.5",
-    },
+    ip: "203.0.113.5",
+    headers: {},
   };
 
   for (let attempt = 0; attempt < 2; attempt += 1) {

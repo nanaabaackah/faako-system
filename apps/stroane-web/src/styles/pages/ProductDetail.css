@@ -85,26 +85,15 @@
 }
 
 .product-detail__cta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 52px;
   width: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  text-decoration: none;
   font-weight: 800;
   font-size: 1rem;
   box-shadow: var(--shadow-elevated);
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease;
 }
 
 .product-detail__cta:hover {
   transform: translateY(-2px);
-  background: var(--color-primary-dark);
 }
 
 .product-detail__note {
@@ -116,9 +105,7 @@
 
 /* ── Not-found state ── */
 .product-detail__not-found {
-  padding: calc(72px + 4rem) 2.5rem;
-  max-width: 720px;
-  margin: 0 auto;
+  margin-top: 0;
 }
 
 .product-detail__not-found p {

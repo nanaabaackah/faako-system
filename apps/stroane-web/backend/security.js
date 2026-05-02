@@ -1,4 +1,8 @@
 const normalizeOrigin = (origin) => String(origin || "").trim().replace(/\/$/, "");
+const normalizePositiveInteger = (value) => {
+  const number = Number.parseInt(String(value || ""), 10);
+  return Number.isInteger(number) && number > 0 ? number : 0;
+};
 
 const isProductionRuntime = (env = process.env) =>
   String(env.NODE_ENV || env.APP_ENV || "")
@@ -15,10 +19,16 @@ export const resolveAllowedOrigins = (env = process.env) => {
 
   if (!isProductionRuntime(env) && allowedOrigins.size === 0) {
     allowedOrigins.add("http://localhost:5173");
+    allowedOrigins.add("http://localhost:5175");
     allowedOrigins.add("http://localhost:3000");
   }
 
   return allowedOrigins;
+};
+
+export const resolveTrustProxySetting = (env = process.env) => {
+  const hopCount = normalizePositiveInteger(env.TRUST_PROXY_HOPS);
+  return hopCount || false;
 };
 
 export const createCorsOriginValidator = ({ allowedOrigins }) => (origin, callback) => {
@@ -32,6 +42,10 @@ export const createCorsOriginValidator = ({ allowedOrigins }) => (origin, callba
 };
 
 export const createSecurityHeadersMiddleware = () => (_req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+  );
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -44,10 +58,7 @@ export const createSecurityHeadersMiddleware = () => (_req, res, next) => {
 };
 
 const getClientIp = (req) => {
-  const forwarded = String(req.headers?.["x-forwarded-for"] || "")
-    .split(",")[0]
-    .trim();
-  return forwarded || req.ip || req.socket?.remoteAddress || "unknown";
+  return req.ip || req.socket?.remoteAddress || "unknown";
 };
 
 export const createApiRateLimitMiddleware = ({

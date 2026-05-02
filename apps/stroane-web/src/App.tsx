@@ -8,6 +8,7 @@ import Resources from "./pages/Resources";
 import ProductList from "./pages/ProductList";
 import ProductDetail from "./pages/ProductDetail";
 import Search from "./pages/Search";
+import ErrorPage from "./pages/ErrorPage";
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/error" element={<ErrorPage />} />
+        <Route path="*" element={<ErrorPage statusCode="404" />} />
       </Routes>
     </Router>
   );

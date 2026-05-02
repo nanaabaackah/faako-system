@@ -1,0 +1,35 @@
+.error-page {
+  min-height: calc(100svh - 72px);
+  display: grid;
+  place-items: center;
+  gap: 1.5rem;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: calc(72px + 4rem) 1.5rem 6rem;
+  text-align: center;
+}
+
+.error-page__status {
+  color: var(--color-primary);
+  font-size: clamp(4rem, 15vw, 8rem);
+  font-weight: 900;
+  line-height: 0.9;
+  opacity: 0.18;
+}
+
+.error-page__panel {
+  width: 100%;
+  background:
+    linear-gradient(180deg, var(--color-primary-tint), transparent 48%),
+    var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 640px) {
+  .error-page {
+    align-content: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

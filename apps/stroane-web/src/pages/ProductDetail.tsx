@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Card, EmptyState, InlineNotice, PageShell, StatusPill } from "@faako/ui";
 import type { Product } from "../types/index";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
@@ -36,7 +37,9 @@ const ProductDetail: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <p className="product-detail-status">Loading product…</p>
+        <PageShell className="product-detail-page">
+          <InlineNotice tone="loading" title="Loading product" />
+        </PageShell>
       </Layout>
     );
   }
@@ -44,9 +47,9 @@ const ProductDetail: React.FC = () => {
   if (error) {
     return (
       <Layout>
-        <p className="product-detail-status product-detail-status--error">
-          Error: {error}
-        </p>
+        <PageShell className="product-detail-page">
+          <InlineNotice tone="error" title="Product unavailable" message={error} />
+        </PageShell>
       </Layout>
     );
   }
@@ -54,24 +57,29 @@ const ProductDetail: React.FC = () => {
   if (!product) {
     return (
       <Layout>
-        <div className="product-detail__not-found">
-          <p>Product not found.</p>
-          <Link to="/products" className="product-detail__back">
-            ← Back to Products
-          </Link>
-        </div>
+        <PageShell className="product-detail-page">
+          <EmptyState
+            className="product-detail__not-found"
+            title="Product not found."
+            actions={
+              <Link to="/products" className="ui-button ui-button--secondary">
+                Back to Products
+              </Link>
+            }
+          />
+        </PageShell>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="product-detail-page">
+      <PageShell className="product-detail-page">
         <Link to="/products" className="product-detail__back">
           ← Back to Products
         </Link>
 
-        <div className="product-detail__card">
+        <Card className="product-detail__card">
           <h1 className="product-detail__name">{product.name}</h1>
           <p className="product-detail__desc">{product.description}</p>
 
@@ -84,28 +92,23 @@ const ProductDetail: React.FC = () => {
             </div>
             <div className="product-detail__meta-row">
               <span className="product-detail__meta-label">Availability</span>
-              <span
-                className={
-                  product.inventory > 0
-                    ? "product-detail__in-stock"
-                    : "product-detail__out-of-stock"
-                }
-              >
-                {product.inventory > 0
-                  ? `${product.inventory} in stock`
-                  : "Out of stock"}
-              </span>
+              <StatusPill tone={product.inventory > 0 ? "success" : "danger"}>
+                {product.inventory > 0 ? `${product.inventory} in stock` : "Out of stock"}
+              </StatusPill>
             </div>
           </div>
 
-          <a href="mailto:info@stroane.com" className="product-detail__cta">
+          <a
+            href="mailto:info@stroane.com"
+            className="ui-button ui-button--primary product-detail__cta"
+          >
             Enquire to Order
           </a>
           <p className="product-detail__note">
             Online checkout coming soon. Contact us to place an order.
           </p>
-        </div>
-      </div>
+        </Card>
+      </PageShell>
     </Layout>
   );
 };

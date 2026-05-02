@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Card, EmptyState, InlineNotice, PageHeader, PageShell } from "@faako/ui";
 import type { Product } from "../types/index";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
@@ -33,7 +34,9 @@ const ProductList: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <p className="products-status">Loading products…</p>
+        <PageShell className="products-page">
+          <InlineNotice tone="loading" title="Loading products" />
+        </PageShell>
       </Layout>
     );
   }
@@ -41,38 +44,39 @@ const ProductList: React.FC = () => {
   if (error) {
     return (
       <Layout>
-        <p className="products-status products-status--error">Error: {error}</p>
+        <PageShell className="products-page">
+          <InlineNotice tone="error" title="Products unavailable" message={error} />
+        </PageShell>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="products-page">
-        <h1 className="products-page__heading">Products</h1>
-        <p className="products-page__sub">
-          Food safety equipment and supplies available for order. All prices in
-          GHS inclusive of VAT.
-        </p>
+      <PageShell className="products-page">
+        <PageHeader
+          title="Products"
+          titleClassName="products-page__heading"
+          subtitle="Food safety equipment and supplies available for order. All prices in GHS inclusive of VAT."
+          subtitleClassName="products-page__sub"
+        />
 
         {products.length === 0 ? (
-          <div className="products-empty">
-            <p className="products-empty__title">Product listings are being added.</p>
-            <p className="products-empty__sub">
-              Contact us directly to enquire about availability and pricing.
-            </p>
-            <div className="products-empty__actions">
-              <Link to="/shop" className="products-empty__btn products-empty__btn--outline">
-                Browse categories
-              </Link>
-              <a
-                href="mailto:info@stroane.com"
-                className="products-empty__btn products-empty__btn--primary"
-              >
-                Contact us
-              </a>
-            </div>
-          </div>
+          <EmptyState
+            className="products-empty"
+            title="Product listings are being added."
+            message="Contact us directly to enquire about availability and pricing."
+            actions={
+              <>
+                <Link to="/shop" className="ui-button ui-button--secondary">
+                  Browse categories
+                </Link>
+                <a href="mailto:info@stroane.com" className="ui-button ui-button--primary">
+                  Contact us
+                </a>
+              </>
+            }
+          />
         ) : (
           <div className="products-grid">
             {products.map((product) => (
@@ -81,7 +85,7 @@ const ProductList: React.FC = () => {
                 to={`/products/${product.id}`}
                 className="product-card-link"
               >
-                <article className="product-card">
+                <Card className="product-card">
                   <h2 className="product-card__name">{product.name}</h2>
                   <p className="product-card__desc">{product.description}</p>
                   <div className="product-card__footer">
@@ -94,12 +98,12 @@ const ProductList: React.FC = () => {
                         : "Out of stock"}
                     </span>
                   </div>
-                </article>
+                </Card>
               </Link>
             ))}
           </div>
         )}
-      </div>
+      </PageShell>
     </Layout>
   );
 };
