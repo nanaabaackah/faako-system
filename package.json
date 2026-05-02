@@ -11,7 +11,7 @@
     "dev:faako": "node ./scripts/dev-faako.mjs",
     "dev:dev-erp": "node ./scripts/dev-dev-erp.mjs",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
-    "dev:stroane": "pnpm --filter @faako/stroane-web run dev",
+    "dev:stroane": "turbo run build --filter @faako/stroane-web run dev",
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",
