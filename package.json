@@ -11,7 +11,7 @@
     "dev:faako": "node ./scripts/dev-faako.mjs",
     "dev:dev-erp": "node ./scripts/dev-dev-erp.mjs",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
-    "dev:stroane": "turbo run build --filter @faako/stroane-web run dev",
+    "dev:stroane": "pnpm --filter @faako/stroane-web run dev",
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",
@@ -19,8 +19,7 @@
     "db:refresh:local:dry": "node ./scripts/refresh-local-dbs.mjs --dry-run",
     "db:refresh:local:biweekly": "node ./scripts/refresh-local-dbs.mjs --due-days 14 --yes",
     "deploy:check": "node ./scripts/netlify-ignore.mjs",
-    "build": "pnpm --filter @faako/stroane-web run build",
-    "build:all": "turbo run build",
+    "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "create:app": "node ./scripts/create-app-from-reference.mjs",
@@ -28,7 +27,7 @@
     "security:gate": "node ./scripts/security-gate.mjs",
     "security:deps": "node ./scripts/security-deps.mjs",
     "security:all": "pnpm run security:scan && pnpm run security:gate",
-    "prepare": "husky || true"
+    "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.0.0",
