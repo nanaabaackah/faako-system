@@ -23,6 +23,8 @@ BEGIN
   END IF;
 
   IF to_regclass('"managerDevice"') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE "managerDevice" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER NOT NULL DEFAULT 1';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS "managerDevice_organizationId_idx" ON "managerDevice" ("organizationId")';
     EXECUTE 'ALTER TABLE "managerDevice" ENABLE ROW LEVEL SECURITY';
     EXECUTE 'ALTER TABLE "managerDevice" FORCE ROW LEVEL SECURITY';
     EXECUTE 'DROP POLICY IF EXISTS org_isolation ON "managerDevice"';

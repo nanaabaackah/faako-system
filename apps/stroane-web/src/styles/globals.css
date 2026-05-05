@@ -193,6 +193,27 @@ a {
   line-height: 1.2;
 }
 
+.section__cta{
+  display: inline-flex;
+  justify-content: center;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.section__cta a {
+  text-decoration: none;
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+.section__cta:hover {
+  background-color: var(--color-primary-dark);
+} 
+
+
 img {
   max-width: 100%;
 }
@@ -201,6 +222,7 @@ img {
   .section__heading {
     font-size: clamp(2rem, 9vw, 2.8rem);
     margin-bottom: 0.85rem;
+    width: 100%;
   }
 
   .section__sub {

@@ -129,7 +129,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Why Stroane */}
-      <section className="trust-section pt-[17.5vh] pb-16">
+      <section className="trust-section pt-[20vh] pb-16">
         {/* Trust stats */}
         <div className="flex justify-center mb-16">
           <div className="trust-stats">
@@ -192,9 +192,6 @@ const Home: React.FC = () => {
       {/* Featured Products */}
       <section className="products-section">
         <h2 className="section__heading">Featured Products</h2>
-        <p className="section__sub">
-          The tools our advisors recommend most — sourced and available in Ghana.
-        </p>
         <div className="product-cards">
           {featuredProducts.map((product) => (
             <Link key={product.name} to={product.href} className="product-card">

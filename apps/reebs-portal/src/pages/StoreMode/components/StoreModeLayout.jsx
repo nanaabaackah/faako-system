@@ -325,7 +325,7 @@ function StoreModeCustomerPanel({
   customersError,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--customer">
+    <section className="glass-card store-builder-panel store-builder-panel--customer">
       <div className="store-builder-controls">
         <div className="store-builder-inline-fields">
           <label className="store-builder-field">
@@ -427,7 +427,7 @@ function StoreModeOrderPanel({
   orderCurrency,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--order">
+    <section className="glass-card store-builder-panel store-builder-panel--order">
       <div className="store-builder-summary">
         <div>
           <h2>{itemCount} items</h2>
@@ -537,7 +537,7 @@ function StoreModeCartPanel({
   clearOrder,
 }) {
   return (
-    <section className="store-builder-panel store-builder-panel--cart">
+    <section className="glass-card store-builder-panel store-builder-panel--cart">
       <div className="store-builder-section-head">
         <h3>Checkout</h3>
       </div>

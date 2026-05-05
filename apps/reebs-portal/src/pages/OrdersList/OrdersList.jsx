@@ -1,151 +1,78 @@
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DateField, SelectField } from "@faako/ui";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { DateField, FilterBar, SelectField } from "@faako/ui";
 import "./OrdersList.css";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
+import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
-
-const formatCurrency = (amount, currency = "GHS") => {
-  try {
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(amount || 0);
-  } catch (err) {
-    return `£${Number(amount || 0).toFixed(2)}`;
-  }
-};
-
-const formatDate = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const formatDateTime = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatUser = (name) => name || "Admin";
-const toNumber = (value, fallback = 0) => {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-};
+import {
+  faPlus,
+  faReceipt,
+  faRotateRight,
+  faTableCells,
+  faWallet,
+} from "../../icons/iconSet";
+import {
+  formatCurrencyFromCents,
+  formatStatusLabel,
+  FULFILLMENT_STATUS_FILTER_OPTIONS,
+  getOrderLifecycleStatusLabel,
+  getOrderLifecycleStatusValue,
+  getOrderAmountPaidCents,
+  getOrderBalanceCents,
+  getOrderTotalCents,
+  getOrdersStatusClass,
+  majorToCents,
+  matchesOrderLifecycleStatusFilter,
+  normalizeStatusKey,
+  ORDER_SORT_OPTIONS,
+  ORDER_SOURCE_ALL_OPTION,
+  ORDER_STATUS_FILTER_OPTIONS,
+  ORDER_STATUS_FILTER_VALUES,
+  ORDER_VIEW_OPTIONS,
+  PAYMENT_METHOD_OPTIONS,
+  PAYMENT_STATUS_FILTER_OPTIONS,
+} from "../Orders/orderUi";
 
 const normalizeStatus = (status) => {
-  if (typeof status !== "string") return "";
-  const normalized = status.trim().toLowerCase();
+  const normalized = normalizeStatusKey(status);
   return normalized === "canceled" ? "cancelled" : normalized;
 };
 
-const ORDER_STATUS_FILTERS = new Set(["all", "pending", "paid", "fulfilled", "cancelled", "completed"]);
-
 const normalizeOrderStatusFilter = (value) => {
   const normalized = normalizeStatus(value);
-  return ORDER_STATUS_FILTERS.has(normalized) ? normalized : "all";
+  return ORDER_STATUS_FILTER_VALUES.has(normalized) ? normalized : "all";
 };
 
-const ORDER_TIMING_FILTERS = new Set(["all", "today", "overdue"]);
-
-const normalizeOrderTimingFilter = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
-  return ORDER_TIMING_FILTERS.has(normalized) ? normalized : "all";
+const ORDER_VIEW_ICONS = {
+  list: faTableCells,
+  cards: faReceipt,
+  ledger: faWallet,
 };
 
-const normalizeIdFilter = (value) => {
-  const normalized = String(value || "").trim();
-  if (!normalized) return "";
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "";
+const getOrderCardStatusClass = (status) => {
+  const normalized = normalizeStatus(status) || "pending";
+  return `orders-status-pill--${normalized}`;
 };
 
-const isClosedOrder = (order) => {
-  const status = normalizeStatus(order?.status);
-  return ["fulfilled", "completed", "delivered", "cancelled"].includes(status);
-};
-
-const getOrderScheduleDate = (order) => {
-  const details = getFulfillmentDetails(order);
-  const raw = details.date || order?.deliveryDate || order?.orderDate;
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-  parsed.setHours(0, 0, 0, 0);
-  return parsed;
-};
-
-const matchesOrderTiming = (order, timingFilter) => {
-  if (timingFilter === "all") return true;
-  if (isClosedOrder(order)) return false;
-  const scheduleDate = getOrderScheduleDate(order);
-  if (!scheduleDate) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (timingFilter === "today") {
-    return scheduleDate.getTime() === today.getTime();
-  }
-  if (timingFilter === "overdue") {
-    return scheduleDate.getTime() < today.getTime();
-  }
-  return true;
-};
-
-const buildOrdersSearch = ({ query = "", status = "all", assigned = "", timing = "all" } = {}) => {
+const buildOrdersSearch = ({ query = "", status = "all" } = {}) => {
   const params = new URLSearchParams();
   const trimmedQuery = String(query || "").trim();
   const normalizedStatus = normalizeOrderStatusFilter(status);
-  const normalizedAssigned = normalizeIdFilter(assigned);
-  const normalizedTiming = normalizeOrderTimingFilter(timing);
   if (trimmedQuery) {
     params.set("q", trimmedQuery);
   }
   if (normalizedStatus !== "all") {
     params.set("status", normalizedStatus);
   }
-  if (normalizedAssigned) {
-    params.set("assigned", normalizedAssigned);
-  }
-  if (normalizedTiming !== "all") {
-    params.set("timing", normalizedTiming);
-  }
   const next = params.toString();
   return next ? `?${next}` : "";
-};
-
-const isPickupOrder = (deliveryMethod) =>
-  String(deliveryMethod || "").toLowerCase().includes("pickup");
-
-const WINDOW_LABELS = {
-  "9am-11am": "9:00am - 11:00am",
-  "11am-1pm": "11:00am - 1:00pm",
-  "1pm-3pm": "1:00pm - 3:00pm",
-  "3pm-5pm": "3:00pm - 5:00pm",
-  "5pm-7pm": "5:00pm - 7:00pm",
-};
-
-const formatWindow = (value) => {
-  if (!value) return "-";
-  return WINDOW_LABELS[value] || value;
 };
 
 const normalizeOrderItems = (order) => {
@@ -173,31 +100,31 @@ const normalizeOrderItems = (order) => {
   return { ...order, items };
 };
 
-const getFulfillmentDetails = (order) => {
-  const pickup = isPickupOrder(order?.deliveryMethod);
-  const details = pickup ? order?.pickupDetails : order?.deliveryDetails;
-  const fallbackDate = pickup ? null : order?.deliveryDate || null;
-  return {
-    pickup,
-    date: details?.date || fallbackDate,
-    window: details?.window || null,
-    address: details?.address || null,
-    contact: details?.contact || null,
-    notes: details?.notes || null,
-  };
+const getPaymentStage = (order) => {
+  const paymentStatus = normalizeStatus(order?.paymentStatus);
+  if (["refund_pending", "refunded"].includes(paymentStatus)) return "refunds";
+  if (["partial", "partially_paid"].includes(paymentStatus)) return "partially_paid";
+  if (["paid", "overpaid"].includes(paymentStatus)) return "paid";
+  if (getOrderTotalCents(order) > 0 && getOrderBalanceCents(order) <= 0) {
+    return "paid";
+  }
+  return "unpaid";
 };
 
-const getTimelineStage = (order) => {
-  const status = normalizeStatus(order?.status);
-  const details = getFulfillmentDetails(order);
-  const hasDeliveryDate = Boolean(details.date);
-  const pickup = isPickupOrder(order?.deliveryMethod);
+const PAYMENT_CARD_CATEGORIES = [
+  { id: "unpaid", label: "Unpaid" },
+  { id: "partially_paid", label: "Partially paid" },
+  { id: "paid", label: "Paid" },
+  { id: "refunds", label: "Refunds" },
+];
 
-  if (["cancelled", "canceled"].includes(status)) return "cancelled";
-  if (["fulfilled", "delivered", "completed"].includes(status)) return "delivered";
-  if (status === "paid" && hasDeliveryDate) return pickup ? "pickup" : "delivery";
-  if (status === "paid") return "receipt";
-  return "received";
+const PAYMENT_ACTION_INITIAL_FORM = {
+  amount: "",
+  method: "cash",
+  provider: "",
+  transactionReference: "",
+  phoneNumber: "",
+  notes: "",
 };
 
 const MOBILE_VIEW_QUERY = "(max-width: 720px)";
@@ -215,32 +142,23 @@ function OrdersList() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [assignedFilter, setAssignedFilter] = useState("");
-  const [timingFilter, setTimingFilter] = useState("all");
-  const [viewMode] = useState("cards"); // cards only
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [viewMode, setViewMode] = useState("list");
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
   const [page, setPage] = useState(0);
   const pageSize = 10;
-  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
-  const viewStorageKey = useMemo(
-    () => `reebs_orders_views_${user?.id || "guest"}`,
-    [user?.id]
-  );
-  const [savedViews, setSavedViews] = useState([]);
-  const [activeViewId, setActiveViewId] = useState("all");
-  const [detailOrder, setDetailOrder] = useState(null);
-  const [detailEditOpen, setDetailEditOpen] = useState(false);
-  const [detailEditSaving, setDetailEditSaving] = useState(false);
-  const [detailEditError, setDetailEditError] = useState("");
-  const [detailEditForm, setDetailEditForm] = useState({
-    date: "",
-    window: "",
-    notes: "",
-  });
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [menuPosition, setMenuPosition] = useState(null);
-  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
-  const itemsFetchAttempted = useRef(new Set());
+  const [sortKey, setSortKey] = useState("recent");
+  const [draggingOrderId, setDraggingOrderId] = useState(null);
+  const [dragOverCategory, setDragOverCategory] = useState("");
+  const [stateNotice, setStateNotice] = useState(null);
+  const [paymentAction, setPaymentAction] = useState(null);
+  const [paymentForm, setPaymentForm] = useState(PAYMENT_ACTION_INITIAL_FORM);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -248,100 +166,42 @@ function OrdersList() {
     return () => document.body.classList.remove("admin-theme");
   }, []);
 
-  useEffect(() => {
-    const handleClickAway = (event) => {
-      if (!event.target.closest(".bookings-menu")) {
-        setOpenMenuId(null);
-        setMenuPosition(null);
+  const loadOrders = useCallback(async (signal) => {
+    const fallbackController = signal ? null : new AbortController();
+    const fetchSignal = signal || fallbackController.signal;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/.netlify/functions/orders?compact=1&limit=500", {
+        signal: fetchSignal,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch orders.");
       }
-    };
-    document.addEventListener("mousedown", handleClickAway);
-    return () => document.removeEventListener("mousedown", handleClickAway);
+      const data = await response.json();
+      const rows = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+      setOrders(rows.map(normalizeOrderItems));
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      console.error("Failed to load orders", err);
+      setError("We couldn't load orders right now.");
+    } finally {
+      if (!fetchSignal.aborted) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!openMenuId) return undefined;
-
-    const closeOnLayoutChange = () => {
-      setOpenMenuId(null);
-      setMenuPosition(null);
-    };
-
-    window.addEventListener("resize", closeOnLayoutChange);
-    window.addEventListener("scroll", closeOnLayoutChange, true);
-
-    return () => {
-      window.removeEventListener("resize", closeOnLayoutChange);
-      window.removeEventListener("scroll", closeOnLayoutChange, true);
-    };
-  }, [openMenuId]);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch("/.netlify/functions/orders");
-        if (!response.ok) {
-          throw new Error("Failed to fetch orders.");
-        }
-        const data = await response.json();
-        setOrders(Array.isArray(data) ? data.map(normalizeOrderItems) : []);
-      } catch (err) {
-        console.error("Failed to load orders", err);
-        setError("We couldn't load orders right now.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(viewStorageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(parsed)) {
-        setSavedViews(parsed);
-      }
-    } catch (err) {
-      console.warn("Failed to load order views", err);
-    }
-  }, [viewStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(viewStorageKey, JSON.stringify(savedViews));
-    } catch (err) {
-      console.warn("Failed to save order views", err);
-    }
-  }, [savedViews, viewStorageKey]);
-
-  useEffect(() => {
-    if (!detailOrder) return;
-    const details = getFulfillmentDetails(detailOrder);
-    setDetailEditForm({
-      date: details.date || "",
-      window: details.window || "",
-      notes: details.notes || "",
-    });
-    setDetailEditOpen(false);
-    setDetailEditError("");
-  }, [detailOrder]);
+    const controller = new AbortController();
+    loadOrders(controller.signal);
+    return () => controller.abort();
+  }, [loadOrders]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const nextQuery = params.get("q") || "";
     const nextStatus = normalizeOrderStatusFilter(params.get("status"));
-    const nextAssigned = normalizeIdFilter(params.get("assigned"));
-    const nextTiming = normalizeOrderTimingFilter(params.get("timing"));
     setQuery((current) => (current === nextQuery ? current : nextQuery));
     setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
-    setAssignedFilter((current) => (current === nextAssigned ? current : nextAssigned));
-    setTimingFilter((current) => (current === nextTiming ? current : nextTiming));
   }, [location.search]);
 
   useEffect(() => {
@@ -352,100 +212,100 @@ function OrdersList() {
     const nextSearch = buildOrdersSearch({
       query: params.get("q") || "",
       status: params.get("status") || "all",
-      assigned: params.get("assigned") || "",
-      timing: params.get("timing") || "all",
     });
-    const targetOrder = orders.find((order) => String(order.id) === String(orderId));
-
-    if (targetOrder) {
-      setDetailOrder(targetOrder);
-    }
-
-    navigate(
-      {
-        pathname: location.pathname,
-        search: nextSearch,
-      },
-      { replace: true }
-    );
-  }, [loading, location.pathname, location.search, navigate, orders]);
+    navigate(`/admin/orders/${encodeURIComponent(orderId)}${nextSearch}`, { replace: true });
+  }, [loading, location.search, navigate]);
 
   const filteredOrders = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const list = orders.filter((order) => {
-      const orderStatus = normalizeStatus(order.status || "");
-      if (statusFilter !== "all" && orderStatus !== statusFilter) {
+      if (!matchesOrderLifecycleStatusFilter(order, statusFilter)) {
         return false;
       }
-      if (assignedFilter && String(order.assignedUserId || "") !== assignedFilter) {
+      const paymentStatus = normalizeStatus(order.paymentStatus || "");
+      if (paymentFilter !== "all" && paymentStatus !== paymentFilter) {
         return false;
       }
-      if (!matchesOrderTiming(order, timingFilter)) {
+      const fulfillmentStatus = normalizeStatus(order.fulfillmentStatus || "");
+      if (fulfillmentFilter !== "all" && fulfillmentStatus !== fulfillmentFilter) {
         return false;
+      }
+      const orderSource = String(order.source || "").trim().toLowerCase();
+      if (sourceFilter !== "all" && orderSource !== sourceFilter) {
+        return false;
+      }
+      if (dateFrom || dateTo) {
+        const orderDate = new Date(order.orderDate || order.createdAt || 0);
+        if (Number.isNaN(orderDate.getTime())) return false;
+        if (dateFrom) {
+          const start = new Date(dateFrom);
+          start.setHours(0, 0, 0, 0);
+          if (orderDate < start) return false;
+        }
+        if (dateTo) {
+          const end = new Date(dateTo);
+          end.setHours(23, 59, 59, 999);
+          if (orderDate > end) return false;
+        }
       }
       if (!needle) return true;
       return (
         order.orderNumber?.toLowerCase().includes(needle) ||
         order.customerName?.toLowerCase().includes(needle) ||
-        order.status?.toLowerCase().includes(needle)
+        order.customerPhone?.toLowerCase().includes(needle) ||
+        order.status?.toLowerCase().includes(needle) ||
+        order.paymentStatus?.toLowerCase().includes(needle) ||
+        order.fulfillmentStatus?.toLowerCase().includes(needle) ||
+        order.source?.toLowerCase().includes(needle)
       );
     });
     return list;
-  }, [assignedFilter, orders, query, statusFilter, timingFilter]);
-
-  const sortValue = (order, key) => {
-    switch (key) {
-      case "id":
-        return Number(order.id) || 0;
-      case "orderNumber":
-        return (order.orderNumber || "").toLowerCase();
-      case "customerName":
-        return (order.customerName || "").toLowerCase();
-      case "assignedUserName":
-        return (order.assignedUserName || "").toLowerCase();
-      case "status":
-        return (order.status || "").toLowerCase();
-      case "deliveryMethod":
-        return (order.deliveryMethod || "").toLowerCase();
-      case "total":
-        return toNumber(order.total);
-      case "orderDate":
-        return new Date(order.orderDate || 0).getTime();
-      case "deliveryDate":
-        return new Date(order.deliveryDate || 0).getTime();
-      case "lastModifiedAt":
-        return new Date(order.lastModifiedAt || 0).getTime();
-      default:
-        return order[key] ?? "";
-    }
-  };
+  }, [
+    dateFrom,
+    dateTo,
+    fulfillmentFilter,
+    orders,
+    paymentFilter,
+    query,
+    sourceFilter,
+    statusFilter,
+  ]);
 
   const sortedOrders = useMemo(() => {
     const list = [...filteredOrders];
-    const { key, direction } = sortConfig;
     list.sort((a, b) => {
-      const va = sortValue(a, key);
-      const vb = sortValue(b, key);
-      if (va < vb) return direction === "asc" ? -1 : 1;
-      if (va > vb) return direction === "asc" ? 1 : -1;
-      return 0;
+      switch (sortKey) {
+        case "oldest":
+          return new Date(a.orderDate || 0).getTime() - new Date(b.orderDate || 0).getTime();
+        case "highest":
+          return getOrderTotalCents(b) - getOrderTotalCents(a);
+        case "balance":
+          return getOrderBalanceCents(b) - getOrderBalanceCents(a);
+        case "customer":
+          return String(a.customerName || "").localeCompare(String(b.customerName || ""), undefined, {
+            sensitivity: "base",
+          });
+        case "recent":
+        default:
+          return new Date(b.orderDate || 0).getTime() - new Date(a.orderDate || 0).getTime();
+      }
     });
     return list;
-  }, [filteredOrders, sortConfig]);
+  }, [filteredOrders, sortKey]);
 
-  const kanbanColumns = useMemo(() => {
-    const columns = [
-      { id: "received", label: "Order received", items: [] },
-      { id: "receipt", label: "Receipt sent", items: [] },
-      { id: "delivery", label: "Delivery pending", items: [] },
-      { id: "pickup", label: "Pickup date", items: [] },
-      { id: "cancelled", label: "Cancelled", items: [] },
-      { id: "delivered", label: "Delivered", items: [] },
-    ];
+  const cardCategories = useMemo(() => {
+    const columns = PAYMENT_CARD_CATEGORIES.map((category) => ({
+      ...category,
+      items: [],
+      totalCents: 0,
+    }));
     const columnMap = new Map(columns.map((col) => [col.id, col]));
     sortedOrders.forEach((order) => {
-      const stage = getTimelineStage(order);
-      columnMap.get(stage)?.items.push(order);
+      const stage = getPaymentStage(order);
+      const column = columnMap.get(stage);
+      if (!column) return;
+      column.items.push(order);
+      column.totalCents += getOrderTotalCents(order);
     });
     columns.forEach((col) => {
       col.items.sort(
@@ -455,30 +315,83 @@ function OrdersList() {
     return columns;
   }, [sortedOrders]);
 
-  const detailIndex = useMemo(() => {
-    if (!detailOrder) return -1;
-    return sortedOrders.findIndex((order) => order.id === detailOrder.id);
-  }, [detailOrder, sortedOrders]);
-
-  const canGoPrevDetail = detailIndex > 0;
-  const canGoNextDetail = detailIndex >= 0 && detailIndex < sortedOrders.length - 1;
-
-  const goPrevDetail = () => {
-    if (!canGoPrevDetail) return;
-    setDetailOrder(sortedOrders[detailIndex - 1]);
-  };
-
-  const goNextDetail = () => {
-    if (!canGoNextDetail) return;
-    setDetailOrder(sortedOrders[detailIndex + 1]);
-  };
-
   const pageCount = Math.max(1, Math.ceil(sortedOrders.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedOrders = useMemo(() => {
     const start = clampedPage * pageSize;
     return sortedOrders.slice(start, start + pageSize);
   }, [sortedOrders, clampedPage, pageSize]);
+
+  const detailOrderSequence = useMemo(
+    () =>
+      sortedOrders.map((order) => ({
+        id: order.id,
+        orderNumber: order.orderNumber || `#${order.id}`,
+        customerName: order.customerName || "Walk-in customer",
+      })),
+    [sortedOrders]
+  );
+
+  const dashboardStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return filteredOrders.reduce(
+      (stats, order) => {
+        const orderDate = new Date(order.orderDate || order.createdAt || 0);
+        const orderDay = new Date(orderDate);
+        orderDay.setHours(0, 0, 0, 0);
+        const paymentStatus = normalizeStatus(order.paymentStatus || "");
+        const orderStatus = normalizeStatus(order.status || "");
+        stats.total += 1;
+        if (!Number.isNaN(orderDay.getTime()) && orderDay.getTime() === today.getTime()) {
+          stats.today += 1;
+        }
+        if (["unpaid", "pending", "pending_payment"].includes(paymentStatus || orderStatus)) {
+          stats.pendingPayment += 1;
+        }
+        if (["partial", "partially_paid"].includes(paymentStatus || orderStatus)) {
+          stats.partiallyPaid += 1;
+        }
+        if (paymentStatus === "paid" || paymentStatus === "overpaid") {
+          stats.paid += 1;
+        }
+        if (["completed", "fulfilled", "delivered"].includes(orderStatus)) {
+          stats.completed += 1;
+        }
+        if (["cancelled", "refunded"].includes(orderStatus) || paymentStatus === "refunded") {
+          stats.cancelled += 1;
+        }
+        stats.salesCents += getOrderTotalCents(order);
+        stats.outstandingCents += getOrderBalanceCents(order);
+        return stats;
+      },
+      {
+        total: 0,
+        today: 0,
+        pendingPayment: 0,
+        partiallyPaid: 0,
+        paid: 0,
+        completed: 0,
+        cancelled: 0,
+        salesCents: 0,
+        outstandingCents: 0,
+      }
+    );
+  }, [filteredOrders]);
+
+  const sourceOptions = useMemo(() => {
+    const sources = new Set();
+    orders.forEach((order) => {
+      const source = String(order.source || "").trim();
+      if (source) sources.add(source);
+    });
+    return [...sources].sort((a, b) => a.localeCompare(b));
+  }, [orders]);
+
+  const activeViewMode = isMobileView ? "ledger" : viewMode;
+  const availableViewOptions = isMobileView
+    ? ORDER_VIEW_OPTIONS.filter((option) => option.key === "ledger")
+    : ORDER_VIEW_OPTIONS;
   const renderOrdersPagination = (header = false) => (
     <TablePagination
       total={sortedOrders.length}
@@ -493,7 +406,18 @@ function OrdersList() {
 
   useEffect(() => {
     setPage(0);
-  }, [assignedFilter, query, statusFilter, timingFilter, viewMode, orders.length]);
+  }, [
+    dateFrom,
+    dateTo,
+    fulfillmentFilter,
+    paymentFilter,
+    query,
+    sourceFilter,
+    sortKey,
+    statusFilter,
+    viewMode,
+    orders.length,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -510,247 +434,178 @@ function OrdersList() {
     return () => mediaQuery.removeListener(handleChange);
   }, []);
 
-  useEffect(() => {
-    if (!detailOrder?.id) return undefined;
-    const orderId = detailOrder.id;
-    const hasItems = Array.isArray(detailOrder.items) && detailOrder.items.length > 0;
-    if (hasItems || itemsFetchAttempted.current.has(orderId)) return undefined;
-    itemsFetchAttempted.current.add(orderId);
-    const controller = new AbortController();
-    const fetchItems = async () => {
-      try {
-        const response = await fetch(`/.netlify/functions/orders?orderId=${orderId}`, {
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        const normalized = normalizeOrderItems(data);
-        if (normalized?.id !== orderId) return;
-        if (!Array.isArray(normalized.items) || normalized.items.length === 0) return;
-        setOrders((prev) =>
-          prev.map((order) => (order.id === orderId ? { ...order, items: normalized.items } : order))
-        );
-        setDetailOrder((prev) =>
-          prev && prev.id === orderId ? { ...prev, items: normalized.items } : prev
-        );
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("Order item fetch failed", err);
-        }
-      }
-    };
-    fetchItems();
-    return () => controller.abort();
-  }, [detailOrder]);
-
-  const totalAmount = useMemo(() => {
-    return paginatedOrders.reduce((sum, order) => sum + toNumber(order.total), 0);
-  }, [paginatedOrders]);
-
-  const requestSort = (key) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      }
-      return { key, direction: "asc" };
-    });
-  };
-
-  const sortIndicator = (key) => {
-    if (sortConfig.key !== key) return "↕";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
-  };
-
   const viewReceipt = (order) => {
     if (!order?.id || !canAccessInvoicing) return;
     navigate(`/admin/invoicing?type=orders&id=${order.id}`);
-    setOpenMenuId(null);
   };
 
-  const buildMenuPosition = (rect) => {
-    if (!rect || typeof window === "undefined") return null;
-    const width = 320;
-    const gutter = 12;
-    const initialTop = rect.bottom + 8;
-    const maxBelow = window.innerHeight - initialTop - gutter;
-    const maxAbove = rect.top - gutter - 8;
-    let maxHeight = Math.min(420, Math.max(160, maxBelow));
-    let top = initialTop;
-    if (maxBelow < 160 && maxAbove > maxBelow) {
-      maxHeight = Math.min(420, Math.max(160, maxAbove));
-      top = Math.max(gutter, rect.top - maxHeight - 8);
-    }
-    let left = rect.left;
-    if (left + width > window.innerWidth - gutter) {
-      left = rect.right - width;
-    }
-    left = Math.min(Math.max(gutter, left), window.innerWidth - width - gutter);
-    return { top, left, maxHeight };
-  };
-
-  const toggleOrderMenu = (menuId, event) => {
-    const rect = event?.currentTarget?.getBoundingClientRect();
-    if (openMenuId === menuId) {
-      setOpenMenuId(null);
-      setMenuPosition(null);
-      return;
-    }
-    setOpenMenuId(menuId);
-    setMenuPosition(rect ? buildMenuPosition(rect) : null);
-  };
-
-  const updateOrderStatus = async (order, nextStatus) => {
+  const openOrderDetail = (order) => {
     if (!order?.id) return;
-    setStatusUpdatingId(order.id);
-    setError("");
-    try {
-      const response = await fetch("/.netlify/functions/orders", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: order.id,
-          status: nextStatus,
-          userId: user?.id,
-          userName:
-            user?.fullName ||
-            user?.name ||
-            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-            undefined,
-          userEmail: user?.email,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to update order.");
-      }
-      setOrders((prev) =>
-        prev.map((row) =>
-          row.id === order.id ? { ...row, status: payload.status || nextStatus } : row
-        )
-      );
-      setDetailOrder((prev) =>
-        prev && prev.id === order.id ? { ...prev, status: payload.status || nextStatus } : prev
-      );
-    } catch (err) {
-      console.error("Order status update failed", err);
-      setError(err.message || "Failed to update order.");
-    } finally {
-      setStatusUpdatingId(null);
-    }
-  };
-
-  const applySavedView = (view) => {
-    setQuery(view?.query || "");
-    setStatusFilter(view?.statusFilter || "all");
-  };
-
-  const handleViewChange = (event) => {
-    const nextId = event.target.value;
-    setActiveViewId(nextId);
-    if (nextId === "all") {
-      applySavedView({ query: "", statusFilter: "all" });
-      return;
-    }
-    const view = savedViews.find((item) => item.id === nextId);
-    if (view) applySavedView(view);
-  };
-
-  const handleSaveView = () => {
-    if (typeof window === "undefined") return;
-    const name = window.prompt("Name this view");
-    if (!name) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setSavedViews((prev) => {
-      const existing = prev.find((item) => item.name.toLowerCase() === trimmed.toLowerCase());
-      if (existing) {
-        const next = prev.map((item) =>
-          item.id === existing.id ? { ...item, query, statusFilter } : item
-        );
-        setActiveViewId(existing.id);
-        return next;
-      }
-      const nextId = `view-${Date.now()}`;
-      setActiveViewId(nextId);
-      return [...prev, { id: nextId, name: trimmed, query, statusFilter }];
+    navigate(`/admin/orders/${encodeURIComponent(order.id)}`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        orderSequence: detailOrderSequence,
+        currentOrderId: order.id,
+      },
     });
   };
 
-  const handleDeleteView = () => {
-    if (activeViewId === "all") return;
-    setSavedViews((prev) => prev.filter((item) => item.id !== activeViewId));
-    setActiveViewId("all");
-    applySavedView({ query: "", statusFilter: "all" });
+  const handleCardDragStart = (event, order) => {
+    if (!order?.id) {
+      event.preventDefault();
+      return;
+    }
+    setDraggingOrderId(order.id);
+    setStateNotice(null);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(order.id));
   };
 
-  const saveOrderDetails = async () => {
-    if (!detailOrder?.id) return;
-    setDetailEditSaving(true);
-    setDetailEditError("");
+  const closePaymentAction = () => {
+    setPaymentAction(null);
+    setPaymentForm(PAYMENT_ACTION_INITIAL_FORM);
+    setPaymentNotice(null);
+    setPaymentSaving(false);
+  };
+
+  const updatePaymentField = (field, value) => {
+    setPaymentForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const openPaymentAction = (order, targetStage) => {
+    const balanceCents = getOrderBalanceCents(order);
+    if (balanceCents <= 0) {
+      setStateNotice({
+        tone: "info",
+        title: "No balance due",
+        message: "This order has no outstanding balance to record.",
+      });
+      return;
+    }
+    setStateNotice(null);
+    setPaymentNotice(null);
+    setPaymentAction({ order, targetStage });
+    setPaymentForm({
+      ...PAYMENT_ACTION_INITIAL_FORM,
+      amount: targetStage === "paid" ? (balanceCents / 100).toFixed(2) : "",
+    });
+  };
+
+  const handlePaymentActionSubmit = async (event) => {
+    event.preventDefault();
+    if (!paymentAction?.order?.id) return;
+
+    const amountCents = majorToCents(paymentForm.amount);
+    const balanceCents = getOrderBalanceCents(paymentAction.order);
+    if (amountCents <= 0) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Payment amount required",
+        message: "Enter an amount greater than zero.",
+      });
+      return;
+    }
+    if (amountCents > balanceCents) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Amount exceeds balance",
+        message: `The outstanding balance is ${formatCurrencyFromCents(balanceCents)}.`,
+      });
+      return;
+    }
+    if (paymentAction.targetStage === "paid" && amountCents < balanceCents) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Full balance required",
+        message: "To move an order to Paid, record the full outstanding balance.",
+      });
+      return;
+    }
+    if (paymentAction.targetStage === "partially_paid" && amountCents >= balanceCents) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Use the Paid column",
+        message: "A full-balance payment will move the order to Paid instead.",
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    setPaymentSaving(true);
+    setPaymentNotice(null);
     try {
-      const existingDetails =
-        detailOrder.pickupDetails && typeof detailOrder.pickupDetails === "object"
-          ? detailOrder.pickupDetails
-          : detailOrder.deliveryDetails && typeof detailOrder.deliveryDetails === "object"
-          ? detailOrder.deliveryDetails
-          : {};
-      const pickupDetails = {
-        ...existingDetails,
-        date: detailEditForm.date,
-        window: detailEditForm.window,
-        notes: detailEditForm.notes,
-      };
-      const response = await fetch("/.netlify/functions/orders", {
-        method: "PUT",
+      const response = await fetch("/.netlify/functions/orderPayments", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: detailOrder.id,
-          pickupDetails,
-          userId: user?.id,
-          userName:
-            user?.fullName ||
-            user?.name ||
-            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-            undefined,
-          userEmail: user?.email,
+          orderId: paymentAction.order.id,
+          amountCents,
+          method: paymentForm.method,
+          provider: paymentForm.provider || null,
+          transactionReference: paymentForm.transactionReference || null,
+          phoneNumber: paymentForm.phoneNumber || null,
+          notes: paymentForm.notes || null,
         }),
+        signal: controller.signal,
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to update order.");
+        throw new Error(payload?.error || "Payment could not be recorded.");
       }
-      const nextPickup = payload?.pickupDetails || pickupDetails;
-      const nextDeliveryMethod = payload?.deliveryMethod || "pickup";
-      const nextLastModified = payload?.lastModifiedAt || detailOrder.lastModifiedAt;
-      setOrders((prev) =>
-        prev.map((row) =>
-          row.id === detailOrder.id
-            ? {
-                ...row,
-                pickupDetails: nextPickup,
-                deliveryMethod: nextDeliveryMethod,
-                lastModifiedAt: nextLastModified,
-              }
-            : row
-        )
-      );
-      setDetailOrder((prev) =>
-        prev && prev.id === detailOrder.id
-          ? {
-              ...prev,
-              pickupDetails: nextPickup,
-              deliveryMethod: nextDeliveryMethod,
-              lastModifiedAt: nextLastModified,
-            }
-          : prev
-      );
-      setDetailEditOpen(false);
+
+      const refreshController = new AbortController();
+      await loadOrders(refreshController.signal);
+      setStateNotice({
+        tone: "success",
+        title: "Payment recorded",
+        message: `Receipt ${payload?.receipt?.receiptNumber || ""} is linked to the order.`.trim(),
+      });
+      closePaymentAction();
     } catch (err) {
-      console.error("Order update failed", err);
-      setDetailEditError(err.message || "Failed to update order.");
+      if (err.name === "AbortError") return;
+      setPaymentNotice({
+        tone: "error",
+        title: "Payment not recorded",
+        message: err.message || "Try again after checking the order balance.",
+      });
     } finally {
-      setDetailEditSaving(false);
+      setPaymentSaving(false);
     }
+  };
+
+  const handleCardDrop = async (event, categoryId) => {
+    event.preventDefault();
+    const orderId = event.dataTransfer.getData("text/plain") || draggingOrderId;
+    const order = orders.find((item) => String(item.id) === String(orderId));
+    setDragOverCategory("");
+    setDraggingOrderId(null);
+    if (!order) return;
+    if (getPaymentStage(order) === categoryId) return;
+    if (["paid", "partially_paid"].includes(categoryId)) {
+      openPaymentAction(order, categoryId);
+      return;
+    }
+    if (categoryId === "unpaid") {
+      setStateNotice({
+        tone: "info",
+        title: "Use refund or reversal actions",
+        message: "Paid or partially paid orders need a refund/reversal record before they can move back to Unpaid.",
+      });
+      return;
+    }
+    if (categoryId === "refunds") {
+      setStateNotice({
+        tone: "info",
+        title: "Use refund actions",
+        message: "Refunds need a recorded refund/reversal so payments, receipts, accounting, and audit logs stay aligned.",
+      });
+      return;
+    }
+    setStateNotice({
+      tone: "info",
+      title: "Use payment actions",
+      message: "Payment columns are controlled by recorded payments, refunds, and receipts. Open the order to record the payment action.",
+    });
   };
 
   return (
@@ -758,576 +613,569 @@ function OrdersList() {
       <div className="orders-shell">
         <AdminBreadcrumb items={[{ label: "Orders" }]} />
         <AdminPageHeader
-          eyebrow="Orders"
-          title="Order Ledger"
+          title="Orders"
           subtitle="Review recent orders and jump into creation."
           actionsClassName="admin-header-actions"
           actions={
-            !isMobileView ? (
-              <Link to="/admin/orders/new" className="orders-create">
-                Create order
-              </Link>
-            ) : null
+            <>
+              <button
+                type="button"
+                className="orders-secondary"
+                onClick={() => loadOrders()}
+                aria-label="Refresh orders"
+                title="Refresh orders"
+                disabled={loading}
+              >
+                <AppIcon icon={faRotateRight} />
+              </button>
+              {!isMobileView ? (
+                <Link to="/admin/orders/new" className="orders-create">
+                  <AppIcon icon={faPlus} />
+                  New order
+                </Link>
+              ) : null}
+            </>
           }
         />
 
-        <section className="glass-card orders-panel">
-          <div className="orders-panel-header">
-            <div>
-              <h3>All orders</h3>
-              <span>{orders.length} total</span>
-            </div>
-            <label className="orders-search">
-              Search
-              <SearchField
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onClear={() => setQuery("")}
-                placeholder="Order #, customer, status"
-                aria-label="Search orders"
+        <section className="orders-kpi-strip" aria-label="Order dashboard">
+          <article className="bubble-card orders-kpi">
+            <span className="orders-label">Pending payment</span>
+            <strong>{dashboardStats.pendingPayment}</strong>
+            <span className="orders-sub">{dashboardStats.partiallyPaid} partially paid</span>
+          </article>
+          <article className="bubble-card orders-kpi">
+            <span className="orders-label">Paid orders</span>
+            <strong>{dashboardStats.paid}</strong>
+            <span className="orders-sub">{dashboardStats.completed} completed</span>
+          </article>
+          <article className="bubble-card orders-kpi">
+            <span className="orders-label">Total shop sales</span>
+            <strong>{formatCurrencyFromCents(dashboardStats.salesCents)}</strong>
+            <span className="orders-sub">Grand total</span>
+          </article>
+          <article className="bubble-card orders-kpi">
+            <span className="orders-label">Outstanding</span>
+            <strong>{formatCurrencyFromCents(dashboardStats.outstandingCents)}</strong>
+            <span className="orders-sub">Amount due</span>
+          </article>
+        </section>
+
+        <section className="orders-results-panel">
+
+          <FilterBar className="orders-toolbar" aria-label="Order controls">
+            <div className="orders-toolbar-filters">
+              <SelectField
+                label="Status"
+                fieldClassName="orders-select"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                {ORDER_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Payment"
+                fieldClassName="orders-select"
+                value={paymentFilter}
+                onChange={(event) => setPaymentFilter(event.target.value)}
+              >
+                {PAYMENT_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Fulfillment"
+                fieldClassName="orders-select"
+                value={fulfillmentFilter}
+                onChange={(event) => setFulfillmentFilter(event.target.value)}
+              >
+                {FULFILLMENT_STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Source"
+                fieldClassName="orders-select"
+                value={sourceFilter}
+                onChange={(event) => setSourceFilter(event.target.value)}
+              >
+                <option value={ORDER_SOURCE_ALL_OPTION.value}>{ORDER_SOURCE_ALL_OPTION.label}</option>
+                {sourceOptions.map((source) => (
+                  <option key={source} value={source.toLowerCase()}>
+                    {source}
+                  </option>
+                ))}
+              </SelectField>
+              <DateField
+                label="From"
+                fieldClassName="orders-select"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                ariaLabel="Filter orders from date"
               />
-            </label>
-          </div>
-          <div className="orders-controls">
-            <div className="orders-control-group">
-              <label className="orders-select">
-                Status
-                <SelectField value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="all">All</option>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="fulfilled">Fulfilled</option>
-                  <option value="cancelled">Canceled</option>
-                  <option value="completed">Completed</option>
-                </SelectField>
-              </label>
+              <DateField
+                label="To"
+                fieldClassName="orders-select"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                ariaLabel="Filter orders to date"
+                min={dateFrom || undefined}
+              />
             </div>
-            <div className="orders-view-controls">
-              <label className="orders-select">
-                Saved view
-                <SelectField value={activeViewId} onChange={handleViewChange}>
-                  <option value="all">All orders</option>
-                  {savedViews.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.name}
-                    </option>
+            <div className="orders-toolbar-search-row">
+              <label className="orders-search">
+                Search
+                <SearchField
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onClear={() => setQuery("")}
+                  placeholder="Order #, customer, phone, source"
+                  aria-label="Search orders"
+                />
+              </label>
+              <SelectField
+                label="Sort"
+                fieldClassName="orders-select orders-sort-select"
+                value={sortKey}
+                onChange={(event) => setSortKey(event.target.value)}
+              >
+                {ORDER_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </SelectField>
+              {!isMobileView && (
+                <div className="admin-view-toggle orders-view-tabs" role="tablist" aria-label="Order views">
+                  {availableViewOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeViewMode === option.key}
+                      tabIndex={activeViewMode === option.key ? 0 : -1}
+                      className={`admin-chip ${activeViewMode === option.key ? "is-active" : ""}`}
+                      onClick={() => setViewMode(option.key)}
+                    >
+                      {option.label}
+                    </button>
                   ))}
-                </SelectField>
-              </label>
-              <div className="orders-view-actions">
-                <button type="button" className="orders-view-btn" onClick={handleSaveView}>
-                  Save view
-                </button>
-                {activeViewId !== "all" && (
-                  <button type="button" className="orders-view-btn orders-view-btn--ghost" onClick={handleDeleteView}>
-                    Remove
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          </div>
+          </FilterBar>
 
-          {loading && <p className="orders-status">Loading orders...</p>}
-          {!loading && error && <p className="orders-error">{error}</p>}
+          {loading && <InlineNotice tone="loading" title="Loading orders" compact />}
+          {!loading && error && <InlineNotice tone="error" title="Orders unavailable" message={error} compact />}
 
-          {!loading && !error && viewMode === "table" && (
+          {!loading && !error && activeViewMode === "list" && (
             <>
               <div className="orders-table-wrapper">
                 {renderOrdersPagination(true)}
-                <table className="orders-table">
-                <thead>
-                  <tr>
-                    <th className="table-row-index">#</th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("orderNumber")}>
-                        Order <span className="sort-indicator">{sortIndicator("orderNumber")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("customerName")}>
-                        Customer <span className="sort-indicator">{sortIndicator("customerName")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("assignedUserName")}>
-                        Assigned to <span className="sort-indicator">{sortIndicator("assignedUserName")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("status")}>
-                        Status <span className="sort-indicator">{sortIndicator("status")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("orderDate")}>
-                        Order date <span className="sort-indicator">{sortIndicator("orderDate")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("deliveryDate")}>
-                        Delivery <span className="sort-indicator">{sortIndicator("deliveryDate")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("deliveryMethod")}>
-                        Fulfillment <span className="sort-indicator">{sortIndicator("deliveryMethod")}</span>
-                      </button>
-                    </th>
-                    <th>
-                      <button type="button" className="sort-header" onClick={() => requestSort("total")}>
-                        Total <span className="sort-indicator">{sortIndicator("total")}</span>
-                      </button>
-                    </th>
-                    <th aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedOrders.map((order, index) => (
-                    <tr
-                      key={order.id}
-                      onClick={() => setDetailOrder(order)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setDetailOrder(order);
-                        }
-                      }}
-                    >
-                      <td className="table-row-index">{clampedPage * pageSize + index}</td>
-                      <td>{order.orderNumber || `#${order.id}`}</td>
-                      <td>{order.customerName || "-"}</td>
-                      <td>{formatUser(order.assignedUserName)}</td>
-                      <td className={`orders-status-pill ${order.status || "pending"}`}>
-                        {order.status || "pending"}
-                      </td>
-                      <td>{formatDate(order.orderDate)}</td>
-                      <td>{formatDate(order.deliveryDate)}</td>
-                      <td className="orders-fulfillment">{(order.deliveryMethod || "delivery").toUpperCase()}</td>
-                      <td>{formatCurrency(order.total)}</td>
-                      <td>
-                        {!isMobileView && (
-                          <div
-                            className="bookings-menu inventory-menu"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                          <button
-                            type="button"
-                            className="bookings-edit"
-                            aria-haspopup="true"
-                            aria-expanded={openMenuId === `table-${order.id}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleOrderMenu(`table-${order.id}`, event);
-                            }}
-                          >
-                            ⋮
-                          </button>
-                          <div
-                            className={`bookings-menu-list ${openMenuId === `table-${order.id}` ? "open" : ""}`}
-                            style={openMenuId === `table-${order.id}` ? menuPosition : undefined}
-                          >
+                <table className="orders-table orders-table--shop">
+                  <thead>
+                    <tr>
+                      <th className="table-row-index">#</th>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Phone</th>
+                      <th>Status</th>
+                      <th>Payment</th>
+                      <th>Fulfillment</th>
+                      <th>Source</th>
+                      <th>Total</th>
+                      <th>Paid</th>
+                      <th>Balance</th>
+                      <th aria-label="Receipt" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedOrders.map((order, index) => (
+                      <tr
+                        key={order.id}
+                        onClick={() => openOrderDetail(order)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openOrderDetail(order);
+                          }
+                        }}
+                      >
+                        <td className="table-row-index">{clampedPage * pageSize + index + 1}</td>
+                        <td>{order.orderNumber || `#${order.id}`}</td>
+                        <td>{order.customerName || "-"}</td>
+                        <td>{order.customerPhone || "-"}</td>
+                        <td className="orders-status-cell">
+                          <span className={`orders-status-pill orders-status-pill--compact ${getOrdersStatusClass(getOrderLifecycleStatusValue(order))}`}>
+                            {getOrderLifecycleStatusLabel(order)}
+                          </span>
+                        </td>
+                        <td className="orders-status-cell">
+                          <span className={`orders-status-pill orders-status-pill--compact ${getOrdersStatusClass(order.paymentStatus)}`}>
+                            {formatStatusLabel(order.paymentStatus, "Unpaid")}
+                          </span>
+                        </td>
+                        <td className="orders-status-cell">
+                          <span className={`orders-status-pill orders-status-pill--compact ${getOrdersStatusClass(order.fulfillmentStatus || order.deliveryMethod)}`}>
+                            {formatStatusLabel(order.fulfillmentStatus || order.deliveryMethod, "Pickup")}
+                          </span>
+                        </td>
+                        <td>{order.source || order.purchaseChannel || "-"}</td>
+                        <td>{formatCurrencyFromCents(getOrderTotalCents(order))}</td>
+                        <td>{formatCurrencyFromCents(getOrderAmountPaidCents(order))}</td>
+                        <td>{formatCurrencyFromCents(getOrderBalanceCents(order))}</td>
+                        <td onClick={(event) => event.stopPropagation()}>
+                          <div className="orders-row-actions">
                             {canAccessInvoicing && (
                               <button
                                 type="button"
+                                className="orders-secondary orders-row-action orders-row-action--icon"
                                 onClick={() => viewReceipt(order)}
+                                aria-label={`Open receipt for ${order.orderNumber || `order ${order.id}`}`}
+                                title="Receipt"
                               >
-                                Generate invoice
+                                <AppIcon icon={faReceipt} />
                               </button>
                             )}
-                              <button type="button">Edit</button>
-                              <button type="button">Mark fulfilled</button>
-                            </div>
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {!filteredOrders.length && (
-                    <tr>
-                      <td colSpan={10} className="orders-empty">
-                        No orders match your search.
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    ))}
+                    {!filteredOrders.length && (
+                      <tr>
+                        <td colSpan={12} className="orders-empty">
+                          No orders match your search.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  {sortedOrders.length > 0 && (
+                    <tfoot className="admin-table-footer">
+                      <tr className="orders-total-row">
+                        <td className="admin-table-summary-cell is-count">
+                          <span className="admin-table-summary-value">{paginatedOrders.length} orders</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell is-empty" />
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{formatCurrencyFromCents(dashboardStats.salesCents)}</span>
+                        </td>
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{formatCurrencyFromCents(dashboardStats.salesCents - dashboardStats.outstandingCents)}</span>
+                        </td>
+                        <td className="admin-table-summary-cell">
+                          <span className="admin-table-summary-value">{formatCurrencyFromCents(dashboardStats.outstandingCents)}</span>
+                        </td>
+                        <td className="admin-table-summary-cell is-empty" />
+                      </tr>
+                    </tfoot>
                   )}
-                </tbody>
-                {sortedOrders.length > 0 && (
-                  <tfoot className="admin-table-footer">
-                    <tr className="orders-total-row">
-                      <td className="admin-table-summary-cell is-count">
-                        <span className="admin-table-summary-value">{paginatedOrders.length} orders</span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell">
-                        <span className="admin-table-summary-value">{formatCurrency(totalAmount)}</span>
-                      </td>
-                      <td className="admin-table-summary-cell is-empty" />
-                    </tr>
-                  </tfoot>
-                )}
                 </table>
                 {renderOrdersPagination()}
               </div>
             </>
           )}
 
-          {!loading && !error && viewMode === "cards" && (
+          {!loading && !error && activeViewMode === "cards" && (
             <>
-              {renderOrdersPagination(true)}
-              <div className="orders-card-grid">
+              {stateNotice && (
+                <InlineNotice
+                  tone={stateNotice.tone}
+                  title={stateNotice.title}
+                  message={stateNotice.message}
+                  compact
+                  onDismiss={() => setStateNotice(null)}
+                  dismissLabel="Dismiss order action notice"
+                />
+              )}
+              <div className="orders-card-categories" aria-label="Orders by category">
                 {!sortedOrders.length && <p className="orders-empty">No orders match your filters.</p>}
+                {sortedOrders.length > 0 && cardCategories.map((column) => (
+                  <section
+                    key={column.id}
+                    className={`orders-card-category ${dragOverCategory === column.id ? "is-drag-over" : ""}`}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDragEnter={() => setDragOverCategory(column.id)}
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) {
+                        setDragOverCategory("");
+                      }
+                    }}
+                    onDrop={(event) => handleCardDrop(event, column.id)}
+                  >
+                    <div className="orders-card-category-head">
+                      <h4>{column.label}</h4>
+                      <span>{column.items.length}</span>
+                    </div>
+
+                    <div className="orders-card-category-list">
+                      {column.items.length ? (
+                        column.items.map((order) => {
+                          const totalCents = getOrderTotalCents(order);
+                          const balanceCents = getOrderBalanceCents(order);
+                          const customerName = order.customerName || "Walk-in customer";
+                          const orderStatusLabel = formatStatusLabel(order.status, "Pending");
+
+                          return (
+                            <article
+                              key={order.id}
+                              className={`bubble-card orders-card ${draggingOrderId === order.id ? "is-dragging" : ""}`}
+                              role="button"
+                              tabIndex={0}
+                              draggable
+                              onDragStart={(event) => handleCardDragStart(event, order)}
+                              onDragEnd={() => {
+                                setDraggingOrderId(null);
+                                setDragOverCategory("");
+                              }}
+                              onClick={() => openOrderDetail(order)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  openOrderDetail(order);
+                                }
+                              }}
+                            >
+                              <span
+                                className={`orders-pill orders-status-pill orders-status-pill--card ${getOrderCardStatusClass(order.status)}`}
+                              >
+                                {orderStatusLabel}
+                              </span>
+                              <div className="orders-card-main">
+                                <h4>{customerName}</h4>
+                                <span className="orders-card-amount">{formatCurrencyFromCents(totalCents)}</span>
+                              </div>
+
+                              {balanceCents > 0 && (
+                                <div className="orders-card-foot">
+                                  <span className="orders-card-due">
+                                    Due {formatCurrencyFromCents(balanceCents)}
+                                  </span>
+                                </div>
+                              )}
+                            </article>
+                          );
+                        })
+                      ) : (
+                        <p className="orders-empty">No orders here.</p>
+                      )}
+                    </div>
+                    <div className="orders-card-category-foot">
+                      <span>Total</span>
+                      <strong>{formatCurrencyFromCents(column.totalCents)}</strong>
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </>
+          )}
+
+          {!loading && !error && activeViewMode === "ledger" && (
+            <>
+              {!isMobileView && renderOrdersPagination(true)}
+              <div className="orders-ledger-list" aria-label="Order payment ledger">
+                {!paginatedOrders.length && <p className="orders-empty">No ledger rows match your filters.</p>}
                 {paginatedOrders.map((order) => (
-                  <div
+                  <article
                     key={order.id}
-                    className="glass-card orders-card"
+                    className="bubble-card orders-ledger-row"
                     role="button"
                     tabIndex={0}
-                    onClick={() => setDetailOrder(order)}
+                    onClick={() => openOrderDetail(order)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setDetailOrder(order);
+                        openOrderDetail(order);
                       }
                     }}
+                    aria-label={`Open ${order.orderNumber || `order ${order.id}`}`}
                   >
-                    <div className="orders-card-head">
-                      <span className={`orders-pill orders-status-pill ${order.status || "pending"}`}>
-                        {order.status || "pending"}
+                    <div className="orders-ledger-main">
+                      <span className={`orders-status-pill orders-status-pill--compact ${getOrdersStatusClass(order.paymentStatus)}`}>
+                        {formatStatusLabel(order.paymentStatus, "Unpaid")}
                       </span>
-                      {!isMobileView && (
-                        <div
-                          className="bookings-menu inventory-menu"
-                          onClick={(e) => e.stopPropagation()}
+                      <div className="orders-ledger-copy">
+                        <h4>{order.customerName || "Walk-in customer"}</h4>
+                        <p>
+                          <span>{order.orderNumber || `#${order.id}`}</span>
+                          {order.customerPhone && (
+                            <span className="orders-ledger-phone"> · {order.customerPhone}</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="orders-ledger-money">
+                      <div className="orders-ledger-money-total">
+                        <span>Total</span>
+                        <strong>{formatCurrencyFromCents(getOrderTotalCents(order))}</strong>
+                      </div>
+                      <div className="orders-ledger-money-paid">
+                        <span>Paid</span>
+                        <strong>{formatCurrencyFromCents(getOrderAmountPaidCents(order))}</strong>
+                      </div>
+                      <div className={`orders-ledger-money-balance ${getOrderBalanceCents(order) > 0 ? "" : "is-zero"}`}>
+                        <span>Balance</span>
+                        <strong>{formatCurrencyFromCents(getOrderBalanceCents(order))}</strong>
+                      </div>
+                    </div>
+                    <div className="orders-row-actions">
+                      {canAccessInvoicing && (
+                        <button
+                          type="button"
+                          className="orders-secondary orders-row-action orders-row-action--icon"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            viewReceipt(order);
+                          }}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          aria-label={`Open receipt for ${order.orderNumber || `order ${order.id}`}`}
+                          title="Receipt"
                         >
-                          <button
-                            type="button"
-                            className="bookings-edit"
-                            aria-haspopup="true"
-                            aria-expanded={openMenuId === `card-${order.id}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleOrderMenu(`card-${order.id}`, event);
-                            }}
-                          >
-                            ⋮
-                          </button>
-                          <div
-                            className={`bookings-menu-list ${openMenuId === `card-${order.id}` ? "open" : ""}`}
-                            style={openMenuId === `card-${order.id}` ? menuPosition : undefined}
-                          >
-                            {canAccessInvoicing && (
-                              <button
-                                type="button"
-                                onClick={() => viewReceipt(order)}
-                              >
-                                Generate invoice
-                              </button>
-                            )}
-                            <button type="button">Edit</button>
-                            <button type="button">Mark fulfilled</button>
-                          </div>
-                        </div>
+                          <AppIcon icon={faReceipt} />
+                        </button>
                       )}
                     </div>
-                    <h4>{order.orderNumber || `#${order.id}`}</h4>
-                    <p className="orders-card-meta">{order.customerName || "-"}</p>
-                    <p className="orders-card-meta">
-                      {formatDate(order.orderDate)} ·{" "}
-                      {(() => {
-                        const details = getFulfillmentDetails(order);
-                        const label = details.pickup ? "Pickup" : "Delivery";
-                        const dateLabel = details.date ? formatDate(details.date) : "Not scheduled";
-                        return `${label} ${dateLabel}`;
-                      })()}
-                    </p>
-                    <p className="orders-card-meta">Fulfillment: {(order.deliveryMethod || "delivery").toUpperCase()}</p>
-                    <p className="orders-card-meta">Assigned: {formatUser(order.assignedUserName)}</p>
-                    <p className="orders-card-amount">{formatCurrency(order.total)}</p>
-                  </div>
+                  </article>
                 ))}
               </div>
               {renderOrdersPagination()}
             </>
           )}
-
-          {!loading && !error && viewMode === "kanban" && (
-            <div className="orders-kanban">
-              {kanbanColumns.map((column) => (
-                <div key={column.id} className="orders-kanban-column">
-                  <div className="orders-kanban-header">
-                    <h4>{column.label}</h4>
-                    <span>{column.items.length}</span>
-                  </div>
-                  {column.items.length ? (
-                    column.items.map((order) => (
-                      <button
-                        key={order.id}
-                        type="button"
-                        className="glass-card orders-kanban-card"
-                        onClick={() => setDetailOrder(order)}
-                      >
-                        <div className="orders-kanban-card-head">
-                          <span className={`orders-pill orders-status-pill ${order.status || "pending"}`}>
-                            {order.status || "pending"}
-                          </span>
-                          <span className="orders-kanban-amount">{formatCurrency(order.total)}</span>
-                        </div>
-                        <h5>{order.orderNumber || `#${order.id}`}</h5>
-                        <p className="orders-kanban-meta">{order.customerName || "-"}</p>
-                        <p className="orders-kanban-meta">
-                          Ordered {formatDate(order.orderDate)} ·{" "}
-                          {(order.deliveryMethod || "delivery").toUpperCase()}
-                        </p>
-                        {getFulfillmentDetails(order).date && (
-                          <p className="orders-kanban-meta">
-                            {getFulfillmentDetails(order).pickup ? "Pickup" : "Delivery"}{" "}
-                            {formatDate(getFulfillmentDetails(order).date)}
-                          </p>
-                        )}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="orders-empty">No orders here.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
-        {detailOrder && (
-          <div className="orders-detail-modal" role="dialog" aria-modal="true">
-            <div className="orders-detail-panel">
+        {paymentAction && (
+          <div
+            className="admin-modal orders-payment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="orders-payment-modal-title"
+            onClick={paymentSaving ? undefined : closePaymentAction}
+          >
+            <div
+              className="admin-modal-panel orders-payment-modal-panel"
+              onClick={(event) => event.stopPropagation()}
+            >
               <header>
                 <div>
-                  <p className="orders-eyebrow">Order detail</p>
-                  <div className="orders-detail-title">
-                    <h2>{detailOrder.orderNumber || `#${detailOrder.id}`}</h2>
-                    <span className={`orders-status-pill orders-status-pill--compact ${detailOrder.status || "pending"}`}>
-                      {detailOrder.status || "pending"}
-                    </span>
-                  </div>
-                  <p className="orders-card-meta">{detailOrder.customerName || "-"}</p>
+                  <p className="orders-eyebrow">Payment action</p>
+                  <h2 id="orders-payment-modal-title">
+                    Move to {paymentAction.targetStage === "paid" ? "Paid" : "Partially paid"}
+                  </h2>
+                  <span className="admin-modal-meta">
+                    {paymentAction.order.orderNumber || `Order ${paymentAction.order.id}`} · Balance{" "}
+                    {formatCurrencyFromCents(getOrderBalanceCents(paymentAction.order))}
+                  </span>
                 </div>
-                <div className="orders-detail-actions">
-                  <div className="detail-nav">
-                    <button
-                      type="button"
-                      className="detail-nav-button"
-                      onClick={goPrevDetail}
-                      disabled={!canGoPrevDetail}
-                      aria-label="Previous order"
-                    >
-                      ◀
-                    </button>
-                    <button
-                      type="button"
-                      className="detail-nav-button"
-                      onClick={goNextDetail}
-                      disabled={!canGoNextDetail}
-                      aria-label="Next order"
-                    >
-                      ▶
-                    </button>
-                  </div>
-                  {!isMobileView && (
-                    <>
-                      <button
-                        type="button"
-                        className="orders-action"
-                        onClick={() => setDetailEditOpen((prev) => !prev)}
-                        disabled={detailEditSaving}
-                      >
-                        {detailEditOpen ? "Cancel edit" : "Edit order"}
-                      </button>
-                      <button
-                        type="button"
-                        className="orders-action"
-                        onClick={() => updateOrderStatus(detailOrder, "paid")}
-                        disabled={
-                          statusUpdatingId === detailOrder.id ||
-                          ["paid", "fulfilled", "delivered", "completed", "cancelled", "canceled"].includes(
-                            normalizeStatus(detailOrder.status)
-                          )
-                        }
-                      >
-                        {statusUpdatingId === detailOrder.id ? "Updating..." : "Accept"}
-                      </button>
-                      <button
-                        type="button"
-                        className="orders-action orders-action-primary"
-                        onClick={() => updateOrderStatus(detailOrder, "fulfilled")}
-                        disabled={
-                          statusUpdatingId === detailOrder.id ||
-                          ["fulfilled", "delivered", "completed", "cancelled", "canceled"].includes(
-                            normalizeStatus(detailOrder.status)
-                          )
-                        }
-                      >
-                        {statusUpdatingId === detailOrder.id ? "Updating..." : "Confirm"}
-                      </button>
-                    </>
-                  )}
-                  <button className="admin-close" onClick={() => setDetailOrder(null)} aria-label="Close detail">
-                    Close
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="orders-secondary"
+                  onClick={closePaymentAction}
+                  disabled={paymentSaving}
+                >
+                  Close
+                </button>
               </header>
-              {isMobileView && (
-                <div className="orders-detail-mobile-actions">
-                  <button
-                    type="button"
-                    className="orders-action"
-                    onClick={() => setDetailEditOpen((prev) => !prev)}
-                    disabled={detailEditSaving}
-                  >
-                    {detailEditOpen ? "Cancel edit" : "Edit order"}
-                  </button>
-                  <button
-                    type="button"
-                    className="orders-action"
-                    onClick={() => updateOrderStatus(detailOrder, "paid")}
-                    disabled={
-                      statusUpdatingId === detailOrder.id ||
-                      ["paid", "fulfilled", "delivered", "completed", "cancelled", "canceled"].includes(
-                        normalizeStatus(detailOrder.status)
-                      )
-                    }
-                  >
-                    {statusUpdatingId === detailOrder.id ? "Updating..." : "Accept"}
-                  </button>
-                  <button
-                    type="button"
-                    className="orders-action orders-action-primary"
-                    onClick={() => updateOrderStatus(detailOrder, "fulfilled")}
-                    disabled={
-                      statusUpdatingId === detailOrder.id ||
-                      ["fulfilled", "delivered", "completed", "cancelled", "canceled"].includes(
-                        normalizeStatus(detailOrder.status)
-                      )
-                    }
-                  >
-                    {statusUpdatingId === detailOrder.id ? "Updating..." : "Confirm"}
-                  </button>
-                </div>
+
+              <InlineNotice
+                tone="info"
+                title="Record payment first"
+                message="The order will move columns after the server creates the payment, receipt, accounting, and audit records."
+                compact
+              />
+              {paymentNotice && (
+                <InlineNotice
+                  tone={paymentNotice.tone}
+                  title={paymentNotice.title}
+                  message={paymentNotice.message}
+                  compact
+                  onDismiss={() => setPaymentNotice(null)}
+                  dismissLabel="Dismiss payment notice"
+                />
               )}
-              <div className="orders-detail-body">
-                <p>Total: {formatCurrency(detailOrder.total)}</p>
-                <p>Fulfillment: {(detailOrder.deliveryMethod || "delivery").toUpperCase()}</p>
-                <p>Order date: {formatDate(detailOrder.orderDate)}</p>
-                {detailEditOpen ? (
-                  <div className="orders-detail-edit">
-                    <label>
-                      Pickup date
-                      <DateField
-                        value={detailEditForm.date}
-                        onChange={(event) =>
-                          setDetailEditForm((prev) => ({ ...prev, date: event.target.value }))
-                        }
+
+              <form className="orders-payment-modal-form" onSubmit={handlePaymentActionSubmit}>
+                <label className="orders-payment-field">
+                  Amount
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paymentForm.amount}
+                    onChange={(event) => updatePaymentField("amount", event.target.value)}
+                    required
+                  />
+                </label>
+                <label className="orders-payment-field">
+                  Method
+                  <SelectField
+                    value={paymentForm.method}
+                    onChange={(event) => updatePaymentField("method", event.target.value)}
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectField>
+                </label>
+                {paymentForm.method === "mobile_money" && (
+                  <>
+                    <label className="orders-payment-field">
+                      Provider
+                      <input
+                        value={paymentForm.provider}
+                        onChange={(event) => updatePaymentField("provider", event.target.value)}
+                        placeholder="MTN, Telecel, AT"
                       />
                     </label>
-                    <label>
-                      Pickup window
-                      <SelectField
-                        value={detailEditForm.window}
-                        onChange={(event) =>
-                          setDetailEditForm((prev) => ({ ...prev, window: event.target.value }))
-                        }
-                      >
-                        <option value="">Select a window</option>
-                        {Object.entries(WINDOW_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </label>
-                    <label>
-                      Notes
-                      <textarea
-                        rows="3"
-                        value={detailEditForm.notes}
-                        onChange={(event) =>
-                          setDetailEditForm((prev) => ({ ...prev, notes: event.target.value }))
-                        }
+                    <label className="orders-payment-field">
+                      MoMo phone
+                      <input
+                        value={paymentForm.phoneNumber}
+                        onChange={(event) => updatePaymentField("phoneNumber", event.target.value)}
                       />
                     </label>
-                    {detailEditError && <p className="orders-error">{detailEditError}</p>}
-                    <div className="orders-detail-edit-actions">
-                      <button
-                        type="button"
-                        className="orders-action orders-action-primary"
-                        onClick={saveOrderDetails}
-                        disabled={detailEditSaving}
-                      >
-                        {detailEditSaving ? "Saving..." : "Save changes"}
-                      </button>
-                      <button
-                        type="button"
-                        className="orders-action"
-                        onClick={() => setDetailEditOpen(false)}
-                        disabled={detailEditSaving}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  (() => {
-                    const details = getFulfillmentDetails(detailOrder);
-                    const label = details.pickup ? "Pickup" : "Delivery";
-                    return (
-                      <>
-                        <p>{label} date: {details.date ? formatDate(details.date) : "-"}</p>
-                        <p>{label} window: {formatWindow(details.window)}</p>
-                        {!details.pickup && (
-                          <>
-                            <p>Address: {details.address || "-"}</p>
-                            <p>Contact: {details.contact || "-"}</p>
-                          </>
-                        )}
-                        {details.notes && <p>Notes: {details.notes}</p>}
-                      </>
-                    );
-                  })()
+                  </>
                 )}
-                <p>Assigned To: {formatUser(detailOrder.assignedUserName)}</p>
-                <p>Last updated: {formatDateTime(detailOrder.lastModifiedAt)}</p>
-                <div className="orders-detail-items">
-                  <p className="orders-detail-items-title">Items</p>
-                  {Array.isArray(detailOrder.items) && detailOrder.items.length > 0 ? (
-                    <ul className="orders-detail-list">
-                      {detailOrder.items.map((item) => (
-                        <li key={item.id || `${item.productId}-${item.sku}`}>
-                          {item.imageUrl && (
-                            <span className="orders-detail-thumb">
-                              <img src={item.imageUrl} alt={item.productName || item.sku || "Item"} />
-                            </span>
-                          )}
-                          <div>
-                            <p className="orders-detail-item-name">{item.productName || `Product ${item.productId}`}</p>
-                            <p className="orders-detail-item-meta">
-                              SKU {item.sku || "N/A"} · Qty {item.quantity}
-                            </p>
-                          </div>
-                          <div className="orders-detail-item-total">
-                            <span>{formatCurrency((item.unitPrice || 0) / 100)}</span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="orders-empty">No items found for this order.</p>
-                  )}
+                <label className="orders-payment-field">
+                  Reference
+                  <input
+                    value={paymentForm.transactionReference}
+                    onChange={(event) => updatePaymentField("transactionReference", event.target.value)}
+                  />
+                </label>
+                <label className="orders-payment-field orders-payment-field--wide">
+                  Notes
+                  <textarea
+                    rows="3"
+                    value={paymentForm.notes}
+                    onChange={(event) => updatePaymentField("notes", event.target.value)}
+                  />
+                </label>
+                <div className="orders-payment-actions">
+                  <button type="submit" className="orders-primary" disabled={paymentSaving}>
+                    {paymentSaving ? "Saving..." : "Save payment"}
+                  </button>
+                  <button
+                    type="button"
+                    className="orders-secondary"
+                    onClick={closePaymentAction}
+                    disabled={paymentSaving}
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
         )}

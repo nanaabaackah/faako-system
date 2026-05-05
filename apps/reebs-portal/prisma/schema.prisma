@@ -13,6 +13,9 @@ model Organization {
   updatedAt       DateTime         @updatedAt
   orders          Order[]
   orderItems      OrderItem[]
+  orderPayments   OrderPayment[]
+  orderReceipts   OrderReceipt[]
+  orderEvents     OrderEvent[]
   products        Product[]
   sourceCategories SourceCategory[]
   specificCategories SpecificCategory[]
@@ -41,6 +44,7 @@ model Organization {
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
   userSessions    UserSession[]
+  managerDevices  ManagerDevice[]
 
   @@map("organization")
 }
@@ -59,6 +63,26 @@ model Order {
   total_amount    Int           
   orderDate       DateTime
   deliveryDate    DateTime?
+  linkedBookingId Int?
+  source          String?
+  purchaseChannel String?
+  fulfillmentMethod String?
+  deliveryRequired Boolean      @default(true)
+  isPosOrder      Boolean       @default(false)
+  expectedFulfillmentDate DateTime?
+  subtotalCents   Int?
+  discountCents   Int           @default(0)
+  deliveryFeeCents Int          @default(0)
+  serviceFeeCents Int           @default(0)
+  grandTotalCents Int?
+  amountPaidCents Int           @default(0)
+  balanceDueCents Int?
+  paymentStatus   String        @default("unpaid")
+  fulfillmentStatus String      @default("not_started")
+  idempotencyKey  String?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  internalNotes   String?
   assignedUserId  Int?
   assignedUser    User?         @relation(fields: [assignedUserId], references: [id])
   createdByUserId Int?
@@ -66,13 +90,24 @@ model Order {
   lastModifiedAt  DateTime?     @default(now())
   
   customer        Customer      @relation(fields: [customerId], references: [id]) 
+  linkedBooking   Booking?      @relation("BookingShopOrders", fields: [linkedBookingId], references: [id])
   orderItems      OrderItem[]
+  payments        OrderPayment[]
+  receipts        OrderReceipt[]
+  events          OrderEvent[]
+  stockMovements  StockMovement[]
   expenses        Expense[]
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
   @@unique([organizationId, orderNumber])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, orderDate])
+  @@index([organizationId, paymentStatus])
+  @@index([organizationId, fulfillmentStatus])
+  @@index([organizationId, source])
+  @@index([linkedBookingId])
   @@map("order")
 }
 
@@ -89,11 +124,83 @@ model OrderItem {
   Order          Order   @relation(fields: [orderId], references: [id])
   Product        Product @relation(fields: [productId], references: [id])
   variant        InventoryVariant? @relation(fields: [variantId], references: [id])
+  stockMovements StockMovement[]
 
   @@index([orderId])
   @@index([productId])
   @@index([variantId])
   @@map("orderItem")
+}
+
+model OrderPayment {
+  id                   Int      @id @default(autoincrement())
+  organizationId       Int      @default(1)
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  orderId              Int
+  order                Order    @relation(fields: [orderId], references: [id])
+  customerId           Int
+  customer             Customer @relation(fields: [customerId], references: [id])
+  amountCents          Int
+  method               String
+  provider             String?
+  transactionReference String?
+  phoneNumber          String?
+  confirmationStatus   String?
+  status               String   @default("successful")
+  paidAt               DateTime @default(now())
+  recordedByUserId     Int?
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  receipts             OrderReceipt[]
+
+  @@index([organizationId, orderId])
+  @@index([organizationId, customerId])
+  @@index([organizationId, paidAt])
+  @@map("orderPayment")
+}
+
+model OrderReceipt {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  receiptNumber  String
+  orderId        Int
+  order          Order    @relation(fields: [orderId], references: [id])
+  paymentId      Int
+  payment        OrderPayment @relation(fields: [paymentId], references: [id])
+  customerId     Int
+  customer       Customer @relation(fields: [customerId], references: [id])
+  amountCents    Int
+  snapshot       Json
+  pdfDocumentId  Int?
+  pdfDocument    Document? @relation(fields: [pdfDocumentId], references: [id])
+  issuedAt       DateTime @default(now())
+  issuedByUserId Int?
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, receiptNumber])
+  @@index([organizationId, orderId])
+  @@index([organizationId, paymentId])
+  @@index([organizationId, issuedAt])
+  @@map("orderReceipt")
+}
+
+model OrderEvent {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  orderId         Int
+  order           Order    @relation(fields: [orderId], references: [id])
+  type            String
+  summary         String?
+  metadata        Json?
+  createdByUserId Int?
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId, orderId, createdAt])
+  @@index([organizationId, type, createdAt])
+  @@map("orderEvent")
 }
 
 model Product {
@@ -227,6 +334,8 @@ model StockMovement {
   organization   Organization @relation(fields: [organizationId], references: [id])
   productId Int
   variantId Int?
+  orderId   Int?
+  orderItemId Int?
   type      String
   quantity  Int
   date      DateTime
@@ -242,8 +351,13 @@ model StockMovement {
 
   Product   Product  @relation(fields: [productId], references: [id])
   variant   InventoryVariant? @relation(fields: [variantId], references: [id])
+  order     Order?   @relation(fields: [orderId], references: [id])
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id])
   @@index([productId])
   @@index([variantId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([organizationId, date])
   @@map("stockMovement")
 }
 
@@ -329,6 +443,7 @@ model Document {
   source    String?  @default("upload")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orderReceipts OrderReceipt[]
 
   @@map("document")
 }
@@ -488,6 +603,8 @@ model Customer {
   phone     String?
   
   orders    Order[] 
+  orderPayments OrderPayment[]
+  orderReceipts OrderReceipt[]
   bookings Booking[]
   waterSales WaterSale[]
   
@@ -593,6 +710,7 @@ model Booking {
   totalAmount  Int           // In cents
   status       String        @default("pending") // pending, confirmed, completed, cancelled
   items        BookingItem[]
+  linkedShopOrders Order[]   @relation("BookingShopOrders")
   expenses     Expense[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -620,6 +738,7 @@ model BookingItem {
   quantity  Int
   price     Int     // Price at time of booking (in cents)
 
+  @@index([bookingId])
   @@index([variantId])
   @@map("bookingItem")
 }
@@ -730,14 +849,17 @@ model Delivery {
 }
 
 model ManagerDevice {
-  id         Int      @id @default(autoincrement())
-  token      String   @unique
-  platform   String?
-  deviceId   String?
-  lastSeenAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @default(1)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  token          String   @unique
+  platform       String?
+  deviceId       String?
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
 
+  @@index([organizationId])
   @@map("managerDevice")
 }
 

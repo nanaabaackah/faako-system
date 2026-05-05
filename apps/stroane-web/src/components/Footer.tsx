@@ -40,7 +40,6 @@ const Footer: React.FC = () => {
 
       {/* ── CTA ── */}
       <div className="footer__cta">
-        <p className="footer__cta-eyebrow">Get Started Today</p>
         <h2 className="footer__cta-heading">
           Ready to make your food<br />business safer?
         </h2>

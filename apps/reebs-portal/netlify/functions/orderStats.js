@@ -1,32 +1,9 @@
 /* eslint-disable no-undef */
-// Filename: orderStats.js
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
-import { requireUser } from "./_shared/userAuth.js";
-import {
-  buildExpenseFilter,
-  resolveExpenseColumns,
-  resolveExpenseTable,
-} from "./_shared/expenseAccounting.js";
-
-const statusColumnStatements = [
-  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "isArchived" BOOLEAN DEFAULT false`,
-  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN DEFAULT false`,
-  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "reorderLevel" INTEGER DEFAULT 2`,
-  `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "reorderQuantity" INTEGER DEFAULT 0`,
-];
-
-const ensureProductStatusColumns = async (client) => {
-  for (const statement of statusColumnStatements) {
-    try {
-      await client.query(statement);
-    } catch (err) {
-      console.warn("Product status column check failed:", err?.message || err);
-    }
-  }
-};
+import { requirePermission } from "./_shared/internalApi.js";
+import { buildExpenseFilter } from "./_shared/expenseAccounting.js";
 
 const responseHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -41,18 +18,8 @@ const json = (event, statusCode, payload) => ({
   body: statusCode === 204 ? "" : JSON.stringify(payload),
 });
 
-const hasColumn = async (client, tableName, columnName, schema = "public") => {
-  const result = await client.query(
-    `SELECT 1
-     FROM information_schema.columns
-     WHERE table_schema = $1 AND table_name = $2 AND column_name = $3
-     LIMIT 1`,
-    [schema, tableName, columnName]
-  );
-  return result.rowCount > 0;
-};
-
-const getStatsWindowRange = (windowKey = "30d") => {
+// Exported so it can be unit-tested without a DB connection.
+export const getStatsWindowRange = (windowKey = "30d") => {
   const now = new Date();
   const startOfToday = new Date(Date.UTC(
     now.getUTCFullYear(),
@@ -214,15 +181,19 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    await ensureProductStatusColumns(client);
 
-    const authUser = await requireUser(client, event);
-    if (!authUser) {
-      return json(event, 401, { error: "Unauthorized" });
+    const internal = await requirePermission(client, event, "orders:read", {
+      methods: "GET,OPTIONS",
+    });
+    if (internal.errorResponse) {
+      return internal.errorResponse;
     }
 
-    const organizationId = Number(authUser.organizationId);
-    const requestedWindow = event.queryStringParameters?.window || "30d";
+    const organizationId = Number(internal.organizationId);
+    const requestedWindow =
+      event.queryStringParameters?.period ||
+      event.queryStringParameters?.window ||
+      "30d";
     const { start: windowStart, end: now, label: windowLabel, days: windowDays } =
       getStatsWindowRange(requestedWindow);
     const windowStartIso = windowStart.toISOString();
@@ -239,22 +210,14 @@ export async function handler(event = {}) {
     const nextQuarterEnd = new Date(Date.UTC(nextQuarterYear, nextQuarterStartMonth + 3, 1));
     const nextQuarterLabel = `Q${nextQuarter + 1} ${nextQuarterYear}`;
 
-    const [
-      orderHasOrg,
-      bookingHasOrg,
-      productHasOrg,
-      stockMovementHasOrg,
-      maintenanceHasOrg,
-      expenseTable,
-    ] = await Promise.all([
-      hasColumn(client, "order", "organizationId"),
-      hasColumn(client, "booking", "organizationId"),
-      hasColumn(client, "product", "organizationId"),
-      hasColumn(client, "stockMovement", "organizationId"),
-      hasColumn(client, "maintenanceLog", "organizationId"),
-      resolveExpenseTable(client),
-    ]);
-    const expenseColumns = expenseTable ? await resolveExpenseColumns(client, expenseTable) : [];
+    // All organizationId columns are present in every table — schema is stable.
+    const orderHasOrg = true;
+    const bookingHasOrg = true;
+    const productHasOrg = true;
+    const stockMovementHasOrg = true;
+    const maintenanceHasOrg = true;
+    const expenseTable = { schema: "public", tableName: "expense", queryRef: '"public"."expense"', label: "public.expense" };
+    const expenseColumns = ["id", "organizationId", "category", "amount", "description", "date", "userId", "orderId", "bookingId", "createdAt", "updatedAt"];
 
     const orderParams = orderHasOrg
       ? [windowStartIso, windowEndIso, organizationId]
@@ -299,7 +262,6 @@ export async function handler(event = {}) {
       bookingSummary,
       lowStockRows,
       maintenanceOpenSummary,
-      deliveryFeeRows,
       inventoryRes,
       categoryRes,
       velocityRes,
@@ -310,7 +272,12 @@ export async function handler(event = {}) {
       client.query(
         `SELECT
            COUNT(*)::int AS orders,
-           COALESCE(SUM(o.total_amount), 0) AS revenue_cents
+           COALESCE(SUM(o.total_amount), 0) AS revenue_cents,
+           COALESCE(SUM(
+             CASE WHEN o."deliveryMethod" = 'delivery'
+             THEN COALESCE(o."deliveryFeeCents", 0)
+             ELSE 0 END
+           ), 0) AS delivery_fee_cents
          FROM "order" o
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
@@ -415,14 +382,6 @@ export async function handler(event = {}) {
         maintenanceOpenParams
       ),
       client.query(
-        `SELECT o."deliveryMethod", o."deliveryDetails"
-         FROM "order" o
-         WHERE o."orderDate" >= $1
-           AND o."orderDate" < $2
-           ${orderOrgFilter}`,
-        orderParams
-      ),
-      client.query(
         `SELECT COALESCE(SUM(COALESCE(p.stock, 0) * COALESCE(p.price, 0)), 0) AS inventory_value_cents
          FROM "product" p
          WHERE ${productBaseFilter}`,
@@ -478,10 +437,7 @@ export async function handler(event = {}) {
     ]);
 
     const orders = Number(orderSummary.rows[0]?.orders || 0);
-    const deliveryFeeCents = (deliveryFeeRows.rows || []).reduce((sum, row) => {
-      const { feeCents } = getDeliveryFeeDetails(row.deliveryMethod, row.deliveryDetails);
-      return sum + feeCents;
-    }, 0);
+    const deliveryFeeCents = Number(orderSummary.rows[0]?.delivery_fee_cents || 0);
     const revenueCents = Number(orderSummary.rows[0]?.revenue_cents || 0) + deliveryFeeCents;
     const units = Number(unitsSummary.rows[0]?.units || 0);
     const bookings = Number(bookingSummary.rows[0]?.bookings || 0);

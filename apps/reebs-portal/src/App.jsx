@@ -40,6 +40,7 @@ const Admin = lazy(() => import("./pages/Admin/Admin"));
 const StoreMode = lazy(() => import("./pages/StoreMode/StoreMode"));
 const AdminWorkspace = lazy(() => import("./pages/AdminWorkspace/AdminWorkspace"));
 const OrdersList = lazy(() => import("./pages/OrdersList/OrdersList"));
+const OrderDetail = lazy(() => import("./pages/Orders/OrderDetail"));
 const OrderBuilder = lazy(() => import("./pages/OrderBuilder/OrderBuilder"));
 const AdminCustomers = lazy(() => import("./pages/AdminCustomers/AdminCustomers"));
 const WebsiteTemplateEditor = lazy(() => import("./pages/WebsiteTemplateEditor/WebsiteTemplateEditor"));
@@ -246,6 +247,16 @@ function AppRoutes() {
           <RequireAuth>
             <RequirePortalAccess access="standard">
               <OrderBuilder />
+            </RequirePortalAccess>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders/:id"
+        element={
+          <RequireAuth>
+            <RequirePortalAccess access="standard">
+              <OrderDetail />
             </RequirePortalAccess>
           </RequireAuth>
         }

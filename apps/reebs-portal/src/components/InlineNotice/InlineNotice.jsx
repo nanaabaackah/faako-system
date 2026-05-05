@@ -37,22 +37,40 @@ export function InlineNotice({
   message = "",
   className = "",
   compact = false,
+  onDismiss,
+  dismissLabel = "Dismiss notice",
 }) {
   const meta = NOTICE_META[tone] || NOTICE_META.info;
-
-  return (
+  const notice = (
     <SharedInlineNotice
       tone={tone}
       title={title || meta.title}
       message={message}
       compact={compact}
-      className={`inline-notice inline-notice--${tone}${className ? ` ${className}` : ""}`}
+      className={`inline-notice inline-notice--${tone}${onDismiss ? " inline-notice--dismissible" : ""}${className ? ` ${className}` : ""}`}
       iconClassName="inline-notice__icon"
       bodyClassName="inline-notice__body"
       titleClassName="inline-notice__title"
       messageClassName="inline-notice__message"
       renderIcon={() => <AppIcon icon={meta.icon} />}
     />
+  );
+
+  if (!onDismiss) return notice;
+
+  return (
+    <div className="inline-notice-wrap">
+      {notice}
+      <button
+        type="button"
+        className="inline-notice__dismiss"
+        onClick={onDismiss}
+        aria-label={dismissLabel}
+        title={dismissLabel}
+      >
+        <AppIcon icon={faXmark} />
+      </button>
+    </div>
   );
 }
 
@@ -70,6 +88,8 @@ export function InlineNoticeStack({ notices = [], className = "", compact = fals
           message={notice.message}
           compact={notice.compact ?? compact}
           className={notice.className}
+          onDismiss={notice.onDismiss}
+          dismissLabel={notice.dismissLabel}
         />
       ))}
     </div>

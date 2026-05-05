@@ -28,6 +28,9 @@ const normalizeMovementType = (value) => {
   return ACTIVITY_MOVEMENT_TYPES.has(normalized) ? normalized : "";
 };
 
+const stockInTypeSql = `LOWER(sm.type) IN ('stockin', 'shop_sale_cancelled', 'shop_return_restock')`;
+const stockOutTypeSql = `LOWER(sm.type) IN ('stockout', 'shop_sale', 'shop_damaged')`;
+
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") {
@@ -156,7 +159,10 @@ export async function handler(event = {}) {
            ON fp.id = sm."productId"
          WHERE sm."organizationId" = $1
            AND to_char(date_trunc('month', sm."date"), 'YYYY-MM') = ${detailMonthParam}
-           AND lower(sm.type) = ${detailTypeParam}
+           AND (
+             (${detailTypeParam} = 'stockin' AND ${stockInTypeSql})
+             OR (${detailTypeParam} = 'stockout' AND ${stockOutTypeSql})
+           )
          GROUP BY fp.id, fp.name, fp.sku, fp.image
          ORDER BY total_quantity DESC, fp.name ASC`,
         params
@@ -184,8 +190,8 @@ export async function handler(event = {}) {
        SELECT
          to_char(date_trunc('month', sm."date"), 'YYYY-MM') AS month_key,
          date_trunc('month', sm."date") AS month_start,
-         SUM(CASE WHEN lower(sm.type) = 'stockin' THEN sm.quantity ELSE 0 END)::int AS stock_in,
-         SUM(CASE WHEN lower(sm.type) = 'stockout' THEN sm.quantity ELSE 0 END)::int AS stock_out
+         SUM(CASE WHEN ${stockInTypeSql} THEN sm.quantity ELSE 0 END)::int AS stock_in,
+         SUM(CASE WHEN ${stockOutTypeSql} THEN sm.quantity ELSE 0 END)::int AS stock_out
        FROM "stockMovement" sm
        INNER JOIN filtered_products fp
          ON fp.id = sm."productId"

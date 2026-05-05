@@ -35,12 +35,14 @@ import {
   writeStoreModeDraft,
 } from "./storeModeShared";
 import "./StoreMode.css";
+import { computeHasDraft } from "./storeModeUtils.js";
 
 function StoreMode() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const customerPickerRef = useRef(null);
   const restoredDraftKeyRef = useRef("");
+  const draftWriteTimerRef = useRef(null);
   const [hoveredImage, setHoveredImage] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -91,46 +93,56 @@ function StoreMode() {
     return () => mediaQuery.removeListener(syncViewport);
   }, []);
 
-  const refreshInventory = useCallback(async () => {
+  const refreshInventory = useCallback(async (signal) => {
+    const fallbackController = signal ? null : new AbortController();
+    const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/.netlify/functions/inventory");
+      const response = await fetch("/.netlify/functions/inventory", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load stock.");
       }
       setItems(Array.isArray(payload) ? payload.filter(isSaleableProduct) : []);
     } catch (nextError) {
+      if (nextError.name === "AbortError") return;
       setError(nextError.message || "Unable to load stock.");
     } finally {
-      setLoading(false);
+      if (!fetchSignal.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refreshInventory();
+    const controller = new AbortController();
+    refreshInventory(controller.signal);
+    return () => controller.abort();
   }, [refreshInventory]);
 
-  const refreshCustomers = useCallback(async () => {
+  const refreshCustomers = useCallback(async (signal) => {
+    const fallbackController = signal ? null : new AbortController();
+    const fetchSignal = signal || fallbackController.signal;
     setCustomersLoading(true);
     setCustomersError("");
     try {
-      const response = await fetch("/.netlify/functions/customers");
+      const response = await fetch("/.netlify/functions/customers", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load customers.");
       }
       setCustomers(sortCustomersByName(Array.isArray(payload) ? payload : []));
     } catch (nextError) {
+      if (nextError.name === "AbortError") return;
       setCustomersError(nextError.message || "Unable to load customers.");
     } finally {
-      setCustomersLoading(false);
+      if (!fetchSignal.aborted) setCustomersLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refreshCustomers();
+    const controller = new AbortController();
+    refreshCustomers(controller.signal);
+    return () => controller.abort();
   }, [refreshCustomers]);
 
   useEffect(() => {
@@ -384,7 +396,7 @@ function StoreMode() {
       });
       return changed ? next : current;
     });
-  }, [inventoryById, items.length]);
+  }, [inventoryById]);
 
   useEffect(() => {
     setSelectedVariantIds((current) => {
@@ -450,22 +462,18 @@ function StoreMode() {
       discountValue,
       cashReceived,
     };
-    const hasDraft =
-      draft.orderItems.length > 0 ||
-      Boolean(normalizeText(draft.customerName)) ||
-      Boolean(normalizeText(draft.customerContact)) ||
-      Boolean(draft.selectedCustomer?.id) ||
-      draft.paymentMethod !== "cash" ||
-      draft.discountType !== "amount" ||
-      Boolean(normalizeText(draft.momoReference)) ||
-      Boolean(normalizeText(draft.discountValue)) ||
-      Boolean(normalizeText(draft.cashReceived));
+    const hasDraft = computeHasDraft(draft);
 
-    if (hasDraft) {
-      writeStoreModeDraft(draftStorageKey, draft);
-    } else {
-      clearStoreModeDraft(draftStorageKey);
-    }
+    if (draftWriteTimerRef.current) clearTimeout(draftWriteTimerRef.current);
+    draftWriteTimerRef.current = setTimeout(() => {
+      if (hasDraft) {
+        writeStoreModeDraft(draftStorageKey, draft);
+      } else {
+        clearStoreModeDraft(draftStorageKey);
+      }
+    }, 250);
+
+    return () => clearTimeout(draftWriteTimerRef.current);
   }, [
     cashReceived,
     customerContact,
@@ -626,7 +634,7 @@ function StoreMode() {
     setSuccess("");
   };
 
-  const ensureCustomer = async (contact) => {
+  const ensureCustomer = async (contact, signal) => {
     const typedValue = normalizeText(customerName);
     const typedValueIsEmail = EMAIL_PATTERN.test(typedValue);
     const name = typedValue || "Walk-in customer";
@@ -659,6 +667,7 @@ function StoreMode() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nextPayload),
+        signal,
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -677,6 +686,7 @@ function StoreMode() {
         email: email || undefined,
         phone: phone || undefined,
       }),
+      signal,
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
@@ -717,16 +727,31 @@ function StoreMode() {
     }
 
     setSubmitting(true);
+    const controller = new AbortController();
+    const idempotencyKey =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `pos-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      const customer = await ensureCustomer(receiptContact);
-      const response = await fetch("/.netlify/functions/createOrder", {
+      const customer = await ensureCustomer(receiptContact, controller.signal);
+      const response = await fetch("/.netlify/functions/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
           customerId: Number(customer?.id),
           status: payLater ? "pending" : "paid",
           deliveryMethod: "pickup",
           pickupDetails: { date: todayValue(), notes: "Recorded in store mode." },
+          source: "POS",
+          purchaseChannel: "In Store",
+          fulfillmentMethod: "Pickup",
+          deliveryRequired: false,
+          expectedFulfillmentDate: new Date().toISOString(),
+          isPosOrder: true,
+          type: "retail",
           discount: discountAmount,
           paymentPreference: payLater
             ? {
@@ -753,7 +778,6 @@ function StoreMode() {
             quantity: item.quantity,
             price: item.unitPrice,
           })),
-          source: "store-mode",
           userName:
             user?.fullName ||
             user?.name ||
@@ -761,22 +785,25 @@ function StoreMode() {
             undefined,
           userEmail: user?.email,
         }),
+        signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to record the sale.");
       }
 
-      setItems((current) =>
-        current.map((product) => {
-          const lines = orderItems.filter((item) => Number(item.productId) === Number(product.id));
-          if (!lines.length) return product;
-          return lines.reduce(
-            (nextProduct, lineItem) => applyInventoryLineQuantityDelta(nextProduct, lineItem, -1),
-            product
-          );
-        })
-      );
+      if (payload?.stockCommitted === true) {
+        setItems((current) =>
+          current.map((product) => {
+            const lines = orderItems.filter((item) => Number(item.productId) === Number(product.id));
+            if (!lines.length) return product;
+            return lines.reduce(
+              (nextProduct, lineItem) => applyInventoryLineQuantityDelta(nextProduct, lineItem, -1),
+              product
+            );
+          })
+        );
+      }
 
       const orderNumber = payload?.orderNumber || payload?.orderId || "";
       const receiptDelivery = payload?.receiptDelivery || null;
@@ -800,9 +827,10 @@ function StoreMode() {
 
       setSuccess(nextMessage);
     } catch (nextError) {
+      if (nextError.name === "AbortError") return;
       setSubmitError(nextError.message || "Unable to record the sale.");
     } finally {
-      setSubmitting(false);
+      if (!controller.signal.aborted) setSubmitting(false);
     }
   };
 

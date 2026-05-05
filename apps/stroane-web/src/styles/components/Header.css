@@ -106,7 +106,7 @@
 
 .logo-tab__corner--bottom {
   left: 0;
-  top: 64px;
+  top: 65px;
 }
 
 .logo-tab__corner--right {
@@ -182,8 +182,6 @@
   z-index: 2000;
   transition:
     background 0.25s ease,
-    backdrop-filter 0.25s ease,
-    -webkit-backdrop-filter 0.25s ease,
     box-shadow 0.25s ease,
     border-color 0.25s ease;
 }
@@ -568,7 +566,7 @@
   }
 
   .logo-tab__corner--bottom {
-    top: 53px;
+    top: 60px;
   }
 
   .logo-tab__corner--right {

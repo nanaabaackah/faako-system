@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./OrderBuilder.css";
+import { computeVisibleProducts, PRODUCT_SHOW_ALL_THRESHOLD } from "./orderBuilderUtils.js";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
@@ -116,13 +117,14 @@ function OrderBuilder() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchAll = async () => {
       setLoading(true);
       setError("");
       try {
         const [customerRes, inventoryRes] = await Promise.all([
-          fetch("/.netlify/functions/customers"),
-          fetch("/.netlify/functions/inventory"),
+          fetch("/.netlify/functions/customers", { signal: controller.signal }),
+          fetch("/.netlify/functions/inventory", { signal: controller.signal }),
         ]);
 
         if (!customerRes.ok || !inventoryRes.ok) {
@@ -145,14 +147,16 @@ function OrderBuilder() {
         setCustomers(Array.isArray(customerData) ? customerData : []);
         setProducts(inventoryOnly);
       } catch (err) {
+        if (err.name === "AbortError") return;
         console.error("Failed to load order data", err);
         setError("We couldn't load customers or products.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchAll();
+    return () => controller.abort();
   }, []);
 
   const findProductByCode = (code) => {
@@ -216,6 +220,11 @@ function OrderBuilder() {
       );
     });
   }, [products, productQuery]);
+
+  const { items: visibleProducts, capped: productListCapped } = useMemo(
+    () => computeVisibleProducts(filteredProducts, productQuery, PRODUCT_SHOW_ALL_THRESHOLD),
+    [filteredProducts, productQuery],
+  );
 
   const selectedCustomer = useMemo(() => {
     if (!selectedCustomerId) return null;
@@ -372,13 +381,27 @@ function OrderBuilder() {
     }
 
     setSubmitting(true);
+    const controller = new AbortController();
+    const idempotencyKey =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      const response = await fetch("/.netlify/functions/createOrder", {
+      const response = await fetch("/.netlify/functions/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
           customerId: Number(selectedCustomerId),
           status,
+          source: "Manual Admin Entry",
+          purchaseChannel: "Admin",
+          fulfillmentMethod: "Pickup",
+          deliveryMethod: "pickup",
+          deliveryRequired: false,
+          type: "retail",
           items: cartItems.map((item) => ({
             productId: item.productId,
             variantId: item.variantId || undefined,
@@ -390,6 +413,7 @@ function OrderBuilder() {
           userName: user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined,
           userEmail: user?.email,
         }),
+        signal: controller.signal,
       });
 
       const payload = await response.json();
@@ -399,36 +423,39 @@ function OrderBuilder() {
 
       setSuccess(`Order #${payload.orderId} created.`);
       setCartItems([]);
-      setProducts((prev) =>
-        prev.map((product) => {
-          const matches = cartItems.filter((item) => Number(item.productId) === Number(product.id));
-          if (!matches.length) return product;
-          if (matches.some((item) => item.variantId)) {
-            const variants = getVariants(product).map((variant) => {
-              const variantQty = matches
-                .filter((item) => Number(item.variantId) === Number(variant.id))
-                .reduce((sum, item) => sum + item.quantity, 0);
-              if (!variantQty) return variant;
-              const nextStock = Math.max(Number(variant.stockQty || 0) - variantQty, 0);
-              return {
-                ...variant,
-                stockQty: nextStock,
-                availableQty: Math.max(nextStock - Number(variant.reservedQty || 0), 0),
-              };
-            });
-            const updatedStock = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
-            return { ...product, variants, quantity: updatedStock, stock: updatedStock };
-          }
-          const orderedQty = matches.reduce((sum, item) => sum + item.quantity, 0);
-          const updatedStock = Math.max(getQuantity(product) - orderedQty, 0);
-          return { ...product, quantity: updatedStock, stock: updatedStock };
-        })
-      );
+      if (payload?.stockCommitted === true) {
+        setProducts((prev) =>
+          prev.map((product) => {
+            const matches = cartItems.filter((item) => Number(item.productId) === Number(product.id));
+            if (!matches.length) return product;
+            if (matches.some((item) => item.variantId)) {
+              const variants = getVariants(product).map((variant) => {
+                const variantQty = matches
+                  .filter((item) => Number(item.variantId) === Number(variant.id))
+                  .reduce((sum, item) => sum + item.quantity, 0);
+                if (!variantQty) return variant;
+                const nextStock = Math.max(Number(variant.stockQty || 0) - variantQty, 0);
+                return {
+                  ...variant,
+                  stockQty: nextStock,
+                  availableQty: Math.max(nextStock - Number(variant.reservedQty || 0), 0),
+                };
+              });
+              const updatedStock = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stockQty) || 0), 0);
+              return { ...product, variants, quantity: updatedStock, stock: updatedStock };
+            }
+            const orderedQty = matches.reduce((sum, item) => sum + item.quantity, 0);
+            const updatedStock = Math.max(getQuantity(product) - orderedQty, 0);
+            return { ...product, quantity: updatedStock, stock: updatedStock };
+          })
+        );
+      }
     } catch (err) {
+      if (err.name === "AbortError") return;
       console.error("Order creation failed", err);
       setSubmitError(err.message || "Failed to create order.");
     } finally {
-      setSubmitting(false);
+      if (!controller.signal.aborted) setSubmitting(false);
     }
   };
 
@@ -495,7 +522,12 @@ function OrderBuilder() {
                 />
               )}
               <div className="order-product-list">
-                {filteredProducts.map((product) => {
+                {productListCapped && (
+                  <p className="order-empty">
+                    Showing first {PRODUCT_SHOW_ALL_THRESHOLD} of {filteredProducts.length} products — search to narrow down.
+                  </p>
+                )}
+                {visibleProducts.map((product) => {
                   const stock = getQuantity(product);
                   const variants = getVariants(product).filter((variant) => String(variant.status || "active") === "active");
                   const hasVariants = isVariantParent(product);
@@ -559,14 +591,14 @@ function OrderBuilder() {
                     </div>
                   );
                 })}
-                {!filteredProducts.length && (
+                {!visibleProducts.length && (
                   <p className="order-empty">No products match your search.</p>
                 )}
               </div>
             </section>
 
             <div className="order-right-col">
-              <section className="glass-card order-panel">
+              <section className="order-panel">
                 <div className="order-panel-header">
                   <h3>Customer</h3>
                   <span>{customers.length} profiles</span>
