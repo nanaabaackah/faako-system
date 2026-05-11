@@ -11,40 +11,104 @@ import {
   Setting2,
   Home2,
 } from "iconsax-react";
-import { hasModuleAccess, isRentOnlyUser } from "../utils/moduleAccess";
+import {
+  getModuleBadges,
+  getModuleByKey,
+  getModuleState,
+  getModuleStatusLabel,
+  getModuleVisibility,
+  getVisibleModules,
+  isModuleEnabled,
+  isModuleVisible,
+} from "@faako/config";
+import { DEV_ERP_ADMIN_MODULES } from "../config/adminModules.js";
+import { hasModuleAccess, isRentOnlyUser } from "../utils/moduleAccess.js";
 
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", Icon: Category, module: "dashboard" },
-  { to: "/rent", label: "Rent", Icon: WalletMoney, module: "rent" },
-  { to: "/accounting", label: "Accounting", Icon: WalletMoney, module: "accounting" },
-  { to: "/invoicing", label: "Invoicing", Icon: ReceiptItem, module: "invoicing" },
-  { to: "/bookings", label: "Appointments", Icon: CalendarTick, module: "bookings" },
-  { to: "/organizations", label: "Organizations", Icon: Buildings2, module: "organizations" },
-  { to: "/system-health", label: "System Health", Icon: Monitor, module: "system-health" },
-  { to: "/reports", label: "Reports", Icon: DocumentText, module: "reports" },
-  { to: "/audit-logs", label: "Audit Logs", Icon: ClipboardTick, module: "audit-logs" },
-  { to: "/user-control", label: "User Control", Icon: Profile2User, module: "user-control" },
-  { to: "/profile", label: "Profile", Icon: Profile2User, module: "profile" },
-  { to: "/settings", label: "Settings", Icon: Setting2, module: "settings" },
+const NAV_ITEM_ORDER = [
+  "dashboard",
+  "rent",
+  "accounting",
+  "invoicing",
+  "bookings",
+  "customers",
+  "system-health",
+  "reports",
+  "audit-logs",
+  "users",
+  "profile",
+  "settings",
 ];
+
+const ICONS_BY_MODULE_KEY = {
+  accounting: WalletMoney,
+  "audit-logs": ClipboardTick,
+  bookings: CalendarTick,
+  customers: Buildings2,
+  dashboard: Category,
+  invoicing: ReceiptItem,
+  profile: Profile2User,
+  rent: WalletMoney,
+  reports: DocumentText,
+  settings: Setting2,
+  "system-health": Monitor,
+  users: Profile2User,
+};
+
+const toNavigationItem = (module, overrides = {}) => ({
+  key: module.key,
+  group: module.group,
+  status: module.status,
+  state: getModuleState(module),
+  visibility: getModuleVisibility(module),
+  statusLabel: getModuleStatusLabel(module),
+  badges: getModuleBadges(module),
+  enabled: isModuleEnabled(module),
+  core: Boolean(module.core),
+  to: module.path,
+  label: module.navLabel || module.label,
+  Icon: ICONS_BY_MODULE_KEY[module.key] || Category,
+  module: module.requiredPermission || module.key,
+  ...overrides,
+});
+
+const sortByNavigationOrder = (items = []) =>
+  [...items].sort((left, right) => {
+    const leftIndex = NAV_ITEM_ORDER.indexOf(left.key);
+    const rightIndex = NAV_ITEM_ORDER.indexOf(right.key);
+    const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+    return normalizedLeft - normalizedRight;
+  });
+
+const NAV_ITEMS = sortByNavigationOrder(
+  // TODO: Pass database-backed module toggles, org-level module config,
+  // permissions integration, and SaaS plan gating into getVisibleModules
+  // after those controls exist server-side.
+  getVisibleModules(DEV_ERP_ADMIN_MODULES).map((module) => toNavigationItem(module))
+);
+
+const buildRegistryNavItem = (moduleKey, overrides = {}) => {
+  const module = getModuleByKey(DEV_ERP_ADMIN_MODULES, moduleKey);
+  return module && isModuleVisible(module) ? toNavigationItem(module, overrides) : null;
+};
 
 const MOBILE_TAB_ITEMS = [
-  { to: "/dashboard", label: "Home", Icon: Home2, module: "dashboard" },
-  { to: "/accounting", label: "Finance", Icon: WalletMoney, module: "accounting" },
-  { to: "/user-control", label: "User Control", Icon: Profile2User, module: "user-control" },
-  { to: "/bookings", label: "Appointments", Icon: CalendarTick, module: "bookings" },
-  { to: "/settings", label: "Settings", Icon: Setting2, module: "settings" },
-];
+  buildRegistryNavItem("dashboard", { label: "Home", Icon: Home2 }),
+  buildRegistryNavItem("accounting", { label: "Finance", Icon: WalletMoney }),
+  buildRegistryNavItem("users", { label: "User Control", Icon: Profile2User }),
+  buildRegistryNavItem("bookings", { label: "Appointments", Icon: CalendarTick }),
+  buildRegistryNavItem("settings", { label: "Settings", Icon: Setting2 }),
+].filter(Boolean);
 
 const RENT_ONLY_NAV_ITEMS = [
-  { to: "/dashboard", label: "Rent", Icon: WalletMoney },
-  { to: "/profile", label: "Profile", Icon: Profile2User },
-];
+  buildRegistryNavItem("dashboard", { label: "Rent", Icon: WalletMoney }),
+  buildRegistryNavItem("profile", { label: "Profile", Icon: Profile2User }),
+].filter(Boolean);
 
 const RENT_ONLY_MOBILE_TAB_ITEMS = [
-  { to: "/dashboard", label: "Rent", Icon: WalletMoney },
-  { to: "/profile", label: "Profile", Icon: Profile2User },
-];
+  buildRegistryNavItem("dashboard", { label: "Rent", Icon: WalletMoney }),
+  buildRegistryNavItem("profile", { label: "Profile", Icon: Profile2User }),
+].filter(Boolean);
 
 const isHealthyStatus = (status) => status === "ok" || status === "online";
 

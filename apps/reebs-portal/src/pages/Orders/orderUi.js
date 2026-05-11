@@ -1,3 +1,9 @@
+import {
+  formatCurrencyFromCents as formatSharedCurrencyFromCents,
+  formatCurrencyMajor as formatSharedCurrencyMajor,
+  getPaymentMethodLabel as getSharedPaymentMethodLabel,
+} from "@faako/finance";
+
 export const PAYMENT_METHOD_OPTIONS = [
   { value: "cash", label: "Cash" },
   { value: "mobile_money", label: "Mobile Money" },
@@ -111,19 +117,11 @@ export const getOrderBalanceCents = (order = {}) => {
 };
 
 export const formatCurrencyFromCents = (value, currency = "GHS") => {
-  try {
-    return new Intl.NumberFormat("en-GH", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(toCents(value) / 100);
-  } catch {
-    return `GHS ${(toCents(value) / 100).toFixed(2)}`;
-  }
+  return formatSharedCurrencyFromCents(toCents(value), currency, { locale: "en-GH" });
 };
 
 export const formatCurrencyMajor = (value, currency = "GHS") =>
-  formatCurrencyFromCents(majorToCents(value), currency);
+  formatSharedCurrencyMajor(value, currency, { locale: "en-GH" });
 
 export const formatDate = (value) => {
   if (!value) return "-";
@@ -222,5 +220,8 @@ export const getStatusTone = (value) => {
 
 export const getPaymentMethodLabel = (value) => {
   const normalized = normalizeStatusKey(value);
-  return PAYMENT_METHOD_OPTIONS.find((option) => option.value === normalized)?.label || formatStatusLabel(value);
+  return (
+    PAYMENT_METHOD_OPTIONS.find((option) => option.value === normalized)?.label ||
+    getSharedPaymentMethodLabel(value, formatStatusLabel(value))
+  );
 };

@@ -2778,3 +2778,9 @@ body.admin-theme.aw-theme .aw-performance-text {
 [data-admin-theme="dark"] body.admin-theme.aw-theme .aw-performance-bar {
   background: rgba(255, 255, 255, 0.08);
 }
+
+@media (max-width: 600px) {
+  .aw-section-grid {
+    padding: 1rem;
+  }
+}

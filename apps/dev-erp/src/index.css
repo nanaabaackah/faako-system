@@ -415,6 +415,34 @@ button {
   font-weight: 700;
 }
 
+.nav-link-label,
+.nav-module-badges {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.nav-module-badge {
+  max-width: 6rem;
+  padding: 0.12rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, currentColor, transparent 66%);
+  color: var(--muted);
+  background: color-mix(in oklab, var(--card), transparent 18%);
+  font-size: 0.56rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erp-nav a.is-disabled {
+  opacity: 0.72;
+}
+
 .nav-badge {
   min-width: 1.35rem;
   padding: 0.12rem 0.36rem;
@@ -548,6 +576,7 @@ button {
 .erp-sidebar.is-collapsed .erp-sidebar__brand-copy,
 .erp-sidebar.is-collapsed .erp-sidebar__search,
 .erp-sidebar.is-collapsed .nav-link-main > span,
+.erp-sidebar.is-collapsed .nav-link-label,
 .erp-sidebar.is-collapsed .erp-sidebar__cta span,
 .erp-sidebar.is-collapsed .erp-sidebar__profile-copy,
 .erp-sidebar.is-collapsed .erp-sidebar__profile-icon {
@@ -2673,6 +2702,10 @@ textarea.input {
     background: var(--accent-soft);
   }
 
+  .mobile-tabbar a.is-disabled {
+    opacity: 0.72;
+  }
+
   .mobile-tabbar__icon {
     color: currentColor;
   }
@@ -2697,6 +2730,33 @@ textarea.input {
     font-size: 0.56rem;
     font-weight: 700;
     line-height: 1;
+  }
+
+  .mobile-tabbar__label,
+  .mobile-tabbar__module-badges {
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.14rem;
+    min-width: 0;
+  }
+
+  .mobile-tabbar__label {
+    flex-direction: column;
+  }
+
+  .mobile-tabbar__module-badge {
+    max-width: 4.4rem;
+    padding: 0.08rem 0.24rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, currentColor, transparent 70%);
+    font-size: 0.46rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .notice {

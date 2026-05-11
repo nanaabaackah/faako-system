@@ -1,4 +1,9 @@
 import {
+  clearLocalDraft,
+  readLocalDraft,
+  writeLocalDraft,
+} from "@faako/offline-sync";
+import {
   applyInventoryLineQuantityDelta,
   buildProductSearchText,
   buildVariantOptionLabel,
@@ -96,6 +101,7 @@ const getCustomerMeta = (customer) =>
 
 const STORE_MODE_DRAFT_VERSION = 1;
 const STORE_MODE_DRAFT_PREFIX = "reebs-store-mode-draft";
+const STORE_MODE_DRAFT_TYPE = "pos-cart";
 
 const sanitizeDraftString = (value, max = 240) =>
   typeof value === "string" ? value.slice(0, max) : "";
@@ -150,35 +156,32 @@ const getStoreModeDraftKey = (user) => {
 };
 
 const readStoreModeDraft = (key) => {
-  if (!key || typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed?.version !== STORE_MODE_DRAFT_VERSION || !parsed?.data || typeof parsed.data !== "object") {
-      return null;
-    }
-    return parsed.data;
-  } catch {
-    return null;
-  }
+  const draft = readLocalDraft(key, { version: STORE_MODE_DRAFT_VERSION });
+  if (draft?.data) return draft;
+
+  // TODO(offline-draft-migration): remove this sessionStorage fallback after the local draft rollout is stable.
+  const sessionDraft = readLocalDraft(key, {
+    storage: "sessionStorage",
+    version: STORE_MODE_DRAFT_VERSION,
+  });
+  return sessionDraft?.data ? sessionDraft : null;
 };
 
-const writeStoreModeDraft = (key, data) => {
-  if (!key || typeof window === "undefined") return;
-  window.sessionStorage.setItem(
-    key,
-    JSON.stringify({
-      version: STORE_MODE_DRAFT_VERSION,
-      savedAt: Date.now(),
-      data,
-    })
-  );
+const writeStoreModeDraft = (key, data, metadata = {}) => {
+  const envelope = writeLocalDraft(key, data, {
+    version: STORE_MODE_DRAFT_VERSION,
+    metadata: {
+      sourceApp: "reebs-portal",
+      draftType: STORE_MODE_DRAFT_TYPE,
+      ...metadata,
+    },
+  });
+  return envelope;
 };
 
 const clearStoreModeDraft = (key) => {
-  if (!key || typeof window === "undefined") return;
-  window.sessionStorage.removeItem(key);
+  clearLocalDraft(key);
+  clearLocalDraft(key, { storage: "sessionStorage" });
 };
 
 export {

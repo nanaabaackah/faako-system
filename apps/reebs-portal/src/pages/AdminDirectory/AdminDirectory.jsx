@@ -552,7 +552,7 @@ function AdminDirectory() {
           }
         />
 
-        <section className="glass-card customers-panel">
+        <section className="customers-panel">
           <div className="customers-panel-header">
             <div>
               <h3>Directory</h3>
@@ -590,7 +590,7 @@ function AdminDirectory() {
             <>
               <div className="customers-table-wrapper">
                 {renderDirectoryPagination(true)}
-                <table className="customers-table">
+                <table className={`customers-table customers-table--${activeTab}`}>
                 <thead>
                   {activeTab === "customers" ? (
                     <tr>
@@ -680,7 +680,6 @@ function AdminDirectory() {
                                 onClick={() => openDetail(row)}
                               >
                                 <AppIcon icon={faEye} />
-                                View
                               </button>
                               {canMutate ? (
                                 <button

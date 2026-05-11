@@ -109,9 +109,18 @@ importers:
 
   apps/dev-erp:
     dependencies:
+      '@faako/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@faako/email-kit':
         specifier: workspace:*
         version: link:../../packages/email-kit
+      '@faako/finance':
+        specifier: workspace:*
+        version: link:../../packages/finance
+      '@faako/offline-sync':
+        specifier: workspace:*
+        version: link:../../packages/offline-sync
       '@faako/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -410,6 +419,12 @@ importers:
       '@faako/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@faako/finance':
+        specifier: workspace:*
+        version: link:../../packages/finance
+      '@faako/offline-sync':
+        specifier: workspace:*
+        version: link:../../packages/offline-sync
       '@faako/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -964,11 +979,21 @@ importers:
 
   packages/email-kit: {}
 
+  packages/finance: {}
+
+  packages/layout: {}
+
   packages/logger:
     dependencies:
       pino:
         specifier: ^9.0.0
         version: 9.14.0
+
+  packages/offline-sync:
+    dependencies:
+      react:
+        specifier: '>=18'
+        version: 19.2.4
 
   packages/security: {}
 

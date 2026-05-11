@@ -4,8 +4,15 @@ import "./ui.css";
 
 export * from "./ErpBottomNav";
 export * from "./ErpBreadcrumb";
+export * from "./ErpMobileBottomNavFrame";
+export * from "./ErpModuleGroupNav";
 export * from "./ErpNavSidebar";
+export * from "./ErpPageContent";
+export * from "./ErpPageHeader";
 export * from "./ErpShellFrame";
+export * from "./ErpShellSidebarSlot";
+export * from "./ErpShellTopbar";
+export * from "./ErpStatusBadge";
 export * from "./SidebarEdgeToggle";
 export * from "./components/AppBottomBar";
 export * from "./components/SystemProvider";

@@ -57,7 +57,26 @@ pnpm --filter @faako/reebs-portal run test:e2e
 
 - the portal follows the current shared shell system used across the repo
 - sidebar width, collapse behavior, edge toggle placement, shared modal spacing, and mobile-safe bottom-nav padding should stay aligned with the other ERP apps
+- the admin app frame now uses shared ERP shell/page-content wrappers from `@faako/ui` while keeping REEBS-specific sidebar, bottom navigation, branding, pages, routes, and workflows in the app
 - shared form styling should be preferred over browser-native control chrome
+- `src/config/adminModules.js` contains the REEBS admin module registry for home, POS, orders, bookings, inventory, customers, delivery, finance, reports, team, settings, and detailed child navigation entries.
+- `src/config/adminNavigation.js` adapts that registry into the existing sidebar and bottom navigation, preserving current labels, links, role filtering, driver/water behavior, and legacy route targets.
+- Module registry entries now carry `visibility` and `state` metadata. Hidden modules are ignored by navigation; disabled, internal, coming-soon, and experimental modules can render subtle visual badges/classes while preserving routes and existing page behavior.
+- Module consolidation planning is documented in [docs/apps/reebs-portal/module-consolidation-plan.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/module-consolidation-plan.md). It is planning-only and does not change routes, auth, schema, redirects, or workflows.
+- Team navigation consolidation is the first implemented consolidation step: users, employees, directory, HR, roles, and timesheets now appear under the Team module while existing routes remain valid.
+- Settings navigation consolidation groups settings, advanced, website template, inventory product admin, and inventory template admin routes under the Settings module in registry metadata while existing routes and redirects remain valid.
+- Bookings navigation consolidation groups bookings, rentals, and schedule routes under the Bookings module in registry metadata while existing routes, booking workflows, rental workflows, schedule workflows, stock behavior, payments, and receipts remain unchanged.
+- Finance consolidation planning is documented in [docs/apps/reebs-portal/finance-consolidation-plan.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/finance-consolidation-plan.md). It is planning-only and does not change payment recording, receipt generation, invoices, order/POS behavior, accounting logic, routes, APIs, migrations, or permissions.
+- Finance navigation grouping now places accounting, expenses, and invoicing under the Finance module in registry metadata while keeping payment recording, receipt generation, invoice generation, POS/order behavior, accounting logic, routes, APIs, and permissions unchanged.
+- Orders, payments, receipts, invoice documents, POS payments, booking-linked orders, balance calculations, and stock/payment side effects are mapped in [docs/apps/reebs-portal/order-payment-receipt-workflow-review.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/order-payment-receipt-workflow-review.md). This review is documentation-only and should be used before any shared payment/receipt/order runtime package work or before expanding `@faako/finance` beyond constants, helpers, and presentation utilities.
+- `@faako/finance` is used only for REEBS order UI currency/payment-label presentation. It does not change order persistence, payment writes, receipt creation, invoice behavior, stock/payment timing, backend APIs, permissions, or database schema.
+- `@faako/offline-sync` is used for the REEBS admin shell online/offline indicator and local draft storage for Store Mode POS carts and unsent manual order payment forms. Drafts are browser-local, user/org scoped where possible, and do not queue POS orders, payment records, receipts, bookings, inventory changes, delivery updates, customer writes, or any production sync.
+- The registry uses shared helpers from `@faako/config`; it has no required environment variables, setup steps, migrations, database impact, billing behavior, SaaS plan gating, or access-control enforcement changes.
+- Known limitation: the registry now drives navigation metadata, but route guards and backend permissions remain manual and unchanged. Database-backed module toggles, org-level module config, permissions integration, SaaS plan gating, and visual grouped navigation remain future work.
+- Known limitation: shell placeholder support for offline/sync/notifications/org switching is structural only; REEBS production notification/search behavior remains app-owned.
+- Known limitation: offline POS/payment support is draft-only. Final sales and manual payments still require the existing online server APIs, backend validation, permission checks, receipt creation, stock handling, and audit behavior.
+- Known limitation: order payment receipts and invoice document receipts remain separate concepts; payment provider confirmation, refund handling, and receipt delivery should be reviewed before shared extraction.
+- Testing notes: verify sidebar and bottom-nav link sets, hidden-module filtering in registry adapters, disabled-module visual state, Finance ownership for `/admin/accounting`, `/admin/expenses`, and `/admin/invoicing`, Bookings ownership for `/admin/rentals` and `/admin/schedule`, Settings ownership for `/admin/advanced`, `/admin/website-template`, `/admin/inventory/products`, and `/admin/inventory/templates`, REEBS order currency display and payment method labels, online/offline indicator visibility, Store Mode local draft save/restore/clear behavior, manual payment draft restore/clear behavior, driver/customer behavior, water access, shell frame spacing, and legacy targets such as `/admin/customers` before future registry wiring.
 
 ## Current Access Model
 
@@ -82,8 +101,8 @@ Current route and navigation behavior:
 
 Current module groups:
 
-- standard operations: Store Mode, Inventory, Purchases, Offline, Orders, New Order, CRM, Users, Employees, Directory, Maintenance, Timesheets, Rentals
-- privileged admin: Bookings, Schedule, Accounting, Expenses, Vendors, Delivery, Documents, Settings, HR, Roles, Invoicing, Marketing, Advanced, Website Template
+- standard operations: Store Mode, Inventory, Purchases, Offline, Orders, New Order, CRM, Users, Employees, Directory, Maintenance, Timesheets, Rentals under Bookings
+- privileged admin: Bookings, Schedule under Bookings, Finance with Accounting/Expenses/Invoicing, Vendors, Delivery, Documents, Settings, HR, Roles, Marketing, Advanced, Website Template
 - owner/admin inventory admin: Inventory Products, Inventory Templates
 - water access: Water
 
@@ -139,3 +158,6 @@ node ./scripts/netlify-ignore.mjs @faako/reebs-portal
 
 - [docs/FRONTEND.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/docs/FRONTEND.md)
 - [docs/BACKEND.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/docs/BACKEND.md)
+- [module-consolidation-plan.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/module-consolidation-plan.md)
+- [finance-consolidation-plan.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/finance-consolidation-plan.md)
+- [order-payment-receipt-workflow-review.md](/Users/Nana/Desktop/Developer/faako-system/docs/apps/reebs-portal/order-payment-receipt-workflow-review.md)

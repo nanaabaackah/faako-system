@@ -1,5 +1,13 @@
 /* eslint-disable no-unused-vars */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildScopedDraftKey,
+  clearLocalDraft,
+  listLocalDrafts,
+  readLocalDraft,
+  useOnlineStatus,
+  writeLocalDraft,
+} from "@faako/offline-sync";
 import { DateField, FilterBar, SelectField } from "@faako/ui";
 import "./OrdersList.css";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -127,6 +135,28 @@ const PAYMENT_ACTION_INITIAL_FORM = {
   notes: "",
 };
 
+const hasPaymentActionDraft = (form) =>
+  Boolean(
+    String(form.amount || "").trim() ||
+      String(form.provider || "").trim() ||
+      String(form.transactionReference || "").trim() ||
+      String(form.phoneNumber || "").trim() ||
+      String(form.notes || "").trim() ||
+      (form.method || "cash") !== "cash"
+  );
+
+const sanitizePaymentActionDraft = (value) => ({
+  amount: String(value?.amount || "").slice(0, 32),
+  method: ["cash", "mobile_money", "bank_transfer", "card", "other"].includes(value?.method)
+    ? value.method
+    : "cash",
+  provider: String(value?.provider || "").slice(0, 80),
+  transactionReference: String(value?.transactionReference || "").slice(0, 120),
+  phoneNumber: String(value?.phoneNumber || "").slice(0, 40),
+  notes: String(value?.notes || "").slice(0, 240),
+  targetStage: value?.targetStage === "paid" ? "paid" : "partially_paid",
+});
+
 const MOBILE_VIEW_QUERY = "(max-width: 720px)";
 
 const getIsMobileView = () =>
@@ -135,6 +165,10 @@ const getIsMobileView = () =>
 function OrdersList() {
   const { user } = useAuth();
   const location = useLocation();
+  const isOnline = useOnlineStatus();
+  const restoredPaymentActionDraftRef = useRef(false);
+  const paymentActionDraftWriteTimerRef = useRef(null);
+  const paymentActionDraftSkipWriteRef = useRef(false);
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
   const [orders, setOrders] = useState([]);
@@ -157,8 +191,10 @@ function OrdersList() {
   const [stateNotice, setStateNotice] = useState(null);
   const [paymentAction, setPaymentAction] = useState(null);
   const [paymentForm, setPaymentForm] = useState(PAYMENT_ACTION_INITIAL_FORM);
+  const [paymentFormTouched, setPaymentFormTouched] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState(null);
+  const [paymentDraftNotice, setPaymentDraftNotice] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -461,15 +497,39 @@ function OrdersList() {
     event.dataTransfer.setData("text/plain", String(order.id));
   };
 
-  const closePaymentAction = () => {
+  const getPaymentActionDraftKey = useCallback(
+    (orderId) =>
+      buildScopedDraftKey({
+        sourceApp: "reebs-portal",
+        organizationId: user?.organizationId,
+        actorId: user?.id,
+        draftType: "order-payment-action",
+        recordId: orderId,
+      }),
+    [user?.id, user?.organizationId]
+  );
+
+  const clearPaymentActionDraft = useCallback(
+    (orderId = paymentAction?.order?.id) => {
+      clearLocalDraft(getPaymentActionDraftKey(orderId));
+      setPaymentDraftNotice(null);
+    },
+    [getPaymentActionDraftKey, paymentAction?.order?.id]
+  );
+
+  const closePaymentAction = ({ clearDraft = true } = {}) => {
+    if (clearDraft) clearPaymentActionDraft(paymentAction?.order?.id);
     setPaymentAction(null);
     setPaymentForm(PAYMENT_ACTION_INITIAL_FORM);
+    setPaymentFormTouched(false);
     setPaymentNotice(null);
+    setPaymentDraftNotice(null);
     setPaymentSaving(false);
   };
 
   const updatePaymentField = (field, value) => {
     setPaymentForm((current) => ({ ...current, [field]: value }));
+    setPaymentFormTouched(true);
   };
 
   const openPaymentAction = (order, targetStage) => {
@@ -484,12 +544,115 @@ function OrdersList() {
     }
     setStateNotice(null);
     setPaymentNotice(null);
+    setPaymentDraftNotice(null);
     setPaymentAction({ order, targetStage });
+    const draft = readLocalDraft(getPaymentActionDraftKey(order.id));
+    if (draft?.data) {
+      const restored = sanitizePaymentActionDraft(draft.data);
+      setPaymentForm({
+        ...PAYMENT_ACTION_INITIAL_FORM,
+        ...restored,
+      });
+      setPaymentFormTouched(true);
+      setPaymentDraftNotice({
+        type: "restored",
+        savedAt: draft.savedAt || "",
+      });
+      paymentActionDraftSkipWriteRef.current = true;
+      return;
+    }
     setPaymentForm({
       ...PAYMENT_ACTION_INITIAL_FORM,
       amount: targetStage === "paid" ? (balanceCents / 100).toFixed(2) : "",
     });
+    setPaymentFormTouched(false);
   };
+
+  useEffect(() => {
+    if (restoredPaymentActionDraftRef.current || loading || paymentAction) return;
+    if (!user?.organizationId || !user?.id || !orders.length) return;
+
+    const draft = listLocalDrafts()
+      .find((entry) => (
+        entry?.metadata?.sourceApp === "reebs-portal" &&
+        entry?.metadata?.draftType === "order-payment-action" &&
+        String(entry?.metadata?.organizationId) === String(user.organizationId) &&
+        String(entry?.metadata?.actorId) === String(user.id) &&
+        orders.some((order) => String(order.id) === String(entry?.metadata?.recordId))
+      ));
+
+    restoredPaymentActionDraftRef.current = true;
+    if (!draft?.data) return;
+
+    const restored = sanitizePaymentActionDraft(draft.data);
+    const order = orders.find((item) => String(item.id) === String(draft.metadata.recordId));
+    if (!order?.id) return;
+
+    setPaymentAction({ order, targetStage: restored.targetStage });
+    setPaymentForm({
+      ...PAYMENT_ACTION_INITIAL_FORM,
+      ...restored,
+    });
+    setPaymentFormTouched(true);
+    setPaymentDraftNotice({
+      type: "restored",
+      savedAt: draft.savedAt || "",
+    });
+    paymentActionDraftSkipWriteRef.current = true;
+  }, [loading, orders, paymentAction, user?.id, user?.organizationId]);
+
+  useEffect(() => {
+    if (!paymentAction?.order?.id) return undefined;
+    const draftKey = getPaymentActionDraftKey(paymentAction.order.id);
+    if (!draftKey) return undefined;
+    if (paymentActionDraftSkipWriteRef.current) {
+      paymentActionDraftSkipWriteRef.current = false;
+      return undefined;
+    }
+
+    if (paymentActionDraftWriteTimerRef.current) {
+      clearTimeout(paymentActionDraftWriteTimerRef.current);
+    }
+
+    paymentActionDraftWriteTimerRef.current = setTimeout(() => {
+      if (paymentFormTouched && hasPaymentActionDraft(paymentForm)) {
+        const saved = writeLocalDraft(
+          draftKey,
+          {
+            ...sanitizePaymentActionDraft(paymentForm),
+            targetStage: paymentAction.targetStage,
+          },
+          {
+            metadata: {
+              sourceApp: "reebs-portal",
+              organizationId: user?.organizationId,
+              actorId: user?.id,
+              draftType: "order-payment-action",
+              recordId: paymentAction.order.id,
+            },
+          }
+        );
+        if (saved) {
+          setPaymentDraftNotice({
+            type: "saved",
+            savedAt: saved.savedAt || "",
+          });
+        }
+      } else if (paymentFormTouched && !hasPaymentActionDraft(paymentForm)) {
+        clearPaymentActionDraft(paymentAction.order.id);
+      }
+    }, 250);
+
+    return () => clearTimeout(paymentActionDraftWriteTimerRef.current);
+  }, [
+    clearPaymentActionDraft,
+    getPaymentActionDraftKey,
+    paymentAction,
+    paymentForm,
+    paymentFormTouched,
+    user?.id,
+    user?.organizationId,
+  ]);
 
   const handlePaymentActionSubmit = async (event) => {
     event.preventDefault();
@@ -1100,6 +1263,26 @@ function OrdersList() {
                   compact
                   onDismiss={() => setPaymentNotice(null)}
                   dismissLabel="Dismiss payment notice"
+                />
+              )}
+              {paymentDraftNotice && (
+                <InlineNotice
+                  tone={paymentDraftNotice.type === "saved" && isOnline ? "success" : "info"}
+                  title={
+                    paymentDraftNotice.type === "restored"
+                      ? "Unsaved local draft restored"
+                      : isOnline
+                        ? "Draft saved locally"
+                        : "Offline"
+                  }
+                  message={
+                    paymentDraftNotice.type === "restored"
+                      ? "Review the payment draft before submitting. The server will still validate the final payment."
+                      : isOnline
+                        ? "Online - ready to submit. Final payment and receipt records are still created by the server."
+                        : "Payment draft saved locally. Submit only after the connection is stable."
+                  }
+                  compact
                 />
               )}
 

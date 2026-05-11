@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
+import { ErpStatusBadge, SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -14,26 +14,11 @@ import {
 } from "../../utils/adminPreferences";
 import {
   faBars,
-  faBullhorn,
   faCalendarDays,
-  faChartLine,
-  faClock,
   faClipboardList,
   faFileInvoiceDollar,
-  faFileLines,
-  faGlobe,
-  faHome,
-  faMoneyCheckDollar,
-  faReceipt,
-  faShieldAlt,
-  faSliders,
-  faStore,
-  faTools,
-  faTruck,
   faUser,
   faUserGroup,
-  faUserTie,
-  faUsers,
   faSun,
   faMoon,
   faChevronDown,
@@ -47,8 +32,8 @@ import {
   faMagnifyingGlass,
 } from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
-import { WEBSITE_URL } from "../../utils/website";
 import { DASHBOARD_PATHS } from "../../utils/adminDashboardLinks";
+import { getReebsSidebarNavItems } from "../../config/adminNavigation";
 import {
   canAccessPortalBookings,
   canAccessPortalCustomerDirectory,
@@ -59,8 +44,6 @@ import {
   normalizeAdminRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
-
-const STANDARD_NAV_ROLES = ["admin", "manager", "staff", "warehouse"];
 
 const MOBILE_QUERY = "(max-width: 720px)";
 const REEBS_PORTAL_LOGO_LIGHT = "/imgs/brand/reebs_logo2.svg";
@@ -73,155 +56,7 @@ const getSearchShortcutLabel = () => {
   return /Mac|iPhone|iPad|iPod/i.test(platform) ? "Cmd K" : "Ctrl K";
 };
 
-const DEFAULT_APPS = [
-  {
-    label: "Dashboard",
-    path: "/admin",
-    matchPaths: ["/admin"],
-    icon: faHome,
-  },
-  {
-    label: "Website",
-    path: WEBSITE_URL,
-    icon: faGlobe,
-    external: true,
-    description: "Open the public website",
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Inventory",
-    path: "/admin/inventory",
-    icon: faBoxesStacked,
-  },
-  {
-    label: "Rentals",
-    path: "/admin/rentals",
-    icon: faBoxesStacked,
-  },
-  {
-    label: "POS",
-    path: "/admin/store-mode",
-    icon: faReceipt,
-  },
-  {
-    label: "CRM",
-    path: "/admin/crm",
-    matchPaths: ["/admin/crm", "/admin/customers"],
-    icon: faUserGroup,
-  },
-  {
-    label: "Orders",
-    path: "/admin/orders",
-    matchPaths: ["/admin/orders", "/admin/orders/new"],
-    icon: faClipboardList,
-  },
-  {
-    label: "Bookings",
-    path: "/admin/bookings",
-    icon: faCalendarDays,
-  },
-  {
-    label: "Scheduling",
-    path: "/admin/schedule",
-    icon: faCalendarCheck,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Accounting",
-    path: "/admin/accounting",
-    icon: faChartLine,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Invoicing",
-    path: "/admin/invoicing",
-    icon: faFileInvoiceDollar,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Directory",
-    path: "/admin/directory",
-    matchPaths: ["/admin/directory", "/admin/users", "/admin/employees"],
-    icon: faUsers,
-    roles: STANDARD_NAV_ROLES,
-  },
-  {
-    label: "Expenses",
-    path: "/admin/expenses",
-    icon: faMoneyCheckDollar,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Water",
-    path: "/admin/water",
-    icon: faStore,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Human Resources",
-    path: "/admin/hr",
-    icon: faUserTie,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Vendors",
-    path: "/admin/vendors",
-    icon: faStore,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Maintenance",
-    path: "/admin/maintenance",
-    icon: faTools,
-  },
-  {
-    label: "Delivery",
-    path: "/admin/delivery",
-    icon: faTruck,
-  },
-  {
-    label: "Documents",
-    path: "/admin/documents",
-    icon: faFileLines,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Timesheets",
-    path: "/admin/timesheets",
-    icon: faClock,
-  },
-  {
-    label: "Users",
-    path: "/admin/roles",
-    icon: faShieldAlt,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Reports",
-    path: "/admin/reports",
-    icon: faChartLine,
-    roles: ["admin"],
-  },
-  {
-    label: "Audit Log",
-    path: "/admin/audit-logs",
-    icon: faFileLines,
-    roles: ["admin"],
-  },
-  {
-    label: "Marketing",
-    path: "/admin/marketing",
-    icon: faBullhorn,
-    roles: ["admin", "manager"],
-  },
-  {
-    label: "Settings",
-    path: "/admin/settings",
-    icon: faSliders,
-    matchPaths: ["/admin/settings", "/admin/advanced", "/admin/website-template"],
-    roles: ["admin", "manager"],
-  },
-];
+const DEFAULT_APPS = getReebsSidebarNavItems();
 
 const normalizePath = (pathname) => {
   if (!pathname) return "/admin";
@@ -932,12 +767,35 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
         {visibleApps.map((app) => {
         const active = isActive(app);
-        const linkClasses = ["portal-sidebar__link", active ? "is-active" : ""]
+        const badges = Array.isArray(app.badges) ? app.badges : [];
+        const renderBadges = () => (
+          badges.length > 0 ? (
+            <span className="portal-sidebar__module-badges" aria-label="Module state">
+              {badges.map((badge) => (
+                <ErpStatusBadge key={badge.key} badge={badge} className="portal-sidebar__module-badge" />
+              ))}
+            </span>
+          ) : null
+        );
+        const linkClasses = [
+          "portal-sidebar__link",
+          active ? "is-active" : "",
+          app.enabled === false ? "is-disabled" : "",
+        ]
           .filter(Boolean)
           .join(" ");
         if (app.external) {
           return (
-            <li key={app.label} className={active ? "is-active" : undefined}>
+            <li
+              key={app.label}
+              className={active ? "is-active" : undefined}
+              data-module-key={app.moduleKey}
+              data-module-group={app.group}
+              data-module-status={app.status}
+              data-module-state={app.state}
+              data-module-visibility={app.visibility}
+              data-module-status-label={app.statusLabel}
+            >
               <a
                 href={app.path}
                 target="_blank"
@@ -954,7 +812,10 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   <span className="portal-sidebar__link-icon" aria-hidden="true">
                     <AppIcon icon={app.icon} />
                   </span>
-                  <span className="portal-sidebar__link-label">{app.label}</span>
+                  <span className="portal-sidebar__link-label-row">
+                    <span className="portal-sidebar__link-label">{app.label}</span>
+                    {renderBadges()}
+                  </span>
                 </span>
                 <AppIcon
                   icon={faExternalLinkAlt}
@@ -966,7 +827,16 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
           );
         }
         return (
-          <li key={app.label} className={active ? "is-active" : undefined}>
+          <li
+            key={app.label}
+            className={active ? "is-active" : undefined}
+            data-module-key={app.moduleKey}
+            data-module-group={app.group}
+            data-module-status={app.status}
+            data-module-state={app.state}
+            data-module-visibility={app.visibility}
+            data-module-status-label={app.statusLabel}
+          >
             <Link
               to={app.path}
               className={linkClasses}
@@ -980,7 +850,10 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 <span className="portal-sidebar__link-icon" aria-hidden="true">
                   <AppIcon icon={app.icon} />
                 </span>
-                <span className="portal-sidebar__link-label">{app.label}</span>
+                <span className="portal-sidebar__link-label-row">
+                  <span className="portal-sidebar__link-label">{app.label}</span>
+                  {renderBadges()}
+                </span>
               </span>
             </Link>
           </li>

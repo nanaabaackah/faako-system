@@ -1,1 +1,15 @@
 @import "../../styles/admin.css";
+
+@media (max-width: 720px) {
+  .customers-table--customers {
+    table-layout: auto !important;
+  }
+
+  .customers-table--customers :is(thead, tbody) :is(th, td):is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)) {
+    display: none !important;
+  }
+
+  .customers-table--customers tfoot {
+    display: none;
+  }
+}

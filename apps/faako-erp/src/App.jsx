@@ -4,7 +4,9 @@ import {
   AppBottomBar,
   ErpBottomNav,
   ErpNavSidebar,
+  ErpPageContent,
   ErpShellFrame,
+  ErpShellTopbar,
   useSidebarCollapsedState,
 } from "@faako/ui";
 import {
@@ -278,6 +280,9 @@ function AppLayout() {
     });
   }, []);
 
+  const topbarTitle =
+    activePageTitles[location.pathname] || toTitleCase(location.pathname.replace(/^\/+/, "")) || "Dashboard";
+
   return (
     <ErpShellFrame
       brand={scenario.brand}
@@ -307,39 +312,39 @@ function AppLayout() {
       }
     >
       <div ref={shellContentRef} className="erp-app-content">
-        <header ref={topbarRef} className="erp-topbar">
-          <div className="topbar-title">
-            <span>{activePageTitles[location.pathname] || toTitleCase(location.pathname.replace(/^\/+/, "")) || "Dashboard"}</span>
-          </div>
-          <div className="topbar-actions">
-            <div className="segmented scenario-switcher" aria-label="Switch demo scenario">
-              {scenarioOptions.map((opt) => (
+        <ErpShellTopbar
+          ref={topbarRef}
+          className="erp-topbar"
+          title={topbarTitle}
+          context={scenario.brand.topbarLabel}
+          viewer={user?.email}
+          actions={(
+            <>
+              <div className="segmented scenario-switcher" aria-label="Switch demo scenario">
+                {scenarioOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    className={`segment ${scenarioId === opt.id ? "is-active" : ""}`}
+                    onClick={() => setScenarioId(opt.id)}
+                    type="button"
+                  >
+                    {opt.shortLabel}
+                  </button>
+                ))}
+              </div>
+              {user?.email ? (
                 <button
-                  key={opt.id}
-                  className={`segment ${scenarioId === opt.id ? "is-active" : ""}`}
-                  onClick={() => setScenarioId(opt.id)}
+                  className="button button-ghost button-compact"
+                  onClick={revokeAccess}
                   type="button"
                 >
-                  {opt.shortLabel}
+                  Change access
                 </button>
-              ))}
-            </div>
-            <span className="erp-topbar__context">{scenario.brand.topbarLabel}</span>
-            {user?.email ? (
-              <span className="erp-topbar__viewer">{user.email}</span>
-            ) : null}
-            {user?.email ? (
-              <button
-                className="button button-ghost button-compact"
-                onClick={revokeAccess}
-                type="button"
-              >
-                Change access
-              </button>
-            ) : null}
-          </div>
-        </header>
-        <main className="erp-content">
+              ) : null}
+            </>
+          )}
+        />
+        <ErpPageContent className="erp-content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
@@ -356,7 +361,7 @@ function AppLayout() {
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </main>
+        </ErpPageContent>
         <div className="ui-bottom-bar-shell faako-erp-bottom-bar-shell">
           <AppBottomBar businessName={scenario.brand.name} />
         </div>

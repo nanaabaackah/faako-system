@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { ErpBranding, ErpNavItem, IconRenderer } from "@faako/types";
 import { isPathActive } from "@faako/utils";
 import { SidebarEdgeToggle } from "./SidebarEdgeToggle";
+import { ErpStatusBadge } from "./ErpStatusBadge";
 
 interface ErpNavSidebarProps {
   brand: ErpBranding;
@@ -156,6 +157,12 @@ export function ErpNavSidebar({
                 : renderFallbackIcon(item.label, item.iconKey);
               const itemLabel =
                 item.description && collapsed ? `${item.label}: ${item.description}` : item.label;
+              const badges = Array.isArray(item.badges) ? item.badges : [];
+              const linkClassName = [
+                "erp-nav-sidebar__link",
+                isActive ? "is-active" : "",
+                item.enabled === false ? "is-disabled" : "",
+              ].filter(Boolean).join(" ");
 
               const content = (
                 <span className="erp-nav-sidebar__link-main">
@@ -163,7 +170,16 @@ export function ErpNavSidebar({
                     {icon}
                   </span>
                   <span className="erp-nav-sidebar__copy">
-                    <span className="erp-nav-sidebar__label">{item.label}</span>
+                    <span className="erp-nav-sidebar__label-row">
+                      <span className="erp-nav-sidebar__label">{item.label}</span>
+                      {badges.length > 0 ? (
+                        <span className="erp-nav-sidebar__badges" aria-label="Module state">
+                          {badges.map((badge) => (
+                            <ErpStatusBadge key={badge.key} badge={badge} />
+                          ))}
+                        </span>
+                      ) : null}
+                    </span>
                     {item.description ? (
                       <span className="erp-nav-sidebar__description">{item.description}</span>
                     ) : null}
@@ -175,10 +191,15 @@ export function ErpNavSidebar({
                 return (
                   <a
                     key={item.id}
-                    className="erp-nav-sidebar__link"
+                    className={linkClassName}
                     href={item.path}
                     rel="noreferrer"
                     target="_blank"
+                    data-module-group={item.group}
+                    data-module-status={item.status}
+                    data-module-state={item.state}
+                    data-module-visibility={item.visibility}
+                    data-module-status-label={item.statusLabel}
                     title={collapsed ? itemLabel : undefined}
                     aria-label={collapsed ? itemLabel : undefined}
                   >
@@ -190,8 +211,13 @@ export function ErpNavSidebar({
               return (
                 <Link
                   key={item.id}
-                  className={`erp-nav-sidebar__link ${isActive ? "is-active" : ""}`}
+                  className={linkClassName}
                   to={item.path}
+                  data-module-group={item.group}
+                  data-module-status={item.status}
+                  data-module-state={item.state}
+                  data-module-visibility={item.visibility}
+                  data-module-status-label={item.statusLabel}
                   title={collapsed ? itemLabel : undefined}
                   aria-label={collapsed ? itemLabel : undefined}
                 >

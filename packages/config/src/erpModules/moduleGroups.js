@@ -1,0 +1,30 @@
+export const ERP_MODULE_GROUPS = Object.freeze({
+  CORE: "core",
+  SALES: "sales",
+  OPERATIONS: "operations",
+  FINANCE: "finance",
+  INSIGHTS: "insights",
+  TEAM: "team",
+  PEOPLE: "team",
+  SYSTEM: "system",
+});
+
+export const ERP_MODULE_GROUP_ORDER = Object.freeze([
+  ERP_MODULE_GROUPS.CORE,
+  ERP_MODULE_GROUPS.SALES,
+  ERP_MODULE_GROUPS.OPERATIONS,
+  ERP_MODULE_GROUPS.FINANCE,
+  ERP_MODULE_GROUPS.INSIGHTS,
+  ERP_MODULE_GROUPS.TEAM,
+  ERP_MODULE_GROUPS.SYSTEM,
+]);
+
+export const ERP_MODULE_GROUP_LABELS = Object.freeze({
+  [ERP_MODULE_GROUPS.CORE]: "Core",
+  [ERP_MODULE_GROUPS.SALES]: "Sales",
+  [ERP_MODULE_GROUPS.OPERATIONS]: "Operations",
+  [ERP_MODULE_GROUPS.FINANCE]: "Finance",
+  [ERP_MODULE_GROUPS.INSIGHTS]: "Insights",
+  [ERP_MODULE_GROUPS.TEAM]: "Team",
+  [ERP_MODULE_GROUPS.SYSTEM]: "System",
+});

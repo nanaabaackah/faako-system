@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ErpNavItem, IconRenderer } from "@faako/types";
 import { isPathActive } from "@faako/utils";
+import { ErpStatusBadge } from "./ErpStatusBadge";
 
 interface ErpBottomNavProps {
   items: ErpNavItem[];
@@ -29,17 +30,36 @@ export function ErpBottomNav({
         const icon = renderIcon
           ? renderIcon(item.iconKey, item.label)
           : renderFallbackIcon(item.label, item.iconKey);
+        const badges = Array.isArray(item.badges) ? item.badges : [];
 
         return (
           <Link
             key={item.id}
-            className={`erp-bottom-nav__button ${isActive ? "is-active" : ""}`}
+            className={[
+              "erp-bottom-nav__button",
+              isActive ? "is-active" : "",
+              item.enabled === false ? "is-disabled" : "",
+            ].filter(Boolean).join(" ")}
             to={item.path}
+            data-module-group={item.group}
+            data-module-status={item.status}
+            data-module-state={item.state}
+            data-module-visibility={item.visibility}
+            data-module-status-label={item.statusLabel}
           >
             <span className="erp-bottom-nav__icon" aria-hidden="true">
               {icon}
             </span>
-            <span>{item.label}</span>
+            <span className="erp-bottom-nav__label">
+              <span>{item.label}</span>
+              {badges.length > 0 ? (
+                <span className="erp-bottom-nav__badges" aria-label="Module state">
+                  {badges.map((badge) => (
+                    <ErpStatusBadge key={badge.key} badge={badge} />
+                  ))}
+                </span>
+              ) : null}
+            </span>
           </Link>
         );
       })}

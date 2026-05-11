@@ -1,7 +1,8 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppBottomBar, ErpShellFrame } from "@faako/ui";
+import { AppBottomBar, ErpPageContent, ErpShellFrame } from "@faako/ui";
+import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
@@ -505,6 +506,7 @@ function AppLayout() {
   const pathname = location.pathname;
   const isAdminRoute = pathname.startsWith('/admin');
   const isStoreModeRoute = pathname === "/admin/store-mode";
+  const isOnline = useOnlineStatus();
 
   const pageTitle = useMemo(
     () => getErpPageTitle(pathname, shellConfig.brand.name, shellConfig.pageTitles, "/admin"),
@@ -609,7 +611,7 @@ function AppLayout() {
           </Helmet>
           <div className="portal-app-shell portal-app-shell--store-mode">
             <div className="portal-app-content portal-app-content--store-mode portal-app-content--with-bottom-bar">
-              <div className="portal-app-content__body">{routes}</div>
+              <ErpPageContent as="div" className="portal-app-content__body">{routes}</ErpPageContent>
               <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
                 <AppBottomBar />
               </div>
@@ -629,6 +631,8 @@ function AppLayout() {
           className="portal-app-shell"
           contentClassName="portal-app-content portal-app-content--with-bottom-bar"
           layout="overlay"
+          offline={!isOnline}
+          offlineIndicator={<OfflineStatusBadge online={isOnline} />}
           sidebar={(
             <Suspense fallback={null}>
               <PortalSidebar />
@@ -640,7 +644,7 @@ function AppLayout() {
             </Suspense>
           )}
         >
-          <div className="portal-app-content__body">{routes}</div>
+          <ErpPageContent as="div" className="portal-app-content__body">{routes}</ErpPageContent>
           <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
             <AppBottomBar />
           </div>

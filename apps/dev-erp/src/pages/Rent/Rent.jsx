@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatCurrencyMajor } from "@faako/finance";
 import { FiArrowUpRight, FiTrash2 } from "react-icons/fi";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
@@ -10,10 +11,7 @@ const buildCurrentMonthInput = () => new Date().toISOString().slice(0, 7);
 const isRentManagerRole = (roleName) => roleName === "Admin" || roleName === "Landlord";
 
 const formatAmount = (amount, currency) =>
-  `${currency} ${Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  formatCurrencyMajor(amount, currency, { display: "code", locale: "en-US" });
 
 const formatCurrencySummary = (entries) => {
   const normalizedEntries = Array.isArray(entries)

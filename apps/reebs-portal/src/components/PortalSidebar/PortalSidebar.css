@@ -618,6 +618,39 @@
   text-overflow: ellipsis;
 }
 
+.portal-sidebar__link-label-row,
+.portal-sidebar__module-badges {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.portal-sidebar__module-badge {
+  max-width: 6.5rem;
+  padding: 0.12rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--portal-sidebar-muted), transparent 62%);
+  color: var(--portal-sidebar-muted);
+  background: color-mix(in oklab, var(--portal-sidebar-tile), transparent 12%);
+  font-size: 0.56rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-sidebar__module-badge.is-experimental {
+  color: var(--portal-sidebar-link-active-ink);
+  border-color: var(--portal-sidebar-link-active-border);
+}
+
+.portal-sidebar__link.is-disabled {
+  opacity: 0.72;
+}
+
 .portal-sidebar__link-trailing {
   flex: 0 0 auto;
   opacity: 0.72;
@@ -1207,6 +1240,7 @@
 }
 
 .portal-sidebar:not(.is-expanded) .portal-sidebar__link-label,
+.portal-sidebar:not(.is-expanded) .portal-sidebar__link-label-row,
 .portal-sidebar:not(.is-expanded) .portal-sidebar__link-trailing {
   display: none;
 }

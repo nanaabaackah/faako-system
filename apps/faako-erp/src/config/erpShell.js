@@ -1,28 +1,46 @@
-import { defineErpShellConfig } from "@faako/config";
+import {
+  defineErpShellConfig,
+  getModuleBadges,
+  getModuleState,
+  getModuleStatusLabel,
+  getModuleVisibility,
+  getVisibleModules,
+  isModuleEnabled,
+} from "@faako/config";
+import { FAAKO_ERP_ADMIN_MODULES } from "./adminModules.js";
 
-const sidebarItems = [
-  { id: "dashboard", defaultLabel: "Dashboard", path: "/", iconKey: "DB" },
-  { id: "orders", defaultLabel: "Orders", path: "/orders", iconKey: "OR" },
-  { id: "inventory", defaultLabel: "Inventory", path: "/inventory", iconKey: "IN" },
-  { id: "bookings", defaultLabel: "Bookings", path: "/bookings", iconKey: "BK" },
-  { id: "vendors", defaultLabel: "Vendors", path: "/vendors", iconKey: "VN" },
-  { id: "expenses", defaultLabel: "Expenses", path: "/expenses", iconKey: "EX" },
-  { id: "finance", defaultLabel: "Finance", path: "/finance", iconKey: "FN" },
-  { id: "reports", defaultLabel: "Reports", path: "/reports", iconKey: "RP" },
-  { id: "people", defaultLabel: "People", path: "/people", iconKey: "PP" },
-  { id: "customers", defaultLabel: "Customers", path: "/customers", iconKey: "CU" },
-  { id: "notifications", defaultLabel: "Alerts", path: "/notifications", iconKey: "AL" },
-  { id: "modules", defaultLabel: "Modules", path: "/modules", iconKey: "MD" },
-  { id: "settings", defaultLabel: "Settings", path: "/settings", iconKey: "ST" },
-];
+const sortByOrder = (items = [], orderKey) =>
+  [...items].sort((left, right) => Number(left?.[orderKey] || 0) - Number(right?.[orderKey] || 0));
 
-const bottomNavItems = [
-  { id: "dashboard", defaultLabel: "Home", path: "/", iconKey: "HM" },
-  { id: "orders", defaultLabel: "Orders", path: "/orders", iconKey: "OR" },
-  { id: "inventory", defaultLabel: "Stock", path: "/inventory", iconKey: "ST" },
-  { id: "customers", defaultLabel: "CRM", path: "/customers", iconKey: "CR" },
-  { id: "settings", defaultLabel: "Settings", path: "/settings", iconKey: "SE" },
-];
+const toShellItem = (module, labelKey = "label") => ({
+  id: module.key,
+  defaultLabel: module[labelKey] || module.label,
+  path: module.path,
+  iconKey: module.key,
+  group: module.group,
+  status: module.status,
+  state: getModuleState(module),
+  visibility: getModuleVisibility(module),
+  statusLabel: getModuleStatusLabel(module),
+  badges: getModuleBadges(module),
+  enabled: isModuleEnabled(module),
+  core: Boolean(module.core),
+});
+
+const getSidebarItems = () =>
+  sortByOrder(
+    // TODO: Pass database-backed module toggles, org-level module config,
+    // permissions integration, and SaaS plan gating into getVisibleModules
+    // after those controls exist server-side.
+    getVisibleModules(FAAKO_ERP_ADMIN_MODULES).filter((module) => module.sidebar !== false),
+    "navOrder"
+  ).map((module) => toShellItem(module));
+
+const getBottomNavItems = () =>
+  sortByOrder(
+    getVisibleModules(FAAKO_ERP_ADMIN_MODULES).filter((module) => module.bottomNav),
+    "bottomOrder"
+  ).map((module) => toShellItem(module, "defaultBottomLabel"));
 
 const applyLabels = (items, overrides = {}) =>
   items.map(({ defaultLabel, ...item }) => ({
@@ -40,8 +58,8 @@ const buildPageTitles = (items) => {
 
 export const getErpShellConfig = (scenario) => {
   const navigation = scenario?.navigation || {};
-  const resolvedSidebarItems = applyLabels(sidebarItems, navigation.labels);
-  const resolvedBottomNavItems = applyLabels(bottomNavItems, navigation.bottomLabels);
+  const resolvedSidebarItems = applyLabels(getSidebarItems(), navigation.labels);
+  const resolvedBottomNavItems = applyLabels(getBottomNavItems(), navigation.bottomLabels);
 
   return defineErpShellConfig({
     brand: scenario.brand,

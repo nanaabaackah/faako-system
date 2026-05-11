@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SidebarEdgeToggle } from "@faako/ui";
+import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
 import { NavLink } from "react-router-dom";
 import {
   FiLogOut,
@@ -187,6 +187,7 @@ const SideNav = ({
                 const Icon = item.Icon;
                 const count = Number(navNotifications[item.to] || 0);
                 const hasNotification = count > 0;
+                const moduleBadges = Array.isArray(item.badges) ? item.badges : [];
                 const collapsedNavLabel = hasNotification
                   ? `${item.label}, ${count} new`
                   : item.label;
@@ -196,7 +197,17 @@ const SideNav = ({
                     key={item.to}
                     to={item.to}
                     end={item.to === "/dashboard"}
-                    className={({ isActive }) => (isActive ? "active" : "")}
+                    className={({ isActive }) =>
+                      [isActive ? "active" : "", item.enabled === false ? "is-disabled" : ""]
+                        .filter(Boolean)
+                        .join(" ")
+                    }
+                    data-module-key={item.key}
+                    data-module-group={item.group}
+                    data-module-status={item.status}
+                    data-module-state={item.state}
+                    data-module-visibility={item.visibility}
+                    data-module-status-label={item.statusLabel}
                     onClick={handleSelect}
                     title={isDesktopCollapsed ? collapsedNavLabel : undefined}
                     aria-label={isDesktopCollapsed ? collapsedNavLabel : undefined}
@@ -209,7 +220,16 @@ const SideNav = ({
                         className="nav-icon"
                         aria-hidden="true"
                       />
-                      <span>{item.label}</span>
+                      <span className="nav-link-label">
+                        <span>{item.label}</span>
+                        {moduleBadges.length > 0 ? (
+                          <span className="nav-module-badges" aria-label="Module state">
+                            {moduleBadges.map((badge) => (
+                              <ErpStatusBadge key={badge.key} badge={badge} className="nav-module-badge" />
+                            ))}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                     {hasNotification ? (
                       <span

@@ -30,7 +30,10 @@
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); if (!process.env.NETLIFY && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },
   "dependencies": {
+    "@faako/config": "workspace:*",
     "@faako/logger": "workspace:*",
+    "@faako/finance": "workspace:*",
+    "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",

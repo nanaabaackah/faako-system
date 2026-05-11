@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useOnlineStatus } from "@faako/offline-sync";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { StoreModeLayout } from "./components/StoreModeLayout";
 import {
@@ -43,6 +44,8 @@ function StoreMode() {
   const customerPickerRef = useRef(null);
   const restoredDraftKeyRef = useRef("");
   const draftWriteTimerRef = useRef(null);
+  const draftRestoreSkipWriteRef = useRef(false);
+  const isOnline = useOnlineStatus();
   const [hoveredImage, setHoveredImage] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -70,6 +73,7 @@ function StoreMode() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
+  const [draftStatus, setDraftStatus] = useState(null);
   const draftStorageKey = useMemo(() => getStoreModeDraftKey(user), [user]);
 
   useEffect(() => {
@@ -158,7 +162,8 @@ function StoreMode() {
 
   useEffect(() => {
     if (!draftStorageKey || restoredDraftKeyRef.current === draftStorageKey) return;
-    const draft = readStoreModeDraft(draftStorageKey);
+    const draftEnvelope = readStoreModeDraft(draftStorageKey);
+    const draft = draftEnvelope?.data;
     if (draft) {
       setSelectedProductId(Number.isFinite(Number(draft.selectedProductId)) ? Number(draft.selectedProductId) : null);
       setOrderItems(sanitizeDraftOrderItems(draft.orderItems));
@@ -173,6 +178,11 @@ function StoreMode() {
       setCustomerDropdownOpen(false);
       setSubmitError("");
       setSuccess("");
+      setDraftStatus({
+        type: "restored",
+        savedAt: draftEnvelope.savedAt || "",
+      });
+      draftRestoreSkipWriteRef.current = true;
     }
     restoredDraftKeyRef.current = draftStorageKey;
   }, [draftStorageKey]);
@@ -450,6 +460,11 @@ function StoreMode() {
 
   useEffect(() => {
     if (!draftStorageKey || restoredDraftKeyRef.current !== draftStorageKey) return;
+    if (draftRestoreSkipWriteRef.current) {
+      draftRestoreSkipWriteRef.current = false;
+      return undefined;
+    }
+
     const draft = {
       selectedProductId: Number.isFinite(Number(selectedProductId)) ? Number(selectedProductId) : null,
       orderItems,
@@ -467,9 +482,20 @@ function StoreMode() {
     if (draftWriteTimerRef.current) clearTimeout(draftWriteTimerRef.current);
     draftWriteTimerRef.current = setTimeout(() => {
       if (hasDraft) {
-        writeStoreModeDraft(draftStorageKey, draft);
+        const saved = writeStoreModeDraft(draftStorageKey, draft, {
+          organizationId: user?.organizationId,
+          actorId: user?.id,
+          recordId: "store-mode",
+        });
+        if (saved) {
+          setDraftStatus({
+            type: "saved",
+            savedAt: saved.savedAt || "",
+          });
+        }
       } else {
         clearStoreModeDraft(draftStorageKey);
+        setDraftStatus(null);
       }
     }, 250);
 
@@ -486,6 +512,8 @@ function StoreMode() {
     paymentMethod,
     selectedCustomer,
     selectedProductId,
+    user?.id,
+    user?.organizationId,
   ]);
 
   const addToOrder = (product, variant = null) => {
@@ -579,6 +607,7 @@ function StoreMode() {
     setCashReceived("");
     setSubmitError("");
     setSuccess("");
+    setDraftStatus(null);
     clearStoreModeDraft(draftStorageKey);
   };
 
@@ -842,6 +871,8 @@ function StoreMode() {
       error={error}
       submitError={submitError}
       success={success}
+      isOnline={isOnline}
+      draftStatus={draftStatus}
       user={user}
       inventoryProps={{
         search,

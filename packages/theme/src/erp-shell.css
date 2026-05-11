@@ -236,6 +236,57 @@
   min-width: 0;
 }
 
+.erp-nav-sidebar__label-row,
+.erp-bottom-nav__label {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.erp-nav-sidebar__badges,
+.erp-bottom-nav__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.erp-module-badge {
+  max-width: 7rem;
+  padding: 0.12rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--erp-sidebar-muted), transparent 62%);
+  color: var(--erp-sidebar-muted);
+  background: color-mix(in oklab, var(--erp-panel), transparent 20%);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erp-module-badge--experimental {
+  color: var(--erp-accent);
+  border-color: color-mix(in oklab, var(--erp-accent), transparent 56%);
+}
+
+.erp-module-badge--internal {
+  color: var(--erp-sidebar-ink);
+}
+
+.erp-module-badge--coming_soon,
+.erp-module-badge--disabled {
+  color: var(--erp-sidebar-muted);
+}
+
+.erp-nav-sidebar__link.is-disabled,
+.erp-bottom-nav__button.is-disabled {
+  opacity: 0.72;
+}
+
 .erp-nav-sidebar__link:hover {
   transform: translateX(2px);
   background: var(--erp-link-hover-bg, var(--erp-sidebar-active-bg));
@@ -405,6 +456,18 @@
   text-overflow: ellipsis;
 }
 
+.erp-bottom-nav__label {
+  max-width: 100%;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.erp-bottom-nav__badges .erp-module-badge {
+  max-width: 4.8rem;
+  font-size: 0.5rem;
+  padding-inline: 0.3rem;
+}
+
 .erp-bottom-nav__button.is-active {
   background: var(--erp-bottom-nav-active-bg, var(--erp-sidebar-active-bg));
   color: var(--erp-ink);
@@ -467,6 +530,186 @@
   font-weight: 600;
 }
 
+.erp-shell-frame__placeholders {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--erp-border);
+  background: color-mix(in oklab, var(--erp-panel), transparent 18%);
+}
+
+.erp-shell-frame__placeholder,
+.erp-shell-topbar__slot {
+  min-width: 0;
+}
+
+.erp-shell-topbar {
+  min-height: var(--erp-topbar-height, 72px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.4rem;
+  border-bottom: 1px solid var(--erp-border);
+  background: var(--erp-topbar-bg, var(--erp-panel));
+  color: var(--erp-ink);
+}
+
+.erp-shell-topbar__title,
+.erp-shell-topbar__actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.erp-shell-topbar__title-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.08rem;
+}
+
+.erp-shell-topbar__eyebrow {
+  color: var(--erp-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.erp-shell-topbar__title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.erp-shell-topbar__actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.erp-shell-topbar__context,
+.erp-shell-topbar__viewer {
+  color: var(--erp-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.erp-page-content {
+  min-width: 0;
+}
+
+.erp-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.erp-page-header__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.erp-page-header__eyebrow,
+.erp-module-group__label {
+  color: var(--erp-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.erp-page-header__title {
+  margin: 0;
+  color: var(--erp-ink);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.1;
+}
+
+.erp-page-header__description,
+.erp-page-header__metadata {
+  margin: 0;
+  color: var(--erp-muted);
+}
+
+.erp-page-header__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.erp-module-group-nav {
+  display: grid;
+  gap: 1rem;
+}
+
+.erp-module-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.erp-module-group__label {
+  margin: 0;
+}
+
+.erp-module-group__items {
+  display: grid;
+  gap: var(--ui-app-sidebar-nav-gap, 0.42rem);
+}
+
+.erp-status-badge {
+  max-width: 7rem;
+  padding: 0.12rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, currentColor, transparent 66%);
+  color: var(--erp-muted);
+  background: color-mix(in oklab, var(--erp-panel), transparent 20%);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erp-status-badge--stable {
+  color: var(--erp-muted);
+}
+
+.erp-status-badge--in_progress {
+  color: var(--erp-accent);
+}
+
+.erp-status-badge--experimental {
+  color: var(--erp-accent);
+  border-color: color-mix(in oklab, var(--erp-accent), transparent 56%);
+}
+
+.erp-status-badge--internal {
+  color: var(--erp-ink);
+}
+
+.erp-status-badge--coming_soon {
+  color: var(--erp-muted);
+}
+
+.erp-mobile-bottom-nav-frame {
+  display: flex;
+}
+
+.erp-shell-sidebar-slot {
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .erp-shell-frame--split {
     display: block;
@@ -487,5 +730,16 @@
   .erp-content-header {
     padding-bottom: 1rem;
     margin-bottom: 1rem;
+  }
+
+  .erp-shell-topbar,
+  .erp-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .erp-shell-topbar__actions,
+  .erp-page-header__actions {
+    justify-content: flex-start;
   }
 }

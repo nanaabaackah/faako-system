@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { formatCurrencyMajor } from "@faako/finance";
 import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
@@ -75,10 +76,7 @@ const formatDate = (value) => {
 };
 
 const formatAmount = (amount, currency) =>
-  `${currency} ${Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  formatCurrencyMajor(amount, currency, { display: "code", locale: "en-US" });
 
 const toDateInput = (value) => {
   if (!value) return "";

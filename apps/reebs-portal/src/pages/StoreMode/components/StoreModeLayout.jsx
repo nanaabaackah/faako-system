@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React from "react";
+import { OfflineStatusBadge } from "@faako/offline-sync";
 import { SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import { InlineNoticeStack } from "../../../components/InlineNotice/InlineNotice";
@@ -44,7 +45,7 @@ const STOCK_FILTER_OPTIONS = [
 
 const COMPACT_SEARCH_LAYOUT_WIDTH = 760;
 
-function StoreModeHeader({ onExit, onRefresh, loading }) {
+function StoreModeHeader({ onExit, onRefresh, loading, isOnline }) {
   return (
     <header className="store-mode-topbar">
       <button type="button" className="store-mode-exit" onClick={onExit}>
@@ -55,21 +56,25 @@ function StoreModeHeader({ onExit, onRefresh, loading }) {
       <div className="store-mode-topbar-copy">
         <h1>Point of sale</h1>
       </div>
-      <button
-        type="button"
-        className="store-mode-refresh store-mode-refresh--icon"
-        onClick={onRefresh}
-        disabled={loading}
-        aria-label="Refresh inventory"
-        title="Refresh inventory"
-      >
-        <AppIcon icon={faRotateRight} />
-      </button>
+      <div className="store-mode-topbar-actions">
+        <OfflineStatusBadge online={isOnline} />
+        <button
+          type="button"
+          className="store-mode-refresh store-mode-refresh--icon"
+          onClick={onRefresh}
+          disabled={loading}
+          aria-label="Refresh inventory"
+          title="Refresh inventory"
+        >
+          <AppIcon icon={faRotateRight} />
+        </button>
+      </div>
     </header>
   );
 }
 
-function StoreModeFeedback({ loading, error, submitError, success }) {
+function StoreModeFeedback({ loading, error, submitError, success, isOnline, draftStatus }) {
+  const hasLocalDraft = Boolean(draftStatus?.type);
   const notices = [
     loading
       ? {
@@ -101,6 +106,30 @@ function StoreModeFeedback({ loading, error, submitError, success }) {
           tone: "success",
           title: "Sale saved",
           message: success,
+        }
+      : null,
+    hasLocalDraft && draftStatus.type === "restored"
+      ? {
+          key: "draft-restored",
+          tone: "info",
+          title: "Unsaved local draft restored",
+          message: "Review the POS draft before submitting. The server will still validate the final sale.",
+        }
+      : null,
+    hasLocalDraft && draftStatus.type !== "restored" && !isOnline
+      ? {
+          key: "draft-offline",
+          tone: "info",
+          title: "Offline",
+          message: "Draft saved locally. Submit the sale only after the connection is stable.",
+        }
+      : null,
+    hasLocalDraft && draftStatus.type !== "restored" && isOnline
+      ? {
+          key: "draft-saved",
+          tone: "success",
+          title: "Draft saved locally",
+          message: "Online - ready to submit. Final validation still happens on the server.",
         }
       : null,
   ];
@@ -516,7 +545,6 @@ function StoreModeOrderPanel({
 function StoreModeCartPanel({
   itemCount,
   orderItemsLength,
-  subtotal,
   discountAmount,
   total,
   orderCurrency,
@@ -625,16 +653,8 @@ function StoreModeCartPanel({
 
       <div className="store-builder-inline-totals store-builder-inline-totals--checkout" aria-label="Order totals">
         <div className="store-builder-inline-total">
-          <span>Subtotal</span>
-          <strong>{formatMoney(subtotal, orderCurrency)}</strong>
-        </div>
-        <div className="store-builder-inline-total">
           <span>Discount</span>
           <strong>-{formatMoney(discountAmount, orderCurrency)}</strong>
-        </div>
-        <div className="store-builder-inline-total store-builder-inline-total--strong">
-          <span>Total</span>
-          <strong>{formatMoney(total, orderCurrency)}</strong>
         </div>
       </div>
 
@@ -671,7 +691,7 @@ function StoreModeCartPanel({
 
       <div className="store-builder-mobile-checkout">
         <div className="store-builder-mobile-total">
-          <span>Total price</span>
+          <span>Total</span>
           <strong>{formatMoney(total, orderCurrency)}</strong>
         </div>
         <div className="store-builder-mobile-actions">
@@ -778,6 +798,8 @@ export function StoreModeLayout({
   error,
   submitError,
   success,
+  isOnline,
+  draftStatus,
   inventoryProps,
   customerProps,
   orderProps,
@@ -787,12 +809,14 @@ export function StoreModeLayout({
 }) {
   return (
     <div className="store-mode-page">
-      <StoreModeHeader onExit={onExit} onRefresh={onRefresh} loading={loading} />
+      <StoreModeHeader onExit={onExit} onRefresh={onRefresh} loading={loading} isOnline={isOnline} />
       <StoreModeFeedback
         loading={loading}
         error={error}
         submitError={submitError}
         success={success}
+        isOnline={isOnline}
+        draftStatus={draftStatus}
       />
       <div className="store-mode-left-col">
         <StoreModeInventoryPanel {...inventoryProps} />

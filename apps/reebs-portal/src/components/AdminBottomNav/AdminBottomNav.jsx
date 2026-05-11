@@ -1,39 +1,20 @@
 import React, { useMemo } from "react";
 import "./AdminBottomNav.css";
 import { useLocation, useNavigate } from "react-router-dom";
+import { ErpStatusBadge } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
-import {
-  faBoxesStacked,
-  faCalendarDays,
-  faHome,
-  faReceipt,
-  faStore,
-  faTruck,
-  faUserGroup,
-} from "/src/icons/iconSet";
 import { useAuth } from "../AuthContext/AuthContext";
+import {
+  getReebsBaseBottomNavItems,
+  getReebsDriverBottomNavItems,
+  WATER_BOTTOM_NAV_ITEMS,
+} from "../../config/adminNavigation";
 import {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
   isDriverPortalRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
-
-const BASE_NAV_ITEMS = [
-  { id: "home", label: "Home", path: "/admin", icon: faHome },
-  { id: "inventory", label: "Stock", path: "/admin/inventory", icon: faBoxesStacked },
-  { id: "purchases", label: "Buy", path: "/admin/purchases", icon: faReceipt },
-  { id: "store-mode", label: "POS", path: "/admin/store-mode", icon: faStore },
-];
-
-const DRIVER_NAV_ITEMS = [
-  { id: "home", label: "Home", path: "/admin", icon: faHome },
-  { id: "bookings", label: "Bookings", path: "/admin/bookings", icon: faCalendarDays },
-  { id: "delivery", label: "Delivery", path: "/admin/delivery", icon: faTruck },
-  { id: "customers", label: "Customers", path: "/admin/directory?tab=customers", icon: faUserGroup },
-];
-
-const WATER_NAV_ITEMS = [{ id: "water", label: "Water", path: "/admin/water", icon: faBoxesStacked }];
 
 const normalizePath = (pathname) => {
   const [basePath = ""] = String(pathname || "").split("?");
@@ -43,18 +24,18 @@ const normalizePath = (pathname) => {
 
 const getNavItems = (role) => {
   if (isWaterPortalRole(role)) {
-    return WATER_NAV_ITEMS;
+    return WATER_BOTTOM_NAV_ITEMS;
   }
 
   if (isDriverPortalRole(role)) {
-    return DRIVER_NAV_ITEMS;
+    return getReebsDriverBottomNavItems();
   }
 
-  const items = canAccessStandardPortalArea(role) ? [...BASE_NAV_ITEMS] : [];
+  const items = canAccessStandardPortalArea(role) ? [...getReebsBaseBottomNavItems()] : [];
   if (canAccessWaterPortalArea(role)) {
-    items.push(WATER_NAV_ITEMS[0]);
+    items.push(WATER_BOTTOM_NAV_ITEMS[0]);
   }
-  return items;
+  return items.filter(Boolean);
 };
 
 function AdminBottomNav() {
@@ -86,11 +67,30 @@ function AdminBottomNav() {
           <button
             key={item.id}
             type="button"
-            className={`aw-nav-btn ${isActive ? "is-active" : ""}`}
+            className={[
+              "aw-nav-btn",
+              isActive ? "is-active" : "",
+              item.enabled === false ? "is-disabled" : "",
+            ].filter(Boolean).join(" ")}
+            data-module-key={item.moduleKey}
+            data-module-group={item.group}
+            data-module-status={item.status}
+            data-module-state={item.state}
+            data-module-visibility={item.visibility}
+            data-module-status-label={item.statusLabel}
             onClick={() => navigate(item.path)}
           >
             <AppIcon icon={item.icon} />
-            <span>{item.label}</span>
+            <span className="aw-nav-btn-label">
+              <span>{item.label}</span>
+              {Array.isArray(item.badges) && item.badges.length > 0 ? (
+                <span className="aw-nav-btn-badges" aria-label="Module state">
+                  {item.badges.map((badge) => (
+                    <ErpStatusBadge key={badge.key} badge={badge} className="aw-nav-btn-badge" />
+                  ))}
+                </span>
+              ) : null}
+            </span>
           </button>
         );
       })}

@@ -27,6 +27,8 @@
   "dependencies": {
     "@faako/config": "workspace:*",
     "@faako/core": "workspace:*",
+    "@faako/finance": "workspace:*",
+    "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",

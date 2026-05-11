@@ -8,6 +8,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import {
   HambergerMenu,
 } from "iconsax-react";
@@ -35,6 +36,10 @@ import useScrollAnimations from "./hooks/useScrollAnimations";
 import { apiGet, apiPost } from "./api/client";
 import {
   AppBottomBar,
+  ErpMobileBottomNavFrame,
+  ErpPageContent,
+  ErpShellTopbar,
+  ErpStatusBadge,
   useSidebarCollapsedState,
 } from "@faako/ui";
 import {
@@ -100,9 +105,8 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const [navSwipeOffset, setNavSwipeOffset] = useState(0);
   const [isNavDragging, setIsNavDragging] = useState(false);
   const [navNotifications, setNavNotifications] = useState({});
-  const [isOffline, setIsOffline] = useState(
-    typeof navigator !== "undefined" ? !navigator.onLine : false
-  );
+  const isOnline = useOnlineStatus();
+  const isOffline = !isOnline;
   const shellRef = useRef(null);
   const topbarRef = useRef(null);
   const navSwipeRef = useRef({
@@ -140,20 +144,6 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
     if (isNavOpen) return;
     resetNavSwipe();
   }, [isNavOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
 
   useEffect(() => {
     const fallbackHeight =
@@ -317,6 +307,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
     .join(" ");
   const sidebarStyle =
     isNavOpen && navSwipeOffset !== 0 ? { transform: `translateX(${navSwipeOffset}px)` } : undefined;
+  const topbarLabel = getTopbarLabel(location.pathname);
 
   return (
     <div
@@ -349,8 +340,12 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onTouchCancel={handleSidebarTouchEnd}
       />
       <div className="erp-main">
-        <header ref={topbarRef} className="erp-topbar">
-          <div className="topbar-title">
+        <ErpShellTopbar
+          ref={topbarRef}
+          className="erp-topbar"
+          title={topbarLabel}
+          offlineIndicator={<OfflineStatusBadge online={isOnline} />}
+          leading={(
             <button
               className="nav-toggle"
               type="button"
@@ -366,34 +361,44 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
                 aria-hidden="true"
               />
             </button>
-            <span>{getTopbarLabel(location.pathname)}</span>
-          </div>
-          <div className="topbar-actions">
+          )}
+          actions={(
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          </div>
-        </header>
+          )}
+        />
         {isOffline ? (
           <div className="offline-banner" role="status" aria-live="polite">
             Offline mode. Showing cached content where available.
           </div>
         ) : null}
-        <main className="erp-content">
+        <ErpPageContent className="erp-content">
           <div className="erp-page-body">{children}</div>
           <div className="ui-bottom-bar-shell erp-content-bottom-bar">
             <AppBottomBar />
           </div>
-        </main>
+        </ErpPageContent>
       </div>
-      <nav className="mobile-tabbar" aria-label="Primary mobile navigation">
+      <ErpMobileBottomNavFrame className="mobile-tabbar">
         {visibleMobileTabItems.map((item) => {
           const count = Number(navNotifications[item.to] || 0);
           const hasNotification = count > 0;
+          const moduleBadges = Array.isArray(item.badges) ? item.badges : [];
           return (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === "/dashboard"}
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) =>
+                [isActive ? "active" : "", item.enabled === false ? "is-disabled" : ""]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+              data-module-key={item.key}
+              data-module-group={item.group}
+              data-module-status={item.status}
+              data-module-state={item.state}
+              data-module-visibility={item.visibility}
+              data-module-status-label={item.statusLabel}
             >
               <span className="mobile-tabbar__icon-wrap">
                 {React.createElement(item.Icon, {
@@ -407,11 +412,20 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
                   </span>
                 ) : null}
               </span>
-              <span>{item.label}</span>
+              <span className="mobile-tabbar__label">
+                <span>{item.label}</span>
+                {moduleBadges.length > 0 ? (
+                  <span className="mobile-tabbar__module-badges" aria-label="Module state">
+                    {moduleBadges.map((badge) => (
+                      <ErpStatusBadge key={badge.key} badge={badge} className="mobile-tabbar__module-badge" />
+                    ))}
+                  </span>
+                ) : null}
+              </span>
             </NavLink>
           );
         })}
-      </nav>
+      </ErpMobileBottomNavFrame>
     </div>
   );
 };
@@ -477,7 +491,7 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
-  
+
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };

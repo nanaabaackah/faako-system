@@ -9,6 +9,17 @@ export interface ErpNavItem {
   description?: string;
   external?: boolean;
   roles?: string[];
+  group?: string;
+  status?: string;
+  statusLabel?: string;
+  state?: string;
+  visibility?: string;
+  enabled?: boolean;
+  core?: boolean;
+  badges?: Array<{
+    key: string;
+    label: string;
+  }>;
 }
 
 export interface ErpQuickAction {
@@ -27,12 +38,27 @@ export interface ErpBranding {
   shellVars?: Record<string, string>;
 }
 
+export type ErpShellLayoutMode = "overlay" | "split";
+
+export interface ErpShellPlaceholders {
+  offlineIndicator?: boolean;
+  syncStatus?: boolean;
+  notificationArea?: boolean;
+  organizationSwitcher?: boolean;
+}
+
+export interface ErpShellFoundation {
+  layout?: ErpShellLayoutMode;
+  placeholders?: ErpShellPlaceholders;
+}
+
 export interface ErpShellConfig {
   brand: ErpBranding;
   sidebarItems?: ErpNavItem[];
   bottomNavItems?: ErpNavItem[];
   quickActions?: ErpQuickAction[];
   pageTitles?: Record<string, string>;
+  shell?: ErpShellFoundation;
 }
 
 export type RoleValue = string | null | undefined;

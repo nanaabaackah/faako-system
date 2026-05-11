@@ -338,6 +338,10 @@ export default function OrderDetail() {
                 error={paymentsHook.error}
                 onRecordPayment={paymentsHook.recordPayment}
                 onPaymentSaved={refreshAll}
+                draftScope={{
+                  organizationId: user?.organizationId,
+                  actorId: user?.id,
+                }}
               />
 
               <FulfillmentPanel order={order} onUpdated={handleFulfillmentUpdated} />

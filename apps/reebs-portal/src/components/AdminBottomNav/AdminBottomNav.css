@@ -1,1 +1,33 @@
 @import "../../pages/AdminWorkspace/AdminWorkspace.css";
+
+.aw-nav-btn-label,
+.aw-nav-btn-badges {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+}
+
+.aw-nav-btn-label {
+  max-width: 100%;
+  flex-direction: column;
+}
+
+.aw-nav-btn-badge {
+  max-width: 4.5rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, currentColor, transparent 70%);
+  font-size: 0.48rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aw-nav-btn.is-disabled {
+  opacity: 0.72;
+}
