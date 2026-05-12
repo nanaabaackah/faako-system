@@ -12,6 +12,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - Local commands load `.env.dev`.
 - Local development refuses the production database unless `ALLOW_PRODUCTION_DATABASE_IN_DEV=true`.
 - Faako Website may mirror these functions during its prebuild step.
+- `docs/platform/codebase-cleanup-audit.md` flags Faako API cleanup as documentation-first because signup/runtime behavior and website mirroring are deployment-sensitive.
 
 ## Open questions
 
@@ -24,6 +25,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - Document function contracts as endpoints grow.
 - Add explicit runbooks for migration deploys and signup incidents.
 - Keep website sync expectations current when function names or behavior change.
+- Use the platform cleanup audit before changing signup runtime config, database targeting, or mirrored function behavior. Start with endpoint contracts and deployment docs.
 
 ## Risks to monitor
 
@@ -31,3 +33,4 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - Debug errors exposed outside local environments.
 - Signup validation or storage regressions blocking onboarding.
 - Faako Website using stale mirrored function code.
+- Cleanup that changes runtime config or database guards could affect production signup safety.

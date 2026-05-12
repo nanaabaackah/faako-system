@@ -1,9 +1,67 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
+import StructuredData from "../components/StructuredData";
 import FloatingHeader from "../components/FloatingHeader";
 import "../styles/pages/Home.css";
+
+const HOME_SCHEMA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://stroanesolutions.com/#organization",
+      name: "Stroane",
+      url: "https://stroanesolutions.com",
+      logo: "https://stroanesolutions.com/assets/og-image.png",
+      description:
+        "Food safety advisory and compliance services for food businesses in Ghana.",
+      areaServed: "Ghana",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Accra",
+        addressCountry: "GH",
+      },
+    },
+    {
+      "@type": "LocalBusiness",
+      "@id": "https://stroanesolutions.com/#business",
+      name: "Stroane",
+      url: "https://stroanesolutions.com",
+      description:
+        "Food safety audits, HACCP systems, Ghana FDA compliance, and food handler training for Ghanaian businesses.",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Accra",
+        addressCountry: "GH",
+      },
+      areaServed: "Ghana",
+      hasOfferCatalog: {
+        "@type": "OfferCatalog",
+        name: "Food Safety Services",
+        itemListElement: [
+          { "@type": "Offer", itemOffered: { "@type": "Service", name: "Food Safety Audits" } },
+          { "@type": "Offer", itemOffered: { "@type": "Service", name: "HACCP Systems" } },
+          { "@type": "Offer", itemOffered: { "@type": "Service", name: "Ghana FDA Compliance" } },
+          { "@type": "Offer", itemOffered: { "@type": "Service", name: "Food Handler Training" } },
+        ],
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://stroanesolutions.com/#website",
+      url: "https://stroanesolutions.com",
+      name: "Stroane",
+      publisher: { "@id": "https://stroanesolutions.com/#organization" },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://stroanesolutions.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
 
 const services = [
   {
@@ -96,10 +154,19 @@ const WHY_CARDS = [
 ];
 
 const Home: React.FC = () => {
-  usePageTitle("Food & Drug Safety Advisory");
+  useSEOMeta({
+    title: "Food Safety Advisory & Compliance Ghana",
+    description:
+      "Stroane helps food businesses, manufacturers, and institutions in Ghana meet FDA standards, pass audits, and build safer operations. Audits, HACCP, training, and FDA compliance.",
+    keywords:
+      "food safety Ghana, Ghana FDA compliance, HACCP Ghana, food safety audit Ghana, food handler training Accra",
+    canonical: "https://stroanesolutions.com/",
+  });
 
   return (
     <Layout hideHeader>
+      <StructuredData schema={HOME_SCHEMA} id="home-schema" />
+
       {/* Hero */}
       <section className="hero-section relative mx-4 md:mx-6 overflow-visible">
         <div className="hero-bg-container absolute inset-0 z-0 overflow-hidden">
@@ -124,7 +191,7 @@ const Home: React.FC = () => {
         <img
           src="/imgs/elements/seller.png"
           alt="Food seller carrying a bowl of fresh produce"
-          className="seller-img absolute bottom-0 left-1/2 z-10 w-auto"
+          className="seller-img absolute bottom-0 left-1/2 z-[1] w-auto"
         />
       </section>
 

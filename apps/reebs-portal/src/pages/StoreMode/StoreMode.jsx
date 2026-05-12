@@ -1,7 +1,13 @@
-/* eslint-disable no-unused-vars */
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useOnlineStatus } from "@faako/offline-sync";
+import {
+  OFFLINE_CONFLICT_STATUSES,
+  OFFLINE_QUEUE_ACTION_TYPES,
+  SYNC_STATES,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
+  useOnlineStatus,
+} from "@faako/offline-sync";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { StoreModeLayout } from "./components/StoreModeLayout";
 import {
@@ -38,6 +44,27 @@ import {
 import "./StoreMode.css";
 import { computeHasDraft } from "./storeModeUtils.js";
 
+const POS_QUEUE_SOURCE_APP = "reebs-portal";
+const POS_QUEUE_REVIEW_STATUSES = new Set([
+  SYNC_STATES.PENDING,
+  SYNC_STATES.SYNCING,
+  SYNC_STATES.NEEDS_REVIEW,
+  SYNC_STATES.FAILED,
+]);
+
+const createIdempotencyKey = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `pos-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const isStockConflictError = (errorMessage = "") => {
+  const normalized = String(errorMessage || "").toLowerCase();
+  // TODO(offline-pos-conflicts): replace text matching with server conflict codes when sync APIs expose them.
+  return ["stock", "inventory", "quantity", "unavailable", "sold out"].some((needle) =>
+    normalized.includes(needle)
+  );
+};
+
 function StoreMode() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -45,7 +72,9 @@ function StoreMode() {
   const restoredDraftKeyRef = useRef("");
   const draftWriteTimerRef = useRef(null);
   const draftRestoreSkipWriteRef = useRef(false);
+  const posQueueSyncingRef = useRef(false);
   const isOnline = useOnlineStatus();
+  const posQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
   const [hoveredImage, setHoveredImage] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -74,6 +103,7 @@ function StoreMode() {
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState("");
   const [draftStatus, setDraftStatus] = useState(null);
+  const [posQueueStatus, setPosQueueStatus] = useState(null);
   const draftStorageKey = useMemo(() => getStoreModeDraftKey(user), [user]);
 
   useEffect(() => {
@@ -369,6 +399,178 @@ function StoreMode() {
     () => new Map(items.map((item) => [Number(item.id), item])),
     [items]
   );
+  const actorName = useMemo(
+    () =>
+      user?.fullName ||
+      user?.name ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      undefined,
+    [user?.firstName, user?.fullName, user?.lastName, user?.name]
+  );
+
+  const isCurrentPosQueueItem = useCallback(
+    (item) =>
+      item?.actionType === OFFLINE_QUEUE_ACTION_TYPES.CREATE_POS_ORDER &&
+      item?.sourceApp === POS_QUEUE_SOURCE_APP &&
+      String(item?.organizationId || "") === String(user?.organizationId || "") &&
+      String(item?.actorId || "") === String(user?.id || ""),
+    [user?.id, user?.organizationId]
+  );
+
+  const loadQueuedPosOrders = useCallback(async () => {
+    if (!user?.organizationId || !user?.id) {
+      setPosQueueStatus(null);
+      return [];
+    }
+
+    try {
+      const queued = (await posQueueStorage.list()).filter(isCurrentPosQueueItem);
+      const actionable = queued.filter((item) => POS_QUEUE_REVIEW_STATUSES.has(item.status));
+      const needsReview = actionable.find((item) => item.status === SYNC_STATES.NEEDS_REVIEW);
+      if (needsReview) {
+        setPosQueueStatus({
+          status: SYNC_STATES.NEEDS_REVIEW,
+          count: actionable.length,
+          message: needsReview.retry?.lastError || "A queued POS sale needs review before it can sync.",
+        });
+      } else if (actionable.length) {
+        setPosQueueStatus({
+          status: SYNC_STATES.PENDING,
+          count: actionable.length,
+          message: `${actionable.length} POS sale${actionable.length === 1 ? "" : "s"} pending sync.`,
+        });
+      } else {
+        setPosQueueStatus((current) => (current?.status === SYNC_STATES.SYNCED ? current : null));
+      }
+      return queued;
+    } catch (nextError) {
+      setPosQueueStatus({
+        status: SYNC_STATES.NEEDS_REVIEW,
+        count: 0,
+        message: nextError.message || "Unable to read the local POS sync queue.",
+      });
+      return [];
+    }
+  }, [isCurrentPosQueueItem, posQueueStorage, user?.id, user?.organizationId]);
+
+  const buildCustomerDraft = useCallback((contact = receiptContact) => {
+    const typedValue = normalizeText(customerName);
+    const typedValueIsEmail = EMAIL_PATTERN.test(typedValue);
+    const selected = sanitizeDraftCustomer(selectedCustomer);
+    const name = typedValue || selected?.name || "Walk-in customer";
+    const email =
+      contact.channel === "email"
+        ? contact.email
+        : typedValueIsEmail
+          ? typedValue.toLowerCase()
+          : "";
+    const phone = contact.channel === "whatsapp" ? contact.phone : "";
+    const nextPayload = {
+      id: selected?.id || null,
+      name,
+      email: email || selected?.email || "",
+      phone: phone || selected?.phone || "",
+    };
+    const hasChanges = selected?.id
+      ? normalizeText(selected.name) !== nextPayload.name ||
+        normalizeText(selected.email).toLowerCase() !== String(nextPayload.email || "").toLowerCase() ||
+        normalizePhoneDigits(selected.phone) !== normalizePhoneDigits(nextPayload.phone)
+      : false;
+
+    return {
+      ...nextPayload,
+      hasExistingCustomer: Boolean(selected?.id),
+      shouldUpdate: Boolean(selected?.id && hasChanges),
+      shouldCreate: !selected?.id,
+    };
+  }, [customerName, receiptContact, selectedCustomer]);
+
+  const buildOrderPayload = useCallback(
+    ({ customerId, payLater = false, expectedFulfillmentDate } = {}) => {
+      const payload = {
+        status: payLater ? "pending" : "paid",
+        deliveryMethod: "pickup",
+        pickupDetails: { date: todayValue(), notes: "Recorded in store mode." },
+        source: "POS",
+        purchaseChannel: "In Store",
+        fulfillmentMethod: "Pickup",
+        deliveryRequired: false,
+        expectedFulfillmentDate: expectedFulfillmentDate || new Date().toISOString(),
+        isPosOrder: true,
+        type: "retail",
+        discount: discountAmount,
+        paymentPreference: payLater
+          ? {
+              method: "pay-later",
+              payLater: true,
+              createdInStore: true,
+              receiptChannel: "email",
+              receiptContact: receiptContact.email,
+              reminderIntervalDays: 14,
+            }
+          : {
+              method: paymentMethod,
+              recordedInStore: true,
+              createdInStore: true,
+              cashReceived: paymentMethod === "cash" ? safeCashReceived : undefined,
+              changeDue: paymentMethod === "cash" ? changeDue : undefined,
+              momoReference: paymentMethod === "momo" ? normalizedMomoReference : undefined,
+              receiptChannel: receiptContact.channel || "none",
+              receiptContact: receiptContact.channel ? receiptContact.value : "",
+            },
+        items: orderItems.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId || undefined,
+          quantity: item.quantity,
+          price: item.unitPrice,
+        })),
+        userName: actorName,
+        userEmail: user?.email,
+      };
+      const numericCustomerId = Number(customerId);
+      if (Number.isFinite(numericCustomerId) && numericCustomerId > 0) {
+        payload.customerId = numericCustomerId;
+      }
+      return payload;
+    },
+    [
+      actorName,
+      changeDue,
+      discountAmount,
+      normalizedMomoReference,
+      orderItems,
+      paymentMethod,
+      receiptContact,
+      safeCashReceived,
+      user?.email,
+    ]
+  );
+
+  const hasCurrentStoreModeDraft = useCallback(
+    () =>
+      computeHasDraft({
+        orderItems,
+        customerName,
+        customerContact,
+        selectedCustomer,
+        paymentMethod,
+        momoReference,
+        discountType,
+        discountValue,
+        cashReceived,
+      }),
+    [
+      cashReceived,
+      customerContact,
+      customerName,
+      discountType,
+      discountValue,
+      momoReference,
+      orderItems,
+      paymentMethod,
+      selectedCustomer,
+    ]
+  );
 
   useEffect(() => {
     if (!items.length) return;
@@ -593,7 +795,7 @@ function StoreMode() {
     setSuccess("");
   };
 
-  const clearOrder = () => {
+  const clearOrder = ({ clearMessages = true } = {}) => {
     setOrderItems([]);
     setSelectedProductId(null);
     setCustomerName("");
@@ -605,8 +807,10 @@ function StoreMode() {
     setDiscountType("amount");
     setDiscountValue("");
     setCashReceived("");
-    setSubmitError("");
-    setSuccess("");
+    if (clearMessages) {
+      setSubmitError("");
+      setSuccess("");
+    }
     setDraftStatus(null);
     clearStoreModeDraft(draftStorageKey);
   };
@@ -730,6 +934,202 @@ function StoreMode() {
     return payload;
   };
 
+  const resolveQueuedCustomer = useCallback(async (customerDraft, signal) => {
+    const draft = customerDraft && typeof customerDraft === "object" ? customerDraft : {};
+    const existingCustomerId = Number(draft.id);
+    if (Number.isFinite(existingCustomerId) && existingCustomerId > 0 && !draft.shouldUpdate) {
+      return { id: existingCustomerId };
+    }
+
+    const customerPayload = {
+      name: normalizeText(draft.name) || "Walk-in customer",
+      email: normalizeText(draft.email) || undefined,
+      phone: normalizeText(draft.phone) || undefined,
+    };
+
+    if (Number.isFinite(existingCustomerId) && existingCustomerId > 0) {
+      const response = await fetch("/.netlify/functions/customers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: existingCustomerId,
+          ...customerPayload,
+        }),
+        signal,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to update customer before syncing POS sale.");
+      }
+      upsertCustomerDirectory(payload);
+      return payload;
+    }
+
+    const response = await fetch("/.netlify/functions/customers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(customerPayload),
+      signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || "Unable to save customer before syncing POS sale.");
+    }
+    upsertCustomerDirectory(payload);
+    return payload;
+  }, [upsertCustomerDirectory]);
+
+  const syncQueuedPosOrder = useCallback(async (queueItem) => {
+    const controller = new AbortController();
+    const now = new Date();
+    await posQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: now.toISOString(),
+    });
+    setPosQueueStatus({
+      status: SYNC_STATES.SYNCING,
+      count: 1,
+      message: "Syncing queued POS sale. The server is validating stock, customer, payment, and receipt records.",
+    });
+
+    try {
+      const queuedPayload = queueItem.payload || {};
+      const customer = await resolveQueuedCustomer(queuedPayload.customerDraft, controller.signal);
+      const orderPayload = {
+        ...(queuedPayload.orderPayload || {}),
+        customerId: Number(customer?.id),
+      };
+      const response = await fetch("/.netlify/functions/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": queuedPayload.idempotencyKey || queueItem.id,
+        },
+        body: JSON.stringify(orderPayload),
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to sync queued POS sale.");
+      }
+
+      await posQueueStorage.remove(queueItem.id);
+      if (!hasCurrentStoreModeDraft()) {
+        clearStoreModeDraft(draftStorageKey);
+      }
+      const orderNumber = payload?.orderNumber || payload?.orderId || "";
+      setPosQueueStatus({
+        status: SYNC_STATES.SYNCED,
+        count: 0,
+        orderNumber,
+        message: orderNumber
+          ? `Queued POS sale synced as ${orderNumber}.`
+          : "Queued POS sale synced.",
+      });
+      await refreshInventory();
+      return payload;
+    } catch (nextError) {
+      if (nextError.name === "AbortError") return null;
+      const message = nextError.message || "Queued POS sale needs review before it can sync.";
+      await posQueueStorage.updateStatus(queueItem.id, SYNC_STATES.NEEDS_REVIEW, {
+        conflictStatus: isStockConflictError(message)
+          ? OFFLINE_CONFLICT_STATUSES.DETECTED
+          : OFFLINE_CONFLICT_STATUSES.NEEDS_REVIEW,
+        retry: incrementRetryMetadata(queueItem.retry, { now: new Date(), lastError: message }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setPosQueueStatus({
+        status: SYNC_STATES.NEEDS_REVIEW,
+        count: 1,
+        message: isStockConflictError(message)
+          ? `${message} Stock may have changed while this sale was offline.`
+          : message,
+      });
+      return null;
+    }
+  }, [
+    clearStoreModeDraft,
+    draftStorageKey,
+    hasCurrentStoreModeDraft,
+    posQueueStorage,
+    refreshInventory,
+    resolveQueuedCustomer,
+  ]);
+
+  const syncQueuedPosOrders = useCallback(async () => {
+    if (!isOnline || posQueueSyncingRef.current || !user?.organizationId || !user?.id) return;
+    posQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedPosOrders();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      for (const queueItem of pending) {
+        await syncQueuedPosOrder(queueItem);
+      }
+      await loadQueuedPosOrders();
+    } finally {
+      posQueueSyncingRef.current = false;
+    }
+  }, [
+    isOnline,
+    loadQueuedPosOrders,
+    syncQueuedPosOrder,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  const queueOfflinePosOrder = useCallback(async ({ payLater = false, idempotencyKey }) => {
+    if (!user?.organizationId || !user?.id) {
+      setSubmitError("Sign in again before saving an offline POS sale.");
+      return false;
+    }
+
+    const queuedAt = new Date().toISOString();
+    const queueItem = await posQueueStorage.put({
+      actionType: OFFLINE_QUEUE_ACTION_TYPES.CREATE_POS_ORDER,
+      sourceApp: POS_QUEUE_SOURCE_APP,
+      organizationId: String(user.organizationId),
+      actorId: String(user.id),
+      status: SYNC_STATES.PENDING,
+      payload: {
+        idempotencyKey,
+        queuedAt,
+        payLater,
+        customerDraft: buildCustomerDraft(receiptContact),
+        orderPayload: buildOrderPayload({
+          payLater,
+          expectedFulfillmentDate: queuedAt,
+        }),
+      },
+    });
+
+    setPosQueueStatus({
+      status: SYNC_STATES.PENDING,
+      count: 1,
+      queueId: queueItem.id,
+      message: "Offline sale saved. Pending sync. No final receipt has been generated.",
+    });
+    clearOrder({ clearMessages: false });
+    setSuccess("Offline sale saved. Pending sync. No final receipt has been generated.");
+    return true;
+  }, [
+    buildCustomerDraft,
+    buildOrderPayload,
+    clearOrder,
+    posQueueStorage,
+    receiptContact,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  useEffect(() => {
+    loadQueuedPosOrders();
+  }, [loadQueuedPosOrders]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncQueuedPosOrders();
+    }
+  }, [isOnline, syncQueuedPosOrders]);
+
   const submitSale = async ({ payLater = false } = {}) => {
     setSubmitError("");
     setSuccess("");
@@ -755,12 +1155,21 @@ function StoreMode() {
       return;
     }
 
+    const idempotencyKey = createIdempotencyKey();
+    if (!isOnline) {
+      setSubmitting(true);
+      try {
+        await queueOfflinePosOrder({ payLater, idempotencyKey });
+      } catch (nextError) {
+        setSubmitError(nextError.message || "Unable to save the offline POS sale locally.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     setSubmitting(true);
     const controller = new AbortController();
-    const idempotencyKey =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `pos-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
       const customer = await ensureCustomer(receiptContact, controller.signal);
       const response = await fetch("/.netlify/functions/orders", {
@@ -769,51 +1178,7 @@ function StoreMode() {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
-        body: JSON.stringify({
-          customerId: Number(customer?.id),
-          status: payLater ? "pending" : "paid",
-          deliveryMethod: "pickup",
-          pickupDetails: { date: todayValue(), notes: "Recorded in store mode." },
-          source: "POS",
-          purchaseChannel: "In Store",
-          fulfillmentMethod: "Pickup",
-          deliveryRequired: false,
-          expectedFulfillmentDate: new Date().toISOString(),
-          isPosOrder: true,
-          type: "retail",
-          discount: discountAmount,
-          paymentPreference: payLater
-            ? {
-                method: "pay-later",
-                payLater: true,
-                createdInStore: true,
-                receiptChannel: "email",
-                receiptContact: receiptContact.email,
-                reminderIntervalDays: 14,
-              }
-            : {
-                method: paymentMethod,
-                recordedInStore: true,
-                createdInStore: true,
-                cashReceived: paymentMethod === "cash" ? safeCashReceived : undefined,
-                changeDue: paymentMethod === "cash" ? changeDue : undefined,
-                momoReference: paymentMethod === "momo" ? normalizedMomoReference : undefined,
-                receiptChannel: receiptContact.channel || "none",
-                receiptContact: receiptContact.channel ? receiptContact.value : "",
-              },
-          items: orderItems.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId || undefined,
-            quantity: item.quantity,
-            price: item.unitPrice,
-          })),
-          userName:
-            user?.fullName ||
-            user?.name ||
-            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-            undefined,
-          userEmail: user?.email,
-        }),
+        body: JSON.stringify(buildOrderPayload({ customerId: Number(customer?.id), payLater })),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);
@@ -873,6 +1238,7 @@ function StoreMode() {
       success={success}
       isOnline={isOnline}
       draftStatus={draftStatus}
+      posQueueStatus={posQueueStatus}
       user={user}
       inventoryProps={{
         search,
@@ -962,6 +1328,7 @@ function StoreMode() {
         canCompleteSale,
         canPayLater,
         clearOrder,
+        isOnline,
       }}
       hoveredImage={hoveredImage}
     />

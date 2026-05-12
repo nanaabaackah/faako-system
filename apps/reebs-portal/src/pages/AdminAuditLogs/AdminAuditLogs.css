@@ -37,7 +37,7 @@
   display: grid;
   gap: 0.45rem;
   font-size: 0.9rem;
-  color: var(--admin-muted, #64748b);
+  color: var(--admin-muted);
 }
 
 .admin-audit-filter-grid.admin-form label,
@@ -65,7 +65,7 @@
   margin: 0;
   padding: 0.85rem 1rem;
   border-radius: 1rem;
-  background: color-mix(in srgb, #ef4444 12%, var(--admin-card, #fff) 88%);
+  background: var(--admin-card, );
   border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
   color: #991b1b;
   font-weight: 600;

@@ -24,6 +24,166 @@ Next step:
 
 ## Entries
 
+### Shared ERP table foundation
+
+Date: 2026-05-12
+Change name: Shared ERP table foundation
+Apps/packages affected: @faako/ui, Dev ERP System Health, REEBS Portal documentation review, root README
+What changed: Added the shared `ERPTable`, `ERPTableToolbar`, `ERPTableSearch`, `ERPTableFilters`, `ERPTablePagination`, `ERPTableEmptyState`, `ERPTableLoadingState`, `ERPStatusBadge`, and `ERPTableActions` presentation foundation in `@faako/ui`. The components support configurable columns, semantic table markup, controlled pagination, search/filter/action slots, loading and empty states, row action slots, status badges, and mobile card-style rendering. Dev ERP System Health adopted `ERPTable` and `ERPStatusBadge` for the read-only service status table only. REEBS Portal runtime tables were left pending because Orders, POS, Bookings, Inventory, Payments, receipts, and offline queue surfaces need separate visual/workflow checks.
+Why it changed: Establish reusable shared table primitives after the planning phase while keeping business logic, data fetching, filtering, mutations, permissions, and production workflows app-owned.
+Files changed: packages/ui/src/components/ERPTable.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/SystemHealth/SystemHealth.jsx, apps/dev-erp/README.md, README.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only shared UI. No auth, permissions, API behavior, payment/order/inventory/booking/rent/user-management workflow, offline sync processing, database schema, row mutation, or data access behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP System Health, README, and documentation files; trailing-whitespace scan on the same files.
+Rollback notes: Revert the shared ERP table component/style exports and the Dev ERP System Health table adoption to restore the previous inline display table. No data rollback is required.
+Next step: Shared form foundation implementation.
+
+### Shared form and table system planning
+
+Date: 2026-05-12
+Change name: Shared form and table system planning
+Apps/packages affected: REEBS Portal, Dev ERP, @faako/ui, platform docs
+What changed: Added `docs/platform/shared-form-table-system-plan.md`, a planning-only audit for repeated ERP table, form, filter/search, pagination, modal, status badge, bulk action, empty/loading/error, and mobile patterns. The plan identifies shared component opportunities for table wrappers, data table patterns, filter/action toolbars, form section/layout wrappers, modal form shells, status badges, and pagination while classifying safe, medium-risk, and high-risk extraction candidates.
+Why it changed: Forms and tables are heavily used around production-sensitive POS, orders, inventory, bookings, payments, reports, rent, and user-management workflows. A shared system needs a staged plan before implementation so future extraction does not alter live business behavior.
+Files changed: docs/platform/shared-form-table-system-plan.md, docs/platform/platform-progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/implementation-notes.md, packages/ui/README.md
+Data impact: None.
+Security impact: Planning only. No auth, permissions, API behavior, payment/receipt logic, booking/order/inventory workflow, rent workflow, user-management behavior, offline sync processing, database schema, or data access behavior changed.
+Testing done: Documentation review against source scans for REEBS and Dev ERP form/table/filter/modal/status/pagination patterns; `git diff --check` on tracked documentation/README updates; trailing-whitespace scan on the new plan and changed docs. No runtime tests were required because this is planning-only.
+Rollback notes: Remove the shared form/table plan and related documentation references. No code or data rollback is required.
+Next step: Shared table foundation implementation.
+
+### Shared UI system cleanup and extraction
+
+Date: 2026-05-12
+Change name: Shared UI system cleanup and extraction
+Apps/packages affected: @faako/ui, Dev ERP Settings, REEBS Portal documentation review, root README
+What changed: Added low-risk shared UI presentation wrappers for ERP section headers, panel grids, panels, panel headers, stack groups, and form groups. The wrappers preserve existing legacy class names where used. Dev ERP Settings now uses the shared wrappers for alert settings panels and fields without changing alert preferences, Sync Review behavior, routes, API calls, auth, or storage behavior. REEBS Portal was reviewed and left as manual-review runtime adoption because candidate surfaces sit near active admin, POS, bookings, inventory, payments, receipts, and offline queue workflows.
+Why it changed: Reduce repeated panel/form/header markup and establish a safer shared UI extraction path while keeping production workflows app-owned.
+Files changed: packages/ui/src/components/Primitives.tsx, packages/ui/src/components/Fields.tsx, packages/ui/src/ErpPageHeader.tsx, packages/ui/src/ErpShellFrame.tsx, packages/ui/src/ErpShellTopbar.tsx, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, apps/dev-erp/README.md, README.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only cleanup. No auth, permissions, API behavior, payment/receipt logic, booking/order/inventory workflow, offline sync processing, database schema, or data access behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP Settings, README, and documentation files.
+Rollback notes: Revert the shared UI wrapper additions and Dev ERP Settings wrapper usage to restore the previous inline markup. No data rollback is required.
+Next step: Shared form/table system planning.
+
+### Safe Cleanup Wave 1
+
+Date: 2026-05-12
+Change name: Safe Cleanup Wave 1
+Apps/packages affected: reebs-portal, dev-erp, platform docs
+What changed: Performed the first incremental cleanup pass from the codebase cleanup audit. Removed confirmed unused REEBS icon imports, removed obsolete REEBS `no-unused-vars` eslint-disable comments, replaced a REEBS catalog media control-character regex with an equivalent display-safety helper so source lint no longer errors, excluded REEBS generated/runtime folders from ESLint scans, removed an unused Dev ERP catch variable, and stabilized the Dev ERP Settings Sync Review refresh callback dependency. No files were deleted and no business workflows were refactored.
+Why it changed: Reduce low-risk lint/tooling and display-helper debt while preserving live REEBS Portal and Dev ERP production workflows.
+Files changed: apps/reebs-portal/eslint.config.js, apps/reebs-portal/src/components/PortalSidebar/PortalSidebar.jsx, apps/reebs-portal/src/config/adminNavigation.js, apps/reebs-portal/src/utils/itemMediaBackgrounds.js, apps/reebs-portal/src/pages/OrdersList/OrdersList.jsx, apps/reebs-portal/src/pages/StoreMode/StoreMode.jsx, apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/src/pages/Settings/Settings.jsx, docs/platform/codebase-cleanup-audit.md, docs/platform/platform-progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: None.
+Security impact: Low-risk cleanup only. No auth, permissions, payment, receipt, booking, inventory, offline sync processing, API, database schema, or production workflow behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/reebs-portal exec eslint src` now reports warnings only and no source errors. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` was attempted and blocked by existing shared `@faako/ui` type errors outside this cleanup scope.
+Rollback notes: Revert the listed cleanup edits to restore previous imports, comments, lint ignore list, and helper shape. No data rollback is required.
+Next step: Shared UI system cleanup and extraction.
+
+### Codebase cleanup audit
+
+Date: 2026-05-12
+Change name: Codebase cleanup audit
+Apps/packages affected: Monorepo-wide documentation, REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, shared packages
+What changed: Added a planning-only monorepo cleanup audit covering duplicate styling, candidate-unused files/components, long file breakdown candidates, duplicate helpers/utilities, module overlap, shared package opportunities, risk classification, recommended cleanup order, and manual verification checklist.
+Why it changed: Recent shared platform work added packages, helpers, styles, and ERP foundations. Cleanup needs a production-sensitive plan before any implementation so live REEBS Portal and Dev ERP workflows are not disrupted.
+Files changed: docs/platform/codebase-cleanup-audit.md, docs/platform/platform-progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/faako-website/implementation-notes.md, docs/apps/faako-api/implementation-notes.md, docs/apps/faako-erp/implementation-notes.md
+Data impact: Documentation-only.
+Security impact: Improves cleanup sequencing and production-safety classification. No auth, permissions, database schema, payment, receipt, booking, inventory, offline sync, notification, or runtime behavior changed.
+Testing done: Documentation review against source file inventories, CSS/helper scans, shared package usage scans, and existing consolidation plans.
+Rollback notes: Remove the cleanup audit and related progress-log/implementation-note references if the planning baseline needs to be withdrawn.
+Next step: Documentation/README cleanup pass and static unused export/import report.
+
+### Notification service foundation
+
+Date: 2026-05-11
+Change name: Notification service foundation
+Apps/packages affected: reebs-portal, dev-erp, @faako/notifications, platform docs
+What changed: Added `@faako/notifications` with notification channel constants, notification type constants, notification status constants, customer-safe message templates, channel availability helpers, text sanitizing helpers, and user-triggered `mailto:`/WhatsApp draft link helpers. REEBS order receipt preview now uses the shared receipt summary template for copy, email draft, and WhatsApp draft actions. Dev ERP Appointments now uses the shared booking confirmation draft formatter for the existing appointment link email action.
+Why it changed: Create a shared notification foundation for future email, WhatsApp, SMS, and in-app notification work while keeping current customer communication privacy-safe and user-triggered.
+Apps affected: REEBS Portal order receipt display/share area and Dev ERP Appointments email-link draft. Shared package: `@faako/notifications`.
+Files changed: packages/notifications/package.json, packages/notifications/src/index.js, packages/notifications/src/constants/channels.js, packages/notifications/src/constants/types.js, packages/notifications/src/constants/statuses.js, packages/notifications/src/constants/index.js, packages/notifications/src/helpers/safeText.js, packages/notifications/src/helpers/channelAvailability.js, packages/notifications/src/helpers/index.js, packages/notifications/src/templates/customerMessages.js, packages/notifications/src/templates/index.js, packages/notifications/test/notifications.test.mjs, packages/notifications/README.md, apps/reebs-portal/package.json, apps/reebs-portal/src/pages/Orders/components/ReceiptViewer.jsx, apps/dev-erp/package.json, apps/dev-erp/src/pages/Bookings/Bookings.jsx, pnpm-lock.yaml, README.md, apps/reebs-portal/README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: None.
+Security impact: Customer-safe message templates only. No automated WhatsApp messages, automated emails, SMS, notification persistence, Resend behavior change, backend send behavior change, receipt/payment/order behavior change, auth change, permission change, or schema change.
+Testing done: `pnpm --filter @faako/notifications run test`; `pnpm --filter @faako/reebs-portal run build`; `pnpm --filter @faako/dev-erp run build`; documentation review. Manual checks documented for REEBS receipt summary copy/mailto/WhatsApp drafts, Dev ERP appointment email draft text, and unchanged backend send/payment/order/rent behavior.
+Rollback notes: Remove `@faako/notifications`, remove app imports/usages and package dependencies, remove lockfile importer entries, and remove related README/docs updates. Existing backend email and receipt/payment/order workflows remain app-owned.
+Next step: delivery/map helper foundation.
+
+### Offline conflict review and sync reliability
+
+Date: 2026-05-11
+Change name: Offline conflict review and sync reliability
+Apps/packages affected: reebs-portal, dev-erp, @faako/offline-sync, platform docs
+What changed: Expanded `@faako/offline-sync` with queue review/reliability helpers for retry state, last error tracking, conflict metadata, local cancel, local mark-resolved, retry re-arming, and queue summary counts. Added shared `SyncReviewPanel`, `SyncConflictCard`, `useSyncQueueSummary`, `useQueuedActionRetry`, and `useQueuedActionCancel`. REEBS Admin Workspace now shows a Sync Review panel in Offline Sync for local POS, payment, inventory, and booking queue records. Dev ERP Settings now shows a Sync Review panel for local Dev ERP queue records, currently focused on offline rent payment visibility.
+Why it changed: Failed, pending, and conflicting offline actions need visible recovery paths so queued production-sensitive work is not lost, silently ignored, or mistaken for server-confirmed data.
+Apps affected: REEBS Portal Admin Workspace Offline Sync and Dev ERP Settings. Shared package: `@faako/offline-sync`.
+Files changed: packages/offline-sync/src/constants/syncStates.js, packages/offline-sync/src/storage/queueStorage.js, packages/offline-sync/src/storage/queueActions.js, packages/offline-sync/src/storage/index.js, packages/offline-sync/src/status/queueSummary.js, packages/offline-sync/src/status/index.js, packages/offline-sync/src/hooks/useSyncQueueSummary.js, packages/offline-sync/src/hooks/useQueuedActionRetry.js, packages/offline-sync/src/hooks/useQueuedActionCancel.js, packages/offline-sync/src/hooks/index.js, packages/offline-sync/src/components/SyncConflictCard.js, packages/offline-sync/src/components/SyncReviewPanel.js, packages/offline-sync/src/components/index.js, packages/offline-sync/test/offlineSync.test.mjs, apps/reebs-portal/src/pages/AdminWorkspace/AdminWorkspace.jsx, apps/dev-erp/src/pages/Settings/Settings.jsx, packages/offline-sync/README.md, README.md, apps/reebs-portal/README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued data only.
+Security impact: Improves visibility and recovery for offline actions. Server remains source of truth; retry re-arms local queue items for existing sync paths and does not bypass auth, permissions, stock validation, booking availability validation, payment validation, receipt creation, or server validation.
+Testing done: `pnpm --filter @faako/offline-sync run test`; `pnpm --filter @faako/reebs-portal run build`; `pnpm --filter @faako/dev-erp run build`; documentation review. Manual checks documented for Sync Review queue counts, retry, cancel, mark-resolved, scoped queue filtering, and unchanged online workflows.
+Rollback notes: Remove the shared queue review helpers, hooks, and components; remove the Sync Review panel imports/usages from REEBS Admin Workspace and Dev ERP Settings; remove related tests and documentation. Existing app-specific queue sync paths remain intact.
+Next step: WhatsApp receipt sharing.
+
+### Offline booking queue foundation
+
+Date: 2026-05-11
+Change name: Offline booking queue foundation
+Apps/packages affected: reebs-portal, dev-erp docs, @faako/offline-sync, platform docs
+What changed: REEBS Bookings now saves offline booking create, edit, and status actions as `CREATE_BOOKING`, `UPDATE_BOOKING_DETAILS`, and `UPDATE_BOOKING_STATUS` queue items using `@faako/offline-sync`. Queued records store selected customer reference/details, event date/time, selected items, venue/delivery location, status action, timestamp/idempotency metadata, and user/org scope. When connectivity returns, REEBS submits queued booking actions to the existing `/.netlify/functions/bookings` endpoint and clears queue items only after confirmed success. UI notices show offline booking saved, pending sync, syncing, synced, needs review, and sync failed states. Dev ERP was reviewed and left unwired because its current Bookings/Appointments surface is calendar/settings/sync oriented rather than a safe manual booking create/update/status workflow.
+Why it changed: Allow authenticated REEBS booking staff to preserve booking work during unstable internet while keeping existing online booking behavior, booking availability validation, rental reservation writes, permissions, payments, receipts, and inventory reservation logic server-owned.
+Apps affected: REEBS Portal Bookings. Dev ERP reviewed as online-only for booking/calendar settings in this phase.
+Files changed: packages/offline-sync/src/constants/queueActionTypes.js, apps/reebs-portal/src/pages/AdminBookings/offlineBookingQueue.js, apps/reebs-portal/src/pages/AdminBookings/offlineBookingQueue.test.js, apps/reebs-portal/src/pages/AdminBookings/AdminBookings.jsx, apps/reebs-portal/src/pages/AdminBookings/AdminBookings.css, packages/offline-sync/README.md, README.md, apps/reebs-portal/README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued booking actions only until sync. Server booking/reservation changes happen only after the existing online bookings endpoint validates and accepts queued actions.
+Security impact: Server remains booking/availability source of truth. Queueing requires authenticated user/org context, stores only necessary booking data, does not reserve rental inventory offline, does not alter payment or receipt workflows, and does not bypass auth, permissions, booking availability validation, item/date conflict checks, customer validation, or organization isolation.
+Testing done: `@faako/offline-sync` node tests, REEBS booking queue helper node tests, REEBS Portal Vite build, documentation review, and manual checks documented for offline booking save/sync/needs-review/sync-failed states and unchanged online booking behavior.
+Rollback notes: Remove the REEBS booking queue helper, offline branch, sync effects, queue notices, CSS banner styles, helper tests, queue action constant if unused elsewhere, and README/docs updates, then return booking actions to online-only behavior. Existing online booking behavior remains app-owned.
+Next step: Offline conflict review and sync reliability (completed 2026-05-11).
+
+### Offline inventory adjustment queue
+
+Date: 2026-05-11
+Change name: Offline inventory adjustment queue
+Apps/packages affected: reebs-portal, @faako/offline-sync docs, platform docs
+What changed: REEBS Inventory stock adjustment modal now queues offline stock adjustments as `ADJUST_STOCK` actions using `@faako/offline-sync`. Queued records store the inventory item reference, optional variant reference, adjustment amount, adjustment type, optional notes/reference/sold month, timestamp/idempotency metadata, and user/org scope. When connectivity returns, REEBS submits queued adjustments to the existing `/.netlify/functions/stock` endpoint and clears queue items only after confirmed success. UI notices show offline adjustment saved, pending sync, syncing, synced, needs review, and sync failed states. Dev ERP was reviewed and left unwired because no current inventory adjustment surface was found.
+Why it changed: Allow authenticated REEBS managers/admins to preserve stock adjustments during unstable internet while keeping existing online inventory behavior and server-side auth, permission, stock, rental, variant, booking-reservation, and validation rules as the source of truth.
+Apps affected: REEBS Portal Inventory. Dev ERP reviewed as not applicable for this phase.
+Files changed: apps/reebs-portal/src/pages/Admin/offlineInventoryAdjustmentQueue.js, apps/reebs-portal/src/pages/Admin/offlineInventoryAdjustmentQueue.test.js, apps/reebs-portal/src/pages/Admin/Admin.jsx, apps/reebs-portal/src/pages/Admin/styles/AdminInventoryOverview.css, packages/offline-sync/README.md, README.md, apps/reebs-portal/README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued adjustments only until sync. Server inventory changes happen only after the existing online stock endpoint validates and accepts queued adjustments.
+Security impact: Server remains inventory source of truth. Queueing requires authenticated user/org context, stores only minimal adjustment data, does not mutate server inventory offline, does not alter stock deduction/reservation timing, and does not bypass auth, permissions, stock validation, rental restrictions, variant checks, or organization isolation.
+Testing done: `@faako/offline-sync` node tests, REEBS inventory queue helper node tests, REEBS Portal Vite build, documentation review, and manual checks documented for offline adjustment save/sync/needs-review/sync-failed states and unchanged online stock adjustment behavior.
+Rollback notes: Remove the REEBS inventory queue helper, offline branch, sync effects, queue notices, helper tests, and README/docs updates, then return inventory adjustments to online-only behavior. Existing online stock adjustment behavior remains app-owned.
+Next step: Offline booking queue foundation.
+
+### Queued offline manual payments
+
+Date: 2026-05-11
+Change name: Queued offline manual payments
+Apps/packages affected: reebs-portal, dev-erp, @faako/offline-sync docs, platform docs
+What changed: REEBS order detail and orders board manual payment forms now save offline payment submissions as `RECORD_PAYMENT` queue items using `@faako/offline-sync`. Dev ERP Rent now queues new rent payment records when offline while keeping existing rent payment edits online-only. Queued records store only the target order/rent reference, amount, method/reference/notes fields, timestamp/idempotency metadata, user/org scope, and pending status. When connectivity returns, each app submits queued payments to its existing server payment endpoint and clears queue items only after confirmed success. UI notices show offline payment saved, pending sync, syncing, synced, needs review, and sync failed states.
+Why it changed: Allow authenticated staff to preserve manual payment submissions during unstable internet while keeping existing online payment behavior, server validation, receipt creation, balance updates, accounting effects, and permissions server-owned.
+Apps affected: REEBS Portal order manual payments and Dev ERP Rent payment recording.
+Files changed: apps/reebs-portal/src/pages/Orders/offlineManualPaymentQueue.js, apps/reebs-portal/src/pages/Orders/components/PaymentLedger.jsx, apps/reebs-portal/src/pages/OrdersList/OrdersList.jsx, apps/dev-erp/src/pages/Rent/offlineRentPaymentQueue.js, apps/dev-erp/src/pages/Rent/Rent.jsx, packages/offline-sync/README.md, README.md, apps/reebs-portal/README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued data only until server sync. Server data changes happen only after existing online payment endpoints validate and accept queued payments.
+Security impact: Server remains source of truth. Queueing requires authenticated user/org context, stores only minimal payment data, does not create final receipt numbers offline, does not update balances offline, does not trigger accounting/report effects offline, and does not bypass auth, permissions, payment validation, receipt creation, or organization isolation.
+Testing done: `@faako/offline-sync` node tests, REEBS Store Mode utility tests, REEBS Portal Vite build, Dev ERP Vite build, package export import check, and documentation review. Manual checks documented for offline payment queueing, pending/syncing/synced/needs-review/sync-failed notices, and unchanged online payment submission.
+Rollback notes: Remove manual payment queue adapters and offline branches from REEBS order payment forms and Dev ERP Rent payment creation, remove queue notices, and return manual payments to draft-only/offline-blocked behavior. Existing online payment recording remains app-owned.
+Next step: Offline inventory adjustment queue.
+
+### Queued offline POS orders
+
+Date: 2026-05-11
+Change name: Queued offline POS orders
+Apps/packages affected: reebs-portal, @faako/offline-sync docs, platform docs
+What changed: REEBS Store Mode now saves offline POS sales as `CREATE_POS_ORDER` queue items using `@faako/offline-sync` queue helpers. Queued sales store the necessary order payload, minimal customer draft data, idempotency key, user/org scope, and pending status. When connectivity returns, Store Mode resolves the customer through the existing customer endpoint and submits the queued sale to the existing order creation endpoint. UI notices show offline sale saved, pending sync, syncing, synced, and needs review states.
+Why it changed: Allow authenticated REEBS staff to keep selling during unstable internet while preserving the existing online POS flow and keeping the server as the source of truth.
+Apps affected: REEBS Portal Store Mode/POS.
+Files changed: apps/reebs-portal/src/pages/StoreMode/StoreMode.jsx, apps/reebs-portal/src/pages/StoreMode/components/StoreModeLayout.jsx, apps/reebs-portal/README.md, packages/offline-sync/README.md, README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: Local queued data only until server sync. Server data changes happen only after the existing online customer/order endpoints validate and accept the queued sale.
+Security impact: Server remains source of truth. Queueing requires authenticated user/org context, stores only minimal draft/customer/order data, does not generate final receipt numbers offline, does not permanently deduct stock offline, and does not bypass auth, permissions, stock validation, payment validation, receipt creation, idempotency, or organization isolation.
+Testing done: `@faako/offline-sync` node tests, REEBS Store Mode utility tests, REEBS Portal Vite build, package export import check, and documentation review. Manual checks documented for offline sale queueing, pending/syncing/synced/needs-review notices, and unchanged online POS submission.
+Rollback notes: Remove the offline queue branch and sync effects from Store Mode, remove the queue status notices, and restore Store Mode to draft-only offline behavior. Existing online POS sale creation remains unchanged.
+Next step: Queued offline manual payments.
+
 ### Offline POS/payment drafts
 
 Date: 2026-05-10

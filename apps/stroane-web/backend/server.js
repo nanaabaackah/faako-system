@@ -15,6 +15,7 @@ import {
   resolveAllowedOrigins,
   resolveTrustProxySetting,
 } from "./security.js";
+import { createAuthRouter } from "./src/routes/auth.js";
 
 dotenv.config();
 
@@ -52,6 +53,11 @@ app.use(
 app.use(createSecurityHeadersMiddleware());
 app.use(express.json({ limit: "1mb" }));
 app.use("/api", createApiRateLimitMiddleware());
+
+// Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
+app.use("/api/auth", createAuthRouter(prisma));
+
+// All other /api routes: deny write methods until they are implemented
 app.use("/api", createUnsafeApiDefaultDenyMiddleware());
 
 // Health check route

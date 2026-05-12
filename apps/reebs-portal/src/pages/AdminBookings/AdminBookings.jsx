@@ -2,6 +2,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import "./AdminBookings.css";
+import {
+  OFFLINE_QUEUE_ACTION_TYPES,
+  SYNC_STATES,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
+  useOnlineStatus,
+} from "@faako/offline-sync";
 import { SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -25,6 +32,12 @@ import {
   fetchBookingInvoiceDetails,
   fetchInvoiceDocumentById,
 } from "../../utils/invoiceDocumentCache";
+import {
+  buildQueuedBookingAction,
+  getBookingQueueFailureState,
+  getQueuedBookingNotice,
+  isQueuedBookingForScope,
+} from "./offlineBookingQueue";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -575,6 +588,7 @@ function AdminBookings() {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [bookingQueueNotice, setBookingQueueNotice] = useState(null);
   const [detailBooking, setDetailBooking] = useState(null);
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailExpenseDraft, setDetailExpenseDraft] = useState(() => buildDetailExpenseDraft());
@@ -599,6 +613,8 @@ function AdminBookings() {
   });
   const [bouncyCastles, setBouncyCastles] = useState([]);
   const { user } = useAuth();
+  const isOnline = useOnlineStatus();
+  const bookingQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
   const roleKey = normalizeAdminRole(user?.role);
   const canManageBookings = canAccessPrivilegedPortalArea(roleKey);
   const canAccessInvoicing = canManageBookings;
@@ -613,6 +629,7 @@ function AdminBookings() {
   
   // OPTIMIZATION: Cache request cancellation and mobile view state
   const requestCancelRef = useRef(null);
+  const bookingQueueSyncingRef = useRef(false);
   const cachedIsMobileView = useRef(getIsMobileView());
   const debouncedSetStatusFilterRef = useRef(null);
   const debouncedSetAssignedFilterRef = useRef(null);
@@ -1446,6 +1463,204 @@ function AdminBookings() {
     navigate("/admin/customers");
   };
 
+  const getBookingActorPayload = useCallback(
+    () => ({
+      userId: user?.id,
+      userName:
+        user?.fullName ||
+        user?.name ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+        undefined,
+      userEmail: user?.email,
+    }),
+    [user?.email, user?.firstName, user?.fullName, user?.id, user?.lastName, user?.name]
+  );
+
+  const resolveOfflineBookingCustomer = useCallback(() => {
+    const selectedCustomerId = Number(form.customerId);
+    if (Number.isFinite(selectedCustomerId) && selectedCustomerId > 0) {
+      return customerById.get(selectedCustomerId) || {
+        id: selectedCustomerId,
+        name: form.customerName || "",
+      };
+    }
+    if (matchedTypedBookingCustomer?.id) {
+      return matchedTypedBookingCustomer;
+    }
+    return null;
+  }, [customerById, form.customerId, form.customerName, matchedTypedBookingCustomer]);
+
+  const buildBookingRequestPayload = useCallback(
+    ({ customerId, isEdit }) => ({
+      id: isEdit ? editing.id : undefined,
+      customerId: Number(customerId),
+      eventDate: form.eventDate,
+      startTime: form.startTime || null,
+      endTime: form.endTime || null,
+      venueAddress: form.venueAddress,
+      status: form.status,
+      assignedUserId: form.assignedUserId ? Number(form.assignedUserId) : null,
+      discount: bookingDiscountAmount,
+      items: form.items.map((item) => ({
+        ...item,
+        price: Number(item.price) || undefined,
+      })),
+      ...getBookingActorPayload(),
+    }),
+    [
+      bookingDiscountAmount,
+      editing?.id,
+      form.assignedUserId,
+      form.endTime,
+      form.eventDate,
+      form.items,
+      form.startTime,
+      form.status,
+      form.venueAddress,
+      getBookingActorPayload,
+    ]
+  );
+
+  const loadQueuedBookingActions = useCallback(async () => {
+    if (!canManageBookings || !user?.organizationId || !user?.id) {
+      setBookingQueueNotice(null);
+      return [];
+    }
+
+    try {
+      const queued = (await bookingQueueStorage.list()).filter((item) =>
+        isQueuedBookingForScope(item, {
+          organizationId: user.organizationId,
+          actorId: user.id,
+        })
+      );
+      setBookingQueueNotice(getQueuedBookingNotice(queued));
+      return queued;
+    } catch (queueError) {
+      setBookingQueueNotice({
+        status: SYNC_STATES.FAILED,
+        tone: "error",
+        title: "Sync failed",
+        message: queueError.message || "Unable to read the local booking queue.",
+      });
+      return [];
+    }
+  }, [bookingQueueStorage, canManageBookings, user?.id, user?.organizationId]);
+
+  const syncQueuedBookingAction = useCallback(async (queueItem) => {
+    await bookingQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: new Date().toISOString(),
+    });
+    setBookingQueueNotice({
+      status: SYNC_STATES.SYNCING,
+      tone: "loading",
+      title: "Syncing",
+      message: "Submitting queued booking action. The server will validate availability, customer, status, and permissions.",
+    });
+
+    try {
+      const queuedPayload = queueItem.payload || {};
+      const endpoint = queuedPayload.endpoint || {};
+      const response = await fetch(endpoint.path || "/.netlify/functions/bookings", {
+        method: endpoint.method || "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": queuedPayload.idempotencyKey || queueItem.id,
+        },
+        body: JSON.stringify(queuedPayload.booking || {}),
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Queued booking action could not sync.");
+      }
+
+      await bookingQueueStorage.remove(queueItem.id);
+      if (payload && typeof payload === "object") {
+        setBookings((prev) => {
+          const exists = prev.some((row) => String(row.id) === String(payload.id));
+          if (exists) {
+            return prev.map((row) => (String(row.id) === String(payload.id) ? payload : row));
+          }
+          return [payload, ...prev];
+        });
+        setDetailBooking((current) =>
+          current && String(current.id) === String(payload.id) ? payload : current
+        );
+        setEditing((current) =>
+          current && String(current.id) === String(payload.id) ? payload : current
+        );
+      }
+      setBookingQueueNotice({
+        status: SYNC_STATES.SYNCED,
+        tone: "success",
+        title: "Synced",
+        message: payload?.id
+          ? `Queued booking action synced as booking #${payload.id}.`
+          : "Queued booking action synced.",
+      });
+      return payload;
+    } catch (queueError) {
+      const message = queueError.message || "Queued booking action could not sync.";
+      const failureState = getBookingQueueFailureState(message);
+      await bookingQueueStorage.updateStatus(queueItem.id, failureState.status, {
+        conflictStatus: failureState.conflictStatus,
+        retry: incrementRetryMetadata(queueItem.retry, {
+          now: new Date(),
+          lastError: message,
+        }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setBookingQueueNotice({
+        status: failureState.status,
+        tone: "error",
+        title: failureState.status === SYNC_STATES.NEEDS_REVIEW ? "Needs review" : "Sync failed",
+        message:
+          failureState.status === SYNC_STATES.NEEDS_REVIEW
+            ? `${message} Review availability, customer, status, or permissions before retrying.`
+            : message,
+      });
+      return null;
+    }
+  }, [bookingQueueStorage]);
+
+  const syncQueuedBookingActions = useCallback(async () => {
+    if (
+      !isOnline ||
+      bookingQueueSyncingRef.current ||
+      !canManageBookings ||
+      !user?.organizationId ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    bookingQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedBookingActions();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      for (const queueItem of pending) {
+        await syncQueuedBookingAction(queueItem);
+      }
+    } finally {
+      bookingQueueSyncingRef.current = false;
+    }
+  }, [
+    canManageBookings,
+    isOnline,
+    loadQueuedBookingActions,
+    syncQueuedBookingAction,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  useEffect(() => {
+    void loadQueuedBookingActions();
+  }, [loadQueuedBookingActions]);
+
+  useEffect(() => {
+    void syncQueuedBookingActions();
+  }, [syncQueuedBookingActions]);
+
   const addItem = (product, variant = null) => {
     setForm((prev) => {
       if (isBookingVariantParent(product) && !variant) return prev;
@@ -1759,32 +1974,63 @@ function AdminBookings() {
 
     setSaving(true);
     try {
+      const isEdit = Boolean(editing?.id);
+      if (!isOnline) {
+        if (!user?.organizationId || !user?.id) {
+          throw new Error("Sign in again before saving an offline booking action.");
+        }
+        const offlineCustomer = resolveOfflineBookingCustomer();
+        const offlineCustomerId = Number(offlineCustomer?.id);
+        if (!Number.isFinite(offlineCustomerId) || offlineCustomerId <= 0) {
+          throw new Error("Select an existing customer before saving offline. New customer creation needs a connection.");
+        }
+        const bookingPayload = buildBookingRequestPayload({
+          customerId: offlineCustomerId,
+          isEdit,
+        });
+        await bookingQueueStorage.put(
+          buildQueuedBookingAction({
+            organizationId: user.organizationId,
+            actorId: user.id,
+            actionType: isEdit
+              ? OFFLINE_QUEUE_ACTION_TYPES.UPDATE_BOOKING_DETAILS
+              : OFFLINE_QUEUE_ACTION_TYPES.CREATE_BOOKING,
+            method: isEdit ? "PUT" : "POST",
+            booking: bookingPayload,
+            customer: offlineCustomer,
+            previousStatus: editing?.status || "",
+            source: detailEditing ? "booking-detail-inline-edit" : "booking-editor",
+          })
+        );
+        setBookingQueueNotice({
+          status: SYNC_STATES.PENDING,
+          tone: "info",
+          title: "Pending sync",
+          message: "Offline booking saved. Pending sync. Availability is not reserved until the server confirms it.",
+        });
+        if (detailEditing) {
+          setDetailEditing(false);
+          setEditing(null);
+        } else {
+          setModalOpen(false);
+          setEditing(null);
+        }
+        setCustomerMenuOpen(false);
+        return;
+      }
+
       const customerId = await ensureBookingCustomer();
       if (!Number.isFinite(Number(customerId)) || Number(customerId) <= 0) {
         throw new Error("Select or create a customer.");
       }
-      const isEdit = Boolean(editing?.id);
+      const bookingPayload = buildBookingRequestPayload({
+        customerId,
+        isEdit,
+      });
       const response = await fetch("/.netlify/functions/bookings", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: isEdit ? editing.id : undefined,
-          customerId: Number(customerId),
-          eventDate: form.eventDate,
-          startTime: form.startTime || null,
-          endTime: form.endTime || null,
-          venueAddress: form.venueAddress,
-          status: form.status,
-          assignedUserId: form.assignedUserId ? Number(form.assignedUserId) : null,
-          discount: bookingDiscountAmount,
-          items: form.items.map((item) => ({
-            ...item,
-            price: Number(item.price) || undefined,
-          })),
-          userId: user?.id,
-          userName: user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined,
-          userEmail: user?.email,
-        }),
+        body: JSON.stringify(bookingPayload),
       });
 
       const payload = await response.json();
@@ -1815,6 +2061,49 @@ function AdminBookings() {
     if (!booking?.id) return;
     if (isCompletedBooking(booking)) return;
     if (normalizeStatus(booking.status) === normalizeStatus(nextStatus)) return;
+
+    if (!isOnline) {
+      setStatusUpdatingId(booking.id);
+      setError("");
+      try {
+        if (!user?.organizationId || !user?.id) {
+          throw new Error("Sign in again before saving an offline booking status action.");
+        }
+        await bookingQueueStorage.put(
+          buildQueuedBookingAction({
+            organizationId: user.organizationId,
+            actorId: user.id,
+            actionType: OFFLINE_QUEUE_ACTION_TYPES.UPDATE_BOOKING_STATUS,
+            method: "PUT",
+            booking: {
+              id: booking.id,
+              status: nextStatus,
+              ...getBookingActorPayload(),
+            },
+            customer: {
+              id: booking.customerId,
+              name: booking.customerName || "",
+              phone: booking.customerPhone || "",
+              email: booking.customerEmail || "",
+            },
+            previousStatus: booking.status || "",
+            source: "booking-status-action",
+          })
+        );
+        setBookingQueueNotice({
+          status: SYNC_STATES.PENDING,
+          tone: "info",
+          title: "Pending sync",
+          message: "Offline booking status saved. Pending sync. Server status and availability remain unchanged until sync succeeds.",
+        });
+      } catch (err) {
+        console.error("Offline booking status queue failed", err);
+        setError(err.message || "Failed to queue booking status update.");
+      } finally {
+        setStatusUpdatingId(null);
+      }
+      return;
+    }
     
     // OPTIMIZATION: Store previous state for rollback
     const previousStatus = booking.status;
@@ -1990,6 +2279,20 @@ function AdminBookings() {
             </button>
           </div>
         )}
+        {bookingQueueNotice ? (
+          <div
+            className={`bookings-sync-banner is-${bookingQueueNotice.tone || "info"}`}
+            data-sync-state={bookingQueueNotice.status}
+          >
+            <strong>{bookingQueueNotice.title}</strong>
+            <span>{bookingQueueNotice.message}</span>
+          </div>
+        ) : !isOnline && canManageBookings ? (
+          <div className="bookings-sync-banner is-info" data-sync-state={SYNC_STATES.OFFLINE}>
+            <strong>Offline</strong>
+            <span>Booking actions can be saved locally. The server will confirm availability when sync runs.</span>
+          </div>
+        ) : null}
 
         {!loading && !error && (
           <section className="bookings-summary-grid">

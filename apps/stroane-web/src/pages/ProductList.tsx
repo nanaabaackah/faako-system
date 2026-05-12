@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, EmptyState, InlineNotice, PageHeader, PageShell } from "@faako/ui";
 import type { Product } from "../types/index";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/ProductList.css";
 
 const ProductList: React.FC = () => {
@@ -11,7 +11,13 @@ const ProductList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  usePageTitle("Products");
+  useSEOMeta({
+    title: "Food Safety Products Ghana | Stroane",
+    description:
+      "Browse Stroane's range of food safety equipment and supplies for Ghanaian businesses. All prices in GHS inclusive of VAT.",
+    keywords: "food safety products Ghana, buy food safety supplies Ghana",
+    canonical: "https://stroanesolutions.com/products",
+  });
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -71,7 +77,7 @@ const ProductList: React.FC = () => {
                 <Link to="/shop" className="ui-button ui-button--secondary">
                   Browse categories
                 </Link>
-                <a href="mailto:info@stroane.com" className="ui-button ui-button--primary">
+                <a href="mailto:info@stroanesolutions.com" className="ui-button ui-button--primary">
                   Contact us
                 </a>
               </>

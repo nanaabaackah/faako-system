@@ -163,6 +163,45 @@
   flex-wrap: wrap;
 }
 
+.ui-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ui-section-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.25;
+  color: var(--sys-text);
+}
+
+.ui-section-header__eyebrow {
+  display: block;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--sys-muted);
+}
+
+.ui-section-header__description {
+  margin: 0.35rem 0 0;
+  max-width: 58ch;
+  color: var(--sys-muted);
+  line-height: 1.5;
+}
+
+.ui-section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .ui-card {
   border: 1px solid var(--sys-border);
   border-radius: var(--sys-radius-md);
@@ -179,6 +218,8 @@
 .ui-search-field__input,
 .ui-search-field__clear,
 .ui-data-table__sort,
+.ui-erp-table-search input,
+.ui-erp-table-pagination button,
 .ui-notice-banner__dismiss,
 .ui-toast__dismiss {
   font: inherit;
@@ -1273,6 +1314,339 @@
 .ui-data-table.is-dense tfoot td {
   padding-top: 0.72rem;
   padding-bottom: 0.72rem;
+}
+
+.ui-erp-table {
+  display: grid;
+  gap: 0.9rem;
+  color: var(--sys-text);
+}
+
+.ui-erp-table-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ui-erp-table-toolbar__copy {
+  min-width: min(18rem, 100%);
+}
+
+.ui-erp-table-toolbar__copy h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.ui-erp-table-toolbar__copy p {
+  margin: 0.25rem 0 0;
+  color: var(--sys-muted);
+  line-height: 1.45;
+}
+
+.ui-erp-table-toolbar__controls,
+.ui-erp-table-toolbar__filters,
+.ui-erp-table-toolbar__actions,
+.ui-erp-table-filters,
+.ui-erp-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.ui-erp-table-toolbar__controls {
+  justify-content: flex-end;
+  flex: 1 1 22rem;
+}
+
+.ui-erp-table-toolbar__search {
+  flex: 1 1 14rem;
+  min-width: min(16rem, 100%);
+}
+
+.ui-erp-table-search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ui-erp-table-search__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--sys-muted);
+}
+
+.ui-erp-table-search input {
+  min-height: 2.6rem;
+  width: 100%;
+  border: 1px solid var(--sys-border);
+  border-radius: 0.85rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  padding: 0.65rem 0.85rem;
+  outline: none;
+}
+
+.ui-erp-table-search input:focus-visible {
+  border-color: var(--sys-accent);
+  box-shadow: 0 0 0 3px var(--sys-accent-soft);
+}
+
+.ui-erp-table__scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-surface-strong);
+  box-shadow: var(--sys-shadow-sm);
+}
+
+.ui-erp-table__table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.ui-erp-table__table caption {
+  padding: 0.85rem 1rem 0;
+  text-align: left;
+  color: var(--sys-muted);
+}
+
+.ui-erp-table__table th,
+.ui-erp-table__table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--sys-border);
+  vertical-align: top;
+}
+
+.ui-erp-table__table th {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sys-muted);
+  background: var(--sys-bg-elevated);
+}
+
+.ui-erp-table__table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.ui-erp-table__table tbody tr:hover {
+  background: color-mix(in srgb, var(--sys-accent-soft) 62%, transparent);
+}
+
+.ui-erp-table__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ui-erp-table__table .is-center {
+  text-align: center;
+}
+
+.ui-erp-table__table .is-right {
+  text-align: right;
+}
+
+.ui-erp-table__row-actions {
+  white-space: nowrap;
+}
+
+.ui-erp-table.is-dense .ui-erp-table__table th,
+.ui-erp-table.is-dense .ui-erp-table__table td {
+  padding-top: 0.68rem;
+  padding-bottom: 0.68rem;
+}
+
+.ui-erp-table-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 1.6rem;
+  border: 1px dashed var(--sys-border);
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-surface);
+  color: var(--sys-muted);
+  text-align: center;
+}
+
+.ui-erp-table-state strong {
+  color: var(--sys-text);
+}
+
+.ui-erp-table-state p {
+  margin: 0;
+  max-width: 48ch;
+}
+
+.ui-erp-table-state__spinner {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  border: 2px solid var(--sys-border);
+  border-top-color: var(--sys-accent);
+  animation: ui-feedback-spin 800ms linear infinite;
+}
+
+.ui-erp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 1.75rem;
+  padding: 0.16rem 0.62rem;
+  border-radius: 999px;
+  background: var(--sys-bg-elevated);
+  color: var(--sys-text);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ui-erp-status-badge--success {
+  background: var(--sys-success-soft);
+  color: var(--sys-success);
+}
+
+.ui-erp-status-badge--warning {
+  background: var(--sys-warning-soft);
+  color: var(--sys-warning);
+}
+
+.ui-erp-status-badge--danger {
+  background: var(--sys-danger-soft);
+  color: var(--sys-danger);
+}
+
+.ui-erp-status-badge--info {
+  background: var(--sys-info-soft);
+  color: var(--sys-info);
+}
+
+.ui-erp-status-badge--loading {
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.ui-erp-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  color: var(--sys-muted);
+}
+
+.ui-erp-table-pagination__meta {
+  margin: 0;
+}
+
+.ui-erp-table-pagination__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.ui-erp-table-pagination button {
+  min-height: 2.35rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 999px;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+}
+
+.ui-erp-table-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.ui-erp-table-pagination button:focus-visible {
+  outline: 2px solid var(--sys-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .ui-erp-table-toolbar,
+  .ui-erp-table-toolbar__controls,
+  .ui-erp-table-toolbar__filters,
+  .ui-erp-table-toolbar__actions,
+  .ui-erp-table-filters,
+  .ui-erp-table-actions,
+  .ui-erp-table-pagination {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .ui-erp-table-toolbar__controls,
+  .ui-erp-table-toolbar__search,
+  .ui-erp-table-search,
+  .ui-erp-table-search input,
+  .ui-erp-table-pagination__controls {
+    width: 100%;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__scroll {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0 0.75rem;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table thead {
+    display: none;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table,
+  .ui-erp-table--cards .ui-erp-table__table tbody,
+  .ui-erp-table--cards .ui-erp-table__table tr,
+  .ui-erp-table--cards .ui-erp-table__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table tr {
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-md);
+    background: var(--sys-surface-strong);
+    box-shadow: var(--sys-shadow-sm);
+    overflow: hidden;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table td {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 0.42fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--sys-border);
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table td::before {
+    content: attr(data-label);
+    color: var(--sys-muted);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table td:last-child {
+    border-bottom: 0;
+  }
+
+  .ui-erp-table--cards .ui-erp-table__table .is-hidden-mobile {
+    display: none;
+  }
 }
 
 @keyframes ui-feedback-spin {

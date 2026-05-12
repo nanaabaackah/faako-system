@@ -19,6 +19,9 @@ dist
 dist-ssr
 *.local
 
+# Seed files contain plain-text passwords — never commit
+prisma/seeds/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

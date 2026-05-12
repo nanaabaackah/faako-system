@@ -267,6 +267,42 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
   font-weight: 600;
 }
 
+.bookings-sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid rgba(39, 93, 173, 0.18);
+  border-radius: 8px;
+  background: rgba(39, 93, 173, 0.08);
+  color: var(--ink, #17202a);
+  font-size: 0.9rem;
+}
+
+.bookings-sync-banner strong {
+  font-weight: 800;
+}
+
+.bookings-sync-banner span {
+  opacity: 0.78;
+}
+
+.bookings-sync-banner.is-error {
+  border-color: rgba(190, 45, 60, 0.24);
+  background: rgba(190, 45, 60, 0.08);
+}
+
+.bookings-sync-banner.is-success {
+  border-color: rgba(33, 128, 96, 0.24);
+  background: rgba(33, 128, 96, 0.09);
+}
+
+.bookings-sync-banner.is-loading {
+  border-color: rgba(174, 120, 38, 0.24);
+  background: rgba(174, 120, 38, 0.09);
+}
+
 .bookings-customer-picker {
   position: relative;
   display: grid;

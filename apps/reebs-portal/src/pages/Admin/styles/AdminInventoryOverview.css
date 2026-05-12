@@ -52,6 +52,10 @@ body.admin-theme .inventory-page .admin-shell {
   gap: 14px;
 }
 
+.inventory-sync-notice {
+  margin: 14px 0;
+}
+
 .inventory-scope-card {
   display: grid;
   gap: 0.35rem;

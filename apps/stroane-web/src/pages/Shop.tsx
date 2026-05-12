@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, EmptyState, StatusPill } from "@faako/ui";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
+import StructuredData from "../components/StructuredData";
 import "../styles/pages/Shop.css";
 
 type Category =
@@ -227,13 +228,59 @@ const getStockTone = (stock: Product["stock"]) => {
   return "info";
 };
 
+const SHOP_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "@id": "https://stroanesolutions.com/shop",
+  name: "Stroane Food Safety Supplies — Ghana",
+  description:
+    "Thermometers, hygiene supplies, testing kits, cold-chain equipment, and inspection records for food businesses in Ghana.",
+  url: "https://stroanesolutions.com/shop",
+  breadcrumb: {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://stroanesolutions.com/" },
+      { "@type": "ListItem", position: 2, name: "Shop", item: "https://stroanesolutions.com/shop" },
+    ],
+  },
+  itemListElement: products.map((product, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    item: {
+      "@type": "Product",
+      name: product.name,
+      description: product.description,
+      sku: product.sku,
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "GHS",
+        price: product.price,
+        availability:
+          product.stock === "In stock"
+            ? "https://schema.org/InStock"
+            : product.stock === "Low stock"
+            ? "https://schema.org/LimitedAvailability"
+            : "https://schema.org/PreOrder",
+        seller: { "@type": "Organization", name: "Stroane" },
+      },
+    },
+  })),
+};
+
 const Shop: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
   const [quoteItems, setQuoteItems] = useState<string[]>([]);
 
-  usePageTitle("Shop");
+  useSEOMeta({
+    title: "Food Safety Equipment & Supplies Ghana | Stroane Store",
+    description:
+      "Buy thermometers, hygiene supplies, testing kits, cold-chain equipment, and inspection records for food businesses in Ghana. Supports audit readiness and Ghana FDA compliance.",
+    keywords:
+      "food safety equipment Ghana, thermometer food safety Ghana, food safety supplies Accra, HACCP equipment Ghana, cold chain supplies Ghana",
+    canonical: "https://stroanesolutions.com/shop",
+  });
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -262,12 +309,12 @@ const Shop: React.FC = () => {
   const selectedProducts = products.filter((product) => quoteItems.includes(product.id));
   const quoteTotal = selectedProducts.reduce((total, product) => total + product.price, 0);
   const quoteHref = selectedProducts.length
-    ? `mailto:info@stroane.com?subject=${encodeURIComponent("Stroane product quote request")}&body=${encodeURIComponent(
+    ? `mailto:info@stroanesolutions.com?subject=${encodeURIComponent("Stroane product quote request")}&body=${encodeURIComponent(
         `Hello Stroane,\n\nPlease send me a quote for:\n${selectedProducts
           .map((product) => `- ${product.name} (${product.sku})`)
           .join("\n")}\n\nEstimated catalogue total: ${formatCurrency(quoteTotal)}\n\nThank you.`
       )}`
-    : "mailto:info@stroane.com?subject=Stroane product quote request";
+    : "mailto:info@stroanesolutions.com?subject=Stroane product quote request";
 
   const toggleQuoteItem = (productId: string) => {
     setQuoteItems((current) =>
@@ -279,6 +326,7 @@ const Shop: React.FC = () => {
 
   return (
     <Layout>
+      <StructuredData schema={SHOP_SCHEMA} id="shop-schema" />
       <div className="shop-page">
         <section className="shop-hero">
           <img

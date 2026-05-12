@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { EmptyState } from "@faako/ui";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/Search.css";
 
 const SEARCH_INDEX = [
@@ -111,7 +111,11 @@ const Search: React.FC = () => {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
 
-  usePageTitle(q ? `"${q}" — Search` : "Search");
+  useSEOMeta({
+    title: q ? `Search: "${q}" | Stroane` : "Search | Stroane",
+    description: "Search Stroane for food safety services, products, guides, and resources.",
+    noIndex: true,
+  });
 
   const results = useMemo<Result[]>(() => {
     if (!q.trim()) return [];

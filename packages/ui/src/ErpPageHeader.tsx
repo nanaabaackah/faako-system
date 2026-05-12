@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
-interface ErpPageHeaderProps extends HTMLAttributes<HTMLElement> {
+interface ErpPageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;

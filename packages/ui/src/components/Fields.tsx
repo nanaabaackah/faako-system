@@ -9,6 +9,7 @@ import {
   useState,
   type InputHTMLAttributes,
   type ReactNode,
+  type RefObject,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
@@ -62,7 +63,13 @@ const calendarValueFormatter = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
-const parseDateValue = (value?: string | null) => {
+type OptionChildProps = {
+  value?: string | number;
+  children?: ReactNode;
+  disabled?: boolean;
+};
+
+const parseDateValue = (value?: string | number | null) => {
   if (!value) return null;
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
@@ -104,7 +111,7 @@ const buildCalendarDays = (month: Date) => {
 const buildOptionsFromChildren = (children: ReactNode): SelectOption[] =>
   Children.toArray(children)
     .map((child) => {
-      if (!isValidElement(child)) return null;
+      if (!isValidElement<OptionChildProps>(child)) return null;
       if (typeof child.type !== "string" || child.type.toLowerCase() !== "option") return null;
       const value = child.props.value ?? "";
       const label =

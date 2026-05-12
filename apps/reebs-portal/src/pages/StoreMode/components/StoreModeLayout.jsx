@@ -73,8 +73,9 @@ function StoreModeHeader({ onExit, onRefresh, loading, isOnline }) {
   );
 }
 
-function StoreModeFeedback({ loading, error, submitError, success, isOnline, draftStatus }) {
+function StoreModeFeedback({ loading, error, submitError, success, isOnline, draftStatus, posQueueStatus }) {
   const hasLocalDraft = Boolean(draftStatus?.type);
+  const hasPosQueueStatus = Boolean(posQueueStatus?.status);
   const notices = [
     loading
       ? {
@@ -130,6 +131,38 @@ function StoreModeFeedback({ loading, error, submitError, success, isOnline, dra
           tone: "success",
           title: "Draft saved locally",
           message: "Online - ready to submit. Final validation still happens on the server.",
+        }
+      : null,
+    hasPosQueueStatus && posQueueStatus.status === "pending"
+      ? {
+          key: "pos-sync-pending",
+          tone: "info",
+          title: "Pending sync",
+          message: posQueueStatus.message || "A POS sale is saved locally and waiting to sync.",
+        }
+      : null,
+    hasPosQueueStatus && posQueueStatus.status === "syncing"
+      ? {
+          key: "pos-syncing",
+          tone: "loading",
+          title: "Syncing",
+          message: posQueueStatus.message || "Submitting queued POS sale to the server.",
+        }
+      : null,
+    hasPosQueueStatus && posQueueStatus.status === "synced"
+      ? {
+          key: "pos-synced",
+          tone: "success",
+          title: "Synced",
+          message: posQueueStatus.message || "Queued POS sale synced.",
+        }
+      : null,
+    hasPosQueueStatus && posQueueStatus.status === "needs_review"
+      ? {
+          key: "pos-sync-review",
+          tone: "error",
+          title: "Needs review",
+          message: posQueueStatus.message || "Queued POS sale could not sync. Check stock and customer details.",
         }
       : null,
   ];
@@ -564,7 +597,11 @@ function StoreModeCartPanel({
   canCompleteSale,
   canPayLater,
   clearOrder,
+  isOnline,
 }) {
+  const sellLabel = isOnline ? "Sell" : "Save offline sale";
+  const payLaterLabel = isOnline ? "Pay later" : "Save offline pay later";
+
   return (
     <section className="glass-card store-builder-panel store-builder-panel--cart">
       <div className="store-builder-section-head">
@@ -664,8 +701,8 @@ function StoreModeCartPanel({
           className="store-builder-submit store-builder-submit--icon"
           onClick={() => submitSale({ payLater: false })}
           disabled={submitting || !canCompleteSale}
-          aria-label={submitting ? "Selling" : "Sell"}
-          title={submitting ? "Selling" : "Sell"}
+          aria-label={submitting ? "Saving" : sellLabel}
+          title={submitting ? "Saving" : sellLabel}
         >
           <AppIcon icon={faMoneyBillWave} />
         </button>
@@ -685,7 +722,7 @@ function StoreModeCartPanel({
           onClick={() => submitSale({ payLater: true })}
           disabled={submitting || !canPayLater}
         >
-          <AppIcon icon={faClock} /> {submitting ? "Saving..." : "Pay later"}
+          <AppIcon icon={faClock} /> {submitting ? "Saving..." : payLaterLabel}
         </button>
       </div>
 
@@ -702,7 +739,7 @@ function StoreModeCartPanel({
             disabled={submitting || !canCompleteSale}
           >
             <AppIcon icon={faMoneyBillWave} />
-            {submitting ? "Selling..." : "Sell"}
+            {submitting ? "Saving..." : sellLabel}
           </button>
           <button
             type="button"
@@ -720,7 +757,7 @@ function StoreModeCartPanel({
             disabled={submitting || !canPayLater}
           >
             <AppIcon icon={faClock} />
-            {submitting ? "Saving..." : "Pay later"}
+            {submitting ? "Saving..." : payLaterLabel}
           </button>
         </div>
       </div>
@@ -800,6 +837,7 @@ export function StoreModeLayout({
   success,
   isOnline,
   draftStatus,
+  posQueueStatus,
   inventoryProps,
   customerProps,
   orderProps,
@@ -817,6 +855,7 @@ export function StoreModeLayout({
         success={success}
         isOnline={isOnline}
         draftStatus={draftStatus}
+        posQueueStatus={posQueueStatus}
       />
       <div className="store-mode-left-col">
         <StoreModeInventoryPanel {...inventoryProps} />

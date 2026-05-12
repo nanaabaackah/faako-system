@@ -17,3 +17,21 @@ model Product {
 
   @@index([name])
 }
+
+enum SiteRole {
+  ADMIN
+  VIEWER
+}
+
+model SiteUser {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  role         SiteRole   @default(VIEWER)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  createdById  String?
+  createdBy    SiteUser?  @relation("CreatedBy", fields: [createdById], references: [id])
+  createdUsers SiteUser[] @relation("CreatedBy")
+}

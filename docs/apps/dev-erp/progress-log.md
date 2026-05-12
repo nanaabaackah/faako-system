@@ -23,6 +23,118 @@ Next step:
 
 ## Entries
 
+### Shared ERP table foundation
+
+Date: 2026-05-12
+Feature/change name: Shared ERP table foundation
+Apps affected: Dev ERP System Health
+What changed: Dev ERP System Health now uses the shared `ERPTable` and `ERPStatusBadge` presentation components for the read-only service status table. The page still owns health data loading, refresh behavior, incident notes, status mapping, and all API behavior.
+Why it changed: Prove the shared ERP table foundation in a low-risk display-heavy area before considering workflow-heavy tables such as Rent, Invoicing, Reports, User Control, or payment-adjacent views.
+Files changed: packages/ui/src/components/ERPTable.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/SystemHealth/SystemHealth.jsx, apps/dev-erp/README.md, README.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only shared UI. Auth, permissions, system health API behavior, incident note local storage behavior, reports, rent/payment records, invoices, email workflows, AI/productivity endpoints, database schema, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP System Health, README, and documentation files; trailing-whitespace scan on the same files.
+Rollback notes: Revert the System Health `ERPTable`/`ERPStatusBadge` adoption and shared table component additions. No data rollback is required.
+Next step: Shared form foundation implementation.
+
+### Shared UI system cleanup and extraction
+
+Date: 2026-05-12
+Feature/change name: Shared UI system cleanup and extraction
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now uses low-risk shared ERP panel, panel-header, stack, and form-group wrappers from `@faako/ui` for the alert settings presentation. The wrappers preserve existing `panel-grid`, `panel`, `panel-header`, `stack`, and `form-field` class names, so the rendered CSS hooks stay equivalent.
+Why it changed: Reduce repeated presentation markup and prepare for a shared UI system while preserving Dev ERP's live alert settings, Sync Review behavior, routes, auth, API calls, and storage behavior.
+Files changed: packages/ui/src/components/Primitives.tsx, packages/ui/src/components/Fields.tsx, packages/ui/src/ErpPageHeader.tsx, packages/ui/src/ErpShellFrame.tsx, packages/ui/src/ErpShellTopbar.tsx, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, apps/dev-erp/README.md, README.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only cleanup. Auth, permissions, alert preferences, offline queue review, rent/payment records, operational records, reports, email workflows, AI/productivity endpoints, APIs, database schema, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP Settings, README, and documentation files.
+Rollback notes: Revert the Dev ERP Settings wrapper imports/usages and shared UI wrapper additions. No data rollback is required.
+Next step: Shared form/table system planning.
+
+### Safe Cleanup Wave 1
+
+Date: 2026-05-12
+Feature/change name: Safe Cleanup Wave 1
+Apps affected: Dev ERP
+What changed: Removed an unused activity-log catch binding in Dashboard and stabilized the Settings Sync Review refresh callback reference used by retry/cancel/resolve controls. No rent, accounting, invoice, auth, report, booking, public route, or backend behavior changed.
+Why it changed: Clear the low-risk Dev ERP lint issue found during the cleanup audit without touching production-sensitive workflows.
+Files changed: apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/src/pages/Settings/Settings.jsx, docs/platform/codebase-cleanup-audit.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: None.
+Security impact: Low-risk cleanup only. Auth, permissions, rent/payment records, accounting, invoices, reports, email workflows, AI/productivity endpoints, APIs, database schema, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`.
+Rollback notes: Revert the listed Dev ERP cleanup edits. No data rollback is required.
+Next step: Shared UI system cleanup and extraction.
+
+### Notification service foundation
+
+Date: 2026-05-11
+Feature/change name: Notification service foundation
+Apps affected: Dev ERP Appointments email-link draft
+What changed: Added `@faako/notifications` and wired the Appointments page's existing email-link action to use the shared customer-safe booking confirmation draft formatter. The action remains a user-triggered `mailto:` draft and does not send automated email.
+Why it changed: Give Dev ERP a shared notification-text foundation before future automated reminders, appointment notifications, or email/WhatsApp/SMS work, while keeping live operational customer data privacy-safe.
+Files changed: packages/notifications/package.json, packages/notifications/src/index.js, packages/notifications/src/constants/channels.js, packages/notifications/src/constants/types.js, packages/notifications/src/constants/statuses.js, packages/notifications/src/constants/index.js, packages/notifications/src/helpers/safeText.js, packages/notifications/src/helpers/channelAvailability.js, packages/notifications/src/helpers/index.js, packages/notifications/src/templates/customerMessages.js, packages/notifications/src/templates/index.js, packages/notifications/test/notifications.test.mjs, packages/notifications/README.md, apps/dev-erp/package.json, apps/dev-erp/src/pages/Bookings/Bookings.jsx, pnpm-lock.yaml, README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: None.
+Security impact: Customer-safe message templates only. No automated email, WhatsApp, SMS, notification persistence, Resend behavior change, backend send behavior change, booking/calendar behavior change, rent/payment behavior change, auth change, permission change, or schema change.
+Testing done: `pnpm --filter @faako/notifications run test`; `pnpm --filter @faako/dev-erp run build`; documentation review. Manual checks documented for appointment link email draft text and unchanged backend send/booking/calendar/rent behavior.
+Rollback notes: Remove the Dev ERP Appointments notification import/mailto draft usage, remove the app dependency on `@faako/notifications`, remove the shared package if not used elsewhere, and remove related README/docs entries.
+Next step: delivery/map helper foundation.
+
+### Offline conflict review and sync reliability
+
+Date: 2026-05-11
+Feature/change name: Offline conflict review and sync reliability
+Apps affected: Dev ERP Settings
+What changed: Added the shared `SyncReviewPanel` to Dev ERP Settings and expanded `@faako/offline-sync` with queue summary, retry, cancel, mark-resolved, last-error, and conflict metadata helpers. The panel shows local Dev ERP queue counts and review cards for failed or needs-review queue records without exposing raw queue payloads.
+Why it changed: Dev ERP is fully live with real operational data, so failed or conflicting offline rent payment queue records need visible recovery paths instead of being hidden inside browser-local storage.
+Files changed: packages/offline-sync/src/constants/syncStates.js, packages/offline-sync/src/storage/queueStorage.js, packages/offline-sync/src/storage/queueActions.js, packages/offline-sync/src/storage/index.js, packages/offline-sync/src/status/queueSummary.js, packages/offline-sync/src/status/index.js, packages/offline-sync/src/hooks/useSyncQueueSummary.js, packages/offline-sync/src/hooks/useQueuedActionRetry.js, packages/offline-sync/src/hooks/useQueuedActionCancel.js, packages/offline-sync/src/hooks/index.js, packages/offline-sync/src/components/SyncConflictCard.js, packages/offline-sync/src/components/SyncReviewPanel.js, packages/offline-sync/src/components/index.js, packages/offline-sync/test/offlineSync.test.mjs, apps/dev-erp/src/pages/Settings/Settings.jsx, packages/offline-sync/README.md, README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued data only.
+Security impact: Improves visibility and recovery for offline actions. Retry re-arms local queue items for existing sync paths; server validation, auth, permissions, rent/payment validation, organization scoping, reports, and final writes remain server-owned.
+Testing done: `pnpm --filter @faako/offline-sync run test`; `pnpm --filter @faako/dev-erp run build`; documentation review. Manual checks documented for Settings Sync Review counts, retry, cancel, mark-resolved, scoped queue filtering, and unchanged online rent/settings workflows.
+Rollback notes: Remove the Sync Review panel from Settings, remove shared review helpers/components if no longer needed, and revert related README/docs/test updates. Existing rent payment queue creation and sync paths remain app-owned.
+Next step: WhatsApp receipt sharing.
+
+### Offline booking queue reviewed
+
+Date: 2026-05-11
+Feature/change name: Offline booking queue foundation
+Apps affected: Dev ERP documentation only
+What changed: Reviewed Dev ERP Bookings/Appointments for offline booking queue applicability and documented that no current manual booking create/update/status workflow is safe to wire in this phase. The reviewed surface remains online-only because it focuses on appointment visibility, settings, booking links, and Google Calendar sync/disconnect actions.
+Why it changed: Keep the ERP-wide offline booking rollout explicit without forcing offline queues into live calendar/settings/integration workflows that need a separate capability and conflict review.
+Files changed: apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: None.
+Security impact: Server remains booking/calendar source of truth. Dev ERP booking/settings/calendar workflows remain online-only; auth, permissions, operational records, reports, Google Calendar integration, and API behavior are unchanged.
+Testing done: Documentation review and Dev ERP booking-surface search. No Dev ERP build was required because no Dev ERP runtime files changed.
+Rollback notes: Remove this documentation note if Dev ERP later gains a reviewed manual booking create/update/status surface and a separate offline implementation plan.
+Next step: Offline conflict review and sync reliability (completed 2026-05-11).
+
+### Offline inventory adjustment queue reviewed
+
+Date: 2026-05-11
+Feature/change name: Offline inventory adjustment queue
+Apps affected: Dev ERP documentation only
+What changed: Reviewed Dev ERP for inventory/stock adjustment surfaces and documented that no current inventory adjustment workflow is safe or applicable for offline queue wiring in this phase. No Dev ERP runtime code changed.
+Why it changed: Keep the ERP-wide offline inventory queue rollout explicit without forcing stock concepts into Dev ERP's live rent, accounting, invoicing, reporting, and productivity workflows.
+Files changed: apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: None.
+Security impact: Server remains source of truth. Dev ERP inventory adjustments remain unwired; auth, permissions, rent/payment records, reports, accounting, invoices, and API behavior are unchanged.
+Testing done: Documentation review and Dev ERP inventory-surface search. No Dev ERP build was required because no Dev ERP runtime files changed.
+Rollback notes: Remove the documentation note if Dev ERP later gains a reviewed inventory adjustment surface and a separate implementation plan.
+Next step: Offline booking queue foundation.
+
+### Queued offline manual payments
+
+Date: 2026-05-11
+Feature/change name: Queued offline manual payments
+Apps affected: Dev ERP Rent payment recording
+What changed: Dev ERP Rent now queues new offline rent payment submissions as `RECORD_PAYMENT` actions using `@faako/offline-sync`. Queued records include the tenant/rent reference, amount, payment month, method/reference/notes, idempotency metadata, user/org scope, and pending status. When online returns, Dev ERP submits queued payments to the existing `/api/rent/payments` endpoint and clears queue items only after confirmed success. Existing rent payment edits remain online-only. UI notices show offline payment saved, pending sync, syncing, synced, needs review, and sync failed states.
+Why it changed: Allow authenticated rent managers to preserve new rent payment submissions during unstable internet while preserving existing online rent payment behavior and server-side auth, permission, tenant, balance, notification, and report validation.
+Files changed: apps/dev-erp/src/pages/Rent/offlineRentPaymentQueue.js, apps/dev-erp/src/pages/Rent/Rent.jsx, packages/offline-sync/README.md, README.md, apps/dev-erp/README.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: Local queued data only until server sync.
+Security impact: Server remains source of truth. Queueing requires authenticated user/org context, does not update balances offline, does not trigger notifications/accounting/report effects offline, does not edit existing payment records offline, and does not bypass auth, permissions, tenant scoping, payment validation, or organization isolation.
+Testing done: `@faako/offline-sync` node tests, Dev ERP Vite build, package export import check, and documentation review. Manual checks documented for offline rent payment queueing, pending/syncing/synced/needs-review/sync-failed notices, online-only edits, and unchanged online rent payment recording.
+Rollback notes: Remove the Dev ERP rent payment queue helper, offline branch, sync effects, and queue notices from Rent, then return rent payments to online-only behavior. Existing online rent payment recording remains unchanged.
+Next step: Offline inventory adjustment queue.
+
 ### Offline Foundation Wave
 
 Date: 2026-05-10

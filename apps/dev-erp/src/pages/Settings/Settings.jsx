@@ -1,5 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  SyncReviewPanel,
+  createIndexedDbQueueStorage,
+  markQueuedActionResolved,
+  useQueuedActionCancel,
+  useQueuedActionRetry,
+  useSyncQueueSummary,
+} from "@faako/offline-sync";
+import { ErpPanel, ErpPanelGrid, ErpPanelHeader, FormGroup, StackGroup } from "@faako/ui";
 import { apiGet, apiPost, ApiError } from "../../api/client";
+import { readStoredSessionUser } from "../../utils/authSession";
 import { formatDateTime } from "../../utils/formatters";
 
 const DEFAULT_PREFS = {
@@ -24,6 +34,47 @@ const Settings = () => {
   const [isSmsAvailable, setIsSmsAvailable] = useState(false);
   const [storageMode, setStorageMode] = useState("memory");
   const [lastEmailSentAt, setLastEmailSentAt] = useState(null);
+  const storedUser = useMemo(() => readStoredSessionUser(), []);
+  const currentActorId = storedUser?.id || storedUser?.userId || "";
+  const currentOrganizationId = storedUser?.organizationId || "";
+  const syncReviewStorage = useMemo(() => createIndexedDbQueueStorage(), []);
+  const syncReview = useSyncQueueSummary({
+    storage: syncReviewStorage,
+    sourceApp: "dev-erp",
+    organizationId: currentOrganizationId,
+    actorId: currentActorId,
+    enabled: Boolean(currentOrganizationId && currentActorId),
+  });
+  const refreshSyncReview = syncReview.refresh;
+  const [syncResolvingId, setSyncResolvingId] = useState("");
+  const {
+    retry: retryQueuedAction,
+    retryingId: retryingQueuedActionId,
+    error: retryQueuedActionError,
+  } = useQueuedActionRetry({
+    storage: syncReviewStorage,
+    onAfterChange: refreshSyncReview,
+  });
+  const {
+    cancel: cancelQueuedAction,
+    cancellingId: cancellingQueuedActionId,
+    error: cancelQueuedActionError,
+  } = useQueuedActionCancel({
+    storage: syncReviewStorage,
+    onAfterChange: refreshSyncReview,
+  });
+  const resolveQueuedAction = useCallback(async (item) => {
+    if (!item?.id) return;
+    setSyncResolvingId(item.id);
+    try {
+      await markQueuedActionResolved(syncReviewStorage, item, {
+        resolution: "Marked resolved from Dev ERP offline sync review.",
+      });
+      await refreshSyncReview();
+    } finally {
+      setSyncResolvingId("");
+    }
+  }, [refreshSyncReview, syncReviewStorage]);
 
   useEffect(() => {
     setHasSession(true);
@@ -157,141 +208,153 @@ const Settings = () => {
       ) : null}
 
       {!isLoadingPrefs ? (
-        <div className="panel-grid">
-          <article className="panel">
-            <div className="panel-header">
-              <div>
-                <h3>Alert subscriptions</h3>
-                <p className="muted">Choose how you want to be notified.</p>
-              </div>
-            </div>
-            <div className="stack">
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.email}
-                  onChange={() => togglePref("email")}
-                  disabled={isLoadingPrefs || !hasSession}
-                />
-                <span>Email alerts</span>
-              </label>
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.slack}
-                  onChange={() => togglePref("slack")}
-                  disabled
-                />
-                <span>Slack alerts (coming soon)</span>
-              </label>
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.sms}
-                  onChange={() => togglePref("sms")}
-                  disabled={!isSmsAvailable || isLoadingPrefs || !hasSession}
-                />
-                <span>{isSmsAvailable ? "SMS alerts" : "SMS alerts (disabled for now)"}</span>
-              </label>
-              <label className="form-field">
-                <span>Email recipients</span>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="ops@company.com"
-                  value={prefs.emailRecipients}
-                  onChange={(event) => updatePref("emailRecipients", event.target.value)}
-                  disabled={isLoadingPrefs || !hasSession}
-                />
-              </label>
-              <label className="form-field">
-                <span>Slack channel</span>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="#ops-alerts"
-                  value={prefs.slackChannel}
-                  onChange={(event) => updatePref("slackChannel", event.target.value)}
-                  disabled
-                />
-              </label>
-              <label className="form-field">
-                <span>SMS recipients</span>
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="+15550100, +233241234567"
-                  value={prefs.smsRecipients}
-                  onChange={(event) => updatePref("smsRecipients", event.target.value)}
-                  disabled={!isSmsAvailable || isLoadingPrefs || !hasSession}
-                />
-              </label>
-              <div className="header-actions">
-                <button
-                  className="button button-primary"
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving || isLoadingPrefs || !hasSession}
-                >
-                  {isSaving ? "Saving..." : "Save preferences"}
-                </button>
-                <button
-                  className="button button-ghost"
-                  type="button"
-                  onClick={handleTestEmail}
-                  disabled={
-                    !prefs.email || !isLoaded || isTestingEmail || isLoadingPrefs || !hasSession
-                  }
-                >
-                  {isTestingEmail ? "Sending..." : "Send test email"}
-                </button>
-              </div>
-              {!isSmsAvailable ? (
-                <div className="notice">
-                  SMS is disabled for now. Email alerts are the active channel.
+        <>
+          <ErpPanelGrid>
+            <ErpPanel>
+              <ErpPanelHeader
+                title="Alert subscriptions"
+                description="Choose how you want to be notified."
+              />
+              <StackGroup>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.email}
+                    onChange={() => togglePref("email")}
+                    disabled={isLoadingPrefs || !hasSession}
+                  />
+                  <span>Email alerts</span>
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.slack}
+                    onChange={() => togglePref("slack")}
+                    disabled
+                  />
+                  <span>Slack alerts (coming soon)</span>
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.sms}
+                    onChange={() => togglePref("sms")}
+                    disabled={!isSmsAvailable || isLoadingPrefs || !hasSession}
+                  />
+                  <span>{isSmsAvailable ? "SMS alerts" : "SMS alerts (disabled for now)"}</span>
+                </label>
+                <FormGroup label="Email recipients">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="ops@company.com"
+                    value={prefs.emailRecipients}
+                    onChange={(event) => updatePref("emailRecipients", event.target.value)}
+                    disabled={isLoadingPrefs || !hasSession}
+                  />
+                </FormGroup>
+                <FormGroup label="Slack channel">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="#ops-alerts"
+                    value={prefs.slackChannel}
+                    onChange={(event) => updatePref("slackChannel", event.target.value)}
+                    disabled
+                  />
+                </FormGroup>
+                <FormGroup label="SMS recipients">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="+15550100, +233241234567"
+                    value={prefs.smsRecipients}
+                    onChange={(event) => updatePref("smsRecipients", event.target.value)}
+                    disabled={!isSmsAvailable || isLoadingPrefs || !hasSession}
+                  />
+                </FormGroup>
+                <div className="header-actions">
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving || isLoadingPrefs || !hasSession}
+                  >
+                    {isSaving ? "Saving..." : "Save preferences"}
+                  </button>
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={handleTestEmail}
+                    disabled={
+                      !prefs.email || !isLoaded || isTestingEmail || isLoadingPrefs || !hasSession
+                    }
+                  >
+                    {isTestingEmail ? "Sending..." : "Send test email"}
+                  </button>
                 </div>
-              ) : null}
-              <p className="muted">
-                Last email sent{" "}
-                {lastEmailSentAt ? formatDateTime(lastEmailSentAt) : "not yet available"}.
-              </p>
-            </div>
-          </article>
+                {!isSmsAvailable ? (
+                  <div className="notice">
+                    SMS is disabled for now. Email alerts are the active channel.
+                  </div>
+                ) : null}
+                <p className="muted">
+                  Last email sent{" "}
+                  {lastEmailSentAt ? formatDateTime(lastEmailSentAt) : "not yet available"}.
+                </p>
+              </StackGroup>
+            </ErpPanel>
 
-          <article className="panel">
-            <div className="panel-header">
-              <div>
-                <h3>Alert triggers</h3>
-                <p className="muted">Pick which conditions should raise alerts.</p>
-              </div>
-            </div>
-            <div className="stack">
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.notifyOffline}
-                  onChange={() => togglePref("notifyOffline")}
-                  disabled={isLoadingPrefs || !hasSession}
-                />
-                <span>Notify when a service is offline</span>
-              </label>
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={prefs.notifyDegraded}
-                  onChange={() => togglePref("notifyDegraded")}
-                  disabled={isLoadingPrefs || !hasSession}
-                />
-                <span>Notify when a service is degraded</span>
-              </label>
-              <div className="notice">
-                {storageMode === "database"
-                  ? "Saved preferences are persisted in backend storage and survive restarts."
-                  : "Saved preferences are using the in-memory fallback. Apply the alert settings migration to persist them across restarts."}
-              </div>
-            </div>
-          </article>
-        </div>
+            <ErpPanel>
+              <ErpPanelHeader
+                title="Alert triggers"
+                description="Pick which conditions should raise alerts."
+              />
+              <StackGroup>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.notifyOffline}
+                    onChange={() => togglePref("notifyOffline")}
+                    disabled={isLoadingPrefs || !hasSession}
+                  />
+                  <span>Notify when a service is offline</span>
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={prefs.notifyDegraded}
+                    onChange={() => togglePref("notifyDegraded")}
+                    disabled={isLoadingPrefs || !hasSession}
+                  />
+                  <span>Notify when a service is degraded</span>
+                </label>
+                <div className="notice">
+                  {storageMode === "database"
+                    ? "Saved preferences are persisted in backend storage and survive restarts."
+                    : "Saved preferences are using the in-memory fallback. Apply the alert settings migration to persist them across restarts."}
+                </div>
+              </StackGroup>
+            </ErpPanel>
+          </ErpPanelGrid>
+
+          <SyncReviewPanel
+            title="Offline sync review"
+            description="Review local Dev ERP rent payment queue items before retrying or closing them."
+            items={syncReview.items}
+            summary={syncReview}
+            loading={syncReview.loading}
+            error={syncReview.error || retryQueuedActionError || cancelQueuedActionError}
+            onRefresh={syncReview.refresh}
+            onRetry={retryQueuedAction}
+            onCancel={cancelQueuedAction}
+            onResolve={resolveQueuedAction}
+            retryingId={retryingQueuedActionId}
+            cancellingId={cancellingQueuedActionId}
+            resolvingId={syncResolvingId}
+            style={{ marginTop: "1rem" }}
+          />
+        </>
       ) : null}
     </section>
   );

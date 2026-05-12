@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 
-interface ErpShellTopbarProps extends HTMLAttributes<HTMLElement> {
+interface ErpShellTopbarProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   title?: ReactNode;
   eyebrow?: ReactNode;
   leading?: ReactNode;

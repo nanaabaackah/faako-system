@@ -533,11 +533,12 @@
 .erp-shell-frame__placeholders {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--erp-border);
-  background: color-mix(in oklab, var(--erp-panel), transparent 18%);
+  background: transparent;
 }
 
 .erp-shell-frame__placeholder,

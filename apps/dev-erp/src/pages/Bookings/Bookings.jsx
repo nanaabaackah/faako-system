@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { buildMailtoHref, formatBookingConfirmationDraft } from "@faako/notifications";
 import { formatDateTime } from "../../utils/formatters";
 import { apiGet, apiPost } from "../../api/client";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
@@ -100,12 +101,16 @@ const Bookings = () => {
   const syncStatus = googleConnected ? "Connected" : "Not connected";
   const syncTone = googleConnected ? "success" : "warning";
   const mailSubject = "Book an appointment";
-  const mailBody = `Pick a time that works for you: ${
-    safeBookingLink || "Add your appointment link"
-  }\nLocation: ${bookingLocationValue}`;
-  const mailtoLink = `mailto:?subject=${encodeURIComponent(
-    mailSubject
-  )}&body=${encodeURIComponent(mailBody)}`;
+  const mailBody = formatBookingConfirmationDraft({
+    businessName: "Dev ERP",
+    customerName: "Customer",
+    bookingLink: safeBookingLink || "Add your appointment link",
+    location: bookingLocationValue,
+  });
+  const mailtoLink = buildMailtoHref({
+    subject: mailSubject,
+    body: mailBody,
+  });
 
   const bookingTotals = useMemo(() => {
     const totals = { confirmed: 0, tentative: 0, canceled: 0 };

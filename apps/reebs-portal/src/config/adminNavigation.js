@@ -15,7 +15,6 @@ import {
   faCalendarDays,
   faChartLine,
   faClock,
-  faClipboardList,
   faFileInvoiceDollar,
   faFileLines,
   faGlobe,

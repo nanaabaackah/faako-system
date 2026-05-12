@@ -1,14 +1,29 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrencyMajor } from "@faako/finance";
+import {
+  SYNC_STATES,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
+  useOnlineStatus,
+} from "@faako/offline-sync";
 import { FiArrowUpRight, FiTrash2 } from "react-icons/fi";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
+import {
+  buildQueuedRentPayment,
+  getQueuedRentPaymentNotice,
+  getRentPaymentFailureState,
+  isQueuedRentPaymentForScope,
+} from "./offlineRentPaymentQueue";
 import "./Rent.css";
 
 const buildTodayDate = () => new Date().toISOString().slice(0, 10);
 const buildCurrentMonthInput = () => new Date().toISOString().slice(0, 7);
 
 const isRentManagerRole = (roleName) => roleName === "Admin" || roleName === "Landlord";
+
+const getNoticeClassName = (tone = "") =>
+  `notice ${tone === "error" ? "is-error" : tone === "success" ? "is-success" : ""}`.trim();
 
 const formatAmount = (amount, currency) =>
   formatCurrencyMajor(amount, currency, { display: "code", locale: "en-US" });
@@ -148,6 +163,9 @@ const Rent = () => {
   const roleName = String(storedUser?.role?.name || "");
   const isLandlord = roleName === "Landlord";
   const canManageRent = isRentManagerRole(roleName);
+  const currentActorId = storedUser?.id || storedUser?.userId || "";
+  const currentOrganizationId = storedUser?.organizationId || "";
+  const isOnline = useOnlineStatus();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -160,6 +178,7 @@ const Rent = () => {
   const [tenantNotice, setTenantNotice] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [paymentNotice, setPaymentNotice] = useState("");
+  const [paymentQueueNotice, setPaymentQueueNotice] = useState(null);
   const [paymentsError, setPaymentsError] = useState("");
   const [isTenantSaving, setIsTenantSaving] = useState(false);
   const [deletingTenantId, setDeletingTenantId] = useState(null);
@@ -169,8 +188,10 @@ const Rent = () => {
   const [isPaymentsLoading, setIsPaymentsLoading] = useState(true);
   const [isPaymentDetailsOpen, setIsPaymentDetailsOpen] = useState(false);
   const [isMissedMonthsOpen, setIsMissedMonthsOpen] = useState(false);
+  const rentPaymentQueueSyncingRef = useRef(false);
   const tenantEditorRef = useRef(null);
   const paymentEditorRef = useRef(null);
+  const rentPaymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
 
   const tenants = useMemo(
     () => (Array.isArray(dashboard?.tenants) ? dashboard.tenants : []),
@@ -349,6 +370,149 @@ const Rent = () => {
     loadPayments();
   }, [loadPayments]);
 
+  const loadQueuedRentPayments = useCallback(async () => {
+    if (!currentOrganizationId || !currentActorId) {
+      setPaymentQueueNotice(null);
+      return [];
+    }
+
+    try {
+      const queued = (await rentPaymentQueueStorage.list()).filter((item) =>
+        isQueuedRentPaymentForScope(item, {
+          organizationId: currentOrganizationId,
+          actorId: currentActorId,
+        })
+      );
+      setPaymentQueueNotice(getQueuedRentPaymentNotice(queued));
+      return queued;
+    } catch (queueError) {
+      setPaymentQueueNotice({
+        status: SYNC_STATES.FAILED,
+        tone: "error",
+        title: "Sync failed",
+        message: queueError.message || "Unable to read the local rent payment queue.",
+      });
+      return [];
+    }
+  }, [currentActorId, currentOrganizationId, rentPaymentQueueStorage]);
+
+  const syncQueuedRentPayment = useCallback(async (queueItem) => {
+    await rentPaymentQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: new Date().toISOString(),
+    });
+    setPaymentQueueNotice({
+      status: SYNC_STATES.SYNCING,
+      tone: "info",
+      title: "Syncing",
+      message: "Submitting queued rent payment. The server will validate tenant access, amount, balance, and permissions.",
+    });
+
+    try {
+      await apiPost("/api/rent/payments", queueItem.payload?.payment || {}, {
+        fallbackMessage: "Unable to sync rent payment",
+        headers: {
+          "Idempotency-Key": queueItem.payload?.idempotencyKey || queueItem.id,
+        },
+      });
+      await rentPaymentQueueStorage.remove(queueItem.id);
+      setPaymentNotice("Queued rent payment synced. Final server records are now updated.");
+      return true;
+    } catch (queueError) {
+      const message = queueError.message || "Queued rent payment could not sync.";
+      const failureState = getRentPaymentFailureState(message);
+      await rentPaymentQueueStorage.updateStatus(queueItem.id, failureState.status, {
+        conflictStatus: failureState.conflictStatus,
+        retry: incrementRetryMetadata(queueItem.retry, {
+          now: new Date(),
+          lastError: message,
+        }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setPaymentQueueNotice({
+        status: failureState.status,
+        tone: "error",
+        title: failureState.status === SYNC_STATES.NEEDS_REVIEW ? "Needs review" : "Sync failed",
+        message:
+          failureState.status === SYNC_STATES.NEEDS_REVIEW
+            ? `${message} Review before retrying to avoid duplicate or invalid rent payment records.`
+            : message,
+      });
+      return false;
+    }
+  }, [rentPaymentQueueStorage]);
+
+  const syncQueuedRentPayments = useCallback(async () => {
+    if (!isOnline || rentPaymentQueueSyncingRef.current || !currentOrganizationId || !currentActorId) return;
+    rentPaymentQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedRentPayments();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      let syncedCount = 0;
+      for (const queueItem of pending) {
+        const didSync = await syncQueuedRentPayment(queueItem);
+        if (didSync) syncedCount += 1;
+      }
+      if (syncedCount) {
+        await Promise.all([loadDashboard({ silent: true }), loadPayments({ silent: true })]);
+      }
+      await loadQueuedRentPayments();
+    } finally {
+      rentPaymentQueueSyncingRef.current = false;
+    }
+  }, [
+    currentActorId,
+    currentOrganizationId,
+    isOnline,
+    loadDashboard,
+    loadPayments,
+    loadQueuedRentPayments,
+    syncQueuedRentPayment,
+  ]);
+
+  const queueOfflineRentPayment = useCallback(async (requestBody, submittedTenantId, submittedMonth) => {
+    if (!currentOrganizationId || !currentActorId) {
+      setPaymentError("Sign in again before saving an offline rent payment.");
+      return false;
+    }
+
+    const tenant = tenants.find((entry) => String(entry.id) === String(requestBody.tenantId)) || null;
+    await rentPaymentQueueStorage.put(
+      buildQueuedRentPayment({
+        organizationId: currentOrganizationId,
+        actorId: currentActorId,
+        tenant,
+        payment: requestBody,
+      })
+    );
+
+    setPaymentNotice("Offline payment saved. Pending sync. No server balance or payment record has been updated.");
+    setEditingPaymentId(null);
+    setIsPaymentDetailsOpen(false);
+    setPaymentForm({
+      ...DEFAULT_PAYMENT_FORM,
+      tenantId: submittedTenantId,
+      paidAt: submittedMonth,
+    });
+    await loadQueuedRentPayments();
+    return true;
+  }, [
+    currentActorId,
+    currentOrganizationId,
+    loadQueuedRentPayments,
+    rentPaymentQueueStorage,
+    tenants,
+  ]);
+
+  useEffect(() => {
+    loadQueuedRentPayments();
+  }, [loadQueuedRentPayments]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncQueuedRentPayments();
+    }
+  }, [isOnline, syncQueuedRentPayments]);
+
   const submitTenant = async (event) => {
     event.preventDefault();
 
@@ -479,13 +643,22 @@ const Rent = () => {
     const requestMethod = editingPaymentId ? "PATCH" : "POST";
     const submittedTenantId = String(paymentForm.tenantId || "");
     const submittedMonth = String(paymentForm.paidAt || "").trim() || buildCurrentMonthInput();
+    const requestBody = {
+      ...paymentForm,
+      paidAt: toPaymentDateValue(paymentForm.paidAt),
+      tenantId: Number(paymentForm.tenantId),
+    };
 
     try {
-      const requestBody = {
-        ...paymentForm,
-        paidAt: toPaymentDateValue(paymentForm.paidAt),
-        tenantId: Number(paymentForm.tenantId),
-      };
+      if (!isOnline) {
+        if (editingPaymentId) {
+          setPaymentError("Reconnect before updating an existing rent payment.");
+          return;
+        }
+        await queueOfflineRentPayment(requestBody, submittedTenantId, submittedMonth);
+        return;
+      }
+
       const requestOptions = {
         fallbackMessage: editingPaymentId ? "Unable to update payment" : "Unable to record payment",
       };
@@ -847,7 +1020,7 @@ const Rent = () => {
 
             {singleTenant.notes ? (
               <p className="rent-single-tenant-card__notes">{singleTenant.notes}</p>
-            ) : null} 
+            ) : null}
           </button>
         </article>
       ) : (
@@ -1245,6 +1418,15 @@ const Rent = () => {
               </div>
             ) : null}
             {paymentNotice ? <div className="notice is-success">{paymentNotice}</div> : null}
+            {paymentQueueNotice ? (
+              <div
+                className={getNoticeClassName(paymentQueueNotice.tone)}
+                role={paymentQueueNotice.tone === "error" ? "alert" : "status"}
+              >
+                <strong>{paymentQueueNotice.title}</strong>
+                {paymentQueueNotice.message ? ` - ${paymentQueueNotice.message}` : ""}
+              </div>
+            ) : null}
 
             <form className="stack rent-payment-form" onSubmit={submitPayment}>
               <div className="rent-payment-main-row">
@@ -1351,7 +1533,13 @@ const Rent = () => {
 
               <div className="rent-payment-actions">
                 <button className="button button-primary" type="submit" disabled={isPaymentSaving}>
-                  {isPaymentSaving ? "Saving..." : editingPaymentId ? "Save payment changes" : "Record payment"}
+                  {isPaymentSaving
+                    ? "Saving..."
+                    : editingPaymentId
+                      ? "Save payment changes"
+                      : isOnline
+                        ? "Record payment"
+                        : "Save offline payment"}
                 </button>
                 {editingPaymentId ? (
                   <button

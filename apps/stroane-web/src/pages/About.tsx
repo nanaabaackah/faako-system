@@ -1,7 +1,42 @@
 import React from "react";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
+import StructuredData from "../components/StructuredData";
 import "../styles/pages/About.css";
+
+const ABOUT_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "@id": "https://stroanesolutions.com/about",
+  name: "About Stroane",
+  description:
+    "Stroane was founded in Accra to make food safety practical and affordable for Ghanaian food businesses.",
+  url: "https://stroanesolutions.com/about",
+  breadcrumb: {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://stroanesolutions.com/" },
+      { "@type": "ListItem", position: 2, name: "About", item: "https://stroanesolutions.com/about" },
+    ],
+  },
+  publisher: {
+    "@type": "Organization",
+    "@id": "https://stroanesolutions.com/#organization",
+    name: "Stroane",
+    foundingLocation: {
+      "@type": "Place",
+      name: "Accra, Ghana",
+    },
+    areaServed: "Ghana",
+    knowsAbout: [
+      "Ghana FDA regulations",
+      "HACCP food safety systems",
+      "ISO 22000",
+      "Good Manufacturing Practice",
+      "Codex Alimentarius",
+    ],
+  },
+};
 
 const values = [
   {
@@ -75,10 +110,18 @@ const standards = [
 ];
 
 const About: React.FC = () => {
-  usePageTitle("About Us");
+  useSEOMeta({
+    title: "About Stroane | Ghana's Food Safety Advisory Company",
+    description:
+      "Learn how Stroane was founded to make food safety practical and affordable for Ghanaian food businesses — from restaurants and chop bars to manufacturers and exporters.",
+    keywords:
+      "about Stroane, food safety consultancy Ghana, Ghana FDA advisory, Accra food safety company",
+    canonical: "https://stroanesolutions.com/about",
+  });
 
   return (
     <Layout>
+      <StructuredData schema={ABOUT_SCHEMA} id="about-schema" />
       <div className="about-page">
         {/* ── Hero ── */}
         <section className="about-hero">

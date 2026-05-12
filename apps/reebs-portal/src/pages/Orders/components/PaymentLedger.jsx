@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  SYNC_STATES,
   buildScopedDraftKey,
   clearLocalDraft,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
   readLocalDraft,
   useOnlineStatus,
   writeLocalDraft,
@@ -15,6 +18,12 @@ import {
   getPaymentMethodLabel,
   majorToCents,
 } from "../orderUi";
+import {
+  buildQueuedOrderPayment,
+  getManualPaymentFailureState,
+  getQueuedPaymentNotice,
+  isQueuedOrderPaymentForScope,
+} from "../offlineManualPaymentQueue";
 
 const initialForm = {
   amount: "",
@@ -60,10 +69,13 @@ export default function PaymentLedger({
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
   const [draftNotice, setDraftNotice] = useState(null);
+  const [paymentQueueNotice, setPaymentQueueNotice] = useState(null);
   const restoredDraftKeyRef = useRef("");
   const draftWriteTimerRef = useRef(null);
   const draftRestoreSkipWriteRef = useRef(false);
+  const paymentQueueSyncingRef = useRef(false);
   const isOnline = useOnlineStatus();
+  const paymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
 
   const draftStorageKey = useMemo(
     () =>
@@ -89,16 +101,173 @@ export default function PaymentLedger({
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const clearPaymentDraft = () => {
+  const clearPaymentDraft = useCallback(() => {
     clearLocalDraft(draftStorageKey);
     setDraftNotice(null);
-  };
+  }, [draftStorageKey]);
 
-  const resetForm = ({ clearDraft = true } = {}) => {
+  const resetForm = useCallback(({ clearDraft = true } = {}) => {
     setForm(initialForm);
     setNotice(null);
     if (clearDraft) clearPaymentDraft();
-  };
+  }, [clearPaymentDraft]);
+
+  const loadQueuedPayments = useCallback(async () => {
+    if (!order?.id || !draftScope.organizationId || !draftScope.actorId) {
+      setPaymentQueueNotice(null);
+      return [];
+    }
+
+    try {
+      const queued = (await paymentQueueStorage.list()).filter((item) =>
+        isQueuedOrderPaymentForScope(item, {
+          organizationId: draftScope.organizationId,
+          actorId: draftScope.actorId,
+          orderId: order.id,
+        })
+      );
+      setPaymentQueueNotice(getQueuedPaymentNotice(queued));
+      return queued;
+    } catch (queueError) {
+      setPaymentQueueNotice({
+        status: SYNC_STATES.FAILED,
+        tone: "error",
+        title: "Sync failed",
+        message: queueError.message || "Unable to read the local manual payment queue.",
+      });
+      return [];
+    }
+  }, [
+    draftScope.actorId,
+    draftScope.organizationId,
+    order?.id,
+    paymentQueueStorage,
+  ]);
+
+  const syncQueuedPayment = useCallback(async (queueItem) => {
+    await paymentQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: new Date().toISOString(),
+    });
+    setPaymentQueueNotice({
+      status: SYNC_STATES.SYNCING,
+      tone: "loading",
+      title: "Syncing",
+      message: "Submitting queued manual payment. The server will validate the order, balance, receipt, and permissions.",
+    });
+
+    try {
+      const result = await onRecordPayment(queueItem.payload?.payment || {});
+      await paymentQueueStorage.remove(queueItem.id);
+      clearPaymentDraft();
+      const receiptNumber = result?.receipt?.receiptNumber || "";
+      setPaymentQueueNotice({
+        status: SYNC_STATES.SYNCED,
+        tone: "success",
+        title: "Synced",
+        message: receiptNumber
+          ? `Queued manual payment synced. Final receipt ${receiptNumber} was created by the server.`
+          : "Queued manual payment synced. Final records were created by the server.",
+      });
+      setNotice({
+        tone: "success",
+        title: "Payment synced",
+        message: receiptNumber
+          ? `Receipt ${receiptNumber} is now linked to this order.`
+          : "Queued manual payment is now linked to this order.",
+      });
+      onPaymentSaved?.(result);
+      return result;
+    } catch (queueError) {
+      const message = queueError.message || "Queued manual payment could not sync.";
+      const failureState = getManualPaymentFailureState(message);
+      await paymentQueueStorage.updateStatus(queueItem.id, failureState.status, {
+        conflictStatus: failureState.conflictStatus,
+        retry: incrementRetryMetadata(queueItem.retry, {
+          now: new Date(),
+          lastError: message,
+        }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setPaymentQueueNotice({
+        status: failureState.status,
+        tone: "error",
+        title: failureState.status === SYNC_STATES.NEEDS_REVIEW ? "Needs review" : "Sync failed",
+        message:
+          failureState.status === SYNC_STATES.NEEDS_REVIEW
+            ? `${message} Review before retrying to avoid duplicate or invalid payment records.`
+            : message,
+      });
+      return null;
+    }
+  }, [
+    clearPaymentDraft,
+    onPaymentSaved,
+    onRecordPayment,
+    paymentQueueStorage,
+  ]);
+
+  const syncQueuedPayments = useCallback(async () => {
+    if (!isOnline || paymentQueueSyncingRef.current || !order?.id) return;
+    paymentQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedPayments();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      for (const queueItem of pending) {
+        await syncQueuedPayment(queueItem);
+      }
+      await loadQueuedPayments();
+    } finally {
+      paymentQueueSyncingRef.current = false;
+    }
+  }, [isOnline, loadQueuedPayments, order?.id, syncQueuedPayment]);
+
+  const queueOfflinePayment = useCallback(async (paymentPayload) => {
+    if (!order?.id || !draftScope.organizationId || !draftScope.actorId) {
+      setNotice({
+        tone: "error",
+        title: "Payment not queued",
+        message: "Sign in again before saving an offline payment.",
+      });
+      return false;
+    }
+
+    await paymentQueueStorage.put(
+      buildQueuedOrderPayment({
+        organizationId: draftScope.organizationId,
+        actorId: draftScope.actorId,
+        order,
+        payment: paymentPayload,
+        source: "order-detail-payment-ledger",
+      })
+    );
+    clearPaymentDraft();
+    setForm(initialForm);
+    setDrawerOpen(false);
+    setNotice({
+      tone: "success",
+      title: "Offline payment saved",
+      message: "Pending sync. No final receipt number has been generated.",
+    });
+    await loadQueuedPayments();
+    return true;
+  }, [
+    clearPaymentDraft,
+    draftScope.actorId,
+    draftScope.organizationId,
+    loadQueuedPayments,
+    order,
+    paymentQueueStorage,
+  ]);
+
+  useEffect(() => {
+    loadQueuedPayments();
+  }, [loadQueuedPayments]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncQueuedPayments();
+    }
+  }, [isOnline, syncQueuedPayments]);
 
   useEffect(() => {
     if (!draftStorageKey || restoredDraftKeyRef.current === draftStorageKey) return;
@@ -151,6 +320,7 @@ export default function PaymentLedger({
     draftScope.actorId,
     draftScope.organizationId,
     draftStorageKey,
+    clearPaymentDraft,
     drawerOpen,
     form,
     order?.id,
@@ -169,16 +339,23 @@ export default function PaymentLedger({
       return;
     }
 
+    const paymentPayload = {
+      amountCents,
+      method: form.method,
+      provider: form.provider || null,
+      transactionReference: form.transactionReference || null,
+      phoneNumber: form.phoneNumber || null,
+      notes: form.notes || null,
+    };
+
     setSaving(true);
     try {
-      const result = await onRecordPayment({
-        amountCents,
-        method: form.method,
-        provider: form.provider || null,
-        transactionReference: form.transactionReference || null,
-        phoneNumber: form.phoneNumber || null,
-        notes: form.notes || null,
-      });
+      if (!isOnline) {
+        await queueOfflinePayment(paymentPayload);
+        return;
+      }
+
+      const result = await onRecordPayment(paymentPayload);
       resetForm();
       setDrawerOpen(false);
       setNotice({
@@ -225,6 +402,14 @@ export default function PaymentLedger({
           tone={notice.tone}
           title={notice.title}
           message={notice.message}
+          compact
+        />
+      )}
+      {paymentQueueNotice && (
+        <InlineNotice
+          tone={paymentQueueNotice.tone}
+          title={paymentQueueNotice.title}
+          message={paymentQueueNotice.message}
           compact
         />
       )}
@@ -311,7 +496,7 @@ export default function PaymentLedger({
           </label>
           <div className="orders-payment-actions">
             <button type="submit" className="orders-primary" disabled={saving}>
-              {saving ? "Saving..." : "Save payment"}
+              {saving ? "Saving..." : isOnline ? "Save payment" : "Save offline payment"}
             </button>
             <button
               type="button"

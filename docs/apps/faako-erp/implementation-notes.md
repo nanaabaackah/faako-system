@@ -14,6 +14,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako ER
 - The app shell uses shared ERP topbar, page-content, navigation, and status-badge patterns from `@faako/ui`, but demo routes, scenario labels, page components, and demo access behavior remain app-owned.
 - Shared shell placeholders for offline/sync/notifications/org switching are available structurally only and are not connected to demo backend behavior.
 - The registry has no required environment variables, setup steps, migrations, data impact, or access-control enforcement changes.
+- `docs/platform/codebase-cleanup-audit.md` flags Faako ERP as a lower-risk reference surface for shared shell/style validation before applying cleanup patterns to live ERP apps.
 
 ## Open questions
 
@@ -28,9 +29,11 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako ER
 - Review grouped navigation UI separately before changing the shared shell layout.
 - Connect database-backed module toggles, org-level module config, permissions integration, and SaaS plan gating only after shared-shell UX behavior is reviewed.
 - Keep the reference shell aligned with shared wrappers without moving scenario-specific demo logic into shared packages.
+- Use Faako ERP, System Starter, and UI Workbench to validate shared UI/style cleanup before applying the same changes to REEBS Portal or Dev ERP.
 
 ## Risks to monitor
 
 - Scenario label overrides drifting from registry keys.
 - Future registry wiring accidentally changing demo access, route behavior, or future module-toggle expectations.
 - Shared shell wrapper changes drifting away from app-specific demo scenario labels or route expectations.
+- Reference cleanup should not become implicit production behavior for live ERP apps without separate app-specific verification.

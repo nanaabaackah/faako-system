@@ -21,11 +21,11 @@ interface ErpShellFrameProps {
 }
 
 const toInlineShellVars = (shellVars: Record<string, string> = {}) => {
-  const style: CSSProperties = {};
+  const style: CSSProperties & Record<string, string> = {};
 
   Object.entries(shellVars).forEach(([key, value]) => {
     const cssVar = key.startsWith("--") ? key : `--${key}`;
-    style[cssVar as keyof CSSProperties] = value;
+    style[cssVar] = value;
   });
 
   return style;

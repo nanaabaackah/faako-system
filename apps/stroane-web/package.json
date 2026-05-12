@@ -21,6 +21,7 @@
     "migrate:status": "prisma migrate status",
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
+    "db:seed": "node prisma/seed-users.mjs",
     "server:with-migrate": "pnpm run db:generate && pnpm run migrate:deploy && node backend/server.js",
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); if (!process.env.NETLIFY && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },

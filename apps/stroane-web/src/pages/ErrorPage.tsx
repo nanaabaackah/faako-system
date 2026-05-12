@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, PageShell } from "@faako/ui";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/ErrorPage.css";
 
 type ErrorPageProps = {
@@ -35,7 +35,11 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
   const copy = ERROR_COPY[statusCode];
   const resolvedTitle = title || copy.title;
 
-  usePageTitle(`${statusCode} — ${resolvedTitle.replace(/\.$/, "")}`);
+  useSEOMeta({
+    title: `${statusCode} — ${resolvedTitle.replace(/\.$/, "")} | Stroane`,
+    description: "Page not available.",
+    noIndex: true,
+  });
 
   return (
     <Layout>

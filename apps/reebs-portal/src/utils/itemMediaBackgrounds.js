@@ -70,10 +70,15 @@ const getItemCategory = (item = {}) =>
 
 const PLACEHOLDER_IMAGE = "/imgs/ui/placeholder.png";
 const UNSAFE_MEDIA_SCHEME = /^(?:data|javascript|vbscript|file):/i;
-const HAS_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const HAS_UNSAFE_URL_CHARACTERS = /["'<>\\]/;
 const ABSOLUTE_URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
 const HAS_FILE_EXTENSION = /\.[a-z0-9]{2,}(?:[?#].*)?$/i;
+
+const hasControlCharacters = (value = "") =>
+  Array.from(String(value)).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
 
 const normalizeCatalogRelativePath = (value = "") => {
   const normalized = value
@@ -94,7 +99,7 @@ const normalizeCatalogRelativePath = (value = "") => {
 export const sanitizeCatalogMediaUrl = (value, fallback = PLACEHOLDER_IMAGE) => {
   const raw = value?.toString().trim().replace(/\\/g, "/") || "";
   if (!raw) return fallback;
-  if (HAS_CONTROL_CHARACTERS.test(raw) || HAS_UNSAFE_URL_CHARACTERS.test(raw)) {
+  if (hasControlCharacters(raw) || HAS_UNSAFE_URL_CHARACTERS.test(raw)) {
     return fallback;
   }
   if (UNSAFE_MEDIA_SCHEME.test(raw)) {

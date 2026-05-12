@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
+import StructuredData from "../components/StructuredData";
 import "../styles/pages/Resources.css";
 
 const guides = [
@@ -70,11 +71,41 @@ const standards = [
   "Good Manufacturing Practice",
 ];
 
+const FAQ_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "@id": "https://stroanesolutions.com/resources",
+  name: "Food Safety FAQs for Ghana",
+  breadcrumb: {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://stroanesolutions.com/" },
+      { "@type": "ListItem", position: 2, name: "Resources", item: "https://stroanesolutions.com/resources" },
+    ],
+  },
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.a,
+    },
+  })),
+};
+
 const Resources: React.FC = () => {
-  usePageTitle("Resources");
+  useSEOMeta({
+    title: "Food Safety Resources & Guides Ghana | Stroane",
+    description:
+      "Free food safety guides, FAQs, and practical tools for Ghanaian food businesses. Plain-language guides on HACCP, Ghana FDA registration, safe temperatures, allergens, and more.",
+    keywords:
+      "food safety guides Ghana, Ghana FDA licence requirements, HACCP explained, safe food temperatures Ghana, food safety FAQ",
+    canonical: "https://stroanesolutions.com/resources",
+  });
 
   return (
     <Layout>
+      <StructuredData schema={FAQ_SCHEMA} id="resources-faq-schema" />
       <div className="resources-page">
         <section className="resources-hero">
           <img
@@ -166,7 +197,7 @@ const Resources: React.FC = () => {
             </h2>
           </div>
 
-          <a href="mailto:info@stroane.com" className="resources-cta__button">
+          <a href="mailto:info@stroanesolutions.com" className="resources-cta__button">
             Request a Resource
           </a>
         </section>

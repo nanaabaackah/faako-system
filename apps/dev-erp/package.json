@@ -33,6 +33,7 @@
     "@faako/config": "workspace:*",
     "@faako/logger": "workspace:*",
     "@faako/finance": "workspace:*",
+    "@faako/notifications": "workspace:*",
     "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",

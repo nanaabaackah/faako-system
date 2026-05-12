@@ -736,7 +736,7 @@ const Dashboard = () => {
       });
       setActivityLogs(Array.isArray(payload.entries) ? payload.entries : []);
       setActivityActiveUsers(Number(payload.activeUserCount) || 0);
-    } catch (_err) {
+    } catch {
       // silently fall through — timeline still shows synthetic events
     } finally {
       setActivityLoading(false);

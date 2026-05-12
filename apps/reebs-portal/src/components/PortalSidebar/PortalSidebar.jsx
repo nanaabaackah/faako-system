@@ -24,7 +24,6 @@ import {
   faChevronDown,
   faBell,
   faBoxesStacked,
-  faCalendarCheck,
   faXmark,
   faArrowRightFromBracket,
   faArrowRightToBracket,

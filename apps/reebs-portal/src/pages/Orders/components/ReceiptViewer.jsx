@@ -1,4 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  NOTIFICATION_CHANNELS,
+  buildMailtoHref,
+  buildWhatsAppHref,
+  formatReceiptSummaryMessage,
+  getAvailableNotificationChannels,
+} from "@faako/notifications";
 import { InlineNotice } from "../../../components/InlineNotice/InlineNotice";
 import { formatCurrencyFromCents, formatDateTime } from "../orderUi";
 
@@ -79,6 +86,84 @@ export default function ReceiptViewer({ receipts = [] }) {
     const snapshot = receipt?.snapshot || {};
     return Array.isArray(snapshot.items) ? snapshot.items : [];
   }, [receipt]);
+  const receiptCustomer = useMemo(() => {
+    const snapshot = receipt?.snapshot || {};
+    const order = snapshot.order || {};
+    const customer = snapshot.customer || order.customer || {};
+    return {
+      name: customer.name || customer.customerName || order.customerName || "",
+      email: customer.email || customer.customerEmail || order.customerEmail || "",
+      phone: customer.phone || customer.whatsapp || order.customerPhone || "",
+    };
+  }, [receipt]);
+  const receiptShareMessage = useMemo(() => {
+    if (!receipt) return "";
+    const snapshot = receipt.snapshot || {};
+    const order = snapshot.order || {};
+    return formatReceiptSummaryMessage({
+      businessName: "REEBS Party Themes",
+      customerName: receiptCustomer.name,
+      receiptNumber: receipt.receiptNumber || "",
+      amountLabel: formatCurrencyFromCents(receipt.amountCents),
+      reference: order.orderNumber || receipt.orderId || "",
+      issuedAt: receipt.issuedAt ? formatDateTime(receipt.issuedAt) : "",
+      supportContact: "info@reebspartythemes.com",
+    });
+  }, [receipt, receiptCustomer.name]);
+  const receiptShareChannels = useMemo(
+    () =>
+      receiptShareMessage
+        ? getAvailableNotificationChannels({
+            email: receiptCustomer.email,
+            phone: receiptCustomer.phone,
+            whatsapp: receiptCustomer.phone,
+          })
+        : [],
+    [receiptCustomer.email, receiptCustomer.phone, receiptShareMessage]
+  );
+  const receiptMailtoHref = useMemo(
+    () =>
+      buildMailtoHref({
+        to: receiptCustomer.email,
+        subject: receipt?.receiptNumber ? `Receipt ${receipt.receiptNumber}` : "Receipt",
+        body: receiptShareMessage,
+      }),
+    [receipt?.receiptNumber, receiptCustomer.email, receiptShareMessage]
+  );
+  const receiptWhatsAppHref = useMemo(
+    () =>
+      buildWhatsAppHref({
+        phone: receiptCustomer.phone,
+        text: receiptShareMessage,
+      }),
+    [receiptCustomer.phone, receiptShareMessage]
+  );
+
+  const handleCopyReceiptSummary = async () => {
+    if (!receiptShareMessage) return;
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setNotice({
+        tone: "error",
+        title: "Copy unavailable",
+        message: "Copy the receipt summary manually.",
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(receiptShareMessage);
+      setNotice({
+        tone: "success",
+        title: "Receipt copied",
+        message: "Customer-safe receipt summary copied.",
+      });
+    } catch {
+      setNotice({
+        tone: "error",
+        title: "Copy failed",
+        message: "Copy the receipt summary manually.",
+      });
+    }
+  };
 
   const handleThermalPrint = async () => {
     setNotice(null);
@@ -172,6 +257,32 @@ export default function ReceiptViewer({ receipts = [] }) {
                       <strong>{formatCurrencyFromCents(item.total_amount || item.totalCents || 0)}</strong>
                     </div>
                   ))}
+                </div>
+                <div className="orders-detail-header-actions" style={{ marginTop: "1rem" }}>
+                  {receiptShareChannels.includes(NOTIFICATION_CHANNELS.COPY) ? (
+                    <button
+                      type="button"
+                      className="orders-secondary"
+                      onClick={handleCopyReceiptSummary}
+                    >
+                      Copy summary
+                    </button>
+                  ) : null}
+                  {receiptShareChannels.includes(NOTIFICATION_CHANNELS.EMAIL) ? (
+                    <a className="orders-secondary" href={receiptMailtoHref}>
+                      Email draft
+                    </a>
+                  ) : null}
+                  {receiptShareChannels.includes(NOTIFICATION_CHANNELS.WHATSAPP) ? (
+                    <a
+                      className="orders-secondary"
+                      href={receiptWhatsAppHref}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      WhatsApp draft
+                    </a>
+                  ) : null}
                 </div>
               </>
             ) : (

@@ -1,6 +1,14 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { InlineNotice, SelectField } from "@faako/ui";
+import {
+  SyncReviewPanel,
+  createIndexedDbQueueStorage,
+  markQueuedActionResolved,
+  useQueuedActionCancel,
+  useQueuedActionRetry,
+  useSyncQueueSummary,
+} from "@faako/offline-sync";
 import "./AdminWorkspace.css";
 import { useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -480,6 +488,43 @@ function AdminWorkspace({ section = "home" }) {
   );
   const [queue, setQueue] = useState(loadOfflineQueue);
   const [syncingQueue, setSyncingQueue] = useState(false);
+  const sharedOfflineQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
+  const sharedSyncQueue = useSyncQueueSummary({
+    storage: sharedOfflineQueueStorage,
+    sourceApp: "reebs-portal",
+    organizationId: user?.organizationId || user?.orgId || "",
+    actorId: user?.id || user?.userId || "",
+    enabled: Boolean((user?.organizationId || user?.orgId) && (user?.id || user?.userId)),
+  });
+  const [sharedQueuedResolvingId, setSharedQueuedResolvingId] = useState("");
+  const {
+    retry: retrySharedQueuedAction,
+    retryingId: sharedQueuedRetryingId,
+    error: sharedQueuedRetryError,
+  } = useQueuedActionRetry({
+    storage: sharedOfflineQueueStorage,
+    onAfterChange: sharedSyncQueue.refresh,
+  });
+  const {
+    cancel: cancelSharedQueuedAction,
+    cancellingId: sharedQueuedCancellingId,
+    error: sharedQueuedCancelError,
+  } = useQueuedActionCancel({
+    storage: sharedOfflineQueueStorage,
+    onAfterChange: sharedSyncQueue.refresh,
+  });
+  const resolveSharedQueuedAction = useCallback(async (item) => {
+    if (!item?.id) return;
+    setSharedQueuedResolvingId(item.id);
+    try {
+      await markQueuedActionResolved(sharedOfflineQueueStorage, item, {
+        resolution: "Marked resolved from REEBS offline sync review.",
+      });
+      await sharedSyncQueue.refresh();
+    } finally {
+      setSharedQueuedResolvingId("");
+    }
+  }, [sharedOfflineQueueStorage, sharedSyncQueue.refresh]);
 
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
@@ -3247,6 +3292,21 @@ function AdminWorkspace({ section = "home" }) {
 
   const renderOffline = () => (
     <section className="aw-section-grid">
+      <SyncReviewPanel
+        title="Offline sync review"
+        description="Review local POS, payment, inventory, and booking actions before retrying or closing them."
+        items={sharedSyncQueue.items}
+        summary={sharedSyncQueue}
+        loading={sharedSyncQueue.loading}
+        error={sharedSyncQueue.error || sharedQueuedRetryError || sharedQueuedCancelError}
+        onRefresh={sharedSyncQueue.refresh}
+        onRetry={retrySharedQueuedAction}
+        onCancel={cancelSharedQueuedAction}
+        onResolve={resolveSharedQueuedAction}
+        retryingId={sharedQueuedRetryingId}
+        cancellingId={sharedQueuedCancellingId}
+        resolvingId={sharedQueuedResolvingId}
+      />
       <div className="glass-card aw-panel">
         <div className="aw-panel-header">
           <h2>Queue</h2>

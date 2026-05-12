@@ -4,10 +4,10 @@ Faako System is a PNPM + Turborepo workspace for the active Faako, Reebs, Dev ER
 
 ## Current Workspace
 
-This repo currently contains 22 workspace packages:
+This repo currently contains 23 workspace packages:
 
 - 10 deployable apps in `apps/`
-- 12 shared packages in `packages/`
+- 13 shared packages in `packages/`
 
 Main directories:
 
@@ -41,11 +41,12 @@ Main directories:
 | `@faako/finance` | Shared payment and receipt constants, pure helpers, and presentation utilities |
 | `@faako/logger` | Structured application logging for Node.js and serverless runtimes |
 | `@faako/layout` | Shared ERP shell layout contracts, region names, and responsive layout helpers |
-| `@faako/offline-sync` | Shared offline queue constants, local draft storage helpers, status hooks, and passive sync UI |
+| `@faako/notifications` | Shared notification constants, customer-safe templates, and user-triggered share helpers |
+| `@faako/offline-sync` | Shared offline queue constants, local draft storage helpers, status hooks, review/recovery helpers, and passive sync UI |
 | `@faako/security` | Shared CSRF, throttling, secret, and security utilities |
 | `@faako/theme` | Shared shell tokens and CSS foundations |
 | `@faako/types` | Shared contracts and type definitions |
-| `@faako/ui` | Shared shell primitives, navigation, fields, modal foundations, and compat styles |
+| `@faako/ui` | Shared shell primitives, navigation, fields, low-risk ERP table/presentation wrappers, modal foundations, and compat styles |
 | `@faako/utils` | Shared title, path, role, and layout observer helpers |
 
 ## Current Shared System
@@ -56,10 +57,13 @@ Main directories:
 - `@faako/config` includes ERP module registry helpers in `packages/config/src/erpModules`. REEBS Portal, Dev ERP, and Faako ERP now use app-specific registries to feed navigation adapters while preserving current routes, labels, permission behavior, and flat navigation.
 - ERP module conventions now include `visibility` and `state` metadata for hidden, disabled, internal, coming-soon, and experimental modules. Navigation ignores hidden modules, carries subtle state badges/classes for visible modules, and keeps disabled module routes available for now. These conventions prepare future org-level toggles, permissions integration, and SaaS plan gating, but they do not enforce access control, add billing, persist module settings, or change database behavior.
 - Shared ERP shell conventions now include sidebar, topbar, mobile bottom navigation, page content, page header, module group, and status badge patterns. Placeholder slots exist for offline indicators, sync status, notifications, and a future organization switcher; these are structural only and do not implement backend behavior.
+- Shared UI presentation conventions now include low-risk ERP panel, panel-header, section-header, stack, and form-group wrappers that preserve legacy app class names. These are presentation-only and should be adopted gradually after visual checks; table, form, modal, mobile POS layout, and deeper ERP page templates remain future design-system work.
+- Shared ERP table conventions now include presentation-only table, toolbar, search/filter/action, pagination, loading/empty, and status badge wrappers in `@faako/ui`. Apps still own row data, filters, pagination state, row actions, permissions, and business workflows.
 - REEBS Portal and Dev ERP now have documentation-only workflow reviews for order, payment, receipt, invoice, rent-payment, and balance behavior. Use those reviews before creating shared payment/receipt/order runtime packages or expanding `@faako/finance` beyond constants, helpers, and presentation utilities; no shared finance runtime behavior has been implemented yet.
 - The shared Payment and Receipt architecture plan lives in [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md). It is planning-only and sets the safety path for future payment/receipt constants, types, wrappers, gateways, offline support, and app-by-app migration.
 - `@faako/finance` now contains shared payment/receipt constants, documented type-shape descriptors, pure formatting/normalization helpers, balance display helpers, metadata normalization helpers, and receipt presentation helpers. It does not implement payment recording, receipt generation, invoice persistence, gateway integrations, schema changes, API changes, or app workflow changes.
-- `@faako/offline-sync` now contains shared offline queue constants, local draft storage helpers, IndexedDB queue storage helpers, retry metadata helpers, online/offline status hooks, and passive sync UI components. REEBS Portal uses local draft storage for Store Mode POS and manual order payment drafts only; Dev ERP uses visible online/offline indicators only. No queued business action sync or production write behavior has changed.
+- `@faako/notifications` now contains shared notification channel/type/status constants, customer-safe message templates, channel availability helpers, and user-triggered `mailto:`/WhatsApp draft link helpers. REEBS uses it for receipt summary copy/email/WhatsApp drafts, and Dev ERP uses it for the appointment link email draft. It does not send automated WhatsApp messages, emails, SMS, or in-app notifications, and it does not change Resend/email behavior, receipt/payment/order behavior, schema, or customer data handling.
+- `@faako/offline-sync` now contains shared offline queue constants, local draft storage helpers, IndexedDB queue storage helpers, retry metadata helpers, queue summary/review helpers, online/offline status hooks, and passive sync UI components. REEBS Portal uses local draft storage for Store Mode POS/manual order payment drafts, queues offline Store Mode POS orders, queues offline manual order payments, queues offline inventory stock adjustments, and queues offline booking create/edit/status actions through existing server endpoints when online returns; Dev ERP queues new offline rent payments, keeps rent payment edits and booking/calendar settings online-only, and has no inventory adjustment surface wired for offline sync. REEBS Admin Workspace and Dev ERP Settings now expose local Sync Review panels for pending, failed, conflict, and needs-review queue visibility plus retry/cancel/mark-resolved controls. The server remains the source of truth for auth, permissions, stock validation, booking availability, rental/variant checks, payment persistence, receipt creation, accounting effects, balances, and final order/payment/inventory/booking status.
 
 ## Common Commands
 

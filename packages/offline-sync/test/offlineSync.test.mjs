@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   OFFLINE_QUEUE_ACTION_TYPES,
+  buildQueueSummary,
   SYNC_STATES,
   buildScopedDraftKey,
   buildSyncStatusSummary,
+  cancelQueuedAction,
   clearLocalDraft,
   createMemoryQueueStorage,
   createQueueItem,
@@ -13,6 +15,8 @@ import {
   readLocalDraft,
   getAggregateSyncStatus,
   incrementRetryMetadata,
+  markQueuedActionResolved,
+  retryQueuedAction,
   shouldRetryQueueItem,
   writeLocalDraft,
 } from "../src/index.js";
@@ -119,4 +123,62 @@ test("local drafts are scoped and never marked for production sync", () => {
   assert.equal(listLocalDrafts({ storage }).length, 1);
   clearLocalDraft(key, { storage });
   assert.equal(readLocalDraft(key, { storage }), null);
+});
+
+test("queue review helpers keep failed work scoped and recoverable", async () => {
+  const storage = createMemoryQueueStorage([
+    {
+      id: "failed-payment-1",
+      actionType: OFFLINE_QUEUE_ACTION_TYPES.RECORD_PAYMENT,
+      sourceApp: "reebs-portal",
+      organizationId: "org_1",
+      actorId: "user_1",
+      status: SYNC_STATES.NEEDS_REVIEW,
+      payload: {
+        targetType: "order",
+        targetId: "order_123",
+        metadata: {
+          orderNumber: "REEBS-123",
+        },
+      },
+      retry: createRetryMetadata({ lastError: "Balance changed on server" }),
+    },
+    {
+      id: "other-app-1",
+      actionType: OFFLINE_QUEUE_ACTION_TYPES.ADJUST_STOCK,
+      sourceApp: "dev-erp",
+      organizationId: "org_1",
+      actorId: "user_1",
+      status: SYNC_STATES.FAILED,
+    },
+  ]);
+
+  const summary = buildQueueSummary(await storage.list(), {
+    sourceApp: "reebs-portal",
+    organizationId: "org_1",
+    actorId: "user_1",
+    requireScope: true,
+  });
+
+  assert.equal(summary.counts.total, 1);
+  assert.equal(summary.counts.needsReview, 1);
+  assert.equal(summary.counts.reviewable, 1);
+  assert.equal(summary.reviewItems[0].id, "failed-payment-1");
+  assert.equal(summary.lastError, "Balance changed on server");
+
+  const retrying = await retryQueuedAction(storage, "failed-payment-1");
+  assert.equal(retrying.status, SYNC_STATES.PENDING);
+  assert.equal(retrying.review.note.includes("Server validation"), true);
+
+  const cancelled = await cancelQueuedAction(storage, "failed-payment-1", {
+    reason: "Operator cancelled duplicate draft",
+  });
+  assert.equal(cancelled.status, SYNC_STATES.CANCELLED);
+  assert.equal(cancelled.review.cancelReason, "Operator cancelled duplicate draft");
+
+  const resolved = await markQueuedActionResolved(storage, "failed-payment-1", {
+    resolution: "Confirmed server record exists",
+  });
+  assert.equal(resolved.status, SYNC_STATES.RESOLVED);
+  assert.equal(resolved.review.resolution, "Confirmed server record exists");
 });

@@ -1,8 +1,10 @@
-/* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  SYNC_STATES,
   buildScopedDraftKey,
   clearLocalDraft,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
   listLocalDrafts,
   readLocalDraft,
   useOnlineStatus,
@@ -47,6 +49,12 @@ import {
   PAYMENT_METHOD_OPTIONS,
   PAYMENT_STATUS_FILTER_OPTIONS,
 } from "../Orders/orderUi";
+import {
+  buildQueuedOrderPayment,
+  getManualPaymentFailureState,
+  getQueuedPaymentNotice,
+  isQueuedOrderPaymentForScope,
+} from "../Orders/offlineManualPaymentQueue";
 
 const normalizeStatus = (status) => {
   const normalized = normalizeStatusKey(status);
@@ -169,6 +177,8 @@ function OrdersList() {
   const restoredPaymentActionDraftRef = useRef(false);
   const paymentActionDraftWriteTimerRef = useRef(null);
   const paymentActionDraftSkipWriteRef = useRef(false);
+  const paymentQueueSyncingRef = useRef(false);
+  const paymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
   const [orders, setOrders] = useState([]);
@@ -195,6 +205,7 @@ function OrdersList() {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState(null);
   const [paymentDraftNotice, setPaymentDraftNotice] = useState(null);
+  const [paymentQueueNotice, setPaymentQueueNotice] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -517,7 +528,7 @@ function OrdersList() {
     [getPaymentActionDraftKey, paymentAction?.order?.id]
   );
 
-  const closePaymentAction = ({ clearDraft = true } = {}) => {
+  const closePaymentAction = useCallback(({ clearDraft = true } = {}) => {
     if (clearDraft) clearPaymentActionDraft(paymentAction?.order?.id);
     setPaymentAction(null);
     setPaymentForm(PAYMENT_ACTION_INITIAL_FORM);
@@ -525,7 +536,7 @@ function OrdersList() {
     setPaymentNotice(null);
     setPaymentDraftNotice(null);
     setPaymentSaving(false);
-  };
+  }, [clearPaymentActionDraft, paymentAction?.order?.id]);
 
   const updatePaymentField = (field, value) => {
     setPaymentForm((current) => ({ ...current, [field]: value }));
@@ -654,6 +665,168 @@ function OrdersList() {
     user?.organizationId,
   ]);
 
+  const loadQueuedOrderPayments = useCallback(async () => {
+    if (!user?.organizationId || !user?.id) {
+      setPaymentQueueNotice(null);
+      return [];
+    }
+
+    try {
+      const queued = (await paymentQueueStorage.list()).filter((item) =>
+        isQueuedOrderPaymentForScope(item, {
+          organizationId: user.organizationId,
+          actorId: user.id,
+        })
+      );
+      setPaymentQueueNotice(getQueuedPaymentNotice(queued));
+      return queued;
+    } catch (queueError) {
+      setPaymentQueueNotice({
+        status: SYNC_STATES.FAILED,
+        tone: "error",
+        title: "Sync failed",
+        message: queueError.message || "Unable to read the local manual payment queue.",
+      });
+      return [];
+    }
+  }, [paymentQueueStorage, user?.id, user?.organizationId]);
+
+  const syncQueuedOrderPayment = useCallback(async (queueItem) => {
+    await paymentQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: new Date().toISOString(),
+    });
+    setPaymentQueueNotice({
+      status: SYNC_STATES.SYNCING,
+      tone: "loading",
+      title: "Syncing",
+      message: "Submitting queued manual payment. The server will validate the order, balance, receipt, and permissions.",
+    });
+
+    try {
+      const response = await fetch("/.netlify/functions/orderPayments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": queueItem.payload?.idempotencyKey || queueItem.id,
+        },
+        body: JSON.stringify(queueItem.payload?.payment || {}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Queued manual payment could not sync.");
+      }
+
+      await paymentQueueStorage.remove(queueItem.id);
+      const receiptNumber = payload?.receipt?.receiptNumber || "";
+      setStateNotice({
+        tone: "success",
+        title: "Payment synced",
+        message: receiptNumber
+          ? `Queued payment synced. Final receipt ${receiptNumber} was created by the server.`
+          : "Queued payment synced. Final payment records were created by the server.",
+      });
+      return true;
+    } catch (queueError) {
+      const message = queueError.message || "Queued manual payment could not sync.";
+      const failureState = getManualPaymentFailureState(message);
+      await paymentQueueStorage.updateStatus(queueItem.id, failureState.status, {
+        conflictStatus: failureState.conflictStatus,
+        retry: incrementRetryMetadata(queueItem.retry, {
+          now: new Date(),
+          lastError: message,
+        }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setPaymentQueueNotice({
+        status: failureState.status,
+        tone: "error",
+        title: failureState.status === SYNC_STATES.NEEDS_REVIEW ? "Needs review" : "Sync failed",
+        message:
+          failureState.status === SYNC_STATES.NEEDS_REVIEW
+            ? `${message} Review before retrying to avoid duplicate or invalid payment records.`
+            : message,
+      });
+      return false;
+    }
+  }, [paymentQueueStorage]);
+
+  const syncQueuedOrderPayments = useCallback(async () => {
+    if (!isOnline || paymentQueueSyncingRef.current || !user?.organizationId || !user?.id) return;
+    paymentQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedOrderPayments();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      let syncedCount = 0;
+      for (const queueItem of pending) {
+        const didSync = await syncQueuedOrderPayment(queueItem);
+        if (didSync) syncedCount += 1;
+      }
+      if (syncedCount) {
+        const refreshController = new AbortController();
+        await loadOrders(refreshController.signal);
+      }
+      await loadQueuedOrderPayments();
+    } finally {
+      paymentQueueSyncingRef.current = false;
+    }
+  }, [
+    isOnline,
+    loadOrders,
+    loadQueuedOrderPayments,
+    syncQueuedOrderPayment,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  const queueOfflineOrderPayment = useCallback(async (paymentPayload) => {
+    const order = paymentAction?.order;
+    if (!order?.id || !user?.organizationId || !user?.id) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Payment not queued",
+        message: "Sign in again before saving an offline payment.",
+      });
+      return false;
+    }
+
+    await paymentQueueStorage.put(
+      buildQueuedOrderPayment({
+        organizationId: user.organizationId,
+        actorId: user.id,
+        order,
+        payment: paymentPayload,
+        source: "orders-board-payment-action",
+      })
+    );
+    clearPaymentActionDraft(order.id);
+    setStateNotice({
+      tone: "success",
+      title: "Offline payment saved",
+      message: "Pending sync. No final receipt number has been generated.",
+    });
+    closePaymentAction({ clearDraft: false });
+    await loadQueuedOrderPayments();
+    return true;
+  }, [
+    clearPaymentActionDraft,
+    closePaymentAction,
+    loadQueuedOrderPayments,
+    paymentAction?.order,
+    paymentQueueStorage,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  useEffect(() => {
+    loadQueuedOrderPayments();
+  }, [loadQueuedOrderPayments]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncQueuedOrderPayments();
+    }
+  }, [isOnline, syncQueuedOrderPayments]);
+
   const handlePaymentActionSubmit = async (event) => {
     event.preventDefault();
     if (!paymentAction?.order?.id) return;
@@ -696,19 +869,25 @@ function OrdersList() {
     const controller = new AbortController();
     setPaymentSaving(true);
     setPaymentNotice(null);
+    const paymentPayload = {
+      orderId: paymentAction.order.id,
+      amountCents,
+      method: paymentForm.method,
+      provider: paymentForm.provider || null,
+      transactionReference: paymentForm.transactionReference || null,
+      phoneNumber: paymentForm.phoneNumber || null,
+      notes: paymentForm.notes || null,
+    };
     try {
+      if (!isOnline) {
+        await queueOfflineOrderPayment(paymentPayload);
+        return;
+      }
+
       const response = await fetch("/.netlify/functions/orderPayments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: paymentAction.order.id,
-          amountCents,
-          method: paymentForm.method,
-          provider: paymentForm.provider || null,
-          transactionReference: paymentForm.transactionReference || null,
-          phoneNumber: paymentForm.phoneNumber || null,
-          notes: paymentForm.notes || null,
-        }),
+        body: JSON.stringify(paymentPayload),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => ({}));
@@ -930,6 +1109,26 @@ function OrdersList() {
 
           {loading && <InlineNotice tone="loading" title="Loading orders" compact />}
           {!loading && error && <InlineNotice tone="error" title="Orders unavailable" message={error} compact />}
+          {stateNotice && (
+            <InlineNotice
+              tone={stateNotice.tone}
+              title={stateNotice.title}
+              message={stateNotice.message}
+              compact
+              onDismiss={() => setStateNotice(null)}
+              dismissLabel="Dismiss order action notice"
+            />
+          )}
+          {paymentQueueNotice && (
+            <InlineNotice
+              tone={paymentQueueNotice.tone}
+              title={paymentQueueNotice.title}
+              message={paymentQueueNotice.message}
+              compact
+              onDismiss={() => setPaymentQueueNotice(null)}
+              dismissLabel="Dismiss payment sync notice"
+            />
+          )}
 
           {!loading && !error && activeViewMode === "list" && (
             <>
@@ -1048,16 +1247,6 @@ function OrdersList() {
 
           {!loading && !error && activeViewMode === "cards" && (
             <>
-              {stateNotice && (
-                <InlineNotice
-                  tone={stateNotice.tone}
-                  title={stateNotice.title}
-                  message={stateNotice.message}
-                  compact
-                  onDismiss={() => setStateNotice(null)}
-                  dismissLabel="Dismiss order action notice"
-                />
-              )}
               <div className="orders-card-categories" aria-label="Orders by category">
                 {!sortedOrders.length && <p className="orders-empty">No orders match your filters.</p>}
                 {sortedOrders.length > 0 && cardCategories.map((column) => (
@@ -1347,7 +1536,7 @@ function OrdersList() {
                 </label>
                 <div className="orders-payment-actions">
                   <button type="submit" className="orders-primary" disabled={paymentSaving}>
-                    {paymentSaving ? "Saving..." : "Save payment"}
+                    {paymentSaving ? "Saving..." : isOnline ? "Save payment" : "Save offline payment"}
                   </button>
                   <button
                     type="button"

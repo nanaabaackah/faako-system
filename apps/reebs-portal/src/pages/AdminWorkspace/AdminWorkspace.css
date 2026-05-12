@@ -877,10 +877,11 @@ button.aw-home-kpi-card-hero:disabled {
 .aw-home-kpi-donut-center {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   text-align: center;
-  padding: 0 0.4rem;
 }
 
 .aw-home-kpi-donut-center strong {
@@ -1910,6 +1911,34 @@ button.aw-activity-item {
   .aw-nav {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+
+  .aw-home-kpi-donut-shell svg {
+    width: 132px;
+    height: 132px;
+  }
+
+  .aw-home-kpi-donut-track {
+    fill: none;
+    stroke: rgba(120, 136, 153, 0.22);
+    stroke-width: 12;
+  }
+
+  .aw-home-kpi-donut-center {
+    position: absolute;
+    margin-top: 2rem;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .aw-home-kpi-donut-center strong {
+    margin: 0;
+    font-size: 0.70rem;
+    line-height: 1.2;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2091,6 +2120,15 @@ button.aw-activity-item {
   .aw-home-kpi-donut-shell {
     width: 100px;
     height: 100px;
+  }
+
+  .aw-home-kpi-donut-center strong {
+    margin: 0;
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+  .aw-home-kpi-donut-center {
+    margin-top: 2rem;
   }
 
   .aw-home-kpi-velocity-row {

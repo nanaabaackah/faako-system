@@ -1,6 +1,7 @@
 import type {
   ButtonHTMLAttributes,
   HTMLAttributes,
+  LabelHTMLAttributes,
   PropsWithChildren,
   ReactNode,
 } from "react";
@@ -70,6 +71,126 @@ export function Card({
     </section>
   );
 }
+
+export function SectionHeader({
+  className = "",
+  copyClassName = "",
+  actionsClassName = "ui-section-header__actions",
+  eyebrow = "",
+  title,
+  titleClassName = "",
+  description = "",
+  descriptionClassName = "ui-section-header__description",
+  children = null,
+  actions = null,
+}: {
+  className?: string;
+  copyClassName?: string;
+  actionsClassName?: string;
+  eyebrow?: ReactNode;
+  title?: ReactNode;
+  titleClassName?: string;
+  description?: ReactNode;
+  descriptionClassName?: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className={joinClasses("ui-section-header", className)}>
+      <div className={copyClassName || undefined}>
+        {eyebrow ? <p className="ui-section-header__eyebrow">{eyebrow}</p> : null}
+        {title ? <h2 className={titleClassName || undefined}>{title}</h2> : null}
+        {description ? <p className={descriptionClassName}>{description}</p> : null}
+        {children}
+      </div>
+      {actions ? <div className={actionsClassName || undefined}>{actions}</div> : null}
+    </header>
+  );
+}
+
+export function ErpPanelGrid({
+  className = "",
+  children,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={joinClasses("panel-grid", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function ErpPanel({
+  className = "",
+  children,
+  ...props
+}: HTMLAttributes<HTMLElement>) {
+  return (
+    <article className={joinClasses("panel", className)} {...props}>
+      {children}
+    </article>
+  );
+}
+
+export function ErpPanelHeader({
+  className = "",
+  copyClassName = "",
+  actionsClassName = "header-actions",
+  title,
+  description = "",
+  children = null,
+  actions = null,
+  ...props
+}: Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
+  copyClassName?: string;
+  actionsClassName?: string;
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className={joinClasses("panel-header", className)} {...props}>
+      <div className={copyClassName || undefined}>
+        {title ? <h3>{title}</h3> : null}
+        {description ? <p className="muted">{description}</p> : null}
+        {children}
+      </div>
+      {actions ? <div className={actionsClassName || undefined}>{actions}</div> : null}
+    </div>
+  );
+}
+
+export function StackGroup({
+  className = "",
+  children,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={joinClasses("stack", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function FormGroup({
+  className = "",
+  label,
+  children,
+  ...props
+}: PropsWithChildren<LabelHTMLAttributes<HTMLLabelElement> & { label?: ReactNode }>) {
+  return (
+    <label className={joinClasses("form-field", className)} {...props}>
+      {label ? <span>{label}</span> : null}
+      {children}
+    </label>
+  );
+}
+
+// TODO(shared-ui-table-system): graduate legacy table wrappers into a typed table system.
+// TODO(shared-ui-form-system): graduate form groups/fields once app validation contracts are stable.
+// TODO(shared-ui-modal-system): graduate modal shells after app-specific action flows are reviewed.
+// TODO(shared-erp-page-templates): add ERP page templates after module workflows settle.
+// TODO(shared-mobile-pos-layout): extract POS/mobile layouts only after offline/payment flows are proven stable.
 
 export const Button = forwardRef<
   HTMLButtonElement,

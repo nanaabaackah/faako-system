@@ -10,7 +10,20 @@ import ModuleTopbarMenu from "../../components/ModuleTopbarMenu/ModuleTopbarMenu
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
+import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
+import {
+  SYNC_STATES,
+  createIndexedDbQueueStorage,
+  incrementRetryMetadata,
+  useOnlineStatus,
+} from "@faako/offline-sync";
+import {
+  buildQueuedInventoryAdjustment,
+  getInventoryAdjustmentFailureState,
+  getQueuedInventoryAdjustmentNotice,
+  isQueuedInventoryAdjustmentForScope,
+} from "./offlineInventoryAdjustmentQueue";
 import {
   faEllipsisHorizontal,
   faFolderOpen,
@@ -660,6 +673,10 @@ function Admin() {
   const [newItemRows, setNewItemRows] = useState([{ ...newItemTemplate }]);
   const { user } = useAuth();
   const { rates } = useCart();
+  const isOnline = useOnlineStatus();
+  const inventoryQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
+  const inventoryQueueSyncingRef = useRef(false);
+  const [inventoryQueueNotice, setInventoryQueueNotice] = useState(null);
   const userRole = (user?.role || "").toLowerCase();
   const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
   const isSystemAdmin = isOwnerOrAdmin;
@@ -1112,6 +1129,84 @@ function Admin() {
     }
   }, [buildStockActivityQuery]);
 
+  const resolveActorName = useCallback(
+    () =>
+      user?.fullName ||
+      user?.name ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      user?.email ||
+      "Updated",
+    [user?.email, user?.firstName, user?.fullName, user?.lastName, user?.name]
+  );
+
+  const applyStockAdjustmentResult = useCallback(({ productId, payload }) => {
+    const normalizedProductId = Number(productId || payload?.productId);
+    if (!Number.isFinite(normalizedProductId)) return;
+    const actorName = resolveActorName();
+
+    setItems((prev) =>
+      prev.map((item) => {
+        if (Number(item.id) !== normalizedProductId) return item;
+        if (payload.variantId) {
+          const nextVariants = getItemVariants(item).map((variant) =>
+            Number(variant.id) === Number(payload.variantId)
+              ? {
+                  ...variant,
+                  stockQty: toNumber(payload.newStock, variant.stockQty),
+                  availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
+                }
+              : variant
+          );
+          return {
+            ...item,
+            variants: nextVariants,
+            quantity: getVariantParentStock(nextVariants),
+            stock: getVariantParentStock(nextVariants),
+            lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+            lastUpdatedByName: payload.lastUpdatedByName || actorName,
+          };
+        }
+        return {
+          ...item,
+          quantity: toNumber(payload.newStock, getQuantity(item)),
+          lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+          lastUpdatedByName: payload.lastUpdatedByName || actorName,
+        };
+      })
+    );
+
+    setActiveItem((prev) => {
+      if (!prev || Number(prev.id) !== normalizedProductId) return prev;
+      if (payload.variantId) {
+        const nextVariants = getItemVariants(prev).map((variant) =>
+          Number(variant.id) === Number(payload.variantId)
+            ? {
+                ...variant,
+                stockQty: toNumber(payload.newStock, variant.stockQty),
+                availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
+              }
+            : variant
+        );
+        const nextStock = getVariantParentStock(nextVariants);
+        return {
+          ...prev,
+          variants: nextVariants,
+          quantity: nextStock,
+          stock: nextStock,
+          lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+          lastUpdatedByName: payload.lastUpdatedByName || actorName,
+        };
+      }
+      return {
+        ...prev,
+        quantity: toNumber(payload.newStock, getQuantity(prev)),
+        stock: toNumber(payload.newStock, getQuantity(prev)),
+        lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
+        lastUpdatedByName: payload.lastUpdatedByName || actorName,
+      };
+    });
+  }, [resolveActorName]);
+
   const refreshInventorySurface = useCallback(async () => {
     await Promise.all([
       refreshInventory(),
@@ -1133,6 +1228,163 @@ function Admin() {
     loadWaterSnapshot,
     refreshInventory,
   ]);
+
+  const loadQueuedInventoryAdjustments = useCallback(async () => {
+    if (!user?.organizationId || !user?.id) {
+      setInventoryQueueNotice(null);
+      return [];
+    }
+
+    try {
+      const queued = (await inventoryQueueStorage.list()).filter((item) =>
+        isQueuedInventoryAdjustmentForScope(item, {
+          organizationId: user.organizationId,
+          actorId: user.id,
+        })
+      );
+      setInventoryQueueNotice(getQueuedInventoryAdjustmentNotice(queued));
+      return queued;
+    } catch (queueError) {
+      setInventoryQueueNotice({
+        status: SYNC_STATES.FAILED,
+        tone: "error",
+        title: "Sync failed",
+        message: queueError.message || "Unable to read the local inventory adjustment queue.",
+      });
+      return [];
+    }
+  }, [inventoryQueueStorage, user?.id, user?.organizationId]);
+
+  const syncQueuedInventoryAdjustment = useCallback(async (queueItem) => {
+    await inventoryQueueStorage.updateStatus(queueItem.id, SYNC_STATES.SYNCING, {
+      lastAttemptAt: new Date().toISOString(),
+    });
+    setInventoryQueueNotice({
+      status: SYNC_STATES.SYNCING,
+      tone: "loading",
+      title: "Syncing",
+      message: "Submitting queued inventory adjustment. The server will validate stock, permissions, and item state.",
+    });
+
+    try {
+      const endpoint = queueItem.payload?.endpoint || {};
+      const adjustment = queueItem.payload?.adjustment || {};
+      const response = await fetch(endpoint.path || "/.netlify/functions/stock", {
+        method: endpoint.method || "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(adjustment),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Queued inventory adjustment could not sync.");
+      }
+
+      await inventoryQueueStorage.remove(queueItem.id);
+      applyStockAdjustmentResult({
+        productId: adjustment.productId || queueItem.payload?.targetId,
+        payload,
+      });
+      return true;
+    } catch (queueError) {
+      const message = queueError.message || "Queued inventory adjustment could not sync.";
+      const failureState = getInventoryAdjustmentFailureState(message);
+      await inventoryQueueStorage.updateStatus(queueItem.id, failureState.status, {
+        conflictStatus: failureState.conflictStatus,
+        retry: incrementRetryMetadata(queueItem.retry, {
+          now: new Date(),
+          lastError: message,
+        }),
+        lastAttemptAt: new Date().toISOString(),
+      });
+      setInventoryQueueNotice({
+        status: failureState.status,
+        tone: "error",
+        title: failureState.status === SYNC_STATES.NEEDS_REVIEW ? "Needs review" : "Sync failed",
+        message:
+          failureState.status === SYNC_STATES.NEEDS_REVIEW
+            ? `${message} Review before retrying to avoid duplicate, invalid, or unsafe stock changes.`
+            : message,
+      });
+      return false;
+    }
+  }, [applyStockAdjustmentResult, inventoryQueueStorage]);
+
+  const syncQueuedInventoryAdjustments = useCallback(async () => {
+    if (!isOnline || inventoryQueueSyncingRef.current || !user?.organizationId || !user?.id) return;
+    inventoryQueueSyncingRef.current = true;
+    try {
+      const queued = await loadQueuedInventoryAdjustments();
+      const pending = queued.filter((item) => item.status === SYNC_STATES.PENDING);
+      let syncedCount = 0;
+      for (const queueItem of pending) {
+        const didSync = await syncQueuedInventoryAdjustment(queueItem);
+        if (didSync) syncedCount += 1;
+      }
+      if (syncedCount) {
+        await refreshInventorySurface();
+        setInventoryQueueNotice({
+          status: SYNC_STATES.SYNCED,
+          tone: "success",
+          title: "Synced",
+          message: `${syncedCount} queued inventory adjustment${syncedCount === 1 ? "" : "s"} synced. Server stock is current.`,
+        });
+      } else {
+        await loadQueuedInventoryAdjustments();
+      }
+    } finally {
+      inventoryQueueSyncingRef.current = false;
+    }
+  }, [
+    isOnline,
+    loadQueuedInventoryAdjustments,
+    refreshInventorySurface,
+    syncQueuedInventoryAdjustment,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  const queueOfflineInventoryAdjustment = useCallback(async (adjustmentPayload) => {
+    if (!activeItem?.id || !user?.organizationId || !user?.id) {
+      setSubmitError("Sign in again before saving an offline inventory adjustment.");
+      return false;
+    }
+
+    await inventoryQueueStorage.put(
+      buildQueuedInventoryAdjustment({
+        organizationId: user.organizationId,
+        actorId: user.id,
+        item: activeItem,
+        adjustment: adjustmentPayload,
+        source: "admin-inventory-adjustment-form",
+      })
+    );
+
+    setFormState((prev) => ({
+      ...prev,
+      quantity: "",
+      notes: "",
+      reference: "",
+    }));
+    setSuccess("Offline adjustment saved. Pending sync; server stock has not changed yet.");
+    await loadQueuedInventoryAdjustments();
+    return true;
+  }, [
+    activeItem,
+    inventoryQueueStorage,
+    loadQueuedInventoryAdjustments,
+    user?.id,
+    user?.organizationId,
+  ]);
+
+  useEffect(() => {
+    loadQueuedInventoryAdjustments();
+  }, [loadQueuedInventoryAdjustments]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncQueuedInventoryAdjustments();
+    }
+  }, [isOnline, syncQueuedInventoryAdjustments]);
 
   useEffect(() => {
     loadWaterSnapshot();
@@ -3489,23 +3741,34 @@ function Admin() {
       return;
     }
 
+    const stockAdjustmentPayload = {
+      productId: activeItem.id,
+      variantId: formState.variantId || undefined,
+      type: formState.type,
+      quantity: parsedQty,
+      soldMonth: formState.type === "StockOut" ? formState.soldMonth : null,
+      notes: formState.notes.trim() || undefined,
+      reference: formState.reference.trim() || undefined,
+      userId: user?.id,
+      userName:
+        user?.fullName ||
+        user?.name ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+        undefined,
+      userEmail: user?.email,
+    };
+
     setSubmitting(true);
     try {
+      if (!isOnline) {
+        await queueOfflineInventoryAdjustment(stockAdjustmentPayload);
+        return;
+      }
+
       const response = await fetch("/.netlify/functions/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: activeItem.id,
-          variantId: formState.variantId || undefined,
-          type: formState.type,
-          quantity: parsedQty,
-          soldMonth: formState.type === "StockOut" ? formState.soldMonth : null,
-          notes: formState.notes.trim() || undefined,
-          reference: formState.reference.trim() || undefined,
-          userId: user?.id,
-          userName: user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined,
-          userEmail: user?.email,
-        }),
+        body: JSON.stringify(stockAdjustmentPayload),
       });
 
       const payload = await response.json();
@@ -3513,73 +3776,7 @@ function Admin() {
         throw new Error(payload?.error || "Stock update failed.");
       }
 
-      const actorName =
-        user?.fullName ||
-        user?.name ||
-        [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-        user?.email ||
-        "Updated";
-
-      setItems((prev) =>
-        prev.map((item) => {
-          if (item.id !== activeItem.id) return item;
-          if (payload.variantId) {
-            const nextVariants = getItemVariants(item).map((variant) =>
-              Number(variant.id) === Number(payload.variantId)
-                ? {
-                    ...variant,
-                    stockQty: toNumber(payload.newStock, variant.stockQty),
-                    availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
-                  }
-                : variant
-            );
-            return {
-              ...item,
-              variants: nextVariants,
-              quantity: getVariantParentStock(nextVariants),
-              stock: getVariantParentStock(nextVariants),
-              lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
-              lastUpdatedByName: payload.lastUpdatedByName || actorName,
-            };
-          }
-          return {
-            ...item,
-            quantity: toNumber(payload.newStock, getQuantity(item)),
-            lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
-            lastUpdatedByName: payload.lastUpdatedByName || actorName,
-          };
-        })
-      );
-      setActiveItem((prev) => {
-        if (!prev || prev.id !== activeItem.id) return prev;
-        if (payload.variantId) {
-          const nextVariants = getItemVariants(prev).map((variant) =>
-            Number(variant.id) === Number(payload.variantId)
-              ? {
-                  ...variant,
-                  stockQty: toNumber(payload.newStock, variant.stockQty),
-                  availableQty: toNumber(payload.variantAvailableQty, getVariantAvailableQty(variant)),
-                }
-              : variant
-          );
-          const nextStock = getVariantParentStock(nextVariants);
-          return {
-            ...prev,
-            variants: nextVariants,
-            quantity: nextStock,
-            stock: nextStock,
-            lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
-            lastUpdatedByName: payload.lastUpdatedByName || actorName,
-          };
-        }
-        return {
-          ...prev,
-          quantity: toNumber(payload.newStock, getQuantity(prev)),
-          stock: toNumber(payload.newStock, getQuantity(prev)),
-          lastUpdatedAt: payload.lastUpdatedAt || new Date().toISOString(),
-          lastUpdatedByName: payload.lastUpdatedByName || actorName,
-        };
-      });
+      applyStockAdjustmentResult({ productId: activeItem.id, payload });
       await loadStockActivity();
       setSuccess(payload?.message || "Stock updated.");
     } catch (err) {
@@ -3664,6 +3861,16 @@ function Admin() {
             </>
           }
         />
+
+        {inventoryQueueNotice && (
+          <InlineNotice
+            tone={inventoryQueueNotice.tone}
+            title={inventoryQueueNotice.title}
+            message={inventoryQueueNotice.message}
+            className="inventory-sync-notice"
+            compact
+          />
+        )}
 
         <section className="inventory-scope-grid" aria-label="Inventory type scope">
           {scopeSummaries.map((summary) => {
@@ -5866,6 +6073,16 @@ function Admin() {
               <p className="admin-form-tip">
                 Choose Add or Remove, enter the number of items, then confirm.
               </p>
+              <InlineNotice
+                tone="info"
+                title={isOnline ? "Online - ready to submit" : "Offline"}
+                message={
+                  isOnline
+                    ? "Inventory changes will be sent to the server for validation."
+                    : "Inventory adjustments save locally first and sync only after the server validates them."
+                }
+                compact
+              />
               <label>
                 Stock change
                 <SelectField
@@ -5978,7 +6195,7 @@ function Admin() {
                   Cancel
                 </button>
                 <button type="submit" className="admin-primary" disabled={submitting}>
-                  {submitting ? "Updating..." : "Confirm update"}
+                  {submitting ? "Saving..." : isOnline ? "Confirm update" : "Save offline adjustment"}
                 </button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { ERPStatusBadge, ERPTable } from "@faako/ui";
 import useDashboardData from "../../hooks/useDashboardData";
 import { formatDateTime } from "../../utils/formatters";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
@@ -43,7 +44,11 @@ const SystemHealth = () => {
 
   const renderStatusPill = (status) => {
     const tone = getStatusTone(status);
-    return <span className={`status-pill is-${tone}`}>{formatStatusLabel(status)}</span>;
+    return (
+      <ERPStatusBadge tone={tone} className={`status-pill is-${tone}`}>
+        {formatStatusLabel(status)}
+      </ERPStatusBadge>
+    );
   };
 
   const getAggregateStatus = (pages = []) => {
@@ -236,20 +241,33 @@ const SystemHealth = () => {
                   <p className="muted">API and database checks.</p>
                 </div>
               </div>
-              <div className="data-table">
-                <div className="table-row table-head is-3">
-                  <span>Service</span>
-                  <span>Status</span>
-                  <span>Notes</span>
-                </div>
-                {systemEntries.map((row) => (
-                  <div className="table-row is-3" key={row.id}>
-                    <span className="table-strong">{row.label}</span>
-                    {renderStatusPill(row.status)}
-                    <span className="muted">{row.note}</span>
-                  </div>
-                ))}
-              </div>
+              <ERPTable
+                columns={[
+                  {
+                    id: "service",
+                    header: "Service",
+                    mobileLabel: "Service",
+                    render: (row) => <span className="table-strong">{row.label}</span>,
+                  },
+                  {
+                    id: "status",
+                    header: "Status",
+                    mobileLabel: "Status",
+                    render: (row) => renderStatusPill(row.status),
+                  },
+                  {
+                    id: "notes",
+                    header: "Notes",
+                    mobileLabel: "Notes",
+                    render: (row) => <span className="muted">{row.note}</span>,
+                  },
+                ]}
+                rows={systemEntries}
+                rowKey="id"
+                tableProps={{ "aria-label": "API and database service status checks" }}
+                mobileMode="cards"
+                dense
+              />
             </article>
 
             <section className="panel site-status" id="site-health">

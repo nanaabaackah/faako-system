@@ -11,6 +11,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako We
 - `VITE_API_BASE_URL` points signup to a dedicated API deployment when set.
 - If `VITE_API_BASE_URL` is not set, mirrored functions can serve `/api/*` from the website deployment.
 - `VITE_*` values are browser-visible and must not contain secrets.
+- `docs/platform/codebase-cleanup-audit.md` flags Faako Website cleanup opportunities around long marketing CSS, repeated button/card/section-header patterns, page-section extraction candidates, and signup/API deployment coupling.
 
 ## Open questions
 
@@ -23,6 +24,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako We
 - Keep function sync behavior documented when Faako API changes.
 - Add a release checklist for marketing copy, pricing, and signup analytics.
 - Clarify production ownership of server-side env vars when deployment topology changes.
+- Use the platform cleanup audit before consolidating public-site primitives or splitting Signup/Home/Pricing/Module Config. Preserve signup endpoint behavior and mirrored function deployment assumptions.
 
 ## Risks to monitor
 
@@ -30,3 +32,4 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako We
 - Public copy or pricing becoming stale.
 - Secrets accidentally placed in browser-visible env vars.
 - Website and API deploys getting out of sync.
+- Visual cleanup can accidentally change public pricing, signup, and conversion surfaces; pair style extraction with content and responsive checks.

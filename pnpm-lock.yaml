@@ -118,6 +118,9 @@ importers:
       '@faako/finance':
         specifier: workspace:*
         version: link:../../packages/finance
+      '@faako/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@faako/offline-sync':
         specifier: workspace:*
         version: link:../../packages/offline-sync
@@ -422,6 +425,9 @@ importers:
       '@faako/finance':
         specifier: workspace:*
         version: link:../../packages/finance
+      '@faako/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@faako/offline-sync':
         specifier: workspace:*
         version: link:../../packages/offline-sync
@@ -988,6 +994,8 @@ importers:
       pino:
         specifier: ^9.0.0
         version: 9.14.0
+
+  packages/notifications: {}
 
   packages/offline-sync:
     dependencies:

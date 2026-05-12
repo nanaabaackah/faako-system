@@ -1,0 +1,15 @@
+{
+  "name": "@faako/notifications",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants/index.js",
+    "./helpers": "./src/helpers/index.js",
+    "./templates": "./src/templates/index.js"
+  }
+}

@@ -1,8 +1,100 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
-import usePageTitle from "../hooks/usePageTitle";
+import useSEOMeta from "../hooks/useSEOMeta";
+import StructuredData from "../components/StructuredData";
 import "../styles/pages/Services.css";
+
+const SERVICES_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "@id": "https://stroanesolutions.com/services",
+  name: "Stroane Food Safety Services",
+  description:
+    "Food safety services for Ghanaian food businesses — audits, HACCP, FDA compliance, training, GMP, and import/export support.",
+  url: "https://stroanesolutions.com/services",
+  breadcrumb: {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://stroanesolutions.com/" },
+      { "@type": "ListItem", position: 2, name: "Services", item: "https://stroanesolutions.com/services" },
+    ],
+  },
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      item: {
+        "@type": "Service",
+        name: "Food Safety Audits",
+        description:
+          "On-site audit of how food is handled, stored, prepared, and served. Clear report with priority fixes.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      item: {
+        "@type": "Service",
+        name: "HACCP — Food Risk Management",
+        description:
+          "Identify food safety risks in your operation and put practical controls in place to prevent them.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+    {
+      "@type": "ListItem",
+      position: 3,
+      item: {
+        "@type": "Service",
+        name: "Ghana FDA Compliance",
+        description:
+          "Guidance through licensing, product registration, label reviews, documentation, and FDA inspection preparation.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+    {
+      "@type": "ListItem",
+      position: 4,
+      item: {
+        "@type": "Service",
+        name: "Food Handler Training",
+        description:
+          "Hands-on training for staff on hygiene, food temperatures, cleaning, allergens, and contamination prevention.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+    {
+      "@type": "ListItem",
+      position: 5,
+      item: {
+        "@type": "Service",
+        name: "Good Manufacturing Practice Audits",
+        description:
+          "Assessment of production environment, equipment, pest control, storage, and product flow to meet stronger manufacturing standards.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+    {
+      "@type": "ListItem",
+      position: 6,
+      item: {
+        "@type": "Service",
+        name: "Import & Export Support",
+        description:
+          "Help understanding and meeting food safety documents, approvals, and standards for Ghanaian and international markets.",
+        provider: { "@type": "Organization", name: "Stroane", url: "https://stroanesolutions.com" },
+        areaServed: "Ghana",
+      },
+    },
+  ],
+};
 
 const services = [
   {
@@ -84,10 +176,18 @@ const steps = [
 ];
 
 const Services: React.FC = () => {
-  usePageTitle("Services");
+  useSEOMeta({
+    title: "Food Safety Services Ghana | Stroane",
+    description:
+      "Food safety audits, HACCP systems, Ghana FDA compliance, food handler training, GMP audits, cold storage checks, and import/export support for Ghanaian food businesses.",
+    keywords:
+      "food safety services Ghana, Ghana FDA compliance consulting, HACCP implementation Ghana, food handler training Accra, GMP audit Ghana",
+    canonical: "https://stroanesolutions.com/services",
+  });
 
   return (
     <Layout>
+      <StructuredData schema={SERVICES_SCHEMA} id="services-schema" />
       <div className="services-page">
         <section className="services-hero">
           <img

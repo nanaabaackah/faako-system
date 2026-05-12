@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /error
+
+Sitemap: https://stroanesolutions.com/sitemap.xml

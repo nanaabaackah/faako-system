@@ -17,6 +17,7 @@ export const createQueueItem = (item = {}) => {
     status: item.status || SYNC_STATES.PENDING,
     conflictStatus: item.conflictStatus || OFFLINE_CONFLICT_STATUSES.NONE,
     retry: createRetryMetadata(item.retry),
+    review: item.review && typeof item.review === "object" ? { ...item.review } : {},
     createdAt: timestamp,
     updatedAt: item.updatedAt || timestamp,
     lastAttemptAt: item.lastAttemptAt || "",
@@ -64,7 +65,27 @@ export const createIndexedDbQueueStorage = (options = {}) => ({
     const next = {
       ...current,
       ...patch,
+      review: {
+        ...(current.review || {}),
+        ...(patch.review || {}),
+      },
       status,
+      updatedAt: nowIso(),
+    };
+    await this.put(next);
+    return next;
+  },
+
+  async patch(id, patch = {}) {
+    const current = await this.get(id);
+    if (!current) return undefined;
+    const next = {
+      ...current,
+      ...patch,
+      review: {
+        ...(current.review || {}),
+        ...(patch.review || {}),
+      },
       updatedAt: nowIso(),
     };
     await this.put(next);
@@ -99,7 +120,31 @@ export const createMemoryQueueStorage = (initialItems = []) => {
     async updateStatus(id, status, patch = {}) {
       const current = records.get(id);
       if (!current) return undefined;
-      const next = { ...current, ...patch, status, updatedAt: nowIso() };
+      const next = {
+        ...current,
+        ...patch,
+        review: {
+          ...(current.review || {}),
+          ...(patch.review || {}),
+        },
+        status,
+        updatedAt: nowIso(),
+      };
+      records.set(id, next);
+      return next;
+    },
+    async patch(id, patch = {}) {
+      const current = records.get(id);
+      if (!current) return undefined;
+      const next = {
+        ...current,
+        ...patch,
+        review: {
+          ...(current.review || {}),
+          ...(patch.review || {}),
+        },
+        updatedAt: nowIso(),
+      };
       records.set(id, next);
       return next;
     },
