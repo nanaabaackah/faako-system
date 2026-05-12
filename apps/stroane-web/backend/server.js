@@ -18,6 +18,9 @@ import {
 import { createAuthRouter } from "./src/routes/auth.js";
 
 dotenv.config();
+if (process.env.APP_ENV === "development") {
+  dotenv.config({ path: ".env.development", override: true });
+}
 
 const { PrismaClient } = prismaPkg;
 

@@ -13,7 +13,7 @@ interface SiteUser {
   createdBy: { username: string } | null;
 }
 
-const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL as string;
+const BASE_URL = (import.meta.env.VITE_BACKEND_BASE_URL as string) ?? "";
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const SESSION_KEY = "stroane_preview_auth";
-const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL as string;
+const BASE_URL = (import.meta.env.VITE_BACKEND_BASE_URL as string) ?? "";
 
 interface AuthUser {
   id: string;
