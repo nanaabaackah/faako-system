@@ -90,3 +90,27 @@ Security impact: None. No auth, permission, secrets, or backend endpoints touche
 Testing done: Visual checks across pages on desktop and mobile breakpoints. Sticky-scroll storytelling and tab-stepper interactions verified for keyboard and pointer use. Cart state verified to persist across navigation between Shop and Product Detail. Header variant verified on hero pages (transparent → solid on scroll) and no-hero pages (solid from load, no entry animation). Hamburger menu confirmed hidden on desktop.
 Rollback notes: Revert the commit. All work is additive or contained — restoring the previous Shop/Services/Resources/ErrorPage files and removing the new pages, components, contexts, and shared data module, plus the five new App routes and the `CartProvider` wrapper in `main.tsx`, returns to the pre-redesign state.
 Next step: Drop in real `service_7.png` and `service_8.png` images for the last two services (currently reuse 1 and 2). Decide whether to back the Contact form with a real submission endpoint instead of `mailto:`. Consider persisting `CartContext` to `localStorage` so the basket survives reloads once the client confirms desired behavior.
+
+### Auth gate and admin user-management removed
+
+Date: 2026-05-14
+Feature/change name: Auth gate and admin user-management removed
+What changed: Removed the preview-access login gate, the `AuthContext`/`AuthProvider`/`AuthGate` components, the `/users` admin route, the `UserManagement` page, and the Netlify `/api/*` proxy that was pointing at a non-existent Railway backend service. Stripped `useAuth` calls and the conditional admin "Users" link from both `Header` and `FloatingHeader`. Public site is now open — anyone can browse without credentials.
+Why it changed: No Express backend is deployed (only the Railway Postgres database), so the gate could never authenticate users. The client wants the site publicly accessible; admin user-management was only needed to manage gate credentials and has no remaining purpose.
+Files changed:
+- apps/stroane-web/src/main.tsx (drop AuthProvider/AuthGate wrappers)
+- apps/stroane-web/src/App.tsx (drop UserManagement import and /users route)
+- apps/stroane-web/src/components/Header.tsx (drop useAuth and admin link)
+- apps/stroane-web/src/components/FloatingHeader.tsx (drop useAuth and three admin link blocks)
+- apps/stroane-web/netlify.toml (drop /api/* proxy)
+- Deleted: apps/stroane-web/src/context/AuthContext.tsx
+- Deleted: apps/stroane-web/src/components/AuthGate.tsx
+- Deleted: apps/stroane-web/src/styles/components/AuthGate.css
+- Deleted: apps/stroane-web/src/pages/UserManagement.tsx
+- Deleted: apps/stroane-web/src/styles/pages/UserManagement.css
+- Deleted: apps/stroane-web/railway.json (no backend service to deploy)
+Data impact: Stroane preview-access seeds in `apps/stroane-web/prisma/seeds/users.csv` are now orphaned (no consumer). They can remain in the repo for reference or be removed in a follow-up. No production data changes.
+Security impact: The site is now publicly accessible — no credential gate. Acceptable: the public content is marketing/store-catalogue only, the Contact form submits via `mailto:`, and there is no client-side state worth protecting. The Express backend code in `backend/` and the `/api/auth/*` routes remain in the repo but are not deployed and not reachable from production.
+Testing done: Verified no remaining `useAuth`/`AuthGate`/`AuthProvider`/`UserManagement` references via grep. Header and FloatingHeader render without the admin link.
+Rollback notes: `git revert` restores the gate, the admin page, and the proxy. The deleted files come back via git history. If the gate is re-introduced later, an actual backend deployment is needed first or login will fail the same way it did before.
+Next step: Decide whether to delete the unused backend (`backend/`, `prisma/`, auth routes, seeds) entirely, or keep it for a possible future admin area. Update `pre-deploy-checklist.md` and the Stroane README to reflect the public-site posture.
