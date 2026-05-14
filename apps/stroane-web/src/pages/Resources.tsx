@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { HiArrowRight, HiChevronDown } from "react-icons/hi";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
@@ -94,6 +95,10 @@ const FAQ_SCHEMA = {
 };
 
 const Resources: React.FC = () => {
+  const [openFaq, setOpenFaq] = useState<number>(-1);
+  const featured = guides[0];
+  const rest = guides.slice(1);
+
   useSEOMeta({
     title: "Food Safety Resources & Guides Ghana | Stroane",
     description:
@@ -139,19 +144,48 @@ const Resources: React.FC = () => {
             </p>
           </div>
 
-          <div className="resources-grid">
-            {guides.map((guide, index) => (
-              <article key={guide.title} className="resource-card">
-                <span className="resource-card__number">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3>{guide.title}</h3>
-                <p>{guide.description}</p>
-                <span className="resource-card__audience">
-                  For: {guide.audience}
-                </span>
-              </article>
-            ))}
+          <div className="guides-feature">
+            <article className="guides-feature__card">
+              <div className="guides-feature__media">
+                <img
+                  src="/imgs/bg_imgs/bg_2.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <span className="guides-feature__badge">Featured Guide</span>
+              </div>
+              <div className="guides-feature__body">
+                <span className="guides-feature__number">01</span>
+                <h3 className="guides-feature__title">{featured.title}</h3>
+                <p className="guides-feature__desc">{featured.description}</p>
+                <p className="guides-feature__audience">
+                  For {featured.audience}
+                </p>
+                <a href="#" className="guides-feature__cta">
+                  Read guide
+                  <HiArrowRight size={16} aria-hidden="true" />
+                </a>
+              </div>
+            </article>
+
+            <ol className="guides-list" aria-label="More guides">
+              {rest.map((guide, i) => (
+                <li key={guide.title}>
+                  <a href="#" className="guides-list__item">
+                    <span className="guides-list__num">
+                      {String(i + 2).padStart(2, "0")}
+                    </span>
+                    <div className="guides-list__copy">
+                      <h4>{guide.title}</h4>
+                      <p>{guide.description}</p>
+                    </div>
+                    <span className="guides-list__arrow" aria-hidden="true">
+                      <HiArrowRight size={16} />
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 
@@ -163,13 +197,41 @@ const Resources: React.FC = () => {
             </h2>
           </div>
 
-          <div className="resources-faq__list">
-            {faqs.map((faq) => (
-              <article key={faq.q} className="faq-card">
-                <h3>{faq.q}</h3>
-                <p>{faq.a}</p>
-              </article>
-            ))}
+          <div className="faq-accordion">
+            {faqs.map((faq, i) => {
+              const isOpen = openFaq === i;
+              const panelId = `faq-panel-${i}`;
+              const buttonId = `faq-btn-${i}`;
+              return (
+                <div
+                  key={faq.q}
+                  className={`faq-item${isOpen ? " faq-item--open" : ""}`}
+                >
+                  <button
+                    type="button"
+                    id={buttonId}
+                    className="faq-item__trigger"
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    onClick={() => setOpenFaq(isOpen ? -1 : i)}
+                  >
+                    <span className="faq-item__q">{faq.q}</span>
+                    <span className="faq-item__chevron" aria-hidden="true">
+                      <HiChevronDown size={20} />
+                    </span>
+                  </button>
+                  <div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={buttonId}
+                    aria-hidden={!isOpen}
+                    className="faq-item__panel"
+                  >
+                    <p>{faq.a}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 

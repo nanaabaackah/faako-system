@@ -4,6 +4,7 @@ dist
 coverage
 .env
 .env.*
+.obsidian
 SECURITY_AUDIT.md
 
 **/node_modules

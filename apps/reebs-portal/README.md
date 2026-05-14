@@ -58,7 +58,7 @@ pnpm --filter @faako/reebs-portal run test:e2e
 - the portal follows the current shared shell system used across the repo
 - sidebar width, collapse behavior, edge toggle placement, shared modal spacing, and mobile-safe bottom-nav padding should stay aligned with the other ERP apps
 - the admin app frame now uses shared ERP shell/page-content wrappers from `@faako/ui` while keeping REEBS-specific sidebar, bottom navigation, branding, pages, routes, and workflows in the app
-- shared form styling should be preferred over browser-native control chrome
+- shared form styling and the `@faako/ui` ERP form/modal/action foundations should be preferred for future low-risk settings/profile/filter and read-only detail work, but REEBS POS, payments, receipts, bookings, inventory stock, offline queue, auth/session-sensitive, and other workflow-heavy forms/modals/actions remain app-owned until separately reviewed
 - `src/config/adminModules.js` contains the REEBS admin module registry for home, POS, orders, bookings, inventory, customers, delivery, finance, reports, team, settings, and detailed child navigation entries.
 - `src/config/adminNavigation.js` adapts that registry into the existing sidebar and bottom navigation, preserving current labels, links, role filtering, driver/water behavior, and legacy route targets.
 - Module registry entries now carry `visibility` and `state` metadata. Hidden modules are ignored by navigation; disabled, internal, coming-soon, and experimental modules can render subtle visual badges/classes while preserving routes and existing page behavior.

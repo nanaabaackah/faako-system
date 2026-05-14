@@ -1,5 +1,16 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import type { IconType } from "react-icons";
+import {
+  HiClipboardCheck,
+  HiShieldCheck,
+  HiOfficeBuilding,
+  HiUserGroup,
+  HiCog,
+  HiTag,
+  HiCube,
+  HiGlobe,
+} from "react-icons/hi";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
@@ -96,54 +107,79 @@ const SERVICES_SCHEMA = {
   ],
 };
 
-const services = [
+type Service = {
+  title: string;
+  line: string;
+  ideal: string;
+  accent: string;
+  image: string;
+  Icon: IconType;
+};
+
+const services: Service[] = [
   {
     title: "Food Safety Audits",
-    description:
-      "We visit your premises and review how food is handled, stored, prepared, and served. You receive a clear report showing what is working, what is risky, and what should be fixed first.",
+    line: "We walk your premises and tell you what's working, what's risky, and what to fix first.",
     ideal: "Restaurants, caterers, food producers, supermarkets, schools, hospitals.",
+    accent: "#2563eb",
+    image: "/imgs/services/service_1.png",
+    Icon: HiClipboardCheck,
   },
   {
     title: "HACCP — Food Risk Management",
-    description:
-      "We help you identify where food safety risks can happen in your operation and create practical controls to prevent them before they affect customers.",
+    line: "We map where risk hides in your operation and build practical controls to stop it.",
     ideal: "Food manufacturers, processors, exporters, caterers.",
+    accent: "#0891b2",
+    image: "/imgs/services/service_2.png",
+    Icon: HiShieldCheck,
   },
   {
     title: "Ghana FDA Compliance",
-    description:
-      "We guide you through licensing, product registration, label reviews, documentation, and FDA inspection preparation in clear, practical steps.",
+    line: "Licensing, registration, label reviews, and inspection prep — explained step by step.",
     ideal: "Food and drug businesses operating in Ghana.",
+    accent: "#7c3aed",
+    image: "/imgs/services/service_3.png",
+    Icon: HiOfficeBuilding,
   },
   {
     title: "Food Handler Training",
-    description:
-      "Hands-on training for staff on hygiene, food temperatures, cleaning routines, allergens, pest awareness, and contamination prevention.",
+    line: "Hands-on staff training on hygiene, temperatures, allergens, and contamination.",
     ideal: "Restaurants, kitchens, food factories, schools, hotels.",
+    accent: "#ea580c",
+    image: "/imgs/services/service_4.png",
+    Icon: HiUserGroup,
   },
   {
     title: "Good Manufacturing Practice Audits",
-    description:
-      "We assess your production environment, equipment, water, pest control, storage, and product flow to help you meet stronger manufacturing standards.",
+    line: "We assess your factory floor against stronger manufacturing standards.",
     ideal: "Food manufacturers, packaged food producers, beverage companies.",
+    accent: "#16a34a",
+    image: "/imgs/services/service_5.png",
+    Icon: HiCog,
   },
   {
     title: "Food Label Reviews",
-    description:
-      "We check product labels for ingredients, allergens, best-before dates, weights, claims, and other Ghana FDA requirements before submission.",
+    line: "Label checks against Ghana FDA rules before you submit or print.",
     ideal: "Packaged food brands, beverage companies, importers.",
+    accent: "#db2777",
+    image: "/imgs/services/service_6.png",
+    Icon: HiTag,
   },
   {
     title: "Cold Storage Checks",
-    description:
-      "We assess fridges, freezers, cold rooms, and delivery vehicles to confirm that food stays at safe temperatures from storage to delivery.",
+    line: "Confirming your fridges, freezers, and vehicles keep food at safe temperatures.",
     ideal: "Caterers, supermarkets, hospitals, logistics businesses.",
+    accent: "#0284c7",
+    image: "/imgs/services/service_1.png",
+    Icon: HiCube,
   },
   {
     title: "Import & Export Support",
-    description:
-      "We help food importers and exporters understand the documents, approvals, and safety standards required for Ghanaian and international markets.",
+    line: "Navigating documents, approvals, and standards for cross-border food trade.",
     ideal: "Agri-food exporters, food importers, trading companies.",
+    accent: "#ca8a04",
+    image: "/imgs/services/service_2.png",
+    Icon: HiGlobe,
   },
 ];
 
@@ -185,6 +221,39 @@ const Services: React.FC = () => {
     canonical: "https://stroanesolutions.com/services",
   });
 
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const el = stageRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const total = rect.height - window.innerHeight;
+      if (total <= 0) return;
+      const progress = Math.max(0, Math.min(1, -rect.top / total));
+      const idx = Math.min(services.length - 1, Math.floor(progress * services.length));
+      setActiveIndex(idx);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToService = (i: number) => {
+    const el = stageRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const total = rect.height - window.innerHeight;
+    const stageTop = window.scrollY + rect.top;
+    const targetProgress = (i + 0.5) / services.length;
+    window.scrollTo({ top: stageTop + total * targetProgress, behavior: "smooth" });
+  };
+
+  const active = services[activeIndex];
+  const ActiveIcon = active.Icon;
+
   return (
     <Layout>
       <StructuredData schema={SERVICES_SCHEMA} id="services-schema" />
@@ -209,33 +278,117 @@ const Services: React.FC = () => {
           </div>
         </section>
 
-        <section className="services-list">
-          <div className="services-list__intro">
+        <section className="services-story">
+          <div className="services-story__intro">
             <span className="services-kicker">What We Do</span>
             <h2 className="section__heading">
               Services built around how food businesses actually operate.
             </h2>
-            <p className="section__sub services-list__sub">
-              Whether you run a restaurant, school kitchen, food factory, shop,
-              or export business, Stroane helps you understand what needs to be
-              fixed and how to fix it.
-            </p>
           </div>
 
-          <div className="services-grid">
-            {services.map((service, index) => (
-              <article key={service.title} className="service-card">
-                <span className="service-card__number">
-                  {String(index + 1).padStart(2, "0")}
+          {/* Mobile-only stacked list */}
+          <div className="services-story__mobile-list">
+            {services.map((s, i) => {
+              const ItemIcon = s.Icon;
+              return (
+                <article key={s.title} className="services-story__item">
+                  <div
+                    className="services-story__item-visual"
+                    style={{ backgroundColor: s.accent }}
+                  >
+                    <img
+                      src={s.image}
+                      alt=""
+                      aria-hidden="true"
+                      className="services-story__visual-bg"
+                    />
+                    <div className="services-story__visual-overlay" aria-hidden="true" />
+                    <span className="services-story__visual-num" aria-hidden="true">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="services-story__visual-icon">
+                      <ItemIcon size={88} aria-hidden={true} />
+                    </div>
+                  </div>
+                  <div className="services-story__item-body">
+                    <h3 className="services-story__title">{s.title}</h3>
+                    <p className="services-story__line">{s.line}</p>
+                    <p className="services-story__ideal">
+                      <strong>Good for: </strong>{s.ideal}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div
+            ref={stageRef}
+            className="services-story__stage"
+            style={{ minHeight: `${services.length * 90}vh` }}
+          >
+            <div className="services-story__pinned">
+              <div className="services-story__left">
+                <div className="services-story__counter">
+                  <span className="services-story__counter-num">
+                    {String(activeIndex + 1).padStart(2, "0")}
+                  </span>
+                  <span className="services-story__counter-total">
+                    / {String(services.length).padStart(2, "0")}
+                  </span>
+                </div>
+
+                <div key={activeIndex} className="services-story__copy">
+                  <h3 className="services-story__title">{active.title}</h3>
+                  <p className="services-story__line">{active.line}</p>
+                  <p className="services-story__ideal">
+                    <strong>Good for: </strong>
+                    {active.ideal}
+                  </p>
+                </div>
+
+                <div
+                  className="services-story__dots"
+                  role="tablist"
+                  aria-label="Service navigation"
+                >
+                  {services.map((s, i) => (
+                    <button
+                      key={s.title}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === activeIndex}
+                      aria-label={s.title}
+                      className={`services-story__dot${i === activeIndex ? " services-story__dot--active" : ""}`}
+                      onClick={() => scrollToService(i)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div
+                className="services-story__visual"
+                style={{ backgroundColor: active.accent }}
+              >
+                <img
+                  key={`bg-${activeIndex}`}
+                  src={active.image}
+                  alt=""
+                  aria-hidden="true"
+                  className="services-story__visual-bg"
+                />
+                <div className="services-story__visual-overlay" aria-hidden="true" />
+                <span className="services-story__visual-num" aria-hidden="true">
+                  {String(activeIndex + 1).padStart(2, "0")}
                 </span>
-                <h3 className="service-card__title">{service.title}</h3>
-                <p className="service-card__desc">{service.description}</p>
-                <p className="service-card__ideal">
-                  <strong>Good for: </strong>
-                  {service.ideal}
-                </p>
-              </article>
-            ))}
+                <div key={`icon-${activeIndex}`} className="services-story__visual-icon">
+                  <ActiveIcon size={148} aria-hidden={true} />
+                </div>
+                <span className="services-story__visual-label" aria-hidden="true">
+                  {active.title}
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -248,35 +401,78 @@ const Services: React.FC = () => {
               </h2>
             </div>
 
-            <ol className="services-steps">
-              {steps.map((step, index) => (
-                <li key={step.title} className="services-step">
-                  <span className="services-step__num">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <h3 className="services-step__title">{step.title}</h3>
-                    <p className="services-step__desc">{step.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <div className="step-tabs">
+              <div className="step-tabs__list" role="tablist" aria-label="Our process">
+                {steps.map((s, i) => (
+                  <button
+                    key={s.title}
+                    type="button"
+                    role="tab"
+                    id={`step-tab-${i}`}
+                    aria-selected={activeStep === i}
+                    aria-controls={`step-panel-${i}`}
+                    className={`step-tab${activeStep === i ? " step-tab--active" : ""}${i < activeStep ? " step-tab--done" : ""}`}
+                    onClick={() => setActiveStep(i)}
+                  >
+                    <span className="step-tab__num">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="step-tab__hint">{s.title}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="step-tabs__progress" aria-hidden="true">
+                <div
+                  className="step-tabs__progress-fill"
+                  style={{
+                    width: `${((activeStep + 1) / steps.length) * 100}%`,
+                  }}
+                />
+              </div>
+
+              <div
+                key={activeStep}
+                role="tabpanel"
+                id={`step-panel-${activeStep}`}
+                aria-labelledby={`step-tab-${activeStep}`}
+                className="step-tabs__panel"
+              >
+                <span className="step-tabs__panel-meta">
+                  Step {activeStep + 1} of {steps.length}
+                </span>
+                <h3 className="step-tabs__panel-title">
+                  {steps[activeStep].title}
+                </h3>
+                <p className="step-tabs__panel-desc">
+                  {steps[activeStep].description}
+                </p>
+              </div>
+
+              <div className="step-tabs__nav">
+                <button
+                  type="button"
+                  className="step-tabs__nav-btn"
+                  onClick={() => setActiveStep((i) => Math.max(0, i - 1))}
+                  disabled={activeStep === 0}
+                >
+                  <span aria-hidden="true">←</span> Previous
+                </button>
+                <button
+                  type="button"
+                  className="step-tabs__nav-btn step-tabs__nav-btn--primary"
+                  onClick={() =>
+                    setActiveStep((i) => Math.min(steps.length - 1, i + 1))
+                  }
+                  disabled={activeStep === steps.length - 1}
+                >
+                  Next <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            </div>
           </div>
         </section>
-
-        <section className="services-cta">
-          <div>
-            <span className="services-kicker">Not sure where to start?</span>
-            <h2 className="section__heading">
-              Book a free consultation and we will tell you exactly what your
-              business needs.
-            </h2>
-          </div>
-
-          <Link to="/contact" className="services-cta__button">
-            Book a Free Consultation
-          </Link>
-        </section>
+        
       </div>
     </Layout>
   );

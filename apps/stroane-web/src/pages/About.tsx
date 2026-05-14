@@ -123,6 +123,7 @@ const About: React.FC = () => {
     <Layout>
       <StructuredData schema={ABOUT_SCHEMA} id="about-schema" />
       <div className="about-page">
+
         {/* ── Hero ── */}
         <section className="about-hero">
           <img
@@ -132,7 +133,6 @@ const About: React.FC = () => {
             className="about-hero__bg"
           />
           <div className="about-hero__overlay" />
-
           <div className="about-hero__content">
             <h1 className="about-hero__heading">
               Built for Ghana&apos;s Food Industry
@@ -148,19 +148,16 @@ const About: React.FC = () => {
         <section className="about-story">
           <div className="about-story__grid">
             <div className="about-kicker">Our Story</div>
-
             <div className="about-story__content">
               <h2 className="section__heading">
                 Food safety support that understands the local reality.
               </h2>
-
               <p>
                 Stroane was founded in Accra after years of seeing the same
                 problem repeat across Ghana&apos;s food industry: businesses
                 failed inspections not because they did not care, but because
                 practical and affordable guidance was hard to access.
               </p>
-
               <p>
                 We built Stroane to close that gap — combining Ghanaian food
                 safety knowledge with hands-on support that businesses can use
@@ -179,11 +176,6 @@ const About: React.FC = () => {
             <h2 className="section__heading">
               Make food safety practical and affordable.
             </h2>
-            <p>
-              We help food and drug businesses in Ghana understand what is
-              required, fix what matters, and build safer operations without
-              making compliance feel impossible.
-            </p>
           </article>
 
           <article className="about-belief-card">
@@ -191,11 +183,6 @@ const About: React.FC = () => {
             <h2 className="section__heading">
               Safer food. Stronger businesses. More trust.
             </h2>
-            <p>
-              We want to see a Ghana where foodborne illness is rare, local
-              products meet international standards, and food safety becomes a
-              source of national pride.
-            </p>
           </article>
         </section>
 
@@ -206,16 +193,15 @@ const About: React.FC = () => {
             Our approach is simple: make standards easier to understand, easier
             to apply, and easier to maintain.
           </p>
-
-          <div className="about-values__grid">
+          <div className="about-values__list">
             {values.map((value, index) => (
-              <article key={value.title} className="about-value-card">
-                <span className="about-value-card__number">
+              <div key={value.title} className="about-value-row">
+                <span className="about-value-row__num">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <h3>{value.title}</h3>
-                <p>{value.description}</p>
-              </article>
+                <h3 className="about-value-row__title">{value.title}</h3>
+                <p className="about-value-row__desc">{value.description}</p>
+              </div>
             ))}
           </div>
         </section>
@@ -228,7 +214,6 @@ const About: React.FC = () => {
               Let&apos;s make your food business safer and easier to run.
             </h2>
           </div>
-
           <a href="/contact" className="about-cta__button">
             Book a Consultation
           </a>
@@ -250,21 +235,21 @@ const About: React.FC = () => {
 
           <div className="about-audience__grid">
             {businessGroups.map((group) => (
-              <article key={group.title} className="about-list-card">
-                <h3>{group.title}</h3>
-                <ul>
+              <div key={group.title} className="about-group">
+                <h3 className="about-group__title">{group.title}</h3>
+                <ul className="about-group__list">
                   {group.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </article>
+              </div>
             ))}
           </div>
         </section>
 
         {/* ── Standards ── */}
         <section className="about-standards">
-          <div className="about-standards__content">
+          <div className="about-standards__intro">
             <span className="about-kicker">Rules &amp; Standards</span>
             <h2 className="section__heading">
               Grounded in Ghanaian rules. Aligned with global practice.
@@ -276,19 +261,20 @@ const About: React.FC = () => {
             </p>
           </div>
 
-          <div className="about-standards__cards">
+          <div className="about-standards__grid">
             {standards.map((standard) => (
-              <article key={standard.title} className="about-standard-card">
-                <h3>{standard.title}</h3>
-                <ul>
+              <div key={standard.title} className="about-standard-group">
+                <h3 className="about-standard-group__title">{standard.title}</h3>
+                <ul className="about-standard-group__list">
                   {standard.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </article>
+              </div>
             ))}
           </div>
         </section>
+
       </div>
     </Layout>
   );

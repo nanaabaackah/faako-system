@@ -23,6 +23,118 @@ Next step:
 
 ## Entries
 
+### Theme and styling consistency fix
+
+Date: 2026-05-13
+Feature/change name: Theme and styling consistency fix
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now wraps `<SyncReviewPanel>` and `<ERPActivityFeed>` in a single `<StackGroup>` from `@faako/ui` instead of using two inline `style={{ marginTop: "1rem" }}` overrides. The existing Dev ERP `.stack { display: grid; gap: 1rem }` rule and the outer `.page { gap: 1.2rem }` rule together provide the same vertical rhythm without inline styles, satisfying the "remove inline styles where they duplicate theme concerns" rule. Dev ERP visual appearance is unchanged. The shared `ERPActivityFeed` component was also fixed at the package level: `.ui-erp-activity-detail` is now tone-aware (default muted; red only when the item's tone is `error`; warning when `warning`) instead of always rendering detail text in danger color; and the component now accepts optional `className`/`style` props so Dev ERP and any future consumer can apply app-specific theming or spacing without forking. No Dev ERP business logic, auth, alert settings, rent/payment records, invoices, reports, email workflows, offline sync behavior, or database schema changed.
+Why it changed: Align newly-added components with Dev ERP's existing theme conventions and remove inline-style duplication.
+Files changed: packages/ui/src/components/ERPActivityFeed.tsx, packages/ui/src/ui.css, apps/dev-erp/src/pages/Settings/Settings.jsx, packages/ui/README.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md
+Data impact: None.
+Security impact: UI-only styling consistency. No auth, permissions, API behavior, rent/payment records, invoices, reports, email workflows, AI/productivity endpoints, offline queue processing, database schema, or data access behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint` — clean. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` — clean.
+Rollback notes: Restore the two inline `marginTop: "1rem"` styles and remove the `<StackGroup>` wrapper if any visual regression appears.
+Next step: Continue module enable/disable persistence planning; consider migrating `@faako/offline-sync` `SyncReviewPanel` inline JS styles to shared CSS classes after separate manual review.
+
+### Organization settings and tenant foundation
+
+Date: 2026-05-13
+Feature/change name: Organization settings and tenant foundation
+Apps affected: Dev ERP (shared platform foundation only — no Dev ERP app code changed)
+What changed: The new shared `@faako/org-settings` package is available. It provides `normalizeOrganizationSettings`, `getOrganizationDisplayName`, `getOrganizationCurrency`, `getOrganizationCurrencySymbol`, `getOrganizationTimezone`, `getOrganizationBranding`, `getOrganizationContactInfo`, `stripSensitiveOrgSettings`, currency constants (GHS default), timezone constants (Africa/Accra default), and `ORG_SETTINGS_FIELDS`. No Dev ERP app code, backend routes, auth behavior, alert settings, rent/payment records, invoices, reports, email workflows, offline queue behavior, or database schema changed. Future Dev ERP adoption starting points: display businessName/currency/timezone in a new org section of the Settings page after a safe /api/org/settings endpoint exists; use getOrganizationCurrencySymbol in Rent/Invoicing display helpers after currency is persisted per org.
+Why it changed: Establish a shared org configuration foundation for future per-org branding and settings display without touching live workflows.
+Files changed: packages/org-settings/* (new), packages/notifications/src/index.js, packages/finance/src/index.js, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: Additive foundation only. No data changes.
+Security impact: Foundation only. stripSensitiveOrgSettings blocks credentials from leaking. No app behavior changed.
+Testing done: 44/44 tests pass in @faako/org-settings. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`.
+Rollback notes: Remove packages/org-settings and revert TODO updates. No data rollback required.
+Next step: Design /api/org/settings read endpoint (scoped by authenticated session organizationId); add org display section to Dev ERP Settings after endpoint is available.
+
+### Admin operational activity feed
+
+Date: 2026-05-13
+Feature/change name: Admin operational activity feed
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now renders `ERPActivityFeed` from `@faako/ui` below the `SyncReviewPanel`. The feed shows up to 5 recent offline sync queue events derived from the existing `useSyncQueueSummary` data already loaded on the page. No new API calls are made. Items display: action label (`getQueueActionLabel`), queue status formatted as a human-readable badge, tone mapped from queue status (SYNCED→success, FAILED/NEEDS_REVIEW→error, CONFLICT→warning, CANCELLED/RESOLVED→neutral, others→info), first 120 characters of last error if present, and item timestamp. Customer data, payment details, tokens, and secrets are not surfaced. The feed is hidden when there are no items and the queue is not loading. Existing Sync Review Panel behavior, alert preference state, save/test handlers, API calls, auth/session handling, SMS availability checks, and offline sync logic are unchanged.
+Why it changed: Give Dev ERP admins a quick glance at recent sync activity without leaving the Settings page, using data already loaded locally. Proves the shared ERPActivityFeed component in a low-risk settings surface before considering dashboard or workflow-heavy surfaces.
+Files changed: packages/ui/src/components/ERPActivityFeed.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: Presentational only. Reads existing IndexedDB queue data already loaded by `useSyncQueueSummary`. No new reads, writes, or API calls.
+Security impact: No tokens, secrets, passwords, payment details, customer data, or stack traces surfaced. Error strings capped at 120 characters. Queue status and action labels only.
+Testing done: `pnpm --filter @faako/dev-erp run lint` — clean. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`.
+Rollback notes: Remove the `syncActivityItems` useMemo and `<ERPActivityFeed>` render block from Settings.jsx. Remove the `ERPActivityFeed` import from the @faako/ui import. No data rollback required.
+Next step: Dev ERP Dashboard activity feed adoption (pending manual review of existing timeline).
+
+### Audit logging and operational visibility foundation
+
+Date: 2026-05-13
+Feature/change name: Audit logging and operational visibility foundation
+Apps affected: Dev ERP (shared platform foundation only — no Dev ERP app code changed)
+What changed: The new shared `@faako/audit` package is available. It provides audit event constants, safe actor/org reference helpers, sensitive metadata stripping, event normalization (createAuditEvent, createSyncAuditEvent, createSettingsAuditEvent), and display formatting helpers. No Dev ERP app code, backend routes, auth behavior, rent/payment records, invoices, reports, email workflows, offline queue behavior, or database schema changed. Future Dev ERP audit adoption starting points: createSyncAuditEvent for rent payment queue sync outcomes, createSettingsAuditEvent for settings saves, and AUDIT_ACTION_TYPES for future server-side audit log writes.
+Why it changed: Establish a shared audit foundation for future operational visibility without touching live workflows.
+Files changed: packages/audit/* (new), packages/offline-sync/src/index.js, packages/finance/src/index.js, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: Additive foundation only. No data changes.
+Security impact: Foundation only. No automated logging or transmission. Sensitive metadata is stripped by design.
+Testing done: 26/26 tests pass in @faako/audit. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`.
+Rollback notes: Remove packages/audit and revert TODO updates. No data rollback required.
+Next step: Admin operational activity feed.
+
+### Mobile-first responsive polish wave
+
+Date: 2026-05-12
+Feature/change name: Mobile-first responsive polish wave
+Apps affected: Dev ERP (shared shell and shared UI packages only)
+What changed: CSS-only improvements to the shared ERP shell and shared UI components used by Dev ERP. No Dev ERP app code, backend routes, auth, operational records, rent/payment records, invoices, reports, email workflows, or database behavior changed. Shared improvements: `dvh` viewport height with `vh` fallbacks on shell frame and sidebar panel; bottom nav safe-area positioning for notched phones; bottom nav button touch targets (min-height 2.75rem) and `touch-action: manipulation`; bottom nav keyboard focus-visible outline; sidebar nav `overscroll-behavior: contain`; modal/drawer `dvh` max-height with `vh` fallbacks; dialog body `overscroll-behavior: contain`; dialog close button touch target; and `ui-erp-field__control font-size: 1rem` for iOS auto-zoom prevention.
+Why it changed: Polish mobile usability and viewport accuracy for the shared shell and UI layer used by Dev ERP without changing any app, workflow, or backend behavior.
+Files changed: packages/theme/src/erp-shell.css, packages/ui/src/ui.css, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: CSS-only changes. No auth, permissions, API behavior, workflow logic, database schema, or data access behavior changed.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; visual review of changed CSS selectors; `git diff --check`.
+Rollback notes: Revert erp-shell.css and ui.css. No data rollback required.
+Next step: Audit logging and operational visibility foundation.
+
+### Shared in-app notification and alert UI
+
+Date: 2026-05-12
+Feature/change name: Shared in-app notification and alert UI
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now uses `ERPNotice` from `@faako/ui` for two static informational notices: the SMS availability notice (tone "info") and the storage mode notice (tone "success" or "warning" based on storageMode). The dynamic save/load status notice (`status.message`) was left unchanged because it can carry auth-related error text and is marked pending manual review. All other Settings behavior — alert preferences state, save/test handlers, API calls, auth/session handling, SMS availability checks, and Sync Review — is unchanged.
+Why it changed: Prove the shared ERP notice foundation in a low-risk static settings surface before considering workflow-heavy or auth-adjacent notice areas.
+Files changed: packages/ui/src/components/ERPNotifications.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only shared UI. Auth, permissions, alert preferences API behavior, save/test handlers, SMS availability, Sync Review, rent/payment records, invoices, reports, email workflows, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on changed files; trailing-whitespace scan.
+Rollback notes: Revert the Dev ERP Settings ERPNotice adoption to restore the previous inline `.notice` div markup. No data rollback is required.
+Next step: Mobile-first responsive polish wave.
+
+### Shared modal and action foundation
+
+Date: 2026-05-12
+Feature/change name: Shared modal and action foundation
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now uses the shared `ERPActionBar`, `ERPPrimaryAction`, and `ERPSecondaryAction` presentation wrappers for alert preference action buttons. The page still owns alert preference state, save/test handlers, loading flags, API calls, auth/session handling, SMS availability checks, and local Sync Review behavior.
+Why it changed: Prove the shared ERP action foundation in a low-risk settings surface before considering workflow-heavy modals or actions such as invoices, rent payments, user access changes, appointment settings, reports, or AI/productivity actions.
+Files changed: packages/ui/src/components/ERPActions.tsx, packages/ui/src/components/ERPModal.tsx, packages/ui/src/components/Primitives.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, apps/dev-erp/README.md, apps/reebs-portal/README.md, README.md, docs/platform/platform-status.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only shared UI. Auth, permissions, alert preferences API behavior, rent/payment records, invoices, reports, email workflows, AI/productivity endpoints, offline queue processing, database schema, modal state ownership, save/delete/submit behavior, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP Settings, README, and documentation files; trailing-whitespace scan on the same files.
+Rollback notes: Revert the Dev ERP Settings action wrapper adoption and shared modal/action component additions. No data rollback is required.
+Next step: Shared notification/in-app alert UI.
+
+### Shared ERP form foundation
+
+Date: 2026-05-12
+Feature/change name: Shared ERP form foundation
+Apps affected: Dev ERP Settings
+What changed: Dev ERP Settings now uses the shared `ERPFieldGroup` presentation wrapper for alert subscription fields. Action button wrappers are covered by the later modal/action foundation entry. The page still owns alert preference state, save/test handlers, API calls, auth/session handling, SMS availability checks, and local Sync Review behavior.
+Why it changed: Prove the shared ERP form foundation in a low-risk settings surface before considering workflow-heavy forms such as rent payments, invoices, user access changes, appointment settings, reports, or AI/productivity actions.
+Files changed: packages/ui/src/components/ERPForm.tsx, packages/ui/src/components/Primitives.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, apps/dev-erp/src/pages/Settings/Settings.jsx, apps/dev-erp/README.md, apps/reebs-portal/README.md, README.md, docs/platform/platform-status.md, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: Presentation-only shared UI. Auth, permissions, alert preferences API behavior, rent/payment records, invoices, reports, email workflows, AI/productivity endpoints, offline queue processing, database schema, validation rules, and production workflows are unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `git diff --check` on the changed shared UI, Dev ERP Settings, README, and documentation files; trailing-whitespace scan on the same files.
+Rollback notes: Revert the Dev ERP Settings `ERPFieldGroup` adoption and shared form component additions. No data rollback is required.
+Next step: Shared modal/action foundation.
+
 ### Shared ERP table foundation
 
 Date: 2026-05-12

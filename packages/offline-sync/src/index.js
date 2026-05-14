@@ -11,4 +11,6 @@ export * from "./types/index.js";
 // TODO(shared-invoice-engine): add invoice draft queues only after app-specific validation contracts exist.
 // TODO(offline-safe-finance-queue): add production sync only after idempotency, conflict handling, and audit logs are proven.
 // TODO(payment-gateway-integrations): never trust offline gateway state without provider/webhook reconciliation.
-// TODO(audit-logging): record actor, organization, source record, retries, conflicts, and server validation outcomes during future sync.
+// TODO(audit-logging): use createSyncAuditEvent from @faako/audit to record actor, organization, source record,
+//   retries, conflicts, and server validation outcomes in sync handlers. Wire into app-level sync paths only
+//   after backend audit writers and retention policies are defined.

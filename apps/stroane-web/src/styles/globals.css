@@ -193,6 +193,14 @@ a {
   line-height: 1.2;
 }
 
+.card__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-inverse-sub);
+  line-height: 1.55;
+  margin: 0.6rem 0 0;
+  text-align: center;
+}
+
 .section__cta {
   display: block;
   width: fit-content;

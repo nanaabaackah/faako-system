@@ -187,8 +187,8 @@ export function FormGroup({
 }
 
 // TODO(shared-ui-table-system): graduate legacy table wrappers into a typed table system.
-// TODO(shared-ui-form-system): graduate form groups/fields once app validation contracts are stable.
-// TODO(shared-ui-modal-system): graduate modal shells after app-specific action flows are reviewed.
+// TODO(shared-ui-form-adoption): migrate app forms only after validation and submit contracts are reviewed.
+// TODO(shared-ui-modal-adoption): migrate app modals only after cancel/confirm action flows are reviewed.
 // TODO(shared-erp-page-templates): add ERP page templates after module workflows settle.
 // TODO(shared-mobile-pos-layout): extract POS/mobile layouts only after offline/payment flows are proven stable.
 

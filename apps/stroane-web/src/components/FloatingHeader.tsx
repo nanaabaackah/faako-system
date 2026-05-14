@@ -76,7 +76,7 @@ const FloatingHeader: React.FC = () => {
         {/* White logo tab */}
         <div className="logo-tab">
           <img
-            src="/assets/logos/logo_long.svg"
+            src="/assets/logos/logo_long.png"
             alt="Stroane Solutions"
             className="logo-tab__img"
           />
@@ -155,7 +155,7 @@ const FloatingHeader: React.FC = () => {
         <header className="scrolled-header">
           <div className="scrolled-header__inner">
             <img
-              src="/assets/logos/logo_long.svg"
+              src="/assets/logos/logo_long.png"
               alt="Stroane Solutions"
               className="scrolled-header__logo"
             />

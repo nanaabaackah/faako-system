@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import AuthGate from './components/AuthGate.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
+import { CartProvider } from './context/CartContext.tsx'
 import appSystem from '../appSystem.js'
 
 createRoot(document.getElementById('root')!).render(
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
     <UiSystemProvider appSystem={appSystem}>
       <AuthProvider>
         <AuthGate>
-          <App />
+          <CartProvider>
+            <App />
+          </CartProvider>
         </AuthGate>
       </AuthProvider>
     </UiSystemProvider>

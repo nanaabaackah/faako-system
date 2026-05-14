@@ -13,11 +13,32 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - `docs/platform/codebase-cleanup-audit.md` flags Stroane cleanup opportunities around repeated card/button/header/page styles, API fetch wrapper duplication, and component extraction candidates such as Shop, Product/User Management, and header surfaces.
 
+### Shared modules introduced in the 2026-05 redesign sweep
+
+- **`src/data/products.ts`** is the source of truth for the catalogue. It exports the `Product` type, the `Category` union, the `products` array, `categoryOptions`, `formatCurrency`, `getStockTone`, and `getProductById`. Both `Shop.tsx` and `ProductDetail.tsx` import from here. `Sitemap.tsx` also reads it to auto-generate the Products section. Don't reinstate inline product arrays in pages — update this module.
+- **`src/context/CartContext.tsx`** holds the shopping basket as `Record<string, number>` (productId → qty) plus `totalCount`, `getQty`, `increment`, `decrement`, `remove`, and `clear`. The provider wraps the app in `main.tsx` (inside `AuthProvider`/`AuthGate`). State is in-memory only — refreshes clear the basket. If persistence is required, `localStorage` is the natural next step.
+- **`src/components/QuantityControls.tsx`** is the shared add/qty/trash widget used by Shop cards (`size="sm"`) and the Product Detail page (`size="lg"`). Owns its own styles in `src/styles/components/QuantityControls.css`. Don't duplicate this in new pages — reuse the component and let `useCart()` drive props.
+- **`src/components/LegalLayout.tsx`** is the shared template for `/terms`, `/privacy`, `/cookies`. Pages pass `title`, `lastUpdated`, optional `intro`, and an array of `{ heading, body }` sections; the layout handles the breadcrumb, "on this page" TOC, numbered headings with anchors, and the footer link to Contact. Use this for any future policy or legal page rather than rebuilding the structure.
+- **`src/components/ScrollToTop.tsx`** is mounted by `Layout` so every page gets the bottom-right scroll-to-top button automatically. It hides until `window.scrollY > 300`.
+
+### Header variant logic
+
+- `src/components/Header.tsx` carries a `HERO_ROUTES` set of paths that have an image hero (`/`, `/about`, `/services`, `/shop`, `/resources`, `/contact`). On those routes the header starts transparent (white text/icons) and switches to the solid `--scrolled` variant after `scrollY > 40`.
+- Every other route renders solid from page load via `isDark = scrolled || !hasHero`. An additional `page-header--static` modifier suppresses the `slideDown` keyframe so the solid header doesn't animate on every navigation.
+- When adding a new public page, decide whether it has an image hero. If yes, add the path to `HERO_ROUTES`. If no, do nothing — the dark variant kicks in automatically.
+
+### Header responsive rules
+
+- The hamburger menu button (`.page-header__menu-btn`, `.hero-header__menu-btn`) is hidden at `min-width: 901px` via Header.css. On desktop the inline nav links handle navigation; only mobile shows the hamburger. The mobile nav-sheet close button (`.mobile-nav-sheet__close`) is unaffected and stays visible inside the slide-out.
+
 ## Open questions
 
 - What is the final production backend host and ownership model?
 - Which purchasing or payment features are in scope for the initial client release?
 - What client-facing acceptance checklist should block production deploys?
+- Should the Contact form submit to a real backend endpoint instead of the current `mailto:` fallback?
+- Should `CartContext` persist to `localStorage` so the basket survives reloads, or stay in-memory for the preview build?
+- Final imagery for service 7 (Cold Storage Checks) and service 8 (Import & Export Support); featured Resources guide cover currently reuses `bg_2.png`.
 
 ## Future cleanup
 

@@ -5,6 +5,11 @@ import About from "./pages/About";
 import Services from "./pages/Services";
 import Shop from "./pages/Shop";
 import Resources from "./pages/Resources";
+import Contact from "./pages/Contact";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Cookies from "./pages/Cookies";
+import Sitemap from "./pages/Sitemap";
 import ProductList from "./pages/ProductList";
 import ProductDetail from "./pages/ProductDetail";
 import Search from "./pages/Search";
@@ -20,8 +25,13 @@ function App() {
         <Route path="/services" element={<Services />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/resources" element={<Resources />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/:id" element={<ProductDetail />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/cookies" element={<Cookies />} />
+        <Route path="/sitemap" element={<Sitemap />} />
         <Route path="/search" element={<Search />} />
         <Route path="/users" element={<UserManagement />} />
         <Route path="/error" element={<ErrorPage />} />

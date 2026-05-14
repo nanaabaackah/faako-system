@@ -23,6 +23,118 @@ Next step:
 
 ## Entries
 
+### Theme and styling consistency fix
+
+Date: 2026-05-13
+Feature/change name: Theme and styling consistency fix
+Apps affected: REEBS Portal (shared package change only — no REEBS Portal app code changed)
+What changed: Shared `ERPActivityFeed` component in `@faako/ui` was made theme-aware in two ways: (1) `.ui-erp-activity-detail` now defaults to muted color and only tints red on items with tone `error` (and warning on tone `warning`), instead of unconditionally rendering detail text in danger color; (2) the component now accepts optional `className` and `style` props so REEBS Portal can apply REEBS-specific theming or spacing without forking the component when adoption proceeds. The component's CSS continues to use `--sys-*` theme tokens with `color-mix` softening, so any consumer (REEBS, Dev ERP, future apps) sees its own theme tokens applied — no REEBS branding has been hardcoded into shared CSS. No REEBS Portal app code, auth, POS, payments, bookings, inventory, receipts, orders, roles, email workflows, offline queue behavior, or database schema changed.
+Why it changed: Ensure shared ERP components are theme-aware and brand-neutral before further REEBS adoption.
+Files changed: packages/ui/src/components/ERPActivityFeed.tsx, packages/ui/src/ui.css, packages/ui/README.md
+Data impact: None.
+Security impact: UI-only styling consistency. No REEBS Portal code changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`.
+Rollback notes: No REEBS Portal rollback required — nothing was changed in the app.
+Next step: Continue REEBS-side ERPActivityFeed adoption review for read-only admin surfaces (still pending separate manual visual/workflow review). Migrate `@faako/offline-sync` `SyncReviewPanel` inline JS styles to shared CSS classes after manual review across both production apps.
+
+### Organization settings and tenant foundation
+
+Date: 2026-05-13
+Feature/change name: Organization settings and tenant foundation
+Apps affected: REEBS Portal (shared platform foundation only — no REEBS Portal app code changed)
+What changed: The new shared `@faako/org-settings` package is available. It provides normalizeOrganizationSettings, display helpers, safe metadata helpers, currency/timezone constants, and the ORG_SETTINGS_FIELDS registry. No REEBS Portal app code, auth, POS, bookings, inventory, receipts, payments, orders, roles, email workflows, offline queue behavior, or database schema changed. Future REEBS adoption starting points: display businessName/currency/timezone in a new org section of REEBS admin settings after a safe org settings API endpoint exists; use getOrganizationDisplayName and getOrganizationContactInfo in @faako/notifications templates for branded receipt messages; use getOrganizationCurrencySymbol in @faako/finance receipt helpers for per-org currency display.
+Why it changed: Establish a shared org configuration foundation for future per-org branding and settings display without touching live workflows.
+Files changed: packages/org-settings/* (new), packages/notifications/src/index.js, packages/finance/src/index.js
+Data impact: Additive foundation only. No data changes.
+Security impact: Foundation only. No REEBS Portal code changed. stripSensitiveOrgSettings blocks credential keys from public payloads.
+Testing done: 44/44 tests pass in @faako/org-settings.
+Rollback notes: No REEBS Portal rollback required — nothing was changed.
+Next step: Design /api/org/settings read endpoint scoped by authenticated session organizationId; add org display section to REEBS admin settings after endpoint is available.
+
+### Admin operational activity feed — pending manual review
+
+Date: 2026-05-13
+Feature/change name: Admin operational activity feed — pending manual review for REEBS Portal
+Apps affected: REEBS Portal (no REEBS Portal app code changed)
+What changed: The new shared `ERPActivityFeed` component is available in `@faako/ui`. No REEBS Portal code was changed in this phase. Existing app-owned `ActivityPanel` in AdminWorkspace (classes `aw-activity-*`) was intentionally left in place — it is the live operational feed and should not be replaced without a separate workflow review.
+Why it changed: REEBS Portal adoption of ERPActivityFeed was deferred because live activity feed candidates (POS sync outcomes, booking sync outcomes, order payment sync outcomes) are near auth, payment, inventory, and offline queue workflows that require separate review before UI changes.
+Files changed: packages/ui/src/components/ERPActivityFeed.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md
+Data impact: None.
+Security impact: None. No REEBS Portal code changed.
+Testing done: Component available in @faako/ui. REEBS Portal app was not affected.
+Rollback notes: No REEBS Portal rollback required — nothing was changed.
+Next step: Review REEBS Portal AdminWorkspace ActivityPanel and identify safe read-only surfaces (e.g. admin settings, logs) where ERPActivityFeed could be adopted without touching POS/payment/booking/inventory/offline workflows.
+
+### Audit logging and operational visibility foundation
+
+Date: 2026-05-13
+Feature/change name: Audit logging and operational visibility foundation
+Apps affected: REEBS Portal (shared platform foundation only — no REEBS Portal app code changed)
+What changed: The new shared `@faako/audit` package is available. It provides audit event constants, safe actor/org reference helpers, sensitive metadata stripping, event normalization helpers, and display formatting helpers. No REEBS Portal app code, auth, POS, bookings, inventory, receipts, payments, orders, roles, email workflows, offline queue behavior, or database schema changed. Future REEBS adoption starting points: createSyncAuditEvent for POS order, payment, inventory, and booking queue sync outcomes; createSettingsAuditEvent for settings saves; AUDIT_ACTION_TYPES for future server-side audit log writes via @faako/logger.
+Why it changed: Establish a shared audit foundation for future operational visibility without touching live workflows.
+Files changed: packages/audit/* (new), packages/offline-sync/src/index.js, packages/finance/src/index.js, docs/platform/platform-progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: Additive foundation only. No data changes.
+Security impact: Foundation only. No automated logging or transmission. Sensitive metadata is stripped by design.
+Testing done: 26/26 tests pass in @faako/audit. No REEBS runtime verification required — no REEBS app code changed.
+Rollback notes: Remove packages/audit and revert TODO updates. No data rollback required.
+Next step: Admin operational activity feed.
+
+### Mobile-first responsive polish wave reviewed
+
+Date: 2026-05-12
+Feature/change name: Mobile-first responsive polish wave
+Apps affected: REEBS Portal (shared shell and shared UI packages only)
+What changed: CSS-only improvements to shared packages used by REEBS Portal. No REEBS Portal app code, auth, POS, bookings, inventory, receipts, payments, orders, roles, email workflows, offline queue processing, or database behavior changed. See platform progress log for the full list of shared improvements.
+Why it changed: Polish mobile usability and viewport accuracy for the shared shell and UI layer used by REEBS Portal without changing any app, workflow, or backend behavior.
+Files changed: packages/theme/src/erp-shell.css, packages/ui/src/ui.css, docs/platform/platform-progress-log.md, docs/apps/reebs-portal/progress-log.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/reebs-portal/implementation-notes.md
+Data impact: None.
+Security impact: CSS-only changes. No auth, roles, payments, receipts, orders, bookings, inventory, offline queue processing, APIs, routes, database schema, or production workflow behavior changed.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; visual review; `git diff --check`.
+Rollback notes: Revert erp-shell.css and ui.css. No data rollback required.
+Next step: Audit logging and operational visibility foundation.
+
+### Shared in-app notification and alert UI reviewed
+
+Date: 2026-05-12
+Feature/change name: Shared in-app notification and alert UI
+Apps affected: REEBS Portal documentation review
+What changed: Reviewed REEBS Portal for initial shared notification/alert adoption and documented runtime adoption as pending. No REEBS runtime notices, alerts, banners, toasts, sync alerts, or offline notices were migrated in this phase.
+Why it changed: REEBS notice/alert candidates are close to live/private-beta POS, payments, receipts, bookings, inventory, auth/session-sensitive flows, and offline queue workflows, so they need separate visual and workflow checks before shared notification/alert adoption.
+Files changed: docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/platform/platform-progress-log.md, packages/ui/README.md
+Data impact: None.
+Security impact: Documentation-only review. No auth, roles, payments, receipts, orders, bookings, inventory, offline queue processing, APIs, routes, database schema, or production workflow behavior changed.
+Testing done: Documentation review only. No runtime changes.
+Rollback notes: No runtime changes. No rollback required.
+Next step: Mobile-first responsive polish wave.
+
+### Shared modal and action foundation reviewed
+
+Date: 2026-05-12
+Feature/change name: Shared modal and action foundation
+Apps affected: REEBS Portal documentation review
+What changed: Reviewed REEBS Portal for initial shared modal/action adoption and documented runtime adoption as pending. No REEBS runtime modals, drawers, confirmations, or workflow actions were migrated in this phase.
+Why it changed: REEBS modal/action candidates are close to live/private-beta POS, payments, receipts, Bookings, Inventory stock, auth/session-sensitive, offline queue, and admin workflow surfaces, so they need separate visual and workflow checks before shared modal/action adoption.
+Files changed: apps/reebs-portal/README.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: None.
+Security impact: Documentation-only review. No auth, roles, payments, receipts, orders, bookings, inventory, offline queue processing, APIs, routes, database schema, modal state ownership, save/delete/submit handlers, or production workflow behavior changed.
+Testing done: Documentation review; no REEBS runtime verification was required because no REEBS app code changed for this shared modal/action wave.
+Rollback notes: Remove this documentation-only review note if REEBS receives a separate runtime shared modal/action adoption pass.
+Next step: Shared notification/in-app alert UI.
+
+### Shared ERP form foundation reviewed
+
+Date: 2026-05-12
+Feature/change name: Shared ERP form foundation
+Apps affected: REEBS Portal documentation review
+What changed: Reviewed REEBS Portal for initial shared ERP form adoption and documented runtime adoption as pending. No REEBS runtime forms were migrated in this phase.
+Why it changed: REEBS form candidates are close to live/private-beta POS, payments, receipts, Bookings, Inventory stock, offline queue, and admin workflow surfaces, so they need separate visual and workflow checks before shared form adoption.
+Files changed: apps/reebs-portal/README.md, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: None.
+Security impact: Documentation-only review. No auth, roles, payments, receipts, orders, bookings, inventory, offline queue processing, APIs, routes, database schema, validation rules, submit handlers, or production workflow behavior changed.
+Testing done: Documentation review; no REEBS runtime verification was required because no REEBS app code changed for this shared form wave.
+Rollback notes: Remove this documentation-only review note if REEBS receives a separate runtime shared form adoption pass.
+Next step: Shared modal/action foundation.
+
 ### Shared ERP table foundation reviewed
 
 Date: 2026-05-12

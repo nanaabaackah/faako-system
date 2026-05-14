@@ -44,11 +44,11 @@ const Footer: React.FC = () => {
           Ready to make your food<br />business safer?
         </h2>
         <p className="footer__cta-sub">
-          Book a free 30-minute consultation. We will assess your current setup
+          Book a 45-minute consultation. We will assess your current setup
           and tell you exactly where to start.
         </p>
         <Link to="/contact" className="footer__cta-btn">
-          Book a Free Consultation
+          Book a Consultation
         </Link>
       </div>
 

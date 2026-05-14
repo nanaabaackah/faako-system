@@ -11,6 +11,17 @@ const NAV_LINKS = [
   { label: "Resources", to: "/resources" },
 ];
 
+// Routes with an image hero — header sits on top of dark imagery, so it stays transparent (white text) until scrolled.
+// Every other route gets the dark variant from the start so the white text isn't invisible.
+const HERO_ROUTES = new Set<string>([
+  "/",
+  "/about",
+  "/services",
+  "/shop",
+  "/resources",
+  "/contact",
+]);
+
 const Header: React.FC = () => {
   const { user } = useAuth();
   const [scrolled, setScrolled]     = useState(false);
@@ -19,6 +30,8 @@ const Header: React.FC = () => {
   const [query, setQuery]           = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+  const hasHero = HERO_ROUTES.has(location.pathname);
+  const isDark = scrolled || !hasHero;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -71,13 +84,17 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className={`page-header${scrolled ? " page-header--scrolled" : " page-header--transparent"}`}>
+      <header
+        className={`page-header${
+          isDark ? " page-header--scrolled" : " page-header--transparent"
+        }${!hasHero ? " page-header--static" : ""}`}
+      >
         <div className="page-header__inner">
 
           {/* Logo — far left */}
           <Link to="/">
             <img
-              src="/assets/logos/logo_long.svg"
+              src="/assets/logos/logo_long.png"
               alt="Stroane Solutions"
               className="page-header__logo"
             />
@@ -102,7 +119,7 @@ const Header: React.FC = () => {
           {/* Actions — far right */}
           <div className="page-header__actions">
             <button
-              className={`nav-search-btn${scrolled ? " nav-search-btn--dark" : ""}`}
+              className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
               onClick={() => {
                 setMenuOpen(false);
                 setSearchOpen(true);
@@ -112,7 +129,7 @@ const Header: React.FC = () => {
               <HiOutlineSearch size={18} aria-hidden="true" />
             </button>
             <button
-              className={`page-header__menu-btn${scrolled ? " page-header__menu-btn--dark" : ""}`}
+              className={`page-header__menu-btn${isDark ? " page-header__menu-btn--dark" : ""}`}
               type="button"
               onClick={() => setMenuOpen((current) => !current)}
               aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -136,7 +153,7 @@ const Header: React.FC = () => {
             <div className="mobile-nav-sheet__header">
               <Link to="/" className="mobile-nav-sheet__brand" onClick={() => setMenuOpen(false)}>
                 <img
-                  src="/assets/logos/logo_long.svg"
+                  src="/assets/logos/logo_long.png"
                   alt="Stroane Solutions"
                   className="mobile-nav-sheet__logo"
                 />

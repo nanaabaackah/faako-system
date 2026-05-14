@@ -1,0 +1,18 @@
+export const ORG_SETTINGS_FIELDS = Object.freeze({
+  BUSINESS_NAME:     "businessName",
+  LOGO_URL:          "logoUrl",
+  FAVICON_URL:       "faviconUrl",
+  PRIMARY_COLOR:     "primaryColor",
+  ACCENT_COLOR:      "accentColor",
+  CONTACT_EMAIL:     "contactEmail",
+  CONTACT_PHONE:     "contactPhone",
+  WHATSAPP_NUMBER:   "whatsappNumber",
+  ADDRESS_LINE_1:    "addressLine1",
+  ADDRESS_LINE_2:    "addressLine2",
+  CITY:              "city",
+  COUNTRY:           "country",
+  CURRENCY:          "currency",
+  TIMEZONE:          "timezone",
+  ENABLED_MODULES:   "enabledModules",
+  NOTIFICATION_PREFS: "notificationPrefs",
+});

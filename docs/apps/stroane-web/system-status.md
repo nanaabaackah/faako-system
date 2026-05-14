@@ -14,12 +14,22 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Express backend route and middleware structure.
 - Prisma schema and migration workflow.
 - Netlify frontend deployment pattern.
+- Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
+- Footer-linked policy pages: Terms, Privacy, Cookies, Sitemap (all rendering through the shared `LegalLayout` component where applicable).
+- Error page with 404 / 500 variants and shared helpful-link grid.
+- Sitewide scroll-to-top button (mounted in `Layout`).
+- Shared catalogue source-of-truth in `src/data/products.ts` and reusable basket state via `CartContext` (wrapped in `main.tsx`).
+- Reusable `QuantityControls` component (add → +/qty/+/trash) shared between Shop cards and Product Detail.
+- Route-aware header: hero routes stay transparent until scrolled; non-hero routes get the solid variant from load and skip the entry animation. Hamburger menu now correctly hidden on desktop.
 
 ## In-progress modules/features
 
 - Product browsing and purchasing flow refinement.
 - Backend hosting, CORS, reverse proxy, and production API configuration.
 - Client deployment readiness and operational polish.
+- Final guide / service hero imagery — placeholders reuse existing images for services 7 and 8 and for the featured guide.
+- Contact form delivery — currently submits via `mailto:`; backend handler decision pending.
+- Cart persistence — `CartContext` is in-memory only; persistence to `localStorage` is a candidate future step.
 
 ## Experimental modules/features
 

@@ -1,13 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  SYNC_STATES,
   SyncReviewPanel,
   createIndexedDbQueueStorage,
+  getQueueActionLabel,
+  getQueueItemLastError,
   markQueuedActionResolved,
   useQueuedActionCancel,
   useQueuedActionRetry,
   useSyncQueueSummary,
 } from "@faako/offline-sync";
-import { ErpPanel, ErpPanelGrid, ErpPanelHeader, FormGroup, StackGroup } from "@faako/ui";
+import {
+  ERPActionBar,
+  ERPActivityFeed,
+  ERPFieldGroup,
+  ERPNotice,
+  ERPPrimaryAction,
+  ERPSecondaryAction,
+  ErpPanel,
+  ErpPanelGrid,
+  ErpPanelHeader,
+  StackGroup,
+} from "@faako/ui";
 import { apiGet, apiPost, ApiError } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import { formatDateTime } from "../../utils/formatters";
@@ -75,6 +89,32 @@ const Settings = () => {
       setSyncResolvingId("");
     }
   }, [refreshSyncReview, syncReviewStorage]);
+
+  const syncActivityItems = useMemo(() => {
+    const all = [...(syncReview.items || [])];
+    all.sort((a, b) =>
+      new Date(b.updatedAt || b.createdAt || 0).getTime() -
+      new Date(a.updatedAt || a.createdAt || 0).getTime()
+    );
+    return all.slice(0, 5).map((item) => {
+      const status = item.status || "";
+      const tone =
+        status === SYNC_STATES.SYNCED ? "success" :
+        status === SYNC_STATES.FAILED || status === SYNC_STATES.NEEDS_REVIEW ? "error" :
+        status === SYNC_STATES.CONFLICT ? "warning" :
+        status === SYNC_STATES.CANCELLED || status === SYNC_STATES.RESOLVED ? "neutral" :
+        "info";
+      const lastErr = getQueueItemLastError(item) || "";
+      return {
+        id: item.id,
+        actionLabel: getQueueActionLabel(item),
+        statusLabel: status ? status.replace(/_/g, " ") : "",
+        tone,
+        detail: lastErr ? lastErr.slice(0, 120) : undefined,
+        timestamp: item.updatedAt || item.createdAt,
+      };
+    });
+  }, [syncReview.items]);
 
   useEffect(() => {
     setHasSession(true);
@@ -243,7 +283,7 @@ const Settings = () => {
                   />
                   <span>{isSmsAvailable ? "SMS alerts" : "SMS alerts (disabled for now)"}</span>
                 </label>
-                <FormGroup label="Email recipients">
+                <ERPFieldGroup className="form-field" label="Email recipients">
                   <input
                     className="input"
                     type="text"
@@ -252,8 +292,8 @@ const Settings = () => {
                     onChange={(event) => updatePref("emailRecipients", event.target.value)}
                     disabled={isLoadingPrefs || !hasSession}
                   />
-                </FormGroup>
-                <FormGroup label="Slack channel">
+                </ERPFieldGroup>
+                <ERPFieldGroup className="form-field" label="Slack channel">
                   <input
                     className="input"
                     type="text"
@@ -262,8 +302,8 @@ const Settings = () => {
                     onChange={(event) => updatePref("slackChannel", event.target.value)}
                     disabled
                   />
-                </FormGroup>
-                <FormGroup label="SMS recipients">
+                </ERPFieldGroup>
+                <ERPFieldGroup className="form-field" label="SMS recipients">
                   <input
                     className="input"
                     type="text"
@@ -272,31 +312,35 @@ const Settings = () => {
                     onChange={(event) => updatePref("smsRecipients", event.target.value)}
                     disabled={!isSmsAvailable || isLoadingPrefs || !hasSession}
                   />
-                </FormGroup>
-                <div className="header-actions">
-                  <button
+                </ERPFieldGroup>
+                <ERPActionBar className="header-actions" align="start">
+                  <ERPPrimaryAction
                     className="button button-primary"
-                    type="button"
                     onClick={handleSave}
-                    disabled={isSaving || isLoadingPrefs || !hasSession}
+                    loading={isSaving}
+                    disabled={isLoadingPrefs || !hasSession}
+                    loadingLabel="Saving..."
                   >
-                    {isSaving ? "Saving..." : "Save preferences"}
-                  </button>
-                  <button
+                    Save preferences
+                  </ERPPrimaryAction>
+                  <ERPSecondaryAction
                     className="button button-ghost"
-                    type="button"
                     onClick={handleTestEmail}
+                    loading={isTestingEmail}
+                    loadingLabel="Sending..."
                     disabled={
-                      !prefs.email || !isLoaded || isTestingEmail || isLoadingPrefs || !hasSession
+                      !prefs.email || !isLoaded || isLoadingPrefs || !hasSession
                     }
                   >
-                    {isTestingEmail ? "Sending..." : "Send test email"}
-                  </button>
-                </div>
+                    Send test email
+                  </ERPSecondaryAction>
+                </ERPActionBar>
                 {!isSmsAvailable ? (
-                  <div className="notice">
-                    SMS is disabled for now. Email alerts are the active channel.
-                  </div>
+                  <ERPNotice
+                    tone="info"
+                    message="SMS is disabled for now. Email alerts are the active channel."
+                    compact
+                  />
                 ) : null}
                 <p className="muted">
                   Last email sent{" "}
@@ -329,31 +373,46 @@ const Settings = () => {
                   />
                   <span>Notify when a service is degraded</span>
                 </label>
-                <div className="notice">
-                  {storageMode === "database"
-                    ? "Saved preferences are persisted in backend storage and survive restarts."
-                    : "Saved preferences are using the in-memory fallback. Apply the alert settings migration to persist them across restarts."}
-                </div>
+                <ERPNotice
+                  tone={storageMode === "database" ? "success" : "warning"}
+                  message={
+                    storageMode === "database"
+                      ? "Saved preferences are persisted in backend storage and survive restarts."
+                      : "Saved preferences are using the in-memory fallback. Apply the alert settings migration to persist them across restarts."
+                  }
+                  compact
+                />
               </StackGroup>
             </ErpPanel>
           </ErpPanelGrid>
 
-          <SyncReviewPanel
-            title="Offline sync review"
-            description="Review local Dev ERP rent payment queue items before retrying or closing them."
-            items={syncReview.items}
-            summary={syncReview}
-            loading={syncReview.loading}
-            error={syncReview.error || retryQueuedActionError || cancelQueuedActionError}
-            onRefresh={syncReview.refresh}
-            onRetry={retryQueuedAction}
-            onCancel={cancelQueuedAction}
-            onResolve={resolveQueuedAction}
-            retryingId={retryingQueuedActionId}
-            cancellingId={cancellingQueuedActionId}
-            resolvingId={syncResolvingId}
-            style={{ marginTop: "1rem" }}
-          />
+          <StackGroup>
+            <SyncReviewPanel
+              title="Offline sync review"
+              description="Review local Dev ERP rent payment queue items before retrying or closing them."
+              items={syncReview.items}
+              summary={syncReview}
+              loading={syncReview.loading}
+              error={syncReview.error || retryQueuedActionError || cancelQueuedActionError}
+              onRefresh={syncReview.refresh}
+              onRetry={retryQueuedAction}
+              onCancel={cancelQueuedAction}
+              onResolve={resolveQueuedAction}
+              retryingId={retryingQueuedActionId}
+              cancellingId={cancellingQueuedActionId}
+              resolvingId={syncResolvingId}
+            />
+            {syncActivityItems.length > 0 || syncReview.loading ? (
+              <ERPActivityFeed
+                title="Recent sync activity"
+                description="Local rent payment queue events — synced, failed, and pending items."
+                items={syncActivityItems}
+                loading={syncReview.loading}
+                emptyMessage="No sync activity yet."
+                compact
+              />
+            ) : null}
+          </StackGroup>
         </>
       ) : null}
     </section>
