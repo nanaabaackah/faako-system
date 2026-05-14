@@ -14,7 +14,6 @@ import ProductList from "./pages/ProductList";
 import ProductDetail from "./pages/ProductDetail";
 import Search from "./pages/Search";
 import ErrorPage from "./pages/ErrorPage";
-import UserManagement from "./pages/UserManagement";
 
 function App() {
   return (
@@ -33,7 +32,6 @@ function App() {
         <Route path="/cookies" element={<Cookies />} />
         <Route path="/sitemap" element={<Sitemap />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/users" element={<UserManagement />} />
         <Route path="/error" element={<ErrorPage />} />
         <Route path="*" element={<ErrorPage statusCode="404" />} />
       </Routes>

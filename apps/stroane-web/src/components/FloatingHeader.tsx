@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { HiMenuAlt3, HiOutlineSearch, HiX } from "react-icons/hi";
-import { useAuth } from "../context/AuthContext";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -12,7 +11,6 @@ const NAV_LINKS = [
 ];
 
 const FloatingHeader: React.FC = () => {
-  const { user } = useAuth();
   const [scrolled, setScrolled]       = useState(false);
   const [searchOpen, setSearchOpen]   = useState(false);
   const [menuOpen, setMenuOpen]       = useState(false);
@@ -130,13 +128,6 @@ const FloatingHeader: React.FC = () => {
                 </Link>
               </li>
             ))}
-            {user?.role === "ADMIN" && (
-              <li>
-                <Link to="/users" className="hover:opacity-75 transition-opacity">
-                  Users
-                </Link>
-              </li>
-            )}
             <li>
               <button
                 className="nav-search-btn"
@@ -166,11 +157,6 @@ const FloatingHeader: React.FC = () => {
                     <Link to={link.to}>{link.label}</Link>
                   </li>
                 ))}
-                {user?.role === "ADMIN" && (
-                  <li>
-                    <Link to="/users">Users</Link>
-                  </li>
-                )}
                 <li>
                   <button
                     className="nav-search-btn nav-search-btn--dark"
@@ -246,15 +232,6 @@ const FloatingHeader: React.FC = () => {
                     {link.label}
                   </Link>
                 ))}
-                {user?.role === "ADMIN" && (
-                  <Link
-                    to="/users"
-                    className="mobile-nav-sheet__link"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Users
-                  </Link>
-                )}
               </div>
 
               <button
