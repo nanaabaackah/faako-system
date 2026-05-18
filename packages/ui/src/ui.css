@@ -1629,6 +1629,27 @@
   background: var(--sys-accent-soft);
 }
 
+.ui-inline-notice--pending .ui-inline-notice__icon,
+.ui-notice-banner--pending .ui-notice-banner__icon,
+.ui-toast--pending .ui-toast__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
+.ui-inline-notice--maintenance .ui-inline-notice__icon,
+.ui-notice-banner--maintenance .ui-notice-banner__icon,
+.ui-toast--maintenance .ui-toast__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
+.ui-inline-notice--degraded .ui-inline-notice__icon,
+.ui-notice-banner--degraded .ui-notice-banner__icon,
+.ui-toast--degraded .ui-toast__icon {
+  color: var(--sys-accent);
+  background: var(--sys-accent-soft);
+}
+
 /* Offline tone — muted/neutral palette */
 .ui-inline-notice--offline .ui-inline-notice__icon,
 .ui-notice-banner--offline .ui-notice-banner__icon,
@@ -1786,19 +1807,244 @@
   background: var(--sys-info-soft);
 }
 
+.ui-erp-banner--offline .ui-erp-banner__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
 .ui-erp-banner--loading .ui-erp-banner__icon,
 .ui-erp-banner--sync .ui-erp-banner__icon {
   color: var(--sys-accent);
   background: var(--sys-accent-soft);
 }
 
+.ui-erp-banner--neutral .ui-erp-banner__icon {
+  color: var(--sys-muted);
+  background: var(--sys-bg-elevated);
+}
+
+.ui-erp-banner--pending .ui-erp-banner__icon,
+.ui-erp-banner--maintenance .ui-erp-banner__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
+.ui-erp-banner--degraded .ui-erp-banner__icon {
+  color: var(--sys-accent);
+  background: var(--sys-accent-soft);
+}
+
+.ui-app-mode-guard {
+  display: grid;
+  gap: 1rem;
+}
+
+.ui-erp-maintenance-page {
+  min-height: min(100vh, 48rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: var(--sys-bg);
+  color: var(--sys-text);
+  font-family: var(--sys-font-body);
+}
+
+.ui-erp-maintenance-page__inner {
+  width: min(100%, 42rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.ui-erp-maintenance-page__content {
+  color: var(--sys-muted);
+  line-height: 1.6;
+}
+
+.ui-app-mode-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--sys-border);
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  font-family: var(--sys-font-body);
+}
+
+.ui-app-mode-banner__icon,
+.ui-app-mode-notice__icon {
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+  background: var(--sys-bg-elevated);
+  color: var(--sys-muted);
+}
+
+.ui-app-mode-banner__icon svg,
+.ui-app-mode-notice__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ui-app-mode-banner__icon.is-spinning svg,
+.ui-app-mode-notice__icon.is-spinning svg {
+  animation: ui-feedback-spin 1s linear infinite;
+}
+
+.ui-app-mode-banner__body,
+.ui-app-mode-notice__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ui-app-mode-banner__title,
+.ui-app-mode-notice__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--sys-text);
+}
+
+.ui-app-mode-banner__message,
+.ui-app-mode-notice__message {
+  margin: 0.2rem 0 0;
+  font-size: 0.875rem;
+  color: var(--sys-muted);
+  line-height: 1.5;
+}
+
+.ui-app-mode-banner__actions,
+.ui-app-mode-notice__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.ui-app-mode-banner__dismiss {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--sys-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+
+.ui-app-mode-banner__dismiss:hover,
+.ui-app-mode-banner__dismiss:focus-visible {
+  color: var(--sys-text);
+  outline: none;
+}
+
+.ui-app-mode-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border: 1px solid var(--sys-border);
+  border-radius: 1rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  font-family: var(--sys-font-body);
+}
+
+.ui-app-mode-notice.is-compact {
+  padding: 0.7rem 0.8rem;
+  gap: 0.65rem;
+}
+
+.ui-app-mode-banner--success .ui-app-mode-banner__icon,
+.ui-app-mode-notice--success .ui-app-mode-notice__icon {
+  color: var(--sys-success);
+  background: var(--sys-success-soft);
+}
+
+.ui-app-mode-banner--error .ui-app-mode-banner__icon,
+.ui-app-mode-notice--error .ui-app-mode-notice__icon {
+  color: var(--sys-danger);
+  background: var(--sys-danger-soft);
+}
+
+.ui-app-mode-banner--warning .ui-app-mode-banner__icon,
+.ui-app-mode-notice--warning .ui-app-mode-notice__icon,
+.ui-app-mode-banner--pending .ui-app-mode-banner__icon,
+.ui-app-mode-notice--pending .ui-app-mode-notice__icon,
+.ui-app-mode-banner--maintenance .ui-app-mode-banner__icon,
+.ui-app-mode-notice--maintenance .ui-app-mode-notice__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
+.ui-app-mode-banner--info .ui-app-mode-banner__icon,
+.ui-app-mode-notice--info .ui-app-mode-notice__icon {
+  color: var(--sys-info);
+  background: var(--sys-info-soft);
+}
+
+.ui-app-mode-banner--offline .ui-app-mode-banner__icon,
+.ui-app-mode-notice--offline .ui-app-mode-notice__icon {
+  color: var(--sys-warning);
+  background: var(--sys-warning-soft);
+}
+
+.ui-app-mode-banner--loading .ui-app-mode-banner__icon,
+.ui-app-mode-notice--loading .ui-app-mode-notice__icon,
+.ui-app-mode-banner--sync .ui-app-mode-banner__icon,
+.ui-app-mode-notice--sync .ui-app-mode-notice__icon,
+.ui-app-mode-banner--degraded .ui-app-mode-banner__icon,
+.ui-app-mode-notice--degraded .ui-app-mode-notice__icon {
+  color: var(--sys-accent);
+  background: var(--sys-accent-soft);
+}
+
+.ui-app-mode-banner--neutral .ui-app-mode-banner__icon,
+.ui-app-mode-notice--neutral .ui-app-mode-notice__icon {
+  color: var(--sys-muted);
+  background: var(--sys-bg-elevated);
+}
+
+.ui-app-maintenance-page {
+  min-height: min(100vh, 48rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: var(--sys-bg);
+  color: var(--sys-text);
+  font-family: var(--sys-font-body);
+}
+
+.ui-app-maintenance-page__inner {
+  width: min(100%, 42rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.ui-app-maintenance-page__content {
+  color: var(--sys-muted);
+  line-height: 1.6;
+}
+
 @media (max-width: 720px) {
-  .ui-erp-banner {
+  .ui-erp-banner,
+  .ui-app-mode-banner {
     padding: 0.75rem 0.9rem;
     gap: 0.75rem;
   }
 
-  .ui-erp-banner__icon {
+  .ui-erp-banner__icon,
+  .ui-app-mode-banner__icon,
+  .ui-app-mode-notice__icon {
     width: 1.45rem;
     height: 1.45rem;
   }

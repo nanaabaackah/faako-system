@@ -1,6 +1,7 @@
 import React, { useState, type FormEvent } from "react";
 import { HiMail, HiPhone, HiLocationMarker, HiClock } from "react-icons/hi";
 import { FaWhatsapp } from "react-icons/fa";
+import { SelectField } from "@faako/ui";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
@@ -124,16 +125,12 @@ const Contact: React.FC = () => {
 
                 <label className="contact-field">
                   <span>Business type</span>
-                  <select
+                  <SelectField
                     value={business}
-                    onChange={(e) => setBusiness(e.target.value)}
-                  >
-                    {BUSINESS_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel="Business type"
+                    onChangeValue={(next) => setBusiness(next as string)}
+                    options={BUSINESS_TYPES.map((t) => ({ value: t, label: t }))}
+                  />
                 </label>
               </div>
 

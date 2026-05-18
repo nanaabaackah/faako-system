@@ -9,6 +9,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Dev ERP 
 - The app combines a Vite frontend with an Express and Prisma backend.
 - Dev ERP is fully live and contains real operational data.
 - `backend/server.js` owns runtime composition while feature routes are organized into focused slices.
+- Site/app monitoring now reads from `getMonorepoMonitoringSites(process.env)` in `@faako/config`. The registry-backed list includes REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, REEBS Website, the portfolio site, and Faako ERP. Optional URL overrides are documented in `apps/dev-erp/README.md`.
+- `@faako/config` now includes app-mode helpers for `normal`, `degraded`, `read_only`, and `maintenance`, and `@faako/ui` includes generic/ERP maintenance/read-only/degraded presentation wrappers. Dev ERP has not wired these into runtime behavior yet. Any future Dev ERP read-only or maintenance mode must pair frontend banners with backend/API write guards before relying on it during migrations or risky deployments.
 - The frontend boots auth state from `/api/auth/session`.
 - Session state is cookie-based, with the shared API client handling credentials, CSRF headers, JSON parsing, and normalized errors.
 - `APP_ENV` and `ENFORCE_DATABASE_ISOLATION` are important safeguards for database targeting.

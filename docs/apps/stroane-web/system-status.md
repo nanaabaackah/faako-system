@@ -37,16 +37,20 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Final guide / service hero imagery — placeholders reuse existing images for services 7 and 8 and for the featured guide.
 - Contact form delivery — currently submits via `mailto:`; if a real endpoint is wanted later, a backend (or Netlify Function) needs to be deployed.
 - Cart persistence — `CartContext` is in-memory only; persistence to `localStorage` is a candidate future step.
+- Front-end-only sign-in/sign-up and checkout pages have been added and pass core checks, but are not server-enforced account or payment flows yet.
 - Decision on whether to delete the now-unused `backend/`, `prisma/`, and auth routes, or retain them for a possible future admin area.
 
 ## Experimental modules/features
 
 - Any new purchasing, checkout, inventory, payment, or account features until validated with the client.
 - New integrations or backend hosting changes until proven in a production-like environment.
+- Client-side auth and Paystack checkout helpers until backend session validation, payment verification, and webhook handling exist.
 
 ## High-risk areas
 
 - Purchasing, checkout, order capture, payment-adjacent, and customer-facing flows.
+- Front-end-only account/session state in localStorage; it must not protect sensitive workflows without backend validation.
+- Client-side Paystack callback flow; it must not be treated as verified settlement without backend verification.
 - Database migrations and production product/order/customer data.
 - API authentication, rate limiting, CORS, and trusted proxy configuration.
 - DNS, Netlify, backend hosting, and environment-variable configuration.
@@ -63,3 +67,4 @@ High for client-facing changes. Stroane is the first paying client project, so r
 - Are secrets kept out of `VITE_*` values?
 - Has the affected flow been checked on the deployed frontend/backend pairing?
 - Is the rollback plan clear for both frontend and backend changes?
+- Are checkout/auth changes clearly marked preview-only unless backend validation is active?

@@ -212,7 +212,7 @@ const Home = () => {
       <StructuredData schema={HOME_SCHEMA} id="home-schema" />
 
       {/* ── Hero ── */}
-      <section className="hero-section relative mx-4 md:mx-6 overflow-visible">
+      <section className="hero-section relative overflow-visible">
         <div className="hero-bg-container absolute inset-0 z-0 overflow-hidden">
           <video
             src="/imgs/bg_imgs/bg.mp4"
@@ -242,9 +242,9 @@ const Home = () => {
       {/* ── Trust stats ── */}
       <section className="trust-section pt-[20vh] pb-0">
         <div className="flex justify-center">
-          <div className="trust-stats">
+          <div className="glass-card trust-stats">
             {TRUST_STATS.map((stat) => (
-              <div key={stat.label} className="glass-card trust-stat">
+              <div key={stat.label} className="trust-stat">
                 <span className="trust-stat__value">{stat.value}</span>
                 <span className="trust-stat__label">{stat.label}</span>
               </div>
@@ -276,9 +276,9 @@ const Home = () => {
         <p className="section__sub">
           As Ghana FDA standards rise and export markets tighten, food safety is no longer optional. Stroane helps businesses meet and maintain them.
         </p>
-        <div className="glass-card cards">
+        <div className="cards">
           {WHY_CARDS.map((card) => (
-            <div key={card.title} className="card">
+            <div key={card.title} className="bubble-card card">
               <img src={card.img} alt={card.title} className="card__img" />
               <div className="card__overlay" />
               <div className="card__content">

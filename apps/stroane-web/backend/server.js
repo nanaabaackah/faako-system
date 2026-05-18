@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-undef */
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
@@ -99,7 +97,7 @@ app.use((req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error("Error:", err);
   res.status(err?.statusCode || 500).json({
     error: err?.statusCode ? err.message : "Internal server error",

@@ -10,9 +10,6 @@
   display: flex;
   flex-direction: column;
   color: var(--color-text-inverse);
-  /* break out of #root's 1rem padding */
-  margin: 0 -1rem -1rem -1rem;
-  width: calc(100% + 2rem);
 }
 
 /* ── CTA ── */
@@ -255,6 +252,7 @@
   }
 
   .footer__nav {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem 1rem;
   }
 }

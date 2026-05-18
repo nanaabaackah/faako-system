@@ -1,9 +1,3 @@
-/* ── Page wrapper ── */
-.about-page {
-  margin: -1rem -1rem 0 -1rem;
-  width: calc(100% + 2rem);
-}
-
 /* ── Hero ── */
 .about-hero {
   position: relative;
@@ -65,18 +59,13 @@
   align-items: center;
   width: fit-content;
   color: var(--color-primary);
-  font-size: var(--font-size-sm);
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-}
-
-.about-kicker::before {
-  content: "";
-  width: 34px;
-  height: 2px;
-  background: var(--color-primary);
-  margin-right: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-pill);
 }
 
@@ -229,10 +218,8 @@
 
 .about-cta .about-kicker {
   color: var(--color-primary-light);
-}
-
-.about-cta .about-kicker::before {
-  background: var(--color-primary-light);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .about-cta__button {
@@ -240,8 +227,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  padding: 0 1.6rem;
+  min-height: 45px;
+  padding: 0 1.25rem;
   border-radius: var(--radius-pill);
   background: var(--color-text-inverse);
   color: var(--color-primary-dark);
@@ -260,6 +247,7 @@
 
 /* ── Who We Work With ── */
 .about-audience {
+  text-align: left;
   padding: 5rem 4rem;
   background: var(--color-surface);
 }
@@ -267,7 +255,7 @@
 .about-section-intro {
   max-width: 780px;
   margin: 0 auto 3rem;
-  text-align: center;
+  text-align: left;
 }
 
 .about-section-intro .about-kicker {
@@ -335,11 +323,11 @@
 .about-standards__intro {
   max-width: 760px;
   margin: 0 auto 3rem;
-  text-align: center;
+  text-align: left;
 }
 
 .about-standards__intro .section__heading {
-  text-align: center;
+  text-align: left;
 }
 
 .about-standards__intro p {

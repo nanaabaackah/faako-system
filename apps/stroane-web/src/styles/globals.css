@@ -58,6 +58,10 @@
   /* Borders */
   --color-border-soft:   rgba(17, 24, 39, 0.08);
 
+  /* Glass card border — change this one value to recolour every shared
+     .glass-card / .bubble-card border across the site. */
+  --glass-card-border:   rgba(17, 24, 39, 0.20);
+
   /* Primary tints */
   --color-primary-tint:         rgba(37, 99, 235, 0.05);
   --color-primary-border:       rgba(37, 99, 235, 0.16);
@@ -87,6 +91,20 @@ body {
   overflow-x: clip;
 }
 
+/* Recolour the shared (compat.css) glass/bubble card border.
+   compat.css forces `border: 1px solid var(--sys-border-strong) !important`
+   via `[data-faako-theme] :where(.glass-card,…)` (specificity 0,1,0).
+   These selectors are 0,2,0 + !important so they win. We re-declare the
+   full `border` shorthand (not just border-color) because Tailwind's
+   Preflight base resets `border-width: 0` on everything — a colour-only
+   override would leave the width unresolved and the border invisible.
+   Change the colour in one place via --glass-card-border in :root above;
+   --glass-card-border-width is also adjustable if needed. */
+[data-faako-theme] .glass-card,
+[data-faako-theme] .bubble-card {
+  border: var(--glass-card-border-width, 1px) solid var(--glass-card-border) !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -103,6 +121,7 @@ p {
 
 a {
   color: var(--color-primary);
+  text-decoration: none;
 }
 
 .section__heading {

@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Production verification and lint stabilization
+
+Date: 2026-05-17
+Feature/change name: Production verification and lint stabilization
+What changed: Re-ran Stroane Web lint, type, and build checks after recent edits. Added the missing `typescript-eslint` dev dependency and updated `eslint.config.js` to use flat-config-compatible TypeScript, React Hooks, React Refresh, browser, and Node settings. Removed an unused `Link` import from `Services.tsx`, removed an unused `quoteHref` helper from `Shop.tsx`, and cleaned obsolete ESLint disable comments in `backend/server.js` without changing backend behavior. Documented that current sign-in/sign-up and Paystack checkout helpers are front-end-only until backend validation exists. Shared app-mode helpers and generic maintenance/read-only/degraded UI wrappers are available for future opt-in use, but no Stroane runtime maintenance behavior was wired in this phase.
+Why it changed: Stroane Web is the first paying client project and needed passing core checks before further feature work.
+Files changed: apps/stroane-web/eslint.config.js, apps/stroane-web/package.json, apps/stroane-web/backend/server.js, apps/stroane-web/src/pages/Services.tsx, apps/stroane-web/src/pages/Shop.tsx, pnpm-lock.yaml, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/codex-handoff-verification.md, docs/platform/platform-progress-log.md, packages/config/src/appModes/appModes.js, packages/ui/src/components/ERPNotifications.tsx, packages/ui/src/ui.css
+Data impact: None.
+Security impact: Tooling and unused-symbol cleanup only. No backend API behavior, payment verification, auth enforcement, checkout persistence, database schema, or production workflow changed.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed.
+Rollback notes: Revert the lint config/dependency cleanup and unused-symbol removals if a different lint strategy is chosen. No data rollback required.
+Next step: Review frontend-only auth and Paystack checkout assumptions before production fulfillment workflows rely on them.
+
 ### Documentation foundation added
 
 Date: 2026-05-10

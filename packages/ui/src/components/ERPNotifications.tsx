@@ -19,6 +19,9 @@ export type ERPNotificationTone =
   | "loading"
   | "offline"
   | "sync"
+  | "pending"
+  | "maintenance"
+  | "degraded"
   | "neutral";
 
 const ERP_TONE_META: Record<
@@ -32,6 +35,9 @@ const ERP_TONE_META: Record<
   loading: { title: "Working on it", role: "status", live: "polite" },
   offline: { title: "You're offline", role: "status", live: "polite" },
   sync: { title: "Syncing changes", role: "status", live: "polite" },
+  pending: { title: "Pending", role: "status", live: "polite" },
+  maintenance: { title: "Maintenance mode", role: "alert", live: "assertive" },
+  degraded: { title: "Limited service", role: "alert", live: "assertive" },
   neutral: { title: "Note", role: "status", live: "polite" },
 };
 
@@ -55,7 +61,7 @@ function ERPNoticeGlyph({ tone }: { tone: ERPNotificationTone }) {
     );
   }
 
-  if (tone === "warning") {
+  if (tone === "warning" || tone === "maintenance") {
     return (
       <svg viewBox="0 0 20 20" fill="none" focusable="false" aria-hidden="true">
         <path d="M10 3.5L17 15.5H3L10 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
@@ -93,7 +99,7 @@ function ERPNoticeGlyph({ tone }: { tone: ERPNotificationTone }) {
     );
   }
 
-  if (tone === "sync") {
+  if (tone === "sync" || tone === "degraded") {
     return (
       <svg viewBox="0 0 20 20" fill="none" focusable="false" aria-hidden="true">
         <path
@@ -370,6 +376,345 @@ export function ERPOfflineNotice({
       compact={compact}
       className={className}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Maintenance/read-only/degraded foundations
+// Presentation-only wrappers. Backend/API enforcement still belongs to apps.
+// ---------------------------------------------------------------------------
+
+export function ERPMaintenanceBanner({
+  title = "Maintenance mode",
+  message = "Some features may be temporarily unavailable while maintenance is in progress.",
+  className = "",
+  onDismiss,
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  className?: string;
+  onDismiss?: () => void;
+  actions?: ReactNode;
+}) {
+  return (
+    <ERPBanner
+      tone="maintenance"
+      title={title}
+      message={message}
+      className={className}
+      onDismiss={onDismiss}
+      actions={actions}
+    />
+  );
+}
+
+export function ERPReadOnlyNotice({
+  title = "Read-only mode",
+  message = "You can view data, but saving changes may be unavailable until normal service resumes.",
+  compact = false,
+  className = "",
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  compact?: boolean;
+  className?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <ERPNotice
+      tone="maintenance"
+      title={title}
+      message={message}
+      compact={compact}
+      className={className}
+      actions={actions}
+    />
+  );
+}
+
+export function ERPDegradedNotice({
+  title = "Limited service",
+  message = "Some services are slower or unavailable. Server validation remains required before changes are final.",
+  compact = false,
+  className = "",
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  compact?: boolean;
+  className?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <ERPNotice
+      tone="degraded"
+      title={title}
+      message={message}
+      compact={compact}
+      className={className}
+      actions={actions}
+    />
+  );
+}
+
+export function ERPMaintenancePage({
+  title = "Maintenance mode",
+  message = "This workspace is temporarily unavailable while maintenance is in progress.",
+  className = "",
+  children,
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  className?: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <section
+      className={joinClasses("ui-erp-maintenance-page", className)}
+      role="region"
+      aria-label={title}
+    >
+      <div className="ui-erp-maintenance-page__inner">
+        <ERPNotice tone="maintenance" title={title} message={message} actions={actions} />
+        {children ? (
+          <div className="ui-erp-maintenance-page__content">{children}</div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+type AppModeBannerProps = {
+  tone?: ERPNotificationTone;
+  title?: string;
+  message?: ReactNode;
+  className?: string;
+  onDismiss?: () => void;
+  actions?: ReactNode;
+};
+
+type AppModeNoticeProps = AppModeBannerProps & {
+  compact?: boolean;
+};
+
+function AppModeBanner({
+  tone = "maintenance",
+  title,
+  message,
+  className = "",
+  onDismiss,
+  actions,
+}: AppModeBannerProps) {
+  const meta = ERP_TONE_META[tone] ?? ERP_TONE_META.info;
+  const isAnimating = tone === "loading" || tone === "sync";
+
+  return (
+    <div
+      className={joinClasses("ui-app-mode-banner", `ui-app-mode-banner--${tone}`, className)}
+      role={meta.role}
+      aria-live={meta.live}
+    >
+      <span
+        className={joinClasses("ui-app-mode-banner__icon", isAnimating && "is-spinning")}
+        aria-hidden="true"
+      >
+        <ERPNoticeGlyph tone={tone} />
+      </span>
+      <div className="ui-app-mode-banner__body">
+        {title ? <p className="ui-app-mode-banner__title">{title}</p> : null}
+        {message ? <p className="ui-app-mode-banner__message">{message}</p> : null}
+        {actions ? <div className="ui-app-mode-banner__actions">{actions}</div> : null}
+      </div>
+      {onDismiss ? (
+        <button
+          type="button"
+          className="ui-app-mode-banner__dismiss"
+          onClick={onDismiss}
+          aria-label="Dismiss banner"
+        >
+          ×
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AppModeNotice({
+  tone = "degraded",
+  title,
+  message,
+  compact = false,
+  className = "",
+  actions,
+}: AppModeNoticeProps) {
+  const meta = ERP_TONE_META[tone] ?? ERP_TONE_META.info;
+  const resolvedTitle = title || meta.title;
+  const isAnimating = tone === "loading" || tone === "sync";
+
+  return (
+    <div
+      className={joinClasses(
+        "ui-app-mode-notice",
+        `ui-app-mode-notice--${tone}`,
+        compact && "is-compact",
+        className,
+      )}
+      role={meta.role}
+      aria-live={meta.live}
+    >
+      <span
+        className={joinClasses("ui-app-mode-notice__icon", isAnimating && "is-spinning")}
+        aria-hidden="true"
+      >
+        <ERPNoticeGlyph tone={tone} />
+      </span>
+      <div className="ui-app-mode-notice__body">
+        <p className="ui-app-mode-notice__title">{resolvedTitle}</p>
+        {message ? <p className="ui-app-mode-notice__message">{message}</p> : null}
+        {actions ? <div className="ui-app-mode-notice__actions">{actions}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function MaintenanceBanner({
+  title = "Maintenance mode",
+  message = "Some features may be temporarily unavailable while maintenance is in progress.",
+  className = "",
+  onDismiss,
+  actions,
+}: Omit<AppModeBannerProps, "tone">) {
+  return (
+    <AppModeBanner
+      tone="maintenance"
+      title={title}
+      message={message}
+      className={className}
+      onDismiss={onDismiss}
+      actions={actions}
+    />
+  );
+}
+
+export function ReadOnlyModeBanner({
+  title = "Read-only mode",
+  message = "Viewing is available, but data entry should be avoided until normal service resumes.",
+  className = "",
+  onDismiss,
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  className?: string;
+  onDismiss?: () => void;
+  actions?: ReactNode;
+}) {
+  return (
+    <AppModeBanner
+      tone="maintenance"
+      title={title}
+      message={message}
+      className={className}
+      onDismiss={onDismiss}
+      actions={actions}
+    />
+  );
+}
+
+export function DegradedModeNotice({
+  title = "Limited service",
+  message = "Some services are slower or unavailable. Server validation remains required before changes are final.",
+  compact = false,
+  className = "",
+  actions,
+}: Omit<AppModeNoticeProps, "tone">) {
+  return (
+    <AppModeNotice
+      tone="degraded"
+      title={title}
+      message={message}
+      compact={compact}
+      className={className}
+      actions={actions}
+    />
+  );
+}
+
+export function MaintenancePage({
+  title = "Maintenance mode",
+  message = "This app is temporarily unavailable while maintenance is in progress.",
+  className = "",
+  children,
+  actions,
+}: {
+  title?: string;
+  message?: ReactNode;
+  className?: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <section
+      className={joinClasses("ui-app-maintenance-page", className)}
+      role="region"
+      aria-label={title}
+    >
+      <div className="ui-app-maintenance-page__inner">
+        <AppModeNotice tone="maintenance" title={title} message={message} actions={actions} />
+        {children ? (
+          <div className="ui-app-maintenance-page__content">{children}</div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+export function MaintenanceGuard({
+  mode = "normal",
+  children,
+  className = "",
+  maintenanceFallback,
+  maintenanceTitle = "Maintenance mode",
+  maintenanceMessage = "This app is temporarily limited while maintenance is in progress.",
+  readOnlyMessage,
+  degradedMessage,
+}: {
+  mode?: "normal" | "degraded" | "read_only" | "maintenance" | string;
+  children: ReactNode;
+  className?: string;
+  maintenanceFallback?: ReactNode;
+  maintenanceTitle?: string;
+  maintenanceMessage?: ReactNode;
+  readOnlyMessage?: ReactNode;
+  degradedMessage?: ReactNode;
+}) {
+  const normalizedMode = String(mode || "normal").toLowerCase().replace(/-/g, "_");
+
+  if (normalizedMode === "maintenance") {
+    return maintenanceFallback ? (
+      <>{maintenanceFallback}</>
+    ) : (
+      <MaintenancePage title={maintenanceTitle} message={maintenanceMessage} />
+    );
+  }
+
+  return (
+    <div
+      className={joinClasses("ui-app-mode-guard", `ui-app-mode-guard--${normalizedMode}`, className)}
+      data-app-mode={normalizedMode}
+    >
+      {normalizedMode === "read_only" ? (
+        <ReadOnlyModeBanner message={readOnlyMessage} />
+      ) : null}
+      {normalizedMode === "degraded" ? (
+        <DegradedModeNotice message={degradedMessage} />
+      ) : null}
+      {children}
+    </div>
   );
 }
 

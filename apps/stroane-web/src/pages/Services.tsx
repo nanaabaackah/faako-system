@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import type { IconType } from "react-icons";
 import {
   HiClipboardCheck,
@@ -291,7 +290,7 @@ const Services: React.FC = () => {
             {services.map((s, i) => {
               const ItemIcon = s.Icon;
               return (
-                <article key={s.title} className="services-story__item">
+                <article key={s.title} className="bubble-card services-story__item">
                   <div
                     className="services-story__item-visual"
                     style={{ backgroundColor: s.accent }}

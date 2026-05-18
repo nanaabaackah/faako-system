@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { HiMenuAlt3, HiOutlineSearch, HiX } from "react-icons/hi";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  HiMenuAlt3,
+  HiOutlineSearch,
+  HiX,
+  HiArrowRight,
+  HiOutlineUser,
+  HiOutlineLogout,
+} from "react-icons/hi";
+import { useAuth } from "../context/AuthContext";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
   { label: "About Us",  to: "/about" },
   { label: "Services",  to: "/services" },
-  { label: "Store",     to: "/shop" },
+  { label: "Shop",     to: "/shop" },
   { label: "Resources", to: "/resources" },
 ];
 
@@ -28,6 +36,7 @@ const Header: React.FC = () => {
   const [query, setQuery]           = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const hasHero = HERO_ROUTES.has(location.pathname);
   const isDark = scrolled || !hasHero;
 
@@ -103,7 +112,12 @@ const Header: React.FC = () => {
             <ul className="page-header__links">
               {NAV_LINKS.map((link) => (
                 <li key={link.to}>
-                  <Link to={link.to}>{link.label}</Link>
+                  <NavLink
+                    to={link.to}
+                    className={({ isActive }) => (isActive ? "is-active" : "")}
+                  >
+                    {link.label}
+                  </NavLink>
                 </li>
               ))}
             </ul>
@@ -111,6 +125,12 @@ const Header: React.FC = () => {
 
           {/* Actions — far right */}
           <div className="page-header__actions">
+            <Link
+              to="/contact"
+              className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
+            >
+              Book a consultation
+            </Link>
             <button
               className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
               onClick={() => {
@@ -121,6 +141,24 @@ const Header: React.FC = () => {
             >
               <HiOutlineSearch size={18} aria-hidden="true" />
             </button>
+            {user ? (
+              <button
+                className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
+                onClick={signOut}
+                aria-label={`Sign out (${user.name})`}
+                title={`Sign out — ${user.name}`}
+              >
+                <HiOutlineLogout size={18} aria-hidden="true" />
+              </button>
+            ) : (
+              <Link
+                to="/signin"
+                className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
+                aria-label="Sign in"
+              >
+                <HiOutlineUser size={18} aria-hidden="true" />
+              </Link>
+            )}
             <button
               className={`page-header__menu-btn${isDark ? " page-header__menu-btn--dark" : ""}`}
               type="button"
@@ -164,28 +202,67 @@ const Header: React.FC = () => {
             <nav className="mobile-nav-sheet__body" aria-label="Mobile navigation">
               <div className="mobile-nav-sheet__links">
                 {NAV_LINKS.map((link) => (
-                  <Link
+                  <NavLink
                     key={link.to}
                     to={link.to}
-                    className="mobile-nav-sheet__link"
+                    className={({ isActive }) =>
+                      `mobile-nav-sheet__link${isActive ? " is-active" : ""}`
+                    }
                     onClick={() => setMenuOpen(false)}
                   >
-                    {link.label}
-                  </Link>
+                    <span className="mobile-nav-sheet__label">{link.label}</span>
+                    <HiArrowRight
+                      className="mobile-nav-sheet__arrow"
+                      size={18}
+                      aria-hidden="true"
+                    />
+                  </NavLink>
                 ))}
               </div>
 
-              <button
-                type="button"
-                className="mobile-nav-sheet__search"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setSearchOpen(true);
-                }}
-              >
-                <HiOutlineSearch size={18} aria-hidden="true" />
-                <span>Search the site</span>
-              </button>
+              <div className="mobile-nav-sheet__footer">
+                <button
+                  type="button"
+                  className="mobile-nav-sheet__search"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setSearchOpen(true);
+                  }}
+                >
+                  <HiOutlineSearch size={18} aria-hidden="true" />
+                  <span>Search the site</span>
+                </button>
+                {user ? (
+                  <button
+                    type="button"
+                    className="mobile-nav-sheet__search"
+                    onClick={() => {
+                      signOut();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <HiOutlineLogout size={18} aria-hidden="true" />
+                    <span>Sign out ({user.name})</span>
+                  </button>
+                ) : (
+                  <Link
+                    to="/signin"
+                    className="mobile-nav-sheet__search"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <HiOutlineUser size={18} aria-hidden="true" />
+                    <span>Sign in</span>
+                  </Link>
+                )}
+                <Link
+                  to="/contact"
+                  className="mobile-nav-sheet__cta"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span>Book a consultation</span>
+                  <HiArrowRight size={16} aria-hidden="true" />
+                </Link>
+              </div>
             </nav>
           </div>
         </div>

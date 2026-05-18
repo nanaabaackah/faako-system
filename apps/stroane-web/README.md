@@ -53,9 +53,17 @@ Use `apps/stroane-web/.env.example` to create an untracked local env file.
 
 Only browser-safe values should use the `VITE_*` prefix.
 
+`VITE_PAYSTACK_PUBLIC_KEY` is browser-visible and may be used by the client-side Paystack Inline helper. Do not treat a client-side callback as verified payment settlement until a backend verification endpoint and webhook exist.
+
+Current sign-in/sign-up support is front-end-only and stores account/session data in browser localStorage. It is not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation.
+
+Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and maintenance/read-only/degraded UI wrappers are available in `@faako/config` and `@faako/ui`, but Stroane has not wired them into runtime behavior yet. Use them only after deciding the public-site maintenance copy, contact fallback, and any backend/API guard requirements.
+
 ## Build And Deploy
 
 ```bash
+pnpm --filter @faako/stroane-web run lint
+pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit
 pnpm --filter @faako/stroane-web run build
 pnpm --filter @faako/stroane-web run db:deploy:prod
 pnpm --filter @faako/stroane-web run server:prod

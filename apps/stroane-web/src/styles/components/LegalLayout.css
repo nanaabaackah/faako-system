@@ -1,6 +1,4 @@
 .legal-page {
-  margin: -1rem -1rem 0;
-  width: calc(100% + 2rem);
   background: var(--color-bg);
 }
 

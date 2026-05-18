@@ -4,10 +4,10 @@ Faako System is a PNPM + Turborepo workspace for the active Faako, Reebs, Dev ER
 
 ## Current Workspace
 
-This repo currently contains 23 workspace packages:
+This repo currently contains 25 workspace packages:
 
 - 10 deployable apps in `apps/`
-- 13 shared packages in `packages/`
+- 15 shared packages in `packages/`
 
 Main directories:
 
@@ -35,7 +35,8 @@ Main directories:
 
 | Package | Purpose |
 | --- | --- |
-| `@faako/config` | App-local ERP and shell configuration builders, plus shared ERP module registry helpers |
+| `@faako/audit` | Shared audit event constants, safe metadata helpers, and display formatting foundations |
+| `@faako/config` | App-local ERP and shell configuration builders, shared ERP module registry helpers, app-mode helpers, and monorepo app monitoring metadata |
 | `@faako/core` | Shared auth, organization, and template-config helpers |
 | `@faako/email-kit` | Shared email rendering and theme helpers |
 | `@faako/finance` | Shared payment and receipt constants, pure helpers, and presentation utilities |
@@ -43,6 +44,7 @@ Main directories:
 | `@faako/layout` | Shared ERP shell layout contracts, region names, and responsive layout helpers |
 | `@faako/notifications` | Shared notification constants, customer-safe templates, and user-triggered share helpers |
 | `@faako/offline-sync` | Shared offline queue constants, local draft storage helpers, status hooks, review/recovery helpers, and passive sync UI |
+| `@faako/org-settings` | Shared organization settings shapes, safe metadata helpers, display helpers, currencies, and timezones |
 | `@faako/security` | Shared CSRF, throttling, secret, and security utilities |
 | `@faako/theme` | Shared shell tokens and CSS foundations |
 | `@faako/types` | Shared contracts and type definitions |
@@ -55,12 +57,15 @@ Main directories:
 - The shared compat layer normalizes `select`, `date`, `time`, `month`, and related controls so Safari and other WebKit browsers do not fall back to mismatched native chrome unexpectedly.
 - `@faako/utils`, `@faako/security`, `@faako/logger`, and `@faako/email-kit` hold the shared runtime helpers used by the current full-stack apps.
 - `@faako/config` includes ERP module registry helpers in `packages/config/src/erpModules`. REEBS Portal, Dev ERP, and Faako ERP now use app-specific registries to feed navigation adapters while preserving current routes, labels, permission behavior, and flat navigation.
+- `@faako/config` also includes monorepo app metadata in `packages/config/src/monorepoApps`. Dev ERP monitoring consumes this config-driven list so monitored apps can include REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, REEBS Website, the portfolio site, and Faako ERP without maintaining a fragile local site list.
+- `@faako/config` includes app-mode helpers in `packages/config/src/appModes` for `normal`, `degraded`, `read_only`, and `maintenance` states. These helpers normalize environment/config values only; backend/API enforcement remains required for reliable write protection.
 - ERP module conventions now include `visibility` and `state` metadata for hidden, disabled, internal, coming-soon, and experimental modules. Navigation ignores hidden modules, carries subtle state badges/classes for visible modules, and keeps disabled module routes available for now. These conventions prepare future org-level toggles, permissions integration, and SaaS plan gating, but they do not enforce access control, add billing, persist module settings, or change database behavior.
 - Shared ERP shell conventions now include sidebar, topbar, mobile bottom navigation, page content, page header, module group, and status badge patterns. Placeholder slots exist for offline indicators, sync status, notifications, and a future organization switcher; these are structural only and do not implement backend behavior.
 - Shared UI presentation conventions now include low-risk ERP panel, panel-header, section-header, stack, form-group, form-section, form-row, form-action, field, validation, notice, table, toolbar, search/filter/action, pagination, loading/empty, status badge, modal, drawer, confirm-dialog, and action-button wrappers. These are presentation-only and should be adopted gradually after visual checks; mobile POS layout, workflow-heavy forms/tables/modals, and deeper ERP page templates remain future design-system work.
 - Shared ERP table conventions now include presentation-only table, toolbar, search/filter/action, pagination, loading/empty, and status badge wrappers in `@faako/ui`. Apps still own row data, filters, pagination state, row actions, permissions, and business workflows.
 - Shared ERP form conventions now include presentation-only form, form section, form row, form actions, field group, common field controls, validation message, and form notice wrappers in `@faako/ui`. Apps still own form state, validation, submit handlers, API calls, auth/permission checks, local draft behavior, and workflow side effects.
 - Shared ERP modal/action conventions now include presentation-only modal, drawer, confirm-dialog, action bar, button group, primary/secondary/danger actions, and icon action wrappers in `@faako/ui`. Apps still own open/close state, destructive-action policy, save/delete/submit handlers, API calls, auth/permission checks, and workflow side effects.
+- Shared alert conventions now include presentation-only notices, alerts, banners, sync/offline notices, toast helpers, and ERP/generic maintenance/read-only/degraded-mode wrappers in `@faako/ui`. Generic app-mode wrappers use neutral `ui-app-mode-*` classes so public/client sites can keep their own branding through theme tokens and `className` overrides. These components do not enforce backend maintenance mode, read-only restrictions, degraded-mode behavior, permissions, or data-write rules.
 - REEBS Portal and Dev ERP now have documentation-only workflow reviews for order, payment, receipt, invoice, rent-payment, and balance behavior. Use those reviews before creating shared payment/receipt/order runtime packages or expanding `@faako/finance` beyond constants, helpers, and presentation utilities; no shared finance runtime behavior has been implemented yet.
 - The shared Payment and Receipt architecture plan lives in [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md). It is planning-only and sets the safety path for future payment/receipt constants, types, wrappers, gateways, offline support, and app-by-app migration.
 - `@faako/finance` now contains shared payment/receipt constants, documented type-shape descriptors, pure formatting/normalization helpers, balance display helpers, metadata normalization helpers, and receipt presentation helpers. It does not implement payment recording, receipt generation, invoice persistence, gateway integrations, schema changes, API changes, or app workflow changes.
@@ -129,6 +134,7 @@ Platform docs:
 - [docs/app-platform.md](/Users/Nana/Desktop/Developer/faako-system/docs/app-platform.md)
 - [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md)
 - [docs/monorepo-restructure.md](/Users/Nana/Desktop/Developer/faako-system/docs/monorepo-restructure.md)
+- [docs/platform/codex-handoff-verification.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/codex-handoff-verification.md)
 - [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md)
 - [docs/security_best_practices_report.md](/Users/Nana/Desktop/Developer/faako-system/docs/security_best_practices_report.md)
 

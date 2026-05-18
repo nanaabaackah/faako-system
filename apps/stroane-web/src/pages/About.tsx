@@ -171,14 +171,14 @@ const About: React.FC = () => {
 
         {/* ── Mission / Vision ── */}
         <section className="about-beliefs">
-          <article className="about-belief-card about-belief-card--blue">
+          <article className="bubble-card about-belief-card about-belief-card--blue">
             <span className="about-card-label">Mission</span>
             <h2 className="section__heading">
               Make food safety practical and affordable.
             </h2>
           </article>
 
-          <article className="about-belief-card">
+          <article className="bubble-card about-belief-card">
             <span className="about-card-label">Vision</span>
             <h2 className="section__heading">
               Safer food. Stronger businesses. More trust.

@@ -78,6 +78,7 @@ import { registerProductivityRoutes } from "./productivity/productivity.routes.j
 import { registerUserRoutes } from "./users/users.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
 import { buildForgotPasswordEmailContent } from "./forgotPasswordEmailTemplate.js";
+import { getMonorepoMonitoringSites } from "@faako/config";
 import {
   getDeleteUserBlocker,
   getResendInvitationBlocker,
@@ -580,75 +581,7 @@ const SITE_STATUS_USER_AGENT =
 
 const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"];
 
-const SITE_PAGES = [
-  {
-    id: "nana",
-    title: "nanaabaackah.com",
-    baseUrl: "https://nanaabaackah.com",
-    pages: [
-      { label: "Home", path: "/" },
-      { label: "About", path: "/about" },
-      { label: "Resume", path: "/resume" },
-      { label: "Projects", path: "/projects" },
-      { label: "Blog", path: "/blog" },
-      { label: "Contact", path: "/contact" },
-    ],
-  },
-  {
-    id: "reebs",
-    title: "reebspartythemes.com",
-    baseUrl: "https://reebspartythemes.com",
-    pages: [
-      { label: "Home", path: "/" },
-      { label: "Shop", path: "/shop" },
-      { label: "Rentals", path: "/rentals" },
-      { label: "Gallery", path: "/gallery" },
-      { label: "FAQ", path: "/faq" },
-      { label: "Contact", path: "/contact" },
-      { label: "Book", path: "/book" },
-    ],
-  },
-  {
-    id: "reebs-portal",
-    title: "portal.reebspartythemes.com",
-    baseUrl: "https://portal.reebspartythemes.com",
-    pages: [
-      { label: "Admin dashboard", path: "/admin" },
-      { label: "CRM", path: "/admin/crm" },
-      { label: "Customers", path: "/admin/customers" },
-      { label: "Orders", path: "/admin/orders" },
-      { label: "Order builder", path: "/admin/orders/new" },
-      { label: "Bookings", path: "/admin/bookings" },
-      { label: "Scheduler", path: "/admin/schedule" },
-      { label: "Accounting", path: "/admin/accounting" },
-      { label: "Invoicing", path: "/admin/invoicing" },
-      { label: "Directory", path: "/admin/directory" },
-      { label: "Users", path: "/admin/users" },
-      { label: "Employees", path: "/admin/employees" },
-      { label: "Expenses", path: "/admin/expenses" },
-      { label: "HR", path: "/admin/hr" },
-      { label: "Vendors", path: "/admin/vendors" },
-      { label: "Maintenance", path: "/admin/maintenance" },
-      { label: "Delivery", path: "/admin/delivery" },
-      { label: "Documents", path: "/admin/documents" },
-      { label: "Timesheets", path: "/admin/timesheets" },
-      { label: "Roles", path: "/admin/roles" },
-      { label: "Marketing", path: "/admin/marketing" },
-      { label: "Settings", path: "/admin/settings" },
-      { label: "Website template", path: "/admin/website-template" },
-    ],
-  },
-  {
-    id: "faako",
-    title: "faako.nanaabaackah.com",
-    baseUrl: "https://faako.nanaabaackah.com",
-    pages: [
-      { label: "Home", path: "/" },
-      { label: "Pricing", path: "/pricing" },
-      { label: "Signup", path: "/signup" },
-    ],
-  },
-];
+const SITE_PAGES = getMonorepoMonitoringSites(process.env);
 
 let siteStatusCache = { checkedAt: 0, data: null };
 let trustStatsCache = { checkedAt: 0, data: null };

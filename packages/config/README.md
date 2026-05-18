@@ -4,7 +4,7 @@ Shared configuration helpers for Faako apps.
 
 ## What changed
 
-Added the shared ERP module registry foundation under `src/erpModules/`, extended it for safe navigation adapters across ERP apps, added a module visibility/state layer for future module exposure controls, and added shared ERP shell placeholder/status constants.
+Added the shared ERP module registry foundation under `src/erpModules/`, extended it for safe navigation adapters across ERP apps, added a module visibility/state layer for future module exposure controls, added shared ERP shell placeholder/status constants, added platform app-mode helpers, and added a monorepo app registry for config-driven monitoring.
 
 ## Where it lives
 
@@ -13,6 +13,8 @@ Added the shared ERP module registry foundation under `src/erpModules/`, extende
 - `src/erpModules/moduleStates.js`: shared ERP module visibility and state constants.
 - `src/erpModules/registryHelpers.js`: shared lookup and filtering helpers.
 - `src/erpShell/shellFoundation.js`: shared ERP shell placeholder and status badge constants.
+- `src/appModes/appModes.js`: shared app-mode constants/helpers for normal, degraded, read-only, and maintenance states.
+- `src/monorepoApps/appRegistry.js`: shared monorepo app metadata and monitoring-site helpers.
 - `src/index.js`: exports the registry constants and helpers from `@faako/config`.
 
 ## How to use it
@@ -27,6 +29,12 @@ import {
   ERP_MODULE_VISIBILITY,
   ERP_SHELL_PLACEHOLDER_SLOTS,
   ERP_SHELL_STATUS_BADGES,
+  APP_MODES,
+  getAppModeNotice,
+  resolveAppModeFromEnv,
+  getMonorepoApps,
+  getMonorepoAppByKey,
+  getMonorepoMonitoringSites,
   getModuleByKey,
   getModuleByPath,
   getVisibleModules,
@@ -59,6 +67,16 @@ Supported helpers:
 - `getModuleVisibilityLabel`
 - `getModuleStateLabel`
 - `getModuleBadges`
+- `normalizeAppMode`
+- `resolveAppModeFromEnv`
+- `getAppModeFlags`
+- `getAppModeTone`
+- `getAppModeNotice`
+- `isAppModeWriteRestricted`
+- `shouldShowAppModeBanner`
+- `getMonorepoApps`
+- `getMonorepoAppByKey`
+- `getMonorepoMonitoringSites`
 - `defineErpShellFoundation`
 - `getErpShellStatusBadge`
 - `getErpShellPlaceholderLabel`
@@ -67,6 +85,15 @@ Supported helpers:
 Supported module groups are `core`, `sales`, `operations`, `finance`, `insights`, `team`, and `system`. Supported status labels include `stable`, `in_progress`, and `experimental`.
 
 Shared shell placeholders are `offlineIndicator`, `syncStatus`, `notificationArea`, and `organizationSwitcher`. They are structural metadata only and do not implement backend sync, notifications, or tenant switching.
+
+`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. It includes production-sensitive apps such as REEBS Portal, Dev ERP, Stroane Web, Faako Website, and Faako API, plus the existing public portfolio, REEBS website, and Faako ERP demo entries. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them.
+
+App-mode helpers support these shared states:
+
+- `normal`: app works normally.
+- `degraded`: show a warning/banner while allowing usage.
+- `read_only`: allow viewing and discourage writes; backend enforcement remains app-owned.
+- `maintenance`: show a maintenance page/banner; backend enforcement remains app-owned.
 
 Supported visibility and state metadata:
 
@@ -80,7 +107,25 @@ Supported visibility and state metadata:
 
 ## Environment variables
 
-None.
+Optional monitoring URL overrides can be supplied by apps that consume `getMonorepoMonitoringSites`:
+
+- `REEBS_PORTAL_BASE_URL`
+- `DEV_ERP_BASE_URL`
+- `STROANE_WEB_BASE_URL`
+- `FAAKO_WEBSITE_BASE_URL`
+- `FAAKO_API_BASE_URL`
+- `REEBS_WEBSITE_BASE_URL`
+- `BYNANA_PORTFOLIO_BASE_URL`
+- `FAAKO_ERP_BASE_URL`
+
+If an override is not set, the helper falls back to the documented production/default URL for monitored public apps.
+
+Optional app-mode values are read by `resolveAppModeFromEnv(env)`:
+
+- `VITE_APP_MODE` or `APP_MODE` (`normal`, `degraded`, `read_only`, `maintenance`)
+- `VITE_MAINTENANCE_MODE` or `MAINTENANCE_MODE`
+- `VITE_READ_ONLY_MODE` or `READ_ONLY_MODE`
+- `VITE_DEGRADED_MODE` or `DEGRADED_MODE`
 
 ## Setup or migration steps
 
@@ -97,6 +142,8 @@ Navigation preparation only. These helpers prepare future controlled feature exp
 - Disabled and coming-soon modules intentionally preserve routes for now; route blocking, redirects, and access-control enforcement remain separate future work.
 - Shared helpers prepare for grouped rendering, but each app still decides whether visual grouping is safe for its current UI.
 - Navigation adapters must preserve existing route and permission behavior until a separate access-control review happens.
+- Monitoring helpers only provide URL/page metadata. They do not authenticate, assert service ownership, enforce uptime rules, or replace app-specific deployment checks.
+- App-mode helpers only normalize config values and labels. Frontend mode banners are not sufficient protection for migrations or risky deployments; API/backend guards are still required before write protection is reliable.
 
 ## Testing notes
 

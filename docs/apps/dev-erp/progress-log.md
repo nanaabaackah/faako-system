@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Production verification and monitoring stabilization
+
+Date: 2026-05-17
+Feature/change name: Production verification and monitoring stabilization
+Apps affected: Dev ERP
+What changed: Dev ERP monitoring now reads monitored app metadata from `@faako/config` instead of a local hardcoded `SITE_PAGES` array. The monitoring list covers REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, REEBS Website, the portfolio site, and Faako ERP while preserving existing legacy dashboard ids for `nana`, `reebs`, and `faako`. Shared app-mode helpers and generic maintenance/read-only/degraded UI wrappers were added at the platform level for future opt-in use, but Dev ERP runtime maintenance behavior was not wired or enforced in this phase. Dev ERP lint, type check, and production build were re-run during the stabilization sprint.
+Why it changed: Keep Dev ERP monitoring aligned with the current monorepo app set without fragile local duplication, and verify the fully live system before more feature work.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/README.md, packages/config/src/appModes/appModes.js, packages/config/src/monorepoApps/appRegistry.js, packages/config/src/index.js, packages/config/src/index.ts, packages/config/README.md, packages/ui/src/components/ERPNotifications.tsx, packages/ui/src/ui.css, packages/ui/README.md, docs/platform/codex-handoff-verification.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md
+Data impact: None.
+Security impact: Read-only monitoring metadata plus presentation/config-only maintenance foundations. No auth, permissions, operational records, rent/payment records, reports, email workflows, AI/productivity endpoints, or schema behavior changed.
+Testing done: Dev ERP config import check returned 8 monitored entries. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp exec tsc --noEmit` passed. `pnpm --filter @faako/dev-erp run build` passed.
+Rollback notes: Revert Dev ERP `backend/server.js` to the previous local `SITE_PAGES` array and remove the shared app registry export. No data rollback required.
+Next step: Route-level visual QA for System Health, Dashboard site monitoring, Settings Sync Review, and activity feed.
+
 ### Theme and styling consistency fix
 
 Date: 2026-05-13

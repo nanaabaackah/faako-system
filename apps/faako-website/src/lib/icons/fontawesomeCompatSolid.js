@@ -63,6 +63,7 @@ import {
   Wallet,
   CloseSquare,
   RecordCircle,
+  SearchNormal1,
 } from "iconsax-react";
 
 export const faAddressBook = Profile2User;
@@ -136,3 +137,4 @@ export const faWallet = Wallet;
 export const faWrench = Setting;
 export const faX = CloseSquare;
 export const faXmark = CloseSquare;
+export const faMagnifyingGlass = SearchNormal1;

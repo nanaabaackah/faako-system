@@ -1,6 +1,4 @@
 .contact-page {
-  margin: -1rem -1rem 0;
-  width: calc(100% + 2rem);
   background: var(--color-bg);
 }
 
@@ -64,18 +62,13 @@
   align-items: center;
   width: fit-content;
   color: var(--color-primary);
-  font-size: var(--font-size-sm);
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-}
-
-.contact-kicker::before {
-  content: "";
-  width: 34px;
-  height: 2px;
-  background: var(--color-primary);
-  margin-right: 0.75rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-pill);
 }
 

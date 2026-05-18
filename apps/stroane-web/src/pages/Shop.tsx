@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Card, EmptyState, StatusPill } from "@faako/ui";
+import { HiArrowRight } from "react-icons/hi";
+import { Card, EmptyState, StatusPill, SelectField } from "@faako/ui";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
@@ -106,14 +107,6 @@ const Shop: React.FC = () => {
     0
   );
 
-  const quoteHref = cartLines.length
-    ? `mailto:info@stroanesolutions.com?subject=${encodeURIComponent("Stroane product quote request")}&body=${encodeURIComponent(
-        `Hello Stroane,\n\nPlease send me a quote for:\n${cartLines
-          .map(({ product, qty }) => `- ${product.name} × ${qty} (${product.sku})`)
-          .join("\n")}\n\nEstimated catalogue total: ${formatCurrency(quoteTotal)}\n\nThank you.`
-      )}`
-    : "mailto:info@stroanesolutions.com?subject=Stroane product quote request";
-
   return (
     <Layout>
       <StructuredData schema={SHOP_SCHEMA} id="shop-schema" />
@@ -155,11 +148,16 @@ const Shop: React.FC = () => {
             </label>
             <label className="shop-control shop-control--select">
               <span>Sort</span>
-              <select value={sort} onChange={(event) => setSort(event.target.value)}>
-                <option value="featured">Featured</option>
-                <option value="price-low">Price: low to high</option>
-                <option value="price-high">Price: high to low</option>
-              </select>
+              <SelectField
+                value={sort}
+                ariaLabel="Sort products"
+                onChangeValue={(next) => setSort(next as string)}
+                options={[
+                  { value: "featured", label: "Featured" },
+                  { value: "price-low", label: "Price: low to high" },
+                  { value: "price-high", label: "Price: high to low" },
+                ]}
+              />
             </label>
           </div>
         </section>
@@ -193,15 +191,22 @@ const Shop: React.FC = () => {
                     <Link to={detailUrl} className="shop-product-card__media-link" aria-label={product.name}>
                       <div className="shop-product-card__media">
                         <img src={product.image} alt={product.name} />
+                        <span className="shop-product-card__stock">
+                          <StatusPill tone={getStockTone(product.stock)}>
+                            {product.stock}
+                          </StatusPill>
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="shop-product-card__body">
+                      <div className="shop-product-card__eyebrow">
+                        <span className="shop-product-card__category">
+                          {product.category}
+                        </span>
                         {product.tag ? (
                           <span className="shop-product-card__tag">{product.tag}</span>
                         ) : null}
                       </div>
-                    </Link>
-                    <div className="shop-product-card__body">
-                      <span className="shop-product-card__category">
-                        {product.category}
-                      </span>
                       <Link to={detailUrl} className="shop-product-card__name-link">
                         <h3 className="shop-product-card__name">{product.name}</h3>
                       </Link>
@@ -210,9 +215,6 @@ const Shop: React.FC = () => {
                           <strong>{formatCurrency(product.price)}</strong>
                           <span>/{product.unit}</span>
                         </div>
-                        <StatusPill tone={getStockTone(product.stock)}>
-                          {product.stock}
-                        </StatusPill>
                       </div>
 
                       <QuantityControls
@@ -236,7 +238,7 @@ const Shop: React.FC = () => {
           </div>
 
           <aside className="shop-quote-panel" aria-label="Quote basket">
-            <span className="shop-kicker">Quote Basket</span>
+            <span className="shop-kicker">Your Basket</span>
             <h2>{totalCount} item{totalCount === 1 ? "" : "s"} selected</h2>
             {cartLines.length ? (
               <>
@@ -259,9 +261,20 @@ const Shop: React.FC = () => {
             ) : (
               <p>Add products to build a quote request. We will confirm availability and delivery.</p>
             )}
-            <a href={quoteHref} className="ui-button ui-button--primary shop-quote-panel__cta">
-              Request quote
-            </a>
+            {cartLines.length ? (
+              <Link to="/checkout" className="shop-quote-panel__checkout">
+                <span>Proceed to checkout</span>
+                <HiArrowRight size={18} aria-hidden="true" />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="shop-quote-panel__checkout"
+                disabled
+              >
+                Proceed to checkout
+              </button>
+            )}
             {cartLines.length ? (
               <button
                 type="button"

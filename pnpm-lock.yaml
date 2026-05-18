@@ -118,15 +118,15 @@ importers:
       '@faako/finance':
         specifier: workspace:*
         version: link:../../packages/finance
+      '@faako/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@faako/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
       '@faako/offline-sync':
         specifier: workspace:*
         version: link:../../packages/offline-sync
-      '@faako/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
       '@faako/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -262,7 +262,7 @@ importers:
     dependencies:
       '@prisma/client':
         specifier: ^7.3.0
-        version: 7.5.0(prisma@7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2))(typescript@6.0.2)
+        version: 7.5.0(prisma@7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       pg:
         specifier: ^8.17.1
         version: 8.20.0
@@ -308,7 +308,7 @@ importers:
         version: 23.15.1(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0)
       prisma:
         specifier: ^7.3.0
-        version: 7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
+        version: 7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
 
   apps/faako-erp:
     dependencies:
@@ -493,7 +493,7 @@ importers:
         version: 0.525.0(react@19.2.4)
       netlify:
         specifier: ^23.8.1
-        version: 23.15.1(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0)
+        version: 23.15.1(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0)
       nodemailer:
         specifier: ^8.0.2
         version: 8.0.2
@@ -602,7 +602,7 @@ importers:
         version: 30.3.0(@types/node@25.5.0)(ts-node@10.9.2(@types/node@25.5.0)(typescript@5.9.3))
       netlify-cli:
         specifier: ^23.8.1
-        version: 23.15.1(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0)
+        version: 23.15.1(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0)
       playwright:
         specifier: ^1.55.1
         version: 1.58.2
@@ -920,6 +920,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.59.3
+        version: 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.2)
@@ -971,6 +974,8 @@ importers:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.2)
 
+  packages/audit: {}
+
   packages/config:
     dependencies:
       '@faako/types':
@@ -1002,6 +1007,8 @@ importers:
       react:
         specifier: '>=18'
         version: 19.2.4
+
+  packages/org-settings: {}
 
   packages/security: {}
 
@@ -3414,11 +3421,36 @@ packages:
   '@types/yoga-layout@1.9.2':
     resolution: {integrity: sha512-S9q47ByT2pPvD65IvrWp7qppVMpk9WGMbVq9wbWZOHg6tnXSD4vyhao6nOSBwwfDdV2p3Kx9evA9vI+XWTfDvw==}
 
+  '@typescript-eslint/eslint-plugin@8.59.3':
+    resolution: {integrity: sha512-PwFvSKsXGShKGW6n5bZOhGHEcCZXM8HofLK9fNsEwZXzFRjoY+XT1Vsf1zgyXdwTr0ZYz1/2tkZ0DBTT9jZjhw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      '@typescript-eslint/parser': ^8.59.3
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/parser@8.59.3':
+    resolution: {integrity: sha512-HPwA+hVkfcriajbNvTmZv4VRauibay+cWArYUYq7u7W7PmGShMxbPxLvrwDme55a6d5alG3nrYfhyJ/G28XlLg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
+
   '@typescript-eslint/project-service@8.57.1':
     resolution: {integrity: sha512-vx1F37BRO1OftsYlmG9xay1TqnjNVlqALymwWVuYTdo18XuKxtBpCj1QlzNIEHlvlB27osvXFWptYiEWsVdYsg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       typescript: '>=4.8.4 <6.0.0'
+
+  '@typescript-eslint/project-service@8.59.3':
+    resolution: {integrity: sha512-ECiUWa/KYRGDFUqTNehaRgzDshnJfkTABJxVemHk4ko22gcr0ukloKjWvyQ64g8YCV/UI47kN1dbmjf/GaQYng==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/scope-manager@8.59.3':
+    resolution: {integrity: sha512-t2LvZnoEfzKtnPjgeEu41xw5gxq9mQVfYy4OoZ4Vlt0sk3JwxmhCca/AR7DwOiHrjWgjAj6as4AhRLKSDfvZIA==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/tsconfig-utils@8.57.1':
     resolution: {integrity: sha512-0lgOZB8cl19fHO4eI46YUx2EceQqhgkPSuCGLlGi79L2jwYY1cxeYc1Nae8Aw1xjgW3PKVDLlr3YJ6Bxx8HkWg==}
@@ -3426,8 +3458,25 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4 <6.0.0'
 
+  '@typescript-eslint/tsconfig-utils@8.59.3':
+    resolution: {integrity: sha512-PcIJHjmaREXLgIAIzLnSY9VucEzz8FKXsRgFa1DmdGCK/5tJpW03TKJF01Q6VZd1lLdz2sIKPWaDUZN9dp//dw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/type-utils@8.59.3':
+    resolution: {integrity: sha512-g71d8QD8UaiHGvrJwyIS1hCX5r63w6Jll+4VEYhEAHXTDIqX1JgxhTAbEHtKntL9kuc4jRo7/GWw5xfCepSccQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
+
   '@typescript-eslint/types@8.57.1':
     resolution: {integrity: sha512-S29BOBPJSFUiblEl6RzPPjJt6w25A6XsBqRVDt53tA/tlL8q7ceQNZHTjPeONt/3S7KRI4quk+yP9jK2WjBiPQ==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/types@8.59.3':
+    resolution: {integrity: sha512-ePFoH0g4ludssdRFqqDxQePCxU4WQyRa9+XVwjm7yLn0FKhMeoetC+qBEEI1Eyb1pGSDveTIT09Bvw2WhlGayg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@typescript-eslint/typescript-estree@8.57.1':
@@ -3436,8 +3485,25 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4 <6.0.0'
 
+  '@typescript-eslint/typescript-estree@8.59.3':
+    resolution: {integrity: sha512-CbRjVRAf7Lr9Kr8RopKcbY45p2VfmmHrm0ygOCYFi7oU8q19m0Fs/6iHS7kNOmwpp+ob07ZVcAqlxUod9lYdmg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      typescript: '>=4.8.4 <6.1.0'
+
+  '@typescript-eslint/utils@8.59.3':
+    resolution: {integrity: sha512-JAvT14goBzRzzzZyqq3P9BLArIxTtQURUtFgQ/V7FO+eU+Gg6ES+5ymOPP1wRxXcxAYeivCk4uS3jCKWI1K8Zg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
+
   '@typescript-eslint/visitor-keys@8.57.1':
     resolution: {integrity: sha512-YWnmJkXbofiz9KbnbbwuA2rpGkFPLbAIetcCNO6mJ8gdhdZ/v7WDXsoGFAJuM6ikUFKTlSQnjWnVO4ux+UzS6A==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript-eslint/visitor-keys@8.59.3':
+    resolution: {integrity: sha512-f1UQF7ggd42YiwI5wGrRaPsa+P0CINBlrkLPmGfpq/u/I/oVtecoEIfFR9ag/oa1sLOsRNZ6xehf6qMZhQGBDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@ungap/structured-clone@1.3.0':
@@ -8504,6 +8570,12 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  ts-api-utils@2.5.0:
+    resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==}
+    engines: {node: '>=18.12'}
+    peerDependencies:
+      typescript: '>=4.8.4'
+
   ts-node@10.9.2:
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
     hasBin: true
@@ -8628,6 +8700,13 @@ packages:
   typed-function@4.2.2:
     resolution: {integrity: sha512-VwaXim9Gp1bngi/q3do8hgttYn2uC3MoT/gfuMWylnj1IeZBUAyPddHZlo1K05BDoj8DYPpMdiHqH1dDYdJf2A==}
     engines: {node: '>= 18'}
+
+  typescript-eslint@8.59.3:
+    resolution: {integrity: sha512-KgusgyDgG4LI8Ih/sWaCtZ06tckLAS5CvT5A4D1Q7bYVoAAyzwiZvE4BmwDHkhRVkvhRBepKeASoFzQetha7Fg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+      typescript: '>=4.8.4 <6.1.0'
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -10298,71 +10377,6 @@ snapshots:
       yaml: 2.8.2
       yargs: 17.7.2
 
-  '@netlify/build@35.5.14(@opentelemetry/api@1.8.0)(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0)':
-    dependencies:
-      '@bugsnag/js': 8.8.1
-      '@netlify/blobs': 10.7.2(supports-color@10.2.2)
-      '@netlify/cache-utils': 6.0.5
-      '@netlify/config': 24.3.0
-      '@netlify/edge-bundler': 14.9.5
-      '@netlify/functions-utils': 6.2.26(rollup@4.59.0)(supports-color@10.2.2)
-      '@netlify/git-utils': 6.0.4
-      '@netlify/opentelemetry-utils': 2.0.2(@opentelemetry/api@1.8.0)
-      '@netlify/plugins-list': 6.81.3
-      '@netlify/run-utils': 6.0.3
-      '@netlify/zip-it-and-ship-it': 14.3.1(rollup@4.59.0)(supports-color@10.2.2)
-      '@opentelemetry/api': 1.8.0
-      '@sindresorhus/slugify': 2.2.1
-      ansi-escapes: 7.2.0
-      ansis: 4.2.0
-      clean-stack: 5.3.0
-      execa: 8.0.1
-      fdir: 6.5.0(picomatch@4.0.3)
-      figures: 6.1.0
-      filter-obj: 6.1.0
-      hot-shots: 11.4.0
-      indent-string: 5.0.0
-      is-plain-obj: 4.1.0
-      keep-func-props: 6.0.0
-      log-process-errors: 11.0.1
-      memoize-one: 6.0.0
-      minimatch: 9.0.9
-      os-name: 6.1.0
-      p-event: 6.0.1
-      p-filter: 4.1.0
-      p-locate: 6.0.0
-      p-map: 7.0.3
-      p-reduce: 3.0.0
-      package-directory: 8.2.0
-      path-exists: 5.0.0
-      pretty-ms: 9.3.0
-      ps-list: 8.1.1
-      read-package-up: 11.0.0
-      readdirp: 4.1.2
-      resolve: 2.0.0-next.6
-      rfdc: 1.4.1
-      safe-json-stringify: 1.2.0
-      semver: 7.7.4
-      string-width: 7.2.0
-      supports-color: 10.2.2
-      terminal-link: 4.0.0
-      ts-node: 10.9.2(@types/node@25.5.0)(typescript@5.9.3)
-      typescript: 5.9.3
-      uuid: 11.1.0
-      yaml: 2.8.2
-      yargs: 17.7.2
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@swc/core'
-      - '@swc/wasm'
-      - '@types/node'
-      - bare-abort-controller
-      - bare-buffer
-      - encoding
-      - picomatch
-      - react-native-b4a
-      - rollup
-
   '@netlify/build@35.5.14(@opentelemetry/api@1.8.0)(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0)':
     dependencies:
       '@bugsnag/js': 8.8.1
@@ -11607,6 +11621,34 @@ snapshots:
 
   '@types/yoga-layout@1.9.2': {}
 
+  '@typescript-eslint/eslint-plugin@8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
+    dependencies:
+      '@eslint-community/regexpp': 4.12.2
+      '@typescript-eslint/parser': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript-eslint/scope-manager': 8.59.3
+      '@typescript-eslint/type-utils': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript-eslint/visitor-keys': 8.59.3
+      eslint: 9.39.4(jiti@2.6.1)
+      ignore: 7.0.5
+      natural-compare: 1.4.0
+      ts-api-utils: 2.5.0(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
+    dependencies:
+      '@typescript-eslint/scope-manager': 8.59.3
+      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/typescript-estree': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/visitor-keys': 8.59.3
+      debug: 4.4.3(supports-color@10.2.2)
+      eslint: 9.39.4(jiti@2.6.1)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@typescript-eslint/project-service@8.57.1(supports-color@10.2.2)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.57.1(typescript@5.9.3)
@@ -11616,11 +11658,43 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@typescript-eslint/project-service@8.59.3(typescript@5.9.3)':
+    dependencies:
+      '@typescript-eslint/tsconfig-utils': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/types': 8.59.3
+      debug: 4.4.3(supports-color@10.2.2)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typescript-eslint/scope-manager@8.59.3':
+    dependencies:
+      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/visitor-keys': 8.59.3
+
   '@typescript-eslint/tsconfig-utils@8.57.1(typescript@5.9.3)':
     dependencies:
       typescript: 5.9.3
 
+  '@typescript-eslint/tsconfig-utils@8.59.3(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
+
+  '@typescript-eslint/type-utils@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
+    dependencies:
+      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/typescript-estree': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      debug: 4.4.3(supports-color@10.2.2)
+      eslint: 9.39.4(jiti@2.6.1)
+      ts-api-utils: 2.5.0(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@typescript-eslint/types@8.57.1': {}
+
+  '@typescript-eslint/types@8.59.3': {}
 
   '@typescript-eslint/typescript-estree@8.57.1(supports-color@10.2.2)(typescript@5.9.3)':
     dependencies:
@@ -11637,9 +11711,40 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@typescript-eslint/typescript-estree@8.59.3(typescript@5.9.3)':
+    dependencies:
+      '@typescript-eslint/project-service': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/tsconfig-utils': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/visitor-keys': 8.59.3
+      debug: 4.4.3(supports-color@10.2.2)
+      minimatch: 10.2.4
+      semver: 7.7.4
+      tinyglobby: 0.2.15
+      ts-api-utils: 2.5.0(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@typescript-eslint/utils@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
+    dependencies:
+      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.4(jiti@2.6.1))
+      '@typescript-eslint/scope-manager': 8.59.3
+      '@typescript-eslint/types': 8.59.3
+      '@typescript-eslint/typescript-estree': 8.59.3(typescript@5.9.3)
+      eslint: 9.39.4(jiti@2.6.1)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@typescript-eslint/visitor-keys@8.57.1':
     dependencies:
       '@typescript-eslint/types': 8.57.1
+      eslint-visitor-keys: 5.0.1
+
+  '@typescript-eslint/visitor-keys@8.59.3':
+    dependencies:
+      '@typescript-eslint/types': 8.59.3
       eslint-visitor-keys: 5.0.1
 
   '@ungap/structured-clone@1.3.0': {}
@@ -15562,136 +15667,6 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  netlify-cli@23.15.1(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0):
-    dependencies:
-      '@fastify/static': 9.0.0
-      '@netlify/ai': 0.3.4(@netlify/api@14.0.13)
-      '@netlify/api': 14.0.13
-      '@netlify/blobs': 10.1.0
-      '@netlify/build': 35.5.14(@opentelemetry/api@1.8.0)(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0)
-      '@netlify/build-info': 10.3.0
-      '@netlify/config': 24.3.0
-      '@netlify/dev-utils': 4.3.2
-      '@netlify/edge-bundler': 14.9.5
-      '@netlify/edge-functions': 3.0.3
-      '@netlify/edge-functions-bootstrap': 2.17.1
-      '@netlify/headers-parser': 9.0.2
-      '@netlify/images': 1.2.5(@netlify/blobs@10.1.0)
-      '@netlify/local-functions-proxy': 2.0.3
-      '@netlify/redirect-parser': 15.0.3
-      '@netlify/zip-it-and-ship-it': 14.3.1(rollup@4.59.0)(supports-color@10.2.2)
-      '@octokit/rest': 22.0.0
-      '@opentelemetry/api': 1.8.0
-      '@pnpm/tabtab': 0.5.4
-      ansi-escapes: 7.2.0
-      ansi-to-html: 0.7.2
-      ascii-table: 0.0.9
-      backoff: 2.5.0
-      boxen: 8.0.1
-      chalk: 5.6.2
-      chokidar: 4.0.3
-      ci-info: 4.4.0
-      clean-deep: 3.4.0
-      commander: 12.1.0
-      comment-json: 4.3.0
-      content-type: 1.0.5
-      cookie: 1.0.2
-      cron-parser: 4.9.0
-      debug: 4.4.3(supports-color@10.2.2)
-      decache: 4.6.2
-      dot-prop: 10.1.0
-      dotenv: 17.2.3
-      env-paths: 4.0.0
-      envinfo: 7.15.0
-      etag: 1.8.1
-      execa: 5.1.1
-      express: 5.2.1
-      express-logging: 1.1.1
-      extract-zip: 2.0.1
-      fastest-levenshtein: 1.0.16
-      fastify: 5.7.3
-      find-up: 8.0.0
-      folder-walker: 3.2.0
-      fuzzy: 0.1.3
-      get-port: 5.1.1
-      gh-release-fetch: 4.0.3
-      git-repo-info: 2.1.1
-      gitconfiglocal: 2.1.0
-      http-proxy: 1.18.1(debug@4.4.3)
-      http-proxy-middleware: 3.0.5
-      https-proxy-agent: 7.0.6(supports-color@10.2.2)
-      inquirer: 8.2.7(@types/node@25.5.0)
-      inquirer-autocomplete-prompt: 1.4.0(inquirer@8.2.7(@types/node@25.5.0))
-      is-docker: 3.0.0
-      is-stream: 4.0.1
-      is-wsl: 3.1.0
-      isexe: 3.1.1
-      jsonwebtoken: 9.0.3
-      jwt-decode: 4.0.0
-      lambda-local: 2.2.0
-      locate-path: 7.2.0
-      lodash: 4.17.23
-      log-update: 6.1.0
-      maxstache: 1.0.7
-      maxstache-stream: 1.0.4
-      multiparty: 4.2.3
-      nanospinner: 1.2.2
-      netlify-redirector: 0.5.0
-      node-fetch: 3.3.2
-      normalize-package-data: 7.0.1
-      open: 11.0.0
-      p-filter: 4.1.0
-      p-map: 7.0.3
-      p-wait-for: 6.0.0
-      parallel-transform: 1.2.0
-      parse-github-url: 1.0.3
-      prettyjson: 1.2.5
-      raw-body: 3.0.1
-      read-package-up: 12.0.0
-      readdirp: 4.1.2
-      semver: 7.7.2
-      source-map-support: 0.5.21
-      terminal-link: 5.0.0
-      toml: 3.0.0
-      tomlify-j0.4: 3.0.0
-      ulid: 3.0.1
-      update-notifier: 7.3.1
-      uuid: 13.0.0
-      write-file-atomic: 5.0.1
-      ws: 8.18.3
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@capacitor/preferences'
-      - '@deno/kv'
-      - '@netlify/opentelemetry-sdk-setup'
-      - '@planetscale/database'
-      - '@swc/core'
-      - '@swc/wasm'
-      - '@types/node'
-      - '@upstash/redis'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - aws4fetch
-      - bare-abort-controller
-      - bare-buffer
-      - bufferutil
-      - db0
-      - encoding
-      - idb-keyval
-      - ioredis
-      - picomatch
-      - react-native-b4a
-      - rollup
-      - supports-color
-      - uploadthing
-      - utf-8-validate
-
   netlify-cli@23.15.1(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0):
     dependencies:
       '@fastify/static': 9.0.0
@@ -15823,136 +15798,6 @@ snapshots:
       - utf-8-validate
 
   netlify-redirector@0.5.0: {}
-
-  netlify@23.15.1(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0):
-    dependencies:
-      '@fastify/static': 9.0.0
-      '@netlify/ai': 0.3.4(@netlify/api@14.0.13)
-      '@netlify/api': 14.0.13
-      '@netlify/blobs': 10.1.0
-      '@netlify/build': 35.5.14(@opentelemetry/api@1.8.0)(@types/node@25.5.0)(picomatch@4.0.3)(rollup@4.59.0)
-      '@netlify/build-info': 10.3.0
-      '@netlify/config': 24.3.0
-      '@netlify/dev-utils': 4.3.2
-      '@netlify/edge-bundler': 14.9.5
-      '@netlify/edge-functions': 3.0.3
-      '@netlify/edge-functions-bootstrap': 2.17.1
-      '@netlify/headers-parser': 9.0.2
-      '@netlify/images': 1.2.5(@netlify/blobs@10.1.0)
-      '@netlify/local-functions-proxy': 2.0.3
-      '@netlify/redirect-parser': 15.0.3
-      '@netlify/zip-it-and-ship-it': 14.3.1(rollup@4.59.0)(supports-color@10.2.2)
-      '@octokit/rest': 22.0.0
-      '@opentelemetry/api': 1.8.0
-      '@pnpm/tabtab': 0.5.4
-      ansi-escapes: 7.2.0
-      ansi-to-html: 0.7.2
-      ascii-table: 0.0.9
-      backoff: 2.5.0
-      boxen: 8.0.1
-      chalk: 5.6.2
-      chokidar: 4.0.3
-      ci-info: 4.4.0
-      clean-deep: 3.4.0
-      commander: 12.1.0
-      comment-json: 4.3.0
-      content-type: 1.0.5
-      cookie: 1.0.2
-      cron-parser: 4.9.0
-      debug: 4.4.3(supports-color@10.2.2)
-      decache: 4.6.2
-      dot-prop: 10.1.0
-      dotenv: 17.2.3
-      env-paths: 4.0.0
-      envinfo: 7.15.0
-      etag: 1.8.1
-      execa: 5.1.1
-      express: 5.2.1
-      express-logging: 1.1.1
-      extract-zip: 2.0.1
-      fastest-levenshtein: 1.0.16
-      fastify: 5.7.3
-      find-up: 8.0.0
-      folder-walker: 3.2.0
-      fuzzy: 0.1.3
-      get-port: 5.1.1
-      gh-release-fetch: 4.0.3
-      git-repo-info: 2.1.1
-      gitconfiglocal: 2.1.0
-      http-proxy: 1.18.1(debug@4.4.3)
-      http-proxy-middleware: 3.0.5
-      https-proxy-agent: 7.0.6(supports-color@10.2.2)
-      inquirer: 8.2.7(@types/node@25.5.0)
-      inquirer-autocomplete-prompt: 1.4.0(inquirer@8.2.7(@types/node@25.5.0))
-      is-docker: 3.0.0
-      is-stream: 4.0.1
-      is-wsl: 3.1.0
-      isexe: 3.1.1
-      jsonwebtoken: 9.0.3
-      jwt-decode: 4.0.0
-      lambda-local: 2.2.0
-      locate-path: 7.2.0
-      lodash: 4.17.23
-      log-update: 6.1.0
-      maxstache: 1.0.7
-      maxstache-stream: 1.0.4
-      multiparty: 4.2.3
-      nanospinner: 1.2.2
-      netlify-redirector: 0.5.0
-      node-fetch: 3.3.2
-      normalize-package-data: 7.0.1
-      open: 11.0.0
-      p-filter: 4.1.0
-      p-map: 7.0.3
-      p-wait-for: 6.0.0
-      parallel-transform: 1.2.0
-      parse-github-url: 1.0.3
-      prettyjson: 1.2.5
-      raw-body: 3.0.1
-      read-package-up: 12.0.0
-      readdirp: 4.1.2
-      semver: 7.7.2
-      source-map-support: 0.5.21
-      terminal-link: 5.0.0
-      toml: 3.0.0
-      tomlify-j0.4: 3.0.0
-      ulid: 3.0.1
-      update-notifier: 7.3.1
-      uuid: 13.0.0
-      write-file-atomic: 5.0.1
-      ws: 8.18.3
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@capacitor/preferences'
-      - '@deno/kv'
-      - '@netlify/opentelemetry-sdk-setup'
-      - '@planetscale/database'
-      - '@swc/core'
-      - '@swc/wasm'
-      - '@types/node'
-      - '@upstash/redis'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - aws4fetch
-      - bare-abort-controller
-      - bare-buffer
-      - bufferutil
-      - db0
-      - encoding
-      - idb-keyval
-      - ioredis
-      - picomatch
-      - react-native-b4a
-      - rollup
-      - supports-color
-      - uploadthing
-      - utf-8-validate
 
   netlify@23.15.1(@types/node@25.5.0)(picomatch@4.0.4)(rollup@4.59.0):
     dependencies:
@@ -17921,6 +17766,10 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  ts-api-utils@2.5.0(typescript@5.9.3):
+    dependencies:
+      typescript: 5.9.3
+
   ts-node@10.9.2(@types/node@25.5.0)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
@@ -18038,6 +17887,17 @@ snapshots:
       reflect.getprototypeof: 1.0.10
 
   typed-function@4.2.2: {}
+
+  typescript-eslint@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3):
+    dependencies:
+      '@typescript-eslint/eslint-plugin': 8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript-eslint/parser': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      '@typescript-eslint/typescript-estree': 8.59.3(typescript@5.9.3)
+      '@typescript-eslint/utils': 8.59.3(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      eslint: 9.39.4(jiti@2.6.1)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
 
   typescript@5.9.3: {}
 

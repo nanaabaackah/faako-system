@@ -12,6 +12,9 @@ import Cookies from "./pages/Cookies";
 import Sitemap from "./pages/Sitemap";
 import ProductList from "./pages/ProductList";
 import ProductDetail from "./pages/ProductDetail";
+import Checkout from "./pages/Checkout";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import Search from "./pages/Search";
 import ErrorPage from "./pages/ErrorPage";
 
@@ -27,6 +30,9 @@ function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/:id" element={<ProductDetail />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/cookies" element={<Cookies />} />

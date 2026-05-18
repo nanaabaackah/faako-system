@@ -189,6 +189,21 @@ const Resources: React.FC = () => {
           </div>
         </section>
 
+        <section className="resources-standards">
+          <div>
+            <span className="resources-kicker">Standards We Reference</span>
+            <h2 className="section__heading">
+              Local compliance, global food safety thinking.
+            </h2>
+          </div>
+
+          <div className="resources-standards__tags">
+            {standards.map((standard) => (
+              <span key={standard}>{standard}</span>
+            ))}
+          </div>
+        </section>
+
         <section className="resources-faq">
           <div className="resources-faq__intro">
             <span className="resources-kicker">FAQs</span>
@@ -233,35 +248,6 @@ const Resources: React.FC = () => {
               );
             })}
           </div>
-        </section>
-
-        <section className="resources-standards">
-          <div>
-            <span className="resources-kicker">Standards We Reference</span>
-            <h2 className="section__heading">
-              Local compliance, global food safety thinking.
-            </h2>
-          </div>
-
-          <div className="resources-standards__tags">
-            {standards.map((standard) => (
-              <span key={standard}>{standard}</span>
-            ))}
-          </div>
-        </section>
-
-        <section className="resources-cta">
-          <div>
-            <span className="resources-kicker">Need something specific?</span>
-            <h2 className="section__heading">
-              We can prepare custom checklists, templates, and training notes for
-              your team.
-            </h2>
-          </div>
-
-          <a href="mailto:info@stroanesolutions.com" className="resources-cta__button">
-            Request a Resource
-          </a>
         </section>
       </div>
     </Layout>

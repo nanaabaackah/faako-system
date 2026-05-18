@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Production stabilization refinement pass
+
+Date: 2026-05-18
+Change name: Production stabilization refinement pass
+Apps/packages affected: REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, @faako/ui, @faako/config
+What changed: Refined the shared maintenance/read-only/degraded UI foundation so generic `MaintenanceBanner`, `ReadOnlyModeBanner`, `DegradedModeNotice`, `MaintenancePage`, and `MaintenanceGuard` render through neutral `ui-app-mode-*` classes instead of ERP-specific maintenance page/banner classes. The ERP-prefixed maintenance components remain available for ERP/admin screens. Re-verified Dev ERP monitoring registry coverage against all apps under `apps/`, including REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, REEBS Website, ByNana Portfolio, Faako ERP, System Starter, and UI Workbench. Re-ran focused Stroane, Dev ERP, REEBS Portal, and Faako Website checks after the shared UI refinement.
+Why it changed: Close the stabilization gap where public/client websites needed branded maintenance/degraded/read-only states without inheriting ERP-only screen classes, while keeping the pass narrow and production-safe.
+Files changed: packages/ui/src/components/ERPNotifications.tsx, packages/ui/src/ui.css, packages/ui/README.md, README.md, docs/platform/codex-handoff-verification.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: None. No database schema changes, migrations, data writes, API behavior changes, or business workflow changes.
+Security impact: UI-only maintenance/read-only/degraded presentation refinement. Backend/API enforcement is still required before relying on maintenance or read-only mode for data protection.
+Testing done: Dev ERP config registry import check passed and resolved all current apps plus monitored entries. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm --filter @faako/dev-erp run build` passed. `pnpm --filter @faako/reebs-portal run build` passed. `pnpm --filter @faako/faako-website run build` passed. `git diff --check` passed. `pnpm --filter @faako/faako-website run lint` still fails because the package script calls `eslint .` but the package does not install/configure ESLint.
+Rollback notes: Revert the `@faako/ui` generic app-mode wrapper/style changes and the documentation updates. No data rollback required.
+Next step: Decide app-specific maintenance/read-only wiring policy and backend/API enforcement plan before using these modes during risky deployments.
+
+### Production verification and stabilization sprint
+
+Date: 2026-05-17
+Change name: Production verification and stabilization sprint
+Apps/packages affected: REEBS Portal, Dev ERP, Stroane Web, Faako Website, Faako API, Faako ERP, REEBS Website, ByNana Portfolio, System Starter, UI Workbench, @faako/config, @faako/ui
+What changed: Verified shared UI, offline, audit/activity, monitoring, and recent Stroane/Faako Website work before further feature development. Added a config-driven monorepo app registry in `@faako/config` and wired Dev ERP monitoring to it. Added shared app-mode helpers for normal/degraded/read-only/maintenance states in `@faako/config`. Added presentation-only ERP and generic maintenance/read-only/degraded UI wrappers in `@faako/ui`, and standardized shared alert tones for pending, maintenance, and degraded. Repaired Stroane Web lint tooling and two unused-symbol type issues. Created `docs/platform/codex-handoff-verification.md` with pass/fail results, styling findings, risky areas, incomplete implementation notes, documentation gaps, and pending manual review items.
+Why it changed: Stabilize recent Codex/Claude platform work, reduce fragile monitoring configuration, keep maintenance/read-only UI foundations available without backend behavior changes, and make verification status explicit before proposal-system implementation.
+Files changed: packages/config/src/appModes/appModes.js, packages/config/src/monorepoApps/appRegistry.js, packages/config/src/index.js, packages/config/src/index.ts, packages/config/README.md, apps/dev-erp/backend/server.js, apps/dev-erp/README.md, packages/ui/src/components/ERPNotifications.tsx, packages/ui/src/ui.css, packages/ui/README.md, apps/stroane-web/eslint.config.js, apps/stroane-web/package.json, apps/stroane-web/backend/server.js, apps/stroane-web/src/pages/Services.tsx, apps/stroane-web/src/pages/Shop.tsx, pnpm-lock.yaml, README.md, docs/platform/codex-handoff-verification.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, apps/stroane-web/README.md
+Data impact: None. No database schema changes, data migrations, data writes, payment/order/booking/inventory/rent workflow changes, or proposal workflow changes.
+Security impact: Improves production visibility and documentation. Maintenance/read-only components and app-mode helpers are presentation/config foundations only and do not enforce backend restrictions. Dev ERP monitoring remains read-only. Stroane lint/tooling fixes do not change auth enforcement.
+Testing done: `pnpm --filter @faako/offline-sync run test`; `pnpm --filter @faako/finance run test`; `pnpm --filter @faako/notifications run test`; `pnpm --filter @faako/audit run test`; Dev ERP config import check; `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp exec tsc --noEmit`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit`; `pnpm --filter @faako/stroane-web run lint`; `pnpm --filter @faako/stroane-web run build`; `pnpm --filter @faako/reebs-portal run build`; `pnpm --filter @faako/faako-website run build`; `git diff --check`. `pnpm --filter @faako/faako-website run lint` failed because the package has no local ESLint dependency/config.
+Rollback notes: Revert the config registry/app-mode wiring in `@faako/config` and Dev ERP `backend/server.js` to restore the previous local site list. Revert the maintenance/read-only UI wrappers and tones if not wanted. Revert the Stroane lint/tooling cleanup if a different lint strategy is chosen. No data rollback required.
+Next step: Route-level visual QA for live ERP surfaces; backend/API maintenance guard planning; Faako Website lint tooling setup; Stroane auth/payment production-readiness review; proposal system implementation planning only after these checks are accepted.
+
 ### Theme and styling consistency fix
 
 Date: 2026-05-13
