@@ -20,6 +20,8 @@ import Organizations from "./pages/Organizations/Organizations";
 import Profile from "./pages/Profile/Profile";
 import SystemHealth from "./pages/SystemHealth/SystemHealth";
 import Reports from "./pages/Reports/Reports";
+import Proposals from "./pages/Proposals/Proposals";
+import ProposalClientView from "./pages/Proposals/ProposalClientView";
 import Settings from "./pages/Settings/Settings";
 import AuditLogs from "./pages/AuditLogs/AuditLogs";
 import Rent from "./pages/Rent/Rent";
@@ -561,6 +563,14 @@ function App() {
           }
         />
         <Route
+          path="/proposal/view/:token"
+          element={
+            <RouteBoundary>
+              <ProposalClientView />
+            </RouteBoundary>
+          }
+        />
+        <Route
           path="/error"
           element={
             <RouteBoundary>
@@ -630,6 +640,22 @@ function App() {
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Reports />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/proposals"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <Proposals />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/proposals/:proposalId/preview"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <Proposals />
             </ShellPage>
           }
         />

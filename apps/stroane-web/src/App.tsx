@@ -13,6 +13,8 @@ import Sitemap from "./pages/Sitemap";
 import ProductList from "./pages/ProductList";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
+import CheckoutReturn from "./pages/CheckoutReturn";
+import AdminOrders from "./pages/AdminOrders";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Search from "./pages/Search";
@@ -31,6 +33,8 @@ function App() {
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/checkout/return" element={<CheckoutReturn />} />
+        <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/terms" element={<Terms />} />

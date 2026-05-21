@@ -1,22 +1,29 @@
-import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi";
-import { Card, EmptyState, StatusPill, SelectField } from "@faako/ui";
+import { Card, EmptyState, InlineNotice, StatusPill, SelectField } from "@faako/ui";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
+import useCatalogueData from "../hooks/useCatalogueData";
 import StructuredData from "../components/StructuredData";
 import QuantityControls from "../components/QuantityControls";
 import {
-  products,
-  categoryOptions,
   formatCurrency,
+  formatProductPrice,
+  canPurchaseProduct,
+  getAvailabilityLabel,
+  getLineTotal,
+  getSchemaAvailability,
   getStockTone,
+  isPricedProduct,
+  shouldShowInquiryOption,
   type Category,
+  type Product,
 } from "../data/products";
 import { useCart } from "../context/CartContext";
 import "../styles/pages/Shop.css";
 
-const SHOP_SCHEMA = {
+const buildShopSchema = (catalogueProducts: Product[]) => ({
   "@context": "https://schema.org",
   "@type": "ItemList",
   "@id": "https://stroanesolutions.com/shop",
@@ -31,7 +38,7 @@ const SHOP_SCHEMA = {
       { "@type": "ListItem", position: 2, name: "Shop", item: "https://stroanesolutions.com/shop" },
     ],
   },
-  itemListElement: products.map((product, index) => ({
+  itemListElement: catalogueProducts.map((product, index) => ({
     "@type": "ListItem",
     position: index + 1,
     item: {
@@ -42,24 +49,36 @@ const SHOP_SCHEMA = {
       offers: {
         "@type": "Offer",
         priceCurrency: "GHS",
-        price: product.price,
-        availability:
-          product.stock === "In stock"
-            ? "https://schema.org/InStock"
-            : product.stock === "Low stock"
-            ? "https://schema.org/LimitedAvailability"
-            : "https://schema.org/PreOrder",
+        ...(isPricedProduct(product) ? { price: product.price } : {}),
+        availability: getSchemaAvailability(product),
         seller: { "@type": "Organization", name: "Stroane" },
       },
     },
   })),
-};
+});
 
 const Shop: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    products: catalogueProducts,
+    categories: catalogueCategories,
+    loading,
+    notice,
+  } = useCatalogueData();
   const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<Category | "All">("All");
   const [sort, setSort] = useState("featured");
   const { cart, getQty, increment, decrement, remove, clear, totalCount } = useCart();
+  const categoryFromUrl = searchParams.get("category");
+  const categoryOptions = useMemo<Array<Category | "All">>(
+    () => ["All", ...catalogueCategories.map((category) => category.name)],
+    [catalogueCategories]
+  );
+
+  useEffect(() => {
+    const matchingCategory = categoryOptions.find((category) => category === categoryFromUrl);
+    setSelectedCategory(matchingCategory || "All");
+  }, [categoryFromUrl, categoryOptions]);
 
   useSEOMeta({
     title: "Food Safety Equipment & Supplies Ghana | Stroane Store",
@@ -70,16 +89,47 @@ const Shop: React.FC = () => {
     canonical: "https://stroanesolutions.com/shop",
   });
 
+  const shopSchema = useMemo(
+    () => buildShopSchema(catalogueProducts),
+    [catalogueProducts]
+  );
+
+  const handleCategoryChange = (category: Category | "All") => {
+    setSelectedCategory(category);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (category === "All") {
+      nextSearchParams.delete("category");
+    } else {
+      nextSearchParams.set("category", category);
+    }
+    setSearchParams(nextSearchParams);
+  };
+
+  const handleClearFilters = () => {
+    setQuery("");
+    setSort("featured");
+    handleCategoryChange("All");
+  };
+
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return products
+    return catalogueProducts
       .filter((product) => {
         const matchesCategory =
           selectedCategory === "All" || product.category === selectedCategory;
         const matchesQuery =
           !normalizedQuery ||
-          [product.name, product.description, product.category, product.sku]
+          [
+            product.name,
+            product.description,
+            product.category,
+            product.subcategory,
+            product.brand,
+            product.sku,
+            ...(product.tags || []),
+            ...(product.useCases || []),
+          ]
             .join(" ")
             .toLowerCase()
             .includes(normalizedQuery);
@@ -87,29 +137,44 @@ const Shop: React.FC = () => {
         return matchesCategory && matchesQuery;
       })
       .sort((left, right) => {
-        if (sort === "price-low") return left.price - right.price;
-        if (sort === "price-high") return right.price - left.price;
-        return products.findIndex((product) => product.id === left.id) -
-          products.findIndex((product) => product.id === right.id);
+        const leftPrice = isPricedProduct(left) ? left.price : Number.POSITIVE_INFINITY;
+        const rightPrice = isPricedProduct(right) ? right.price : Number.POSITIVE_INFINITY;
+        if (sort === "price-low") return leftPrice - rightPrice;
+        if (sort === "price-high") return rightPrice - leftPrice;
+        return (
+          catalogueProducts.findIndex((product) => product.id === left.id) -
+          catalogueProducts.findIndex((product) => product.id === right.id)
+        );
       });
-  }, [query, selectedCategory, sort]);
+  }, [catalogueProducts, query, selectedCategory, sort]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<Category, number>();
+    for (const product of catalogueProducts) {
+      counts.set(product.category, (counts.get(product.category) || 0) + 1);
+    }
+    return counts;
+  }, [catalogueProducts]);
 
   const cartLines = useMemo(
     () =>
-      products
+      catalogueProducts
         .filter((p) => (cart[p.id] ?? 0) > 0)
         .map((product) => ({ product, qty: cart[product.id] })),
-    [cart]
+    [cart, catalogueProducts]
   );
 
-  const quoteTotal = cartLines.reduce(
-    (total, line) => total + line.product.price * line.qty,
+  const basketTotal = cartLines.reduce(
+    (total, line) => total + getLineTotal(line.product, line.qty),
     0
+  );
+  const blockedCartLines = cartLines.filter(
+    ({ product, qty }) => !canPurchaseProduct(product, qty)
   );
 
   return (
     <Layout>
-      <StructuredData schema={SHOP_SCHEMA} id="shop-schema" />
+      <StructuredData schema={shopSchema} id="shop-schema" />
       <div className="shop-page">
         <section className="shop-hero">
           <img
@@ -126,12 +191,12 @@ const Shop: React.FC = () => {
             </h1>
             <p className="shop-hero__para">
               Practical equipment for temperature checks, hygiene, cold-chain
-              control, and inspection records — ready to order.
+              control, and inspection records — ready for pricing and availability checks.
             </p>
           </div>
         </section>
 
-        <section className="shop-toolbar" id="catalogue" aria-label="Shop filters">
+        <div className="shop-toolbar" id="catalogue" aria-label="Shop filters">
           <div>
             <h2>Catalogue</h2>
           </div>
@@ -160,7 +225,46 @@ const Shop: React.FC = () => {
               />
             </label>
           </div>
-        </section>
+        </div>
+
+        {loading || notice ? (
+          <div className="shop-catalogue-status">
+            {loading ? (
+              <InlineNotice
+                tone="loading"
+                title="Refreshing catalogue"
+                message="Checking the latest product and category data."
+              />
+            ) : null}
+            {notice ? (
+              <InlineNotice tone="info" title="Catalogue fallback active" message={notice} />
+            ) : null}
+          </div>
+        ) : null}
+
+        {catalogueCategories.length ? (
+          <div className="shop-category-overview" aria-label="Browse product categories">
+            {catalogueCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                className={
+                  selectedCategory === category.name
+                    ? "shop-category-card is-active"
+                    : "shop-category-card"
+                }
+                onClick={() => handleCategoryChange(category.name)}
+              >
+                <span className="shop-category-card__name">{category.name}</span>
+                <span className="shop-category-card__desc">{category.description}</span>
+                <span className="shop-category-card__meta">
+                  {categoryCounts.get(category.name) || 0} product
+                  {(categoryCounts.get(category.name) || 0) === 1 ? "" : "s"}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="shop-category-tabs" aria-label="Product categories">
           {categoryOptions.map((category) => (
@@ -172,11 +276,24 @@ const Shop: React.FC = () => {
                   ? "shop-category-tab is-active"
                   : "shop-category-tab"
               }
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => handleCategoryChange(category)}
             >
               {category}
             </button>
           ))}
+        </div>
+
+        <div className="shop-results-summary">
+          <p>
+            {filteredProducts.length} product{filteredProducts.length === 1 ? "" : "s"}
+            {selectedCategory !== "All" ? ` in ${selectedCategory}` : ""}
+            {query.trim() ? ` matching "${query.trim()}"` : ""}
+          </p>
+          {selectedCategory !== "All" || query.trim() || sort !== "featured" ? (
+            <button type="button" onClick={handleClearFilters}>
+              Reset filters
+            </button>
+          ) : null}
         </div>
 
         <section className="shop-storefront">
@@ -185,15 +302,25 @@ const Shop: React.FC = () => {
               filteredProducts.map((product) => {
                 const qty = getQty(product.id);
                 const detailUrl = `/products/${product.id}`;
+                const canAddOne = canPurchaseProduct(product, qty + 1);
+                const canStartCart = canPurchaseProduct(product, 1);
+                const maxQuantity = product.allowBackorder ? null : product.stockQuantity;
+                const inquiryLabel = isPricedProduct(product)
+                  ? "Ask about stock"
+                  : "Request price";
 
                 return (
-                  <Card key={product.id} className="shop-product-card">
+                  <Card key={product.id} className="shop-product-card bubble-card">
                     <Link to={detailUrl} className="shop-product-card__media-link" aria-label={product.name}>
                       <div className="shop-product-card__media">
-                        <img src={product.image} alt={product.name} />
+                        <img
+                          src={product.thumbnailUrl || product.image}
+                          alt={product.imageAlt || product.name}
+                          loading="lazy"
+                        />
                         <span className="shop-product-card__stock">
-                          <StatusPill tone={getStockTone(product.stock)}>
-                            {product.stock}
+                          <StatusPill tone={getStockTone(product)}>
+                            {getAvailabilityLabel(product)}
                           </StatusPill>
                         </span>
                       </div>
@@ -203,27 +330,37 @@ const Shop: React.FC = () => {
                         <span className="shop-product-card__category">
                           {product.category}
                         </span>
-                        {product.tag ? (
-                          <span className="shop-product-card__tag">{product.tag}</span>
-                        ) : null}
                       </div>
                       <Link to={detailUrl} className="shop-product-card__name-link">
                         <h3 className="shop-product-card__name">{product.name}</h3>
                       </Link>
                       <div className="shop-product-card__row">
                         <div className="shop-product-card__price">
-                          <strong>{formatCurrency(product.price)}</strong>
+                          <strong>{formatProductPrice(product)}</strong>
                           <span>/{product.unit}</span>
                         </div>
                       </div>
 
-                      <QuantityControls
-                        qty={qty}
-                        onIncrement={() => increment(product.id)}
-                        onDecrement={() => decrement(product.id)}
-                        onRemove={() => remove(product.id)}
-                        productName={product.name}
-                      />
+                      {canStartCart || qty > 0 ? (
+                        <QuantityControls
+                          qty={qty}
+                          onIncrement={() => increment(product.id)}
+                          onDecrement={() => decrement(product.id)}
+                          onRemove={() => remove(product.id)}
+                          productName={product.name}
+                          disabled={!canAddOne}
+                          disabledLabel={getAvailabilityLabel(product)}
+                          maxQuantity={maxQuantity}
+                        />
+                      ) : shouldShowInquiryOption(product) ? (
+                        <Link to={detailUrl} className="shop-product-card__inquiry">
+                          {inquiryLabel}
+                        </Link>
+                      ) : (
+                        <span className="shop-product-card__inquiry shop-product-card__inquiry--disabled">
+                          {getAvailabilityLabel(product)}
+                        </span>
+                      )}
                     </div>
                   </Card>
                 );
@@ -237,7 +374,7 @@ const Shop: React.FC = () => {
             )}
           </div>
 
-          <aside className="shop-quote-panel" aria-label="Quote basket">
+          <aside className="shop-quote-panel glass-card" aria-label="Basket">
             <span className="shop-kicker">Your Basket</span>
             <h2>{totalCount} item{totalCount === 1 ? "" : "s"} selected</h2>
             {cartLines.length ? (
@@ -249,19 +386,24 @@ const Shop: React.FC = () => {
                         {product.name}
                         <em> × {qty}</em>
                       </span>
-                      <strong>{formatCurrency(product.price * qty)}</strong>
+                      <strong>{formatCurrency(getLineTotal(product, qty))}</strong>
                     </li>
                   ))}
                 </ul>
                 <div className="shop-quote-panel__total">
                   <span>Catalogue estimate</span>
-                  <strong>{formatCurrency(quoteTotal)}</strong>
+                  <strong>{formatCurrency(basketTotal)}</strong>
                 </div>
+                {blockedCartLines.length ? (
+                  <p className="shop-quote-panel__warning" role="status">
+                    Remove unavailable or unconfirmed-stock items before checkout.
+                  </p>
+                ) : null}
               </>
             ) : (
-              <p>Add products to build a quote request. We will confirm availability and delivery.</p>
+              <p>Add in-stock products to start checkout, or request details for unavailable items.</p>
             )}
-            {cartLines.length ? (
+            {cartLines.length && !blockedCartLines.length ? (
               <Link to="/checkout" className="shop-quote-panel__checkout">
                 <span>Proceed to checkout</span>
                 <HiArrowRight size={18} aria-hidden="true" />
@@ -287,19 +429,19 @@ const Shop: React.FC = () => {
           </aside>
         </section>
 
-        <section className="shop-service-strip">
-          <div>
+        <div className="shop-service-strip">
+          <div className="shop-service-strip__content">
             <span className="shop-kicker">Need guidance?</span>
             <h2>Pair products with an audit or staff training session.</h2>
             <p>
               Stroane can help you choose what each branch, kitchen, or production team needs
               before you buy in bulk.
             </p>
+            <Link to="/services" className="ui-button ui-button--secondary">
+              View services
+            </Link>
           </div>
-          <Link to="/services" className="ui-button ui-button--secondary">
-            View services
-          </Link>
-        </section>
+        </div>
       </div>
     </Layout>
   );

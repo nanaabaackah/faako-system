@@ -80,7 +80,7 @@
 .resources-intro__sub {
   text-align: left;
   margin-left: 0;
-  max-width: 760px;
+  max-width: 1060px;
 }
 
 /* Guides */
@@ -91,7 +91,7 @@
 
 .resources-intro {
   max-width: 1180px;
-  margin: 0 auto 3.5rem;
+  margin: 0 1.5rem;
 }
 
 .resources-intro .section__heading {
@@ -335,6 +335,7 @@
   text-align: left;
   color: var(--color-text-primary);
   transition: color 0.2s ease;
+  box-shadow: none;
 }
 
 .faq-item__trigger:hover {

@@ -130,7 +130,7 @@ const FloatingHeader: React.FC = () => {
             </button>
           ) : (
             <Link to="/signin" className="nav-search-btn" aria-label="Sign in">
-              <HiOutlineUser size={18} aria-hidden="true" />
+              <HiOutlineUser size={20} aria-hidden="true" />
             </Link>
           )}
           <button
@@ -179,13 +179,14 @@ const FloatingHeader: React.FC = () => {
                   <HiOutlineLogout size={18} aria-hidden="true" />
                 </button>
               ) : (
-                <Link
-                  to="/signin"
+                <button
+                  type="button"
                   className="nav-search-btn"
                   aria-label="Sign in"
+                  onClick={() => navigate("/signin")}
                 >
                   <HiOutlineUser size={18} aria-hidden="true" />
-                </Link>
+                </button>
               )}
             </li>
           </ul>

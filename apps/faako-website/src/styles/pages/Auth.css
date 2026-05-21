@@ -426,6 +426,28 @@
   width: min(1320px, calc(100% - 2rem));
 }
 
+.signup-wizard-hero {
+  max-width: 980px;
+  margin-inline: auto;
+}
+
+.signup-wizard-kicker {
+  align-items: center;
+  padding: 0;
+  background: transparent;
+}
+
+.signup-wizard-kicker .signup-icon-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.signup-wizard-kicker .signup-icon-logo {
+  width: 34px;
+  height: 34px;
+}
+
 .page.forgot-page .auth-suite-shell {
   grid-template-columns: 1fr minmax(320px, 0.88fr);
 }
@@ -475,6 +497,124 @@
   gap: 0.95rem;
   max-width: 1100px;
 }
+
+.signup-wizard-shell {
+  width: min(1120px, 100%);
+  margin-inline: auto;
+}
+
+.signup-wizard-progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.signup-wizard-step {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 58px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--card) 86%, rgba(255, 255, 255, 0.36));
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.48rem;
+  padding: 0.58rem 0.64rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.signup-wizard-step:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+.signup-wizard-step:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  outline-offset: 3px;
+}
+
+.signup-wizard-step span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--surface-alt) 82%, rgba(255, 255, 255, 0.48));
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.signup-wizard-step strong {
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.signup-wizard-step.is-active,
+.signup-wizard-step.is-complete {
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  color: var(--ink);
+}
+
+.signup-wizard-step.is-active span,
+.signup-wizard-step.is-complete span {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.signup-wizard-form {
+  gap: 1rem;
+}
+
+.signup-hidden-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.signup-wizard-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--card) 92%, rgba(255, 255, 255, 0.5)),
+    color-mix(in srgb, var(--surface-alt) 78%, rgba(255, 255, 255, 0.34))
+  );
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.signup-wizard-card-head {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.signup-wizard-card-head h2 {
+  margin: 0;
+}
+
+.signup-wizard-count {
+  margin: 0;
+  color: color-mix(in srgb, var(--accent-strong) 72%, var(--ink));
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .signup-section {
   display: grid;
   gap: 0.72rem;
@@ -489,7 +629,7 @@
   gap: 0.72rem;
 }
 .signup-grid--two {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .signup-phone-control {
   display: grid;
@@ -591,6 +731,10 @@
   flex-wrap: wrap;
   gap: 0.48rem;
 }
+
+.signup-chip-grid--wide {
+  gap: 0.55rem;
+}
 .signup-chip {
   display: inline-flex;
   align-items: center;
@@ -613,6 +757,84 @@
   border-color: color-mix(in srgb, var(--accent) 52%, transparent);
   background: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.3));
   color: color-mix(in srgb, var(--bg) 82%, var(--ink));
+}
+
+.signup-secure-note {
+  margin: 0;
+  padding: 0.78rem 0.88rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+  font-size: 0.86rem;
+  line-height: 1.55;
+  font-weight: 650;
+}
+
+.signup-consent {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 16px;
+  line-height: 1.4;
+}
+
+.signup-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.78rem;
+}
+
+.signup-review-card {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.9rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--card) 90%, rgba(255, 255, 255, 0.34));
+}
+
+.signup-review-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.signup-review-card dl {
+  margin: 0;
+  display: grid;
+  gap: 0.48rem;
+}
+
+.signup-review-card dl div {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.signup-review-card dt {
+  color: color-mix(in srgb, var(--ink) 56%, var(--muted));
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.signup-review-card dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.87rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.signup-wizard-actions {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.32fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.signup-draft-note {
+  display: grid;
+  gap: 0.28rem;
 }
 .signup-package-grid {
   display: grid;
@@ -825,6 +1047,9 @@
   .signup-shell {
     grid-template-columns: 1fr;
   }
+  .signup-wizard-progress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .signup-package-grid,
   .signup-module-grid {
     grid-template-columns: 1fr;
@@ -862,9 +1087,21 @@
   .signup-phone-control {
     grid-template-columns: 1fr;
   }
+  .signup-wizard-progress {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scroll-snap-type: x proximity;
+  }
+  .signup-wizard-step {
+    min-width: min(230px, 76vw);
+    scroll-snap-align: start;
+  }
   .signup-grid--two,
   .signup-package-grid,
-  .signup-module-grid {
+  .signup-module-grid,
+  .signup-review-grid,
+  .signup-wizard-actions {
     grid-template-columns: 1fr;
   }
   .signup-section {
@@ -940,6 +1177,16 @@
 :root[data-theme="dark"] .signup-form-side {
   background: color-mix(in srgb, var(--card) 65%, rgba(7, 5, 4, 0.95));
 }
+:root[data-theme="dark"] .signup-wizard-step,
+:root[data-theme="dark"] .signup-wizard-card,
+:root[data-theme="dark"] .signup-review-card {
+  border-color: color-mix(in srgb, var(--border) 48%, transparent);
+  background: color-mix(in srgb, var(--card) 78%, rgba(7, 5, 4, 0.88));
+}
+:root[data-theme="dark"] .signup-secure-note {
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .auth-suite .auth-suite-panel,
@@ -976,6 +1223,16 @@
   }
   :root:not([data-theme]) .signup-form-side {
     background: color-mix(in srgb, var(--card) 65%, rgba(7, 5, 4, 0.95));
+  }
+  :root:not([data-theme]) .signup-wizard-step,
+  :root:not([data-theme]) .signup-wizard-card,
+  :root:not([data-theme]) .signup-review-card {
+    border-color: color-mix(in srgb, var(--border) 48%, transparent);
+    background: color-mix(in srgb, var(--card) 78%, rgba(7, 5, 4, 0.88));
+  }
+  :root:not([data-theme]) .signup-secure-note {
+    border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
   }
 
   :root:not([data-theme]) .auth-suite .auth-suite-kicker,

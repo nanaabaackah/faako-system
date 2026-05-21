@@ -10,6 +10,9 @@ interface Props {
   size?: "sm" | "lg";
   productName?: string;
   addLabel?: string;
+  disabled?: boolean;
+  disabledLabel?: string;
+  maxQuantity?: number | null;
 }
 
 const QuantityControls: React.FC<Props> = ({
@@ -20,8 +23,12 @@ const QuantityControls: React.FC<Props> = ({
   size = "sm",
   productName,
   addLabel = "Add",
+  disabled = false,
+  disabledLabel = "Unavailable",
+  maxQuantity = null,
 }) => {
   const sizeClass = size === "lg" ? " qty-controls--lg" : "";
+  const maxReached = typeof maxQuantity === "number" && qty >= maxQuantity;
 
   if (qty === 0) {
     return (
@@ -29,10 +36,11 @@ const QuantityControls: React.FC<Props> = ({
         type="button"
         className={`qty-controls qty-controls--add${sizeClass}`}
         onClick={onIncrement}
-        aria-label={productName ? `Add ${productName} to quote` : "Add to quote"}
+        disabled={disabled}
+        aria-label={productName ? `Add ${productName} to cart` : "Add to cart"}
       >
         <HiPlus size={size === "lg" ? 18 : 16} aria-hidden="true" />
-        <span>{addLabel}</span>
+        <span>{disabled ? disabledLabel : addLabel}</span>
       </button>
     );
   }
@@ -59,6 +67,7 @@ const QuantityControls: React.FC<Props> = ({
         type="button"
         className="qty-controls__btn"
         onClick={onIncrement}
+        disabled={disabled || maxReached}
         aria-label="Increase quantity"
       >
         <HiPlus size={size === "lg" ? 18 : 16} aria-hidden="true" />
@@ -67,7 +76,7 @@ const QuantityControls: React.FC<Props> = ({
         type="button"
         className="qty-controls__btn qty-controls__btn--remove"
         onClick={onRemove}
-        aria-label={productName ? `Remove ${productName} from quote` : "Remove from quote"}
+        aria-label={productName ? `Remove ${productName} from cart` : "Remove from cart"}
       >
         <HiTrash size={size === "lg" ? 18 : 16} aria-hidden="true" />
       </button>

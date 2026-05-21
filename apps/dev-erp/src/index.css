@@ -100,7 +100,7 @@ button {
 
 .erp-shell {
   --sidebar-width: var(--ui-app-sidebar-width, 304px);
-  --sidebar-collapsed-width: var(--ui-app-sidebar-collapsed-width, 104px);
+  --sidebar-collapsed-width: var(--ui-app-sidebar-collapsed-width);
   --topbar-height: 72px;
   min-height: 100vh;
   display: grid;
@@ -113,7 +113,7 @@ button {
 }
 
 .erp-sidebar {
-  padding: var(--ui-app-sidebar-outer-padding, 0.9rem);
+  padding: var(--ui-app-sidebar-outer-padding);
   background: var(--card);
   border-right: 1px solid var(--border);
   position: sticky;
@@ -131,6 +131,7 @@ button {
   --ui-sidebar-toggle-focus: var(--accent);
   --ui-sidebar-toggle-shadow: 0 16px 32px rgba(59, 47, 47, 0.14);
   --ui-sidebar-toggle-shadow-hover: 0 18px 36px rgba(59, 47, 47, 0.18);
+  --ui-sidebar-toggle-inline-offset: 0px;
 }
 
 .erp-sidebar__panel {
@@ -558,8 +559,8 @@ button {
 
 .erp-sidebar.is-collapsed .erp-sidebar__panel {
   align-items: center;
-  padding-left: var(--ui-app-sidebar-collapsed-panel-padding-inline, 0.75rem);
-  padding-right: var(--ui-app-sidebar-collapsed-panel-padding-inline, 0.75rem);
+  padding-left: var(--ui-app-sidebar-collapsed-panel-padding-inline);
+  padding-right: var(--ui-app-sidebar-collapsed-panel-padding-inline);
 }
 
 .erp-sidebar.is-collapsed .erp-sidebar__header,
@@ -995,7 +996,7 @@ body.nav-open .mobile-tabbar {
 .dashboard-hero {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 2rem;
 }
 
@@ -1110,53 +1111,155 @@ body.nav-open .mobile-tabbar {
 }
 
 .error-page {
-  min-height: 100vh;
-  padding: 2rem;
+  --error-page-bg: var(--surface);
+  --error-page-fg: var(--ink);
+  --error-page-muted: color-mix(in oklab, var(--ink), transparent 28%);
+  --error-page-rail: var(--accent);
+  --error-page-cta-bg: var(--accent);
+  --error-page-cta-fg: var(--surface);
+  --error-page-glow: color-mix(in oklab, var(--accent-soft), transparent 24%);
+  min-height: 100dvh;
+  padding: 0;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  background: var(--error-page-bg);
 }
 
-.error-page__card {
-  width: min(100%, 40rem);
-  padding: clamp(1.5rem, 4vw, 2.5rem);
-  border: 1px solid var(--border);
-  border-radius: 1.5rem;
-  background:
-    radial-gradient(circle at top right, color-mix(in oklab, var(--accent-soft), transparent 8%), transparent 35%),
-    color-mix(in oklab, var(--card), var(--surface) 8%);
-  box-shadow: var(--shadow);
+.error-page__section {
+  width: 100%;
+  position: relative;
+  isolation: isolate;
   display: grid;
-  gap: 1rem;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: clamp(1.8rem, 4vw, 3.6rem);
+  padding: clamp(2rem, 5vw, 5rem) clamp(1rem, 4vw, 4rem);
+  border-right: clamp(0.2rem, 0.45vw, 0.4rem) solid var(--error-page-rail);
+  background: var(--error-page-bg);
+  color: var(--error-page-fg);
+  overflow: hidden;
 }
 
-.error-page__card h1,
-.error-page__message,
-.error-page__path {
+.error-page__section::after {
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+  background: radial-gradient(
+    circle at 50% 48%,
+    var(--error-page-glow),
+    transparent 34rem
+  );
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] .error-page {
+  --error-page-bg: color-mix(in oklab, var(--surface), black 18%);
+  --error-page-fg: var(--ink);
+  --error-page-muted: color-mix(in oklab, var(--ink), transparent 22%);
+  --error-page-rail: var(--accent);
+  --error-page-cta-bg: var(--accent);
+  --error-page-cta-fg: color-mix(in oklab, var(--surface), black 18%);
+  --error-page-glow: color-mix(in oklab, var(--accent-soft), transparent 58%);
+}
+
+.error-page__mark,
+.error-page__copy {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.error-page__mark {
+  align-self: end;
+  gap: clamp(0.9rem, 2.2vw, 1.6rem);
+}
+
+.error-page__barcode {
+  height: clamp(10rem, 27vw, 21rem);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(0.42rem, 0.95vw, 0.85rem);
+}
+
+.error-page__barcode span {
+  display: block;
+  width: clamp(0.28rem, 0.72vw, 0.8rem);
+  background: var(--error-page-fg);
+  box-shadow: 0 0 0.9rem color-mix(in oklab, var(--error-page-fg), transparent 72%);
+}
+
+.error-page__barcode span:nth-child(1),
+.error-page__barcode span:nth-child(5),
+.error-page__barcode span:nth-child(11),
+.error-page__barcode span:nth-child(15) {
+  width: clamp(0.72rem, 1.65vw, 1.5rem);
+}
+
+.error-page__barcode span:nth-child(8),
+.error-page__barcode span:nth-child(13),
+.error-page__barcode span:nth-child(16) {
+  width: clamp(0.18rem, 0.35vw, 0.35rem);
+}
+
+.error-page__barcode span:nth-child(17) {
+  margin-left: clamp(0.8rem, 2vw, 1.8rem);
+}
+
+.error-page__label {
   margin: 0;
+  color: var(--error-page-fg);
+  font-size: clamp(1.8rem, 5vw, 5.1rem);
+  font-weight: 400;
+  letter-spacing: clamp(0.48rem, 2.4vw, 2.1rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.error-page__copy {
+  align-self: start;
+  gap: clamp(1.1rem, 2.4vw, 2rem);
+}
+
+.error-page__copy h1,
+.error-page__message,
+.error-page__path,
+.error-page__code {
+  margin: 0;
+}
+
+.error-page__copy h1 {
+  color: var(--error-page-fg);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4.25rem, 12.6vw, 12.2rem);
+  font-weight: 400;
+  line-height: 0.82;
+  letter-spacing: -0.08em;
+  text-wrap: balance;
 }
 
 .error-page__code {
-  margin: 0;
-  color: var(--accent);
-  font-size: clamp(3rem, 10vw, 5.5rem);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
-.error-page__message {
-  color: var(--muted);
-  max-width: 34rem;
-}
-
+.error-page__message,
 .error-page__path {
-  color: var(--muted);
+  max-width: min(90vw, 34rem);
+  color: var(--error-page-muted);
   font-size: 0.95rem;
 }
 
 .error-page__path span {
-  color: var(--ink);
-  font-weight: 600;
+  color: var(--error-page-fg);
+  font-weight: 700;
   word-break: break-word;
 }
 
@@ -1164,6 +1267,57 @@ body.nav-open .mobile-tabbar {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.error-page__actions .button-primary {
+  padding-inline: clamp(1.4rem, 4vw, 2.8rem);
+  border: 0;
+  border-radius: 999px;
+  background: var(--error-page-cta-bg);
+  color: var(--error-page-cta-fg);
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.error-page__actions .button-primary:hover,
+.error-page__actions .button-primary:focus-visible {
+  background: color-mix(in oklab, var(--error-page-cta-bg), var(--error-page-bg) 10%);
+}
+
+.error-page__back {
+  border: 0;
+  background: transparent;
+  color: var(--error-page-muted);
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+@media (max-width: 760px) {
+  .error-page__section {
+    min-height: 100vh;
+    gap: 2rem;
+    padding-block: 3rem;
+  }
+
+  .error-page__barcode {
+    height: clamp(8rem, 34vw, 13rem);
+  }
+
+  .error-page__label {
+    letter-spacing: clamp(0.32rem, 3vw, 1rem);
+  }
+
+  .error-page__copy h1 {
+    letter-spacing: -0.05em;
+  }
 }
 
 .icon-button {

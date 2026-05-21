@@ -134,7 +134,6 @@ const Resources: React.FC = () => {
 
         <section className="resources-guides">
           <div className="resources-intro">
-            <span className="resources-kicker">Guides & Explainers</span>
             <h2 className="section__heading">
               Learn the rules without getting lost in the wording.
             </h2>
@@ -189,7 +188,7 @@ const Resources: React.FC = () => {
           </div>
         </section>
 
-        <section className="resources-standards">
+        <div className="resources-standards">
           <div>
             <span className="resources-kicker">Standards We Reference</span>
             <h2 className="section__heading">
@@ -202,7 +201,7 @@ const Resources: React.FC = () => {
               <span key={standard}>{standard}</span>
             ))}
           </div>
-        </section>
+        </div>
 
         <section className="resources-faq">
           <div className="resources-faq__intro">

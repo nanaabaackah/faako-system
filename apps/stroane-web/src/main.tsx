@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { UiSystemProvider } from '@faako/ui'
+import '@faako/ui/ui.css'
 import '@faako/ui/compat.css'
 import './index.css'
 import App from './App.tsx'

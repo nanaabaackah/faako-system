@@ -24,6 +24,7 @@ model Organization {
   calendarIntegrations CalendarIntegration[]
   accountingEntries AccountingEntry[]
   invoices Invoice[]
+  proposals Proposal[]
   productivityEntries ProductivityEntry[]
   productivityTodos ProductivityTodo[]
   rentTenants RentTenant[]
@@ -62,6 +63,8 @@ model User {
   lockedUntil    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  createdProposals Proposal[] @relation("ProposalCreatedBy")
+  editedProposals Proposal[] @relation("ProposalLastEditedBy")
   productivityEntries ProductivityEntry[]
   productivityTodos ProductivityTodo[]
   refreshTokens RefreshToken[]
@@ -316,6 +319,35 @@ model InvoiceLineItem {
   updatedAt   DateTime @updatedAt
 
   @@index([invoiceId, sortOrder])
+}
+
+model Proposal {
+  id                  Int          @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  createdByUserId     Int?
+  createdByUser       User?        @relation("ProposalCreatedBy", fields: [createdByUserId], references: [id])
+  lastEditedByUserId  Int?
+  lastEditedByUser    User?        @relation("ProposalLastEditedBy", fields: [lastEditedByUserId], references: [id])
+  title               String
+  clientName          String?
+  proposalType        String       @default("website")
+  status              String       @default("draft")
+  version             Int          @default(1)
+  metadata            Json?
+  content             Json
+  shareToken          String?      @unique
+  shareTokenCreatedAt DateTime?
+  shareTokenExpiresAt DateTime?
+  sharedAt            DateTime?
+  archivedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, proposalType])
+  @@index([organizationId, updatedAt])
+  @@index([shareToken])
 }
 
 model RentTenant {

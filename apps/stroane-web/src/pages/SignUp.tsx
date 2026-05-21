@@ -38,8 +38,27 @@ const SignUp: React.FC = () => {
   return (
     <Layout>
       <div className="auth-page">
-        <div className="auth-card">
-          <span className="auth-card__kicker">Get started</span>
+        <aside className="auth-visual" aria-hidden="true">
+          <video
+            className="auth-visual__video"
+            src="/imgs/bg_imgs/auth_bg.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+          <div className="auth-visual__overlay" />
+          <div className="auth-visual__content">
+            <span className="auth-visual__brand">Stroane</span>
+            <p className="auth-visual__tagline">
+              Food safety supplies and compliance support for Ghana.
+            </p>
+          </div>
+        </aside>
+
+        <div className="auth-form-col">
+          <div className="auth-card">
+            <span className="auth-card__kicker">Get started</span>
           <h1 className="auth-card__title">Create your account</h1>
           <p className="auth-card__sub">
             Save your basket and details for faster checkout.
@@ -106,9 +125,10 @@ const SignUp: React.FC = () => {
             </button>
           </form>
 
-          <p className="auth-card__alt">
-            Already have an account? <Link to="/signin">Sign in</Link>
-          </p>
+            <p className="auth-card__alt">
+              Already have an account? <Link to="/signin">Sign in</Link>
+            </p>
+          </div>
         </div>
       </div>
     </Layout>

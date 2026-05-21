@@ -7,14 +7,17 @@ import { getApiErrorMessage, readJsonResponse } from "../utils/http";
 
 const AUTH_CSRF_COOKIE_NAME = import.meta.env.VITE_AUTH_CSRF_COOKIE_NAME || "dev_kpi_csrf";
 const FETCH_PATCH_FLAG = "__devKpiApiFetchPatched__";
+const AUTH_REFRESH_API_PATH = "/api/auth/refresh";
 const AUTH_IGNORED_API_PATHS = new Set([
   "/api/auth/login",
+  AUTH_REFRESH_API_PATH,
   "/api/auth/forgot-password",
   "/api/auth/setup-account/verify",
   "/api/auth/setup-account/complete",
 ]);
 
 type Validator<T> = (payload: unknown) => payload is T;
+type ApiFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 type ApiRequestOptions<T> = RequestInit & {
   fallbackMessage?: string;
@@ -131,6 +134,30 @@ const handleUnauthorized = (input: RequestInfo | URL, status: number) => {
   }
 };
 
+const canReplayRequest = (input: RequestInfo | URL): boolean => {
+  if (typeof Request === "undefined" || !(input instanceof Request)) return true;
+  return !input.bodyUsed;
+};
+
+let refreshSessionPromise: Promise<boolean> | null = null;
+
+const requestSessionRefresh = (fetcher: ApiFetcher): Promise<boolean> => {
+  if (!refreshSessionPromise) {
+    const refreshUrl = buildApiUrl(AUTH_REFRESH_API_PATH);
+    refreshSessionPromise = fetcher(
+      refreshUrl,
+      withApiDefaults(refreshUrl, { method: "POST" })
+    )
+      .then((response) => response.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshSessionPromise = null;
+      });
+  }
+
+  return refreshSessionPromise;
+};
+
 export const installApiFetchInterceptor = () => {
   const patchedWindow =
     typeof window === "undefined"
@@ -145,7 +172,19 @@ export const installApiFetchInterceptor = () => {
     }
 
     const nextInit = withApiDefaults(input, init);
-    return nativeFetch(input, nextInit).then((response) => {
+    return nativeFetch(input, nextInit).then(async (response) => {
+      if (
+        response.status === 401 &&
+        hasStoredSession() &&
+        isSessionManagedApiRequest(input) &&
+        canReplayRequest(input)
+      ) {
+        const refreshed = await requestSessionRefresh(nativeFetch);
+        if (refreshed) {
+          return nativeFetch(input, withApiDefaults(input, init));
+        }
+      }
+
       handleUnauthorized(input, response.status);
       return response;
     });

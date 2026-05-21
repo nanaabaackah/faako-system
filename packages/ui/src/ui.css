@@ -16,6 +16,7 @@
 
 .ui-app-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -225,6 +226,8 @@
 .ui-erp-table-pagination button,
 .ui-notice-banner__dismiss,
 .ui-toast__dismiss {
+  -webkit-appearance: none;
+  appearance: none;
   font: inherit;
 }
 
@@ -234,6 +237,7 @@
   padding: 0.72rem 1rem;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
@@ -297,6 +301,8 @@
 
 .ui-erp-action,
 .ui-erp-icon-action {
+  -webkit-appearance: none;
+  appearance: none;
   border: 1px solid transparent;
   background: transparent;
   color: var(--sys-text);
@@ -307,6 +313,7 @@
   font-weight: 700;
   line-height: 1.1;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
@@ -422,6 +429,8 @@
 }
 
 .ui-icon-button {
+  -webkit-appearance: none;
+  appearance: none;
   width: 2.7rem;
   height: 2.7rem;
   padding: 0;
@@ -433,6 +442,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .ui-icon-button--accent {
@@ -638,6 +648,8 @@
 }
 
 .ui-erp-field__control {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -676,7 +688,17 @@
 }
 
 .ui-erp-field__select {
-  appearance: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 1rem) 50%,
+    calc(100% - 0.65rem) 50%;
+  background-repeat: no-repeat;
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  padding-right: 2.6rem;
 }
 
 .ui-erp-field__message,
@@ -810,6 +832,8 @@
 }
 
 .ui-field__input {
+  -webkit-appearance: none;
+  appearance: none;
   flex: 1;
   width: 100%;
   min-width: 0;
@@ -826,6 +850,7 @@
 }
 
 .ui-field__select {
+  -webkit-appearance: none;
   appearance: none;
 }
 
@@ -840,6 +865,8 @@
 
 .ui-date-field__native,
 .ui-dropdown-field__native {
+  -webkit-appearance: none;
+  appearance: none;
   position: absolute;
   inset: 0;
   width: 100%;
@@ -850,6 +877,8 @@
 }
 
 .ui-date-field__trigger {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -864,6 +893,7 @@
   gap: 0.8rem;
   text-align: left;
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -931,12 +961,15 @@
 
 .ui-date-field__nav,
 .ui-date-field__action {
+  -webkit-appearance: none;
+  appearance: none;
   border: 1px solid var(--sys-border);
   background: var(--sys-bg-elevated);
   color: var(--sys-text);
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
+  touch-action: manipulation;
 }
 
 .ui-date-field__nav {
@@ -983,6 +1016,8 @@
 }
 
 .ui-date-field__day {
+  -webkit-appearance: none;
+  appearance: none;
   min-height: 2.45rem;
   border: 1px solid transparent;
   border-radius: 0.85rem;
@@ -991,6 +1026,7 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
@@ -1042,6 +1078,8 @@
 }
 
 .ui-dropdown-field__trigger {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -1056,6 +1094,7 @@
   gap: 0.8rem;
   text-align: left;
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -1103,11 +1142,14 @@
   display: grid;
   gap: 0.35rem;
   max-height: min(320px, calc(100vh - 120px));
+  max-height: min(320px, calc(100dvh - 120px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .ui-dropdown-field__option {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-height: 2.6rem;
   padding: 0.65rem 0.85rem;
@@ -1122,6 +1164,7 @@
   text-align: left;
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
@@ -1172,6 +1215,8 @@
 }
 
 .ui-dropdown-field__footer-action {
+  -webkit-appearance: none;
+  appearance: none;
   min-height: 2rem;
   padding: 0 0.75rem;
   border: 1px solid var(--sys-border);
@@ -1182,6 +1227,7 @@
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .ui-dropdown-field__footer-action:hover,
@@ -1229,6 +1275,8 @@
 }
 
 .ui-search-field__input {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -1240,7 +1288,21 @@
   outline: none;
 }
 
+.ui-search-field__input::-webkit-search-decoration,
+.ui-search-field__input::-webkit-search-cancel-button,
+.ui-search-field__input::-webkit-search-results-button,
+.ui-search-field__input::-webkit-search-results-decoration,
+.ui-erp-search-select__input::-webkit-search-decoration,
+.ui-erp-search-select__input::-webkit-search-cancel-button,
+.ui-erp-search-select__input::-webkit-search-results-button,
+.ui-erp-search-select__input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .ui-search-field__clear {
+  -webkit-appearance: none;
+  appearance: none;
   position: absolute;
   right: 0.72rem;
   top: 50%;
@@ -1257,6 +1319,7 @@
   background: transparent;
   color: var(--sys-muted);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .ui-status-pill {
@@ -1841,6 +1904,7 @@
 
 .ui-erp-maintenance-page {
   min-height: min(100vh, 48rem);
+  min-height: min(100dvh, 48rem);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2015,6 +2079,7 @@
 
 .ui-app-maintenance-page {
   min-height: min(100vh, 48rem);
+  min-height: min(100dvh, 48rem);
   display: flex;
   align-items: center;
   justify-content: center;

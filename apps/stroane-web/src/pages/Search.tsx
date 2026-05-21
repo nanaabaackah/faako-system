@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { EmptyState } from "@faako/ui";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { categories, products } from "../data/products";
 import "../styles/pages/Search.css";
 
 const SEARCH_INDEX = [
@@ -55,27 +56,18 @@ const SEARCH_INDEX = [
       "A walkthrough of documents, labels, timelines, and common application issues.",
     href: "/resources",
   },
-  {
+  ...categories.map((category) => ({
     category: "Product",
-    title: "Thermometers & Temperature Monitoring",
-    description:
-      "Digital fridge thermometers, food probe thermometers, infrared thermometers, and loggers.",
-    href: "/shop",
-  },
-  {
+    title: category.name,
+    description: category.description,
+    href: `/shop?category=${encodeURIComponent(category.name)}`,
+  })),
+  ...products.map((product) => ({
     category: "Product",
-    title: "Food Safety Testing Kits",
-    description:
-      "pH strips, surface swabs, allergen tests, sanitiser strips, and water quality kits.",
-    href: "/shop",
-  },
-  {
-    category: "Product",
-    title: "Food Storage & Cold Chain",
-    description:
-      "Delivery bags, cool boxes, storage containers, vacuum bags, and fridge organisers.",
-    href: "/shop",
-  },
+    title: product.name,
+    description: product.description,
+    href: `/products/${product.id}`,
+  })),
   {
     category: "Page",
     title: "About Stroane",

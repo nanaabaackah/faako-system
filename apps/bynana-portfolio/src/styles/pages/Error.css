@@ -2,298 +2,530 @@
   position: relative;
   z-index: 10;
   min-height: 100vh;
-  padding: clamp(7rem, 11vh, 8.8rem) clamp(1rem, 2.8vw, 2.8rem) clamp(4.4rem, 8vh, 6rem);
-}
-
-.error-shell {
-  position: relative;
-  width: min(1720px, 100%);
-  margin: 0 auto;
-  padding: clamp(1.4rem, 2.6vw, 2.2rem);
+  min-height: 100dvh;
+  padding: clamp(7rem, 12vh, 9rem) clamp(1rem, 3vw, 3rem) clamp(4.8rem, 8vh, 6rem);
+  display: grid;
+  place-items: center;
   overflow: hidden;
+}
+
+.error-stage {
+  --error-stage-line: color-mix(in srgb, var(--line) 84%, transparent);
+  --error-stage-veil: color-mix(in srgb, var(--surface-3) 74%, transparent);
+  --error-stage-text-soft: color-mix(in srgb, var(--text-1) 64%, transparent);
+
+  position: relative;
+  width: min(1180px, 100%);
+  min-height: min(710px, calc(100vh - 12rem));
+  display: grid;
+  grid-template-columns: minmax(260px, 0.88fr) minmax(0, 1fr);
+  gap: clamp(1.4rem, 4vw, 4.5rem);
+  align-items: end;
+  padding: clamp(1.2rem, 3vw, 2.8rem);
+  border: 1px solid var(--error-stage-line);
+  border-radius: clamp(1.4rem, 4vw, 3rem);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--glass-1) 68%, transparent), color-mix(in srgb, var(--surface-0) 58%, transparent)),
+    var(--error-stage-veil);
+  box-shadow: var(--shadow-soft);
   isolation: isolate;
+  overflow: hidden;
 }
 
-.error-shell::before {
+.error-stage::before,
+.error-stage::after {
   content: '';
   position: absolute;
-  inset: -18% -8% auto;
-  height: 66%;
   z-index: -2;
-  background:
-    radial-gradient(circle at 16% 26%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 48%),
-    radial-gradient(circle at 82% 62%, color-mix(in srgb, var(--text-2) 22%, transparent), transparent 58%);
-  filter: blur(52px);
-  opacity: 0.75;
   pointer-events: none;
 }
 
-.error-shell::after {
+.error-stage::before {
+  inset: 1.2rem;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+}
+
+.error-stage::after {
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--grid-line) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--grid-line) 70%, transparent) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(circle at 50% 46%, black, transparent 70%);
+  opacity: 0.52;
+}
+
+.error-stage__glow {
+  position: absolute;
+  inset: -28% -18% auto;
+  height: 68%;
+  z-index: -3;
+  background:
+    radial-gradient(circle at 28% 30%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 45%),
+    radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--text-2) 18%, transparent), transparent 42%),
+    radial-gradient(circle at 58% 84%, color-mix(in srgb, var(--surface-2) 52%, transparent), transparent 48%);
+  filter: blur(34px);
+  animation: errorGlowDrift 11s ease-in-out infinite alternate;
+}
+
+.error-orbit {
+  position: absolute;
+  top: 50%;
+  left: 28%;
+  width: min(52vw, 620px);
+  aspect-ratio: 1;
+  z-index: -1;
+  translate: -50% -50%;
+  border: 1px solid color-mix(in srgb, var(--text-1) 11%, transparent);
+  border-radius: 50%;
+  animation: errorOrbitFloat 13s ease-in-out infinite;
+}
+
+.error-orbit::before,
+.error-orbit::after {
   content: '';
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
-  background:
-    linear-gradient(120deg, color-mix(in srgb, var(--surface-3) 94%, transparent), color-mix(in srgb, var(--surface-0) 88%, transparent));
-  pointer-events: none;
+  inset: 13%;
+  border: 1px solid color-mix(in srgb, var(--text-1) 9%, transparent);
+  border-radius: 50%;
 }
 
-.error-code-mark {
+.error-orbit::after {
+  inset: 28%;
+}
+
+.error-orbit span {
   position: absolute;
-  top: clamp(-0.8rem, -2.5vw, -2rem);
-  right: clamp(0.5rem, 2vw, 1.8rem);
-  z-index: -1;
-  margin: 0;
-  font-size: clamp(5rem, 18vw, 14rem);
-  line-height: 0.8;
+  width: 0.54rem;
+  height: 0.54rem;
+  border-radius: 999px;
+  background: var(--text-2);
+  box-shadow: 0 0 0 0.6rem color-mix(in srgb, var(--text-2) 12%, transparent);
+}
+
+.error-orbit span:nth-child(1) {
+  top: 8%;
+  left: 46%;
+  animation: errorDotPulse 2.8s ease-in-out infinite;
+}
+
+.error-orbit span:nth-child(2) {
+  right: 14%;
+  bottom: 22%;
+  animation: errorDotPulse 2.8s ease-in-out 0.45s infinite;
+}
+
+.error-orbit span:nth-child(3) {
+  left: 20%;
+  bottom: 14%;
+  animation: errorDotPulse 2.8s ease-in-out 0.9s infinite;
+}
+
+.error-mark {
+  align-self: stretch;
+  display: grid;
+  align-items: center;
+  min-height: 380px;
+}
+
+.error-mark span {
+  display: block;
   font-family: var(--font-heading);
-  letter-spacing: -0.04em;
-  color: color-mix(in srgb, var(--text-1) 8%, transparent);
-  pointer-events: none;
+  font-size: clamp(7rem, 22vw, 19rem);
+  line-height: 0.76;
+  letter-spacing: -0.08em;
+  color: color-mix(in srgb, var(--text-1) 12%, transparent);
+  text-shadow:
+    1px 0 color-mix(in srgb, var(--text-1) 36%, transparent),
+    -1px 0 color-mix(in srgb, var(--surface-3) 60%, transparent);
+  animation: errorMarkBreathe 7s ease-in-out infinite;
   user-select: none;
 }
 
-.error-hero {
+.error-copy {
+  max-width: 620px;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.78fr);
-  gap: clamp(1rem, 2.4vw, 2.5rem);
-  align-items: start;
-}
-
-.error-hero__copy {
-  display: grid;
-  align-content: start;
   gap: 1rem;
+  padding: clamp(0.4rem, 1vw, 1rem) 0;
 }
 
-.error-eyebrow {
+.error-kicker,
+.error-path span,
+.error-detail span {
   margin: 0;
-  font-size: 0.84rem;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 760;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-2) 90%, transparent);
 }
 
-.error-title {
+.error-copy h1 {
   margin: 0;
-  font-size: clamp(2.5rem, 6.4vw, 5.8rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-  color: color-mix(in srgb, var(--text-1) 96%, transparent);
+  max-width: 10ch;
+  font-family: var(--font-heading);
+  font-size: clamp(3.2rem, 8vw, 7.8rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  color: var(--text-1);
   text-wrap: balance;
 }
 
-.error-hero__summary {
+.error-summary {
   margin: 0;
-  max-width: 56ch;
-  font-size: clamp(1.02rem, 1.35vw, 1.28rem);
-  line-height: 1.6;
-  color: color-mix(in srgb, var(--text-1) 84%, transparent);
+  max-width: 48rem;
+  color: color-mix(in srgb, var(--text-1) 78%, transparent);
+  font-size: clamp(1rem, 1.4vw, 1.28rem);
+  line-height: 1.65;
 }
 
+.error-detail,
 .error-path {
-  margin: 0.2rem 0 0;
-  display: inline-flex;
+  margin: 0;
+  display: flex;
   align-items: center;
-  gap: 0.46rem;
   flex-wrap: wrap;
-  font-size: 0.84rem;
-  color: color-mix(in srgb, var(--text-1) 66%, transparent);
+  gap: 0.58rem;
+  color: var(--error-stage-text-soft);
+  font-size: 0.88rem;
 }
 
 .error-path code {
-  font-size: 0.78rem;
-  padding: 0.22rem 0.42rem;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
+  max-width: min(100%, 44rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.32rem 0.56rem;
+  border: 1px solid var(--error-stage-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-2) 72%, transparent);
+  color: color-mix(in srgb, var(--text-1) 84%, transparent);
+  white-space: nowrap;
 }
 
 .error-actions {
-  margin-top: 0.7rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.72rem;
+  margin-top: 0.4rem;
 }
 
-.error-button {
+.error-action {
+  position: relative;
+  min-height: 3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  min-height: 2.8rem;
-  padding: 0.72rem 1.05rem;
-  border: 1px solid color-mix(in srgb, var(--text-1) 20%, transparent);
-  background: color-mix(in srgb, var(--surface-3) 85%, transparent);
-  color: color-mix(in srgb, var(--text-1) 88%, transparent);
-  font-size: 0.92rem;
-  transition: transform 0.25s ease, border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
-}
-
-.error-button--primary {
-  border-color: var(--text-2);
-  background: var(--text-2);
-  color: var(--surface-3);
-}
-
-.error-button:hover,
-.error-button:focus-visible {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--text-1) 42%, transparent);
-  color: color-mix(in srgb, var(--text-1) 98%, transparent);
-  outline: none;
-}
-
-.error-button--primary:hover,
-.error-button--primary:focus-visible {
-  border-color: var(--text-2);
-  background: color-mix(in srgb, var(--text-2) 88%, black 12%);
-  color: var(--surface-3);
-}
-
-.error-hero__panel {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.error-card {
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  background: color-mix(in srgb, var(--surface-0) 66%, transparent);
-}
-
-.error-card--soft {
-  background: color-mix(in srgb, var(--surface-1) 58%, transparent);
-}
-
-.error-card__eyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-1) 60%, transparent);
-}
-
-.error-card p {
-  margin: 0.6rem 0 0;
-  color: color-mix(in srgb, var(--text-1) 84%, transparent);
-  line-height: 1.55;
-}
-
-.error-list {
-  margin: 0.7rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.error-list li {
-  position: relative;
-  padding-left: 1rem;
+  gap: 0.58rem;
+  padding: 0.76rem 1.05rem;
+  border: 1px solid var(--error-stage-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-1) 74%, transparent);
+  color: var(--text-1);
   font-size: 0.94rem;
-  color: color-mix(in srgb, var(--text-1) 82%, transparent);
-  line-height: 1.5;
+  font-weight: 700;
+  overflow: hidden;
+  transition:
+    transform 0.28s ease,
+    border-color 0.28s ease,
+    color 0.28s ease,
+    background 0.28s ease;
 }
 
-.error-list li::before {
+.error-action::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0.52em;
-  width: 0.42rem;
-  height: 1px;
-  background: color-mix(in srgb, var(--text-1) 56%, transparent);
+  inset: 0;
+  translate: -105% 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-1) 12%, transparent), transparent);
+  transition: translate 0.52s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.error-link-grid {
-  margin-top: 0.7rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
+.error-action span,
+.error-action svg {
+  position: relative;
+  z-index: 1;
 }
 
-.error-link-grid a {
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  background: color-mix(in srgb, var(--surface-3) 62%, transparent);
-  color: color-mix(in srgb, var(--text-1) 86%, transparent);
-  font-size: 0.86rem;
-  min-height: 2.2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+.error-action svg {
+  transition: transform 0.28s ease;
 }
 
-.error-link-grid a:hover,
-.error-link-grid a:focus-visible {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--text-1) 44%, transparent);
-  color: color-mix(in srgb, var(--text-1) 96%, transparent);
-  outline: none;
-}
-
-[data-theme='dark'] .error-shell::after {
-  border-color: color-mix(in srgb, var(--line) 92%, transparent);
-  background:
-    linear-gradient(120deg, color-mix(in srgb, var(--surface-3) 92%, transparent), color-mix(in srgb, var(--surface-1) 68%, transparent));
-}
-
-[data-theme='dark'] .error-code-mark {
-  color: color-mix(in srgb, var(--text-1) 12%, transparent);
-}
-
-[data-theme='dark'] .error-button {
-  border-color: color-mix(in srgb, var(--line) 90%, transparent);
-  background: color-mix(in srgb, var(--surface-1) 72%, transparent);
-  color: color-mix(in srgb, var(--text-1) 88%, transparent);
-}
-
-[data-theme='dark'] .error-button--primary {
+.error-action--primary {
   border-color: var(--text-2);
   background: var(--text-2);
   color: var(--surface-3);
 }
 
-[data-theme='dark'] .error-card {
-  border-color: color-mix(in srgb, var(--line) 84%, transparent);
-  background: color-mix(in srgb, var(--surface-1) 54%, transparent);
+.error-action:hover,
+.error-action:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--text-1) 34%, transparent);
+  outline: none;
 }
 
-[data-theme='dark'] .error-card--soft {
-  background: color-mix(in srgb, var(--surface-0) 44%, transparent);
+.error-action:hover::before,
+.error-action:focus-visible::before {
+  translate: 105% 0;
+}
+
+.error-action:hover svg,
+.error-action:focus-visible svg {
+  transform: translateX(3px);
+}
+
+.error-links {
+  grid-column: 1 / -1;
+  align-self: end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: clamp(1rem, 4vw, 2.5rem);
+  padding-top: clamp(1rem, 2.6vw, 1.8rem);
+  border-top: 1px solid var(--error-stage-line);
+}
+
+.error-link {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'index label arrow'
+    'index meta arrow';
+  align-items: center;
+  gap: 0.1rem 0.7rem;
+  min-height: 4.8rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 1.15rem;
+  background: color-mix(in srgb, var(--glass-2) 64%, transparent);
+  color: var(--text-1);
+  overflow: hidden;
+  transition:
+    transform 0.28s ease,
+    border-color 0.28s ease,
+    background 0.28s ease;
+}
+
+.error-link::before {
+  content: '';
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.72rem;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0.6;
+  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.error-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.error-link__index {
+  grid-area: index;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.error-link__label {
+  grid-area: label;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.error-link__meta {
+  grid-area: meta;
+  color: var(--error-stage-text-soft);
+  font-size: 0.78rem;
+}
+
+.error-link__arrow {
+  grid-area: arrow;
+  justify-self: end;
+  color: var(--text-2);
+  transition: transform 0.28s ease;
+}
+
+.error-link:hover,
+.error-link:focus-visible {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--text-1) 30%, transparent);
+  background: color-mix(in srgb, var(--glass-1) 78%, transparent);
+  outline: none;
+}
+
+.error-link:hover::before,
+.error-link:focus-visible::before {
+  transform: scaleX(1);
+}
+
+.error-link:hover::after,
+.error-link:focus-visible::after {
+  opacity: 1;
+}
+
+.error-link:hover .error-link__arrow,
+.error-link:focus-visible .error-link__arrow {
+  transform: translateX(4px);
+}
+
+[data-theme='dark'] .error-stage {
+  --error-stage-line: color-mix(in srgb, var(--line) 92%, transparent);
+  --error-stage-veil: color-mix(in srgb, var(--surface-3) 82%, black 18%);
+
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--glass-1) 58%, transparent), color-mix(in srgb, var(--surface-0) 48%, transparent)),
+    var(--error-stage-veil);
+}
+
+[data-theme='dark'] .error-mark span {
+  color: color-mix(in srgb, var(--text-1) 14%, transparent);
+  text-shadow:
+    1px 0 color-mix(in srgb, var(--text-1) 28%, transparent),
+    -1px 0 color-mix(in srgb, black 42%, transparent);
+}
+
+[data-theme='dark'] .error-action--primary {
+  color: var(--surface-3);
+}
+
+[data-theme='dark'] .error-link,
+[data-theme='dark'] .error-action {
+  background: color-mix(in srgb, var(--glass-1) 58%, transparent);
+}
+
+[data-theme='dark'] .error-link:hover,
+[data-theme='dark'] .error-link:focus-visible {
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+
+@keyframes errorGlowDrift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
+
+@keyframes errorOrbitFloat {
+  0%,
+  100% {
+    transform: rotate(-6deg) scale(0.98);
+  }
+  50% {
+    transform: rotate(7deg) scale(1.02);
+  }
+}
+
+@keyframes errorDotPulse {
+  0%,
+  100% {
+    transform: scale(0.78);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes errorMarkBreathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.04em);
+  }
 }
 
 @media (max-width: 1080px) {
-  .error-hero {
+  .error-stage {
     grid-template-columns: 1fr;
+    align-items: start;
+    min-height: auto;
   }
 
-  .error-code-mark {
-    font-size: clamp(4.4rem, 20vw, 9rem);
-    right: 0.2rem;
+  .error-mark {
+    min-height: auto;
+  }
+
+  .error-copy {
+    margin-top: -1rem;
+  }
+
+  .error-orbit {
+    left: 50%;
+    width: min(80vw, 560px);
+  }
+
+  .error-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .error-case {
-    padding: 6.4rem 0.9rem 4.2rem;
+    padding: 6.4rem 0.75rem 4rem;
   }
 
-  .error-shell {
+  .error-stage {
     padding: 1rem;
+    border-radius: 1.35rem;
   }
 
-  .error-actions {
-    gap: 0.5rem;
+  .error-stage::before {
+    inset: 0.55rem;
   }
 
-  .error-button {
+  .error-mark span {
+    font-family: var(--font-main);
+    font-size: clamp(6rem, 36vw, 9.5rem);
+  }
+
+  .error-copy h1 {
+    max-width: 12ch;
+    font-family: var(--font-main);
+    font-size: clamp(2.6rem, 15vw, 4.4rem);
+  }
+
+  .error-actions,
+  .error-action,
+  .error-links {
     width: 100%;
+  }
+
+  .error-action {
     justify-content: space-between;
   }
 
-  .error-link-grid {
+  .error-links {
     grid-template-columns: 1fr;
+  }
+
+  .error-link {
+    min-height: 4.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-stage__glow,
+  .error-orbit,
+  .error-orbit span,
+  .error-mark span {
+    animation: none;
   }
 }

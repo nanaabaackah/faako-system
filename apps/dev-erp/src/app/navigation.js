@@ -26,6 +26,7 @@ import { hasModuleAccess, isRentOnlyUser } from "../utils/moduleAccess.js";
 
 const NAV_ITEM_ORDER = [
   "dashboard",
+  "proposals",
   "rent",
   "accounting",
   "invoicing",
@@ -45,6 +46,7 @@ const ICONS_BY_MODULE_KEY = {
   bookings: CalendarTick,
   customers: Buildings2,
   dashboard: Category,
+  proposals: DocumentText,
   invoicing: ReceiptItem,
   profile: Profile2User,
   rent: WalletMoney,
@@ -176,6 +178,7 @@ export const getVisibleMobileTabItems = (user) => {
 
 export const getTopbarLabel = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment";
+  if (pathname.startsWith("/proposals")) return "Proposals";
   switch (pathname) {
     case "/dashboard":
       return "Dashboard";
@@ -185,6 +188,8 @@ export const getTopbarLabel = (pathname) => {
       return "Rent";
     case "/bookings":
       return "Appointments";
+    case "/proposals":
+      return "Proposals";
     case "/invoicing":
       return "Invoicing";
     case "/organizations":
@@ -208,6 +213,7 @@ export const getTopbarLabel = (pathname) => {
 
 export const getTitleForPath = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment | Dev";
+  if (pathname.startsWith("/proposals")) return "Proposals | Dev";
   switch (pathname) {
     case "/":
     case "/dashboard":
@@ -232,6 +238,8 @@ export const getTitleForPath = (pathname) => {
       return "Accounting | Dev";
     case "/rent":
       return "Rent | Dev";
+    case "/proposals":
+      return "Proposals | Dev";
     case "/invoicing":
       return "Invoicing | Dev";
     case "/settings":

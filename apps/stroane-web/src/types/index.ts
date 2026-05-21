@@ -1,4 +1,13 @@
-export interface Product {
+export type {
+  BusinessProfile,
+  CatalogueCategory,
+  Category,
+  Product,
+  ProductStock,
+  ProductStockStatus,
+} from "../data/products";
+
+export interface LegacyProductRecord {
   id: number;
   name: string;
   description?: string;

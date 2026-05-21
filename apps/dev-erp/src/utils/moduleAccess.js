@@ -5,6 +5,7 @@ const normalizeModuleName = (value) =>
 
 const ACTIVE_MODULE_KEYS = new Set([
   "dashboard",
+  "proposals",
   "rent",
   "accounting",
   "invoicing",

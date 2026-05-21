@@ -11,7 +11,7 @@
   color: var(--text-subtle);
   border: 1px solid var(--sys-border-strong) !important;
   background-color: transparent !important;
-  box-shadow: var(--sys-shadow-md) !important;
+  box-shadow: var(--sys-shadow-md);
   backdrop-filter: blur(18px) saturate(1.06) !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
 }
@@ -44,7 +44,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.bubble-card)
   border-top-right-radius: var(--sys-radius-lg) !important;
   border-bottom-left-radius: var(--sys-radius-sm) !important;
   border-bottom-right-radius: var(--sys-radius-lg) !important;
-  box-shadow: var(--sys-shadow-md) !important;
+  box-shadow: var(--sys-shadow-md);
   backdrop-filter: blur(18px) saturate(1.06) !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
 }
@@ -56,7 +56,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   border-top-right-radius: var(--sys-radius-lg) !important;
   border-bottom-left-radius: var(--sys-radius-sm) !important;
   border-bottom-right-radius: var(--sys-radius-sm) !important;
-  box-shadow: var(--sys-shadow-md) !important;
+  box-shadow: var(--sys-shadow-md);
   backdrop-filter: blur(18px) saturate(1.06) !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.06) !important;
 }

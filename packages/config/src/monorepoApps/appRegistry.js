@@ -99,6 +99,23 @@ export const MONOREPO_APP_REGISTRY = [
       { label: "Shop", path: "/shop" },
       { label: "Contact", path: "/contact" },
     ],
+    additionalMonitoringSites: [
+      {
+        id: "stroane-api",
+        title: "Stroane API",
+        purpose: "Optional Stroane backend/API health and catalogue endpoints.",
+        envBaseUrlKeys: [
+          "STROANE_API_BASE_URL",
+          "STROANE_BACKEND_BASE_URL",
+          "VITE_BACKEND_BASE_URL",
+        ],
+        monitoringPages: [
+          { label: "Health", path: "/health" },
+          { label: "Products API", path: "/api/products" },
+          { label: "Categories API", path: "/api/categories" },
+        ],
+      },
+    ],
   },
   {
     key: "faako-website",
@@ -224,18 +241,42 @@ export const getMonorepoAppByKey = (key) =>
 export const getMonorepoMonitoringSites = (env = {}) =>
   MONOREPO_APP_REGISTRY
     .filter((app) => app.monitoringEnabled)
-    .map((app) => {
+    .flatMap((app) => {
       const envBaseUrl = resolveEnvValue(env, app.envBaseUrlKeys);
       const baseUrl = normalizeBaseUrl(envBaseUrl || app.defaultBaseUrl);
-      return {
-        id: app.monitoringId || app.key,
-        appKey: app.key,
-        packageName: app.packageName,
-        path: app.path,
-        title: app.title,
-        baseUrl,
-        productionSensitive: Boolean(app.productionSensitive),
-        pages: compactPages(app.monitoringPages),
-      };
+      const sites = [
+        {
+          id: app.monitoringId || app.key,
+          appKey: app.key,
+          packageName: app.packageName,
+          path: app.path,
+          title: app.title,
+          baseUrl,
+          productionSensitive: Boolean(app.productionSensitive),
+          pages: compactPages(app.monitoringPages),
+        },
+      ];
+
+      for (const additionalSite of app.additionalMonitoringSites || []) {
+        const additionalEnvBaseUrl = resolveEnvValue(env, additionalSite.envBaseUrlKeys);
+        const additionalBaseUrl = normalizeBaseUrl(
+          additionalEnvBaseUrl || additionalSite.defaultBaseUrl
+        );
+
+        if (!additionalBaseUrl) continue;
+
+        sites.push({
+          id: additionalSite.id || `${app.key}-api`,
+          appKey: app.key,
+          packageName: app.packageName,
+          path: app.path,
+          title: additionalSite.title || app.title,
+          baseUrl: additionalBaseUrl,
+          productionSensitive: Boolean(app.productionSensitive),
+          pages: compactPages(additionalSite.monitoringPages),
+        });
+      }
+
+      return sites;
     })
     .filter((site) => site.baseUrl && site.pages.length);

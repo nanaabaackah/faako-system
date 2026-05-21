@@ -3,38 +3,23 @@ import { Link, useLocation } from 'react-router-dom';
 import { Refresh } from 'iconsax-react';
 import { HiArrowRight } from 'react-icons/hi2';
 import Seo from '../components/Seo';
-import FuzzyText from '../components/FuzzyText';
 import '../styles/pages/Error.css';
 
 const quickLinks = [
-  { to: '/about', label: 'About' },
-  { to: '/projects', label: 'Projects' },
-  { to: '/blog', label: 'Blog' },
-  { to: '/contact', label: 'Contact' },
+  { to: '/projects', label: 'Projects', meta: 'case studies' },
+  { to: '/about', label: 'About', meta: 'story' },
+  { to: '/blog', label: 'Blog', meta: 'notes' },
+  { to: '/contact', label: 'Contact', meta: 'start here' },
 ];
-
-function AnimatedLine({ as = 'span', className = '', children }) {
-  return (
-    <FuzzyText
-      as={as}
-      className={className}
-      baseFrequency={0.0048}
-      hoverFrequency={0.013}
-      baseScale={5}
-      hoverScale={12}
-    >
-      {children}
-    </FuzzyText>
-  );
-}
 
 function ErrorPage({ variant = 'error', error, onReset }) {
   const location = useLocation();
   const isNotFound = variant === 'not-found';
-  const title = isNotFound ? 'Page Not Found' : 'Something Went Wrong';
+  const statusCode = isNotFound ? '404' : '500';
+  const title = isNotFound ? 'This page slipped out of frame.' : 'The page hit a snag.';
   const message = isNotFound
-    ? 'The page you are looking for does not exist or may have moved.'
-    : 'An unexpected error occurred. You can refresh, head back home, or start with a different section.';
+    ? 'The route is missing, moved, or still waiting to become real. Let’s get you back to something useful.'
+    : 'Something interrupted the view. Refresh the page or jump back into the portfolio from a known section.';
   const detail = error?.message;
 
   const handleRetry = () => {
@@ -42,6 +27,7 @@ function ErrorPage({ variant = 'error', error, onReset }) {
       onReset();
       return;
     }
+
     window.location.reload();
   };
 
@@ -49,99 +35,69 @@ function ErrorPage({ variant = 'error', error, onReset }) {
     <main id="main-content" tabIndex="-1" className="error-case">
       <Seo
         title={isNotFound ? '404 | By Nana' : 'Error | By Nana'}
-        description="An error occurred while loading this page."
+        description="The requested By Nana portfolio page could not be loaded."
         path={location?.pathname || '/'}
         type="website"
+        noIndex
       />
 
-      <section className="error-shell" data-scroll-reveal="fadeInUp">
-        <p className="error-code-mark" aria-hidden="true">
-          <AnimatedLine>{isNotFound ? '404' : 'ERROR'}</AnimatedLine>
-        </p>
+      <section className="error-stage" aria-labelledby="error-title">
+        <div className="error-stage__glow" aria-hidden="true" />
 
-        <header className="error-hero">
-          <div className="error-hero__copy">
-            <p className="error-eyebrow">
-              <AnimatedLine>{isNotFound ? '404' : 'Error'}</AnimatedLine>
+        <div className="error-orbit" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+
+        <div className="error-mark" aria-hidden="true">
+          <span>{statusCode}</span>
+        </div>
+
+        <div className="error-copy">
+          <p className="error-kicker">Lost route / byNana</p>
+          <h1 id="error-title">{title}</h1>
+          <p className="error-summary">{message}</p>
+
+          {detail ? (
+            <p className="error-detail">
+              <span>Detail</span>
+              {detail}
             </p>
-            <h1 className="error-title">
-              <AnimatedLine>{title}</AnimatedLine>
-            </h1>
-            <p className="error-hero__summary">
-              <AnimatedLine>{message}</AnimatedLine>
+          ) : null}
+
+          {location?.pathname ? (
+            <p className="error-path">
+              <span>Requested</span>
+              <code>{location.pathname}</code>
             </p>
+          ) : null}
 
-            {!isNotFound && detail ? (
-              <div className="error-card error-card--soft">
-                <p className="error-card__eyebrow">
-                  <AnimatedLine>Details</AnimatedLine>
-                </p>
-                <p>
-                  <AnimatedLine>{detail}</AnimatedLine>
-                </p>
-              </div>
+          <div className="error-actions" aria-label="Primary error actions">
+            <Link className="error-action error-action--primary" to="/">
+              <span>Back home</span>
+              <HiArrowRight size={17} aria-hidden="true" />
+            </Link>
+
+            {!isNotFound ? (
+              <button type="button" className="error-action" onClick={handleRetry}>
+                <span>Try again</span>
+                <Refresh size={16} variant="Bold" aria-hidden="true" />
+              </button>
             ) : null}
-
-            {location?.pathname ? (
-              <p className="error-path">
-                <AnimatedLine>Path:</AnimatedLine> <code>{location.pathname}</code>
-              </p>
-            ) : null}
-
-            <div className="error-actions">
-              <Link className="error-button error-button--primary" to="/">
-                <AnimatedLine>Back to home</AnimatedLine>
-              </Link>
-              <Link className="error-button error-button--ghost" to="/projects">
-                <AnimatedLine>View projects</AnimatedLine>
-              </Link>
-              {!isNotFound ? (
-                <button type="button" className="error-button error-button--ghost" onClick={handleRetry}>
-                  <AnimatedLine>Try again</AnimatedLine> <Refresh size={16} variant="Bold" aria-hidden="true" />
-                </button>
-              ) : null}
-              <a
-                className="error-button error-button--ghost"
-                href="https://dev.nanaabaackah.com/book"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <AnimatedLine>Book a working session</AnimatedLine> <HiArrowRight size={16} aria-hidden="true" />
-              </a>
-            </div>
           </div>
+        </div>
 
-          <aside className="error-hero__panel">
-            <div className="error-card">
-              <p className="error-card__eyebrow">
-                <AnimatedLine>What you can do</AnimatedLine>
-              </p>
-              <ul className="error-list">
-                <li>
-                  <AnimatedLine>Check the URL for typos or extra characters.</AnimatedLine>
-                </li>
-                <li>
-                  <AnimatedLine>Visit the projects page to pick a new case study.</AnimatedLine>
-                </li>
-                <li>
-                  <AnimatedLine>Use the booking link if you want help right away.</AnimatedLine>
-                </li>
-              </ul>
-            </div>
-            <div className="error-card error-card--soft">
-              <p className="error-card__eyebrow">
-                <AnimatedLine>Quick links</AnimatedLine>
-              </p>
-              <div className="error-link-grid">
-                {quickLinks.map((item) => (
-                  <Link key={item.to} to={item.to}>
-                    <AnimatedLine>{item.label}</AnimatedLine>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </header>
+        <nav className="error-links" aria-label="Helpful portfolio links">
+          {quickLinks.map((item, index) => (
+            <Link key={item.to} to={item.to} className="error-link">
+              <span className="error-link__index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="error-link__label">{item.label}</span>
+              <span className="error-link__meta">{item.meta}</span>
+              <HiArrowRight className="error-link__arrow" size={17} aria-hidden="true" />
+            </Link>
+          ))}
+        </nav>
       </section>
     </main>
   );

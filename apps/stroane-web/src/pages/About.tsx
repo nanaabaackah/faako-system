@@ -86,29 +86,6 @@ const businessGroups = [
   },
 ];
 
-const standards = [
-  {
-    title: "Ghanaian Rules",
-    items: [
-      "Ghana Food and Drugs Authority regulations",
-      "Ghana Standards Authority food standards",
-      "Ghana FDA product registration requirements",
-      "FDA licensing rules for food businesses",
-      "Public Health Act requirements",
-    ],
-  },
-  {
-    title: "International Standards",
-    items: [
-      "Codex Alimentarius food safety guidance",
-      "HACCP hazard prevention systems",
-      "ISO 22000 food safety management",
-      "WHO food safety guidelines",
-      "Good Manufacturing Practice standards",
-    ],
-  },
-];
-
 const About: React.FC = () => {
   useSEOMeta({
     title: "About Stroane | Ghana's Food Safety Advisory Company",
@@ -167,23 +144,23 @@ const About: React.FC = () => {
               </p>
             </div>
           </div>
-        </section>
 
-        {/* ── Mission / Vision ── */}
-        <section className="about-beliefs">
-          <article className="bubble-card about-belief-card about-belief-card--blue">
-            <span className="about-card-label">Mission</span>
-            <h2 className="section__heading">
-              Make food safety practical and affordable.
-            </h2>
-          </article>
+          {/* ── Mission / Vision ── */}
+          <div className="about-beliefs">
+            <article className="bubble-card about-belief-card about-belief-card--blue">
+              <span className="about-card-label">Mission</span>
+              <h2 className="section__heading">
+                Make food safety practical and affordable.
+              </h2>
+            </article>
 
-          <article className="bubble-card about-belief-card">
-            <span className="about-card-label">Vision</span>
-            <h2 className="section__heading">
-              Safer food. Stronger businesses. More trust.
-            </h2>
-          </article>
+            <article className="bubble-card about-belief-card">
+              <span className="about-card-label">Vision</span>
+              <h2 className="section__heading">
+                Safer food. Stronger businesses. More trust.
+              </h2>
+            </article>
+          </div>
         </section>
 
         {/* ── Values ── */}
@@ -208,21 +185,28 @@ const About: React.FC = () => {
 
         {/* ── CTA ── */}
         <section className="about-cta">
-          <div>
-            <span className="about-kicker">Ready to improve your system?</span>
-            <h2 className="section__heading">
-              Let&apos;s make your food business safer and easier to run.
-            </h2>
+          <div className="about-cta__content">
+            <img
+              src="/imgs/bg_imgs/cta_bg.png"
+              alt=""
+              aria-hidden="true"
+              className="about-cta__bg"
+            />
+            <div className="about-cta__overlay" />
+            <div>
+              <h2 className="section__heading">
+                Let&apos;s make your food business safer and easier to run.
+              </h2>
+            </div>
+            <a href="/contact" className="about-cta__button">
+              Book a Consultation
+            </a>
           </div>
-          <a href="/contact" className="about-cta__button">
-            Book a Consultation
-          </a>
         </section>
 
         {/* ── Who We Work With ── */}
         <section className="about-audience">
           <div className="about-section-intro">
-            <span className="about-kicker">Who We Work With</span>
             <h2 className="section__heading">
               From small kitchens to growing production teams.
             </h2>
@@ -247,7 +231,7 @@ const About: React.FC = () => {
           </div>
         </section>
 
-        {/* ── Standards ── */}
+        {/* ── Standards ──
         <section className="about-standards">
           <div className="about-standards__intro">
             <span className="about-kicker">Rules &amp; Standards</span>
@@ -274,7 +258,7 @@ const About: React.FC = () => {
             ))}
           </div>
         </section>
-
+*/}
       </div>
     </Layout>
   );

@@ -12,7 +12,7 @@ const SECTIONS: LegalSection[] = [
         <ul>
           <li>Name, business name, email address, and phone number.</li>
           <li>Details of your operation that you share for advisory work.</li>
-          <li>Order, quote, and delivery information from the Stroane store.</li>
+          <li>Order, pricing, and delivery information from the Stroane store.</li>
           <li>Content of messages you send us by email, WhatsApp, or web form.</li>
         </ul>
         <p>
@@ -30,7 +30,7 @@ const SECTIONS: LegalSection[] = [
         <p>We use the information we collect to:</p>
         <ul>
           <li>Respond to enquiries and deliver agreed services.</li>
-          <li>Prepare quotes, invoices, and audit or training reports.</li>
+          <li>Prepare pricing, invoices, and audit or training reports.</li>
           <li>Comply with legal, tax, and regulatory obligations.</li>
           <li>Improve the website, our materials, and our advisory work.</li>
           <li>Send service announcements where relevant to active clients.</li>

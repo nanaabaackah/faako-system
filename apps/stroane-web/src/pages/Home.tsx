@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
 import FloatingHeader from "../components/FloatingHeader";
+import { formatProductPrice, products } from "../data/products";
 import "../styles/pages/Home.css";
 
 const HOME_SCHEMA = {
@@ -170,32 +171,15 @@ const RESOURCES = [
   },
 ];
 
-const featuredProducts = [
-  {
-    name: "Digital Fridge Thermometer",
-    description: "Shows the exact temperature inside your fridge or freezer so you always know food is stored safely.",
-    price: "GHS 85",
-    tag: "Best Seller",
-    img: "/imgs/products/product_1.png",
-    href: "/products",
-  },
-  {
-    name: "Food Probe Thermometer",
-    description: "Insert into cooked food to confirm it has reached a safe temperature all the way through.",
-    price: "GHS 120",
-    tag: "Essential",
-    img: "/imgs/products/product_2.png",
-    href: "/products",
-  },
-  {
-    name: "Infrared Thermometer Gun",
-    description: "Check surface temperatures of counters, buffet trays, and storage units without touching them.",
-    price: "GHS 195",
-    tag: "Popular",
-    img: "/imgs/products/product_3.png",
-    href: "/products",
-  },
-];
+const featuredProducts = products.slice(0, 3).map((product) => ({
+  name: product.name,
+  description: product.description,
+  price: formatProductPrice(product),
+  tag: product.tag || product.category,
+  img: product.thumbnailUrl || product.image,
+  imageAlt: product.imageAlt || product.name,
+  href: `/products/${product.id}`,
+}));
 
 const Home = () => {
   useSEOMeta({
@@ -396,7 +380,7 @@ const Home = () => {
           {featuredProducts.map((product) => (
             <Link key={product.name} to={product.href} className="product-card">
               <div className="product-card__img-wrap">
-                <img src={product.img} alt={product.name} className="product-card__img" />
+                <img src={product.img} alt={product.imageAlt} className="product-card__img" />
                 <span className="product-card__tag">{product.tag}</span>
               </div>
               <div className="product-card__body">

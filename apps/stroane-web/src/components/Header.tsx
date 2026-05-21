@@ -7,8 +7,10 @@ import {
   HiArrowRight,
   HiOutlineUser,
   HiOutlineLogout,
+  HiOutlineShoppingCart,
 } from "react-icons/hi";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -37,6 +39,7 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { totalCount } = useCart();
   const hasHero = HERO_ROUTES.has(location.pathname);
   const isDark = scrolled || !hasHero;
 
@@ -141,6 +144,14 @@ const Header: React.FC = () => {
             >
               <HiOutlineSearch size={18} aria-hidden="true" />
             </button>
+            <Link
+              to="/checkout"
+              className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
+              aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
+            >
+              <HiOutlineShoppingCart size={18} aria-hidden="true" />
+              {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
+            </Link>
             {user ? (
               <button
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
@@ -156,7 +167,7 @@ const Header: React.FC = () => {
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label="Sign in"
               >
-                <HiOutlineUser size={18} aria-hidden="true" />
+                <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
               </Link>
             )}
             <button
@@ -167,7 +178,7 @@ const Header: React.FC = () => {
               aria-expanded={menuOpen}
               aria-controls="stroane-mobile-nav"
             >
-              {menuOpen ? <HiX size={22} aria-hidden="true" /> : <HiMenuAlt3 size={22} aria-hidden="true" />}
+              {menuOpen ? <HiX size={18} aria-hidden="true" /> : <HiMenuAlt3 size={18} aria-hidden="true" />}
             </button>
           </div>
 
@@ -232,6 +243,14 @@ const Header: React.FC = () => {
                   <HiOutlineSearch size={18} aria-hidden="true" />
                   <span>Search the site</span>
                 </button>
+                <Link
+                  to="/checkout"
+                  className="mobile-nav-sheet__search"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                  <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
+                </Link>
                 {user ? (
                   <button
                     type="button"
@@ -250,7 +269,7 @@ const Header: React.FC = () => {
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <HiOutlineUser size={18} aria-hidden="true" />
+                    <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
                     <span>Sign in</span>
                   </Link>
                 )}

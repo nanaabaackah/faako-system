@@ -33,11 +33,11 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    heading: "Quotes & Payments",
+    heading: "Pricing & Payments",
     body: (
       <>
         <p>
-          Quotes and basket totals shown on the Stroane store are estimates.
+          Pricing and basket totals shown on the Stroane store are estimates.
           Final invoicing reflects confirmed availability, delivery, taxes, and
           any custom configuration agreed in writing.
         </p>

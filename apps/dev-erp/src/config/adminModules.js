@@ -40,6 +40,16 @@ export const DEV_ERP_ADMIN_MODULES = [
     requiredPermission: "dashboard",
   },
   {
+    key: "proposals",
+    label: "Proposals",
+    ...DEFAULT_MODULE_STATE,
+    path: "/proposals",
+    group: ERP_MODULE_GROUPS.SALES,
+    status: ERP_MODULE_STATUSES.EXPERIMENTAL,
+    core: false,
+    requiredPermission: "proposals",
+  },
+  {
     key: "rent",
     label: "Rent",
     ...DEFAULT_MODULE_STATE,

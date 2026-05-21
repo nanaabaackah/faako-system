@@ -49,6 +49,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  box-shadow: var(--shadow-elevated);
 }
 
 .trust-stat {
@@ -133,6 +134,10 @@
   max-width: 100%;
   margin: 0;
   padding: 7rem 1rem;
+}
+
+.why-section .bubble-card {
+  box-shadow: var(--shadow-elevated);
 }
 
 .card__desc {
@@ -452,18 +457,17 @@
 
 .product-card__img-wrap {
   position: relative;
+  aspect-ratio: 4 / 3;
   background: var(--color-img-placeholder);
   overflow: hidden;
 }
 
 .product-card__img {
-  width: 250px;
+  width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
-  align-self: center;
-  right: 20%;
-  transform: translateX(20%);
+  padding: 1.1rem;
   transition: transform 0.4s ease;
 }
 
@@ -789,8 +793,7 @@
   }
 
   .product-card__img {
-    width: min(100%, 220px);
-    margin: 0 auto;
+    width: 100%;
   }
 
 }

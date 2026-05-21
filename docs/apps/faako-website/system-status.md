@@ -14,12 +14,14 @@ Public-facing marketing and signup surface. Treat brand presentation, signup ava
 - Netlify deployment configuration.
 - Prebuild sync from `apps/faako-api` for mirrored functions.
 - Signup routing through `VITE_API_BASE_URL` or local mirrored `/api/*` functions.
+- Client onboarding intake wizard UI with review/submit flow.
 
 ## In-progress modules/features
 
 - Marketing content, pricing, signup, and onboarding improvements.
 - Deployment and API routing polish.
 - Alignment with Faako API function behavior.
+- Internal onboarding review/checklist workflow planning.
 
 ## Experimental modules/features
 
@@ -43,5 +45,6 @@ Medium to high. The site is public-facing and can influence trust, lead capture,
 - Is `VITE_API_BASE_URL` intentionally set or intentionally omitted?
 - If functions are mirrored, did the sync step pull the expected Faako API functions?
 - Are server-side secrets configured only on the correct deployment target?
+- Are onboarding emails configured through server-side env vars, not browser-visible `VITE_*` values?
 - Has the signup path been manually tested after build?
 - Is rollback available through a previous Netlify deploy?

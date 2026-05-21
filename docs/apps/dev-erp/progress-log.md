@@ -23,6 +23,188 @@ Next step:
 
 ## Entries
 
+### Client proposal approval and request changes MVP
+
+Date: 2026-05-19
+Feature/change name: Client proposal approval and request changes MVP
+Apps affected: Dev ERP
+What changed: Added token-scoped client response endpoints for secure proposal links, plus client-view UI for Approve proposal and Request changes. Shared proposals can now be approved or receive a required revision message through `/proposal/view/:token`; the server updates status to `approved` or `changes_requested` and stores client name/contact/message/timestamps inside existing proposal content workflow JSON. The internal proposal workflow panel now shows client response state and requested-changes feedback.
+Why it changed: Allow clients to respond to shared proposals online while keeping proposal review lightweight and avoiding invoice/payment workflow changes.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/pages/Proposals/ProposalClientView.jsx, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalWorkflow.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal-content JSON update only when a client responds. No database schema change, invoice/payment, Paystack, receipt, rent, accounting, report, or operational workflow behavior changed.
+Security impact: Share token is validated, expired/unavailable tokens are rejected, actions are allowed only for `shared` proposals, internal notes/editor controls/staff metadata remain hidden from client pages, and the server remains source of truth. No digital signature, approval audit log, email notification, invoice conversion, or payment link is created.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the public client response endpoints, client approval/request-changes UI, workflow display changes, and documentation updates. Existing proposal records may retain harmless `content.workflow.clientResponse` JSON from any test responses; no schema rollback required.
+Next step: Proposal-to-invoice conversion planning, with server-owned approval/audit records and version locking before live finance integration.
+
+### Online proposal share link and client view MVP
+
+Date: 2026-05-18
+Feature/change name: Online proposal share link and client view MVP
+Apps affected: Dev ERP
+What changed: Enabled the secure proposal client-view path for saved proposals that have a server-generated share token and are marked `shared` or `approved`. Added the public client-safe API route `/api/proposals/view/:token`, the client route `/proposal/view/:token`, a sanitized `ProposalClientView` that reuses the existing proposal preview, noindex/noarchive metadata, graceful invalid/expired/not-shared states, and a Download PDF button that uses the current print/save-as-PDF path. Updated the authenticated proposal editor copy so prepared links are described as active only after sharing/approval.
+Why it changed: Let approved/shared proposals be viewed online through a non-guessable token while keeping drafts, internal notes, editor controls, invoice/payment flows, and Paystack work out of the client surface.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/pages/Proposals/ProposalClientView.jsx, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: None. Uses existing Proposal share-token fields only; no database schema, invoice/payment, approval, Paystack, receipt, rent, accounting, or operational data behavior changed.
+Security impact: Client view is token-gated, limited to shared/approved non-archived proposals, rejects expired/unavailable/not-shared proposals, sets noindex/noarchive headers/meta, and strips workflow metadata, internal notes, staff/editor details, audit fields, proposal metadata, and the token from the client-safe payload. Server remains the source of truth.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the public proposal API route, client route/component/styles, proposal editor copy, and documentation updates. Existing proposal records and share-token fields can remain; no data rollback required.
+Next step: Proposal approval/request-changes flow and client-view expiry/view-tracking planning.
+
+### Proposal template expansion and blank proposal flow
+
+Date: 2026-05-18
+Feature/change name: Proposal template expansion and blank proposal flow
+Apps affected: Dev ERP
+What changed: Added a first-class Start from Scratch / Blank Proposal option and expanded the proposal template library with ERP system, business website, client portal, inventory/POS, operational workflow, business automation, onboarding/implementation, service, maintenance/support, and future travel itinerary starters. The gallery now searches template tags, shows lightweight Preview and Use/Start actions, displays the visible/total template count, and includes a clear empty-state reset action.
+Why it changed: Give Dev ERP admins more flexible proposal creation paths while keeping the existing proposal schema, preview, persistence, approval foundation, and future export/payment boundaries intact.
+Files changed: apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/ProposalPreview.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. Template defaults and local draft creation only; no database schema, proposal persistence contract, invoice/payment, Paystack, approval, PDF, AI, or live workflow behavior changed.
+Security impact: Private authenticated proposal UI only. No public proposal links, client approval routes, payment links, AI generation, auth behavior, or permission behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the expanded template list, gallery action/empty-state changes, CSS adjustments, and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation planning.
+
+### Auth session refresh retry
+
+Date: 2026-05-18
+Feature/change name: Auth session refresh retry
+Apps affected: Dev ERP
+What changed: Updated the shared Dev ERP frontend API client so authenticated API calls that receive a `401` attempt the existing `/api/auth/refresh` endpoint once, then retry the original request with freshly computed credentials and CSRF headers. If refresh fails, the app keeps the existing local sign-out behavior.
+Why it changed: Prevent active users from being signed out after the 15-minute access token expires when a valid refresh cookie is still available.
+Files changed: apps/dev-erp/src/api/client.ts, apps/dev-erp/README.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/progress-log.md
+Data impact: None. No database schema, migrations, payment/rent/invoice/proposal data, or operational records changed.
+Security impact: Uses the existing server-side refresh-token flow and still relies on backend validation, CSRF checks, cookie scoping, token rotation, and organization/capability enforcement. No auth bypass or permission behavior change.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the API client refresh retry and documentation updates to restore immediate sign-out on expired access token `401` responses.
+Next step: Monitor session behavior during normal Dev ERP use and consider documenting configurable token lifetimes if needed.
+
+### Proposal UX polish pass
+
+Date: 2026-05-18
+Feature/change name: Proposal UX polish pass
+Apps affected: Dev ERP
+What changed: Simplified Proposal Template Gallery cards into a thumbnail-first layout with minimal labels and lightweight Preview/Use template actions, reduced busy metadata on template cards, softened hover/focus behavior, and refined the live preview surface so proposal content reads more like a document than a dashboard panel.
+Why it changed: Improve proposal scanability, readability, and mobile usability before PDF, invoice, Paystack, approval, or AI phases.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. UI-only refinement; no database schema, proposal persistence, approval, invoice/payment, Paystack, auth, or workflow behavior changed.
+Security impact: Presentation-only. Existing authenticated proposal boundaries, organization scoping, secure-link preparation limits, and disabled public/client workflows remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; proposal UI hardcoded color scan.
+Rollback notes: Revert the proposal gallery JSX/CSS polish and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Error page visual redesign
+
+Date: 2026-05-18
+Feature/change name: Error page visual redesign
+Apps affected: Dev ERP
+What changed: Redesigned the Dev ERP error page section to closely follow the referenced EasySeller direction: full-screen section, centered barcode-style mark, spaced `ERROR` label, oversized serif page-not-found title, right accent rail, primary pill recovery CTA, and a quieter back action. The section now supports Dev ERP light and dark themes through theme variables while keeping the composition intact.
+Why it changed: Match the requested reference section more closely while preserving existing routing and recovery behavior.
+Files changed: apps/dev-erp/src/pages/ErrorPage/ErrorPage.jsx, apps/dev-erp/src/index.css, docs/apps/dev-erp/progress-log.md
+Data impact: None. UI-only change; no database schema, API behavior, proposal logic, auth, invoice/payment, rent, or operational data changed.
+Security impact: Presentation-only. Existing routing, session checks for dashboard/login recovery, and error behavior remain unchanged.
+Testing done: Pending verification: Dev ERP lint and Dev ERP build.
+Rollback notes: Revert the ErrorPage JSX section structure, error-page CSS changes, and this documentation entry.
+Next step: Visual QA of public `/error` and wildcard 404 routes on desktop and mobile.
+
+### Proposal Generator UI simplification
+
+Date: 2026-05-18
+Feature/change name: Proposal Generator UI simplification
+Apps affected: Dev ERP
+What changed: Redesigned the Dev ERP proposal page into a simpler template-focused experience with a clean hero, search field, category filter chips, visual template gallery, compact recent proposal list, clearer Preview/Use template/Edit actions, and a calmer two-column editor/live-preview layout. Fixed proposal template and recent proposal cards to apply `bubble-card` where intended while keeping the document preview styled as a proposal surface instead of a dashboard panel.
+Why it changed: Improve scanability and usability of the Proposal Generator before future proposal-to-invoice, PDF, Paystack, approval, or AI work.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. UI-only redesign; no database schema, proposal persistence API behavior, approval logic, invoice/payment logic, Paystack behavior, or public proposal access changed.
+Security impact: Presentation-only. Existing authenticated proposal access, organization scoping, secure-token preparation boundaries, and disabled public/client workflows remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; affected-file `git diff --check`; proposal UI hardcoded color scan.
+Rollback notes: Revert the proposal page JSX/CSS/template category metadata and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Proposal template management foundation
+
+Date: 2026-05-18
+Feature/change name: Proposal template management foundation
+Apps affected: Dev ERP
+What changed: Added a dedicated proposal template management foundation in `proposalTemplates.js` with template keys, names, descriptions, proposal types, default section ordering, enabled/disabled section metadata, style references, and reusable default content placeholders for ERP, website, onboarding, and future travel proposal templates. Updated the proposal editor to load drafts from the new template layer, show template/style/section metadata, and retain template metadata on local drafts.
+Why it changed: Make proposal layouts and structures configurable and scalable without hardcoding one proposal type before PDF generation, AI wording, invoice conversion, Paystack links, or public proposal editing are introduced.
+Files changed: apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. Template defaults affect local proposal draft creation only and do not change database schema, saved proposal API behavior, invoice/payment/rent/accounting/report data, PDF generation, or public proposal access.
+Security impact: Private authenticated proposal editor foundation only. No broad public editing, PDF export, AI generation, invoice conversion, Paystack payment links, approval routes, auth behavior, or permission behavior changed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/dev-erp run test`; affected-file `git diff --check`.
+Rollback notes: Revert the new template helper file and restore proposal starter creation to `proposalSchema.js`; remove the template metadata UI and documentation updates. Existing saved proposals can ignore draft template metadata.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Proposal approval flow foundation
+
+Date: 2026-05-18
+Feature/change name: Proposal approval flow foundation
+Apps affected: Dev ERP
+What changed: Added `changes_requested` to proposal workflow statuses, added an internal review workflow panel, review notes, internal comments, change-request notes, approval-readiness checks, workflow status badges/descriptions, disabled future client action placeholders, and server-owned status history metadata stored inside the proposal content. Proposal status changes continue through the authenticated admin proposal save flow.
+Why it changed: Prepare Dev ERP proposals for controlled internal review, future client review, approval, revision-request, onboarding, invoice-conversion, and travel proposal workflows without exposing public approval actions yet.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/pages/Proposals/proposalWorkflow.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal-content workflow metadata only. No database schema changes, invoice generation, Paystack links, payment behavior, rent/accounting/report behavior, or public proposal access changes.
+Security impact: Internal authenticated workflow-state foundation only. Organization scoping remains enforced through existing proposal APIs. Client approval, public revision requests, digital signatures, invoice conversion, Paystack payment workflows, notifications, and analytics remain disabled.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; affected-file `git diff --check`.
+Rollback notes: Revert the workflow status/helper/UI/server normalization additions and documentation updates. Existing proposal records can ignore the extra workflow metadata; no schema rollback required.
+Next step: Proposal-to-invoice conversion planning.
+
+### Proposal PDF/export architecture foundation
+
+Date: 2026-05-18
+Feature/change name: Proposal PDF/export architecture foundation
+Apps affected: Dev ERP
+What changed: Split the proposal preview into an export-aware `ProposalPreview.jsx` component, added `proposalExportConfig.js` for export targets, section roles, page modes, print-break hints, and section metadata, added `data-export-*` hooks to preview sections, and strengthened print styles for A4 layout, app chrome hiding, cover/page behavior, section break avoidance, and color preservation. The online proposal preview remains the source of truth for future PDF export. No PDF download or server renderer was added.
+Why it changed: Prepare Dev ERP proposals for future presentation-style PDF export while keeping the current online preview, private persistence, and secure-link foundation stable.
+Files changed: apps/dev-erp/src/pages/Proposals/ProposalPreview.jsx, apps/dev-erp/src/pages/Proposals/proposalExportConfig.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. No database schema, proposal persistence contract, invoice, payment, receipt, rent, booking, accounting, report, Paystack, or operational data changed.
+Security impact: Export planning and print-safe presentation only. No public proposal links, PDF files, file storage, payment links, approval flows, invoice conversion, or AI generation were implemented.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `git diff --check`.
+Rollback notes: Revert the new preview/export helper files, restore inline preview rendering in `Proposals.jsx`, revert the print-style additions, and revert documentation updates. No data rollback required.
+Next step: Proposal approval flow foundation.
+
+### Proposal persistence and secure share-link foundation
+
+Date: 2026-05-18
+Feature/change name: Proposal persistence and secure share-link foundation
+Apps affected: Dev ERP
+What changed: Added an additive Proposal persistence model and migration, authenticated admin-only proposal API routes, private saved proposal list, save/update behavior, lightweight version increments, internal preview route `/proposals/:proposalId/preview`, proposal status management, creator/last-editor metadata, and secure share-token preparation for future client viewing. The share-token endpoint stores a random server-generated token with expiry metadata but does not expose public proposal content.
+Why it changed: Allow Dev ERP proposals to be safely saved, managed, versioned, and prepared for secure online sharing before PDF export, approval flows, invoice conversion, Paystack integration, or AI proposal generation.
+Files changed: apps/dev-erp/prisma/schema.prisma, apps/dev-erp/prisma/migrations/20260518000000_add_proposal_foundation/migration.sql, apps/dev-erp/backend/server.js, apps/dev-erp/backend/auth/accessConfig.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/app/navigation.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal table and private proposal records only. No invoice, payment, receipt, rent, booking, accounting, report, Paystack, or existing operational workflow data is changed.
+Security impact: Proposal APIs require authenticated admin access and organization scoping. Share tokens are random and server-generated with expiry metadata. Public proposal content routes, approvals, invoice conversion, payment links, PDFs, and AI generation remain disabled.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/dev-erp exec prisma validate`; `git diff --check`.
+Rollback notes: Revert the proposal schema/migration/API/frontend/docs changes. If the migration has been applied, archive/export saved proposal drafts before dropping the `Proposal` table.
+Next step: Proposal PDF/export architecture.
+
+### Proposal template schema and preview foundation
+
+Date: 2026-05-18
+Feature/change name: Proposal template schema and preview foundation
+Apps affected: Dev ERP
+What changed: Added an experimental `/proposals` frontend-only module with a template list, proposal editor shell, reusable proposal block schema, editable personal-note fields, section ordering controls, theme-aware responsive preview, and print-aware preview CSS. Added proposal type support for ERP, website, onboarding, and future travel proposals. Registered the module in Dev ERP navigation metadata without adding persistence, public links, approval, invoice conversion, Paystack links, PDFs, or AI generation.
+Why it changed: Establish the reusable proposal structure and preview foundation before implementing persistence, secure online viewing, PDF generation, approval, invoice conversion, Paystack payment links, or AI-assisted wording.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/utils/moduleAccess.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: None. Proposal edits are in-memory frontend state only; no database schema, API, invoice, payment, receipt, accounting, report, rent, or public-token data changed.
+Security impact: Low-risk preview foundation. No public proposal links, approval flow, payment links, AI generation, persistence, auth changes, or permission logic changes were implemented.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; affected source review; `git diff --check`.
+Rollback notes: Remove `/proposals` route, proposal page/schema/styles, registry/navigation/module-access entry, and documentation updates. No data rollback required.
+Next step: Proposal persistence and secure share-link planning.
+
+### Dev ERP monitoring and Paystack foundation
+
+Date: 2026-05-18
+Feature/change name: Dev ERP monitoring and Paystack foundation
+Apps affected: Dev ERP
+What changed: Added a root `pnpm run monitoring:check` script that scans `apps/`, compares app directories against the shared monorepo app registry, verifies monitoring-enabled apps resolve into monitoring output, and prints only app keys/counts. Added a non-runtime Paystack config descriptor for expected Dev ERP server-side Paystack environment keys and safe configuration-status reporting without secret values. Added Paystack placeholders to `.env.example` and created `docs/apps/dev-erp/paystack-foundation-plan.md` for invoice/payment integration planning.
+Why it changed: Keep Dev ERP monitoring aligned as apps are added and prepare Paystack invoice/payment work safely before Proposal Generator work.
+Files changed: scripts/check-monorepo-app-registry.mjs, package.json, apps/dev-erp/backend/payments/paystack.config.js, apps/dev-erp/.env.example, apps/dev-erp/README.md, README.md, packages/config/README.md, docs/apps/dev-erp/paystack-foundation-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: None. No database schema changes, migrations, invoice/payment/rent persistence changes, receipt records, or report data changes.
+Security impact: Improves monitoring drift detection and Paystack safety planning. No secrets are printed by the registry check. Paystack keys are documented as server-side env values only; no payment links, webhooks, settlement verification, receipt generation, or payment status changes were implemented.
+Testing done: `pnpm run monitoring:check` passed. `node --input-type=module -e "import('./apps/dev-erp/backend/payments/paystack.config.js').then(...)"` passed. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `git diff --check` passed.
+Rollback notes: Remove the registry check script and root script entry, remove the non-runtime Paystack config descriptor and `.env.example` placeholders, and revert documentation updates. No data rollback required.
+Next step: Proposal Generator foundation.
+
 ### Production verification and monitoring stabilization
 
 Date: 2026-05-17

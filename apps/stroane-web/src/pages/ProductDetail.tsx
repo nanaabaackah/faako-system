@@ -1,21 +1,93 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { HiChevronLeft } from "react-icons/hi";
 import { StatusPill } from "@faako/ui";
 import Layout from "../components/Layout";
 import QuantityControls from "../components/QuantityControls";
 import StructuredData from "../components/StructuredData";
+import ProductInquiryForm from "../components/ProductInquiryForm";
 import useSEOMeta from "../hooks/useSEOMeta";
-import { getProductById, formatCurrency, getStockTone, products } from "../data/products";
+import {
+  canPurchaseProduct,
+  getLineTotal,
+  getProductById,
+  formatCurrency,
+  formatProductPrice,
+  getAvailabilityLabel,
+  getPurchaseBlocker,
+  getSchemaAvailability,
+  getStockTone,
+  isPricedProduct,
+  normalizeProduct,
+  products,
+  shouldShowInquiryOption,
+  type Product,
+} from "../data/products";
+import { productApi } from "../api/products";
 import { useCart } from "../context/CartContext";
 import "../styles/pages/ProductDetail.css";
+
+const formatSpecificationLabel = (label: string) =>
+  label
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+    .trim();
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getQty, increment, decrement, remove } = useCart();
-  const product = id ? getProductById(id) : undefined;
+  const localProduct = id ? getProductById(id) : undefined;
+  const [remoteProduct, setRemoteProduct] = useState<Product | null>(null);
+  const [detailLoading, setDetailLoading] = useState(Boolean(id && !localProduct));
+  const [detailNotice, setDetailNotice] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const product = remoteProduct || localProduct;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!id) {
+      setRemoteProduct(null);
+      setDetailLoading(false);
+      setDetailNotice(null);
+      return undefined;
+    }
+
+    const loadProduct = async () => {
+      setDetailLoading(!localProduct);
+      setDetailNotice(null);
+
+      try {
+        const apiProduct = await productApi.getById(id);
+        if (cancelled) return;
+        setRemoteProduct(normalizeProduct(apiProduct));
+      } catch (error) {
+        if (cancelled) return;
+        setRemoteProduct(null);
+        if (localProduct) {
+          setDetailNotice(
+            error instanceof Error
+              ? `Showing local product details while the backend is unavailable: ${error.message}`
+              : "Showing local product details while the backend is unavailable."
+          );
+        }
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    };
+
+    loadProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, localProduct]);
+
+  useEffect(() => {
+    setActiveImage(0);
+  }, [product?.id]);
 
   useSEOMeta({
     title: product ? `${product.name} | Stroane Store` : "Product not found | Stroane",
@@ -29,6 +101,19 @@ const ProductDetail: React.FC = () => {
     ogImage: product?.image,
     noIndex: !product,
   });
+
+  if (detailLoading && !product) {
+    return (
+      <Layout>
+        <div className="product-detail-page">
+          <div className="product-detail__missing">
+            <h1>Loading product</h1>
+            <p>Checking the latest catalogue details.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!product) {
     return (
@@ -46,12 +131,30 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const images = product.images ?? [product.image];
+  const images = product.galleryImages?.length
+    ? product.galleryImages
+    : product.images ?? [product.image];
   const qty = getQty(product.id);
+  const canAddOne = canPurchaseProduct(product, qty + 1);
+  const canStartCart = canPurchaseProduct(product, 1);
+  const maxQuantity = product.allowBackorder ? null : product.stockQuantity;
+  const purchaseBlocker = getPurchaseBlocker(product, Math.max(qty, 1));
+  const showInquiry = shouldShowInquiryOption(product);
   const mainImage = images[activeImage] ?? images[0];
   const related = products
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 3);
+  const specificationEntries = [
+    { label: "SKU", value: product.sku },
+    { label: "Unit", value: product.unit },
+    { label: "Category", value: product.category },
+    { label: "Availability", value: getAvailabilityLabel(product) },
+    { label: "Brand", value: product.brand },
+    ...Object.entries(product.specifications || {}).map(([label, value]) => ({
+      label: formatSpecificationLabel(label),
+      value,
+    })),
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry.value));
 
   const PRODUCT_SCHEMA = {
     "@context": "https://schema.org",
@@ -60,19 +163,18 @@ const ProductDetail: React.FC = () => {
     description: product.description,
     sku: product.sku,
     category: product.category,
-    image: `https://stroanesolutions.com${product.image}`,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "GHS",
-      price: product.price,
-      availability:
-        product.stock === "In stock"
-          ? "https://schema.org/InStock"
-          : product.stock === "Low stock"
-          ? "https://schema.org/LimitedAvailability"
-          : "https://schema.org/PreOrder",
-      seller: { "@type": "Organization", name: "Stroane" },
-    },
+    image: `https://stroanesolutions.com${product.imageUrl || product.image}`,
+    ...(isPricedProduct(product)
+      ? {
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "GHS",
+            price: product.price,
+            availability: getSchemaAvailability(product),
+            seller: { "@type": "Organization", name: "Stroane" },
+          },
+        }
+      : {}),
   };
 
   return (
@@ -95,11 +197,17 @@ const ProductDetail: React.FC = () => {
             Back
           </button>
 
+          {detailNotice ? (
+            <p className="product-detail__notice" role="status">
+              {detailNotice}
+            </p>
+          ) : null}
+
           <div className="product-detail__split">
             {/* Left — gallery */}
             <div className="product-detail__gallery">
               <div className="product-detail__main">
-                <img src={mainImage} alt={product.name} />
+                <img src={mainImage} alt={product.imageAlt || product.name} />
                 {product.tag ? (
                   <span className="product-detail__tag">{product.tag}</span>
                 ) : null}
@@ -116,7 +224,7 @@ const ProductDetail: React.FC = () => {
                       className={`product-detail__thumb${i === activeImage ? " product-detail__thumb--active" : ""}`}
                       onClick={() => setActiveImage(i)}
                     >
-                      <img src={src} alt="" aria-hidden="true" />
+                      <img src={src} alt="" aria-hidden="true" loading="lazy" />
                     </button>
                   ))}
                 </div>
@@ -130,32 +238,50 @@ const ProductDetail: React.FC = () => {
 
               <div className="product-detail__price-row">
                 <div className="product-detail__price">
-                  <strong>{formatCurrency(product.price)}</strong>
+                  <strong>{formatProductPrice(product)}</strong>
                   <span>/{product.unit}</span>
                 </div>
-                <StatusPill tone={getStockTone(product.stock)}>
-                  {product.stock}
+                <StatusPill tone={getStockTone(product)}>
+                  {getAvailabilityLabel(product)}
                 </StatusPill>
               </div>
 
               <p className="product-detail__desc">{product.description}</p>
+              {product.longDescription ? (
+                <p className="product-detail__long-desc">{product.longDescription}</p>
+              ) : null}
+              {product.availability ? (
+                <p className="product-detail__availability">{product.availability}</p>
+              ) : null}
 
-              <div className="product-detail__qty-block">
-                <QuantityControls
-                  qty={qty}
-                  onIncrement={() => increment(product.id)}
-                  onDecrement={() => decrement(product.id)}
-                  onRemove={() => remove(product.id)}
-                  size="lg"
-                  productName={product.name}
-                  addLabel="Add to quote"
-                />
-                {qty > 0 ? (
-                  <p className="product-detail__qty-summary">
-                    Subtotal: <strong>{formatCurrency(product.price * qty)}</strong>
-                  </p>
-                ) : null}
-              </div>
+              {isPricedProduct(product) && (canStartCart || qty > 0) ? (
+                <div className="product-detail__qty-block">
+                  <QuantityControls
+                    qty={qty}
+                    onIncrement={() => increment(product.id)}
+                    onDecrement={() => decrement(product.id)}
+                    onRemove={() => remove(product.id)}
+                    size="lg"
+                    productName={product.name}
+                    addLabel="Add to cart"
+                    disabled={!canAddOne}
+                    disabledLabel={getAvailabilityLabel(product)}
+                    maxQuantity={maxQuantity}
+                  />
+                  {qty > 0 ? (
+                    <p className="product-detail__qty-summary">
+                      Subtotal: <strong>{formatCurrency(getLineTotal(product, qty))}</strong>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {purchaseBlocker ? (
+                <p className="product-detail__availability" role="status">
+                  {purchaseBlocker}
+                </p>
+              ) : null}
+
+              {showInquiry ? <ProductInquiryForm product={product} /> : null}
 
               <div className="product-detail__section">
                 <h2>What's included</h2>
@@ -169,24 +295,25 @@ const ProductDetail: React.FC = () => {
               <div className="product-detail__section">
                 <h2>Specifications</h2>
                 <dl className="product-detail__specs">
-                  <div>
-                    <dt>SKU</dt>
-                    <dd>{product.sku}</dd>
-                  </div>
-                  <div>
-                    <dt>Unit</dt>
-                    <dd>{product.unit}</dd>
-                  </div>
-                  <div>
-                    <dt>Category</dt>
-                    <dd>{product.category}</dd>
-                  </div>
-                  <div>
-                    <dt>Availability</dt>
-                    <dd>{product.stock}</dd>
-                  </div>
+                  {specificationEntries.map((entry) => (
+                    <div key={`${entry.label}-${entry.value}`}>
+                      <dt>{entry.label}</dt>
+                      <dd>{entry.value}</dd>
+                    </div>
+                  ))}
                 </dl>
               </div>
+
+              {product.useCases?.length ? (
+                <div className="product-detail__section">
+                  <h2>Good for</h2>
+                  <div className="product-detail__use-cases">
+                    {product.useCases.map((useCase) => (
+                      <span key={useCase}>{useCase}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="product-detail__service-note">
                 <strong>Need help choosing?</strong>
@@ -210,14 +337,18 @@ const ProductDetail: React.FC = () => {
                     className="product-detail__related-card"
                   >
                     <div className="product-detail__related-image">
-                      <img src={rel.image} alt={rel.name} />
+                      <img
+                        src={rel.thumbnailUrl || rel.image}
+                        alt={rel.imageAlt || rel.name}
+                        loading="lazy"
+                      />
                     </div>
                     <span className="product-detail__related-category">
                       {rel.category}
                     </span>
                     <span className="product-detail__related-name">{rel.name}</span>
                     <span className="product-detail__related-price">
-                      {formatCurrency(rel.price)}
+                      {formatProductPrice(rel)}
                     </span>
                   </Link>
                 ))}

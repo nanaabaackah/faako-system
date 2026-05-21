@@ -15,6 +15,7 @@ Added the shared ERP module registry foundation under `src/erpModules/`, extende
 - `src/erpShell/shellFoundation.js`: shared ERP shell placeholder and status badge constants.
 - `src/appModes/appModes.js`: shared app-mode constants/helpers for normal, degraded, read-only, and maintenance states.
 - `src/monorepoApps/appRegistry.js`: shared monorepo app metadata and monitoring-site helpers.
+- `src/projectRegistry/projectRegistry.js`: shared public/project metadata foundation for future portfolio/case-study consumption.
 - `src/index.js`: exports the registry constants and helpers from `@faako/config`.
 
 ## How to use it
@@ -86,7 +87,11 @@ Supported module groups are `core`, `sales`, `operations`, `finance`, `insights`
 
 Shared shell placeholders are `offlineIndicator`, `syncStatus`, `notificationArea`, and `organizationSwitcher`. They are structural metadata only and do not implement backend sync, notifications, or tenant switching.
 
-`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. It includes production-sensitive apps such as REEBS Portal, Dev ERP, Stroane Web, Faako Website, and Faako API, plus the existing public portfolio, REEBS website, and Faako ERP demo entries. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them.
+`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. It includes production-sensitive apps such as REEBS Portal, Dev ERP, Stroane Web, Faako Website, and Faako API, plus the existing public portfolio, REEBS website, and Faako ERP demo entries. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them. Apps can also define optional additional monitoring surfaces. Stroane Web now has an optional `stroane-api` monitoring surface for `/health`, `/api/products`, and `/api/categories`; it is emitted only when a backend base URL env value is supplied, so the public Netlify frontend is not marked unhealthy while the backend is hosted separately or not yet deployed.
+
+Run `pnpm run monitoring:check` from the repo root after adding apps. The script scans `apps/`, compares app directories to `src/monorepoApps/appRegistry.js`, verifies monitoring-enabled apps resolve into monitoring output, and prints only app keys/counts so private URLs and secrets are not exposed.
+
+`getPortfolioProjects()` and `getPortfolioProjectByAppKey(appKey)` return lightweight project metadata for future byNana portfolio/case-study consumption. The current registry includes Stroane Web / Stroane Solutions as a public client website/product-catalogue project, but `caseStudyEnabled` is `false` so it should not auto-publish a public case study. Use `pnpm run project-registry:check` to review project metadata coverage. The check scans `apps/`, validates registered project metadata, and prints warnings for apps that do not yet have project metadata without failing CI.
 
 App-mode helpers support these shared states:
 
@@ -112,6 +117,9 @@ Optional monitoring URL overrides can be supplied by apps that consume `getMonor
 - `REEBS_PORTAL_BASE_URL`
 - `DEV_ERP_BASE_URL`
 - `STROANE_WEB_BASE_URL`
+- `STROANE_API_BASE_URL`
+- `STROANE_BACKEND_BASE_URL`
+- `VITE_BACKEND_BASE_URL` (used by Stroane API monitoring only when supplied to the monitoring process)
 - `FAAKO_WEBSITE_BASE_URL`
 - `FAAKO_API_BASE_URL`
 - `REEBS_WEBSITE_BASE_URL`

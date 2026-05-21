@@ -24,6 +24,386 @@ Next step:
 
 ## Entries
 
+### Client onboarding intake wizard with PDF and email copy
+
+Date: 2026-05-21
+Change name: Client onboarding intake wizard with PDF and email copy
+Apps/packages affected: Faako Website, Faako API
+What changed: Converted the Faako signup surface into a guided client onboarding intake wizard and extended the shared `signup` function path to accept structured onboarding payloads, reject credential-like secrets, generate a sanitized PDF summary, and send client/admin email copies through server-side Resend email.
+Why it changed: Faako onboarding needs richer business setup details before manual implementation work, while keeping integration credentials out of public forms and avoiding live setup automation.
+Files changed: apps/faako-website/src/pages/Signup.jsx, apps/faako-website/src/styles/pages/Auth.css, apps/faako-website/.env.example, apps/faako-website/netlify/functions/signup.js, apps/faako-api/netlify/functions/signup.js, apps/faako-api/.env.example, apps/faako-website/README.md, apps/faako-api/README.md, docs/platform/client-onboarding-wizard.md, docs/platform/platform-progress-log.md, docs/apps/faako-website/progress-log.md, docs/apps/faako-website/system-status.md, docs/apps/faako-website/implementation-notes.md, docs/apps/faako-api/progress-log.md, docs/apps/faako-api/system-status.md, docs/apps/faako-api/implementation-notes.md
+Data impact: No database schema change. The existing signup persistence path remains in use and stores the structured intake as a compatibility summary in `SignupRequest.additionalNotes`.
+Security impact: Positive. No frontend email sending, no integration automation, no secret collection, server-side Resend only, credential-like payload rejection, existing rate limiting/CORS/database guards preserved.
+Testing done: Source and mirrored signup function syntax checks passed. PDF helper smoke check passed. Faako Website production build passed. Faako Website/API lint scripts could not run because `eslint` is not installed in this checkout. API Prisma validate is blocked by the existing Prisma config/package-type mismatch.
+Rollback notes: Revert the website wizard, backend signup function, env examples, mirrored function sync, and documentation. No database rollback is required.
+Next step: Add an internal onboarding setup checklist/admin review surface before automating Paystack, Resend, WhatsApp Business, SMS, domain/DNS, hosting, module enablement, admin user creation, or security review tasks.
+
+### Stroane commerce stabilization and Safari UI QA
+
+Date: 2026-05-21
+Change name: Stroane commerce stabilization and Safari UI QA
+Apps/packages affected: Stroane Web, `@faako/ui`, platform security docs
+What changed: Ran a focused Stroane commerce QA pass and applied low-risk stabilization fixes. Shared/Stroane CSS now normalizes Safari/iOS native styling for buttons, inputs, selects, textareas, search fields, date fields, dropdowns, shared field controls, and action controls while preserving token-based styling and focus behavior. Mobile viewport handling was tightened with `100dvh` fallbacks on checkout, auth, admin orders, error, services, shared app screen, dropdown, and maintenance-page surfaces. The Paystack browser-return verification endpoint now normalizes currency codes before comparison, matching webhook behavior. Backend auth/catalogue/order/payment route logs now use sanitized message/status output instead of raw error objects.
+Why it changed: Stroane is now a payment/order-capable commerce app, so checkout, payment status messaging, stock gating, mobile forms, and browser-control consistency needed a QA and stabilization pass before additional commerce features.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/src/styles/globals.css, apps/stroane-web/src/styles/pages/Checkout.css, apps/stroane-web/src/styles/pages/AdminOrders.css, apps/stroane-web/src/styles/pages/Auth.css, apps/stroane-web/src/styles/pages/ErrorPage.css, apps/stroane-web/src/styles/pages/Services.css, packages/ui/src/ui.css, packages/ui/README.md, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/security-status.md
+Data impact: None. No migrations, database writes, stock counts, order totals, inventory deduction, fulfillment automation, CRM, Dev ERP, REEBS, WhatsApp, or SMS workflows changed.
+Security impact: Positive hardening only. Webhook confirmation remains the trusted paid-state path. Browser callback verification stays customer messaging/status check only. Sanitized route logging reduces accidental provider/error detail exposure. Shared UI changes are presentation-only.
+Testing done: `/usr/local/bin/node --check apps/stroane-web/backend/src/orders.js` passed. `/usr/local/bin/node --check apps/stroane-web/backend/src/routes/auth.js` passed. `/usr/local/bin/node --check apps/stroane-web/backend/server.js` passed. `/usr/local/bin/node --test apps/stroane-web/backend/paystack.test.js apps/stroane-web/backend/security.test.js` passed. Stroane TypeScript check, lint, Prisma validate, production build, `security:gate`, `security:scan`, and `git diff --check` passed.
+Rollback notes: Revert the CSS normalization/viewport changes, Paystack callback currency normalization, sanitized log updates, and documentation. No database rollback is required.
+Next step: Add payment event/notification logs, then perform deployed iPhone Safari checkout smoke testing against the Netlify/Railway environment.
+
+### Stroane staff sign-in routing fix
+
+Date: 2026-05-21
+Change name: Stroane staff sign-in routing fix
+Apps/packages affected: Stroane Web
+What changed: Updated Stroane `/signin` so it can accept customer email sign-in or private staff usernames. When no local customer account exists, the page now attempts backend `SiteUser` login and routes valid `ADMIN`/`VIEWER` staff users to `/admin/orders`.
+Why it changed: The newly seeded backend staff accounts were valid for the admin order workflow, but the visible sign-in page only checked local customer accounts and showed "No account found for that email."
+Files changed: apps/stroane-web/src/pages/SignIn.tsx, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: None. Runtime login uses database-backed `SiteUser` rows; the CSV remains seed/import-only.
+Security impact: No admin permissions were loosened. Staff users still receive backend bearer tokens from `/api/auth/login`, and admin order APIs still enforce `ADMIN`/`VIEWER` roles.
+Testing done: `PATH=/usr/local/bin:$PATH /usr/local/bin/pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `PATH=/usr/local/bin:$PATH /usr/local/bin/pnpm --filter @faako/stroane-web run lint` passed. `PATH=/usr/local/bin:$PATH /usr/local/bin/pnpm --filter @faako/stroane-web run build` passed. `PATH=/usr/local/bin:$PATH /usr/local/bin/pnpm run security:gate` passed. `git diff --check` for affected files passed.
+Rollback notes: Revert the sign-in fallback and docs if staff should use only the unlinked `/admin/orders` login.
+Next step: Verify the seeded admin/viewer accounts exist in the deployed Railway Postgres database.
+
+### Stroane lightweight admin order management
+
+Date: 2026-05-21
+Change name: Stroane lightweight admin order management
+Apps/packages affected: Stroane Web
+What changed: Added a protected lightweight admin order-management foundation for Stroane. Backend admin order routes support authenticated list/detail access, search/filtering, masked Paystack references, and admin-only fulfillment/status/note updates. The frontend adds an unlinked `/admin/orders` page with private backend login, status filters, order detail, delivery/internal notes, and quick fulfillment actions. Added additive order fields for fulfillment status, delivery method, expected delivery date, admin delivery notes, internal notes, and status update metadata.
+Why it changed: Stroane needs a small operational view after payment confirmation, but still needs to avoid full ERP, CRM, inventory automation, or payment mutation.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/adminAuth.js, apps/stroane-web/backend/src/adminOrders.js, apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260521000000_add_admin_order_fulfillment_fields/migration.sql, apps/stroane-web/src/App.tsx, apps/stroane-web/src/api/adminOrders.ts, apps/stroane-web/src/pages/AdminOrders.tsx, apps/stroane-web/src/styles/pages/AdminOrders.css, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, docs/platform/security-status.md
+Data impact: Additive order fulfillment/admin-note fields only. No payment verification, Paystack webhook, stock, inventory, CRM, Dev ERP, REEBS, WhatsApp, SMS, or unrelated workflow changes.
+Security impact: Admin order routes require backend `SiteUser` bearer authentication; viewers are read-only and admins can update fulfillment/status fields. Payment status remains webhook/provider-owned and cannot be manually changed. Admin responses mask Paystack references and do not expose raw payment metadata or secrets.
+Testing done: Backend syntax checks, Paystack/security node tests, Stroane Prisma validate, TypeScript check, lint, build, security gate, security scan, and diff hygiene passed.
+Rollback notes: Revert the admin routes, admin frontend files, additive schema/migration fields, and docs. Export entered fulfillment notes/statuses first if the migration has been deployed and used.
+Next step: Dedicated payment event/notification log, then lightweight stock admin.
+
+### Stroane Paystack webhook verification and reliable order finalization
+
+Date: 2026-05-21
+Change name: Stroane Paystack webhook verification and reliable order finalization
+Apps/packages affected: Stroane Web
+What changed: Strengthened Stroane Paystack webhook processing so a signed webhook now performs server-side Paystack transaction verification before any final paid-state transition. The route validates the stored order, Paystack-verified reference, verified amount, verified currency, and current order state before marking an order paid. Already-finalized paid orders return successfully without re-running order transitions, and customer confirmation email remains tied to trusted paid finalization. Customer callback copy now avoids presenting browser return as final payment truth.
+Why it changed: Stroane checkout needs production-safer payment trust semantics before broader commerce expansion. Browser redirects are customer UX only; final order confirmation needs server-to-server verification.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/paystack.test.js, apps/stroane-web/src/pages/CheckoutReturn.tsx, apps/stroane-web/.env.example, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: No schema changes. Existing payment metadata fields now capture transaction-verified webhook metadata. No inventory, fulfillment, CRM, Dev ERP, REEBS, WhatsApp, SMS, or unrelated app workflows changed.
+Security impact: Paystack secrets remain backend-only. Paid order finalization now requires signature verification plus Paystack transaction verification with reference, amount, and currency checks. Duplicate webhooks do not re-run paid transitions, and email failure does not fail order finalization.
+Testing done: Backend syntax checks and Paystack/security node tests passed. Stroane TypeScript check, lint, Prisma validate, build, security gate, and security scan passed. Project registry check passed with warning-only missing metadata notes for apps outside this scope. `git diff --check` passed.
+Rollback notes: Revert the Stroane webhook transaction-verification route changes, Paystack test, checkout return copy, env/docs updates, and this entry. No migration rollback required.
+Next step: Lightweight admin order management and a dedicated payment event/notification log before fulfillment automation.
+
+### Stroane security and production readiness pass
+
+Date: 2026-05-20
+Change name: Stroane security and production readiness pass
+Apps/packages affected: Stroane Web, `@faako/security`, platform security docs
+What changed: Reused the shared `@faako/security` API header baseline in Stroane backend security middleware, added route-specific in-memory rate limits for auth/inquiry/checkout/Paystack routes, added a pre-Paystack payment-readiness validation that rechecks current catalogue price, currency, stock status, purchasability, and quantity, minimized Paystack provider metadata, removed obsolete browser-visible preview-auth env examples, and created Stroane/platform security status notes.
+Why it changed: Stroane now has customer data, order data, payment references, Paystack webhook confirmation, and notification foundations, so security consistency and payment-readiness controls needed to be tightened before further commerce expansion.
+Files changed: apps/stroane-web/backend/security.js, apps/stroane-web/backend/security.test.js, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/backend/src/paystack.js, apps/stroane-web/.env.example, apps/stroane-web/package.json, pnpm-lock.yaml, apps/stroane-web/src/pages/Privacy.tsx, apps/stroane-web/README.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/security-status.md, docs/platform/platform-progress-log.md
+Data impact: None. No schema changes, migrations, inventory deductions, order total changes, fulfillment automation, CRM workflow, Dev ERP workflow, or REEBS workflow changed.
+Security impact: Positive hardening only. Shared headers reduce drift, route-specific limits reduce basic abuse risk, server-side readiness validation prevents stale stock/pricing from proceeding to payment initialization, Paystack metadata avoids raw internal IDs/customer phone, and security docs now call out Railway/provider-level rate controls, Railway Postgres least-privilege access, backend admin auth, and payment event/notification log gaps.
+Testing done: `pnpm --filter @faako/stroane-web exec node --test backend/security.test.js` passed. Backend `node --check` passed for `server.js`, `security.js`, `orders.js`, `paystack.js`, and `orderNotifications.js`. `pnpm --filter @faako/stroane-web exec prisma validate` passed after rerunning with access to Prisma's local engine cache. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run security:scan` passed. `pnpm run security:gate` initially failed on obsolete `VITE_AUTH_PASSWORD`; after cleanup it passed. `pnpm run monitoring:check` passed. `pnpm run project-registry:check` passed with warning-only metadata coverage notes.
+Rollback notes: Revert the Stroane security middleware/dependency/lockfile changes, route limit wiring, payment-readiness validation, metadata minimization, env example cleanup, docs, and privacy wording update. No data rollback required.
+Next step: Railway/provider-level rate limiting, payment event/notification logs, Railway Postgres least-privilege access, and backend-enforced admin auth planning before broader commerce/admin workflows.
+
+Decision update: On 2026-05-21, public Stroane sign-in/sign-up was retained as a frontend-only customer convenience, not a backend auth boundary. Stroane selected Railway/provider controls as the production rate-limit layer and Railway Postgres as the production database direction. Private backend `SiteUser` access should remain limited to one seeded admin and one seeded viewer account until a real admin/account model is approved.
+
+### Stroane storefront stock availability foundation
+
+Date: 2026-05-20
+Change name: Stroane storefront stock availability foundation
+Apps/packages affected: Stroane Web
+What changed: Added storefront stock availability fields and conservative purchase gating for Stroane catalogue products. Catalogue products now support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`; PDF-imported seed products default to unavailable/non-purchasable until real counts are confirmed. Product cards/details show customer-facing availability, inquiry appears only as fallback, cart controls disable unavailable additions, checkout blocks unavailable/unconfirmed-stock items, and backend order preparation validates stock/purchasability server-side before payment initialization.
+Why it changed: Stroane is moving from catalogue/inquiry into lightweight commerce, so storefront purchasing must not treat unknown stock as sellable or rely on browser-only cart state.
+Files changed: apps/stroane-web/src/data/products.ts, apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/src/types/index.ts, apps/stroane-web/src/components/QuantityControls.tsx, apps/stroane-web/src/styles/components/QuantityControls.css, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/src/styles/pages/Shop.css, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/src/pages/ProductList.tsx, apps/stroane-web/src/pages/Checkout.tsx, apps/stroane-web/src/styles/pages/Checkout.css, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260520000004_add_catalogue_stock_availability_fields/migration.sql, apps/stroane-web/prisma/seed-catalogue.mjs, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Additive catalogue stock metadata fields only until deployed. No stock deduction, inventory ledger, fulfillment automation, payment total changes, CRM workflow, Dev ERP workflow, or REEBS workflow changed.
+Security impact: Server remains the source of truth for checkout validation. Frontend availability is advisory; the backend rejects non-purchasable, unavailable, price-request, or insufficient-stock items before order/payment work.
+Testing done: `node --check apps/stroane-web/backend/src/catalogue.js` passed. `node --check apps/stroane-web/backend/src/orders.js` passed. `node --check apps/stroane-web/prisma/seed-catalogue.mjs` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `git diff --check` passed.
+Rollback notes: Revert the additive catalogue stock fields/migration, seed mapping, storefront/cart/checkout availability updates, backend validation updates, and docs. Preserve any manually entered stock metadata before removing deployed fields.
+Next step: Lightweight Stroane stock editor/admin foundation.
+
+### Stroane Paystack webhook verification and order confirmation completion
+
+Date: 2026-05-20
+Change name: Stroane Paystack webhook verification and order confirmation completion
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Added secure Paystack webhook handling for Stroane checkout: raw request-body capture, HMAC-SHA512 signature verification, event validation, reference-based order lookup, amount/currency validation, webhook metadata storage, and idempotent paid-status handling. This path has since been tightened to call Paystack transaction verification before final paid-state changes. The browser return verification endpoint remains a customer-facing status check and does not finalize paid status or send confirmation before webhook confirmation. Payment-confirmed email triggers from the signed webhook-confirmed paid path.
+Why it changed: Stroane needs production-safer payment confirmation where Paystack server-to-server webhooks are the trusted source of paid status, not browser redirects.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/paystack.js, apps/stroane-web/backend/src/orderNotifications.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260520000003_add_paystack_webhook_metadata/migration.sql, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/pages/CheckoutReturn.tsx, apps/stroane-web/.env.example, apps/stroane-web/README.md, packages/config/src/projectRegistry/projectRegistry.js, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: Additive webhook metadata fields only until deployed. Signed webhooks can mark matching orders paid only after reference, amount, and currency validation. Browser callback verification stays display/status-only for successful payments until webhook confirmation. No inventory, fulfillment, CRM, Dev ERP, REEBS, WhatsApp, or SMS workflows changed.
+Security impact: Paystack secrets remain backend-only. Invalid webhook signatures are rejected. Paid status is not trusted from the browser return path. Provider payloads are reduced to safe metadata, and logs avoid dumping sensitive data. Confirmation email sends only after webhook-confirmed paid state and still checks `customerNotificationSentAt` to reduce duplicate sends.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/paystack.js` passed. `node --check apps/stroane-web/backend/src/orderNotifications.js` passed. `node --check apps/stroane-web/backend/src/orders.js` passed. Paystack webhook signature helper check passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run project-registry:check` passed with warning-only app metadata coverage notes. `git diff --check` passed.
+Rollback notes: Revert the webhook signature helpers/route, callback-status-only behavior, additive webhook metadata fields/migration, env/docs updates, and project-registry milestone update. If deployed, preserve any required webhook/payment metadata before removing fields.
+Next step: Add a payment event/notification log for strict idempotency and replay review before fulfillment automation or staff alerts.
+
+### Stroane order notification foundation
+
+Date: 2026-05-20
+Change name: Stroane order notification foundation
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Added a Stroane backend order notification helper with customer-safe templates for order received, payment confirmed, order processing, order completed, payment pending, and payment failed states. Payment-confirmed email now belongs to the webhook-confirmed paid path after server-side Paystack transaction verification. Checkout captures a preferred contact method, and `CommerceOrder` has additive notification metadata fields for send status, type, timestamp, provider ID, and last error. WhatsApp/SMS order formatters were added as templates only.
+Why it changed: Stroane customers need a lightweight confirmation path after verified payment, while keeping notification automation minimal, private, and payment-safe before webhook hardening and full order operations exist.
+Files changed: apps/stroane-web/backend/src/orderNotifications.js, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260520000002_add_order_notification_foundation/migration.sql, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/pages/Checkout.tsx, apps/stroane-web/src/styles/pages/Checkout.css, apps/stroane-web/.env.example, apps/stroane-web/README.md, packages/config/src/projectRegistry/projectRegistry.js, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: Additive order notification metadata fields only until deployed. A paid order can record customer email notification status after successful payment verification. No order totals, Paystack amount validation, inventory, fulfillment, CRM, Dev ERP, REEBS, WhatsApp, or SMS workflows changed.
+Security impact: Resend and payment secrets stay server-side. Notification content is customer-safe and excludes internal notes, audit metadata, raw database IDs, secrets, payment authorization payloads, and card/MoMo details. Duplicate sends are reduced with order-level `customerNotificationSentAt`; a dedicated notification log/audit trail remains future work for strict idempotency.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/orderNotifications.js` passed. `node --check apps/stroane-web/backend/src/orders.js` passed. Order notification helper import check passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run project-registry:check` passed with warning-only app metadata coverage notes. `git diff --check` passed.
+Rollback notes: Revert the notification helper, verify-hook email attempt, checkout preferred-contact field, additive notification schema/migration fields, env/docs updates, and project-registry milestone update. If deployed, preserve any needed notification delivery metadata before removing fields.
+Next step: Add Paystack webhook verification and a notification log/idempotency foundation before relying on automated fulfillment or multi-channel order updates.
+
+### Stroane Paystack checkout MVP
+
+Date: 2026-05-20
+Change name: Stroane Paystack checkout MVP
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Added backend Paystack initialization and verification for Stroane checkout. Checkout creates a pending order, calls `POST /api/orders/:orderId/paystack/initialize`, redirects customers to Paystack, and `/checkout/return` verifies the returned reference through `POST /api/paystack/verify`. The backend verifies server-side order totals before sending amount/currency to Paystack, maps payment statuses (`payment_pending`, `paid`, `failed`, `abandoned`), and stores safe Paystack reference/status/verification metadata on the order. Added additive payment metadata fields to `CommerceOrder`, customer-friendly callback states, documentation, and project metadata updates.
+Why it changed: Enable the first Ghana-aligned payment path for Stroane using Paystack test mode first, while keeping prices/order validation server-owned and avoiding inventory, fulfillment, CRM, or ERP expansion.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/paystack.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260520000001_add_commerce_payment_metadata/migration.sql, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/pages/Checkout.tsx, apps/stroane-web/src/pages/CheckoutReturn.tsx, apps/stroane-web/src/App.tsx, apps/stroane-web/src/styles/pages/Checkout.css, apps/stroane-web/README.md, packages/config/src/projectRegistry/projectRegistry.js, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: Additive payment metadata fields only until deployed. Payment initialization updates existing order payment reference/status. Verification can mark a matching order paid only after Paystack confirms reference, amount, and currency. No inventory deduction, fulfillment automation, CRM workflow, Dev ERP workflow, REEBS workflow, or unrelated app data is changed.
+Security impact: Paystack secret key remains backend-only. Frontend totals are not trusted. Backend checks amount/currency/reference before paid status, blocks live keys unless `PAYSTACK_ALLOW_LIVE=true` is explicitly set server-side, stores only safe provider metadata, and does not store card/MoMo sensitive details. Webhook verification remains the next hardening phase.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/paystack.js` passed. `node --check apps/stroane-web/backend/src/orders.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run project-registry:check` passed with warning-only app metadata coverage notes.
+Rollback notes: Revert the Paystack helper/endpoints, checkout redirect/return route, additive payment metadata migration/schema changes, docs/env updates, and project-registry metadata update. If already deployed, preserve needed payment references before removing payment metadata fields.
+Next step: Add Paystack webhook verification and customer/staff order confirmation emails after test-mode checkout is verified end to end.
+
+### Stroane commerce and checkout foundation
+
+Date: 2026-05-20
+Change name: Stroane commerce and checkout foundation
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Added a lightweight Stroane commerce foundation: persistent cart storage for product IDs/quantities, cart count in the public header/mobile nav, checkout detail/review flow, a backend `POST /api/orders` endpoint, and additive Prisma models/migration for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`. Orders are created as `PAYMENT_PENDING` with server-calculated line totals from catalogue data, customer contact/delivery details, payment provider placeholders, and item snapshots. Checkout no longer calls Paystack directly; it prepares an order request only. Added future Paystack env placeholders and updated Stroane project metadata to the commerce milestone.
+Why it changed: Stroane is evolving into a lightweight commerce platform and needs a safe browse -> cart -> checkout -> pending order foundation before payment collection, inventory automation, advanced CRM, or ERP workflows.
+Files changed: apps/stroane-web/src/context/CartContext.tsx, apps/stroane-web/src/components/Header.tsx, apps/stroane-web/src/styles/components/Header.css, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/pages/Checkout.tsx, apps/stroane-web/src/styles/pages/Checkout.css, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260520000000_add_commerce_order_foundation/migration.sql, apps/stroane-web/.env.example, packages/config/src/projectRegistry/projectRegistry.js, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: Additive schema only until deployed. When deployed, checkout can create minimal pending order records and order item records. No inventory deduction, warehouse logic, CRM automation, payment capture, Paystack transaction, Dev ERP workflow, REEBS workflow, or unrelated app data is changed.
+Security impact: Server recalculates prices from catalogue data and does not trust frontend totals. Paystack secret/config values are documented as server-side only, and the current checkout does not generate payment links, verify webhooks, mark orders paid, or expose secrets. Backend validation and rate limiting remain required.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/orders.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run project-registry:check` passed with warning-only app metadata coverage notes.
+Rollback notes: Revert the cart/header/checkout/order API changes, order helper, additive migration/schema changes, env/docs updates, and project-registry metadata update. If already deployed, export/archive needed order records before dropping the added commerce tables and enum.
+Next step: Test deployed pending-order creation against the intended Stroane database, then design server-side Paystack initialize/link generation and webhook verification.
+
+### Stroane catalogue frontend and inquiry workflow completion refinement
+
+Date: 2026-05-19
+Change name: Stroane catalogue frontend and inquiry workflow completion
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Completed the safe Stroane catalogue/inquiry path by making the backend catalogue API prefer persisted Prisma catalogue categories/products when those tables are available, while preserving JSON seed fallback for local development, unmigrated databases, or backend read failures. The product detail API now falls back to the local catalogue seed if persisted product lookup fails. `/shop` keeps category browsing/counts, search, sort, fallback notices, and mapped product imagery tied to the backend-aware catalogue data. Product Detail keeps mapped images, specs, use cases, pricing labels, related products, and product-specific inquiry forms for priced and quote-only products.
+Why it changed: Move Stroane closer to production-ready backend-driven catalogue browsing without adding payments, ERP workflows, advanced CRM, inventory automation, AI, or unrelated app changes.
+Files changed: apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/backend/server.js, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/src/pages/ProductDetail.tsx, packages/config/src/projectRegistry/projectRegistry.js, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Read-only catalogue API behavior only. Inquiry persistence remains limited to the existing `/api/inquiries` endpoint and only writes minimal `CatalogueInquiry` records when the Stroane migration/backend are deployed. No payment, order, inventory, CRM, Dev ERP, REEBS, or proposal workflows changed.
+Security impact: No secrets exposed. Backend validation remains required for inquiry submissions, internal database errors are not exposed to storefront users, and no admin lead-management or automated notification surface was introduced.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/catalogue.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run project-registry:check` passed with warning-only app metadata coverage notes.
+Rollback notes: Revert the backend catalogue DB-first helpers/routes, the Shop/Product Detail catalogue/inquiry refinements, project metadata update, and docs. No database rollback is required unless separately deployed inquiry records need archival.
+Next step: Deploy/test the Stroane backend/database pairing, verify live inquiry persistence from the Netlify frontend, and complete final product photography/manual review.
+
+### Stroane product image extraction and mapping
+
+Date: 2026-05-19
+Change name: Stroane product image extraction and mapping
+Apps/packages affected: Stroane Web
+What changed: Extracted product-specific WebP assets from the uploaded Stroane thermometer catalogue, thermometer price list, and thermometers/posters/aprons brochure into `apps/stroane-web/public/images/products/`. Mapped images through the centralized Stroane catalogue seed with thumbnail, primary image, gallery image, and alt-text fields. Updated catalogue helpers and low-risk storefront image rendering to use mapped images with a placeholder fallback.
+Why it changed: Replace generic storefront placeholders with source-catalogue product imagery while keeping Stroane lightweight, product-focused, and data-driven.
+Files changed: apps/stroane-web/public/images/products/*.webp, apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/src/data/products.ts, apps/stroane-web/src/pages/Home.tsx, apps/stroane-web/src/styles/pages/Home.css, apps/stroane-web/src/pages/ProductList.tsx, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Static asset and catalogue metadata update only. No schema, persisted data, inquiry, payment, inventory, CRM, Dev ERP, or REEBS workflows changed.
+Security impact: None. Images are public catalogue assets; no secrets or internal metadata were added.
+Testing done: Reviewed generated crop contact sheet. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `node --check apps/stroane-web/backend/src/catalogue.js` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed.
+Rollback notes: Revert the new assets, catalogue metadata, image rendering updates, homepage image CSS change, and docs. No database rollback required.
+Next step: Confirm image crops with Stroane and replace catalogue-derived crops with final product photography where available.
+
+### Stroane catalogue frontend and inquiry workflow completion
+
+Date: 2026-05-19
+Change name: Stroane catalogue frontend and inquiry workflow completion
+Apps/packages affected: Stroane Web, @faako/config portfolio project metadata
+What changed: Added a shared Stroane catalogue data hook that reads products/categories from the backend first and falls back to the local normalized JSON seed. Improved `/shop` with category overview cards, URL-aware category filtering, search/sort, result counts, fallback/loading notices, richer product cards, and responsive spacing. Updated `/products` to use the same backend-aware catalogue data path and image-led cards. Improved Product Detail with API-first detail loading, local fallback notices, long descriptions, availability notes, expanded specifications, use-case chips, and lazy-loaded related product images. Updated product and contact inquiry forms to submit through the existing validated `/api/inquiries` endpoint when available, keep direct email fallbacks, and include simple frontend honeypot fields. Updated Stroane project metadata for future byNana portfolio consumption.
+Why it changed: Complete the first product-focused catalogue and inquiry conversion experience for Stroane while keeping the app lightweight and avoiding payments, ERP workflows, advanced CRM, AI, inventory automation, or unrelated app changes.
+Files changed: apps/stroane-web/src/hooks/useCatalogueData.ts, apps/stroane-web/src/api/products.ts, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/src/styles/pages/Shop.css, apps/stroane-web/src/pages/ProductList.tsx, apps/stroane-web/src/styles/pages/ProductList.css, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/src/styles/pages/ProductDetail.css, apps/stroane-web/src/components/ProductInquiryForm.tsx, apps/stroane-web/src/pages/Contact.tsx, apps/stroane-web/src/styles/pages/Contact.css, apps/stroane-web/README.md, packages/config/src/projectRegistry/projectRegistry.js, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: No database schema changes. Catalogue browsing remains read-only. Submitted product/contact inquiries use the previously created `/api/inquiries` path and may persist `CatalogueInquiry` records only when the existing Stroane backend and migration are deployed.
+Security impact: No secrets exposed and no automated notifications, payments, inventory automation, admin CRM, or internal APIs added. Inquiry forms use minimal payloads, visible fallback paths, and simple honeypot fields while backend validation/rate limiting remain the source of truth.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/backend/src/catalogue.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `node --check scripts/check-project-registry.mjs` passed. `pnpm run project-registry:check` passed with warning-only app coverage notes. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `git diff --check` passed.
+Rollback notes: Revert the catalogue hook, catalogue/detail/contact/inquiry UI changes, project registry metadata update, and documentation updates. No database rollback is required.
+Next step: Deploy and test the Stroane backend/database pairing, verify live inquiry persistence from the Netlify frontend, and complete product image/manual-review cleanup.
+
+### Stroane database and deployment foundation
+
+Date: 2026-05-19
+Change name: Stroane database, deployment, and portfolio registry foundation
+Apps/packages affected: Stroane Web, @faako/config, byNana Portfolio metadata preparation
+What changed: Added an additive Prisma/Postgres foundation for Stroane catalogue categories, catalogue products, catalogue inquiries, and public business profile content. Added a migration, an opt-in catalogue seed script, environment-specific database URL resolution for the backend, and minimal inquiry persistence through the existing validated `/api/inquiries` endpoint. Added a shared portfolio project registry in `@faako/config`, registered Stroane Web / Stroane Solutions with public-safe metadata and case-study publishing disabled, and added a warning-only project registry check. Updated Stroane deployment documentation for Hostinger DNS/email, Netlify frontend hosting, Railway backend hosting, Railway/Supabase Postgres database hosting, and future byNana portfolio metadata consumption.
+Why it changed: Prepare Stroane for production-safe backend/data deployment and future operational scaling while keeping the app lightweight and product-focused, and prepare shared project metadata for future portfolio/case-study use without publishing anything.
+Files changed: apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260519000000_add_catalogue_inquiry_foundation/migration.sql, apps/stroane-web/prisma/seed-catalogue.mjs, apps/stroane-web/package.json, apps/stroane-web/.env.example, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/README.md, apps/bynana-portfolio/README.md, package.json, packages/config/src/projectRegistry/projectRegistry.js, packages/config/src/index.js, packages/config/src/index.ts, packages/config/README.md, scripts/check-project-registry.mjs, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Additive schema only until deployed. Applying the migration creates new Stroane catalogue/inquiry tables. Running the seed upserts catalogue data from the centralized JSON seed. No payments, orders, inventory automation, CRM records, Dev ERP workflows, REEBS workflows, or unrelated app data are changed.
+Security impact: Secrets remain server-side; database URLs are not browser-visible. Inquiry persistence stores minimized contact/product request data after validation and existing API rate limiting. Portfolio metadata is public-safe, excludes private backend/admin details, and keeps `caseStudyEnabled` false. No automated messaging, admin inquiry UI, payments, inventory automation, CRM workflows, public case-study publishing, or byNana UI changes were added.
+Testing done: `pnpm --filter @faako/stroane-web exec prisma validate` passed. `node --check apps/stroane-web/backend/server.js` passed. `node --check apps/stroane-web/prisma/seed-catalogue.mjs` passed. Catalogue inquiry helper import check passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run monitoring:check` passed. `pnpm run project-registry:check` passed with warning-only coverage notes. `git diff --check` passed.
+Rollback notes: Revert the schema/migration/seed/backend/env/docs changes. If already migrated, export any needed inquiry records and drop the added catalogue/inquiry/business-profile tables plus `CatalogueInquiryStatus`.
+Next step: Provision Railway backend and Railway/Supabase Postgres, configure production env vars, run migrations, seed the catalogue, test deployed inquiry persistence, and later plan byNana portfolio UI consumption from the shared registry.
+
+### Stroane catalogue and backend foundation
+
+Date: 2026-05-19
+Change name: Stroane catalogue and backend foundation
+Apps/packages affected: Stroane Web, Dev ERP monitoring metadata, @faako/config
+What changed: Added a normalized Stroane catalogue seed/data structure from reviewed catalogue and pricing PDFs, added read-only category/product API foundations, added a validated product inquiry acknowledgement endpoint, wired frontend catalogue/product/detail/search surfaces to the centralized data helpers, added quote-only product handling and product-detail inquiry UI, and extended the shared monorepo app registry with optional Stroane API monitoring endpoints that activate only when a backend base URL is configured.
+Why it changed: Establish a production-safe catalogue and inquiry foundation for Stroane before any future payments, CRM, admin, inventory, AI, or ERP expansion.
+Files changed: apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/src/data/products.ts, apps/stroane-web/src/types/index.ts, apps/stroane-web/src/api/products.ts, apps/stroane-web/src/components/ProductInquiryForm.tsx, apps/stroane-web/src/pages/Home.tsx, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/src/pages/ProductList.tsx, apps/stroane-web/src/pages/Search.tsx, apps/stroane-web/src/pages/Checkout.tsx, apps/stroane-web/src/pages/Contact.tsx, apps/stroane-web/src/pages/About.tsx, apps/stroane-web/src/styles/globals.css, apps/stroane-web/src/styles/pages/Shop.css, apps/stroane-web/src/styles/pages/ProductDetail.css, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/tsconfig.app.json, apps/stroane-web/README.md, packages/config/src/monorepoApps/appRegistry.js, packages/config/README.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md, docs/platform/platform-status.md
+Data impact: No production data changes. Catalogue data is seed/config only, and inquiry submissions are acknowledged but not persisted.
+Security impact: No secrets exposed and no automated messaging, payments, inventory automation, CRM, or ERP workflows added. Inquiry data is validated and minimized; backend validation remains required before future persistence or admin views.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. Catalogue helper import check returned 8 products and 4 categories, and confirmed optional `stroane-api` monitoring emits when a backend base URL is supplied. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed. `pnpm run monitoring:check` passed. `git diff --check` passed.
+Rollback notes: Revert the Stroane catalogue seed/helpers/API routes/inquiry form/UI wiring, optional monitoring registry metadata, and documentation updates. No schema or data rollback required.
+Next step: Complete manual catalogue extraction/review, confirm product imagery and pricing, then decide the safest inquiry persistence or notification workflow.
+
+### Client proposal approval and request changes MVP
+
+Date: 2026-05-19
+Change name: Client proposal approval and request changes MVP
+Apps/packages affected: Dev ERP
+What changed: Added secure-link client actions for Dev ERP proposals. Shared proposals can now be approved or receive requested-changes feedback from `/proposal/view/:token`; public endpoints validate the share token, update proposal status to `approved` or `changes_requested`, and store lightweight client response metadata in existing proposal content JSON. The internal proposal workflow panel displays the client response and feedback.
+Why it changed: Complete the first client-response loop for shared proposals before invoice conversion, Paystack links, digital signatures, or AI workflows are introduced.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/pages/Proposals/ProposalClientView.jsx, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalWorkflow.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal-content JSON update only. No schema, invoice/payment, receipt, rent, accounting, report, Paystack, or operational data behavior changed.
+Security impact: Token validation, expiry checks, shared-status action gating, noindex/noarchive client view protections, and sanitized client payloads remain in place. Internal notes, editor controls, staff metadata, audit fields, invoices, payments, and Paystack data are not exposed.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the client response endpoints, client-view approval/request-changes UI, internal response display, and documentation updates. No database rollback required.
+Next step: Proposal-to-invoice conversion planning with server-owned approval/audit records and version-locking review.
+
+### Online proposal share link and client view MVP
+
+Date: 2026-05-18
+Change name: Online proposal share link and client view MVP
+Apps/packages affected: Dev ERP
+What changed: Enabled Dev ERP secure proposal client viewing for proposals with server-generated share tokens and `shared` or `approved` status. Added `/api/proposals/view/:token`, `/proposal/view/:token`, a sanitized client proposal view, noindex/noarchive protections, graceful invalid/expired/not-shared states, and a print/save-as-PDF Download PDF action.
+Why it changed: Allow client-safe online proposal viewing before approval, invoice conversion, Paystack links, or broader public workflows are implemented.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/pages/Proposals/ProposalClientView.jsx, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: None. Existing Proposal share-token fields are used; no schema, payment, invoice, receipt, rent, accounting, report, or Paystack behavior changed.
+Security impact: Token-only client access, shared/approved status gating, expiry checks, noindex/noarchive metadata/headers, and client-safe serialization that omits internal notes, staff/editor metadata, audit fields, workflow state, metadata, and token values.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the public proposal endpoint, client route/view/styles, editor copy, and documentation updates. Existing saved proposals do not require data rollback.
+Next step: Proposal approval/request-changes flow and client-view expiry/view-tracking planning.
+
+### Proposal template expansion and blank proposal flow
+
+Date: 2026-05-18
+Change name: Proposal template expansion and blank proposal flow
+Apps/packages affected: Dev ERP
+What changed: Expanded the Dev ERP proposal template library and added a first-class Start from Scratch / Blank Proposal starter. New starters cover ERP system, business website, client portal, inventory/POS, operational workflow, business automation, onboarding/implementation, service, maintenance/support, and future travel itinerary proposals. The template gallery now searches tags, restores lightweight Preview and Use/Start actions, shows visible/total counts, and offers a reset action for empty search/filter results.
+Why it changed: Improve proposal creation flexibility while keeping the current reusable block schema, private persistence, preview, approval foundation, and future PDF/payment/AI boundaries unchanged.
+Files changed: apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/ProposalPreview.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. Template/default-content and UI-only change; no schema, data writes, proposal API, invoice/payment, rent/accounting/report, Paystack, public proposal, PDF, or AI behavior changed.
+Security impact: Presentation and template defaults only. Authenticated proposal access, organization scoping, secure-link preparation boundaries, and disabled public/client workflows remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`.
+Rollback notes: Revert the expanded template data, gallery JSX/CSS polish, and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation planning.
+
+### Proposal UX polish pass
+
+Date: 2026-05-18
+Change name: Proposal UX polish pass
+Apps/packages affected: Dev ERP
+What changed: Refined the Dev ERP Proposal Generator after the first UI simplification by making template gallery cards thumbnail-first, removing long descriptions and heavy metadata from template cards, keeping actions lightweight on hover/focus and visible on mobile, and reducing dashboard-style framing in the live proposal preview.
+Why it changed: Bring the proposal module closer to a calm template-browsing experience while preserving proposal persistence, approval, invoice/payment, Paystack, and public-sharing boundaries.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. UI-only refinement with no schema, data writes, proposal API, invoice/payment, rent/accounting/report, Paystack, or public proposal changes.
+Security impact: Presentation-only. Authenticated proposal access, organization scoping, secure-link preparation boundaries, and disabled public/client workflows remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; proposal UI hardcoded color scan.
+Rollback notes: Revert the proposal JSX/CSS polish and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Proposal Generator UI simplification
+
+Date: 2026-05-18
+Change name: Proposal Generator UI simplification
+Apps/packages affected: Dev ERP
+What changed: Simplified the Dev ERP Proposal Generator UI into a template-browsing flow with a clean hero, search/action area, category filter chips, visual template gallery, compact recent proposal list, clearer Preview/Use template/Edit actions, and a two-column editor plus live document preview. Proposal template and recent proposal cards now use `bubble-card` where intended, while preview styling remains document-oriented and theme-token based.
+Why it changed: Reduce visual clutter and align the proposal module with a modern template-gallery direction before implementing future proposal-to-invoice, PDF/export, approval, Paystack, or AI phases.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. UI-only change; no schema, proposal persistence, approval, invoice/payment, rent/accounting/report, Paystack, or public proposal behavior changed.
+Security impact: Presentation-only. Authenticated proposal access, organization scoping, secure-link preparation boundaries, and disabled public/client workflows remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; affected-file `git diff --check`; proposal UI hardcoded color scan.
+Rollback notes: Revert the proposal JSX/CSS/template category metadata and documentation updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Proposal template management foundation
+
+Date: 2026-05-18
+Change name: Proposal template management foundation
+Apps/packages affected: Dev ERP
+What changed: Added a dedicated Dev ERP proposal template layer with reusable template entities for website, ERP, onboarding, and future travel proposals. Templates now define keys, names, descriptions, proposal type, default section order, enabled/disabled sections, style reference, and default content placeholders. The proposal editor loads new local drafts from that template layer and shows template/style/section metadata without changing proposal persistence, PDF export, invoice conversion, Paystack, AI, or public editing behavior.
+Why it changed: Prepare proposal layouts to scale beyond a single hardcoded starter before implementing manual proposal-to-invoice draft generation or later PDF/payment/AI flows.
+Files changed: apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. Template defaults are draft creation metadata only; no database schema, invoice/payment/rent/accounting/report data, public proposal content, or existing proposal API behavior changed.
+Security impact: Private authenticated template selection foundation only. No public editor, PDF generation, AI generation, invoice conversion, Paystack links, approval actions, auth changes, or permission changes.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/dev-erp run test`; affected-file `git diff --check`.
+Rollback notes: Revert the template helper extraction, restore proposal starter definitions to the schema file, and remove the template metadata UI/docs updates. No data rollback required.
+Next step: Manual proposal-to-invoice draft generation.
+
+### Proposal approval flow foundation
+
+Date: 2026-05-18
+Change name: Proposal approval flow foundation
+Apps/packages affected: Dev ERP
+What changed: Added proposal workflow-state foundation for Dev ERP, including `changes_requested`, internal review notes, internal comments, change-request notes, approval-readiness checks, workflow badges/descriptions, disabled future client action placeholders, and server-owned status history metadata within saved proposal content. Existing proposal APIs remain authenticated and organization-scoped.
+Why it changed: Prepare proposals for future client review, revision requests, approvals, onboarding conversion, invoice conversion, Paystack payment workflows, and travel proposal reuse without exposing risky public workflows yet.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/pages/Proposals/proposalWorkflow.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal-content workflow metadata only. No schema changes, invoice/payment/rent/accounting/report changes, PDF generation, file storage, Paystack links, or public proposal access changes.
+Security impact: Internal authenticated workflow-state foundation only. No public approval routes, digital signatures, payment links, invoice conversion, notifications, analytics, or AI generation were implemented.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; affected-file `git diff --check`.
+Rollback notes: Revert the workflow helper/UI/server normalization/docs changes. Existing saved proposals can ignore the extra workflow content metadata.
+Next step: Proposal-to-invoice conversion planning.
+
+### Proposal PDF/export architecture foundation
+
+Date: 2026-05-18
+Change name: Proposal PDF/export architecture foundation
+Apps/packages affected: Dev ERP
+What changed: Added export-aware proposal preview architecture by moving preview rendering into `ProposalPreview.jsx`, adding `proposalExportConfig.js` for export targets, section roles, page modes, print-break metadata, and future renderer hooks, and strengthening print CSS for A4 output, app chrome removal, section break avoidance, cover/page behavior, and color preservation. The online preview remains the source of truth for future PDF export.
+Why it changed: Prepare Dev ERP proposals for future presentation-style PDF export without generating production PDFs or changing proposal persistence/payment/invoice workflows.
+Files changed: apps/dev-erp/src/pages/Proposals/ProposalPreview.jsx, apps/dev-erp/src/pages/Proposals/proposalExportConfig.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md
+Data impact: None. No schema changes, proposal persistence contract changes, file storage, invoice/payment/rent/accounting/report changes, or Paystack behavior changes.
+Security impact: Export planning only. No public proposal links, PDF download, approval, invoice conversion, Paystack links, or AI generation were implemented.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `git diff --check`.
+Rollback notes: Revert the proposal preview/export helper extraction, print CSS additions, and documentation updates. No data rollback required.
+Next step: Proposal approval flow foundation.
+
+### Proposal persistence and secure share-link foundation
+
+Date: 2026-05-18
+Change name: Proposal persistence and secure share-link foundation
+Apps/packages affected: Dev ERP
+What changed: Added Dev ERP private proposal persistence using an additive `Proposal` table, authenticated admin-only proposal APIs, saved proposal management in `/proposals`, lightweight versioning, internal preview routing at `/proposals/:proposalId/preview`, proposal statuses, creator/last-editor metadata, and secure token preparation for a future client-view route. Public proposal content, PDF export, approval, invoice conversion, Paystack links, and AI generation remain disabled.
+Why it changed: Prepare proposals for safe saving, management, and future secure online viewing before implementing PDF/export architecture or client/payment workflows.
+Files changed: apps/dev-erp/prisma/schema.prisma, apps/dev-erp/prisma/migrations/20260518000000_add_proposal_foundation/migration.sql, apps/dev-erp/backend/server.js, apps/dev-erp/backend/auth/accessConfig.js, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/app/navigation.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: Additive proposal storage only. Existing invoice, payment, receipt, rent, booking, accounting, report, Paystack, public invoice, and operational data flows are unchanged.
+Security impact: Authenticated admin-only APIs, organization-scoped proposal access, server-generated unpredictable share tokens, expiry metadata, and sanitized proposal metadata. No public proposal content endpoint or client approval/payment access is active.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/dev-erp exec prisma validate`; `git diff --check`.
+Rollback notes: Revert the schema/migration/API/frontend/docs updates. If applied to a database, export/archive any saved proposal drafts before dropping the `Proposal` table.
+Next step: Proposal PDF/export architecture.
+
+### Proposal template schema and preview foundation
+
+Date: 2026-05-18
+Change name: Proposal template schema and preview foundation
+Apps/packages affected: Dev ERP
+What changed: Added a Dev ERP `/proposals` frontend-only foundation with reusable proposal schema blocks, template starters, a proposal list page, editor shell, personal-note fields, section ordering controls, proposal type support for ERP/website/onboarding/future travel proposals, and a responsive/print-aware preview shell. The module is registered in Dev ERP navigation metadata as experimental.
+Why it changed: Create reusable proposal structure and preview behavior before persistence, secure online viewing, PDF generation, approval flows, invoice conversion, Paystack links, travel reuse, or AI proposal generation.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalSchema.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/utils/moduleAccess.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: None. The foundation is in-memory frontend state only and does not write proposal, invoice, payment, receipt, rent, accounting, report, or customer data.
+Security impact: No public proposal links, persistence, approval flow, invoice conversion, Paystack payment links, AI generation, auth behavior, permission logic, or database schema changes.
+Testing done: `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `git diff --check`.
+Rollback notes: Remove the route, proposal page/schema/styles, registry/navigation/module-access entry, and documentation updates. No data rollback required.
+Next step: Proposal persistence and secure share-link planning.
+
+### Dev ERP monitoring and Paystack foundation
+
+Date: 2026-05-18
+Change name: Dev ERP monitoring and Paystack foundation
+Apps/packages affected: Dev ERP, @faako/config, platform scripts
+What changed: Added `scripts/check-monorepo-app-registry.mjs` and the root `monitoring:check` script to scan `apps/`, compare app directories against shared monorepo app registry metadata, and warn/fail if app registry coverage drifts. Added Dev ERP Paystack planning/config foundation with a non-runtime config descriptor, server-side `.env.example` placeholders, and `docs/apps/dev-erp/paystack-foundation-plan.md`. Current Dev ERP invoice, rent payment, receipt, report, public invoice token, and manual payment behavior remains unchanged.
+Why it changed: Keep Dev ERP monitoring current as apps are added and establish Paystack safety boundaries before Proposal Generator work.
+Files changed: scripts/check-monorepo-app-registry.mjs, package.json, apps/dev-erp/backend/payments/paystack.config.js, apps/dev-erp/.env.example, apps/dev-erp/README.md, README.md, packages/config/README.md, docs/apps/dev-erp/paystack-foundation-plan.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/platform/platform-progress-log.md
+Data impact: None. No schema changes, data writes, invoice/payment/rent persistence changes, receipt generation, report changes, or live Paystack transactions.
+Security impact: Improves registry drift detection and documents Paystack secret-handling requirements. No secrets are printed or exposed. Paystack secret/webhook values remain server-side env only. Webhook verification, idempotency, audit logging, and provider reference persistence remain future work.
+Testing done: `pnpm run monitoring:check` passed. Paystack config import/status check passed without returning secret values. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `git diff --check` passed.
+Rollback notes: Remove the registry check script/root script entry, remove the Paystack config descriptor and `.env.example` placeholders, and revert documentation updates. No data rollback required.
+Next step: Proposal Generator foundation.
+
 ### Production stabilization refinement pass
 
 Date: 2026-05-18

@@ -33,6 +33,8 @@ pnpm run dev:faako
 - the prebuild step keeps the site's local `/api/*` functions in sync with `apps/faako-api`
 - if `VITE_API_BASE_URL` is set, the signup flow calls a dedicated API deployment
 - if `VITE_API_BASE_URL` is not set, the site can serve the mirrored functions itself
+- the signup page is a client onboarding intake wizard and should not collect API keys, passwords, tokens, private email credentials, or bank login details
+- onboarding PDF generation and email sending happen server-side in the `signup` function, not in the browser
 
 ## Common Commands
 
@@ -53,6 +55,7 @@ Rules:
 - local website values can live in `apps/faako-website/.env.dev`
 - if this site owns the signup function directly, configure the server-side env values here
 - if this site points to a dedicated Faako API, keep backend secrets on that API site
+- onboarding email aliases are optional: `FAAKO_ONBOARDING_FROM_NAME`, `FAAKO_ONBOARDING_FROM_EMAIL`, and `FAAKO_ONBOARDING_ADMIN_EMAIL`
 
 ## Deployment
 

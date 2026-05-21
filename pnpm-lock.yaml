@@ -814,6 +814,9 @@ importers:
       '@faako/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@faako/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@faako/theme':
         specifier: workspace:*
         version: link:../../packages/theme

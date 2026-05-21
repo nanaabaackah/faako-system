@@ -5,6 +5,7 @@ import { SelectField } from "@faako/ui";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import StructuredData from "../components/StructuredData";
+import { productApi } from "../api/products";
 import "../styles/pages/Contact.css";
 
 const CONTACT_SCHEMA = {
@@ -39,6 +40,10 @@ const Contact: React.FC = () => {
   const [phone, setPhone] = useState("");
   const [business, setBusiness] = useState(BUSINESS_TYPES[0]);
   const [message, setMessage] = useState("");
+  const [website, setWebsite] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [feedback, setFeedback] = useState("");
 
   useSEOMeta({
     title: "Contact Stroane | Food Safety Ghana",
@@ -47,13 +52,54 @@ const Contact: React.FC = () => {
     canonical: "https://stroanesolutions.com/contact",
   });
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const mailtoHref = () => {
     const subject = encodeURIComponent(`Enquiry from ${name || "website"}`);
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nBusiness type: ${business}\n\nMessage:\n${message}`
     );
-    window.location.href = `mailto:info@stroanesolutions.com?subject=${subject}&body=${body}`;
+    return `mailto:info@stroanesolutions.com?subject=${subject}&body=${body}`;
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setStatus("idle");
+    setFeedback("");
+
+    if (!name.trim() || (!email.trim() && !phone.trim()) || !message.trim()) {
+      setStatus("error");
+      setFeedback("Add your name, an email or phone number, and a short message.");
+      return;
+    }
+
+    if (website.trim()) {
+      setStatus("error");
+      setFeedback("The enquiry could not be submitted. Please email Stroane directly.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await productApi.submitInquiry({
+        name,
+        email,
+        phone,
+        businessName: business,
+        message,
+        source: "contact_page",
+        website,
+      });
+      setStatus("success");
+      setFeedback(response.inquiry.nextStep);
+    } catch (error) {
+      setStatus("error");
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "The enquiry service is unavailable. You can email Stroane directly."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -134,6 +180,17 @@ const Contact: React.FC = () => {
                 </label>
               </div>
 
+              <label className="contact-form__trap" aria-hidden="true">
+                <span>Website</span>
+                <input
+                  type="text"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  autoComplete="off"
+                  tabIndex={-1}
+                />
+              </label>
+
               <label className="contact-field contact-field--full">
                 <span>How can we help?</span>
                 <textarea
@@ -145,8 +202,23 @@ const Contact: React.FC = () => {
                 />
               </label>
 
-              <button type="submit" className="contact-form__submit">
-                Send Message
+              {feedback ? (
+                <p
+                  className={`contact-form__feedback contact-form__feedback--${status}`}
+                  role={status === "error" ? "alert" : "status"}
+                >
+                  {feedback}
+                  {status === "error" ? (
+                    <>
+                      {" "}
+                      <a href={mailtoHref()}>Email Stroane instead.</a>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+
+              <button type="submit" className="contact-form__submit" disabled={submitting}>
+                {submitting ? "Sending..." : "Send Message"}
               </button>
               <p className="contact-form__note">
                 We&rsquo;ll route your enquiry to the right advisor and reply
@@ -170,14 +242,14 @@ const Contact: React.FC = () => {
                   <span className="contact-info__icon"><HiPhone size={20} /></span>
                   <div>
                     <strong>Phone</strong>
-                    <a href="tel:+233000000000">+233 00 000 0000</a>
+                    <a href="tel:+233243316192">+233 24 331 6192</a>
                   </div>
                 </li>
                 <li>
                   <span className="contact-info__icon"><FaWhatsapp size={20} /></span>
                   <div>
                     <strong>WhatsApp</strong>
-                    <a href="https://wa.me/233000000000" target="_blank" rel="noopener noreferrer">
+                    <a href="https://wa.me/233555744000" target="_blank" rel="noopener noreferrer">
                       Message us on WhatsApp
                     </a>
                   </div>

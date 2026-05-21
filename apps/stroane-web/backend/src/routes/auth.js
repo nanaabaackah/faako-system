@@ -5,6 +5,13 @@ const MAX_USERNAME_LEN = 50;
 const MAX_PASSWORD_LEN = 100;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
+const toSafeAuthErrorLog = (error) => ({
+  message: String(error?.message || "Unknown auth error")
+    .replace(/\s+/g, " ")
+    .slice(0, 180),
+  code: typeof error?.code === "string" ? error.code.slice(0, 40) : undefined,
+});
+
 const normalizeUsername = (value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
@@ -49,7 +56,7 @@ export const createAuthRouter = (prisma) => {
         select: { id: true, username: true, role: true, passwordHash: true, isActive: true },
       });
     } catch (error) {
-      console.error("Login DB error:", error);
+      console.error("Login DB error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Login failed" });
     }
 
@@ -60,7 +67,15 @@ export const createAuthRouter = (prisma) => {
       return res.status(401).json({ error: "Incorrect username or password" });
     }
 
-    const token = signToken({ id: user.id, username: user.username, role: user.role });
+    let token;
+    try {
+      token = signToken({ id: user.id, username: user.username, role: user.role });
+    } catch (error) {
+      console.error("Admin token signing failed:", {
+        message: error?.message || "Unknown token signing error",
+      });
+      return res.status(503).json({ error: "Admin authentication is not configured" });
+    }
 
     return res.json({ ok: true, token, username: user.username, role: user.role });
   });
@@ -86,7 +101,7 @@ export const createAuthRouter = (prisma) => {
     try {
       passwordHash = hashPassword(password);
     } catch (error) {
-      console.error("Hash error:", error);
+      console.error("Hash error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Failed to create user" });
     }
 
@@ -106,7 +121,7 @@ export const createAuthRouter = (prisma) => {
       if (error.code === "P2002") {
         return res.status(409).json({ error: "That username is already taken" });
       }
-      console.error("Create user error:", error);
+      console.error("Create user error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Failed to create user" });
     }
   });
@@ -128,7 +143,7 @@ export const createAuthRouter = (prisma) => {
 
       return res.json({ ok: true, users });
     } catch (error) {
-      console.error("List users error:", error);
+      console.error("List users error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Failed to fetch users" });
     }
   });
@@ -162,7 +177,7 @@ export const createAuthRouter = (prisma) => {
       if (error.code === "P2025") {
         return res.status(404).json({ error: "User not found" });
       }
-      console.error("Update user error:", error);
+      console.error("Update user error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Failed to update user" });
     }
   });

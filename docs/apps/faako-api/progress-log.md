@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Client onboarding intake wizard with PDF and email copy
+
+Date: 2026-05-21
+Feature/change name: Client onboarding intake wizard with PDF and email copy
+What changed: Extended the `signup` Netlify Function to accept structured onboarding intake payloads, reject credential-like secrets, preserve the existing SignupRequest/Organization/User/Membership persistence path, generate a sanitized PDF summary attachment, and send email copies to the client/contact email and Faako admin email through the existing Resend server-side flow.
+Why it changed: The public Faako signup path now needs to collect business setup details and send reliable intake copies without collecting private integration credentials or creating a new backend workflow.
+Files changed: apps/faako-api/netlify/functions/signup.js, apps/faako-api/.env.example, docs/apps/faako-api/progress-log.md, docs/apps/faako-api/system-status.md, docs/apps/faako-api/implementation-notes.md, apps/faako-api/README.md
+Data impact: No schema migration. Structured intake is collapsed into `SignupRequest.additionalNotes` for compatibility, while existing organization/user/member records remain pending setup records.
+Security impact: Positive. Backend rejects credential-like keys/values, keeps Resend sending server-side, uses existing rate limiting/CORS/database guards, and avoids logging raw email provider failures.
+Testing done: API signup function syntax check passed. PDF helper smoke check passed. API lint could not run because `eslint` is not installed in this checkout. Prisma validate is blocked by the existing Prisma config/package-type mismatch.
+Rollback notes: Revert the `signup` function and env/docs updates. Existing SignupRequest rows remain readable because no schema changed.
+Next step: Add an internal setup checklist/admin review surface for Paystack, Resend, WhatsApp Business, SMS, domain/DNS, hosting, module enablement, admin user creation, and security review planning.
+
 ### Documentation foundation added
 
 Date: 2026-05-10

@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { Card, EmptyState, InlineNotice, PageHeader, PageShell } from "@faako/ui";
-import type { Product } from "../types/index";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
+import useCatalogueData from "../hooks/useCatalogueData";
+import { formatProductPrice, getAvailabilityLabel } from "../data/products";
 import "../styles/pages/ProductList.css";
 
 const ProductList: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { products, loading, notice } = useCatalogueData();
 
   useSEOMeta({
     title: "Food Safety Products Ghana | Stroane",
@@ -19,39 +18,11 @@ const ProductList: React.FC = () => {
     canonical: "https://stroanesolutions.com/products",
   });
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        // TODO: Uncomment when API is implemented
-        // const data = await productApi.getAll();
-        // setProducts(data);
-        setProducts([]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch products");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
   if (loading) {
     return (
       <Layout>
         <PageShell className="products-page">
           <InlineNotice tone="loading" title="Loading products" />
-        </PageShell>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <PageShell className="products-page">
-          <InlineNotice tone="error" title="Products unavailable" message={error} />
         </PageShell>
       </Layout>
     );
@@ -66,6 +37,10 @@ const ProductList: React.FC = () => {
           subtitle="Food safety equipment and supplies available for order. All prices in GHS inclusive of VAT."
           subtitleClassName="products-page__sub"
         />
+
+        {notice ? (
+          <InlineNotice tone="info" title="Catalogue fallback active" message={notice} />
+        ) : null}
 
         {products.length === 0 ? (
           <EmptyState
@@ -92,17 +67,25 @@ const ProductList: React.FC = () => {
                 className="product-card-link"
               >
                 <Card className="product-card">
-                  <h2 className="product-card__name">{product.name}</h2>
-                  <p className="product-card__desc">{product.description}</p>
-                  <div className="product-card__footer">
-                    <span className="product-card__price">
-                      GHS {product.price.toFixed(2)}
-                    </span>
-                    <span className="product-card__stock">
-                      {product.inventory > 0
-                        ? `${product.inventory} in stock`
-                        : "Out of stock"}
-                    </span>
+                  <div className="product-card__media">
+                    <img
+                      src={product.thumbnailUrl || product.image}
+                      alt={product.imageAlt || product.name}
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="product-card__body">
+                    <span className="product-card__category">{product.category}</span>
+                    <h2 className="product-card__name">{product.name}</h2>
+                    <p className="product-card__desc">{product.description}</p>
+                    <div className="product-card__footer">
+                      <span className="product-card__price">
+                        {formatProductPrice(product)}
+                      </span>
+                      <span className="product-card__stock">
+                        {getAvailabilityLabel(product)}
+                      </span>
+                    </div>
                   </div>
                 </Card>
               </Link>

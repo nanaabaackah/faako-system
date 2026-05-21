@@ -54,9 +54,10 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  text-shadow: var(--text-shadow-sm);
   color: var(--color-text-inverse);
   padding: 1rem;
-  font-size: calc(var(--font-size-base) + 1px);
+  font-size: calc(var(--font-size-base) + 5px);
   font-weight: 500;
   font-family: var(--font-family);
   white-space: nowrap;
@@ -361,6 +362,7 @@
 
 /* ── Search button (both headers) ── */
 .nav-search-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -370,7 +372,7 @@
   color: var(--color-text-inverse);
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-surface-dark);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: background 0.2s, color 0.2s, border-color 0.2s;
@@ -395,6 +397,25 @@
   background: var(--color-primary-tint);
   border-color: var(--color-primary-border);
   color: var(--color-text-primary);
+}
+
+.nav-cart-btn__count {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: var(--shadow-card);
 }
 
 .page-header__menu-btn,

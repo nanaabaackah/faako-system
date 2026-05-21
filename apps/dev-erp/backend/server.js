@@ -6891,6 +6891,721 @@ app.post(
   }
 );
 
+const PROPOSAL_STATUSES = new Set([
+  "draft",
+  "internal_review",
+  "shared",
+  "changes_requested",
+  "approved",
+  "archived",
+]);
+const PROPOSAL_CLIENT_VISIBLE_STATUSES = new Set(["shared", "approved", "changes_requested"]);
+const PROPOSAL_CLIENT_ACTIONABLE_STATUSES = new Set(["shared"]);
+const PROPOSAL_TYPES = new Set(["erp", "website", "onboarding", "travel"]);
+const PROPOSAL_JSON_MAX_BYTES = 300 * 1024;
+const PROPOSAL_SHARE_TOKEN_TTL_MS = parsePositiveInt(
+  process.env.PROPOSAL_SHARE_TOKEN_TTL_MS,
+  14 * 24 * 60 * 60 * 1000,
+  {
+    min: 60 * 60 * 1000,
+    max: 90 * 24 * 60 * 60 * 1000,
+  }
+);
+const PROPOSAL_SAFE_METADATA_KEY_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
+const PROPOSAL_SENSITIVE_METADATA_KEY_PATTERN =
+  /(secret|password|token|api[_-]?key|webhook|cookie|authorization|credential)/i;
+const PROPOSAL_SHARE_TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
+const PROPOSAL_REVIEW_CHECK_KEYS = [
+  "scopeReviewed",
+  "pricingReviewed",
+  "timelineReviewed",
+  "termsReviewed",
+  "approvalCopyReviewed",
+];
+
+const parseProposalId = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const normalizeProposalStatus = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return PROPOSAL_STATUSES.has(normalized) ? normalized : null;
+};
+
+const normalizeProposalType = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return PROPOSAL_TYPES.has(normalized) ? normalized : null;
+};
+
+const normalizeProposalText = (value, { maxLength = 240, nullable = false } = {}) => {
+  if (value === undefined || value === null) return nullable ? null : "";
+  const normalized = String(value).trim();
+  if (!normalized) return nullable ? null : "";
+  return normalized.slice(0, maxLength);
+};
+
+const cloneProposalJson = (value, { fallback = null, maxBytes = PROPOSAL_JSON_MAX_BYTES } = {}) => {
+  if (value === undefined) return { value: fallback };
+  if (value === null || typeof value !== "object") {
+    return { error: "Proposal content must be a JSON object." };
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    if (Buffer.byteLength(serialized, "utf8") > maxBytes) {
+      return { error: "Proposal content is too large." };
+    }
+    return { value: JSON.parse(serialized) };
+  } catch {
+    return { error: "Proposal content must be valid JSON." };
+  }
+};
+
+const sanitizeProposalMetadata = (metadata) => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const sanitized = {};
+  Object.entries(metadata).forEach(([key, value]) => {
+    const normalizedKey = String(key || "").trim();
+    if (
+      !PROPOSAL_SAFE_METADATA_KEY_PATTERN.test(normalizedKey) ||
+      PROPOSAL_SENSITIVE_METADATA_KEY_PATTERN.test(normalizedKey)
+    ) {
+      return;
+    }
+    if (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      sanitized[normalizedKey] = value;
+    }
+    if (Array.isArray(value)) {
+      sanitized[normalizedKey] = value
+        .filter((item) => item === null || ["string", "number", "boolean"].includes(typeof item))
+        .slice(0, 25);
+    }
+  });
+  return Object.keys(sanitized).length ? sanitized : null;
+};
+
+const normalizeProposalWorkflowText = (value, maxLength = 5000) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().slice(0, maxLength);
+};
+
+const normalizeProposalWorkflowHistory = (history) => {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      status: normalizeProposalStatus(entry.status) || "draft",
+      at: typeof entry.at === "string" ? entry.at.slice(0, 80) : null,
+      byUserId: Number.isInteger(Number(entry.byUserId)) ? Number(entry.byUserId) : null,
+      byLabel: normalizeProposalWorkflowText(entry.byLabel, 160) || null,
+    }))
+    .filter((entry) => entry.at)
+    .slice(-20);
+};
+
+const normalizeProposalClientResponse = (response = {}) => {
+  if (!response || typeof response !== "object" || Array.isArray(response)) return null;
+  const action = ["approved", "changes_requested"].includes(response.action) ? response.action : null;
+  if (!action) return null;
+
+  return {
+    action,
+    clientName: normalizeProposalWorkflowText(response.clientName, 160) || null,
+    clientContact: normalizeProposalWorkflowText(response.clientContact, 240) || null,
+    message: normalizeProposalWorkflowText(response.message, 4000) || "",
+    respondedAt: typeof response.respondedAt === "string" ? response.respondedAt.slice(0, 80) : null,
+    approvedAt: typeof response.approvedAt === "string" ? response.approvedAt.slice(0, 80) : null,
+    requestedChangesAt:
+      typeof response.requestedChangesAt === "string" ? response.requestedChangesAt.slice(0, 80) : null,
+  };
+};
+
+const normalizeProposalWorkflow = (
+  workflow,
+  {
+    status,
+    previousStatus = null,
+    existingWorkflow = null,
+    user = null,
+  } = {}
+) => {
+  const source = workflow && typeof workflow === "object" && !Array.isArray(workflow) ? workflow : {};
+  const existing =
+    existingWorkflow && typeof existingWorkflow === "object" && !Array.isArray(existingWorkflow)
+      ? existingWorkflow
+      : {};
+  const readiness = PROPOSAL_REVIEW_CHECK_KEYS.reduce((checks, key) => {
+    checks[key] = Boolean(source.readiness?.[key]);
+    return checks;
+  }, {});
+  const statusChanged = !previousStatus || previousStatus !== status;
+  const now = new Date().toISOString();
+  const actorLabel = normalizeProposalWorkflowText(user?.fullName || user?.email || "", 160) || null;
+  const statusHistory = normalizeProposalWorkflowHistory(existing.statusHistory);
+
+  if (statusChanged) {
+    statusHistory.push({
+      status,
+      at: now,
+      byUserId: Number.isInteger(Number(user?.userId)) ? Number(user.userId) : null,
+      byLabel: actorLabel,
+    });
+  }
+
+  return {
+    reviewNotes: normalizeProposalWorkflowText(source.reviewNotes),
+    internalComments: normalizeProposalWorkflowText(source.internalComments),
+    clientChangeRequestNotes: normalizeProposalWorkflowText(source.clientChangeRequestNotes),
+    readiness,
+    statusUpdatedAt: statusChanged ? now : existing.statusUpdatedAt || source.statusUpdatedAt || null,
+    statusUpdatedBy: statusChanged ? actorLabel : existing.statusUpdatedBy || source.statusUpdatedBy || null,
+    statusHistory: statusHistory.slice(-20),
+    clientResponse:
+      normalizeProposalClientResponse(source.clientResponse) ||
+      normalizeProposalClientResponse(existing.clientResponse),
+    futureClientActions: {
+      review: Boolean(source.futureClientActions?.review),
+      requestChanges: Boolean(source.futureClientActions?.requestChanges),
+      approve: Boolean(source.futureClientActions?.approve),
+    },
+  };
+};
+
+const stripProposalContentRuntimeFields = (content) => {
+  [
+    "savedId",
+    "organizationId",
+    "createdAt",
+    "updatedAt",
+    "createdBy",
+    "lastEditedBy",
+    "hasShareToken",
+    "shareTokenCreatedAt",
+    "shareTokenExpiresAt",
+    "shareLink",
+    "metadata",
+  ].forEach((key) => {
+    delete content[key];
+  });
+  return content;
+};
+
+const buildProposalShareToken = () => crypto.randomBytes(32).toString("hex");
+
+const buildProposalClientViewPath = (token) => (token ? `/proposal/view/${token}` : null);
+
+const buildProposalClientViewUrl = (token) => {
+  const clientViewPath = buildProposalClientViewPath(token);
+  if (!clientViewPath) return null;
+  const base = String(process.env.APP_BASE_URL || appBaseUrl || "").replace(/\/$/, "");
+  return base ? `${base}${clientViewPath}` : clientViewPath;
+};
+
+const isProposalShareTokenExpired = (proposal) => {
+  if (!proposal?.shareTokenExpiresAt) return false;
+  const expiresAt = new Date(proposal.shareTokenExpiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+};
+
+const isProposalClientVisible = (proposal) =>
+  Boolean(
+    proposal &&
+      PROPOSAL_CLIENT_VISIBLE_STATUSES.has(proposal.status) &&
+      proposal.status !== "archived" &&
+      !proposal.archivedAt &&
+      !isProposalShareTokenExpired(proposal)
+  );
+
+const buildClientSafeProposalContent = (proposal) => {
+  const cloneResult = cloneProposalJson(proposal?.content || {});
+  const content =
+    cloneResult.value && typeof cloneResult.value === "object" && !Array.isArray(cloneResult.value)
+      ? stripProposalContentRuntimeFields(cloneResult.value)
+      : {};
+
+  [
+    "workflow",
+    "reviewNotes",
+    "internalComments",
+    "clientChangeRequestNotes",
+    "statusHistory",
+    "futureClientActions",
+  ].forEach((key) => {
+    delete content[key];
+  });
+
+  content.title = proposal.title;
+  content.clientName = proposal.clientName ?? content.clientName ?? "";
+  content.proposalType = proposal.proposalType ?? content.proposalType ?? "website";
+  content.status = proposal.status;
+
+  return content;
+};
+
+const findProposalByShareToken = async (token) => {
+  if (!PROPOSAL_SHARE_TOKEN_PATTERN.test(token)) {
+    return { status: 404, code: "INVALID_LINK", error: "Proposal link is invalid." };
+  }
+
+  const proposal = await prisma.proposal.findFirst({
+    where: { shareToken: token },
+  });
+
+  if (!proposal || proposal.status === "archived" || proposal.archivedAt) {
+    return { status: 404, code: "UNAVAILABLE", error: "Proposal link is unavailable." };
+  }
+
+  if (isProposalShareTokenExpired(proposal)) {
+    return { status: 410, code: "EXPIRED", expired: true, error: "Proposal link has expired." };
+  }
+
+  if (!PROPOSAL_CLIENT_VISIBLE_STATUSES.has(proposal.status)) {
+    return { status: 403, code: "NOT_SHARED", error: "Proposal is not shared yet." };
+  }
+
+  return { proposal };
+};
+
+const buildClientProposalResponse = ({ action, body = {}, now = new Date().toISOString() }) => ({
+  action,
+  clientName: normalizeProposalWorkflowText(body.clientName, 160) || null,
+  clientContact: normalizeProposalWorkflowText(body.clientContact, 240) || null,
+  message: normalizeProposalWorkflowText(body.message, 4000) || "",
+  respondedAt: now,
+  approvedAt: action === "approved" ? now : null,
+  requestedChangesAt: action === "changes_requested" ? now : null,
+});
+
+const buildProposalContentWithClientResponse = ({ proposal, status, response }) => {
+  const contentResult = cloneProposalJson(proposal.content || {});
+  const content =
+    contentResult.value && typeof contentResult.value === "object" && !Array.isArray(contentResult.value)
+      ? contentResult.value
+      : {};
+  const previousWorkflow =
+    content.workflow && typeof content.workflow === "object" && !Array.isArray(content.workflow)
+      ? content.workflow
+      : {};
+  const workflowSource = {
+    ...previousWorkflow,
+    clientResponse: response,
+    clientChangeRequestNotes:
+      response.action === "changes_requested" ? response.message : previousWorkflow.clientChangeRequestNotes,
+  };
+
+  content.status = status;
+  content.workflow = normalizeProposalWorkflow(workflowSource, {
+    status,
+    previousStatus: proposal.status,
+    existingWorkflow: previousWorkflow,
+    user: { fullName: response.clientName || "Client via share link" },
+  });
+
+  return content;
+};
+
+const buildProposalRecordData = (body = {}, existingProposal = null, user = null) => {
+  const contentWasProvided = Object.prototype.hasOwnProperty.call(body, "content");
+  const contentResult = contentWasProvided
+    ? cloneProposalJson(body.content)
+    : { value: existingProposal?.content ?? null };
+  if (contentResult.error) return { error: contentResult.error };
+
+  const rawContent = contentResult.value;
+  if (!rawContent || typeof rawContent !== "object" || Array.isArray(rawContent)) {
+    return { error: "Proposal content is required." };
+  }
+  const content = stripProposalContentRuntimeFields(rawContent);
+
+  const title = normalizeProposalText(body.title ?? content.title ?? existingProposal?.title, {
+    maxLength: 240,
+  });
+  if (!title) return { error: "title is required." };
+
+  const proposalType = normalizeProposalType(
+    body.proposalType ?? content.proposalType ?? existingProposal?.proposalType ?? "website"
+  );
+  if (!proposalType) {
+    return { error: "proposalType must be erp, website, onboarding, or travel." };
+  }
+
+  const status = normalizeProposalStatus(body.status ?? existingProposal?.status ?? "draft");
+  if (!status) {
+    return {
+      error: "status must be draft, internal_review, shared, changes_requested, approved, or archived.",
+    };
+  }
+  const clientName = normalizeProposalText(body.clientName ?? content.clientName, {
+    maxLength: 240,
+    nullable: true,
+  });
+
+  content.title = title;
+  content.clientName = clientName;
+  content.proposalType = proposalType;
+  content.status = status;
+
+  content.workflow = normalizeProposalWorkflow(content.workflow, {
+    status,
+    previousStatus: existingProposal?.status || null,
+    existingWorkflow: existingProposal?.content?.workflow || null,
+    user,
+  });
+
+  const metadataWasProvided = Object.prototype.hasOwnProperty.call(body, "metadata");
+
+  return {
+    data: {
+      title,
+      clientName,
+      proposalType,
+      status,
+      content,
+      ...(metadataWasProvided
+        ? { metadata: sanitizeProposalMetadata(body.metadata) }
+        : existingProposal
+          ? {}
+          : { metadata: null }),
+      archivedAt:
+        status === "archived"
+          ? existingProposal?.archivedAt ?? new Date()
+          : status !== existingProposal?.status && existingProposal?.archivedAt
+            ? null
+            : existingProposal?.archivedAt ?? null,
+      sharedAt:
+        status === "shared"
+          ? existingProposal?.sharedAt ?? new Date()
+          : existingProposal?.sharedAt ?? null,
+    },
+  };
+};
+
+const proposalUserSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+};
+
+const proposalInclude = {
+  organization: { select: { id: true, name: true, slug: true } },
+  createdByUser: { select: proposalUserSelect },
+  lastEditedByUser: { select: proposalUserSelect },
+};
+
+const serializeProposalUser = (user) =>
+  user
+    ? {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+      }
+    : null;
+
+const serializeProposal = (proposal, { includeContent = true, includeShareLink = false } = {}) => ({
+  id: proposal.id,
+  organizationId: proposal.organizationId,
+  organization: proposal.organization
+    ? {
+        id: proposal.organization.id,
+        name: proposal.organization.name,
+        slug: proposal.organization.slug,
+      }
+    : null,
+  title: proposal.title,
+  clientName: proposal.clientName ?? null,
+  proposalType: proposal.proposalType,
+  status: proposal.status,
+  version: proposal.version,
+  metadata: proposal.metadata ?? null,
+  content: includeContent ? proposal.content : null,
+  createdBy: serializeProposalUser(proposal.createdByUser),
+  lastEditedBy: serializeProposalUser(proposal.lastEditedByUser),
+  hasShareToken: Boolean(proposal.shareToken),
+  shareTokenCreatedAt: proposal.shareTokenCreatedAt?.toISOString?.() ?? null,
+  shareTokenExpiresAt: proposal.shareTokenExpiresAt?.toISOString?.() ?? null,
+  sharedAt: proposal.sharedAt?.toISOString?.() ?? null,
+  archivedAt: proposal.archivedAt?.toISOString?.() ?? null,
+  createdAt: proposal.createdAt?.toISOString?.() ?? null,
+  updatedAt: proposal.updatedAt?.toISOString?.() ?? null,
+  shareLink:
+    includeShareLink && proposal.shareToken
+      ? {
+          clientViewPath: buildProposalClientViewPath(proposal.shareToken),
+          clientViewUrl: buildProposalClientViewUrl(proposal.shareToken),
+          expiresAt: proposal.shareTokenExpiresAt?.toISOString?.() ?? null,
+          active: isProposalClientVisible(proposal),
+          note: isProposalClientVisible(proposal)
+            ? "Client proposal view is available for this proposal."
+            : "Client proposal view will stay unavailable until the proposal is shared.",
+        }
+      : null,
+});
+
+const serializeClientProposal = (proposal) => ({
+  title: proposal.title,
+  clientName: proposal.clientName ?? null,
+  proposalType: proposal.proposalType,
+  status: proposal.status,
+  content: buildClientSafeProposalContent(proposal),
+  clientResponse: normalizeProposalClientResponse(proposal.content?.workflow?.clientResponse),
+  sharedAt: proposal.sharedAt?.toISOString?.() ?? null,
+  expiresAt: proposal.shareTokenExpiresAt?.toISOString?.() ?? null,
+});
+
+const findScopedProposal = async (proposalId, user) => {
+  const id = parseProposalId(proposalId);
+  if (!id) return { status: 400, error: "Proposal id must be a valid number." };
+
+  const proposal = await prisma.proposal.findFirst({
+    where: isGlobalAdmin(user) ? { id } : { id, organizationId: user.organizationId },
+    include: proposalInclude,
+  });
+  if (!proposal) return { status: 404, error: "Proposal not found." };
+  return { proposal };
+};
+
+app.get("/api/proposals", authMiddleware, requireAdmin, async (req, res) => {
+  const isAdmin = req.user?.roleName === "Admin";
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam: req.query?.organizationId,
+    requestedByAdmin: isAdmin,
+    ownAccessError: "You can only access proposals for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
+  }
+
+  const statusParam = String(req.query?.status || "").trim();
+  const status =
+    statusParam && statusParam.toLowerCase() !== "all"
+      ? normalizeProposalStatus(statusParam)
+      : null;
+  if (statusParam && statusParam.toLowerCase() !== "all" && !status) {
+    return res.status(400).json({
+      error: "status must be draft, internal_review, shared, changes_requested, approved, or archived.",
+    });
+  }
+
+  const proposals = await prisma.proposal.findMany({
+    where: {
+      ...organizationScope.organizationFilter,
+      ...(status ? { status } : {}),
+    },
+    include: proposalInclude,
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+  });
+
+  res.json({
+    proposals: proposals.map((proposal) =>
+      serializeProposal(proposal, { includeContent: false, includeShareLink: false })
+    ),
+  });
+});
+
+app.get("/api/proposals/view/:token", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+
+  const result = await findProposalByShareToken(token);
+  if (result.error) {
+    return res.status(result.status).json({
+      code: result.code,
+      expired: Boolean(result.expired),
+      error: result.error,
+    });
+  }
+
+  return res.json({
+    proposal: serializeClientProposal(result.proposal),
+  });
+});
+
+app.post("/api/proposals/view/:token/approve", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+
+  const result = await findProposalByShareToken(token);
+  if (result.error) {
+    return res.status(result.status).json({
+      code: result.code,
+      expired: Boolean(result.expired),
+      error: result.error,
+    });
+  }
+
+  if (!PROPOSAL_CLIENT_ACTIONABLE_STATUSES.has(result.proposal.status)) {
+    return res.status(409).json({
+      code: "ALREADY_RESPONDED",
+      error: "This proposal has already received a client response.",
+    });
+  }
+
+  const clientResponse = buildClientProposalResponse({
+    action: "approved",
+    body: req.body,
+  });
+  const content = buildProposalContentWithClientResponse({
+    proposal: result.proposal,
+    status: "approved",
+    response: clientResponse,
+  });
+  const proposal = await prisma.proposal.update({
+    where: { id: result.proposal.id },
+    data: {
+      status: "approved",
+      content,
+    },
+  });
+
+  return res.json({
+    proposal: serializeClientProposal(proposal),
+    response: clientResponse,
+  });
+});
+
+app.post("/api/proposals/view/:token/request-changes", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+
+  const result = await findProposalByShareToken(token);
+  if (result.error) {
+    return res.status(result.status).json({
+      code: result.code,
+      expired: Boolean(result.expired),
+      error: result.error,
+    });
+  }
+
+  if (!PROPOSAL_CLIENT_ACTIONABLE_STATUSES.has(result.proposal.status)) {
+    return res.status(409).json({
+      code: "ALREADY_RESPONDED",
+      error: "This proposal has already received a client response.",
+    });
+  }
+
+  const clientResponse = buildClientProposalResponse({
+    action: "changes_requested",
+    body: req.body,
+  });
+  if (!clientResponse.message) {
+    return res.status(400).json({
+      code: "MESSAGE_REQUIRED",
+      error: "Please include the changes you would like to request.",
+    });
+  }
+
+  const content = buildProposalContentWithClientResponse({
+    proposal: result.proposal,
+    status: "changes_requested",
+    response: clientResponse,
+  });
+  const proposal = await prisma.proposal.update({
+    where: { id: result.proposal.id },
+    data: {
+      status: "changes_requested",
+      content,
+    },
+  });
+
+  return res.json({
+    proposal: serializeClientProposal(proposal),
+    response: clientResponse,
+  });
+});
+
+app.get("/api/proposals/:id", authMiddleware, requireAdmin, async (req, res) => {
+  const { proposal, error, status } = await findScopedProposal(req.params.id, req.user);
+  if (error) return res.status(status).json({ error });
+  return res.json({ proposal: serializeProposal(proposal, { includeShareLink: true }) });
+});
+
+app.post("/api/proposals", authMiddleware, requireAdmin, async (req, res) => {
+  const organizationScope = await resolveOrganizationWriteScope({
+    user: req.user,
+    organizationId: req.body?.organizationId,
+    ownAccessError: "You can only create proposals for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
+  }
+
+  const { data, error } = buildProposalRecordData(req.body, null, req.user);
+  if (error) return res.status(400).json({ error });
+
+  const proposal = await prisma.proposal.create({
+    data: {
+      ...data,
+      organizationId: organizationScope.organizationId,
+      createdByUserId: req.user.userId,
+      lastEditedByUserId: req.user.userId,
+    },
+    include: proposalInclude,
+  });
+
+  res.status(201).json({ proposal: serializeProposal(proposal) });
+});
+
+app.patch("/api/proposals/:id", authMiddleware, requireAdmin, async (req, res) => {
+  const scoped = await findScopedProposal(req.params.id, req.user);
+  if (scoped.error) return res.status(scoped.status).json({ error: scoped.error });
+
+  const { data, error } = buildProposalRecordData(req.body, scoped.proposal, req.user);
+  if (error) return res.status(400).json({ error });
+
+  const proposal = await prisma.proposal.update({
+    where: { id: scoped.proposal.id },
+    data: {
+      ...data,
+      version: { increment: 1 },
+      lastEditedByUserId: req.user.userId,
+    },
+    include: proposalInclude,
+  });
+
+  res.json({ proposal: serializeProposal(proposal, { includeShareLink: true }) });
+});
+
+app.post("/api/proposals/:id/share-token", authMiddleware, requireAdmin, async (req, res) => {
+  const scoped = await findScopedProposal(req.params.id, req.user);
+  if (scoped.error) return res.status(scoped.status).json({ error: scoped.error });
+  if (scoped.proposal.status === "archived") {
+    return res.status(409).json({ error: "Archived proposals cannot prepare share links." });
+  }
+
+  const shareToken = buildProposalShareToken();
+  const shareTokenCreatedAt = new Date();
+  const shareTokenExpiresAt = new Date(shareTokenCreatedAt.getTime() + PROPOSAL_SHARE_TOKEN_TTL_MS);
+  const proposal = await prisma.proposal.update({
+    where: { id: scoped.proposal.id },
+    data: {
+      shareToken,
+      shareTokenCreatedAt,
+      shareTokenExpiresAt,
+      lastEditedByUserId: req.user.userId,
+    },
+    include: proposalInclude,
+  });
+
+  res.json({
+    proposal: serializeProposal(proposal, { includeContent: true, includeShareLink: true }),
+  });
+});
+
 const parseInvoiceId = (value) => {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;

@@ -33,6 +33,18 @@ pnpm --filter @faako/bynana-portfolio run lint
 
 The static frontend should only receive browser-safe `VITE_*` values. Sensitive settings belong on the Netlify function side.
 
+## Project Metadata Registry
+
+Shared project metadata for future portfolio/case-study consumption lives in `@faako/config` under `packages/config/src/projectRegistry/projectRegistry.js`. Stroane Web is registered there as a public client website/product-catalogue project, but `caseStudyEnabled` remains `false`; this app should not auto-publish Stroane or any future client case study without an explicit UI/content pass and client-safe review.
+
+Run this from the repo root when meaningful app changes should be reflected in shared project metadata:
+
+```bash
+pnpm run project-registry:check
+```
+
+The check reports missing or incomplete metadata as warnings only. Current portfolio pages still use their local content files until a separate migration is planned.
+
 Trust stats proxy settings:
 
 - `TRUST_STATS_UPSTREAM_URL`

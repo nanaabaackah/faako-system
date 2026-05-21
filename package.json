@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:portfolio": "pnpm --filter @faako/bynana-portfolio run dev",
     "dev:faako": "node ./scripts/dev-faako.mjs",
     "dev:dev-erp": "node ./scripts/dev-dev-erp.mjs",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
@@ -15,6 +16,8 @@
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",
+    "monitoring:check": "node ./scripts/check-monorepo-app-registry.mjs",
+    "project-registry:check": "node ./scripts/check-project-registry.mjs",
     "db:refresh:local": "node ./scripts/refresh-local-dbs.mjs",
     "db:refresh:local:dry": "node ./scripts/refresh-local-dbs.mjs --dry-run",
     "db:refresh:local:biweekly": "node ./scripts/refresh-local-dbs.mjs --due-days 14 --yes",

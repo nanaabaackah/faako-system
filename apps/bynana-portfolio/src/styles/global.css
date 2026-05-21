@@ -234,7 +234,7 @@ select {
 
 .app-layer {
   --footer-curve-overlap: clamp(4.2rem, 10vw, 7.2rem);
-  --footer-reveal-height: 600px;
+  --footer-reveal-height: 655px;
   position: relative;
   min-height: 100vh;
   padding-top: 0;
@@ -466,7 +466,7 @@ hr{
 
   .app-layer {
     --footer-curve-overlap: clamp(2.2rem, 11vw, 5.2rem);
-  --footer-reveal-height: 560px;
+  --footer-reveal-height: 640px;
   }
 
   .ui-button {

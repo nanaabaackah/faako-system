@@ -278,21 +278,15 @@ const Services: React.FC = () => {
         </section>
 
         <section className="services-story">
-          <div className="services-story__intro">
-            <span className="services-kicker">What We Do</span>
-            <h2 className="section__heading">
-              Services built around how food businesses actually operate.
-            </h2>
-          </div>
 
           {/* Mobile-only stacked list */}
           <div className="services-story__mobile-list">
             {services.map((s, i) => {
               const ItemIcon = s.Icon;
               return (
-                <article key={s.title} className="bubble-card services-story__item">
+                <article key={s.title} className="services-story__item">
                   <div
-                    className="services-story__item-visual"
+                    className="bubble-card services-story__item-visual"
                     style={{ backgroundColor: s.accent }}
                   >
                     <img

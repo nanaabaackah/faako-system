@@ -100,15 +100,26 @@ const TIER_RANK = {
 
 const MODULE_CATALOG = {
   website: { minTier: "starter" },
+  "shop-storefront": { minTier: "starter" },
   payments: { minTier: "starter" },
   bookings: { minTier: "starter" },
   inventory: { minTier: "professional" },
   orders: { minTier: "professional" },
+  receipts: { minTier: "professional" },
   crm: { minTier: "professional" },
+  "crm-customers": { minTier: "professional" },
+  "accounting-finance": { minTier: "professional" },
   dashboard: { minTier: "professional" },
   reports: { minTier: "professional" },
+  "reports-analytics": { minTier: "professional" },
   delivery: { minTier: "professional" },
+  "delivery-fulfillment": { minTier: "professional" },
   scheduler: { minTier: "professional" },
+  "directory-team": { minTier: "professional" },
+  "proposal-generator": { minTier: "enterprise" },
+  notifications: { minTier: "enterprise" },
+  documents: { minTier: "enterprise" },
+  "maintenance-support": { minTier: "enterprise" },
   hr: { minTier: "enterprise" },
   integrations: { minTier: "enterprise" },
   analytics: { minTier: "enterprise" },
@@ -124,17 +135,18 @@ const ALLOWED_COMMUNICATION_CHANNELS = new Set([
   "walk-in",
   "website-chat",
   "sms",
+  "in-app-admin",
   "other"
 ]);
 
-const ALLOWED_CURRENCIES = new Set(["GHS", "USD", "NGN"]);
+const ALLOWED_CURRENCIES = new Set(["GHS", "USD", "NGN", "EUR", "GBP", "CAD", "AUD", "ZAR"]);
 const ALLOWED_BUSINESS_TYPES = new Set(["sell", "rent", "both"]);
-const ALLOWED_TEAM_SIZES = new Set(["1-10", "11-50", "51-200", "201+"]);
+const ALLOWED_TEAM_SIZES = new Set(["1-10", "11-50", "51-200", "201+", "custom"]);
 const ALLOWED_TIMELINES = new Set(["immediately", "soon", "exploring"]);
 const BOT_FIELD_NAME = "companyFax";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//;
-const MAX_REQUEST_BODY_BYTES = 24 * 1024;
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS_PER_IP = 20;
 const RATE_LIMIT_MAX_REQUESTS_PER_EMAIL = 5;
@@ -347,6 +359,122 @@ const normalizeModuleSelection = (value) => {
     .filter(Boolean);
 };
 
+const normalizeTeamSize = (value) => {
+  const normalized = normalizeOptionalText(value, 60);
+  if (!normalized) {
+    return null;
+  }
+
+  return ALLOWED_TEAM_SIZES.has(normalized) ? normalized : normalized;
+};
+
+const FORBIDDEN_CREDENTIAL_KEY_PATTERN =
+  /(?:api[_-]?key|secret|token|password|private[_-]?key|bank[_-]?(?:login|password|pin))/i;
+const FORBIDDEN_CREDENTIAL_VALUE_PATTERN =
+  /\b(?:sk_live|sk_test|rk_live|rk_test|whsec_|xox[baprs]-|SG\.|api[_ -]?key\s*[:=]|secret[_ -]?key\s*[:=]|access[_ -]?token\s*[:=]|password\s*[:=])/i;
+
+const findCredentialLikeField = (value, path = []) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const match = findCredentialLikeField(value[index], [...path, String(index)]);
+      if (match) {
+        return match;
+      }
+    }
+    return null;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (FORBIDDEN_CREDENTIAL_KEY_PATTERN.test(key)) {
+        return [...path, key].join(".");
+      }
+
+      const match = findCredentialLikeField(nestedValue, [...path, key]);
+      if (match) {
+        return match;
+      }
+    }
+    return null;
+  }
+
+  if (typeof value === "string" && FORBIDDEN_CREDENTIAL_VALUE_PATTERN.test(value)) {
+    return path.join(".") || "payload";
+  }
+
+  return null;
+};
+
+const normalizeStringList = (value, maxItems = 30, maxLength = 120) => {
+  const values = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value.trim()
+      ? value.split(",")
+      : [];
+
+  return [
+    ...new Set(
+      values
+        .filter((item) => typeof item === "string")
+        .map((item) => normalizeOptionalText(item, maxLength))
+        .filter(Boolean)
+    )
+  ].slice(0, maxItems);
+};
+
+const normalizeIntakeSection = (section, fieldLimits = {}) => {
+  if (!section || typeof section !== "object" || Array.isArray(section)) {
+    return {};
+  }
+
+  const normalized = {};
+
+  for (const [key, value] of Object.entries(section)) {
+    if (Array.isArray(value)) {
+      normalized[key] = normalizeStringList(value, 40, 160);
+    } else if (typeof value === "boolean") {
+      normalized[key] = value;
+    } else if (typeof value === "string") {
+      normalized[key] = normalizeOptionalText(value, fieldLimits[key] || 1200) || "";
+    }
+  }
+
+  return normalized;
+};
+
+const normalizeOnboardingIntake = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return {
+    company: normalizeIntakeSection(value.company, {
+      address: 1600
+    }),
+    contact: normalizeIntakeSection(value.contact),
+    operations: normalizeIntakeSection(value.operations, {
+      offerings: 2200,
+      currentTools: 1600,
+      workflowProblems: 2200,
+      priorityGoals: 1600
+    }),
+    modules: normalizeIntakeSection(value.modules, {
+      customNotes: 2200
+    }),
+    payments: normalizeIntakeSection(value.payments),
+    communications: normalizeIntakeSection(value.communications),
+    domain: normalizeIntakeSection(value.domain),
+    admins: normalizeIntakeSection(value.admins),
+    security: normalizeIntakeSection(value.security, {
+      privacyConcerns: 2200
+    })
+  };
+};
+
 const normalizeHttpUrl = (value, maxLength = 300) => {
   const normalized = normalizeOptionalText(value, maxLength);
   if (!normalized) {
@@ -388,13 +516,19 @@ const parseEnvOrigins = (value) =>
     })
     .filter(Boolean);
 
+const SHOULD_ALLOW_DEV_ORIGINS =
+  process.env.NODE_ENV !== "production" ||
+  NON_PRODUCTION_APP_ENVS.has(
+    String(process.env.APP_ENV || process.env.CONTEXT || "").trim().toLowerCase()
+  );
+
 const ALLOWED_ORIGINS = new Set([
   ...parseEnvOrigins(process.env.ALLOWED_ORIGIN),
   ...parseEnvOrigins(process.env.URL),
   ...parseEnvOrigins(process.env.DEPLOY_PRIME_URL),
   ...parseEnvOrigins(process.env.DEPLOY_URL),
   ...parseEnvOrigins(process.env.SITE_URL),
-  ...(process.env.NODE_ENV === "production" ? [] : [...DEV_ALLOWED_ORIGINS])
+  ...(SHOULD_ALLOW_DEV_ORIGINS ? [...DEV_ALLOWED_ORIGINS] : [])
 ]);
 
 const getHeaderValue = (headers, name) => {
@@ -688,33 +822,205 @@ const formatPreviewValue = (value) => {
   if (Array.isArray(value)) {
     return value.length ? value.join(", ") : "N/A";
   }
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
   if (value === null || value === undefined || value === "") {
     return "N/A";
   }
   return String(value);
 };
 
-const buildSubmissionDetailRows = (submission) => [
-  ["Company Name", submission.companyName],
-  ["Contact Name", submission.contactName],
-  ["Email", submission.normalizedEmail],
-  ["Phone", submission.phone],
-  ["Business Type", submission.businessType],
-  ["Team Size", submission.teamSize],
-  ["Preferred Currency", submission.selectedCurrency],
-  ["Timeline Preference", submission.timelinePreference],
-  ["Package Tier", submission.packageTier],
-  ["Requested Modules", submission.requestedModules],
-  ["Communication Channels", submission.communicationChannels],
-  ["Current Workflow", submission.currentWorkflow],
-  ["Pain Points", submission.painPoints],
-  ["Project Details", submission.projectDetails],
-  ["Additional Notes", submission.additionalNotes],
-  ["Website URL", submission.websiteUrl],
-  ["Logo URL", submission.logoUrl],
-  ["Primary Color", submission.brandPrimaryColor],
-  ["Secondary Color", submission.brandSecondaryColor]
-];
+const SECTION_TITLES = {
+  company: "Company Details",
+  contact: "Primary Contact",
+  operations: "Business Operations",
+  modules: "Required Apps / Modules",
+  payments: "Payment Preferences",
+  communications: "Communication Preferences",
+  domain: "Domain & Email Details",
+  admins: "Admin Users",
+  security: "Security & Compliance"
+};
+
+const FIELD_LABELS = {
+  company: {
+    businessName: "Business name",
+    legalBusinessName: "Legal business name",
+    industry: "Business type / industry",
+    country: "Country",
+    city: "City",
+    address: "Business address",
+    mainPhone: "Main phone",
+    mainEmail: "Main email",
+    websiteDomain: "Website/domain",
+    currency: "Currency",
+    timezone: "Timezone",
+    registrationNumber: "Business registration number",
+    logoStatus: "Logo"
+  },
+  contact: {
+    name: "Contact name",
+    roleTitle: "Role/title",
+    email: "Email",
+    phoneWhatsapp: "Phone/WhatsApp",
+    preferredContactMethod: "Preferred contact method"
+  },
+  operations: {
+    offerings: "What the business sells/provides",
+    staffCount: "Number of staff/users",
+    branchCount: "Branches/locations",
+    currentTools: "Current tools used",
+    workflowProblems: "Current workflow problems",
+    launchTimeline: "Expected launch timeline",
+    priorityGoals: "Priority goals"
+  },
+  modules: {
+    selected: "Selected modules",
+    customNotes: "Custom module notes"
+  },
+  payments: {
+    acceptsOnlinePayments: "Accepts online payments",
+    preferredProvider: "Preferred provider",
+    methods: "Payment methods needed",
+    paystackAccountStatus: "Paystack account status",
+    providerBusinessEmail: "Business email for payment provider",
+    settlementCountry: "Settlement country",
+    defaultCurrency: "Default currency",
+    paymentTypes: "Expected payment types",
+    notificationPreference: "Payment notification preference"
+  },
+  communications: {
+    mainBusinessEmail: "Main business email",
+    preferredSendingEmail: "Preferred sending email",
+    supportEmail: "Support email",
+    existingEmailProvider: "Existing email provider",
+    needsBusinessEmailSetup: "Needs business email setup",
+    whatsappNumber: "WhatsApp business number",
+    whatsappDisplayName: "WhatsApp display name",
+    whatsappCategory: "WhatsApp business category",
+    smsNeeded: "SMS needed",
+    customerNotificationChannels: "Preferred customer notification channels",
+    notificationTypes: "Notification types wanted"
+  },
+  domain: {
+    hasDomain: "Has domain",
+    domainName: "Domain name",
+    domainProvider: "Domain provider",
+    hasBusinessEmail: "Has business email",
+    desiredEmailAddresses: "Desired email addresses",
+    needsHostingSetup: "Needs hosting setup",
+    currentWebsiteUrl: "Current website URL"
+  },
+  admins: {
+    ownerName: "Owner/admin name",
+    ownerEmail: "Owner/admin email",
+    staffAccountsNeeded: "Number of staff accounts needed",
+    rolesNeeded: "Roles needed"
+  },
+  security: {
+    roleBasedAccess: "Needs role-based access",
+    auditLogs: "Needs audit logs",
+    handlesPersonalData: "Handles customer personal data",
+    handlesOnlinePayments: "Handles online payments",
+    backups: "Needs backups",
+    privacyConcerns: "Data/privacy concerns",
+    consent: "Setup review consent"
+  }
+};
+
+const humanizeKey = (key) =>
+  String(key || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (match) => match.toUpperCase());
+
+const buildOnboardingSections = (intake) => {
+  if (!intake) {
+    return [];
+  }
+
+  return Object.entries(SECTION_TITLES)
+    .map(([sectionKey, title]) => {
+      const section = intake[sectionKey];
+      if (!section || typeof section !== "object") {
+        return null;
+      }
+
+      const rows = Object.entries(section)
+        .map(([fieldKey, value]) => [
+          FIELD_LABELS[sectionKey]?.[fieldKey] || humanizeKey(fieldKey),
+          value
+        ])
+        .filter(([, value]) => formatPreviewValue(value) !== "N/A");
+
+      return rows.length ? { key: sectionKey, title, rows } : null;
+    })
+    .filter(Boolean);
+};
+
+const buildSubmissionDetailRows = (submission) => {
+  if (submission.onboardingSections?.length) {
+    return [
+      ["Company Name", submission.companyName],
+      ["Contact Name", submission.contactName],
+      ["Email", submission.normalizedEmail],
+      ["Phone", submission.phone],
+      ["Selected Modules", submission.requestedModules],
+      ["Payment Provider", submission.onboardingIntake?.payments?.preferredProvider],
+      ["Payment Methods", submission.onboardingIntake?.payments?.methods],
+      ["Customer Notification Channels", submission.communicationChannels],
+      ["Launch Timeline", submission.onboardingIntake?.operations?.launchTimeline],
+      ["Setup Checklist", submission.setupChecklist]
+    ];
+  }
+
+  return [
+    ["Company Name", submission.companyName],
+    ["Contact Name", submission.contactName],
+    ["Email", submission.normalizedEmail],
+    ["Phone", submission.phone],
+    ["Business Type", submission.businessType],
+    ["Team Size", submission.teamSize],
+    ["Preferred Currency", submission.selectedCurrency],
+    ["Timeline Preference", submission.timelinePreference],
+    ["Package Tier", submission.packageTier],
+    ["Requested Modules", submission.requestedModules],
+    ["Communication Channels", submission.communicationChannels],
+    ["Current Workflow", submission.currentWorkflow],
+    ["Pain Points", submission.painPoints],
+    ["Project Details", submission.projectDetails],
+    ["Additional Notes", submission.additionalNotes],
+    ["Website URL", submission.websiteUrl],
+    ["Logo URL", submission.logoUrl],
+    ["Primary Color", submission.brandPrimaryColor],
+    ["Secondary Color", submission.brandSecondaryColor]
+  ];
+};
+
+const buildCompactIntakeNotes = (onboardingSections, setupChecklist, fallbackNotes) => {
+  if (!onboardingSections?.length) {
+    return normalizeOptionalText(fallbackNotes, 5000);
+  }
+
+  const lines = [
+    "Client onboarding intake summary:",
+    "",
+    ...onboardingSections.flatMap((section) => [
+      section.title,
+      ...section.rows.map(([label, value]) => `- ${label}: ${formatPreviewValue(value)}`),
+      ""
+    ]),
+    "Internal setup checklist:",
+    ...(setupChecklist?.length ? setupChecklist : ["Manual Faako setup review"]).map(
+      (item) => `- ${item}`
+    )
+  ];
+
+  return lines.join("\n").slice(0, 8000);
+};
 
 const buildForwardingNoticeHtml = (intendedRecipient) =>
   intendedRecipient
@@ -812,6 +1118,178 @@ const buildClientConfirmationHtml = (submission, { intendedRecipient = "" } = {}
   });
 };
 
+const normalizePdfText = (value, maxLength = 1800) =>
+  formatPreviewValue(value)
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+
+const escapePdfText = (value) =>
+  normalizePdfText(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+
+const wrapPdfText = (value, maxChars = 86) => {
+  const words = normalizePdfText(value).split(" ").filter(Boolean);
+  const lines = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxChars && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length ? lines : ["N/A"];
+};
+
+const createOnboardingPdfBuffer = (submission) => {
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 48;
+  const pages = [];
+  let page = null;
+  let y = 0;
+
+  const drawText = (text, x, lineY, size = 10, font = "F1", color = "0.08 0.1 0.14") => {
+    page.commands.push(
+      `BT /${font} ${size} Tf ${color} rg ${x} ${lineY} Td (${escapePdfText(text)}) Tj ET`
+    );
+  };
+
+  const addPage = () => {
+    page = { commands: [] };
+    pages.push(page);
+    page.commands.push("0.06 0.19 0.15 rg 0 738 612 54 re f");
+    drawText("Faako", margin, 760, 18, "F2", "1 1 1");
+    drawText("Client onboarding intake summary", margin, 743, 9, "F1", "0.86 0.95 0.91");
+    y = 710;
+  };
+
+  const ensureSpace = (needed = 36) => {
+    if (!page || y - needed < margin) {
+      addPage();
+    }
+  };
+
+  const addHeading = (text) => {
+    ensureSpace(48);
+    y -= 12;
+    drawText(text, margin, y, 14, "F2", "0.08 0.1 0.14");
+    y -= 16;
+  };
+
+  const addRow = (label, value) => {
+    const cleanLabel = normalizePdfText(label, 120);
+    const valueLines = wrapPdfText(value, 78);
+    ensureSpace(22 + valueLines.length * 12);
+    drawText(cleanLabel, margin, y, 8, "F2", "0.3 0.35 0.42");
+    y -= 11;
+    for (const line of valueLines) {
+      drawText(line, margin + 14, y, 9.5, "F1", "0.08 0.1 0.14");
+      y -= 12;
+    }
+    y -= 2;
+  };
+
+  addPage();
+  drawText(submission.companyName || "Faako onboarding intake", margin, y, 20, "F2");
+  y -= 24;
+  drawText(`Submission date: ${submission.submittedAtIso || new Date().toISOString()}`, margin, y, 9);
+  y -= 14;
+  drawText(`Reference: ${submission.signupRequestId || "Pending"}`, margin, y, 9);
+  y -= 18;
+
+  const sections = submission.onboardingSections?.length
+    ? submission.onboardingSections
+    : [{ title: "Submission Details", rows: buildSubmissionDetailRows(submission) }];
+
+  for (const section of sections) {
+    addHeading(section.title);
+    for (const [label, value] of section.rows) {
+      addRow(label, value);
+    }
+  }
+
+  addHeading("Next Steps");
+  const checklist = submission.setupChecklist?.length
+    ? submission.setupChecklist
+    : ["Faako will review the intake and follow up with secure setup steps."];
+  checklist.forEach((item) => addRow("Setup item", item));
+  addRow(
+    "Security note",
+    "This PDF intentionally excludes API keys, passwords, tokens, private banking credentials, and internal-only secrets."
+  );
+
+  pages.forEach((pdfPage, index) => {
+    const currentPage = page;
+    page = pdfPage;
+    drawText(`Page ${index + 1} of ${pages.length}`, pageWidth - 112, 28, 8, "F1", "0.42 0.47 0.54");
+    page = currentPage;
+  });
+
+  const objects = [];
+  objects[1] = "";
+  objects[2] = "";
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+
+  const pageObjectIds = [];
+  for (const pdfPage of pages) {
+    const content = pdfPage.commands.join("\n");
+    const contentId = objects.length;
+    objects[contentId] = `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`;
+    const pageId = objects.length;
+    objects[pageId] =
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] ` +
+      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`;
+    pageObjectIds.push(pageId);
+  }
+
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectIds
+    .map((id) => `${id} 0 R`)
+    .join(" ")}] /Count ${pageObjectIds.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  for (let index = 1; index < objects.length; index += 1) {
+    offsets[index] = Buffer.byteLength(pdf, "utf8");
+    pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+
+  const xrefOffset = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let index = 1; index < objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+  return Buffer.from(pdf, "utf8");
+};
+
+const buildOnboardingPdfAttachment = (submission) => {
+  const safeCompanySlug = slugify(submission.companyName || "faako-onboarding") || "faako-onboarding";
+  return {
+    filename: `${safeCompanySlug}-onboarding-summary.pdf`,
+    content: createOnboardingPdfBuffer(submission).toString("base64")
+  };
+};
+
 const parseResponseJson = async (response) => {
   const responseText = await response.text();
 
@@ -873,6 +1351,7 @@ const sendResendEmail = async ({
   to,
   subject,
   html,
+  attachments = [],
   idempotencyKey
 }) => {
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
@@ -892,7 +1371,8 @@ const sendResendEmail = async ({
       from,
       to: recipients,
       subject,
-      html
+      html,
+      ...(attachments.length ? { attachments } : {})
     })
   });
 
@@ -908,12 +1388,16 @@ const sendResendEmail = async ({
 const sendSignupPreviewEmails = async (submission) => {
   const resendApiKey = normalizeOptionalText(process.env.RESEND_API_KEY, 255);
   const resendFromEmail =
+    normalizeOptionalText(process.env.FAAKO_ONBOARDING_FROM_EMAIL, 255) ||
     normalizeOptionalText(process.env.RESEND_FROM_EMAIL, 255) ||
     normalizeOptionalText(process.env.RESEND_FROM, 255) ||
     "no-reply@faako.app";
   const resendFromName =
-    normalizeOptionalText(process.env.RESEND_FROM_NAME, 120) || "Faako";
+    normalizeOptionalText(process.env.FAAKO_ONBOARDING_FROM_NAME, 120) ||
+    normalizeOptionalText(process.env.RESEND_FROM_NAME, 120) ||
+    "Faako";
   const adminEmail =
+    normalizeOptionalText(process.env.FAAKO_ONBOARDING_ADMIN_EMAIL, 255) ||
     normalizeOptionalText(process.env.INTAKE_ADMIN_EMAIL, 255) ||
     normalizeOptionalText(process.env.ADMIN_EMAIL, 255);
   const forwardedRecipient = resolveEmailForwardingRecipient();
@@ -923,6 +1407,7 @@ const sendSignupPreviewEmails = async (submission) => {
   }
 
   const resendFrom = formatResendFrom(resendFromEmail, resendFromName);
+  const pdfAttachment = buildOnboardingPdfAttachment(submission);
 
   const sendJobs = [];
 
@@ -936,6 +1421,7 @@ const sendSignupPreviewEmails = async (submission) => {
         html: buildAdminPreviewHtml(submission, {
           intendedRecipient: forwardedRecipient ? adminEmail : ""
         }),
+        attachments: [pdfAttachment],
         idempotencyKey: `${submission.signupRequestId}-admin`
       })
     );
@@ -951,6 +1437,7 @@ const sendSignupPreviewEmails = async (submission) => {
         html: buildClientConfirmationHtml(submission, {
           intendedRecipient: forwardedRecipient ? submission.normalizedEmail : ""
         }),
+        attachments: [pdfAttachment],
         idempotencyKey: `${submission.signupRequestId}-client`
       })
     );
@@ -963,7 +1450,7 @@ const sendSignupPreviewEmails = async (submission) => {
   const results = await Promise.allSettled(sendJobs);
   results.forEach((result) => {
     if (result.status === "rejected") {
-      console.error("Signup email send failed:", result.reason);
+      console.error("Signup email send failed:", buildDebugErrorPayload(result.reason));
     }
   });
 };
@@ -984,6 +1471,23 @@ const parseUrlEncodedPayload = (body) => {
   }
 
   return payload;
+};
+
+const parseStructuredFormValue = (value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || (trimmed[0] !== "{" && trimmed[0] !== "[")) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
 };
 
 exports.handler = async (event) => {
@@ -1075,9 +1579,45 @@ exports.handler = async (event) => {
     };
   }
 
+  const structuredPayload = {
+    ...payload,
+    intake: parseStructuredFormValue(payload.intake),
+    setupChecklist: parseStructuredFormValue(payload.setupChecklist)
+  };
+
+  const credentialLikeField = findCredentialLikeField(structuredPayload);
+  if (credentialLikeField) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        error:
+          "Please remove API keys, passwords, tokens, private banking credentials, or other setup secrets from the intake form.",
+        field: credentialLikeField
+      })
+    };
+  }
+
+  const onboardingIntake = normalizeOnboardingIntake(structuredPayload.intake);
+  const onboardingSections = buildOnboardingSections(onboardingIntake);
+  const setupChecklist = normalizeStringList(structuredPayload.setupChecklist, 30, 160);
+
+  if (onboardingIntake && onboardingIntake.security?.consent !== true) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        error: "Please confirm that Faako will review setup and security before launch."
+      })
+    };
+  }
+
   const companyName = normalizeOptionalText(payload.companyName, 180);
   const normalizedEmail = normalizeEmail(payload.email);
-  const selectedCurrency = normalizeOption(payload.currency, ALLOWED_CURRENCIES, 8) || "USD";
+  const requestedCurrency = normalizeOptionalText(payload.currency, 8);
+  const selectedCurrency = requestedCurrency
+    ? normalizeOption(requestedCurrency.toUpperCase(), ALLOWED_CURRENCIES, 8)
+    : "USD";
 
   if (!companyName || !normalizedEmail) {
     return {
@@ -1162,7 +1702,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const teamSize = normalizeOption(payload.teamSize, ALLOWED_TEAM_SIZES, 32);
+  const teamSize = normalizeTeamSize(payload.teamSize);
   const contactName = normalizeOptionalText(payload.contactName || payload.fullName, 120);
   const fullName = contactName;
   const phone = normalizeOptionalText(payload.phone, 60);
@@ -1184,7 +1724,11 @@ exports.handler = async (event) => {
   );
   const painPoints = normalizeOptionalText(payload.painPoints, 2500);
   const projectDetails = normalizeOptionalText(payload.projectDetails, 2500);
-  const additionalNotes = normalizeOptionalText(payload.additionalNotes, 2500);
+  const additionalNotes = buildCompactIntakeNotes(
+    onboardingSections,
+    setupChecklist,
+    payload.additionalNotes
+  );
 
   if (!currentWorkflow) {
     return {
@@ -1201,14 +1745,6 @@ exports.handler = async (event) => {
       statusCode: 400,
       headers,
       body: JSON.stringify({ error: "Currency selection is invalid" })
-    };
-  }
-
-  if (payload.teamSize && !teamSize) {
-    return {
-      statusCode: 400,
-      headers,
-      body: JSON.stringify({ error: "Team size selection is invalid" })
     };
   }
 
@@ -1520,7 +2056,10 @@ exports.handler = async (event) => {
       timelinePreference,
       projectDetails,
       painPoints,
-      additionalNotes
+      additionalNotes,
+      onboardingIntake,
+      onboardingSections,
+      setupChecklist
     });
 
     await dbClient.query("COMMIT");
@@ -1528,7 +2067,7 @@ exports.handler = async (event) => {
     await sendSignupPreviewEmails({
       signupRequestId,
       submittedAtIso: new Date().toISOString(),
-      organizationId: organization.id,
+      organizationId: organization?.id || null,
       companyName,
       contactName,
       normalizedEmail,
@@ -1547,7 +2086,11 @@ exports.handler = async (event) => {
       websiteUrl,
       logoUrl,
       brandPrimaryColor,
-      brandSecondaryColor
+      brandSecondaryColor,
+      onboardingVersion: normalizeOptionalText(payload.onboardingVersion, 80),
+      onboardingIntake,
+      onboardingSections,
+      setupChecklist
     });
 
     return {

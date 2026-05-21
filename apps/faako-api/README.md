@@ -15,7 +15,7 @@ Faako API is the Netlify Functions backend for the current Faako signup flow. It
 Current functions:
 
 - `health`
-- `signup`
+- `signup` - accepts client onboarding intake submissions, persists the existing signup compatibility records, generates a PDF summary, and sends client/admin email copies when Resend is configured
 
 ## Run It Locally
 
@@ -54,6 +54,8 @@ Important behavior:
 - use `DATABASE_URL_DEVELOPMENT` or `DATABASE_URL_LOCAL` for local work
 - keep `EXPOSE_DEBUG_ERRORS=false` outside local debugging
 - `VITE_*` values do not belong here because this package is backend-only
+- configure `RESEND_API_KEY` plus `FAAKO_ONBOARDING_FROM_EMAIL` and `FAAKO_ONBOARDING_ADMIN_EMAIL` for onboarding PDF/email copies
+- never add public intake fields for Paystack/Resend/WhatsApp/SMS API keys, passwords, tokens, private email credentials, or bank login details
 
 ## Relationship To Faako Website
 

@@ -28,6 +28,19 @@
   color: var(--color-text-inverse);
 }
 
+.qty-controls--add:disabled {
+  background: var(--color-bg);
+  border-color: var(--color-border-soft);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.qty-controls--add:disabled:hover {
+  background: var(--color-bg);
+  border-color: var(--color-border-soft);
+  color: var(--color-text-muted);
+}
+
 /* Active controls row (qty >= 1) */
 .qty-controls--row {
   display: flex;
@@ -71,8 +84,8 @@
 }
 
 .qty-controls__btn--remove:hover:not(:disabled) {
-  background: #fee2e2;
-  color: #dc2626;
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  color: var(--color-danger);
 }
 
 .qty-controls__value {

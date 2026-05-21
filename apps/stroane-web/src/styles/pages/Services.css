@@ -84,7 +84,7 @@
 
 .services-story__intro {
   max-width: 1180px;
-  margin: 0 auto 3rem;
+  margin: 2rem 3rem;
 }
 
 .services-story__intro .section__heading {
@@ -95,7 +95,7 @@
 .services-story__stage {
   position: relative;
   max-width: 1180px;
-  margin: 0 auto;
+  margin: 0 2rem;
 }
 
 .services-story__mobile-list {
@@ -106,15 +106,17 @@
   position: sticky;
   top: 100px;
   height: calc(100vh - 140px);
+  height: calc(100dvh - 140px);
   min-height: 480px;
   display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 3rem;
   align-items: stretch;
 }
 
 /* Left column — text */
 .services-story__left {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -326,6 +328,7 @@
   padding: 1rem 1.25rem 1.25rem;
   background: transparent;
   border: none;
+  box-shadow: none;
   border-top: 2px solid var(--color-border-soft);
   cursor: pointer;
   text-align: left;

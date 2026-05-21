@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createApiRateLimitMiddleware,
   createCorsOriginValidator,
+  createSecurityHeadersMiddleware,
   createUnsafeApiDefaultDenyMiddleware,
   resolveAllowedOrigins,
   resolveTrustProxySetting,
@@ -114,4 +115,20 @@ test("api rate limit middleware throttles repeated requests from the same client
     error: "Too many requests. Try again later.",
   });
   assert.ok(Number(limitedResponse.headers["Retry-After"]) >= 1);
+});
+
+test("security headers middleware uses shared API header baseline", () => {
+  const middleware = createSecurityHeadersMiddleware();
+  const response = createMockResponse();
+  let nextCalled = false;
+
+  middleware({ headers: {}, secure: false }, response, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true);
+  assert.equal(response.headers["X-Content-Type-Options"], "nosniff");
+  assert.equal(response.headers["X-Frame-Options"], "DENY");
+  assert.match(response.headers["Content-Security-Policy"], /default-src 'none'/);
+  assert.match(response.headers["Content-Security-Policy"], /frame-ancestors 'none'/);
 });

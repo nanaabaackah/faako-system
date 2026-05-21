@@ -77,6 +77,10 @@ The ERP notification/alert components are presentation-only. `ERPNotice` renders
 
 The component accepts optional `className` and `style` props so apps can apply app-specific theming, spacing, or layout overrides without forking. Prefer `className` for theme and spacing concerns; reserve inline `style` for truly dynamic values. CSS uses `--sys-*` theme tokens throughout (text, muted, border, success, danger, warning, accent) with `color-mix` softening, so the feed inherits each app's theme automatically — no app branding is hardcoded into shared styles. Tone modifiers cascade through the item: dot, badge, and detail-text colors all reflect the item's `tone` (default muted; `error` → danger; `warning` → warning).
 
+## Browser And Mobile Rendering
+
+Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. Shared selects use a CSS chevron so Safari/iOS does not render mismatched native controls. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
+
 ## Environment variables
 
 None.

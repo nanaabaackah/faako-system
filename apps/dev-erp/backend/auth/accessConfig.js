@@ -2,6 +2,7 @@ const RENT_MODULE_KEY = "rent";
 
 export const ACCESS_MODULE_KEYS = [
   "dashboard",
+  "proposals",
   "rent",
   "accounting",
   "invoicing",
@@ -38,6 +39,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/jobs(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/ai\/productivity-coach(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/productivity(?:\/|$)/, modules: ["dashboard"] },
+  { pattern: /^\/api\/proposals(?:\/|$)/, modules: ["proposals"] },
   { pattern: /^\/api\/rent(?:\/|$)/, modules: ["rent"] },
   { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
   { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },

@@ -1,3 +1,5 @@
+import { createExpressSecurityHeadersMiddleware } from "@faako/security";
+
 const normalizeOrigin = (origin) => String(origin || "").trim().replace(/\/$/, "");
 const normalizePositiveInteger = (value) => {
   const number = Number.parseInt(String(value || ""), 10);
@@ -41,21 +43,15 @@ export const createCorsOriginValidator = ({ allowedOrigins }) => (origin, callba
   return callback(error);
 };
 
-export const createSecurityHeadersMiddleware = () => (_req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
-  );
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Permissions-Policy",
-    "accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()"
-  );
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  next();
-};
+export const createSecurityHeadersMiddleware = () =>
+  createExpressSecurityHeadersMiddleware({
+    profileId: "api-serverless",
+    extraHeaders: {
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy":
+        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()",
+    },
+  });
 
 const getClientIp = (req) => {
   return req.ip || req.socket?.remoteAddress || "unknown";
@@ -64,13 +60,14 @@ const getClientIp = (req) => {
 export const createApiRateLimitMiddleware = ({
   limit = 120,
   windowMs = 60_000,
+  keyPrefix = "api",
   now = () => Date.now(),
 } = {}) => {
   const buckets = new Map();
 
   return (req, res, next) => {
     const currentTime = Number(now());
-    const bucketKey = `${req.method}:${getClientIp(req)}`;
+    const bucketKey = `${keyPrefix}:${req.method}:${getClientIp(req)}`;
     const activeWindowStart = currentTime - windowMs;
     const existing = (buckets.get(bucketKey) || []).filter(
       (timestamp) => timestamp > activeWindowStart
