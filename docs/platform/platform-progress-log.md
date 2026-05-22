@@ -24,6 +24,20 @@ Next step:
 
 ## Entries
 
+### Stroane catalogue normalization and Faako onboarding submit fix
+
+Date: 2026-05-22
+Change name: Stroane catalogue normalization and Faako onboarding submit fix
+Apps/packages affected: Stroane Web, Faako Website, Faako API
+What changed: Normalized the Stroane catalogue seed into category groups, leaf categories, standalone thermometer products, and apron variant-parent products with normalized media, structured specifications, variant images, and inventory/manual-review placeholders. Added supplied product images under organized Stroane public asset folders and updated storefront/backend catalogue mapping to consume the normalized shape. Also fixed the Faako onboarding wizard submit path by sending a simple form-encoded payload to avoid local cross-port CORS preflight failures, parsing structured intake fields server-side, preserving credential-like payload rejection, and keeping local draft auto-save visible to users.
+Why it changed: Stroane needs a scalable catalogue structure before any future inventory/ERP work, and Faako onboarding submissions were failing locally/production-like with a preflight 500 before the function could process the intake.
+Files changed: apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/src/data/products.ts, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/src/styles/pages/ProductDetail.css, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/prisma/seed-catalogue.mjs, apps/stroane-web/public/images/products/thermometers/*, apps/stroane-web/public/images/products/aprons/*, apps/stroane-web/README.md, docs/apps/stroane-web/catalogue-architecture.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, apps/faako-api/netlify/functions/signup.js, docs/platform/client-onboarding-wizard.md, docs/platform/platform-progress-log.md
+Data impact: Static catalogue seed and public image asset updates only for Stroane. No Stroane schema change, no orders/payments/inquiries/customer data changes, and no inventory automation. Faako onboarding keeps the existing persistence path and does not change schema.
+Security impact: No secrets exposed. Stroane unknown price/stock products remain non-purchasable. Faako onboarding still rejects credential-like fields and sends email/PDF only from server-side functions.
+Testing done: Catalogue JSON parse check passed. Stroane backend catalogue and seed script syntax checks passed. Stroane TypeScript check passed. Faako Website build passed. Faako signup function syntax checks passed. Faako local CORS/secret-rejection smoke check passed. Final build/check details are recorded in the chat summary.
+Rollback notes: Revert the Stroane catalogue seed/assets/helper/UI/backend/docs changes and the Faako signup frontend/function/draft-note changes. No database rollback is required unless the updated Stroane seed has been applied to production.
+Next step: Confirm Stroane product prices, stock counts, and variant availability; then add an internal Faako onboarding review/checklist surface before integration automation.
+
 ### Client onboarding intake wizard with PDF and email copy
 
 Date: 2026-05-21

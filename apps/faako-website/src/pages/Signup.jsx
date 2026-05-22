@@ -27,7 +27,7 @@ const resolveApiEndpoint = (path) => {
   return `/${configuredBaseUrl.replace(/^\/+/, "")}/${normalizedPath}`;
 };
 
-const SIGNUP_ENDPOINT = resolveApiEndpoint("signup");
+const SIGNUP_ENDPOINT = "https://formspree.io/f/xojnpypr";
 
 const WIZARD_STEPS = [
   { id: "company", title: "Company Details" },
@@ -673,48 +673,37 @@ export default function Signup() {
       message: "Creating your onboarding summary and sending copies...",
     });
 
-    try {
-      const response = await fetch(SIGNUP_ENDPOINT, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-        },
-        body: buildFormBody(payload),
-      });
+    const response = await fetch(SIGNUP_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        companyName: payload.companyName,
+        contactName: payload.contactName,
+        email: payload.email,
+        phone: payload.phone,
+        teamSize: payload.teamSize,
+        packageTier: payload.packageTier,
+        requestedModules: payload.requestedModules.join(", "),
+        currentWorkflow: payload.currentWorkflow,
+        painPoints: payload.painPoints,
+        projectDetails: payload.projectDetails,
+        launchTimeline: payload.intake?.operations?.launchTimeline,
+        preferredProvider: payload.intake?.payments?.preferredProvider,
+        communicationChannels: payload.communicationChannels.join(", "),
+        setupChecklist: payload.setupChecklist.join(", "),
+      }),
+    });
 
-      const responseText = await response.text();
-      const result = parseJsonObject(responseText);
+    const result = await response.json();
 
-      if (!response.ok || result?.ok === false || result?.errors) {
-        const baseMessage =
-          result?.error ||
-          result?.errors?.[0]?.message ||
-          "Could not submit onboarding intake. Please try again.";
-        const debugDetails = !import.meta.env.PROD
-          ? [result?.debug?.message, result?.debug?.detail].filter(Boolean).join(" | ")
-          : "";
-        throw new Error(debugDetails ? `${baseMessage}: ${debugDetails}` : baseMessage);
-      }
-
-      clearDraft();
-      setValues(deepClone(DEFAULT_VALUES));
-      setHoneypotValue("");
-      setActiveStepIndex(0);
-      setDraftStatus("Draft cleared after successful submission.");
-      setStatus({
-        state: "success",
-        message:
-          result?.message ||
-          "Onboarding intake received. A PDF copy will be sent to the contact email and Faako.",
-      });
-    } catch (error) {
-      setStatus({
-        state: "error",
-        message:
-          error instanceof TypeError
-            ? "Could not reach the onboarding service. Please try again shortly."
-            : error.message || "Could not submit onboarding intake. Please try again.",
-      });
+    if (!response.ok || result?.ok === false) {
+      throw new Error(
+        result?.errors?.[0]?.message ||
+        "Could not submit onboarding intake. Please try again."
+      );
     }
   };
 

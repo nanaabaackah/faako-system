@@ -75,6 +75,19 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Source files used: `FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf`, `Food and Fridge Thermometers Catalogue (2).pdf`, and `STROANE BROCHURE FOR THERMOMETERS, POSTERS & APRONS (1).pdf`.
 - Manual review still needed: confirm crop quality with Stroane, replace catalogue-derived images with final product photography if supplied, verify apron variants/sizes/pricing, and decide whether extracted future thermometer assets should become products.
 
+### Catalogue normalization and product architecture - 2026-05-22
+
+- `src/data/stroaneCatalogue.json` now separates category groups from customer-filterable leaf categories. Parent groups use `isGroup: true`; `/shop` filters should use leaf categories only.
+- Thermometers are modelled as standalone products. Aprons are modelled as variant-parent products with colour/style variants under one product record.
+- Product media now supports normalized entries with `url`, `alt`, `type`, `sortOrder`, optional `publicId`, optional `secureUrl`, and optional `variantId`. This keeps the local seed ready for future Cloudinary mapping without changing components.
+- Product specifications now support structured `{ label, value, group }` entries. Product Detail renders these through `getProductSpecifications()` rather than assuming a flat object.
+- Product Detail uses `getProductMedia(product, activeVariant)` so variant selections can switch the gallery image without hardcoding image paths into the component.
+- The backend catalogue adapter merges local seed media/variant/category-group metadata into DB-backed products/categories. This is intentional because the current Prisma catalogue schema does not yet have dedicated media, variant, or category-parent tables.
+- The catalogue seed script still writes product-level `CatalogueProduct` rows only. Do not add variant/inventory schema until a separate admin stock workflow is approved.
+- New image assets are organized under `public/images/products/thermometers/` and `public/images/products/aprons/`. Keep filenames lowercase and slug-based.
+- New PDF/image-imported products remain non-purchasable by default: `stockQuantity: null`, `stockStatus: unavailable`, `isPurchasable: false`, and `price: null` until Stroane confirms real stock and price.
+- Architecture details live in `docs/apps/stroane-web/catalogue-architecture.md`.
+
 ### Commerce and checkout foundation - 2026-05-20
 
 - `src/context/CartContext.tsx` persists only product IDs and quantities in `localStorage` under `stroane_cart_v1`. It does not store customer details, payment references, prices, or sensitive data locally.

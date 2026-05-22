@@ -13,15 +13,21 @@ import {
   getProductById,
   formatCurrency,
   formatProductPrice,
+  formatVariantPrice,
   getAvailabilityLabel,
   getPurchaseBlocker,
+  getProductMedia,
+  getProductSpecifications,
   getSchemaAvailability,
   getStockTone,
   isPricedProduct,
+  normalizeStockStatus,
+  PRODUCT_STOCK_LABELS,
   normalizeProduct,
   products,
   shouldShowInquiryOption,
   type Product,
+  type ProductVariant,
 } from "../data/products";
 import { productApi } from "../api/products";
 import { useCart } from "../context/CartContext";
@@ -43,6 +49,7 @@ const ProductDetail: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(Boolean(id && !localProduct));
   const [detailNotice, setDetailNotice] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [activeVariantId, setActiveVariantId] = useState("");
   const product = remoteProduct || localProduct;
 
   useEffect(() => {
@@ -87,7 +94,8 @@ const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     setActiveImage(0);
-  }, [product?.id]);
+    setActiveVariantId(product?.variants?.[0]?.id || "");
+  }, [product?.id, product?.variants]);
 
   useSEOMeta({
     title: product ? `${product.name} | Stroane Store` : "Product not found | Stroane",
@@ -131,30 +139,38 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const images = product.galleryImages?.length
-    ? product.galleryImages
-    : product.images ?? [product.image];
+  const variants = product.variants || [];
+  const activeVariant =
+    variants.find((variant) => variant.id === activeVariantId) || variants[0] || null;
+  const mediaItems = getProductMedia(product, activeVariant);
+  const images = mediaItems.map((item) => item.url);
   const qty = getQty(product.id);
   const canAddOne = canPurchaseProduct(product, qty + 1);
   const canStartCart = canPurchaseProduct(product, 1);
   const maxQuantity = product.allowBackorder ? null : product.stockQuantity;
   const purchaseBlocker = getPurchaseBlocker(product, Math.max(qty, 1));
   const showInquiry = shouldShowInquiryOption(product);
-  const mainImage = images[activeImage] ?? images[0];
+  const activeMedia = mediaItems[activeImage] || mediaItems[0];
+  const mainImage = activeMedia?.url || product.image;
+  const mainImageAlt = activeMedia?.alt || activeVariant?.imageAlt || product.imageAlt || product.name;
   const related = products
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 3);
   const specificationEntries = [
-    { label: "SKU", value: product.sku },
+    { label: "SKU", value: activeVariant?.sku || product.sku },
     { label: "Unit", value: product.unit },
     { label: "Category", value: product.category },
     { label: "Availability", value: getAvailabilityLabel(product) },
     { label: "Brand", value: product.brand },
-    ...Object.entries(product.specifications || {}).map(([label, value]) => ({
-      label: formatSpecificationLabel(label),
-      value,
+    ...getProductSpecifications(product).map((specification) => ({
+      label: formatSpecificationLabel(specification.label),
+      value: specification.group
+        ? `${specification.value} (${specification.group})`
+        : specification.value,
     })),
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry.value));
+  const getVariantAvailabilityLabel = (variant: ProductVariant) =>
+    PRODUCT_STOCK_LABELS[normalizeStockStatus(variant.stockStatus)] || "Unavailable";
 
   const PRODUCT_SCHEMA = {
     "@context": "https://schema.org",
@@ -163,7 +179,7 @@ const ProductDetail: React.FC = () => {
     description: product.description,
     sku: product.sku,
     category: product.category,
-    image: `https://stroanesolutions.com${product.imageUrl || product.image}`,
+    image: `https://stroanesolutions.com${mainImage}`,
     ...(isPricedProduct(product)
       ? {
           offers: {
@@ -207,7 +223,7 @@ const ProductDetail: React.FC = () => {
             {/* Left — gallery */}
             <div className="product-detail__gallery">
               <div className="product-detail__main">
-                <img src={mainImage} alt={product.imageAlt || product.name} />
+                <img src={mainImage} alt={mainImageAlt} />
                 {product.tag ? (
                   <span className="product-detail__tag">{product.tag}</span>
                 ) : null}
@@ -238,13 +254,44 @@ const ProductDetail: React.FC = () => {
 
               <div className="product-detail__price-row">
                 <div className="product-detail__price">
-                  <strong>{formatProductPrice(product)}</strong>
+                  <strong>{formatVariantPrice(product, activeVariant)}</strong>
                   <span>/{product.unit}</span>
                 </div>
                 <StatusPill tone={getStockTone(product)}>
                   {getAvailabilityLabel(product)}
                 </StatusPill>
               </div>
+
+              {variants.length ? (
+                <div className="product-detail__variants" aria-label="Product options">
+                  <h2>Options</h2>
+                  <div className="product-detail__variant-list">
+                    {variants.map((variant) => {
+                      const selected = activeVariant?.id === variant.id;
+
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          className={
+                            selected
+                              ? "product-detail__variant product-detail__variant--active"
+                              : "product-detail__variant"
+                          }
+                          aria-pressed={selected}
+                          onClick={() => {
+                            setActiveVariantId(variant.id);
+                            setActiveImage(0);
+                          }}
+                        >
+                          <span>{variant.name}</span>
+                          <small>{getVariantAvailabilityLabel(variant)}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               <p className="product-detail__desc">{product.description}</p>
               {product.longDescription ? (

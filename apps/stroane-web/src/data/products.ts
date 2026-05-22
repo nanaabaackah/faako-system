@@ -21,6 +21,9 @@ export interface CatalogueCategory {
   name: Category;
   description: string;
   tags: string[];
+  parentId?: string | null;
+  sortOrder?: number;
+  isGroup?: boolean;
 }
 
 export interface BusinessProfile {
@@ -37,6 +40,7 @@ export interface BusinessProfile {
 export interface Product {
   id: string;
   name: string;
+  productType?: "standalone" | "variant_parent";
   category: Category;
   categorySlug: string;
   subcategory?: string;
@@ -52,6 +56,7 @@ export interface Product {
   imageUrl?: string;
   images?: string[];
   galleryImages?: string[];
+  media?: ProductMedia[];
   imageAlt?: string;
   tag?: string;
   stock: ProductStock;
@@ -63,12 +68,61 @@ export interface Product {
   availability?: string;
   quoteOnly?: boolean;
   sku: string;
+  reorderThreshold?: number | null;
+  supplier?: string | null;
+  costPrice?: number | null;
+  sellingPrice?: number | null;
+  variants?: ProductVariant[];
   features: string[];
-  specifications?: Record<string, string>;
+  specifications?: Record<string, string> | ProductSpecification[];
   tags?: string[];
   useCases?: string[];
   inquiryCta?: string;
   sourceRefs?: string[];
+  manualReviewRequired?: boolean;
+  reviewNotes?: string[];
+}
+
+export type ProductMediaType =
+  | "primary"
+  | "gallery"
+  | "variant"
+  | "lifestyle"
+  | "detail"
+  | "packaging";
+
+export interface ProductMedia {
+  url: string;
+  alt: string;
+  type: ProductMediaType;
+  sortOrder: number;
+  publicId?: string;
+  secureUrl?: string;
+  variantId?: string;
+}
+
+export interface ProductSpecification {
+  label: string;
+  value: string;
+  group?: string;
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string;
+  price?: number | null;
+  priceLabel?: string;
+  currency?: "GHS";
+  stockQuantity?: number | null;
+  stockStatus?: ProductStockStatus;
+  reorderThreshold?: number | null;
+  allowBackorder?: boolean;
+  isPurchasable?: boolean;
+  imageUrl?: string;
+  imageAlt?: string;
+  media?: ProductMedia[];
+  options?: Record<string, string>;
 }
 
 interface CatalogueSeed {
@@ -161,6 +215,94 @@ const pickGalleryImages = (
   return [image];
 };
 
+const normalizeMediaItems = (
+  product: Product,
+  localProduct?: Product
+): ProductMedia[] => {
+  const explicitMedia = Array.isArray(product.media) && product.media.length
+    ? product.media
+    : localProduct?.media;
+
+  if (Array.isArray(explicitMedia) && explicitMedia.length) {
+    return explicitMedia
+      .filter((item) => item?.url)
+      .map((item, index) => ({
+        url: item.url,
+        alt: item.alt || product.imageAlt || product.name,
+        type: item.type || (index === 0 ? "primary" : "gallery"),
+        sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index + 1,
+        publicId: item.publicId,
+        secureUrl: item.secureUrl,
+        variantId: item.variantId,
+      }))
+      .sort((left, right) => left.sortOrder - right.sortOrder);
+  }
+
+  const image = pickImage(product.imageUrl, product.image, localProduct?.imageUrl, localProduct?.image);
+  const galleryImages = pickGalleryImages(
+    image,
+    product.galleryImages,
+    localProduct?.galleryImages,
+    product.images,
+    localProduct?.images
+  );
+
+  return galleryImages.map((url, index) => ({
+    url,
+    alt: product.imageAlt || localProduct?.imageAlt || product.name,
+    type: index === 0 ? "primary" : "gallery",
+    sortOrder: index + 1,
+  }));
+};
+
+const normalizeSpecifications = (
+  specifications?: Product["specifications"]
+): ProductSpecification[] => {
+  if (Array.isArray(specifications)) {
+    return specifications
+      .filter((item) => item?.label && item?.value)
+      .map((item) => ({
+        label: String(item.label),
+        value: String(item.value),
+        group: item.group ? String(item.group) : undefined,
+      }));
+  }
+
+  return Object.entries(specifications || {}).map(([label, value]) => ({
+    label,
+    value: String(value),
+  }));
+};
+
+const normalizeVariants = (
+  variants: Product["variants"] | undefined,
+  productName: string
+): ProductVariant[] =>
+  (Array.isArray(variants) ? variants : [])
+    .filter((variant) => variant?.id && variant?.name)
+    .map((variant) => ({
+      ...variant,
+      currency: variant.currency || "GHS",
+      price: variant.price == null ? null : Number(variant.price),
+      stockStatus: normalizeStockStatus(variant.stockStatus),
+      stockQuantity: toNullableInteger(variant.stockQuantity),
+      reorderThreshold: toNullableInteger(variant.reorderThreshold),
+      allowBackorder: Boolean(variant.allowBackorder),
+      isPurchasable: Boolean(variant.isPurchasable),
+      imageAlt: variant.imageAlt || `${productName} - ${variant.name}`,
+      media: Array.isArray(variant.media)
+        ? variant.media
+            .filter((item) => item?.url)
+            .map((item, index) => ({
+              ...item,
+              alt: item.alt || variant.imageAlt || `${productName} - ${variant.name}`,
+              type: item.type || "variant",
+              sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index + 1,
+              variantId: item.variantId || variant.id,
+            }))
+        : undefined,
+    }));
+
 export const businessProfile = catalogue.businessProfile;
 
 export const categories: CatalogueCategory[] = catalogue.categories;
@@ -170,22 +312,25 @@ export const isKnownCatalogueProduct = (product: Pick<Product, "id">) =>
 
 export const normalizeProduct = (product: Product): Product => {
   const localProduct = localProductById.get(product.id);
-  const image = pickImage(product.imageUrl, product.image, localProduct?.imageUrl, localProduct?.image);
+  const media = normalizeMediaItems(product, localProduct);
+  const primaryMedia = media.find((item) => item.type === "primary") || media[0];
+  const image = pickImage(
+    primaryMedia?.url,
+    product.imageUrl,
+    product.image,
+    localProduct?.imageUrl,
+    localProduct?.image
+  );
   const thumbnailUrl = pickImage(
     product.thumbnailUrl,
+    primaryMedia?.url,
     product.imageUrl,
     product.image,
     localProduct?.thumbnailUrl,
     localProduct?.imageUrl,
     localProduct?.image
   );
-  const galleryImages = pickGalleryImages(
-    image,
-    product.galleryImages,
-    localProduct?.galleryImages,
-    product.images,
-    localProduct?.images
-  );
+  const galleryImages = media.map((item) => item.url);
   const stockStatus = normalizeStockStatus(
     product.stockStatus || product.stock || localProduct?.stockStatus || localProduct?.stock
   );
@@ -202,9 +347,10 @@ export const normalizeProduct = (product: Product): Product => {
     ...product,
     image,
     thumbnailUrl,
-    imageUrl: pickImage(product.imageUrl, product.image, localProduct?.imageUrl, localProduct?.image),
+    imageUrl: pickImage(primaryMedia?.url, product.imageUrl, product.image, localProduct?.imageUrl, localProduct?.image),
     images: galleryImages,
     galleryImages,
+    media,
     imageAlt: product.imageAlt || localProduct?.imageAlt || product.name,
     stock: PRODUCT_STOCK_LABELS[stockStatus],
     stockStatus,
@@ -212,6 +358,12 @@ export const normalizeProduct = (product: Product): Product => {
     lowStockThreshold,
     allowBackorder: Boolean(product.allowBackorder ?? localProduct?.allowBackorder),
     isPurchasable: Boolean(product.isPurchasable ?? localProduct?.isPurchasable),
+    reorderThreshold: toNullableInteger(product.reorderThreshold),
+    costPrice: product.costPrice == null ? null : Number(product.costPrice),
+    sellingPrice: product.sellingPrice == null ? product.price : Number(product.sellingPrice),
+    supplier: product.supplier || null,
+    variants: normalizeVariants(product.variants || localProduct?.variants, product.name),
+    specifications: normalizeSpecifications(product.specifications || localProduct?.specifications),
   };
 };
 
@@ -229,7 +381,7 @@ export const shouldUseLocalCatalogueFallback = (productList: Product[]) =>
 
 export const categoryOptions: Array<Category | "All"> = [
   "All",
-  ...categories.map((category) => category.name),
+  ...categories.filter((category) => !category.isGroup).map((category) => category.name),
 ];
 
 export const formatCurrency = (value: number | null | undefined) => {
@@ -324,6 +476,49 @@ export const isCheckoutEligibleProduct = (
 
 export const formatProductPrice = (product: Product) =>
   product.priceLabel || formatCurrency(product.price);
+
+export const formatVariantPrice = (product: Product, variant?: ProductVariant | null) => {
+  if (!variant) return formatProductPrice(product);
+  return variant.priceLabel || formatCurrency(variant.price ?? product.price);
+};
+
+export const getProductMedia = (product: Product, variant?: ProductVariant | null) => {
+  const variantMedia = variant?.media?.length
+    ? variant.media
+    : variant?.imageUrl
+      ? [
+          {
+            url: variant.imageUrl,
+            alt: variant.imageAlt || `${product.name} - ${variant.name}`,
+            type: "variant" as ProductMediaType,
+            sortOrder: 1,
+            variantId: variant.id,
+          },
+        ]
+      : [];
+
+  const productMedia = product.media?.length
+    ? product.media
+    : (product.galleryImages || [product.image]).map((url, index) => ({
+        url,
+        alt: product.imageAlt || product.name,
+        type: index === 0 ? ("primary" as ProductMediaType) : ("gallery" as ProductMediaType),
+        sortOrder: index + 1,
+      }));
+
+  const combined = [...variantMedia, ...productMedia];
+  const seen = new Set<string>();
+  return combined
+    .filter((item) => {
+      if (!item.url || seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    })
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+};
+
+export const getProductSpecifications = (product: Product): ProductSpecification[] =>
+  normalizeSpecifications(product.specifications);
 
 export const getLineTotal = (product: Product, qty: number) =>
   isPricedProduct(product) ? product.price * qty : 0;

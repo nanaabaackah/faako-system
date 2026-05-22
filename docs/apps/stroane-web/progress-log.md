@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Stroane catalogue normalization and product architecture pass
+
+Date: 2026-05-22
+Feature/change name: Stroane catalogue normalization and product architecture pass
+What changed: Normalized the Stroane catalogue seed into category groups, leaf categories, standalone thermometer products, and apron variant-parent products. Added product media, variant, structured specification, inventory placeholder, and manual-review metadata to the catalogue helper types. Added supplied thermometer/apron product images under organized public asset folders. Updated product detail to support media galleries, thumbnail switching, variant image switching, and structured specifications. Updated shop filtering/search so parent category groups stay out of customer filters and variant/specification terms are searchable. Updated backend catalogue mapping so DB-backed products/categories merge local seed media, variants, category-group metadata, and manual-review notes when persisted rows lag behind the current seed.
+Why it changed: Stroane catalogue depth expanded and needs a normalized product/variant/media/specification structure before future inventory, admin stock, or ERP-adjacent workflows are considered.
+Files changed: apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/src/data/products.ts, apps/stroane-web/src/pages/ProductDetail.tsx, apps/stroane-web/src/styles/pages/ProductDetail.css, apps/stroane-web/src/pages/Shop.tsx, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/prisma/seed-catalogue.mjs, apps/stroane-web/public/images/products/thermometers/*, apps/stroane-web/public/images/products/aprons/*, apps/stroane-web/README.md, docs/apps/stroane-web/catalogue-architecture.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md, docs/platform/platform-progress-log.md
+Data impact: Static catalogue seed and public image asset updates only. No database schema change and no existing orders, payments, inquiries, stock counts, or customer data were changed. Seeded DB rows can still be refreshed later from the updated JSON seed.
+Security impact: No secrets or private client data added. Unknown stock/pricing remains non-purchasable, preserving backend checkout protections.
+Testing done: Catalogue JSON parse check passed. Backend catalogue syntax check passed. Catalogue seed script syntax check passed. Stroane frontend TypeScript check passed. Final build/check results are recorded in the chat summary.
+Rollback notes: Revert the catalogue JSON, helper/type changes, product detail/shop/backend mapper updates, seed script sort-order tweak, added image assets, and docs. No database rollback is required unless the updated seed has been run against production.
+Next step: Confirm real prices, stock counts, variant availability, supplier/cost fields, and final image approvals before enabling checkout for any newly normalized products.
+
 ### Stroane commerce stabilization and Safari UI QA
 
 Date: 2026-05-21

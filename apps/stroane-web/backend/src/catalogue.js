@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cataloguePath = path.resolve(__dirname, "../../src/data/stroaneCatalogue.json");
 const catalogue = JSON.parse(readFileSync(cataloguePath, "utf8"));
+const localCategoryById = new Map(catalogue.categories.map((category) => [category.id, category]));
+const localProductById = new Map(catalogue.products.map((product) => [product.id, product]));
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -72,45 +74,102 @@ const toNullableInteger = (value) => {
   return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
 };
 
-const toPublicCategory = (category) => ({
-  id: category.slug,
-  name: category.name,
-  description: category.description || "",
-  tags: asArray(category.tags),
-});
+const toPublicCategory = (category) => {
+  const categoryId = category.slug || category.id;
+  const localCategory = localCategoryById.get(categoryId) || {};
 
-const toPublicProduct = (product) => ({
-  id: product.slug,
-  name: product.name,
-  category: product.category?.name || product.categorySlug || "Catalogue",
-  categorySlug: product.categorySlug || product.category?.slug || "",
-  subcategory: product.subcategory || undefined,
-  brand: product.brand || undefined,
-  sku: product.sku || product.slug,
-  description: product.shortDescription || "",
-  longDescription: product.longDescription || undefined,
-  price: product.price == null ? null : Number(product.price),
-  priceLabel: product.priceLabel || undefined,
-  currency: product.currency || "GHS",
-  unit: product.unit || "each",
-  image: product.image || undefined,
-  images: asArray(product.images),
-  tag: product.tag || undefined,
-  stock: normalizeStockLabel(product.stockStatus),
-  stockStatus: normalizeStockStatus(product.stockStatus),
-  stockQuantity: toNullableInteger(product.stockQuantity),
-  lowStockThreshold: toNullableInteger(product.lowStockThreshold),
-  allowBackorder: Boolean(product.allowBackorder),
-  isPurchasable: Boolean(product.isPurchasable),
-  availability: product.availability || undefined,
-  quoteOnly: Boolean(product.quoteOnly || product.price == null),
-  features: asArray(product.features),
-  specifications: asObject(product.specifications),
-  tags: asArray(product.tags),
-  useCases: asArray(product.useCases),
-  inquiryCta: product.inquiryCta || undefined,
-  sourceRefs: asArray(product.sourceRefs),
-});
+  return {
+    id: categoryId,
+    name: category.name || localCategory.name,
+    description: category.description || localCategory.description || "",
+    tags: asArray(category.tags).length ? asArray(category.tags) : asArray(localCategory.tags),
+    parentId: localCategory.parentId ?? null,
+    sortOrder: Number.isInteger(category.sortOrder) ? category.sortOrder : localCategory.sortOrder,
+    isGroup: Boolean(localCategory.isGroup),
+  };
+};
+
+const toPublicProduct = (product) => {
+  const productId = product.slug || product.id;
+  const localProduct = localProductById.get(productId) || {};
+  const images = asArray(product.images).length ? asArray(product.images) : asArray(localProduct.images);
+  const specifications =
+    product.specifications !== undefined ? product.specifications : localProduct.specifications;
+
+  return {
+    id: productId,
+    name: product.name,
+    productType: localProduct.productType || "standalone",
+    category: product.category?.name || localProduct.category || product.categorySlug || "Catalogue",
+    categorySlug: product.categorySlug || product.category?.slug || localProduct.categorySlug || "",
+    subcategory: product.subcategory || localProduct.subcategory || undefined,
+    brand: product.brand || localProduct.brand || undefined,
+    sku: product.sku || localProduct.sku || productId,
+    description: product.shortDescription || localProduct.description || "",
+    longDescription: product.longDescription || localProduct.longDescription || undefined,
+    price: product.price == null ? null : Number(product.price),
+    priceLabel: product.priceLabel || localProduct.priceLabel || undefined,
+    currency: product.currency || localProduct.currency || "GHS",
+    unit: product.unit || localProduct.unit || "each",
+    image: product.image || localProduct.image || undefined,
+    thumbnailUrl: localProduct.thumbnailUrl || product.image || undefined,
+    imageUrl: localProduct.imageUrl || product.image || undefined,
+    images,
+    galleryImages: asArray(localProduct.galleryImages).length ? localProduct.galleryImages : images,
+    media: asArray(localProduct.media),
+    tag: product.tag || localProduct.tag || undefined,
+    stock: normalizeStockLabel(product.stockStatus || localProduct.stockStatus),
+    stockStatus: normalizeStockStatus(product.stockStatus || localProduct.stockStatus),
+    stockQuantity: toNullableInteger(product.stockQuantity ?? localProduct.stockQuantity),
+    lowStockThreshold: toNullableInteger(product.lowStockThreshold ?? localProduct.lowStockThreshold),
+    allowBackorder: Boolean(product.allowBackorder ?? localProduct.allowBackorder),
+    isPurchasable: Boolean(product.isPurchasable ?? localProduct.isPurchasable),
+    availability: product.availability || localProduct.availability || undefined,
+    quoteOnly: Boolean(product.quoteOnly || product.price == null),
+    reorderThreshold: toNullableInteger(localProduct.reorderThreshold),
+    supplier: localProduct.supplier || null,
+    costPrice: localProduct.costPrice ?? null,
+    sellingPrice: localProduct.sellingPrice ?? null,
+    variants: asArray(localProduct.variants),
+    features: asArray(product.features).length ? asArray(product.features) : asArray(localProduct.features),
+    specifications: Array.isArray(specifications) ? specifications : asObject(specifications),
+    tags: asArray(product.tags).length ? asArray(product.tags) : asArray(localProduct.tags),
+    useCases: asArray(product.useCases).length ? asArray(product.useCases) : asArray(localProduct.useCases),
+    inquiryCta: product.inquiryCta || localProduct.inquiryCta || undefined,
+    sourceRefs: asArray(product.sourceRefs).length ? asArray(product.sourceRefs) : asArray(localProduct.sourceRefs),
+    manualReviewRequired: Boolean(product.manualReviewRequired || localProduct.manualReviewRequired),
+    reviewNotes: asArray(localProduct.reviewNotes),
+  };
+};
+
+const flattenProductSearchTerms = (product) => {
+  const specificationTerms = Array.isArray(product.specifications)
+    ? product.specifications.flatMap((specification) => [
+        specification.label,
+        specification.value,
+        specification.group,
+      ])
+    : Object.entries(asObject(product.specifications)).flatMap(([label, value]) => [label, value]);
+
+  const variantTerms = asArray(product.variants).flatMap((variant) => [
+    variant.name,
+    variant.sku,
+    ...Object.values(asObject(variant.options)),
+  ]);
+
+  return [
+    product.name,
+    product.category,
+    product.subcategory,
+    product.brand,
+    product.sku,
+    product.description,
+    ...asArray(product.tags),
+    ...asArray(product.useCases),
+    ...specificationTerms,
+    ...variantTerms,
+  ];
+};
 
 export const getBusinessProfile = () => clone(catalogue.businessProfile);
 
@@ -127,18 +186,7 @@ export const listCatalogueProducts = ({ category = "", search = "" } = {}) => {
         normalizeText(product.category) === categoryQuery ||
         normalizeText(product.categorySlug) === categoryQuery;
 
-      const haystack = normalizeText(
-        [
-          product.name,
-          product.category,
-          product.subcategory,
-          product.brand,
-          product.sku,
-          product.description,
-          ...(product.tags || []),
-          ...(product.useCases || []),
-        ].join(" ")
-      );
+      const haystack = normalizeText(flattenProductSearchTerms(product).join(" "));
 
       return matchesCategory && (!searchQuery || haystack.includes(searchQuery));
     })
@@ -185,18 +233,7 @@ export const listPersistedCatalogueProducts = async (
         normalizeText(product.category) === categoryQuery ||
         normalizeText(product.categorySlug) === categoryQuery;
 
-      const haystack = normalizeText(
-        [
-          product.name,
-          product.category,
-          product.subcategory,
-          product.brand,
-          product.sku,
-          product.description,
-          ...(product.tags || []),
-          ...(product.useCases || []),
-        ].join(" ")
-      );
+      const haystack = normalizeText(flattenProductSearchTerms(product).join(" "));
 
       return matchesCategory && (!searchQuery || haystack.includes(searchQuery));
     });

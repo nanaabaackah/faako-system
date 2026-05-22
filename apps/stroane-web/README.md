@@ -16,14 +16,26 @@ Stroane Web is a full-stack commerce app. It pairs a React 19 + TypeScript front
 
 Stroane product catalogue data now lives in `src/data/stroaneCatalogue.json`, with typed storefront helpers in `src/data/products.ts`. The seed is normalized around categories, products, brands, SKUs, descriptions, features, pricing, availability placeholders, inquiry CTAs, tags, use cases, and source references. It is based on the reviewed thermometer catalogue, thermometer price list, and food safety posters/aprons brochure.
 
-Product imagery lives in `public/images/products/` and should be referenced from `src/data/stroaneCatalogue.json`, not hardcoded in page components. Current product image fields are:
+The catalogue now separates customer-filterable leaf categories from parent category groups. Thermometers are standalone products; apron styles are variant-parent products with colour/style variants. See `docs/apps/stroane-web/catalogue-architecture.md` for the current product-vs-variant rules.
+
+Product imagery lives in `public/images/products/` and should be referenced from `src/data/stroaneCatalogue.json`, not hardcoded in page components. Current asset folders are:
+
+- `public/images/products/thermometers/`
+- `public/images/products/aprons/`
+
+Current product image fields are:
 
 - `thumbnailUrl`: catalogue card/list thumbnail
 - `imageUrl`: primary product image
 - `galleryImages`: product detail gallery images
+- `media`: normalized media entries with `url`, `alt`, `type`, `sortOrder`, optional `publicId`, optional `secureUrl`, and optional `variantId`
 - `imageAlt`: customer-facing alt text
 
 Use lower-case slug filenames and WebP where possible, for example `/images/products/astro-ai-ir-thermometer.webp`. Keep `/images/products/product-placeholder.webp` as the fallback for products that need manual image review.
+
+Product variants can define their own SKU, price placeholder, stock placeholder, image, media, and option labels. The current storefront can preview/switch variant imagery, but variant-level checkout remains disabled until a separate safe variant checkout/admin stock workflow is approved.
+
+Specifications should use structured entries such as `{ "label": "Temperature Range", "value": "-50 C to 300 C", "group": "Temperature" }` so future filtering/search can remain data-driven.
 
 Storefront availability is also data-driven. Catalogue products support:
 

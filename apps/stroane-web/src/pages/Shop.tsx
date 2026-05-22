@@ -13,6 +13,7 @@ import {
   canPurchaseProduct,
   getAvailabilityLabel,
   getLineTotal,
+  getProductSpecifications,
   getSchemaAvailability,
   getStockTone,
   isPricedProduct,
@@ -70,9 +71,13 @@ const Shop: React.FC = () => {
   const [sort, setSort] = useState("featured");
   const { cart, getQty, increment, decrement, remove, clear, totalCount } = useCart();
   const categoryFromUrl = searchParams.get("category");
-  const categoryOptions = useMemo<Array<Category | "All">>(
-    () => ["All", ...catalogueCategories.map((category) => category.name)],
+  const visibleCategories = useMemo(
+    () => catalogueCategories.filter((category) => !category.isGroup),
     [catalogueCategories]
+  );
+  const categoryOptions = useMemo<Array<Category | "All">>(
+    () => ["All", ...visibleCategories.map((category) => category.name)],
+    [visibleCategories]
   );
 
   useEffect(() => {
@@ -129,6 +134,16 @@ const Shop: React.FC = () => {
             product.sku,
             ...(product.tags || []),
             ...(product.useCases || []),
+            ...(product.variants || []).flatMap((variant) => [
+              variant.name,
+              variant.sku,
+              ...(Object.values(variant.options || {}) as string[]),
+            ]),
+            ...getProductSpecifications(product).flatMap((specification) => [
+              specification.label,
+              specification.value,
+              specification.group,
+            ]),
           ]
             .join(" ")
             .toLowerCase()
@@ -242,9 +257,9 @@ const Shop: React.FC = () => {
           </div>
         ) : null}
 
-        {catalogueCategories.length ? (
+        {visibleCategories.length ? (
           <div className="shop-category-overview" aria-label="Browse product categories">
-            {catalogueCategories.map((category) => (
+            {visibleCategories.map((category) => (
               <button
                 key={category.id}
                 type="button"
@@ -334,6 +349,11 @@ const Shop: React.FC = () => {
                       <Link to={detailUrl} className="shop-product-card__name-link">
                         <h3 className="shop-product-card__name">{product.name}</h3>
                       </Link>
+                      {product.variants?.length ? (
+                        <p className="shop-product-card__meta">
+                          {product.variants.length} option{product.variants.length === 1 ? "" : "s"} available for review
+                        </p>
+                      ) : null}
                       <div className="shop-product-card__row">
                         <div className="shop-product-card__price">
                           <strong>{formatProductPrice(product)}</strong>

@@ -16,10 +16,12 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Netlify frontend deployment pattern.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
 - Catalogue seed foundation in `src/data/stroaneCatalogue.json` with typed helpers in `src/data/products.ts`.
+- Normalized catalogue architecture: parent category groups, leaf storefront categories, standalone thermometer products, apron variant-parent products, structured media entries, structured specifications, variant image metadata, and manual-review inventory placeholders.
 - Additive Prisma/Postgres catalogue persistence foundation for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`.
 - Read-only catalogue API foundation: `GET /api/categories`, `GET /api/products`, and `GET /api/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated.
 - API-first catalogue frontend foundation: `/shop`, `/products`, and product detail routes try the backend catalogue APIs first and fall back to the local JSON seed with user-visible fallback notices.
 - Catalogue browsing UX: category overview, category tabs, search, sort, result counts, responsive product cards, mapped product images, product-detail specifications/use cases, and product-specific inquiry CTAs.
+- Product detail galleries support normalized media, thumbnail switching, and variant image switching while keeping cart behavior product-level until variant checkout is explicitly designed.
 - Inquiry endpoint: `POST /api/inquiries` validates and persists minimal product/contact requests when the database migration is deployed, without email sending, orders, payments, inventory updates, or CRM automation.
 - Product detail and Contact inquiry forms submit to the validated inquiry endpoint when available, include minimal honeypot fields, and keep direct email fallback options.
 - Lightweight commerce foundation: cart state persists product IDs/quantities locally, public header/mobile nav shows cart count, checkout collects customer/contact/delivery details, and `POST /api/orders` can create server-priced `PAYMENT_PENDING` order records when the commerce migration is deployed.
@@ -49,7 +51,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Product browsing, inquiry conversion, pending-order checkout, and Paystack test-mode checkout refinement; product pages now support backend-backed catalogue reads, seed fallback, mapped imagery, product-specific inquiry forms, and checkout can prepare pending orders plus initialize/verify Paystack payments.
 - Real stock count entry for online purchasing. Current PDF-imported catalogue products default to non-purchasable until Stroane confirms quantities, thresholds, and backorder policy.
-- Full catalogue import/manual review from PDF sources. Current seed covers confirmed first-page thermometer price-list items plus brochure-derived poster/signage and apron placeholders where details need review.
+- Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
 - Inquiry routing decision. The current API can persist minimal inquiry records, but should not be treated as a CRM or lead-management system yet.
 - Production backend/database deployment on Railway with Railway Postgres.
 - Client deployment readiness and operational polish.
@@ -74,6 +76,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Purchasing, checkout, order capture, payment-adjacent, and customer-facing flows.
 - Product pricing accuracy, especially quote-only poster/apron items and any PDF content not fully extracted.
 - Product stock accuracy. Online purchasing should stay disabled for products with unknown stock; backend validation must remain in place until a lightweight stock editor/admin flow exists.
+- Product variant stock accuracy. Apron colour/style variants now have variant-level stock placeholders, but checkout remains product-level and non-purchasable until a safe variant checkout/admin stock workflow is approved.
 - Inquiry handling because it persists customer contact details once the migration is deployed.
 - Front-end-only account/session state in localStorage; it must not protect sensitive workflows without backend validation.
 - In-memory API rate limiting; configure Railway/provider-level rate controls before public high-volume checkout.

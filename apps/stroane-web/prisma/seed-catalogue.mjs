@@ -96,13 +96,15 @@ const run = async () => {
   });
 
   for (const [index, category] of catalogue.categories.entries()) {
+    const sortOrder = Number.isInteger(category.sortOrder) ? category.sortOrder : index;
+
     await prisma.catalogueCategory.upsert({
       where: { slug: category.id },
       update: {
         name: category.name,
         description: category.description || null,
         tags: category.tags || [],
-        sortOrder: index,
+        sortOrder,
         isActive: true,
       },
       create: {
@@ -110,7 +112,7 @@ const run = async () => {
         name: category.name,
         description: category.description || null,
         tags: category.tags || [],
-        sortOrder: index,
+        sortOrder,
         isActive: true,
       },
     });

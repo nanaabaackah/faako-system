@@ -34,6 +34,12 @@ Email sending remains server-side through Resend. The same PDF summary is attach
 
 Non-production forwarding still honors `EMAIL_FORCE_TO` and existing preview/staging forwarding behavior.
 
+## Submission Reliability Notes
+
+The website submits onboarding data as `application/x-www-form-urlencoded` to avoid unnecessary local cross-port CORS preflight failures while testing the Netlify Function. The backend parses structured `intake` and `setupChecklist` fields from JSON strings before validation, PDF generation, persistence, and email sending.
+
+The wizard also stores a local browser draft so a refresh before submission does not clear entered onboarding details. Draft data is cleared after a successful submission.
+
 ## Environment Variables
 
 - `RESEND_API_KEY`
