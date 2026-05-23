@@ -15,7 +15,7 @@ const ProductList: React.FC = () => {
     description:
       "Browse Stroane's range of food safety equipment and supplies for Ghanaian businesses. All prices in GHS inclusive of VAT.",
     keywords: "food safety products Ghana, buy food safety supplies Ghana",
-    canonical: "https://stroanesolutions.com/products",
+    canonical: "https://www.stroanesolutions.com/products",
   });
 
   if (loading) {

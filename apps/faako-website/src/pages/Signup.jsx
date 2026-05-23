@@ -27,7 +27,7 @@ const resolveApiEndpoint = (path) => {
   return `/${configuredBaseUrl.replace(/^\/+/, "")}/${normalizedPath}`;
 };
 
-const SIGNUP_ENDPOINT = "https://formspree.io/f/xojnpypr";
+const SIGNUP_ENDPOINT = "https://formspree.io/f/xwvzqbyz";
 
 const WIZARD_STEPS = [
   { id: "company", title: "Company Details" },
