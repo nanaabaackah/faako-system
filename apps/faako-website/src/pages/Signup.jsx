@@ -741,7 +741,7 @@ export default function Signup() {
       setStatus({
         state: "success",
         message:
-          "Onboarding intake submitted successfully. A PDF copy has been sent to the contact email.",
+          "Onboarding intake submitted successfully. A PDF copy has been sent to your contact email.",
       });
     } catch (error) {
       setStatus({
