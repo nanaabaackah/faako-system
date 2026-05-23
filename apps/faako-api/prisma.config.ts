@@ -2,8 +2,7 @@ import "dotenv/config";
 import { createRequire } from "node:module";
 import { defineConfig, env } from "prisma/config";
 
-const require = createRequire(import.meta.url);
-const { resolveDatabaseUrl } = require("./src/runtimeConfig.js");
+const resolveDatabaseUrl = () => process.env.DATABASE_URL;
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
