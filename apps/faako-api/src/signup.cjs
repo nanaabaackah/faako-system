@@ -9,7 +9,7 @@ const RATE_LIMIT_MAX_REQUESTS_PER_EMAIL = 5;
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || "Faako <onboarding@faako.app>";
+  process.env.RESEND_FROM_EMAIL || "Faako <faako@nanaabaackah.com>";
 const INTAKE_ADMIN_EMAIL = process.env.INTAKE_ADMIN_EMAIL;
 
 const DEFAULT_ALLOWED_ORIGIN = "https://faako.nanaabaackah.com";
@@ -262,20 +262,49 @@ const buildSetupChecklist = (payload, intake, requestedModules) =>
     "Security and privacy launch review",
   ].filter(Boolean);
 
-const buildSubmissionRows = (submission) => [
-  ["Company", submission.companyName],
-  ["Contact", submission.contactName],
-  ["Email", submission.email],
-  ["Phone", submission.phone],
-  ["Package", submission.packageTier],
-  ["Currency", submission.currency],
-  ["Modules", submission.requestedModules],
-  ["Channels", submission.communicationChannels],
-  ["Workflow", submission.currentWorkflow],
-  ["Pain Points", submission.painPoints],
-  ["Project Details", submission.projectDetails],
-  ["Setup Checklist", submission.setupChecklist],
-];
+const buildSubmissionRows = (submission) => {
+  const rows = [
+    ["Company", submission.companyName],
+    ["Contact", submission.contactName],
+    ["Email", submission.email],
+    ["Phone", submission.phone],
+    ["Package", submission.packageTier],
+    ["Currency", submission.currency],
+    ["Modules", submission.requestedModules],
+    ["Channels", submission.communicationChannels],
+    ["Workflow", submission.currentWorkflow],
+    ["Pain Points", submission.painPoints],
+    ["Project Details", submission.projectDetails],
+    ["Setup Checklist", submission.setupChecklist],
+  ];
+
+  const intake = submission.onboardingIntake;
+
+  if (!intake || typeof intake !== "object") {
+    return rows;
+  }
+
+  for (const [sectionKey, sectionValue] of Object.entries(intake)) {
+    if (!sectionValue || typeof sectionValue !== "object") {
+      continue;
+    }
+
+    rows.push([`--- ${sectionKey.toUpperCase()} ---`, ""]);
+
+    for (const [fieldKey, fieldValue] of Object.entries(sectionValue)) {
+      rows.push([
+        fieldKey,
+        Array.isArray(fieldValue)
+          ? fieldValue.join(", ")
+          : typeof fieldValue === "object"
+            ? JSON.stringify(fieldValue)
+            : fieldValue,
+      ]);
+    }
+  }
+
+  return rows;
+};
 
 const escapeHtml = (value) =>
   String(formatValue(value))
