@@ -12,10 +12,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "build": "echo \"No build step required for faako-api\"",
+    "start": "node src/server.js",
     "prisma:migrate:status": "prisma migrate status"
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "pg": "^8.17.1",
     "pg-connection-string": "^2.12.0",
     "pg-int8": "^1.0.1",
