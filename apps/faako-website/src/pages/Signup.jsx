@@ -27,7 +27,7 @@ const resolveApiEndpoint = (path) => {
   return `/${configuredBaseUrl.replace(/^\/+/, "")}/${normalizedPath}`;
 };
 
-const SIGNUP_ENDPOINT = "https://formspree.io/f/xwvzqbyz";
+const SIGNUP_ENDPOINT = resolveApiEndpoint("signup");
 
 const WIZARD_STEPS = [
   { id: "company", title: "Company Details" },
@@ -699,11 +699,55 @@ export default function Signup() {
 
     const result = await response.json();
 
-    if (!response.ok || result?.ok === false) {
-      throw new Error(
-        result?.errors?.[0]?.message ||
-        "Could not submit onboarding intake. Please try again."
-      );
+    try {
+      const response = await fetch(SIGNUP_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          companyName: payload.companyName,
+          contactName: payload.contactName,
+          email: payload.email,
+          phone: payload.phone,
+          teamSize: payload.teamSize,
+          packageTier: payload.packageTier,
+          requestedModules: payload.requestedModules.join(", "),
+          currentWorkflow: payload.currentWorkflow,
+          painPoints: payload.painPoints,
+          projectDetails: payload.projectDetails,
+          launchTimeline: payload.intake?.operations?.launchTimeline,
+          preferredProvider: payload.intake?.payments?.preferredProvider,
+          communicationChannels: payload.communicationChannels.join(", "),
+          setupChecklist: payload.setupChecklist.join(", "),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result?.ok === false) {
+        throw new Error(
+          result?.errors?.[0]?.message ||
+            "Could not submit onboarding intake. Please try again."
+        );
+      }
+
+      clearDraft();
+      setValues(deepClone(DEFAULT_VALUES));
+      setHoneypotValue("");
+      setActiveStepIndex(0);
+      setDraftStatus("Draft cleared after successful submission.");
+      setStatus({
+        state: "success",
+        message:
+          "Onboarding intake submitted successfully. A PDF copy has been sent to the contact email.",
+      });
+    } catch (error) {
+      setStatus({
+        state: "error",
+        message: error.message || "Could not submit onboarding intake. Please try again.",
+      });
     }
   };
 

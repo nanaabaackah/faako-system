@@ -69,8 +69,7 @@ const Login = ({ theme, onToggleTheme }) => {
       </div>
       <div className="auth-layout">
         <div className="panel auth-hero">
-          <p className="eyebrow">Dev KPI Portal</p>
-          <h1>Monitor every ERP signal in one place</h1>
+          <h1>Monitor every Faako signal in one place</h1>
           <p className="muted">
             This site surfaces live metrics from all databases along with system health
             insights.
