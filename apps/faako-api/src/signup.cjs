@@ -151,8 +151,8 @@ const insertSignupRequest = async (dbClient, submission) => {
     ["projectDetails", submission.projectDetails],
     ["painPoints", submission.painPoints],
     ["additionalNotes", submission.additionalNotes],
-    ["onboardingIntake", submission.onboardingIntake],
-    ["setupChecklist", submission.setupChecklist],
+    ["onboardingIntake", submission.onboardingIntake ? JSON.stringify(submission.onboardingIntake) : null],
+    ["setupChecklist", JSON.stringify(submission.setupChecklist || [])],
     ["status", "NEW"],
     ["source", "website"],
   ];
