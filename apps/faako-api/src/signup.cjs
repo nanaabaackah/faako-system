@@ -262,8 +262,95 @@ const buildSetupChecklist = (payload, intake, requestedModules) =>
     "Security and privacy launch review",
   ].filter(Boolean);
 
-const buildSubmissionRows = (submission) => {
+const WIZARD_FIELD_SCHEMA = {
+  company: {
+    businessName: "Business name",
+    legalBusinessName: "Legal business name",
+    industry: "Business type / industry",
+    country: "Country",
+    city: "City",
+    address: "Business address",
+    mainPhone: "Main phone",
+    mainEmail: "Main email",
+    websiteDomain: "Website/domain",
+    currency: "Currency",
+    timezone: "Timezone",
+    registrationNumber: "Business registration number",
+    logoStatus: "Logo",
+  },
+  contact: {
+    name: "Contact name",
+    roleTitle: "Role/title",
+    email: "Email",
+    phoneWhatsapp: "Phone/WhatsApp",
+    preferredContactMethod: "Preferred contact method",
+  },
+  operations: {
+    offerings: "What the business sells/provides",
+    staffCount: "Number of staff/users",
+    branchCount: "Branches/locations",
+    currentTools: "Current tools used",
+    workflowProblems: "Current workflow problems",
+    launchTimeline: "Expected launch timeline",
+    priorityGoals: "Priority goals",
+  },
+  modules: {
+    selected: "Selected modules",
+    customNotes: "Custom module notes",
+  },
+  payments: {
+    acceptsOnlinePayments: "Accepts online payments",
+    preferredProvider: "Preferred provider",
+    methods: "Payment methods needed",
+    paystackAccountStatus: "Paystack account status",
+    providerBusinessEmail: "Business email for payment provider",
+    settlementCountry: "Settlement country",
+    defaultCurrency: "Default currency",
+    paymentTypes: "Expected payment types",
+    notificationPreference: "Payment notification preference",
+  },
+  communications: {
+    mainBusinessEmail: "Main business email",
+    preferredSendingEmail: "Preferred sending email",
+    supportEmail: "Support email",
+    existingEmailProvider: "Existing email provider",
+    needsBusinessEmailSetup: "Needs business email setup",
+    whatsappNumber: "WhatsApp business number",
+    whatsappDisplayName: "WhatsApp display name",
+    whatsappCategory: "WhatsApp business category",
+    smsNeeded: "SMS needed",
+    customerNotificationChannels: "Preferred customer notification channels",
+    notificationTypes: "Notification types wanted",
+  },
+  domain: {
+    hasDomain: "Has domain",
+    domainName: "Domain name",
+    domainProvider: "Domain provider",
+    hasBusinessEmail: "Has business email",
+    desiredEmailAddresses: "Desired email addresses",
+    needsHostingSetup: "Needs hosting setup",
+    currentWebsiteUrl: "Current website URL",
+  },
+  admins: {
+    ownerName: "Owner/admin name",
+    ownerEmail: "Owner/admin email",
+    staffAccountsNeeded: "Number of staff accounts needed",
+    rolesNeeded: "Roles needed",
+  },
+  security: {
+    roleBasedAccess: "Needs role-based access",
+    auditLogs: "Needs audit logs",
+    handlesPersonalData: "Handles customer personal data",
+    handlesOnlinePayments: "Handles online payments",
+    backups: "Needs backups",
+    privacyConcerns: "Data/privacy concerns",
+    consent: "Setup review consent",
+  },
+};
+
+const buildSubmissionRows = (submission, { includeAllFields = false } = {}) => {
   const rows = [
+    ["Request ID", submission.requestId],
     ["Company", submission.companyName],
     ["Contact", submission.contactName],
     ["Email", submission.email],
@@ -278,30 +365,17 @@ const buildSubmissionRows = (submission) => {
     ["Setup Checklist", submission.setupChecklist],
   ];
 
-  const intake = submission.onboardingIntake;
+  const intake = submission.onboardingIntake || {};
 
-  if (!intake || typeof intake !== "object") {
-    return rows;
-  }
+  if (!includeAllFields) return rows;
 
-  for (const [sectionKey, sectionValue] of Object.entries(intake)) {
-    if (!sectionValue || typeof sectionValue !== "object") {
-      continue;
-    }
-
+  Object.entries(WIZARD_FIELD_SCHEMA).forEach(([sectionKey, fields]) => {
     rows.push([`--- ${sectionKey.toUpperCase()} ---`, ""]);
 
-    for (const [fieldKey, fieldValue] of Object.entries(sectionValue)) {
-      rows.push([
-        fieldKey,
-        Array.isArray(fieldValue)
-          ? fieldValue.join(", ")
-          : typeof fieldValue === "object"
-            ? JSON.stringify(fieldValue)
-            : fieldValue,
-      ]);
-    }
-  }
+    Object.entries(fields).forEach(([fieldKey, label]) => {
+      rows.push([label, intake?.[sectionKey]?.[fieldKey] ?? "N/A"]);
+    });
+  });
 
   return rows;
 };
@@ -802,7 +876,7 @@ exports.handler = async (event) => {
     organizationId,
   });
 
-  const rows = buildSubmissionRows(submission);
+  const rows = buildSubmissionRows(submission, { includeAllFields: true });
 
   try {
     if (INTAKE_ADMIN_EMAIL) {

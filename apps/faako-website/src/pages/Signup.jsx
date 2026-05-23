@@ -693,7 +693,8 @@ export default function Signup() {
         launchTimeline: payload.intake?.operations?.launchTimeline,
         preferredProvider: payload.intake?.payments?.preferredProvider,
         communicationChannels: payload.communicationChannels.join(", "),
-        setupChecklist: payload.setupChecklist.join(", "),
+        intake: payload.intake,
+        setupChecklist: payload.setupChecklist,
       }),
     });
 
@@ -720,7 +721,8 @@ export default function Signup() {
           launchTimeline: payload.intake?.operations?.launchTimeline,
           preferredProvider: payload.intake?.payments?.preferredProvider,
           communicationChannels: payload.communicationChannels.join(", "),
-          setupChecklist: payload.setupChecklist.join(", "),
+          intake: payload.intake,
+          setupChecklist: payload.setupChecklist,
         }),
       });
 
