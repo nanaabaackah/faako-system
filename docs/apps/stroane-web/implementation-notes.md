@@ -7,9 +7,9 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 ## Known technical notes
 
 - The app uses a React and TypeScript frontend, Express backend, and Prisma-managed PostgreSQL database.
-- Cloudflare Pages is the current frontend host while the backend may run separately.
-- DNS/custom-domain records should point at the Cloudflare Pages project for the current Stroane frontend. Any Hostinger/Netlify notes are legacy context unless re-approved.
-- `VITE_BACKEND_BASE_URL` controls whether the frontend calls an external backend origin.
+- Cloudflare Pages is the current frontend host.
+- Railway is the current API/backend host and Railway Postgres is the production database direction. Do not assume Netlify for this phase.
+- `VITE_API_BASE_URL` controls whether the frontend calls an external backend origin. `VITE_BACKEND_BASE_URL` remains a legacy fallback for older deployments.
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - `docs/platform/codebase-cleanup-audit.md` flags Stroane cleanup opportunities around repeated card/button/header/page styles, API fetch wrapper duplication, and component extraction candidates such as Shop, Product/User Management, and header surfaces.
 
@@ -50,17 +50,17 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Initial PDF content review was limited by local extraction tooling. Visual review confirmed thermometer catalogue branding/contact info, thermometer price-list items, and poster/signage examples. Apron details and full product copy still need manual review before final publishing.
 - Current confirmed priced items from the price list are AstroAI IR Thermometer (GHS 900), Taylor Precision Large Dial Fridge/Freezer Thermometer (GHS 500), Taylor Pro Horizontal Strip Fridge/Freezer Thermometer (GHS 500), and Taylor Precision Fridge/Freezer Thermometer with suction cups (GHS 400).
 - Poster/signage and apron items are represented as quote-only seed products with manual-review notes where exact pricing, variants, sizes, or images are not confirmed.
-- `backend/src/catalogue.js` reads the same JSON seed and also exposes Prisma-backed public mappers for `CatalogueCategory` and `CatalogueProduct`. `GET /api/categories`, `GET /api/products`, and `GET /api/products/:slug` should prefer persisted catalogue rows when available, then fall back to the JSON seed if the database is unavailable, empty, or not yet migrated.
+- `backend/src/catalogue.js` reads the same JSON seed and also exposes Prisma-backed public mappers for `CatalogueCategory` and `CatalogueProduct`. `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` should prefer persisted catalogue rows when available, then fall back to the JSON seed if the database is unavailable, empty, or not yet migrated. Legacy `/api/categories` and `/api/products` aliases remain available during rollout.
 - `POST /api/inquiries` validates and trims contact details, rejects a simple honeypot field if present, and persists a minimal `CatalogueInquiry` record when the additive migration has been deployed. It does **not** send automated email/WhatsApp/SMS, create orders, update inventory, or take payment.
 - Product Detail uses `ProductInquiryForm` for product-specific requests across priced and quote-only products. Priced products keep the existing quote basket quantity controls; the inquiry form calls `/api/inquiries` and gives a direct email fallback if the API is unavailable.
-- Dev ERP monitoring registry has optional Stroane API monitoring metadata for `/health`, `/api/products`, and `/api/categories`; it only appears when `STROANE_API_BASE_URL`, `STROANE_BACKEND_BASE_URL`, or monitoring-process `VITE_BACKEND_BASE_URL` is provided.
+- Dev ERP monitoring registry has optional API monitoring metadata for `/health`, `/api/catalogue/products`, and `/api/catalogue/categories`; keep any app-specific monitoring env names in private operations configuration rather than the public example file.
 
 ### Catalogue frontend and inquiry workflow completion - 2026-05-19
 
 - `src/hooks/useCatalogueData.ts` centralizes API-first catalogue reads with local JSON fallback. Use it for public catalogue browsing surfaces instead of duplicating `fetch` and fallback state.
 - `/shop` now uses the shared hook for product/category data and displays fallback/loading notices, category overview cards, category tabs, category counts, search, sort, result counts, mapped product imagery, and richer product-card summaries.
 - `/products` now uses the same hook and displays image-led cards backed by the same normalized catalogue structure.
-- Product Detail now attempts `GET /api/products/:slug` and falls back to the local seed. The backend route also catches persisted-table lookup failures and falls back to the seed response, so product pages remain usable during backend/database rollout.
+- Product Detail now attempts `GET /api/catalogue/products/:slug` and falls back to the local seed. The backend route also catches persisted-table lookup failures and falls back to the seed response, so product pages remain usable during backend/database rollout.
 - Product Detail exposes long descriptions, availability notes, normalized specification entries, use cases, related products, and product-specific inquiry forms without changing checkout/payment behavior.
 - The Contact page now submits to `POST /api/inquiries` with `source: "contact_page"` when available. The user still gets a direct email fallback if the backend is unavailable.
 - Product and contact inquiry forms include simple honeypot fields. Backend validation remains the source of truth; do not rely on frontend-only spam protection.
@@ -176,16 +176,16 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Payment callback QA found and fixed a small consistency issue: `/api/paystack/verify` now normalizes currency codes before comparing Paystack status-check data with the expected order currency. This does not change the rule that webhook verification is the trusted paid-state source.
 - Backend route error logs for auth, catalogue, inquiry, order, Paystack initialize, Paystack verify, and unhandled errors now log sanitized message/status details instead of raw error objects.
 - Static review confirmed the main commerce flow remains server-priced and stock-gated: cart stores product IDs/quantities only, checkout sends product slugs/quantities, backend recalculates totals, backend validates stock/purchasability before order creation and payment initialization, and paid state still requires signed webhook plus Paystack transaction verification.
-- Remaining device QA: test checkout, cart, Paystack return, admin order forms, and product filters on real iPhone Safari against the deployed Cloudflare Pages/Railway pairing before public purchasing is broadly promoted.
+- Remaining device QA: test checkout, cart, Paystack return, admin order forms, and product filters on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing before public purchasing is broadly promoted.
 
 ### Database and deployment foundation - 2026-05-19
 
-- Recommended architecture: Cloudflare Pages hosts the frontend, Railway hosts the Express backend and production rate-limit layer, and Railway Postgres stores application data. Keep registrar/email services separate from application database duties unless a separate production decision is made.
+- Recommended architecture: Cloudflare Pages hosts the frontend, Railway hosts the Express backend/API service, Railway Postgres stores application data, and Cloudflare manages DNS/domain routing. Keep registrar/email services separate from application database duties unless a separate production decision is made.
 - Prisma now has additive foundation models: `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`. These sit beside the legacy `Product` model so existing data is not mutated.
 - `prisma/migrations/20260519000000_add_catalogue_inquiry_foundation/migration.sql` creates the new tables and `CatalogueInquiryStatus` enum. Deploy with `pnpm --filter @faako/stroane-web run db:deploy:prod` after pointing env vars at the intended production database.
 - `prisma/seed-catalogue.mjs` upserts category/product/business-profile content from `src/data/stroaneCatalogue.json`. It is opt-in and should be run only after the migration target is verified.
 - Backend database URL resolution now prefers `DATABASE_URL_PRODUCTION` in production and `DATABASE_URL_DEVELOPMENT` in development, while still supporting a single Railway `DATABASE_URL`.
-- Frontend env should only use browser-safe values such as `VITE_BACKEND_BASE_URL`. Database URLs, provider keys, inquiry notification keys, and future email/SMS/WhatsApp secrets must remain server-side.
+- Frontend env should only use browser-safe values such as `VITE_API_BASE_URL`. Database URLs, provider keys, inquiry notification keys, and future email/SMS/WhatsApp secrets must remain server-side.
 
 ### Portfolio registry preparation - 2026-05-19
 

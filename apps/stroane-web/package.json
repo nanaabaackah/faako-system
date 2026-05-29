@@ -21,6 +21,7 @@
     "migrate:status": "prisma migrate status",
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
+    "start:api": "APP_ENV=production node backend/server.js",
     "db:seed": "node prisma/seed-users.mjs",
     "db:seed:catalogue": "node prisma/seed-catalogue.mjs",
     "server:with-migrate": "pnpm run db:generate && pnpm run migrate:deploy && node backend/server.js",

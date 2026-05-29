@@ -13,12 +13,12 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - React storefront structure, pages, components, API client, and types.
 - Express backend route and middleware structure.
 - Prisma schema and migration workflow.
-- Cloudflare Pages frontend deployment pattern.
+- Cloudflare Pages frontend deployment pattern with Railway API/backend and Railway Postgres.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
 - Catalogue seed foundation in `src/data/stroaneCatalogue.json` with typed helpers in `src/data/products.ts`.
 - Normalized catalogue architecture: parent category groups, leaf storefront categories, standalone thermometer products, apron variant-parent products, structured media entries, structured specifications, variant image metadata, and manual-review inventory placeholders.
 - Additive Prisma/Postgres catalogue persistence foundation for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`.
-- Read-only catalogue API foundation: `GET /api/categories`, `GET /api/products`, and `GET /api/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated.
+- Read-only catalogue API foundation: `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated. Legacy `/api/categories` and `/api/products` aliases remain available during rollout.
 - API-first catalogue frontend foundation: `/shop`, `/products`, and product detail routes try the backend catalogue APIs first and fall back to the local JSON seed with user-visible fallback notices.
 - Catalogue browsing UX: category overview, category tabs, search, sort, result counts, responsive product cards, mapped product images, product-detail specifications/use cases, and product-specific inquiry CTAs.
 - Product detail galleries support normalized media, thumbnail switching, and variant image switching while keeping cart behavior product-level until variant checkout is explicitly designed.
@@ -46,7 +46,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Preview-access auth gate (`AuthContext`, `AuthProvider`, `AuthGate`).
 - Admin user-management page (`/users`, `UserManagement.tsx`).
-- Netlify `/api/*` proxy entry. The frontend should use `VITE_BACKEND_BASE_URL` when the backend is hosted separately; Cloudflare Pages is the current frontend host.
+- Netlify `/api/*` proxy entry. The frontend should use `VITE_API_BASE_URL` for the Railway API service; Cloudflare Pages is the current frontend host. `VITE_BACKEND_BASE_URL` is only a legacy fallback.
 
 ## In-progress modules/features
 
@@ -71,7 +71,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - New integrations or backend hosting changes until proven in a production-like environment.
 - Strict webhook/notification idempotency. Current MVP uses signed webhook verification plus an order-level sent timestamp, but a full payment event log and notification audit trail are still pending.
 - Railway/provider-level rate limiting, Railway Postgres least-privilege access, backend-enforced admin auth, and centralized redacted logging are still pending production-hardening items.
-- Device/browser acceptance testing against the deployed Cloudflare Pages/Railway pairing is still pending after the Safari/native-control CSS cleanup. Local build, lint, type, Prisma, backend tests, and security gates pass.
+- Device/browser acceptance testing against the deployed Cloudflare Pages/Railway API pairing is still pending after the Safari/native-control CSS cleanup. Local build, lint, type, Prisma, backend tests, and security gates pass.
 
 ## High-risk areas
 
@@ -86,7 +86,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Payment-adjacent order status changes; Paystack webhook processing must verify signatures and Paystack transactions server-side before any automated fulfillment or confirmation email.
 - Database migrations and production product/order/customer data.
 - API authentication, rate limiting, CORS, and trusted proxy configuration.
-- DNS/custom domain, Cloudflare Pages, backend hosting, and environment-variable configuration.
+- DNS/custom domain, Cloudflare Pages frontend hosting, Railway API/backend hosting, and environment-variable configuration.
 
 ## Production sensitivity
 

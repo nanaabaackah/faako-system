@@ -3,32 +3,78 @@
 ## Current Hosting Direction
 
 - Frontend: Cloudflare Pages.
-- Backend/API: Railway service when the API is deployed separately.
+- Backend/API: Railway service.
 - Database: Railway Postgres.
-- DNS/custom domain: point the Stroane domain to the Cloudflare Pages project.
+- Domain/DNS: Cloudflare DNS/domain routing.
 
-## Cloudflare Pages
+Do not assume Netlify for the current Stroane deployment. Railway is for the Stroane API/backend and database only.
 
-Recommended build settings:
+## Cloudflare Pages Frontend
 
-- Base directory: repo root
+Run the build command from the monorepo root.
+
 - Build command: `pnpm --filter @faako/stroane-web build`
 - Output directory: `apps/stroane-web/dist`
-- Frontend env: set `VITE_BACKEND_BASE_URL` only when the API is hosted on a separate Railway URL.
 
-The legacy `apps/stroane-web/netlify.toml` is not the active deployment path. Do not rely on Netlify proxy behavior for the current Cloudflare Pages deployment.
+Frontend environment variables:
 
-## Backend And CORS
+- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 
-When the Railway backend is deployed, set `CORS_ORIGINS` to include the Cloudflare Pages preview/production origins and the custom production domain.
+Do not set `DATABASE_URL`, Paystack secrets, Resend keys, auth secrets, or webhook secrets in Cloudflare Pages.
 
-If the backend is behind Railway/proxy infrastructure, set `TRUST_PROXY_HOPS=1` only after confirming the trusted proxy topology.
+## Railway API Service
+
+Run commands from the monorepo root.
+
+- Start command: `pnpm --filter @faako/stroane-web start:api`
+- Fallback start command if needed: `pnpm --filter @faako/stroane-web server:prod`
+
+API environment variables:
+
+- `DATABASE_URL=<Railway Postgres connection string>`
+- `NODE_ENV=production`
+- `APP_ENV=production`
+- `PORT=<provided by Railway>`
+- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com`
+- `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
+- `APP_AUTH_SECRET=<server-only secret>`
+
+Payment/email provider variables, when enabled, belong on the Railway API service only.
+
+## Cloudflare DNS
+
+Current recommended DNS setup:
+
+- `stroanesolutions.com` -> Cloudflare Pages frontend
+- `www.stroanesolutions.com` -> Cloudflare Pages frontend
+
+The API currently uses the Railway public URL:
+
+- `https://stroane-api-production.up.railway.app`
+
+An `api.stroanesolutions.com` record can be considered later as a cleanup step, but it is not required for this phase.
+
+## API Smoke Tests
+
+After the API service deploys, test:
+
+- `https://stroane-api-production.up.railway.app/health`
+- `https://stroane-api-production.up.railway.app/api/catalogue/products`
+- `https://stroane-api-production.up.railway.app/api/catalogue/categories`
+- `https://stroane-api-production.up.railway.app/api/catalogue/products/<slug>`
+
+Legacy read-only aliases should also remain available during rollout:
+
+- `https://stroane-api-production.up.railway.app/api/products`
+- `https://stroane-api-production.up.railway.app/api/categories`
 
 ## Verification
 
 Before promoting a deploy:
 
 - Run `pnpm --filter @faako/stroane-web run build`.
+- Run `pnpm --filter @faako/stroane-web exec prisma validate`.
 - Confirm product images resolve under `/imgs/products/`.
-- Confirm `/shop` and `/products/:id` still render from local fallback when `VITE_BACKEND_BASE_URL` is blank or unavailable.
+- Confirm `/shop` and `/products/:id` still render from local fallback if the API URL is unavailable.
 - Confirm Cloudflare Pages has only browser-safe `VITE_*` values.
+- Confirm Railway API owns all server-only database/payment/email/auth secrets.

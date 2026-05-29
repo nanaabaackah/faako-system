@@ -310,7 +310,10 @@ app.get("/health", (req, res) => {
 });
 
 // Catalogue routes are public read-only foundations for the Stroane storefront.
-app.get("/api/categories", async (_req, res) => {
+// Keep legacy aliases during the Railway API rollout so deployed builds
+// that still call /api/products do not break while the frontend moves to
+// /api/catalogue/*.
+app.get(["/api/catalogue/categories", "/api/categories"], async (_req, res) => {
   try {
     const { categories, source } = await getCatalogueCategoriesForResponse();
     res.json({
@@ -323,7 +326,7 @@ app.get("/api/categories", async (_req, res) => {
   }
 });
 
-app.get("/api/products", async (req, res) => {
+app.get(["/api/catalogue/products", "/api/products"], async (req, res) => {
   try {
     const { products, categories, source } = await getCatalogueProductsForResponse({
       category: req.query.category,
@@ -345,7 +348,7 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
-app.get("/api/products/:slug", async (req, res) => {
+app.get(["/api/catalogue/products/:slug", "/api/products/:slug"], async (req, res) => {
   try {
     const slug = String(req.params.slug || "");
     let persistedProduct = null;

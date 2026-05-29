@@ -7,7 +7,7 @@
 ## Environment affected
 
 - Identify local, development, staging, client preview, or production.
-- Confirm the target database, backend host, Cloudflare Pages project, and domain.
+- Confirm the target Railway database, Railway API service, Cloudflare Pages project, Cloudflare DNS records, and domain.
 
 ## Auth and roles
 
@@ -17,7 +17,7 @@
 ## API permissions
 
 - Verify Express routes, middleware, CORS, rate limiting, and trusted proxy settings.
-- Confirm deployed frontend points to the intended backend through `VITE_BACKEND_BASE_URL` when needed.
+- Confirm deployed frontend points to the intended backend through `VITE_API_BASE_URL` when needed.
 
 ## Database/data loss risk
 
@@ -43,11 +43,13 @@
 - Keep only browser-safe values under `VITE_*`.
 - Confirm CORS origins and proxy settings match the deployed domain.
 
-## Cloudflare Pages/Railway deployment
+## Cloudflare Pages, Railway API, and Cloudflare DNS
 
-- Confirm Cloudflare Pages build command and publish directory for `apps/stroane-web`.
-- Confirm backend deployment target and start command if deployed separately.
-- Railway may be used only if this app's backend is configured for it in the current deployment plan.
+- Confirm Cloudflare Pages build command: `pnpm --filter @faako/stroane-web build`.
+- Confirm Cloudflare Pages output directory: `apps/stroane-web/dist`.
+- Confirm Railway API start command: `pnpm --filter @faako/stroane-web start:api`.
+- Confirm Cloudflare routes `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend.
+- Confirm the API uses `https://stroane-api-production.up.railway.app` unless a future `api.stroanesolutions.com` cleanup is explicitly approved.
 
 ## Rollback plan
 

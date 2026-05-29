@@ -9,8 +9,8 @@ const TOKEN_EXPIRY_SECONDS = 8 * 60 * 60;
 const DUMMY_HASH = `${"00".repeat(16)}:${"00".repeat(64)}`;
 
 const getSecret = () => {
-  const s = process.env.STROANE_AUTH_SECRET;
-  if (!s) throw new Error("STROANE_AUTH_SECRET is not configured");
+  const s = process.env.APP_AUTH_SECRET || process.env.STROANE_AUTH_SECRET;
+  if (!s) throw new Error("APP_AUTH_SECRET is not configured");
   return s;
 };
 

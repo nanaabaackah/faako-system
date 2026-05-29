@@ -2,7 +2,12 @@
 
 ## Frontend
 
-- `VITE_BACKEND_BASE_URL`: optional browser-safe API base URL. Leave blank when using local fallback or same-origin API routing.
+- `VITE_API_BASE_URL`: primary browser-safe Stroane API base URL. Leave blank when using same-origin API routing or the local catalogue fallback.
+- `VITE_BACKEND_BASE_URL`: legacy browser-safe API base URL fallback. Keep blank for new deployments unless an older build still depends on it.
+
+Production Cloudflare Pages frontend:
+
+- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 
 Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service-role keys, or webhook signing values in `VITE_*` variables.
 
@@ -13,7 +18,13 @@ Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service
 - `PORT`: backend server port.
 - `CORS_ORIGINS`: comma-separated allowed browser origins.
 - `TRUST_PROXY_HOPS`: trusted proxy hop count, usually `1` on Railway after verification.
-- `STROANE_AUTH_SECRET`: backend-only signing secret for private admin/viewer sessions.
+- `APP_AUTH_SECRET`: backend-only signing secret for private admin/viewer sessions.
+
+Production Railway API service:
+
+- `DATABASE_URL=<Railway Postgres connection string>`
+- `NODE_ENV=production`
+- `APP_ENV=production`
 
 ## Database
 
@@ -37,6 +48,4 @@ Use Railway Postgres for production. Prefer separate migration/runtime credentia
 
 ## Monitoring Metadata
 
-- `STROANE_WEB_BASE_URL`: public site URL.
-- `STROANE_API_BASE_URL`: deployed API base URL when available.
-- `STROANE_BACKEND_BASE_URL`: optional backend base URL alias for monitoring.
+Keep app-specific monitoring override names in private operations configuration, not in the public `.env.example`.

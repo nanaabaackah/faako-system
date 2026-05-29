@@ -1,4 +1,8 @@
-const BASE_URL = (import.meta.env.VITE_BACKEND_BASE_URL || "").replace(/\/$/, "");
+const BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  ""
+).replace(/\/$/, "");
 const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
 
 const apiPath = (path: string) => `${BASE_URL}${path}`;

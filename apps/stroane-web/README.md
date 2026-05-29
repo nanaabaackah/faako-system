@@ -52,12 +52,12 @@ Unknown stock should default to `stockQuantity: null` and `isPurchasable: false`
 
 The current backend foundation exposes:
 
-- `GET /api/categories`
-- `GET /api/products`
-- `GET /api/products/:slug`
+- `GET /api/catalogue/categories`
+- `GET /api/catalogue/products`
+- `GET /api/catalogue/products/:slug`
 - `POST /api/inquiries`
 
-Catalogue read endpoints prefer persisted `CatalogueCategory` and `CatalogueProduct` rows when the database has been migrated and seeded. If the database is unavailable, empty, or not yet migrated, the endpoints fall back to `src/data/stroaneCatalogue.json` so the public catalogue can keep rendering safely.
+Catalogue read endpoints prefer persisted `CatalogueCategory` and `CatalogueProduct` rows when the database has been migrated and seeded. If the database is unavailable, empty, or not yet migrated, the endpoints fall back to `src/data/stroaneCatalogue.json` so the public catalogue can keep rendering safely. Legacy aliases remain available at `/api/categories`, `/api/products`, and `/api/products/:slug` during the Railway API rollout.
 
 `POST /api/inquiries` validates basic contact details and persists a minimal `CatalogueInquiry` record when the database migration has been deployed. It does not send email, create orders, take payments, update inventory, or run CRM automation. If storage is unavailable, the endpoint returns a safe error so the frontend can fall back to direct email.
 
@@ -160,9 +160,10 @@ Keep Paystack and email-provider secrets server-side only. Paystack webhook sign
 
 The database foundation is additive and uses Prisma/Postgres models for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, `BusinessProfileContent`, `Supplier`, `SupplierContact`, `CatalogueProductSupplier`, `InventoryItem`, `InventoryMovement`, and `InventoryAuditEntry`. Existing environment variables still apply:
 
-- `VITE_BACKEND_BASE_URL`: optional frontend API base URL when the backend is hosted separately
+- `VITE_API_BASE_URL`: primary frontend API base URL when the backend is hosted separately
+- `VITE_BACKEND_BASE_URL`: legacy frontend API base URL fallback for older deployments
 - `CORS_ORIGINS`: allowed browser origins for the backend
-- `STROANE_AUTH_SECRET`: backend-only token signing secret for private `SiteUser` admin/viewer auth
+- `APP_AUTH_SECRET`: backend-only token signing secret for private `SiteUser` admin/viewer auth
 - `DATABASE_URL`: Railway Postgres default database URL
 - `DATABASE_URL_DEVELOPMENT`: optional development database URL
 - `DATABASE_URL_PRODUCTION`: optional production database URL
@@ -214,7 +215,7 @@ Typical local ports:
 
 ## Database
 
-Recommended provider: Railway Postgres. Cloudflare Pages is the current frontend host. Keep any registrar/email provider separate from application hosting and database responsibilities. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
+Recommended provider: Railway Postgres. Railway is the current frontend and backend host direction, while Cloudflare manages DNS/domain routing only. Keep any registrar/email provider separate from application hosting and database responsibilities. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
 
 ```bash
 pnpm --filter @faako/stroane-web run db:migrate:dev
@@ -243,7 +244,7 @@ Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and m
 
 Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
 
-Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin order surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, and `/admin/orders` on real iPhone Safari against the deployed Cloudflare Pages/Railway pairing.
+Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin order surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, and `/admin/orders` on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
 
 ## Build And Deploy
 
@@ -252,22 +253,37 @@ pnpm --filter @faako/stroane-web run lint
 pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit
 pnpm --filter @faako/stroane-web run build
 pnpm --filter @faako/stroane-web run db:deploy:prod
-pnpm --filter @faako/stroane-web run server:prod
+pnpm --filter @faako/stroane-web start:api
 ```
 
-## Cloudflare Pages Deployment
+## Cloudflare Pages, Railway API, And Cloudflare DNS
 
-Use Cloudflare Pages for the deployed frontend. DNS/custom-domain records should point to the Cloudflare Pages project for the current Stroane frontend. Any old Netlify/Hostinger deployment notes should be treated as legacy context only, not the active production path.
+Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/backend service, Railway Postgres for the database, and Cloudflare for DNS/domain routing. Do not rely on Netlify for the current Stroane deployment.
 
-Recommended Cloudflare Pages settings:
+Cloudflare Pages frontend settings:
 
-- Base directory: repo root
 - Build command: `pnpm --filter @faako/stroane-web build`
-- Publish directory: `apps/stroane-web/dist`
-- Environment variable: set `VITE_BACKEND_BASE_URL` only if the API is hosted outside the Cloudflare Pages site
+- Output directory: `apps/stroane-web/dist`
+- Environment variable: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 
-The legacy `apps/stroane-web/netlify.toml` is retained only as a non-primary fallback artifact. Cloudflare Pages should use the package scripts above and should not rely on Netlify routing/proxy behavior. Host the application backend on Railway and use Railway Postgres for the database. After the Cloudflare Pages custom domain is active, add the deployed origin to backend `CORS_ORIGINS` when the backend runs separately.
+Railway API service command from the monorepo root:
+
+- Start command: `pnpm --filter @faako/stroane-web start:api`
+- Fallback command: `pnpm --filter @faako/stroane-web server:prod`
+
+Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and `APP_ENV=production`. Do not place `DATABASE_URL` or other server-only secrets on the frontend service.
+
+Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The API currently uses `https://stroane-api-production.up.railway.app`; `api.stroanesolutions.com` is optional future cleanup, not a requirement for this phase.
+
+The legacy `apps/stroane-web/netlify.toml` is retained only as a non-primary fallback artifact. The current deployment should not rely on Netlify routing/proxy behavior.
 
 If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.
 
-For Dev ERP monitoring, set `STROANE_API_BASE_URL` or `STROANE_BACKEND_BASE_URL` in the monitoring environment once the Stroane backend is deployed. This enables the optional `stroane-api` checks for `/health`, `/api/products`, and `/api/categories`.
+Smoke test these API routes after deploy:
+
+- `https://stroane-api-production.up.railway.app/api/catalogue/products`
+- `https://stroane-api-production.up.railway.app/api/catalogue/categories`
+- `https://stroane-api-production.up.railway.app/api/catalogue/products/<slug>`
+- Legacy aliases: `https://stroane-api-production.up.railway.app/api/products` and `https://stroane-api-production.up.railway.app/api/categories`
+
+For Dev ERP monitoring, keep app-specific URL overrides in private operations configuration once the backend is deployed. This enables the optional API checks for `/health`, `/api/catalogue/products`, and `/api/catalogue/categories` without publishing client-specific env names in the public example file.

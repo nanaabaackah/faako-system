@@ -23,6 +23,32 @@ Next step:
 
 ## Entries
 
+### Stroane Cloudflare Pages and Railway API readiness
+
+Date: 2026-05-29
+Feature/change name: Stroane Cloudflare Pages and Railway API readiness
+What changed: Added a Railway-friendly `start:api` script for the API/backend service, removed the inappropriate `start:web` script, and corrected current deployment notes so Stroane frontend hosting is Cloudflare Pages while Railway is only for the API/backend and Railway Postgres database. Documented the known Railway API URL, production Cloudflare Pages `VITE_API_BASE_URL`, API-only `DATABASE_URL` boundary, Cloudflare DNS records, and catalogue API smoke-test URLs.
+Why it changed: Stroane frontend is hosted on Cloudflare Pages, the API/backend runs on Railway, the database is Railway Postgres, and Cloudflare manages DNS/domain routing. The previous update briefly documented the wrong frontend host, which is not the current deployment direction.
+Files changed: apps/stroane-web/.env.example, apps/stroane-web/README.md, apps/stroane-web/backend/server.js, apps/stroane-web/package.json, docs/apps/stroane-web/api.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/pre-deploy-checklist.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/system-status.md.
+Data impact: None. No database schema, migration, seed, product, order, payment, or customer data changes.
+Security impact: Positive configuration clarity only. `DATABASE_URL` and provider secrets are documented as API-service-only. The frontend service should only receive browser-safe `VITE_*` values.
+Testing done: `node -e "JSON.parse(...apps/stroane-web/package.json...)"` passed. `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite warning that local `.env` should not set `NODE_ENV=production`. `PORT=0 pnpm --filter @faako/stroane-web start:api` started the production API command and printed the backend startup message. `git diff --check` passed.
+Rollback notes: Revert the package script addition and deployment documentation changes. No data rollback is required.
+Next step: Deploy or configure the Railway API service and Cloudflare Pages frontend with the documented commands/env vars, then smoke test the catalogue API and storefront through Cloudflare DNS.
+
+### Stroane catalogue API route alignment
+
+Date: 2026-05-29
+Feature/change name: Stroane catalogue API route alignment
+What changed: Aligned the existing Stroane catalogue frontend helper with the intended `/api/catalogue/*` route contract while preserving the current shop/product UI and local catalogue fallback. Added backend read-only catalogue route aliases for `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` while keeping legacy `/api/categories`, `/api/products`, and `/api/products/:slug` available during rollout. Updated browser API helpers to prefer `VITE_API_BASE_URL` with `VITE_BACKEND_BASE_URL` as a legacy fallback.
+Why it changed: Stroane frontend is now on Cloudflare Pages and the API is expected to run separately on Railway. The shop/product pages need the agreed catalogue API contract without breaking the current fallback-driven storefront.
+Files changed: apps/stroane-web/.env.example, apps/stroane-web/README.md, apps/stroane-web/backend/server.js, apps/stroane-web/src/api/products.ts, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/api/adminOrders.ts, docs/apps/stroane-web/api.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/pre-deploy-checklist.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/progress-log.md.
+Data impact: None. No schema changes, migrations, seed changes, product data edits, checkout/payment changes, or inventory updates were made.
+Security impact: No secrets exposed. `VITE_API_BASE_URL` is documented as browser-safe only; database URLs, Paystack keys, Resend keys, auth secrets, and webhook secrets remain server-side. Legacy route aliases are read-only catalogue endpoints only.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed with Prisma 7 config loaded from `prisma.config.ts`. `pnpm --filter @faako/stroane-web exec node --test backend/paystack.test.js backend/security.test.js` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite warning that `.env` should not set `NODE_ENV=production`. Product image path check found 22 `/imgs/products/` references and 0 missing files. `git diff --check` passed.
+Rollback notes: Revert the API helper base URL changes, the backend catalogue route aliases, and the docs/env updates. Legacy `/api/products` routes remain in place, so rollback does not require data migration.
+Next step: Deploy or configure the Railway API origin, set `VITE_API_BASE_URL` in Cloudflare Pages, then smoke test `/shop`, `/products`, and a product detail page against both API-available and API-unavailable states.
+
 ### Stroane stability review and operational inventory foundation
 
 Date: 2026-05-29

@@ -1,6 +1,11 @@
 import type { CatalogueCategory, Product } from "../types/index";
 
-const BASE_URL = (import.meta.env.VITE_BACKEND_BASE_URL || "").replace(/\/$/, "");
+const BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  ""
+).replace(/\/$/, "");
+const CATALOGUE_API_PATH = "/api/catalogue";
 
 const apiPath = (path: string) => `${BASE_URL}${path}`;
 
@@ -65,7 +70,9 @@ export const productApi = {
     if (params.category) searchParams.set("category", params.category);
     if (params.search) searchParams.set("search", params.search);
     const query = searchParams.toString();
-    const response = await fetch(apiPath(`/api/products${query ? `?${query}` : ""}`));
+    const response = await fetch(
+      apiPath(`${CATALOGUE_API_PATH}/products${query ? `?${query}` : ""}`)
+    );
     const data = await parseJsonResponse<ProductListResponse | Product[]>(
       response,
       "Failed to fetch products"
@@ -74,7 +81,9 @@ export const productApi = {
   },
 
   async getById(id: string): Promise<Product> {
-    const response = await fetch(apiPath(`/api/products/${encodeURIComponent(id)}`));
+    const response = await fetch(
+      apiPath(`${CATALOGUE_API_PATH}/products/${encodeURIComponent(id)}`)
+    );
     const data = await parseJsonResponse<ProductDetailResponse | Product>(
       response,
       "Failed to fetch product"
@@ -83,7 +92,7 @@ export const productApi = {
   },
 
   async getCategories(): Promise<CatalogueCategory[]> {
-    const response = await fetch(apiPath("/api/categories"));
+    const response = await fetch(apiPath(`${CATALOGUE_API_PATH}/categories`));
     const data = await parseJsonResponse<{ categories: CatalogueCategory[] } | CatalogueCategory[]>(
       response,
       "Failed to fetch categories"

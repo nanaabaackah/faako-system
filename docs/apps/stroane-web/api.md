@@ -3,16 +3,16 @@
 ## Current Public/Customer Endpoints
 
 - `GET /health`
-- `GET /api/categories`
-- `GET /api/products`
-- `GET /api/products/:slug`
+- `GET /api/catalogue/categories`
+- `GET /api/catalogue/products`
+- `GET /api/catalogue/products/:slug`
 - `POST /api/inquiries`
 - `POST /api/orders`
 - `POST /api/orders/:orderId/paystack/initialize`
 - `POST /api/paystack/verify`
 - `POST /api/paystack/webhook`
 
-Catalogue endpoints prefer persisted database rows when available and fall back to the local JSON seed when the API/database is unavailable or not yet seeded.
+Catalogue endpoints prefer persisted database rows when available and fall back to the local JSON seed when the API/database is unavailable or not yet seeded. Legacy aliases remain available at `GET /api/categories`, `GET /api/products`, and `GET /api/products/:slug` during the Railway API rollout.
 
 ## Current Private Endpoints
 
