@@ -268,10 +268,11 @@ Cloudflare Pages frontend settings:
 
 Railway API service command from the monorepo root:
 
+- Build command: `pnpm --filter @faako/stroane-web exec prisma generate`
 - Start command: `pnpm --filter @faako/stroane-web start:api`
 - Fallback command: `pnpm --filter @faako/stroane-web server:prod`
 
-Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and `APP_ENV=production`. Do not place `DATABASE_URL` or other server-only secrets on the frontend service.
+Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and `APP_ENV=production`. Do not place `DATABASE_URL` or other server-only secrets on the Cloudflare Pages frontend project. Do not place `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it.
 
 Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The API currently uses `https://stroane-api-production.up.railway.app`; `api.stroanesolutions.com` is optional future cleanup, not a requirement for this phase.
 
@@ -281,6 +282,7 @@ If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to th
 
 Smoke test these API routes after deploy:
 
+- `https://stroane-api-production.up.railway.app/health`
 - `https://stroane-api-production.up.railway.app/api/catalogue/products`
 - `https://stroane-api-production.up.railway.app/api/catalogue/categories`
 - `https://stroane-api-production.up.railway.app/api/catalogue/products/<slug>`

@@ -306,7 +306,10 @@ app.use("/api/admin/orders", adminRateLimit, createAdminOrdersRouter(prisma));
 
 // Health check route
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    ok: true,
+    service: "stroane-api",
+  });
 });
 
 // Catalogue routes are public read-only foundations for the Stroane storefront.

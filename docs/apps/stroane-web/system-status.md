@@ -12,6 +12,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - React storefront structure, pages, components, API client, and types.
 - Express backend route and middleware structure.
+- Railway API `/health` endpoint returns `{ ok: true, service: "stroane-api" }` without requiring database access.
 - Prisma schema and migration workflow.
 - Cloudflare Pages frontend deployment pattern with Railway API/backend and Railway Postgres.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.

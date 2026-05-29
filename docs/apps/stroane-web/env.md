@@ -26,6 +26,8 @@ Production Railway API service:
 - `NODE_ENV=production`
 - `APP_ENV=production`
 
+Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
+
 ## Database
 
 - `DATABASE_URL`: Railway Postgres URL for single-env deployments.

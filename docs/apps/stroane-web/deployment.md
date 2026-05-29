@@ -26,6 +26,7 @@ Do not set `DATABASE_URL`, Paystack secrets, Resend keys, auth secrets, or webho
 
 Run commands from the monorepo root.
 
+- Build command: `pnpm --filter @faako/stroane-web exec prisma generate`
 - Start command: `pnpm --filter @faako/stroane-web start:api`
 - Fallback start command if needed: `pnpm --filter @faako/stroane-web server:prod`
 
@@ -40,6 +41,8 @@ API environment variables:
 - `APP_AUTH_SECRET=<server-only secret>`
 
 Payment/email provider variables, when enabled, belong on the Railway API service only.
+
+Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it. `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend.
 
 ## Cloudflare DNS
 

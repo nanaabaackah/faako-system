@@ -11,6 +11,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Railway is the current API/backend host and Railway Postgres is the production database direction. Do not assume Netlify for this phase.
 - `VITE_API_BASE_URL` controls whether the frontend calls an external backend origin. `VITE_BACKEND_BASE_URL` remains a legacy fallback for older deployments.
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
+- Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
+- The API server listens on `process.env.PORT` with a local fallback, and `/health` returns a database-independent JSON response for Railway health checks.
 - `docs/platform/codebase-cleanup-audit.md` flags Stroane cleanup opportunities around repeated card/button/header/page styles, API fetch wrapper duplication, and component extraction candidates such as Shop, Product/User Management, and header surfaces.
 
 ### Shared modules introduced in the 2026-05 redesign sweep

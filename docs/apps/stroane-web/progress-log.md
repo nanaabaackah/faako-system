@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Stroane Railway API start and health readiness
+
+Date: 2026-05-29
+Feature/change name: Stroane Railway API start and health readiness
+What changed: Confirmed `start:api` exists for the Railway API service and kept existing `server:dev`, `server:prod`, and `server:with-migrate` scripts. Confirmed the backend listens on `process.env.PORT` with a local fallback. Updated `/health` to return `{ ok: true, service: "stroane-api" }` without database access. Documented the Railway API build command, start command, required API env vars, and the boundary that `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend, not the Railway API service.
+Why it changed: Railway was reporting "Application failed to respond", so the API start command, port binding, and health response needed to be explicit and deployment-safe.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/README.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md.
+Data impact: None. No schema, migration, product, order, payment, or customer data changes.
+Security impact: No secrets exposed. API-only env vars remain documented as Railway API service values, and frontend-only `VITE_API_BASE_URL` remains Cloudflare Pages scoped.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec prisma generate` passed and verifies the documented Railway API build command. `PORT=0 pnpm --filter @faako/stroane-web start:api` started the production API command and printed the backend startup message. `git diff --check` passed.
+Rollback notes: Revert the health response and documentation updates. No data rollback is required.
+Next step: Deploy the Railway API with build command `pnpm --filter @faako/stroane-web exec prisma generate` and start command `pnpm --filter @faako/stroane-web start:api`, then test `/health`.
+
 ### Stroane Cloudflare Pages and Railway API readiness
 
 Date: 2026-05-29
