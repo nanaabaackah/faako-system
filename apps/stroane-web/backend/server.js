@@ -68,7 +68,7 @@ const runtimeEnvironment = normalizeEnvironmentName(
 );
 
 // Initialize Prisma Client with PostgreSQL adapter. Prefer environment-specific
-// database URLs, then fall back to DATABASE_URL for Railway/Supabase-style deploys.
+// database URLs, then fall back to DATABASE_URL for Railway-style deploys.
 const connectionString =
   runtimeEnvironment === "production"
     ? process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL

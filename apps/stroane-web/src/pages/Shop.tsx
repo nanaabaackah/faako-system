@@ -11,10 +11,12 @@ import {
   formatCurrency,
   formatProductPrice,
   canPurchaseProduct,
+  getAvailableStockQuantity,
   getAvailabilityLabel,
   getLineTotal,
   getProductSpecifications,
   getSchemaAvailability,
+  getStockDetailLabel,
   getStockTone,
   isPricedProduct,
   shouldShowInquiryOption,
@@ -319,7 +321,11 @@ const Shop: React.FC = () => {
                 const detailUrl = `/products/${product.id}`;
                 const canAddOne = canPurchaseProduct(product, qty + 1);
                 const canStartCart = canPurchaseProduct(product, 1);
-                const maxQuantity = product.allowBackorder ? null : product.stockQuantity;
+                const availableQuantity = getAvailableStockQuantity(product);
+                const maxQuantity = product.allowBackorder
+                  ? null
+                  : availableQuantity ?? product.stockQuantity;
+                const stockDetail = getStockDetailLabel(product);
                 const inquiryLabel = isPricedProduct(product)
                   ? "Ask about stock"
                   : "Request price";
@@ -352,6 +358,11 @@ const Shop: React.FC = () => {
                       {product.variants?.length ? (
                         <p className="shop-product-card__meta">
                           {product.variants.length} option{product.variants.length === 1 ? "" : "s"} available for review
+                        </p>
+                      ) : null}
+                      {stockDetail ? (
+                        <p className="shop-product-card__stock-detail">
+                          {stockDetail}
                         </p>
                       ) : null}
                       <div className="shop-product-card__row">

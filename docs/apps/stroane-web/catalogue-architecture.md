@@ -34,7 +34,7 @@ Products and variants should use a normalized media object:
 
 ```json
 {
-  "url": "/images/products/thermometers/example.jpg",
+  "url": "/imgs/products/thermometers/example.jpg",
   "alt": "Customer-safe product image alt text",
   "type": "primary",
   "sortOrder": 1,
@@ -55,8 +55,8 @@ Cloudinary-ready values can later map to:
 
 Current local asset folders:
 
-- `apps/stroane-web/public/images/products/thermometers/`
-- `apps/stroane-web/public/images/products/aprons/`
+- `apps/stroane-web/public/imgs/products/thermometers/`
+- `apps/stroane-web/public/imgs/products/aprons/`
 
 ## Specification Structure
 
@@ -78,6 +78,8 @@ Catalogue products and variants may include:
 
 - `sku`
 - `stockQuantity`
+- `availableQuantity`
+- `reservedQuantity`
 - `stockStatus`
 - `lowStockThreshold`
 - `reorderThreshold`
@@ -89,11 +91,13 @@ Catalogue products and variants may include:
 
 Unknown inventory must not be treated as sellable. New PDF/image-imported products default to `stockQuantity: null`, `stockStatus: "unavailable"`, and `isPurchasable: false` until Stroane enters real stock counts and approved pricing.
 
+The operational inventory foundation adds dedicated tables for suppliers, supplier contacts, product-supplier links, inventory items, stock movement entries, adjustment/restock notes, and inventory audit entries. These tables are additive and are not yet wired to checkout deduction or reservation behavior.
+
 ## Backend Compatibility
 
-The current database schema stores product-level catalogue rows but does not yet persist category hierarchy metadata, variant rows, or media rows as dedicated tables. The backend catalogue adapter merges local seed metadata into DB-backed product/category responses so current storefront images, variants, and category grouping remain visible after seeding.
+The current database schema stores product-level catalogue rows and supplier/inventory planning records, but does not yet persist category hierarchy metadata, variant rows, or media rows as dedicated tables. The backend catalogue adapter merges local seed metadata into DB-backed product/category responses so current storefront images, variants, and category grouping remain visible after seeding.
 
-Do not add ERP-grade inventory tables until a separate stock/admin workflow is approved.
+Do not expand into ERP-grade inventory automation until a separate stock/admin workflow is approved. Order-to-inventory reservation, deduction, supplier purchase workflows, and stock reconciliation screens remain future work.
 
 ## Manual Review Required
 
@@ -105,4 +109,3 @@ Before enabling online purchase for the normalized products, Stroane must confir
 - supplier/cost details if needed
 - exact product model/version names
 - final image approvals
-

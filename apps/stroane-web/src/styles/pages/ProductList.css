@@ -98,6 +98,13 @@
   margin: 0;
 }
 
+.product-card__stock-detail {
+  margin: -0.15rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
 .product-card__footer {
   display: flex;
   justify-content: space-between;

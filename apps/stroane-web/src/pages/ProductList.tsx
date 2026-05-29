@@ -4,7 +4,7 @@ import { Card, EmptyState, InlineNotice, PageHeader, PageShell } from "@faako/ui
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import useCatalogueData from "../hooks/useCatalogueData";
-import { formatProductPrice, getAvailabilityLabel } from "../data/products";
+import { formatProductPrice, getAvailabilityLabel, getStockDetailLabel } from "../data/products";
 import "../styles/pages/ProductList.css";
 
 const ProductList: React.FC = () => {
@@ -60,36 +60,43 @@ const ProductList: React.FC = () => {
           />
         ) : (
           <div className="products-grid">
-            {products.map((product) => (
-              <Link
-                key={product.id}
-                to={`/products/${product.id}`}
-                className="product-card-link"
-              >
-                <Card className="product-card">
-                  <div className="product-card__media">
-                    <img
-                      src={product.thumbnailUrl || product.image}
-                      alt={product.imageAlt || product.name}
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="product-card__body">
-                    <span className="product-card__category">{product.category}</span>
-                    <h2 className="product-card__name">{product.name}</h2>
-                    <p className="product-card__desc">{product.description}</p>
-                    <div className="product-card__footer">
-                      <span className="product-card__price">
-                        {formatProductPrice(product)}
-                      </span>
-                      <span className="product-card__stock">
-                        {getAvailabilityLabel(product)}
-                      </span>
+            {products.map((product) => {
+              const stockDetail = getStockDetailLabel(product);
+
+              return (
+                <Link
+                  key={product.id}
+                  to={`/products/${product.id}`}
+                  className="product-card-link"
+                >
+                  <Card className="product-card">
+                    <div className="product-card__media">
+                      <img
+                        src={product.thumbnailUrl || product.image}
+                        alt={product.imageAlt || product.name}
+                        loading="lazy"
+                      />
                     </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                    <div className="product-card__body">
+                      <span className="product-card__category">{product.category}</span>
+                      <h2 className="product-card__name">{product.name}</h2>
+                      <p className="product-card__desc">{product.description}</p>
+                      {stockDetail ? (
+                        <p className="product-card__stock-detail">{stockDetail}</p>
+                      ) : null}
+                      <div className="product-card__footer">
+                        <span className="product-card__price">
+                          {formatProductPrice(product)}
+                        </span>
+                        <span className="product-card__stock">
+                          {getAvailabilityLabel(product)}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </PageShell>

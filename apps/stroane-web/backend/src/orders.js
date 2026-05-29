@@ -48,6 +48,17 @@ const toNullableInteger = (value) => {
   return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
 };
 
+const getAvailableQuantity = (product) => {
+  const explicitAvailableQuantity = toNullableInteger(product.availableQuantity);
+  if (explicitAvailableQuantity != null) return explicitAvailableQuantity;
+
+  const stockQuantity = toNullableInteger(product.stockQuantity);
+  if (stockQuantity == null) return null;
+
+  const reservedQuantity = toNullableInteger(product.reservedQuantity) ?? 0;
+  return Math.max(0, stockQuantity - reservedQuantity);
+};
+
 const createOrderNumber = () => {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -78,7 +89,7 @@ const getPurchaseBlocker = (product, quantity) => {
   }
 
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
-  const stockQuantity = toNullableInteger(product.stockQuantity);
+  const availableQuantity = getAvailableQuantity(product);
 
   if (!product.isPurchasable) {
     return `${product.name} is not enabled for online purchase until stock is confirmed.`;
@@ -88,11 +99,11 @@ const getPurchaseBlocker = (product, quantity) => {
   if (stockStatus === "preorder" && !product.allowBackorder) {
     return `${product.name} is not available for preorder.`;
   }
-  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && stockQuantity == null) {
+  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity == null) {
     return `${product.name} needs a confirmed stock quantity before checkout.`;
   }
-  if (stockQuantity != null && stockQuantity < quantity && !product.allowBackorder) {
-    return `${product.name} only has ${stockQuantity} available.`;
+  if (availableQuantity != null && availableQuantity < quantity && !product.allowBackorder) {
+    return `${product.name} only has ${availableQuantity} available.`;
   }
 
   return "";
@@ -193,6 +204,8 @@ export const prepareCommerceOrder = async (prisma, payload = {}) => {
         unit: product.unit,
         stockStatus: normalizeStockStatus(product.stockStatus || product.stock),
         stockQuantity: toNullableInteger(product.stockQuantity),
+        availableQuantity: getAvailableQuantity(product),
+        reservedQuantity: toNullableInteger(product.reservedQuantity),
         sourceRefs: product.sourceRefs || [],
       }),
     });

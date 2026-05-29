@@ -7,8 +7,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 ## Known technical notes
 
 - The app uses a React and TypeScript frontend, Express backend, and Prisma-managed PostgreSQL database.
-- Netlify is recommended for the frontend while the backend may run separately.
-- Hostinger can remain the DNS host while the domain points to Netlify.
+- Cloudflare Pages is the current frontend host while the backend may run separately.
+- DNS/custom-domain records should point at the Cloudflare Pages project for the current Stroane frontend. Any Hostinger/Netlify notes are legacy context unless re-approved.
 - `VITE_BACKEND_BASE_URL` controls whether the frontend calls an external backend origin.
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - `docs/platform/codebase-cleanup-audit.md` flags Stroane cleanup opportunities around repeated card/button/header/page styles, API fetch wrapper duplication, and component extraction candidates such as Shop, Product/User Management, and header surfaces.
@@ -68,9 +68,9 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 
 ### Product image extraction and mapping - 2026-05-19
 
-- Product assets now live under `apps/stroane-web/public/images/products/` using lower-case slug filenames and WebP format. Keep new catalogue imagery in this folder and reference it from `src/data/stroaneCatalogue.json`, not directly from page components.
+- Product assets now live under `apps/stroane-web/public/imgs/products/` using lower-case slug filenames and WebP format. Keep new catalogue imagery in this folder and reference it from `src/data/stroaneCatalogue.json`, not directly from page components.
 - Current mapped catalogue products: AstroAI IR Thermometer, Taylor Precision Large Dial Fridge/Freezer Thermometer, Taylor Pro Horizontal Strip Fridge/Freezer Thermometer, Taylor Precision Fridge/Freezer Thermometer with Suction Cups, Food Safety Posters Pack of 32, Fridge & Freezer Temperature Signage Bundle, Food Preparation Area Signage Bundle, and Food Safety Aprons.
-- `src/data/stroaneCatalogue.json` now supports `thumbnailUrl`, `imageUrl`, `galleryImages`, and `imageAlt`. `src/data/products.ts` normalizes these fields and falls back to `/images/products/product-placeholder.webp` when a product has no mapped image.
+- `src/data/stroaneCatalogue.json` now supports `thumbnailUrl`, `imageUrl`, `galleryImages`, and `imageAlt`. `src/data/products.ts` normalizes these fields and falls back to `/imgs/products/product-placeholder.webp` when a product has no mapped image.
 - Extracted but not yet mapped as live catalogue products: AccuChef Digital Instant Read Thermometer, KitchenCraft Fridge Freezer Thermometer, and Alpha Grillers Instant Read Digital Thermometer. These need product/pricing review before adding catalogue entries.
 - Source files used: `FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf`, `Food and Fridge Thermometers Catalogue (2).pdf`, and `STROANE BROCHURE FOR THERMOMETERS, POSTERS & APRONS (1).pdf`.
 - Manual review still needed: confirm crop quality with Stroane, replace catalogue-derived images with final product photography if supplied, verify apron variants/sizes/pricing, and decide whether extracted future thermometer assets should become products.
@@ -84,9 +84,18 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Product Detail uses `getProductMedia(product, activeVariant)` so variant selections can switch the gallery image without hardcoding image paths into the component.
 - The backend catalogue adapter merges local seed media/variant/category-group metadata into DB-backed products/categories. This is intentional because the current Prisma catalogue schema does not yet have dedicated media, variant, or category-parent tables.
 - The catalogue seed script still writes product-level `CatalogueProduct` rows only. Do not add variant/inventory schema until a separate admin stock workflow is approved.
-- New image assets are organized under `public/images/products/thermometers/` and `public/images/products/aprons/`. Keep filenames lowercase and slug-based.
+- New image assets are organized under `public/imgs/products/thermometers/` and `public/imgs/products/aprons/`. Keep filenames lowercase and slug-based.
 - New PDF/image-imported products remain non-purchasable by default: `stockQuantity: null`, `stockStatus: unavailable`, `isPurchasable: false`, and `price: null` until Stroane confirms real stock and price.
 - Architecture details live in `docs/apps/stroane-web/catalogue-architecture.md`.
+
+### Operational inventory and supplier foundation - 2026-05-29
+
+- The Prisma foundation is additive only. `CatalogueProduct` keeps existing stock fields and now adds nullable `availableQuantity`, `reservedQuantity`, and `reorderThreshold` columns for storefront availability and operational planning.
+- New supplier models are `Supplier`, `SupplierContact`, and `CatalogueProductSupplier`. They support supplier contacts, preferred product-supplier links, supplier SKUs/product names, cost price, lead time, minimum order quantity, and restock notes without changing existing products or orders.
+- New inventory models are `InventoryItem`, `InventoryMovement`, and `InventoryAuditEntry`. They support product/variant stock records, quantity on hand, reserved/available quantity, stock status, threshold fields, stock adjustment/restock entries, purchase/restock notes, and audit snapshots.
+- Checkout/order integration is intentionally not complete in this phase. Orders still validate product purchasability and available stock server-side before payment, but they do not reserve, deduct, or release inventory quantities.
+- API/admin endpoints for supplier management, inventory listing, inventory adjustments, restock entry, and stock movement history are planned in `docs/apps/stroane-web/api.md`; do not fake these screens until the backend routes and permission checks are implemented.
+- Product cards/details now show an available-stock count when the catalogue/API provides it. If stock counts are missing, the storefront falls back to the existing availability label and non-purchasable behavior.
 
 ### Commerce and checkout foundation - 2026-05-20
 
@@ -167,11 +176,11 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Payment callback QA found and fixed a small consistency issue: `/api/paystack/verify` now normalizes currency codes before comparing Paystack status-check data with the expected order currency. This does not change the rule that webhook verification is the trusted paid-state source.
 - Backend route error logs for auth, catalogue, inquiry, order, Paystack initialize, Paystack verify, and unhandled errors now log sanitized message/status details instead of raw error objects.
 - Static review confirmed the main commerce flow remains server-priced and stock-gated: cart stores product IDs/quantities only, checkout sends product slugs/quantities, backend recalculates totals, backend validates stock/purchasability before order creation and payment initialization, and paid state still requires signed webhook plus Paystack transaction verification.
-- Remaining device QA: test checkout, cart, Paystack return, admin order forms, and product filters on real iPhone Safari against the deployed Netlify/Railway pairing before public purchasing is broadly promoted.
+- Remaining device QA: test checkout, cart, Paystack return, admin order forms, and product filters on real iPhone Safari against the deployed Cloudflare Pages/Railway pairing before public purchasing is broadly promoted.
 
 ### Database and deployment foundation - 2026-05-19
 
-- Recommended architecture: Hostinger remains DNS/email, Netlify hosts the frontend, Railway hosts the Express backend and production rate-limit layer, and Railway Postgres stores application data. Hostinger should not be the application database host unless a separate production decision is made.
+- Recommended architecture: Cloudflare Pages hosts the frontend, Railway hosts the Express backend and production rate-limit layer, and Railway Postgres stores application data. Keep registrar/email services separate from application database duties unless a separate production decision is made.
 - Prisma now has additive foundation models: `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`. These sit beside the legacy `Product` model so existing data is not mutated.
 - `prisma/migrations/20260519000000_add_catalogue_inquiry_foundation/migration.sql` creates the new tables and `CatalogueInquiryStatus` enum. Deploy with `pnpm --filter @faako/stroane-web run db:deploy:prod` after pointing env vars at the intended production database.
 - `prisma/seed-catalogue.mjs` upserts category/product/business-profile content from `src/data/stroaneCatalogue.json`. It is opt-in and should be run only after the migration target is verified.

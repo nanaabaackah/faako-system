@@ -9,12 +9,14 @@ import ProductInquiryForm from "../components/ProductInquiryForm";
 import useSEOMeta from "../hooks/useSEOMeta";
 import {
   canPurchaseProduct,
+  getAvailableStockQuantity,
   getLineTotal,
   getProductById,
   formatCurrency,
   formatProductPrice,
   formatVariantPrice,
   getAvailabilityLabel,
+  getStockDetailLabel,
   getPurchaseBlocker,
   getProductMedia,
   getProductSpecifications,
@@ -147,9 +149,11 @@ const ProductDetail: React.FC = () => {
   const qty = getQty(product.id);
   const canAddOne = canPurchaseProduct(product, qty + 1);
   const canStartCart = canPurchaseProduct(product, 1);
-  const maxQuantity = product.allowBackorder ? null : product.stockQuantity;
+  const availableQuantity = getAvailableStockQuantity(product);
+  const maxQuantity = product.allowBackorder ? null : availableQuantity ?? product.stockQuantity;
   const purchaseBlocker = getPurchaseBlocker(product, Math.max(qty, 1));
   const showInquiry = shouldShowInquiryOption(product);
+  const stockDetail = getStockDetailLabel(product);
   const activeMedia = mediaItems[activeImage] || mediaItems[0];
   const mainImage = activeMedia?.url || product.image;
   const mainImageAlt = activeMedia?.alt || activeVariant?.imageAlt || product.imageAlt || product.name;
@@ -261,6 +265,9 @@ const ProductDetail: React.FC = () => {
                   {getAvailabilityLabel(product)}
                 </StatusPill>
               </div>
+              {stockDetail ? (
+                <p className="product-detail__stock-detail">{stockDetail}</p>
+              ) : null}
 
               {variants.length ? (
                 <div className="product-detail__variants" aria-label="Product options">

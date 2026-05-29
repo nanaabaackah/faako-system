@@ -7,7 +7,7 @@
 ## Environment affected
 
 - Identify local, development, staging, client preview, or production.
-- Confirm the target database, backend host, Netlify site, and domain.
+- Confirm the target database, backend host, Cloudflare Pages project, and domain.
 
 ## Auth and roles
 
@@ -43,9 +43,9 @@
 - Keep only browser-safe values under `VITE_*`.
 - Confirm CORS origins and proxy settings match the deployed domain.
 
-## Netlify/Railway deployment
+## Cloudflare Pages/Railway deployment
 
-- Confirm Netlify build command, publish directory, and config file for `apps/stroane-web`.
+- Confirm Cloudflare Pages build command and publish directory for `apps/stroane-web`.
 - Confirm backend deployment target and start command if deployed separately.
 - Railway may be used only if this app's backend is configured for it in the current deployment plan.
 

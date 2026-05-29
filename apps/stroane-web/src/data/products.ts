@@ -62,6 +62,8 @@ export interface Product {
   stock: ProductStock;
   stockStatus?: ProductStockStatus;
   stockQuantity?: number | null;
+  availableQuantity?: number | null;
+  reservedQuantity?: number | null;
   lowStockThreshold?: number | null;
   allowBackorder?: boolean;
   isPurchasable?: boolean;
@@ -115,6 +117,8 @@ export interface ProductVariant {
   priceLabel?: string;
   currency?: "GHS";
   stockQuantity?: number | null;
+  availableQuantity?: number | null;
+  reservedQuantity?: number | null;
   stockStatus?: ProductStockStatus;
   reorderThreshold?: number | null;
   allowBackorder?: boolean;
@@ -132,7 +136,7 @@ interface CatalogueSeed {
 }
 
 const catalogue = catalogueData as CatalogueSeed;
-const PRODUCT_IMAGE_PLACEHOLDER = "/images/products/product-placeholder.webp";
+const PRODUCT_IMAGE_PLACEHOLDER = "/imgs/products/product-placeholder.webp";
 const legacyProductImagePattern = /^\/imgs\/products\/product_\d+\.(png|jpe?g|webp)$/i;
 
 export const PRODUCT_STOCK_LABELS: Record<ProductStockStatus, ProductStock> = {
@@ -187,6 +191,17 @@ const toNullableInteger = (value: unknown) => {
 
 const getNormalizedStockQuantity = (product: Product) =>
   toNullableInteger(product.stockQuantity);
+
+export const getAvailableStockQuantity = (product: Product) => {
+  const explicitAvailableQuantity = toNullableInteger(product.availableQuantity);
+  if (explicitAvailableQuantity != null) return explicitAvailableQuantity;
+
+  const stockQuantity = getNormalizedStockQuantity(product);
+  if (stockQuantity == null) return null;
+
+  const reservedQuantity = toNullableInteger(product.reservedQuantity) ?? 0;
+  return Math.max(0, stockQuantity - reservedQuantity);
+};
 
 const getNormalizedLowStockThreshold = (product: Product) =>
   toNullableInteger(product.lowStockThreshold) ?? 5;
@@ -286,6 +301,8 @@ const normalizeVariants = (
       price: variant.price == null ? null : Number(variant.price),
       stockStatus: normalizeStockStatus(variant.stockStatus),
       stockQuantity: toNullableInteger(variant.stockQuantity),
+      availableQuantity: toNullableInteger(variant.availableQuantity),
+      reservedQuantity: toNullableInteger(variant.reservedQuantity),
       reorderThreshold: toNullableInteger(variant.reorderThreshold),
       allowBackorder: Boolean(variant.allowBackorder),
       isPurchasable: Boolean(variant.isPurchasable),
@@ -342,6 +359,16 @@ export const normalizeProduct = (product: Product): Product => {
     product.lowStockThreshold !== undefined
       ? toNullableInteger(product.lowStockThreshold) ?? 5
       : toNullableInteger(localProduct?.lowStockThreshold) ?? 5;
+  const reservedQuantity =
+    product.reservedQuantity !== undefined
+      ? toNullableInteger(product.reservedQuantity)
+      : toNullableInteger(localProduct?.reservedQuantity);
+  const availableQuantity =
+    product.availableQuantity !== undefined
+      ? toNullableInteger(product.availableQuantity)
+      : stockQuantity == null
+        ? null
+        : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
 
   return {
     ...product,
@@ -355,10 +382,15 @@ export const normalizeProduct = (product: Product): Product => {
     stock: PRODUCT_STOCK_LABELS[stockStatus],
     stockStatus,
     stockQuantity,
+    availableQuantity,
+    reservedQuantity,
     lowStockThreshold,
     allowBackorder: Boolean(product.allowBackorder ?? localProduct?.allowBackorder),
     isPurchasable: Boolean(product.isPurchasable ?? localProduct?.isPurchasable),
-    reorderThreshold: toNullableInteger(product.reorderThreshold),
+    reorderThreshold:
+      product.reorderThreshold !== undefined
+        ? toNullableInteger(product.reorderThreshold)
+        : toNullableInteger(localProduct?.reorderThreshold),
     costPrice: product.costPrice == null ? null : Number(product.costPrice),
     sellingPrice: product.sellingPrice == null ? product.price : Number(product.sellingPrice),
     supplier: product.supplier || null,
@@ -401,7 +433,7 @@ export const canPurchaseProduct = (product: Product, quantity = 1) => {
   if (!isPricedProduct(product) || !product.isPurchasable) return false;
 
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
-  const stockQuantity = getNormalizedStockQuantity(product);
+  const availableQuantity = getAvailableStockQuantity(product);
   const requestedQuantity = Math.max(1, Math.floor(quantity));
 
   if (stockStatus === "out_of_stock" || stockStatus === "unavailable") return false;
@@ -410,8 +442,8 @@ export const canPurchaseProduct = (product: Product, quantity = 1) => {
     return Boolean(product.allowBackorder);
   }
 
-  if (stockQuantity == null) return false;
-  return stockQuantity >= requestedQuantity;
+  if (availableQuantity == null) return false;
+  return availableQuantity >= requestedQuantity;
 };
 
 export const shouldShowInquiryOption = (product: Product) => {
@@ -427,8 +459,13 @@ export const shouldShowInquiryOption = (product: Product) => {
 
 export const getAvailabilityLabel = (product: Product) => {
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
-  const stockQuantity = getNormalizedStockQuantity(product);
+  const availableQuantity = getAvailableStockQuantity(product);
   const lowStockThreshold = getNormalizedLowStockThreshold(product);
+
+  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity != null) {
+    if (availableQuantity <= 0) return "Out of stock";
+    return availableQuantity <= lowStockThreshold ? "Few left" : "In stock";
+  }
 
   if (stockStatus === "in_stock") return "In stock";
   if (stockStatus === "low_stock") return "Few left";
@@ -437,11 +474,18 @@ export const getAvailabilityLabel = (product: Product) => {
     return product.allowBackorder ? "Preorder available" : "Preorder unavailable";
   }
 
-  if (stockQuantity != null && stockQuantity > 0) {
-    return stockQuantity <= lowStockThreshold ? "Few left" : "In stock";
+  if (availableQuantity != null && availableQuantity > 0) {
+    return availableQuantity <= lowStockThreshold ? "Few left" : "In stock";
   }
 
   return "Unavailable";
+};
+
+export const getStockDetailLabel = (product: Product) => {
+  const availableQuantity = getAvailableStockQuantity(product);
+  if (availableQuantity == null) return "";
+  if (availableQuantity <= 0) return "No available stock";
+  return `${availableQuantity} available`;
 };
 
 export const getPurchaseBlocker = (product: Product, quantity = 1) => {
@@ -450,7 +494,7 @@ export const getPurchaseBlocker = (product: Product, quantity = 1) => {
   }
 
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
-  const stockQuantity = getNormalizedStockQuantity(product);
+  const availableQuantity = getAvailableStockQuantity(product);
 
   if (!product.isPurchasable) return "Purchasing is disabled until stock is confirmed.";
   if (stockStatus === "out_of_stock") return "Out of stock.";
@@ -458,11 +502,11 @@ export const getPurchaseBlocker = (product: Product, quantity = 1) => {
   if (stockStatus === "preorder" && !product.allowBackorder) {
     return "Preorder is not enabled for this product.";
   }
-  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && stockQuantity == null) {
+  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity == null) {
     return "Stock quantity must be confirmed before checkout.";
   }
-  if (stockQuantity != null && stockQuantity < quantity && !product.allowBackorder) {
-    return `Only ${stockQuantity} available.`;
+  if (availableQuantity != null && availableQuantity < quantity && !product.allowBackorder) {
+    return `Only ${availableQuantity} available.`;
   }
 
   return "";
@@ -528,6 +572,14 @@ export const getStockTone = (stock: Product["stock"] | ProductStockStatus | Prod
     typeof stock === "object"
       ? normalizeStockStatus(stock.stockStatus || stock.stock)
       : normalizeStockStatus(stock);
+  const availableQuantity = typeof stock === "object" ? getAvailableStockQuantity(stock) : null;
+  const lowStockThreshold =
+    typeof stock === "object" ? getNormalizedLowStockThreshold(stock) : 5;
+
+  if (availableQuantity != null) {
+    if (availableQuantity <= 0) return "danger" as const;
+    if (availableQuantity <= lowStockThreshold) return "warning" as const;
+  }
 
   if (stockStatus === "in_stock") return "success" as const;
   if (stockStatus === "low_stock" || stockStatus === "preorder") return "warning" as const;
@@ -537,6 +589,11 @@ export const getStockTone = (stock: Product["stock"] | ProductStockStatus | Prod
 
 export const getSchemaAvailability = (product: Product) => {
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
+  const availableQuantity = getAvailableStockQuantity(product);
+
+  if (availableQuantity != null && availableQuantity <= 0) {
+    return "https://schema.org/OutOfStock";
+  }
 
   if (stockStatus === "in_stock") return "https://schema.org/InStock";
   if (stockStatus === "low_stock") return "https://schema.org/LimitedAvailability";

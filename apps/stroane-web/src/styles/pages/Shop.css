@@ -529,6 +529,14 @@
   line-height: 1.4;
 }
 
+.shop-product-card__stock-detail {
+  margin: -0.25rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .shop-product-card__row {
   display: flex;
   align-items: center;

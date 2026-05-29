@@ -95,6 +95,17 @@ const toPublicProduct = (product) => {
   const images = asArray(product.images).length ? asArray(product.images) : asArray(localProduct.images);
   const specifications =
     product.specifications !== undefined ? product.specifications : localProduct.specifications;
+  const stockQuantity = toNullableInteger(product.stockQuantity ?? localProduct.stockQuantity);
+  const reservedQuantity = toNullableInteger(product.reservedQuantity ?? localProduct.reservedQuantity);
+  const explicitAvailableQuantity = toNullableInteger(
+    product.availableQuantity ?? localProduct.availableQuantity
+  );
+  const availableQuantity =
+    explicitAvailableQuantity != null
+      ? explicitAvailableQuantity
+      : stockQuantity == null
+        ? null
+        : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
 
   return {
     id: productId,
@@ -120,13 +131,15 @@ const toPublicProduct = (product) => {
     tag: product.tag || localProduct.tag || undefined,
     stock: normalizeStockLabel(product.stockStatus || localProduct.stockStatus),
     stockStatus: normalizeStockStatus(product.stockStatus || localProduct.stockStatus),
-    stockQuantity: toNullableInteger(product.stockQuantity ?? localProduct.stockQuantity),
+    stockQuantity,
+    availableQuantity,
+    reservedQuantity,
     lowStockThreshold: toNullableInteger(product.lowStockThreshold ?? localProduct.lowStockThreshold),
     allowBackorder: Boolean(product.allowBackorder ?? localProduct.allowBackorder),
     isPurchasable: Boolean(product.isPurchasable ?? localProduct.isPurchasable),
     availability: product.availability || localProduct.availability || undefined,
     quoteOnly: Boolean(product.quoteOnly || product.price == null),
-    reorderThreshold: toNullableInteger(localProduct.reorderThreshold),
+    reorderThreshold: toNullableInteger(product.reorderThreshold ?? localProduct.reorderThreshold),
     supplier: localProduct.supplier || null,
     costPrice: localProduct.costPrice ?? null,
     sellingPrice: localProduct.sellingPrice ?? null,

@@ -18,10 +18,10 @@ Stroane product catalogue data now lives in `src/data/stroaneCatalogue.json`, wi
 
 The catalogue now separates customer-filterable leaf categories from parent category groups. Thermometers are standalone products; apron styles are variant-parent products with colour/style variants. See `docs/apps/stroane-web/catalogue-architecture.md` for the current product-vs-variant rules.
 
-Product imagery lives in `public/images/products/` and should be referenced from `src/data/stroaneCatalogue.json`, not hardcoded in page components. Current asset folders are:
+Product imagery lives in `public/imgs/products/` and should be referenced from `src/data/stroaneCatalogue.json`, not hardcoded in page components. Current asset folders are:
 
-- `public/images/products/thermometers/`
-- `public/images/products/aprons/`
+- `public/imgs/products/thermometers/`
+- `public/imgs/products/aprons/`
 
 Current product image fields are:
 
@@ -31,7 +31,7 @@ Current product image fields are:
 - `media`: normalized media entries with `url`, `alt`, `type`, `sortOrder`, optional `publicId`, optional `secureUrl`, and optional `variantId`
 - `imageAlt`: customer-facing alt text
 
-Use lower-case slug filenames and WebP where possible, for example `/images/products/astro-ai-ir-thermometer.webp`. Keep `/images/products/product-placeholder.webp` as the fallback for products that need manual image review.
+Use lower-case slug filenames and WebP where possible, for example `/imgs/products/astro-ai-ir-thermometer.webp`. Keep `/imgs/products/product-placeholder.webp` as the fallback for products that need manual image review.
 
 Product variants can define their own SKU, price placeholder, stock placeholder, image, media, and option labels. The current storefront can preview/switch variant imagery, but variant-level checkout remains disabled until a separate safe variant checkout/admin stock workflow is approved.
 
@@ -40,8 +40,11 @@ Specifications should use structured entries such as `{ "label": "Temperature Ra
 Storefront availability is also data-driven. Catalogue products support:
 
 - `stockQuantity`: confirmed sellable quantity, or `null` when unknown
+- `availableQuantity`: optional confirmed available-to-sell quantity after reservations
+- `reservedQuantity`: optional quantity held for pending/manual orders
 - `stockStatus`: `in_stock`, `low_stock`, `out_of_stock`, `preorder`, or `unavailable`
 - `lowStockThreshold`: threshold for “Few left” display
+- `reorderThreshold`: supplier/restock planning threshold
 - `allowBackorder`: whether preorder/backorder is allowed
 - `isPurchasable`: whether the storefront may add the item to cart/checkout
 
@@ -78,7 +81,7 @@ Stroane now has a lightweight commerce foundation, not a full ERP or Shopify-sty
 
 The commerce order foundation is additive and uses Prisma/Postgres models for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`. It does not deduct inventory, manage warehouses, create fulfillment tasks, or run CRM automation. Automated customer messaging is currently limited to verified payment-confirmed email when the backend email provider is configured.
 
-The checkout backend validates stock/purchasability before order preparation and payment initialization. This is not a full inventory system: it does not deduct stock, reserve warehouse quantities, or maintain an inventory audit trail.
+The checkout backend validates stock/purchasability before order preparation and payment initialization. The inventory foundation now has additive supplier, inventory item, stock movement, adjustment/restock note, and audit-entry tables. This is still not a full warehouse system: checkout/order integration, automatic stock deduction, and stock reservation are future work.
 
 Paystack is the first payment provider for checkout. The checkout flow creates a pending order, asks the backend to initialize a Paystack transaction, redirects the customer to Paystack, then returns to `/checkout/return` where the frontend asks the backend for a customer-facing status check. The signed Paystack webhook is the trusted source for marking an order paid.
 
@@ -155,7 +158,7 @@ Start with Paystack test keys in development/staging. Expected server-side env v
 
 Keep Paystack and email-provider secrets server-side only. Paystack webhook signatures use the backend Paystack signing secret; if `PAYSTACK_WEBHOOK_SECRET` is blank, the backend falls back to `PAYSTACK_SECRET_KEY`. The backend blocks `sk_live_*` keys unless `PAYSTACK_ALLOW_LIVE=true` is explicitly set. A payment event/notification log should be added before relying on webhook replay handling for automated fulfillment, retries, staff alerts, WhatsApp, or SMS updates.
 
-The database foundation is additive and uses Prisma/Postgres models for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`. Existing environment variables still apply:
+The database foundation is additive and uses Prisma/Postgres models for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, `BusinessProfileContent`, `Supplier`, `SupplierContact`, `CatalogueProductSupplier`, `InventoryItem`, `InventoryMovement`, and `InventoryAuditEntry`. Existing environment variables still apply:
 
 - `VITE_BACKEND_BASE_URL`: optional frontend API base URL when the backend is hosted separately
 - `CORS_ORIGINS`: allowed browser origins for the backend
@@ -173,7 +176,7 @@ pnpm --filter @faako/stroane-web run db:deploy:prod
 APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue
 ```
 
-Run migrations and the catalogue seed only after the target database has been verified. The catalogue seed upserts catalogue categories/products/business-profile content from `src/data/stroaneCatalogue.json`; it does not touch payments, orders, inventory automation, CRM records, or notifications. The catalogue stock metadata, commerce, payment metadata, notification metadata, webhook metadata, and admin fulfillment metadata migrations are additive and must be deployed before storefront stock gating, `/api/orders`, Paystack confirmation, customer email metadata, and `/admin/orders` fulfillment notes can persist correctly.
+Run migrations and the catalogue seed only after the target database has been verified. The catalogue seed upserts catalogue categories/products/business-profile content from `src/data/stroaneCatalogue.json`; it does not touch payments, orders, supplier records, inventory movements, CRM records, or notifications. The catalogue stock metadata, supplier/inventory foundation, commerce, payment metadata, notification metadata, webhook metadata, and admin fulfillment metadata migrations are additive and must be deployed before storefront stock gating, inventory admin/API work, `/api/orders`, Paystack confirmation, customer email metadata, and `/admin/orders` fulfillment notes can persist correctly.
 
 Manual review still needed:
 
@@ -211,7 +214,7 @@ Typical local ports:
 
 ## Database
 
-Recommended provider: Railway Postgres. Keep Hostinger for DNS/email only and Netlify for the frontend. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
+Recommended provider: Railway Postgres. Cloudflare Pages is the current frontend host. Keep any registrar/email provider separate from application hosting and database responsibilities. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
 
 ```bash
 pnpm --filter @faako/stroane-web run db:migrate:dev
@@ -240,7 +243,7 @@ Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and m
 
 Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
 
-Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin order surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, and `/admin/orders` on real iPhone Safari against the deployed Netlify/Railway pairing.
+Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin order surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, and `/admin/orders` on real iPhone Safari against the deployed Cloudflare Pages/Railway pairing.
 
 ## Build And Deploy
 
@@ -252,19 +255,18 @@ pnpm --filter @faako/stroane-web run db:deploy:prod
 pnpm --filter @faako/stroane-web run server:prod
 ```
 
-## Netlify Deployment
+## Cloudflare Pages Deployment
 
-Use Netlify for the deployed frontend and keep Hostinger as the domain/DNS host.
+Use Cloudflare Pages for the deployed frontend. DNS/custom-domain records should point to the Cloudflare Pages project for the current Stroane frontend. Any old Netlify/Hostinger deployment notes should be treated as legacy context only, not the active production path.
 
-Recommended Netlify settings:
+Recommended Cloudflare Pages settings:
 
 - Base directory: repo root
 - Build command: `pnpm --filter @faako/stroane-web build`
 - Publish directory: `apps/stroane-web/dist`
-- Config file: `apps/stroane-web/netlify.toml`
-- Environment variable: set `VITE_BACKEND_BASE_URL` only if the API is hosted outside the Netlify site
+- Environment variable: set `VITE_BACKEND_BASE_URL` only if the API is hosted outside the Cloudflare Pages site
 
-If Hostinger manages DNS, point the Stroane domain to Netlify with Netlify's DNS records for the site. Keep Hostinger for DNS and email. Host the application backend on Railway and use Railway Postgres for the database. After the domain is attached in Netlify, add the deployed origin to backend `CORS_ORIGINS` when the backend runs separately.
+The legacy `apps/stroane-web/netlify.toml` is retained only as a non-primary fallback artifact. Cloudflare Pages should use the package scripts above and should not rely on Netlify routing/proxy behavior. Host the application backend on Railway and use Railway Postgres for the database. After the Cloudflare Pages custom domain is active, add the deployed origin to backend `CORS_ORIGINS` when the backend runs separately.
 
 If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.
 

@@ -72,7 +72,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 ## Deployment Security Notes
 
-- Keep Hostinger for DNS/email, Netlify for frontend, Railway for backend/rate-limit layer, and Railway Postgres for the production database.
+- Keep Cloudflare Pages for frontend hosting, Railway for backend/rate-limit layer, and Railway Postgres for the production database. DNS/custom-domain records should point at the Cloudflare Pages project; keep registrar/email services separate from application database duties.
 - Keep `VITE_*` values browser-safe only. `VITE_BACKEND_BASE_URL` is acceptable; secrets, database URLs, provider keys, session keys, and webhook secrets are not.
 - Set `CORS_ORIGINS` to the exact deployed frontend origin.
 - Set `PAYSTACK_CALLBACK_URL` to the public `/checkout/return` URL for the deployed frontend.

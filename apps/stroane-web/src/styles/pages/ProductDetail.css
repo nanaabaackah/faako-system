@@ -196,6 +196,13 @@
   color: var(--color-text-muted);
 }
 
+.product-detail__stock-detail {
+  margin: -0.75rem 0 1.25rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
 .product-detail__desc {
   font-size: var(--font-size-lg);
   color: var(--color-text-secondary);

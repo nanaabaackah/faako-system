@@ -13,7 +13,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - React storefront structure, pages, components, API client, and types.
 - Express backend route and middleware structure.
 - Prisma schema and migration workflow.
-- Netlify frontend deployment pattern.
+- Cloudflare Pages frontend deployment pattern.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
 - Catalogue seed foundation in `src/data/stroaneCatalogue.json` with typed helpers in `src/data/products.ts`.
 - Normalized catalogue architecture: parent category groups, leaf storefront categories, standalone thermometer products, apron variant-parent products, structured media entries, structured specifications, variant image metadata, and manual-review inventory placeholders.
@@ -26,6 +26,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Product detail and Contact inquiry forms submit to the validated inquiry endpoint when available, include minimal honeypot fields, and keep direct email fallback options.
 - Lightweight commerce foundation: cart state persists product IDs/quantities locally, public header/mobile nav shows cart count, checkout collects customer/contact/delivery details, and `POST /api/orders` can create server-priced `PAYMENT_PENDING` order records when the commerce migration is deployed.
 - Storefront stock availability foundation: catalogue products support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`. Product cards/details show availability, cart controls block unavailable additions, and checkout/order creation reject unavailable, quote-only, or unconfirmed-stock items before Paystack initialization.
+- Operational inventory foundation: catalogue products now support optional `availableQuantity`, `reservedQuantity`, and `reorderThreshold`, with additive Prisma models for suppliers, supplier contacts, product-supplier links, inventory items, stock movements, adjustment/restock notes, and inventory audit entries.
 - Additive commerce order persistence foundation for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`.
 - Paystack checkout MVP: `POST /api/orders/:orderId/paystack/initialize` initializes Paystack server-side for validated orders, `/checkout/return` displays customer payment status, and `POST /api/paystack/verify` acts as a browser-return status check without finalizing successful payments.
 - Paystack webhook confirmation: `POST /api/paystack/webhook` verifies `x-paystack-signature`, validates charge events, checks reference/amount/currency against the stored order, and is the trusted path for marking an order paid.
@@ -45,12 +46,13 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Preview-access auth gate (`AuthContext`, `AuthProvider`, `AuthGate`).
 - Admin user-management page (`/users`, `UserManagement.tsx`).
-- Netlify `/api/*` proxy entry. The frontend should use `VITE_BACKEND_BASE_URL` when the backend is hosted separately.
+- Netlify `/api/*` proxy entry. The frontend should use `VITE_BACKEND_BASE_URL` when the backend is hosted separately; Cloudflare Pages is the current frontend host.
 
 ## In-progress modules/features
 
 - Product browsing, inquiry conversion, pending-order checkout, and Paystack test-mode checkout refinement; product pages now support backend-backed catalogue reads, seed fallback, mapped imagery, product-specific inquiry forms, and checkout can prepare pending orders plus initialize/verify Paystack payments.
 - Real stock count entry for online purchasing. Current PDF-imported catalogue products default to non-purchasable until Stroane confirms quantities, thresholds, and backorder policy.
+- Inventory and supplier admin/API workflows. The schema foundation exists, but product stock editing, restock entry screens, supplier management screens, and order-to-inventory reservation/deduction are not wired yet.
 - Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
 - Inquiry routing decision. The current API can persist minimal inquiry records, but should not be treated as a CRM or lead-management system yet.
 - Production backend/database deployment on Railway with Railway Postgres.
@@ -69,7 +71,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - New integrations or backend hosting changes until proven in a production-like environment.
 - Strict webhook/notification idempotency. Current MVP uses signed webhook verification plus an order-level sent timestamp, but a full payment event log and notification audit trail are still pending.
 - Railway/provider-level rate limiting, Railway Postgres least-privilege access, backend-enforced admin auth, and centralized redacted logging are still pending production-hardening items.
-- Device/browser acceptance testing against the deployed Netlify/Railway pairing is still pending after the Safari/native-control CSS cleanup. Local build, lint, type, Prisma, backend tests, and security gates pass.
+- Device/browser acceptance testing against the deployed Cloudflare Pages/Railway pairing is still pending after the Safari/native-control CSS cleanup. Local build, lint, type, Prisma, backend tests, and security gates pass.
 
 ## High-risk areas
 
@@ -84,7 +86,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Payment-adjacent order status changes; Paystack webhook processing must verify signatures and Paystack transactions server-side before any automated fulfillment or confirmation email.
 - Database migrations and production product/order/customer data.
 - API authentication, rate limiting, CORS, and trusted proxy configuration.
-- DNS, Netlify, backend hosting, and environment-variable configuration.
+- DNS/custom domain, Cloudflare Pages, backend hosting, and environment-variable configuration.
 
 ## Production sensitivity
 
