@@ -5,11 +5,26 @@ const normalizePositiveInteger = (value) => {
   const number = Number.parseInt(String(value || ""), 10);
   return Number.isInteger(number) && number > 0 ? number : 0;
 };
+const DEFAULT_PRODUCTION_ORIGINS = ["https://stroanesolutions.com", "https://www.stroanesolutions.com"];
+const DEFAULT_DEVELOPMENT_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5175",
+  "http://localhost:3000",
+];
 
 const isProductionRuntime = (env = process.env) =>
   String(env.NODE_ENV || env.APP_ENV || "")
     .trim()
     .toLowerCase() === "production";
+
+const isCloudflarePagesPreviewOrigin = (origin) => {
+  try {
+    const url = new URL(normalizeOrigin(origin));
+    return url.protocol === "https:" && url.hostname.endsWith(".pages.dev");
+  } catch {
+    return false;
+  }
+};
 
 export const resolveAllowedOrigins = (env = process.env) => {
   const allowedOrigins = new Set(
@@ -19,10 +34,10 @@ export const resolveAllowedOrigins = (env = process.env) => {
       .filter(Boolean)
   );
 
-  if (!isProductionRuntime(env) && allowedOrigins.size === 0) {
-    allowedOrigins.add("http://localhost:5173");
-    allowedOrigins.add("http://localhost:5175");
-    allowedOrigins.add("http://localhost:3000");
+  if (isProductionRuntime(env)) {
+    DEFAULT_PRODUCTION_ORIGINS.forEach((origin) => allowedOrigins.add(origin));
+  } else {
+    DEFAULT_DEVELOPMENT_ORIGINS.forEach((origin) => allowedOrigins.add(origin));
   }
 
   return allowedOrigins;
@@ -33,15 +48,22 @@ export const resolveTrustProxySetting = (env = process.env) => {
   return hopCount || false;
 };
 
-export const createCorsOriginValidator = ({ allowedOrigins }) => (origin, callback) => {
-  if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
-    return callback(null, true);
-  }
+export const createCorsOriginValidator =
+  ({ allowedOrigins, allowCloudflarePagesPreviews = true }) =>
+  (origin, callback) => {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (
+      !origin ||
+      allowedOrigins.has(normalizedOrigin) ||
+      (allowCloudflarePagesPreviews && isCloudflarePagesPreviewOrigin(normalizedOrigin))
+    ) {
+      return callback(null, true);
+    }
 
-  const error = new Error("Not allowed by CORS");
-  error.statusCode = 403;
-  return callback(error);
-};
+    const error = new Error("Not allowed by CORS");
+    error.statusCode = 403;
+    return callback(error);
+  };
 
 export const createSecurityHeadersMiddleware = () =>
   createExpressSecurityHeadersMiddleware({

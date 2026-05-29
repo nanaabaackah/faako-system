@@ -9,6 +9,37 @@ const CATALOGUE_API_PATH = "/api/catalogue";
 
 const apiPath = (path: string) => `${BASE_URL}${path}`;
 
+const describeApiBaseUrl = () => BASE_URL || "(same-origin fallback)";
+
+if (BASE_URL) {
+  console.info("Stroane API base URL configured", { baseUrl: BASE_URL });
+} else {
+  console.warn("Stroane API base URL is not configured; catalogue requests will use same-origin API paths.");
+}
+
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Unknown catalogue request error";
+
+const logCatalogueRequestFailure = ({
+  endpoint,
+  status,
+  statusText,
+  error,
+}: {
+  endpoint: string;
+  status?: number;
+  statusText?: string;
+  error: unknown;
+}) => {
+  console.warn("Stroane catalogue API request failed", {
+    apiBaseUrl: describeApiBaseUrl(),
+    endpoint,
+    status,
+    statusText,
+    message: getErrorMessage(error),
+  });
+};
+
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
   const body = await response.json().catch(() => null);
 
@@ -25,6 +56,33 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
   }
 
   return body as T;
+};
+
+const fetchCatalogueJson = async <T>(path: string, fallbackMessage: string): Promise<T> => {
+  const endpoint = apiPath(path);
+  let status: number | undefined;
+  let statusText: string | undefined;
+
+  try {
+    const response = await fetch(endpoint);
+    status = response.status;
+    statusText = response.statusText;
+    return await parseJsonResponse<T>(response, fallbackMessage);
+  } catch (error) {
+    logCatalogueRequestFailure({
+      endpoint,
+      status,
+      statusText,
+      error,
+    });
+    throw error;
+  }
+};
+
+const normalizeListResponse = <T>(data: unknown, key: string): T[] => {
+  if (Array.isArray(data)) return data;
+  const value = data && typeof data === "object" ? (data as Record<string, unknown>)[key] : null;
+  return Array.isArray(value) ? (value as T[]) : [];
 };
 
 export interface ProductListResponse {
@@ -70,34 +128,27 @@ export const productApi = {
     if (params.category) searchParams.set("category", params.category);
     if (params.search) searchParams.set("search", params.search);
     const query = searchParams.toString();
-    const response = await fetch(
-      apiPath(`${CATALOGUE_API_PATH}/products${query ? `?${query}` : ""}`)
-    );
-    const data = await parseJsonResponse<ProductListResponse | Product[]>(
-      response,
+    const data = await fetchCatalogueJson<ProductListResponse | Product[]>(
+      `${CATALOGUE_API_PATH}/products${query ? `?${query}` : ""}`,
       "Failed to fetch products"
     );
-    return Array.isArray(data) ? data : data.products;
+    return normalizeListResponse<Product>(data, "products");
   },
 
   async getById(id: string): Promise<Product> {
-    const response = await fetch(
-      apiPath(`${CATALOGUE_API_PATH}/products/${encodeURIComponent(id)}`)
-    );
-    const data = await parseJsonResponse<ProductDetailResponse | Product>(
-      response,
+    const data = await fetchCatalogueJson<ProductDetailResponse | Product>(
+      `${CATALOGUE_API_PATH}/products/${encodeURIComponent(id)}`,
       "Failed to fetch product"
     );
     return "product" in data ? data.product : data;
   },
 
   async getCategories(): Promise<CatalogueCategory[]> {
-    const response = await fetch(apiPath(`${CATALOGUE_API_PATH}/categories`));
-    const data = await parseJsonResponse<{ categories: CatalogueCategory[] } | CatalogueCategory[]>(
-      response,
+    const data = await fetchCatalogueJson<{ categories: CatalogueCategory[] } | CatalogueCategory[]>(
+      `${CATALOGUE_API_PATH}/categories`,
       "Failed to fetch categories"
     );
-    return Array.isArray(data) ? data : data.categories;
+    return normalizeListResponse<CatalogueCategory>(data, "categories");
   },
 
   async submitInquiry(payload: ProductInquiryPayload): Promise<ProductInquiryResponse> {

@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Stroane frontend catalogue API failure diagnostics
+
+Date: 2026-05-29
+Feature/change name: Stroane frontend catalogue API failure diagnostics
+What changed: Added safe browser diagnostics to the catalogue API helper so fallback events log the public API base URL, full endpoint, HTTP status when available, and safe error message. Confirmed the helper prefers `VITE_API_BASE_URL` over the legacy `VITE_BACKEND_BASE_URL` and calls `/api/catalogue/products`, `/api/catalogue/categories`, and `/api/catalogue/products/:slug`. Hardened response normalization so product/category list reads accept either array responses or object-wrapped `{ products: [...] }` and `{ categories: [...] }` responses. Updated API CORS defaults to allow the live Cloudflare Pages storefront origins and Cloudflare Pages preview origins without using wildcard CORS with credentials.
+Why it changed: The live Cloudflare Pages frontend showed "Catalogue fallback active" while the direct Railway API URL worked. That points to browser-facing config/CORS behavior rather than a dead API, so the app needed safer diagnostics and production origin defaults.
+Files changed: apps/stroane-web/src/api/products.ts, apps/stroane-web/backend/security.js, apps/stroane-web/backend/security.test.js, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md.
+Data impact: None. No schema, migration, product, order, payment, customer, or inventory data changes.
+Security impact: No secrets exposed. Diagnostics log only public frontend config and request status. CORS remains allow-list based and does not use `*` with credentials.
+Testing done: `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec node --test backend/security.test.js` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite warning that local `.env` should not set `NODE_ENV=production`.
+Rollback notes: Revert the catalogue API diagnostics, CORS default-origin changes, and docs. No data rollback is required.
+Next step: Redeploy the Railway API, confirm `/health`, then redeploy Cloudflare Pages after verifying `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app` is set.
+
 ### Stroane Railway API start and health readiness
 
 Date: 2026-05-29

@@ -13,6 +13,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - React storefront structure, pages, components, API client, and types.
 - Express backend route and middleware structure.
 - Railway API `/health` endpoint returns `{ ok: true, service: "stroane-api" }` without requiring database access.
+- Railway API CORS now allows the live Cloudflare Pages storefront origins by default: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` explicit in Railway for clarity.
 - Prisma schema and migration workflow.
 - Cloudflare Pages frontend deployment pattern with Railway API/backend and Railway Postgres.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
@@ -21,6 +22,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Additive Prisma/Postgres catalogue persistence foundation for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`.
 - Read-only catalogue API foundation: `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated. Legacy `/api/categories` and `/api/products` aliases remain available during rollout.
 - API-first catalogue frontend foundation: `/shop`, `/products`, and product detail routes try the backend catalogue APIs first and fall back to the local JSON seed with user-visible fallback notices.
+- Catalogue API diagnostics log the public `VITE_API_BASE_URL`, requested endpoint, HTTP status when available, and safe error messages when the browser falls back to local catalogue data. No secrets or database values are logged.
 - Catalogue browsing UX: category overview, category tabs, search, sort, result counts, responsive product cards, mapped product images, product-detail specifications/use cases, and product-specific inquiry CTAs.
 - Product detail galleries support normalized media, thumbnail switching, and variant image switching while keeping cart behavior product-level until variant checkout is explicitly designed.
 - Inquiry endpoint: `POST /api/inquiries` validates and persists minimal product/contact requests when the database migration is deployed, without email sending, orders, payments, inventory updates, or CRM automation.
@@ -57,6 +59,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
 - Inquiry routing decision. The current API can persist minimal inquiry records, but should not be treated as a CRM or lead-management system yet.
 - Production backend/database deployment on Railway with Railway Postgres.
+- Cloudflare Pages environment changes require a redeploy because `VITE_*` values are baked into the built frontend bundle.
 - Client deployment readiness and operational polish.
 - Final guide / service hero imagery — placeholders reuse existing images for services 7 and 8 and for the featured guide.
 - Contact/product inquiry delivery — the frontend can submit through `/api/inquiries` when the backend/database is available and falls back to direct email if unavailable.

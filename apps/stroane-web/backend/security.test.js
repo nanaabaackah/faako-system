@@ -29,12 +29,49 @@ const createMockResponse = () => {
   return response;
 };
 
-test("resolveAllowedOrigins fails closed in production when CORS_ORIGINS is unset", () => {
+test("resolveAllowedOrigins includes current production storefront origins by default", () => {
   const allowedOrigins = resolveAllowedOrigins({
     NODE_ENV: "production",
     CORS_ORIGINS: "",
   });
-  assert.equal(allowedOrigins.size, 0);
+  assert.equal(allowedOrigins.has("https://stroanesolutions.com"), true);
+  assert.equal(allowedOrigins.has("https://www.stroanesolutions.com"), true);
+
+  const validator = createCorsOriginValidator({ allowedOrigins });
+  let allowed = false;
+  let error = null;
+  validator("https://stroanesolutions.com", (receivedError, isAllowed) => {
+    error = receivedError;
+    allowed = Boolean(isAllowed);
+  });
+
+  assert.equal(allowed, true);
+  assert.equal(error, null);
+});
+
+test("createCorsOriginValidator allows Cloudflare Pages previews without wildcard credentials", () => {
+  const allowedOrigins = resolveAllowedOrigins({
+    NODE_ENV: "production",
+    CORS_ORIGINS: "",
+  });
+
+  const validator = createCorsOriginValidator({ allowedOrigins });
+  let allowed = false;
+  let error = null;
+  validator("https://preview-name.pages.dev", (receivedError, isAllowed) => {
+    error = receivedError;
+    allowed = Boolean(isAllowed);
+  });
+
+  assert.equal(allowed, true);
+  assert.equal(error, null);
+});
+
+test("createCorsOriginValidator rejects unrelated origins", () => {
+  const allowedOrigins = resolveAllowedOrigins({
+    NODE_ENV: "production",
+    CORS_ORIGINS: "",
+  });
 
   const validator = createCorsOriginValidator({ allowedOrigins });
   let allowed = false;

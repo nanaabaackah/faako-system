@@ -9,6 +9,8 @@ Production Cloudflare Pages frontend:
 
 - `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 
+`VITE_API_BASE_URL` is compiled into the Cloudflare Pages bundle. If it is added or changed, redeploy the frontend before expecting `https://stroanesolutions.com` to call the Railway API.
+
 Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service-role keys, or webhook signing values in `VITE_*` variables.
 
 ## Backend/API
@@ -27,6 +29,8 @@ Production Railway API service:
 - `APP_ENV=production`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
+
+Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
 
 ## Database
 
