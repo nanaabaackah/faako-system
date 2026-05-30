@@ -28,7 +28,7 @@ const SignUp: React.FC = () => {
     setError("");
     try {
       await signUp(name, email, password);
-      navigate("/", { replace: true });
+      navigate("/account", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account.");
       setLoading(false);
@@ -61,7 +61,7 @@ const SignUp: React.FC = () => {
             <span className="auth-card__kicker">Get started</span>
           <h1 className="auth-card__title">Create your account</h1>
           <p className="auth-card__sub">
-            Save your basket and details for faster checkout.
+            Create a customer profile placeholder while account services are prepared.
           </p>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>

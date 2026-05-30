@@ -71,18 +71,12 @@ export interface Product {
   quoteOnly?: boolean;
   sku: string;
   reorderThreshold?: number | null;
-  supplier?: string | null;
-  costPrice?: number | null;
-  sellingPrice?: number | null;
   variants?: ProductVariant[];
   features: string[];
   specifications?: Record<string, string> | ProductSpecification[];
   tags?: string[];
   useCases?: string[];
   inquiryCta?: string;
-  sourceRefs?: string[];
-  manualReviewRequired?: boolean;
-  reviewNotes?: string[];
 }
 
 export type ProductMediaType =
@@ -391,9 +385,6 @@ export const normalizeProduct = (product: Product): Product => {
       product.reorderThreshold !== undefined
         ? toNullableInteger(product.reorderThreshold)
         : toNullableInteger(localProduct?.reorderThreshold),
-    costPrice: product.costPrice == null ? null : Number(product.costPrice),
-    sellingPrice: product.sellingPrice == null ? product.price : Number(product.sellingPrice),
-    supplier: product.supplier || null,
     variants: normalizeVariants(product.variants || localProduct?.variants, product.name),
     specifications: normalizeSpecifications(product.specifications || localProduct?.specifications),
   };

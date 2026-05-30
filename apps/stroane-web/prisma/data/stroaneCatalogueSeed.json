@@ -7,18 +7,14 @@
     "alternatePhone": "+233 55 574 4000",
     "location": "Accra, Ghana",
     "catalogueVersion": "2026-05 normalized commerce catalogue",
-    "sourceNote": "Public catalogue fallback snapshot."
+    "sourceNote": "Normalized from Stroane thermometer catalogue, thermometer price list, brochure references, and product images supplied in May 2026. Real prices, supplier details, and stock counts require manual confirmation before online purchasing."
   },
   "categories": [
     {
       "id": "temperature-food-safety",
       "name": "Temperature & Food Safety",
       "description": "Temperature monitoring products for food safety, storage, and kitchen controls.",
-      "tags": [
-        "temperature",
-        "food safety",
-        "thermometers"
-      ],
+      "tags": ["temperature", "food safety", "thermometers"],
       "parentId": null,
       "sortOrder": 10,
       "isGroup": true
@@ -27,11 +23,7 @@
       "id": "digital-probe-thermometers",
       "name": "Digital Probe Thermometers",
       "description": "Fast probe thermometers for cooked food, service, receiving, and production checks.",
-      "tags": [
-        "digital probe",
-        "food thermometer",
-        "meat thermometer"
-      ],
+      "tags": ["digital probe", "food thermometer", "meat thermometer"],
       "parentId": "temperature-food-safety",
       "sortOrder": 11
     },
@@ -39,11 +31,7 @@
       "id": "meat-thermometers",
       "name": "Meat Thermometers",
       "description": "Analogue and stainless steel food thermometers for meat and poultry checks.",
-      "tags": [
-        "meat thermometer",
-        "analogue",
-        "probe"
-      ],
+      "tags": ["meat thermometer", "analogue", "probe"],
       "parentId": "temperature-food-safety",
       "sortOrder": 12
     },
@@ -51,11 +39,7 @@
       "id": "fridge-thermometers",
       "name": "Fridge Thermometers",
       "description": "Fridge and chiller thermometers for daily cold-storage checks.",
-      "tags": [
-        "fridge",
-        "cold chain",
-        "temperature checks"
-      ],
+      "tags": ["fridge", "cold chain", "temperature checks"],
       "parentId": "temperature-food-safety",
       "sortOrder": 13
     },
@@ -63,11 +47,7 @@
       "id": "freezer-thermometers",
       "name": "Freezer Thermometers",
       "description": "Freezer and low-temperature monitoring products for cold-chain routines.",
-      "tags": [
-        "freezer",
-        "cold chain",
-        "digital thermometer"
-      ],
+      "tags": ["freezer", "cold chain", "digital thermometer"],
       "parentId": "temperature-food-safety",
       "sortOrder": 14
     },
@@ -75,11 +55,7 @@
       "id": "infrared-thermometers",
       "name": "Infrared Thermometers",
       "description": "No-contact infrared thermometers for surface temperature checks.",
-      "tags": [
-        "infrared",
-        "surface checks",
-        "temperature gun"
-      ],
+      "tags": ["infrared", "surface checks", "temperature gun"],
       "parentId": "temperature-food-safety",
       "sortOrder": 15
     },
@@ -87,11 +63,7 @@
       "id": "humidity-thermometers",
       "name": "Humidity Thermometers",
       "description": "Thermo-hygrometers for room temperature and humidity monitoring.",
-      "tags": [
-        "humidity",
-        "thermo-hygrometer",
-        "room monitoring"
-      ],
+      "tags": ["humidity", "thermo-hygrometer", "room monitoring"],
       "parentId": "temperature-food-safety",
       "sortOrder": 16
     },
@@ -99,11 +71,7 @@
       "id": "kitchen-apparel",
       "name": "Kitchen Apparel",
       "description": "Protective kitchen apparel and practical staff wear for food teams.",
-      "tags": [
-        "aprons",
-        "ppe",
-        "staff wear"
-      ],
+      "tags": ["aprons", "ppe", "staff wear"],
       "parentId": null,
       "sortOrder": 20,
       "isGroup": true
@@ -112,11 +80,7 @@
       "id": "aprons",
       "name": "Aprons",
       "description": "Kitchen and catering apron variants grouped by style and colour.",
-      "tags": [
-        "aprons",
-        "kitchen apparel",
-        "catering"
-      ],
+      "tags": ["aprons", "kitchen apparel", "catering"],
       "parentId": "kitchen-apparel",
       "sortOrder": 21
     },
@@ -124,11 +88,7 @@
       "id": "food-safety-posters-signage",
       "name": "Food Safety Posters & Signage",
       "description": "Kitchen, storage, hygiene, and food preparation posters for staff guidance.",
-      "tags": [
-        "posters",
-        "signage",
-        "training"
-      ],
+      "tags": ["posters", "signage", "training"],
       "parentId": null,
       "sortOrder": 30
     }
@@ -152,12 +112,8 @@
       "image": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
@@ -178,40 +134,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Instant-read probe format",
-        "Food temperature guide packaging",
-        "Useful for cooked-food verification"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Instant-read probe format", "Food temperature guide packaging", "Useful for cooked-food verification"],
       "specifications": [
-        {
-          "label": "Temperature Range",
-          "value": "-50 C to 300 C / -58 F to 572 F",
-          "group": "Temperature"
-        },
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Cooked-food and receiving checks",
-          "group": "Usage"
-        }
+        { "label": "Temperature Range", "value": "-50 C to 300 C / -58 F to 572 F", "group": "Temperature" },
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Use Case", "value": "Cooked-food and receiving checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price, stock count, warranty, and exact model before launch", "group": "Operations" }
       ],
-      "tags": [
-        "digital probe",
-        "food thermometer",
-        "instant read",
-        "meat thermometer"
-      ],
-      "useCases": [
-        "Food receiving checks",
-        "Cooked-food verification",
-        "Kitchen inspections"
-      ],
-      "inquiryCta": "Ask Stroane to confirm price, stock, and delivery timing."
+      "tags": ["digital probe", "food thermometer", "instant read", "meat thermometer"],
+      "useCases": ["Food receiving checks", "Cooked-food verification", "Kitchen inspections"],
+      "inquiryCta": "Ask Stroane to confirm price, stock, and delivery timing.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm real stock quantity before enabling cart checkout.", "Confirm published selling price."]
     },
     {
       "id": "doqaus-food-thermometer",
@@ -231,12 +169,8 @@
       "image": "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/doqaus-food-thermometer-transparent.webp",
@@ -257,39 +191,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Folding probe style",
-        "Digital temperature readout",
-        "Suitable for routine food checks"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Folding probe style", "Digital temperature readout", "Suitable for routine food checks"],
       "specifications": [
-        {
-          "label": "Temperature Range",
-          "value": "-50 C to 300 C / -58 F to 572 F",
-          "group": "Temperature"
-        },
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Food probe checks",
-          "group": "Usage"
-        }
+        { "label": "Temperature Range", "value": "-50 C to 300 C / -58 F to 572 F", "group": "Temperature" },
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Use Case", "value": "Food probe checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm exact model, price, and stock count", "group": "Operations" }
       ],
-      "tags": [
-        "digital probe",
-        "food thermometer",
-        "instant read"
-      ],
-      "useCases": [
-        "Cooked-food checks",
-        "Food production checks",
-        "Restaurant kitchens"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["digital probe", "food thermometer", "instant read"],
+      "useCases": ["Cooked-food checks", "Food production checks", "Restaurant kitchens"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm price and stock before storefront purchase."]
     },
     {
       "id": "thermopro-3-second-instant-digital-food-thermometer",
@@ -309,12 +226,8 @@
       "image": "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/thermopro-3-second-instant-digital-food-thermometer-transparent.webp",
@@ -335,39 +248,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Fast digital readout",
-        "Probe sleeve included",
-        "Compact food safety tool"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Fast digital readout", "Probe sleeve included", "Compact food safety tool"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Probe Type",
-          "value": "Stainless steel food probe",
-          "group": "Build"
-        },
-        {
-          "label": "Use Case",
-          "value": "Food and meat temperature checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Probe Type", "value": "Stainless steel food probe", "group": "Build" },
+        { "label": "Use Case", "value": "Food and meat temperature checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price, stock count, and exact model details", "group": "Operations" }
       ],
-      "tags": [
-        "digital probe",
-        "thermopro",
-        "food thermometer"
-      ],
-      "useCases": [
-        "Kitchen spot checks",
-        "Food service",
-        "Cooked-food verification"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["digital probe", "thermopro", "food thermometer"],
+      "useCases": ["Kitchen spot checks", "Food service", "Cooked-food verification"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm product price and quantity before enabling checkout."]
     },
     {
       "id": "kitchencraft-stainless-steel-food-thermometer",
@@ -387,12 +283,8 @@
       "image": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
@@ -413,39 +305,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Stainless steel probe",
-        "Analogue dial",
-        "Meat and poultry temperature guide"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Stainless steel probe", "Analogue dial", "Meat and poultry temperature guide"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Analogue dial",
-          "group": "Display"
-        },
-        {
-          "label": "Material",
-          "value": "Stainless steel",
-          "group": "Build"
-        },
-        {
-          "label": "Use Case",
-          "value": "Meat, poultry, and cooked-food checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Analogue dial", "group": "Display" },
+        { "label": "Material", "value": "Stainless steel", "group": "Build" },
+        { "label": "Use Case", "value": "Meat, poultry, and cooked-food checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and stock count", "group": "Operations" }
       ],
-      "tags": [
-        "meat thermometer",
-        "analogue",
-        "stainless steel"
-      ],
-      "useCases": [
-        "Meat checks",
-        "Poultry checks",
-        "Kitchen training"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["meat thermometer", "analogue", "stainless steel"],
+      "useCases": ["Meat checks", "Poultry checks", "Kitchen training"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact selling price and available quantity."]
     },
     {
       "id": "prestige-meat-thermometer",
@@ -465,12 +340,8 @@
       "image": "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/prestige-meat-thermometer-transparent.webp",
@@ -491,34 +362,21 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Analogue dial",
-        "Meat doneness guide",
-        "Metal probe"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Analogue dial", "Meat doneness guide", "Metal probe"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Analogue dial",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Meat temperature checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Analogue dial", "group": "Display" },
+        { "label": "Use Case", "value": "Meat temperature checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm stock and price", "group": "Operations" }
       ],
-      "tags": [
-        "meat thermometer",
-        "analogue",
-        "prestige"
-      ],
-      "useCases": [
-        "Restaurants",
-        "Catering",
-        "Training kitchens"
-      ],
-      "inquiryCta": "Request current stock and pricing."
+      "tags": ["meat thermometer", "analogue", "prestige"],
+      "useCases": ["Restaurants", "Catering", "Training kitchens"],
+      "inquiryCta": "Request current stock and pricing.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm price, supplier, and quantity."]
     },
     {
       "id": "etekcity-infrared-thermometer-gun",
@@ -538,12 +396,8 @@
       "image": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
@@ -564,40 +418,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "No-contact surface checks",
-        "Backlit digital display",
-        "Useful for receiving and holding checks"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["No-contact surface checks", "Backlit digital display", "Useful for receiving and holding checks"],
       "specifications": [
-        {
-          "label": "Temperature Range",
-          "value": "-50 C to 450 C",
-          "group": "Temperature"
-        },
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Measurement Type",
-          "value": "Infrared surface temperature",
-          "group": "Usage"
-        }
+        { "label": "Temperature Range", "value": "-50 C to 450 C", "group": "Temperature" },
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Measurement Type", "value": "Infrared surface temperature", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price, stock count, and model version", "group": "Operations" }
       ],
-      "tags": [
-        "infrared",
-        "surface thermometer",
-        "temperature gun"
-      ],
-      "useCases": [
-        "Receiving checks",
-        "Hot holding checks",
-        "Cold holding checks",
-        "Equipment spot checks"
-      ],
-      "inquiryCta": "Request current stock and delivery timing."
+      "tags": ["infrared", "surface thermometer", "temperature gun"],
+      "useCases": ["Receiving checks", "Hot holding checks", "Cold holding checks", "Equipment spot checks"],
+      "inquiryCta": "Request current stock and delivery timing.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact model, selling price, and stock quantity."]
     },
     {
       "id": "gellvann-digital-freezer-fridge-thermometer",
@@ -617,12 +453,8 @@
       "image": "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/gellvann-digital-freezer-fridge-thermometer-transparent.webp",
@@ -643,41 +475,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "External probe",
-        "Digital display",
-        "Cold-storage temperature monitoring"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["External probe", "Digital display", "Cold-storage temperature monitoring"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Probe Type",
-          "value": "External cable probe",
-          "group": "Build"
-        },
-        {
-          "label": "Use Case",
-          "value": "Fridge and freezer monitoring",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Probe Type", "value": "External cable probe", "group": "Build" },
+        { "label": "Use Case", "value": "Fridge and freezer monitoring", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm pricing and stock count", "group": "Operations" }
       ],
-      "tags": [
-        "freezer",
-        "fridge",
-        "digital thermometer",
-        "cold chain"
-      ],
-      "useCases": [
-        "Freezers",
-        "Fridges",
-        "Cold rooms",
-        "Temperature logs"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["freezer", "fridge", "digital thermometer", "cold chain"],
+      "useCases": ["Freezers", "Fridges", "Cold rooms", "Temperature logs"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact model, price, and stock."]
     },
     {
       "id": "iap-sales-fridge-freezer-digital-thermometer",
@@ -697,12 +510,8 @@
       "image": "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/iap-sales-fridge-freezer-digital-thermometer-transparent.webp",
@@ -723,39 +532,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Digital display",
-        "External probe",
-        "Room/fridge setting controls"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Digital display", "External probe", "Room/fridge setting controls"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Probe Type",
-          "value": "External cable probe",
-          "group": "Build"
-        },
-        {
-          "label": "Use Case",
-          "value": "Fridge/freezer monitoring",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Probe Type", "value": "External cable probe", "group": "Build" },
+        { "label": "Use Case", "value": "Fridge/freezer monitoring", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and stock", "group": "Operations" }
       ],
-      "tags": [
-        "fridge",
-        "freezer",
-        "digital thermometer"
-      ],
-      "useCases": [
-        "Fridges",
-        "Freezers",
-        "Cold storage checks"
-      ],
-      "inquiryCta": "Request current stock and pricing."
+      "tags": ["fridge", "freezer", "digital thermometer"],
+      "useCases": ["Fridges", "Freezers", "Cold storage checks"],
+      "inquiryCta": "Request current stock and pricing.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact model, stock, and price."]
     },
     {
       "id": "kitchencraft-fridge-freezer-bar-thermometer",
@@ -775,12 +567,8 @@
       "image": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
@@ -801,35 +589,21 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Compact bar format",
-        "Fridge/freezer safe-zone markings",
-        "Suction cup placement"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Compact bar format", "Fridge/freezer safe-zone markings", "Suction cup placement"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Analogue bar thermometer",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Fridge and freezer checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Analogue bar thermometer", "group": "Display" },
+        { "label": "Use Case", "value": "Fridge and freezer checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and stock count", "group": "Operations" }
       ],
-      "tags": [
-        "fridge",
-        "freezer",
-        "bar thermometer",
-        "cold chain"
-      ],
-      "useCases": [
-        "Display chillers",
-        "Fridges",
-        "Freezers"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["fridge", "freezer", "bar thermometer", "cold chain"],
+      "useCases": ["Display chillers", "Fridges", "Freezers"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm stock count and selling price."]
     },
     {
       "id": "kitchencraft-fridge-freezer-dial-thermometer",
@@ -849,12 +623,8 @@
       "image": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
@@ -875,34 +645,21 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Readable dial",
-        "Safe-zone markings",
-        "Fridge/freezer placement"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Readable dial", "Safe-zone markings", "Fridge/freezer placement"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Analogue dial",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Fridge and freezer checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Analogue dial", "group": "Display" },
+        { "label": "Use Case", "value": "Fridge and freezer checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price, stock, and supplier", "group": "Operations" }
       ],
-      "tags": [
-        "fridge",
-        "freezer",
-        "dial thermometer"
-      ],
-      "useCases": [
-        "Restaurant fridges",
-        "Freezers",
-        "Daily temperature logs"
-      ],
-      "inquiryCta": "Request current availability."
+      "tags": ["fridge", "freezer", "dial thermometer"],
+      "useCases": ["Restaurant fridges", "Freezers", "Daily temperature logs"],
+      "inquiryCta": "Request current availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact model, price, and stock."]
     },
     {
       "id": "suplong-fridge-freezer-digital-thermometer",
@@ -922,12 +679,8 @@
       "image": "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/suplong-fridge-freezer-digital-thermometer-transparent.webp",
@@ -948,34 +701,21 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Digital display",
-        "Compact hanging form",
-        "Cold-storage monitoring"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Digital display", "Compact hanging form", "Cold-storage monitoring"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Fridge/freezer monitoring",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Use Case", "value": "Fridge/freezer monitoring", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and quantity", "group": "Operations" }
       ],
-      "tags": [
-        "fridge",
-        "freezer",
-        "digital thermometer"
-      ],
-      "useCases": [
-        "Freezers",
-        "Fridges",
-        "Cold rooms"
-      ],
-      "inquiryCta": "Request current price and availability."
+      "tags": ["fridge", "freezer", "digital thermometer"],
+      "useCases": ["Freezers", "Fridges", "Cold rooms"],
+      "inquiryCta": "Request current price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm supplier and stock before enabling purchase."]
     },
     {
       "id": "taylor-pro-fridge-freezer-thermometer",
@@ -995,12 +735,8 @@
       "image": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
@@ -1021,35 +757,21 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Fridge/freezer scale",
-        "Suction cup placement",
-        "Compact storage format"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Fridge/freezer scale", "Suction cup placement", "Compact storage format"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Analogue bar thermometer",
-          "group": "Display"
-        },
-        {
-          "label": "Use Case",
-          "value": "Cold-storage checks",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Analogue bar thermometer", "group": "Display" },
+        { "label": "Use Case", "value": "Cold-storage checks", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and available quantity", "group": "Operations" }
       ],
-      "tags": [
-        "fridge",
-        "freezer",
-        "taylor pro",
-        "cold chain"
-      ],
-      "useCases": [
-        "Fridges",
-        "Freezers",
-        "Cold-chain monitoring"
-      ],
-      "inquiryCta": "Request current stock and pricing."
+      "tags": ["fridge", "freezer", "taylor pro", "cold chain"],
+      "useCases": ["Fridges", "Freezers", "Cold-chain monitoring"],
+      "inquiryCta": "Request current stock and pricing.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm price and quantity."]
     },
     {
       "id": "thermopro-tp50-digital-thermo-hygrometer",
@@ -1069,12 +791,8 @@
       "image": "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp",
       "thumbnailUrl": "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp",
-      "images": [
-        "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp"
-      ],
+      "images": ["/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp"],
+      "galleryImages": ["/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/thermometers/thermopro-tp50-digital-thermo-hygrometer-transparent.webp",
@@ -1095,39 +813,22 @@
       "availability": "Stock count and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Humidity display",
-        "Temperature display",
-        "Min/max monitoring"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Humidity display", "Temperature display", "Min/max monitoring"],
       "specifications": [
-        {
-          "label": "Display Type",
-          "value": "Digital",
-          "group": "Display"
-        },
-        {
-          "label": "Measures",
-          "value": "Temperature and humidity",
-          "group": "Measurement"
-        },
-        {
-          "label": "Use Case",
-          "value": "Room, office, and climate monitoring",
-          "group": "Usage"
-        }
+        { "label": "Display Type", "value": "Digital", "group": "Display" },
+        { "label": "Measures", "value": "Temperature and humidity", "group": "Measurement" },
+        { "label": "Use Case", "value": "Room, office, and climate monitoring", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm price and available quantity", "group": "Operations" }
       ],
-      "tags": [
-        "humidity",
-        "thermo-hygrometer",
-        "room thermometer"
-      ],
-      "useCases": [
-        "Dry stores",
-        "Offices",
-        "Room monitoring"
-      ],
-      "inquiryCta": "Request price and availability."
+      "tags": ["humidity", "thermo-hygrometer", "room thermometer"],
+      "useCases": ["Dry stores", "Offices", "Room monitoring"],
+      "inquiryCta": "Request price and availability.",
+      "sourceRefs": ["New product image supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm product price and quantity before enabling purchase."]
     },
     {
       "id": "chef-waterproof-apron",
@@ -1183,6 +884,9 @@
       "availability": "Colour-level stock and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
       "variants": [
         {
           "id": "chef-waterproof-apron-black",
@@ -1198,10 +902,7 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/chef-waterproof-apron-black-transparent.webp",
           "imageAlt": "Black waterproof chef apron with front pocket",
-          "options": {
-            "Colour": "Black",
-            "Style": "Waterproof chef apron"
-          }
+          "options": { "Colour": "Black", "Style": "Waterproof chef apron" }
         },
         {
           "id": "chef-waterproof-apron-wine",
@@ -1217,46 +918,22 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/chef-waterproof-apron-wine-transparent.webp",
           "imageAlt": "Wine waterproof chef apron with front pocket",
-          "options": {
-            "Colour": "Wine",
-            "Style": "Waterproof chef apron"
-          }
+          "options": { "Colour": "Wine", "Style": "Waterproof chef apron" }
         }
       ],
-      "features": [
-        "Waterproof apron style",
-        "Adjustable neck strap",
-        "Front pocket"
-      ],
+      "features": ["Waterproof apron style", "Adjustable neck strap", "Front pocket"],
       "specifications": [
-        {
-          "label": "Product Type",
-          "value": "Variant parent",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Variant Basis",
-          "value": "Colour",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Use Case",
-          "value": "Kitchen, catering, and cleaning teams",
-          "group": "Usage"
-        }
+        { "label": "Product Type", "value": "Variant parent", "group": "Catalogue" },
+        { "label": "Variant Basis", "value": "Colour", "group": "Catalogue" },
+        { "label": "Use Case", "value": "Kitchen, catering, and cleaning teams", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm size, material, price, and colour-level stock", "group": "Operations" }
       ],
-      "tags": [
-        "apron",
-        "waterproof",
-        "kitchen apparel",
-        "ppe"
-      ],
-      "useCases": [
-        "Catering teams",
-        "Restaurants",
-        "Cleaning tasks"
-      ],
-      "inquiryCta": "Request colour availability and pricing."
+      "tags": ["apron", "waterproof", "kitchen apparel", "ppe"],
+      "useCases": ["Catering teams", "Restaurants", "Cleaning tasks"],
+      "inquiryCta": "Request colour availability and pricing.",
+      "sourceRefs": ["New product images supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm colour-level stock and pricing.", "Add size/material details before launch."]
     },
     {
       "id": "umboom-professional-work-apron",
@@ -1312,6 +989,9 @@
       "availability": "Colour-level stock and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
       "variants": [
         {
           "id": "umboom-professional-work-apron-black",
@@ -1327,10 +1007,7 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/umboom-professional-work-apron-black-transparent.webp",
           "imageAlt": "Black Umboom professional work apron for catering",
-          "options": {
-            "Colour": "Black",
-            "Style": "Professional work apron"
-          }
+          "options": { "Colour": "Black", "Style": "Professional work apron" }
         },
         {
           "id": "umboom-professional-work-apron-green",
@@ -1346,46 +1023,22 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/umboom-professional-work-apron-green-transparent.webp",
           "imageAlt": "Green Umboom professional work apron for catering",
-          "options": {
-            "Colour": "Green",
-            "Style": "Professional work apron"
-          }
+          "options": { "Colour": "Green", "Style": "Professional work apron" }
         }
       ],
-      "features": [
-        "Professional catering apron",
-        "Front pocket",
-        "Colour variants"
-      ],
+      "features": ["Professional catering apron", "Front pocket", "Colour variants"],
       "specifications": [
-        {
-          "label": "Product Type",
-          "value": "Variant parent",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Variant Basis",
-          "value": "Colour",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Use Case",
-          "value": "Catering and food service teams",
-          "group": "Usage"
-        }
+        { "label": "Product Type", "value": "Variant parent", "group": "Catalogue" },
+        { "label": "Variant Basis", "value": "Colour", "group": "Catalogue" },
+        { "label": "Use Case", "value": "Catering and food service teams", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm size, price, and colour-level stock", "group": "Operations" }
       ],
-      "tags": [
-        "apron",
-        "catering",
-        "work apron",
-        "ppe"
-      ],
-      "useCases": [
-        "Catering teams",
-        "Food service",
-        "Production teams"
-      ],
-      "inquiryCta": "Request colour availability and pricing."
+      "tags": ["apron", "catering", "work apron", "ppe"],
+      "useCases": ["Catering teams", "Food service", "Production teams"],
+      "inquiryCta": "Request colour availability and pricing.",
+      "sourceRefs": ["New product images supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm colour-level quantity and price."]
     },
     {
       "id": "vicloon-adjustable-bib-apron",
@@ -1451,6 +1104,9 @@
       "availability": "Variant stock and price must be confirmed before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
       "variants": [
         {
           "id": "vicloon-adjustable-bib-apron-assorted",
@@ -1466,10 +1122,7 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/vicloon-adjustable-bib-apron-transparent.webp",
           "imageAlt": "Vicloon unisex adjustable bib apron assorted variants",
-          "options": {
-            "Pattern": "Assorted stripes",
-            "Style": "Adjustable bib apron"
-          }
+          "options": { "Pattern": "Assorted stripes", "Style": "Adjustable bib apron" }
         },
         {
           "id": "vicloon-adjustable-bib-apron-black-white",
@@ -1485,10 +1138,7 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/vicloon-adjustable-bib-apron-black-white-transparent.webp",
           "imageAlt": "Vicloon adjustable bib apron in black and white stripe variants",
-          "options": {
-            "Pattern": "Black/white stripe",
-            "Style": "Adjustable bib apron"
-          }
+          "options": { "Pattern": "Black/white stripe", "Style": "Adjustable bib apron" }
         },
         {
           "id": "vicloon-adjustable-bib-apron-blue-red",
@@ -1504,46 +1154,22 @@
           "isPurchasable": false,
           "imageUrl": "/imgs/products/aprons/vicloon-adjustable-bib-apron-blue-red-transparent.webp",
           "imageAlt": "Vicloon adjustable bib apron in blue and red stripe variants",
-          "options": {
-            "Pattern": "Blue/red stripe",
-            "Style": "Adjustable bib apron"
-          }
+          "options": { "Pattern": "Blue/red stripe", "Style": "Adjustable bib apron" }
         }
       ],
-      "features": [
-        "Adjustable bib apron",
-        "Pattern variants",
-        "Large front pockets"
-      ],
+      "features": ["Adjustable bib apron", "Pattern variants", "Large front pockets"],
       "specifications": [
-        {
-          "label": "Product Type",
-          "value": "Variant parent",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Variant Basis",
-          "value": "Pattern/colour",
-          "group": "Catalogue"
-        },
-        {
-          "label": "Use Case",
-          "value": "Food service and kitchen teams",
-          "group": "Usage"
-        }
+        { "label": "Product Type", "value": "Variant parent", "group": "Catalogue" },
+        { "label": "Variant Basis", "value": "Pattern/colour", "group": "Catalogue" },
+        { "label": "Use Case", "value": "Food service and kitchen teams", "group": "Usage" },
+        { "label": "Manual Review", "value": "Confirm size, price, and variant-level stock", "group": "Operations" }
       ],
-      "tags": [
-        "apron",
-        "bib apron",
-        "striped apron",
-        "kitchen apparel"
-      ],
-      "useCases": [
-        "Restaurants",
-        "Catering teams",
-        "Food service"
-      ],
-      "inquiryCta": "Request variant pricing and availability."
+      "tags": ["apron", "bib apron", "striped apron", "kitchen apparel"],
+      "useCases": ["Restaurants", "Catering teams", "Food service"],
+      "inquiryCta": "Request variant pricing and availability.",
+      "sourceRefs": ["New product images supplied May 2026"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm actual variant list, pricing, and stock counts before enabling purchase."]
     },
     {
       "id": "food-safety-poster-pack-32",
@@ -1563,12 +1189,8 @@
       "image": "/imgs/products/food-safety-poster-pack-transparent.webp",
       "thumbnailUrl": "/imgs/products/food-safety-poster-pack-transparent.webp",
       "imageUrl": "/imgs/products/food-safety-poster-pack-transparent.webp",
-      "images": [
-        "/imgs/products/food-safety-poster-pack-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/food-safety-poster-pack-transparent.webp"
-      ],
+      "images": ["/imgs/products/food-safety-poster-pack-transparent.webp"],
+      "galleryImages": ["/imgs/products/food-safety-poster-pack-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/food-safety-poster-pack-transparent.webp",
@@ -1589,35 +1211,21 @@
       "availability": "Price and stock to be confirmed by Stroane before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Food safety signage bundle",
-        "Covers hygiene and storage reminders",
-        "Useful for staff training areas"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Food safety signage bundle", "Covers hygiene and storage reminders", "Useful for staff training areas"],
       "specifications": [
-        {
-          "label": "Pack Size",
-          "value": "32 posters",
-          "group": "Bundle"
-        },
-        {
-          "label": "Topics",
-          "value": "Food storage, hygiene, cleaning, and preparation",
-          "group": "Content"
-        }
+        { "label": "Pack Size", "value": "32 posters", "group": "Bundle" },
+        { "label": "Topics", "value": "Food storage, hygiene, cleaning, and preparation", "group": "Content" },
+        { "label": "Manual Review", "value": "Confirm final poster list, sizes, price, and stock", "group": "Operations" }
       ],
-      "tags": [
-        "posters",
-        "signage",
-        "training",
-        "food safety"
-      ],
-      "useCases": [
-        "Restaurant kitchens",
-        "Production teams",
-        "Food safety training"
-      ],
-      "inquiryCta": "Request poster pack pricing and delivery timing."
+      "tags": ["posters", "signage", "training", "food safety"],
+      "useCases": ["Restaurant kitchens", "Production teams", "Food safety training"],
+      "inquiryCta": "Request poster pack pricing and delivery timing.",
+      "sourceRefs": ["STROANE BROCHURE FOR THERMOMETERS, POSTERS & APRONS (1).pdf"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm exact poster contents and pricing."]
     },
     {
       "id": "food-preparation-area-signage-bundle",
@@ -1637,12 +1245,8 @@
       "image": "/imgs/products/food-preparation-area-signage-bundle-transparent.webp",
       "thumbnailUrl": "/imgs/products/food-preparation-area-signage-bundle-transparent.webp",
       "imageUrl": "/imgs/products/food-preparation-area-signage-bundle-transparent.webp",
-      "images": [
-        "/imgs/products/food-preparation-area-signage-bundle-transparent.webp"
-      ],
-      "galleryImages": [
-        "/imgs/products/food-preparation-area-signage-bundle-transparent.webp"
-      ],
+      "images": ["/imgs/products/food-preparation-area-signage-bundle-transparent.webp"],
+      "galleryImages": ["/imgs/products/food-preparation-area-signage-bundle-transparent.webp"],
       "media": [
         {
           "url": "/imgs/products/food-preparation-area-signage-bundle-transparent.webp",
@@ -1663,30 +1267,20 @@
       "availability": "Price and stock to be confirmed by Stroane before online purchasing.",
       "quoteOnly": true,
       "reorderThreshold": null,
-      "features": [
-        "Preparation-zone reminders",
-        "Raw/cooked separation support",
-        "Cleaning and handwashing prompts"
-      ],
+      "supplier": null,
+      "costPrice": null,
+      "sellingPrice": null,
+      "features": ["Preparation-zone reminders", "Raw/cooked separation support", "Cleaning and handwashing prompts"],
       "specifications": [
-        {
-          "label": "Topics",
-          "value": "Preparation areas, hygiene, and cross-contamination controls",
-          "group": "Content"
-        }
+        { "label": "Topics", "value": "Preparation areas, hygiene, and cross-contamination controls", "group": "Content" },
+        { "label": "Manual Review", "value": "Confirm final bundle, price, and stock", "group": "Operations" }
       ],
-      "tags": [
-        "preparation",
-        "signage",
-        "hygiene",
-        "cross contamination"
-      ],
-      "useCases": [
-        "Prep kitchens",
-        "Staff wash stations",
-        "Food production floors"
-      ],
-      "inquiryCta": "Request a site signage recommendation."
+      "tags": ["preparation", "signage", "hygiene", "cross contamination"],
+      "useCases": ["Prep kitchens", "Staff wash stations", "Food production floors"],
+      "inquiryCta": "Request a site signage recommendation.",
+      "sourceRefs": ["STROANE BROCHURE FOR THERMOMETERS, POSTERS & APRONS (1).pdf"],
+      "manualReviewRequired": true,
+      "reviewNotes": ["Confirm bundle contents and pricing."]
     }
   ]
 }

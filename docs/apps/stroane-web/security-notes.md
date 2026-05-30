@@ -59,9 +59,10 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Current Gaps
 
 - Current customer sign-in/sign-up pages are frontend-only `localStorage` account/session flows. They are intentionally retained for now but are not server-enforced auth and must not protect admin, order, payment, customer, or stock management workflows.
-- `/signin` now also accepts backend staff usernames and routes valid `SiteUser` credentials to `/admin/orders`; staff accounts are database-backed and are not read from the CSV at runtime.
+- Staff usernames now use the dedicated backend-backed `/admin/signin` route. Public `/signin` is customer-only, and staff accounts remain database-backed rather than CSV-backed at runtime.
 - Backend `SiteUser` access should remain private and seeded as one `ADMIN` and one `VIEWER` account until a proper admin surface is approved.
 - `APP_AUTH_SECRET` is required for backend `SiteUser` token signing and must remain server-side.
+- Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for bearer authorization. The current `sessionStorage` bearer-token approach is transitional and should be reviewed before expanding staff account management.
 - Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.

@@ -102,7 +102,13 @@ export const getStoredAdminSession = (): AdminSession | null => {
   if (typeof window === "undefined") return null;
   try {
     const parsed = JSON.parse(window.sessionStorage.getItem(ADMIN_SESSION_KEY) || "null");
-    if (!parsed?.token || !parsed?.username || !parsed?.role) return null;
+    if (
+      !parsed?.token ||
+      !parsed?.username ||
+      !["ADMIN", "VIEWER"].includes(parsed?.role)
+    ) {
+      return null;
+    }
     return parsed as AdminSession;
   } catch {
     return null;

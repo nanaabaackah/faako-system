@@ -119,6 +119,7 @@ const toPublicProduct = (product) => {
     description: product.shortDescription || localProduct.description || "",
     longDescription: product.longDescription || localProduct.longDescription || undefined,
     price: product.price == null ? null : Number(product.price),
+    compareAtPrice: product.compareAtPrice == null ? null : Number(product.compareAtPrice),
     priceLabel: product.priceLabel || localProduct.priceLabel || undefined,
     currency: product.currency || localProduct.currency || "GHS",
     unit: product.unit || localProduct.unit || "each",
@@ -140,18 +141,12 @@ const toPublicProduct = (product) => {
     availability: product.availability || localProduct.availability || undefined,
     quoteOnly: Boolean(product.quoteOnly || product.price == null),
     reorderThreshold: toNullableInteger(product.reorderThreshold ?? localProduct.reorderThreshold),
-    supplier: localProduct.supplier || null,
-    costPrice: localProduct.costPrice ?? null,
-    sellingPrice: localProduct.sellingPrice ?? null,
     variants: asArray(localProduct.variants),
     features: asArray(product.features).length ? asArray(product.features) : asArray(localProduct.features),
     specifications: Array.isArray(specifications) ? specifications : asObject(specifications),
     tags: asArray(product.tags).length ? asArray(product.tags) : asArray(localProduct.tags),
     useCases: asArray(product.useCases).length ? asArray(product.useCases) : asArray(localProduct.useCases),
     inquiryCta: product.inquiryCta || localProduct.inquiryCta || undefined,
-    sourceRefs: asArray(product.sourceRefs).length ? asArray(product.sourceRefs) : asArray(localProduct.sourceRefs),
-    manualReviewRequired: Boolean(product.manualReviewRequired || localProduct.manualReviewRequired),
-    reviewNotes: asArray(localProduct.reviewNotes),
   };
 };
 
@@ -193,7 +188,8 @@ export const listCatalogueProducts = ({ category = "", search = "" } = {}) => {
   const searchQuery = normalizeText(search);
 
   return clone(
-    catalogue.products.filter((product) => {
+    catalogue.products
+      .filter((product) => {
       const matchesCategory =
         !categoryQuery ||
         normalizeText(product.category) === categoryQuery ||
@@ -202,14 +198,15 @@ export const listCatalogueProducts = ({ category = "", search = "" } = {}) => {
       const haystack = normalizeText(flattenProductSearchTerms(product).join(" "));
 
       return matchesCategory && (!searchQuery || haystack.includes(searchQuery));
-    })
+      })
+      .map(toPublicProduct)
   );
 };
 
 export const getCatalogueProductBySlug = (slug = "") => {
   if (!isValidSlug(slug)) return null;
   const product = catalogue.products.find((item) => item.id === slug || item.slug === slug);
-  return product ? clone(product) : null;
+  return product ? clone(toPublicProduct(product)) : null;
 };
 
 export const listPersistedCatalogueCategories = async (prisma) => {
@@ -230,7 +227,7 @@ export const listPersistedCatalogueProducts = async (
   if (!prisma?.catalogueProduct?.findMany) return [];
 
   const products = await prisma.catalogueProduct.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, publishingStatus: "active" },
     include: { category: true },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
   });
@@ -258,6 +255,7 @@ export const getPersistedCatalogueProductBySlug = async (prisma, slug = "") => {
   const product = await prisma.catalogueProduct.findFirst({
     where: {
       isPublished: true,
+      publishingStatus: "active",
       OR: [{ slug }, { sku: slug }],
     },
     include: { category: true },

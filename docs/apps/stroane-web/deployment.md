@@ -83,12 +83,17 @@ Protected supplier/inventory admin routes should be tested with a backend `SiteU
 - `GET https://stroane-api-production.up.railway.app/api/admin/suppliers`
 - `GET https://stroane-api-production.up.railway.app/api/admin/inventory`
 - `GET https://stroane-api-production.up.railway.app/api/admin/inventory/movements`
+- `GET https://stroane-api-production.up.railway.app/api/admin/products`
 
 After the API routes pass, authenticate with a private backend `SiteUser` account and smoke test the protected frontend route:
 
+- `https://stroanesolutions.com/admin/signin`
 - `https://stroanesolutions.com/admin/inventory`
+- `https://stroanesolutions.com/admin/suppliers`
+- `https://stroanesolutions.com/admin/products`
+- `https://stroanesolutions.com/admin/operations`
 
-Confirm an `ADMIN` can record a test adjustment against a configured inventory item, confirm its before/after quantity in the activity view, and confirm a `VIEWER` can read the dashboard without seeing write actions.
+Confirm an `ADMIN` can record a test adjustment against a configured inventory item, confirm its before/after quantity in the activity view, edit one non-critical product media path/publishing draft, and confirm a `VIEWER` can read the dashboards without seeing write actions.
 
 Legacy read-only aliases should also remain available during rollout:
 
@@ -105,9 +110,9 @@ The catalogue endpoint now keeps category and product sources coherent during ro
 2. Set Railway API environment variables and run `pnpm --filter @faako/stroane-web exec prisma generate`.
 3. Run `pnpm --filter @faako/stroane-web run db:deploy:prod`.
 4. Start or redeploy the Railway API with `pnpm --filter @faako/stroane-web start:api`.
-5. Confirm `/health`, catalogue endpoints, and unauthenticated rejection on `/api/admin/inventory`.
+5. Confirm `/health`, catalogue endpoints, and unauthenticated rejection on `/api/admin/inventory` and `/api/admin/products`.
 6. Set `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app` in Cloudflare Pages and trigger a fresh Pages deploy.
-7. Confirm `/shop`, one product detail route, `/signin`, and authenticated `/admin/inventory`.
+7. Confirm `/shop`, `/catalogue`, one product detail route, public customer `/signin`, private staff `/admin/signin`, authenticated `/admin/inventory`, and authenticated `/admin/products`.
 
 If persisted catalogue rows should replace seed fallback, run the catalogue seed only after reviewing the target database:
 
@@ -124,7 +129,9 @@ Before promoting a deploy:
 - Run `pnpm --filter @faako/stroane-web run build`.
 - Run `pnpm --filter @faako/stroane-web exec prisma validate`.
 - Confirm product images resolve under `/imgs/products/`.
+- Confirm admin product media edits accept only safe `/imgs/products/` paths and that draft/archived rows do not appear in public catalogue responses.
 - Confirm `/shop` and `/products/:id` still render from local fallback if the API URL is unavailable.
+- Treat the checked-in browser fallback as a public outage snapshot: when an existing fallback product is archived or should no longer be public, update that snapshot and redeploy Cloudflare Pages as part of the publishing change.
 - Confirm Cloudflare Pages has only browser-safe `VITE_*` values.
 - Confirm Cloudflare Pages serves the response headers from `public/_headers`.
 - Confirm Railway API owns all server-only database/payment/email/auth secrets.

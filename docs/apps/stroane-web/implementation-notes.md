@@ -13,11 +13,17 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
 - The API server listens on `process.env.PORT` with a local fallback, and `/health` returns a database-independent JSON response for Railway health checks.
+- Public storefront, future customer account, and private staff portal routes are now separate. See `docs/apps/stroane-web/portal-architecture.md`.
+- Staff authentication belongs at `/admin/signin`; public `/signin` is customer-only. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary.
+- Stroane Vite dedupes `react-router-dom` alongside React so shared `@faako/ui` ERP navigation links resolve against the app's router context.
+- `/admin/products` now reuses shared `@faako/ui` table, field, select, badge, action, and drawer primitives. Shared ERP visible labels are associated with their native controls for accessible keyboard, Safari/mobile, and browser-automation behavior.
+- Product media edits are URL/path based for now and intentionally accept local `/imgs/products/` paths only. Do not add direct upload or external media-provider credentials to the browser bundle.
+- Public catalogue persistence reads require both `isPublished=true` and `publishingStatus=active`; supplier links, private supplier notes, internal cost fields, and catalogue import/review notes stay out of public API responses, including server-side JSON-seed fallback responses.
 - `docs/platform/codebase-cleanup-audit.md` flags Stroane cleanup opportunities around repeated card/button/header/page styles, API fetch wrapper duplication, and component extraction candidates such as Shop, Product/User Management, and header surfaces.
 
 ### Shared modules introduced in the 2026-05 redesign sweep
 
-- **`src/data/stroaneCatalogue.json`** is the normalized seed source for the product catalogue. It stores business profile metadata, categories, and products with brand, SKU, descriptions, features, pricing, quote-only flags, availability placeholders, tags, use cases, inquiry CTAs, and source references. It is intentionally data-driven so catalogue content is not pasted into page components.
+- **`src/data/stroaneCatalogue.json`** is the normalized public browser fallback for the product catalogue. It stores only public-safe business profile metadata, categories, and products. **`prisma/data/stroaneCatalogueSeed.json`** is the server-side import source and retains source references and manual-review flags. Keep the split intact so operational review details do not enter the Cloudflare Pages bundle.
 - **`src/data/products.ts`** is the typed storefront helper layer for the catalogue. It exports `Product`, `CatalogueCategory`, `BusinessProfile`, `products`, `categories`, `categoryOptions`, `formatCurrency`, `formatProductPrice`, `getLineTotal`, `isPricedProduct`, `normalizeProduct`, `normalizeProducts`, `shouldUseLocalCatalogueFallback`, `getStockTone`, and `getProductById`. Shop, Product Detail, Product List, Search, Sitemap, and Checkout should import from here instead of rebuilding product arrays.
 - **`src/context/CartContext.tsx`** holds the shopping basket as `Record<string, number>` (productId -> qty) plus `totalCount`, `getQty`, `increment`, `decrement`, `remove`, and `clear`. The provider wraps the app in `main.tsx` inside `AuthProvider`. State is in-memory only; refreshes clear the basket unless a future persistence step is added.
 - **`src/components/QuantityControls.tsx`** is the shared add/qty/trash widget used by Shop cards (`size="sm"`) and the Product Detail page (`size="lg"`). Owns its own styles in `src/styles/components/QuantityControls.css`. Don't duplicate this in new pages — reuse the component and let `useCart()` drive props.
@@ -159,8 +165,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 
 ### Lightweight admin order management - 2026-05-21
 
-- `/admin/orders` is an unlinked private staff screen. It uses backend `SiteUser` login via `/api/auth/login`, not public frontend-only customer sign-in/sign-up.
-- `/signin` now supports both customer local accounts and private backend staff credentials. If no local customer account matches, the page attempts backend `SiteUser` login and routes valid staff users to `/admin/orders`.
+- `/admin/operations` is a private staff screen inside the shared ERP shell. The previous `/admin/orders` route remains a compatibility alias. Staff login uses backend `SiteUser` auth via `/api/auth/login`.
+- `/admin/signin` is the dedicated staff entrypoint. Public `/signin` remains customer-only and no longer attempts backend `SiteUser` login.
 - `GET /api/admin/orders` and `GET /api/admin/orders/:orderId` require backend bearer auth and allow `ADMIN` or `VIEWER` roles. `PATCH /api/admin/orders/:orderId/status` requires `ADMIN`.
 - Order list/detail responses include customer contact data because the route is protected, but Paystack references are masked and raw payment metadata/provider payloads are not returned.
 - Admin status actions are intentionally limited to `paid`, `processing`, `ready`, `out_for_delivery`, `completed`, and `cancelled`.
@@ -185,7 +191,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Recommended architecture: Cloudflare Pages hosts the frontend, Railway hosts the Express backend/API service, Railway Postgres stores application data, and Cloudflare manages DNS/domain routing. Keep registrar/email services separate from application database duties unless a separate production decision is made.
 - Prisma now has additive foundation models: `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`. These sit beside the legacy `Product` model so existing data is not mutated.
 - `prisma/migrations/20260519000000_add_catalogue_inquiry_foundation/migration.sql` creates the new tables and `CatalogueInquiryStatus` enum. Deploy with `pnpm --filter @faako/stroane-web run db:deploy:prod` after pointing env vars at the intended production database.
-- `prisma/seed-catalogue.mjs` upserts category/product/business-profile content from `src/data/stroaneCatalogue.json`. It is opt-in and should be run only after the migration target is verified.
+- `prisma/seed-catalogue.mjs` upserts category/product/business-profile content from the server-side `prisma/data/stroaneCatalogueSeed.json`. It is opt-in and should be run only after the migration target is verified.
 - Backend database URL resolution now prefers `DATABASE_URL_PRODUCTION` in production and `DATABASE_URL_DEVELOPMENT` in development, while still supporting a single Railway `DATABASE_URL`.
 - Frontend env should only use browser-safe values such as `VITE_API_BASE_URL`. Database URLs, provider keys, inquiry notification keys, and future email/SMS/WhatsApp secrets must remain server-side.
 
@@ -219,7 +225,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Add client-specific release notes once the deployment cadence is established.
 - Keep API, CORS, and proxy configuration notes current as hosting changes.
 - Use the platform cleanup audit before consolidating client-facing CSS, extracting shared UI pieces, or adding an app API client wrapper. Keep environment examples descriptive and never copy live secret values into docs.
-- Add a catalogue import script only after full PDF/OCR extraction is reliable. Until then, update `src/data/stroaneCatalogue.json` manually with source references and manual-review flags.
+- Add a catalogue import script only after full PDF/OCR extraction is reliable. Until then, keep source references and manual-review flags in the server-side `prisma/data/stroaneCatalogueSeed.json`, and mirror only public-safe catalogue fields into `src/data/stroaneCatalogue.json`.
 - Add a lightweight authenticated inquiry review screen only after access control and retention rules are approved.
 - Expand order email/inquiry notification plumbing only after provider choice, secret handling, retry behavior, notification logging, and customer privacy language are approved.
 - Wire byNana portfolio to the shared project registry only after deciding how project cards, private flags, screenshots, and case-study readiness should map into the current portfolio content model.

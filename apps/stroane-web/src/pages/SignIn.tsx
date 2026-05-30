@@ -3,15 +3,23 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import { useAuth } from "../context/AuthContext";
-import { adminOrderApi, storeAdminSession } from "../api/adminOrders";
 import "../styles/pages/Auth.css";
+
+const CUSTOMER_ACCOUNT_PATHS = ["/account", "/orders", "/quotes"];
+
+const getCustomerRedirect = (state: unknown) => {
+  const from = (state as { from?: unknown } | null)?.from;
+  if (typeof from !== "string") return "/account";
+  return CUSTOMER_ACCOUNT_PATHS.some((path) => from === path || from.startsWith(`${path}/`))
+    ? from
+    : "/account";
+};
 
 const SignIn: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo =
-    (location.state as { from?: string } | null)?.from ?? "/";
+  const redirectTo = getCustomerRedirect(location.state);
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -33,24 +41,9 @@ const SignIn: React.FC = () => {
       await signIn(identifier, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      const customerError = err instanceof Error ? err.message : "";
-
-      if (customerError !== "No account found for that email.") {
-        setError(customerError || "Could not sign in.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const session = await adminOrderApi.login(identifier, password);
-        storeAdminSession(session);
-        navigate(redirectTo.startsWith("/admin/") ? redirectTo : "/admin/orders", {
-          replace: true,
-        });
-      } catch {
-        setError("No account matched those credentials.");
-        setLoading(false);
-      }
+      setError(err instanceof Error ? err.message : "Could not sign in.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,12 +73,12 @@ const SignIn: React.FC = () => {
             <span className="auth-card__kicker">Welcome back</span>
           <h1 className="auth-card__title">Sign in</h1>
           <p className="auth-card__sub">
-            Access your basket, orders, and saved details.
+            Customer account access is being prepared separately from staff operations.
           </p>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <label className="auth-field">
-              <span>Email or username</span>
+              <span>Email</span>
               <input
                 type="text"
                 value={identifier}
@@ -93,7 +86,7 @@ const SignIn: React.FC = () => {
                   setIdentifier(e.target.value);
                   setError("");
                 }}
-                autoComplete="username"
+                autoComplete="email"
                 required
               />
             </label>

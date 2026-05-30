@@ -27,6 +27,16 @@ Inventory/supplier foundation added on 2026-05-29:
 
 The 2026-05-29 migration is additive. It adds nullable stock planning columns to `CatalogueProduct` and creates new supplier/inventory tables. It does not alter order totals, payment verification, checkout behavior, or existing product fields.
 
+Product operations publishing fields added on 2026-05-30:
+
+- `CatalogueProduct.compareAtPrice`
+- `CatalogueProduct.publishingStatus`
+- `CatalogueProduct.isFeatured`
+
+Migration: `20260530000000_add_catalogue_product_publishing_fields`
+
+This migration is additive. Existing catalogue rows remain `active` by default so a production deploy does not unexpectedly hide the storefront catalogue. Admins can then move products to `draft` or `archived` intentionally. Public catalogue queries require both `isPublished=true` and `publishingStatus=active`.
+
 ## Admin Inventory API Mapping
 
 The protected admin inventory API now uses the existing inventory/supplier foundation without adding a new migration:
@@ -37,6 +47,7 @@ The protected admin inventory API now uses the existing inventory/supplier found
 - `InventoryItem` stores operational stock metadata per product/variant, including `quantityOnHand`, `reservedQuantity`, `availableQuantity`, `reorderThreshold`, `lowStockThreshold`, `stockStatus`, `allowBackorder`, and `isPurchasable`.
 - `InventoryMovement` stores stock movement history for `RESTOCK`, `ADJUSTMENT`, `DAMAGE`, `MANUAL_CORRECTION`, `RESERVED`, and `RELEASED`.
 - `InventoryAuditEntry` stores lightweight audit trail records for supplier changes, inventory item updates, product inventory updates, and movement entries.
+- Product/media operations also append `InventoryAuditEntry` records for copy, media, publishing, and preferred-supplier edits.
 
 The API computes available stock as `quantityOnHand - reservedQuantity`, clamps customer-facing availability at zero, and syncs storefront `CatalogueProduct` stock fields when an admin updates a product/inventory item or records a movement. It does not reserve or deduct stock from orders yet.
 
@@ -87,3 +98,5 @@ and should be followed by removal of the plaintext CSV from local disk.
 - Keep supplier cost notes and purchase/restock notes admin-only.
 - Supplier/inventory admin API routes require backend `SiteUser` bearer auth. Reads allow `ADMIN` and `VIEWER`; writes require `ADMIN`.
 - No destructive schema change is required for the protected admin API foundation.
+- Run `20260530000000_add_catalogue_product_publishing_fields` before deploying the product operations API and `/admin/products` UI.
+- Direct file upload and external media-provider metadata remain deferred. Current product media fields store validated local `/imgs/products/` paths.

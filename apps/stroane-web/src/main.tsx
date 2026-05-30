@@ -7,15 +7,18 @@ import './index.css'
 import App from './App.tsx'
 import { CartProvider } from './context/CartContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
+import { AdminPortalProvider } from './context/AdminPortalContext.tsx'
 import appSystem from '../appSystem.js'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UiSystemProvider appSystem={appSystem}>
       <AuthProvider>
-        <CartProvider>
-          <App />
-        </CartProvider>
+        <AdminPortalProvider>
+          <CartProvider>
+            <App />
+          </CartProvider>
+        </AdminPortalProvider>
       </AuthProvider>
     </UiSystemProvider>
   </StrictMode>,

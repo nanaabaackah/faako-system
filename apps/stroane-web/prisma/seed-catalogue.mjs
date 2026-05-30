@@ -1,5 +1,5 @@
 /**
- * Seeds the Stroane catalogue foundation from src/data/stroaneCatalogue.json.
+ * Seeds the Stroane catalogue foundation from prisma/data/stroaneCatalogueSeed.json.
  *
  * Usage:
  *   APP_ENV=development pnpm --filter @faako/stroane-web run db:seed:catalogue
@@ -81,7 +81,7 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const cataloguePath = path.join(appRoot, "src", "data", "stroaneCatalogue.json");
+const cataloguePath = path.join(appRoot, "prisma", "data", "stroaneCatalogueSeed.json");
 const catalogue = JSON.parse(fs.readFileSync(cataloguePath, "utf8"));
 
 const run = async () => {
@@ -130,6 +130,7 @@ const run = async () => {
         shortDescription: product.description || null,
         longDescription: product.longDescription || null,
         price: product.price,
+        compareAtPrice: product.compareAtPrice ?? null,
         priceLabel: product.priceLabel || null,
         currency: product.currency || "GHS",
         unit: product.unit || null,
@@ -153,6 +154,8 @@ const run = async () => {
         inquiryCta: product.inquiryCta || null,
         sourceRefs: product.sourceRefs || [],
         isPublished: true,
+        publishingStatus: "active",
+        isFeatured: Boolean(product.isFeatured),
         manualReviewRequired: Boolean(
           product.quoteOnly || product.price == null || product.stockQuantity == null || !product.isPurchasable
         ),
@@ -167,6 +170,7 @@ const run = async () => {
         shortDescription: product.description || null,
         longDescription: product.longDescription || null,
         price: product.price,
+        compareAtPrice: product.compareAtPrice ?? null,
         priceLabel: product.priceLabel || null,
         currency: product.currency || "GHS",
         unit: product.unit || null,
@@ -190,6 +194,8 @@ const run = async () => {
         inquiryCta: product.inquiryCta || null,
         sourceRefs: product.sourceRefs || [],
         isPublished: true,
+        publishingStatus: "active",
+        isFeatured: Boolean(product.isFeatured),
         manualReviewRequired: Boolean(
           product.quoteOnly || product.price == null || product.stockQuantity == null || !product.isPurchasable
         ),

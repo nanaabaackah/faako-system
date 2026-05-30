@@ -3,14 +3,13 @@ import {
   HiOutlineAdjustments,
   HiOutlineCube,
   HiOutlineExclamation,
-  HiOutlineLogout,
   HiOutlineOfficeBuilding,
   HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineSearch,
   HiOutlineX,
 } from "react-icons/hi";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   adminInventoryApi,
   type InventoryItem,
@@ -18,9 +17,7 @@ import {
   type SupplierDetail,
   type SupplierSummary,
 } from "../api/adminInventory";
-import { clearAdminSession, getStoredAdminSession, type AdminSession } from "../api/adminOrders";
-import AdminSectionNav from "../components/AdminSectionNav";
-import Layout from "../components/Layout";
+import { useAdminPortal } from "../context/AdminPortalContext";
 import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/AdminInventory.css";
 
@@ -81,10 +78,12 @@ const calculateMovementPreview = (item: InventoryItem, type: string, quantity: n
   return available + quantity;
 };
 
-const AdminInventory: React.FC = () => {
+const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
+  initialTab = "inventory",
+}) => {
   const navigate = useNavigate();
-  const [session] = useState<AdminSession | null>(() => getStoredAdminSession());
-  const [activeTab, setActiveTab] = useState<AdminInventoryTab>("inventory");
+  const { session } = useAdminPortal();
+  const [activeTab, setActiveTab] = useState<AdminInventoryTab>(initialTab);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
@@ -140,6 +139,10 @@ const AdminInventory: React.FC = () => {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const filteredInventory = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -253,17 +256,10 @@ const AdminInventory: React.FC = () => {
     }
   };
 
-  const signOut = () => {
-    clearAdminSession();
-    navigate("/signin", { replace: true });
-  };
-
-  if (!session) {
-    return <Navigate to="/signin" replace state={{ from: "/admin/inventory" }} />;
-  }
+  if (!session) return null;
 
   return (
-    <Layout>
+    <>
       <section className="admin-inventory-page">
         <div className="admin-inventory-shell">
           <header className="admin-inventory-head">
@@ -275,17 +271,7 @@ const AdminInventory: React.FC = () => {
               <h1>Inventory operations</h1>
               <p>Track stock, review suppliers, and record accountable quantity changes.</p>
             </div>
-            <div className="admin-inventory-session">
-              <span>{session.username}</span>
-              <strong>{session.role}</strong>
-              <button type="button" onClick={signOut}>
-                <HiOutlineLogout aria-hidden="true" />
-                Sign out
-              </button>
-            </div>
           </header>
-
-          <AdminSectionNav />
 
           <div className="admin-inventory-summary" aria-label="Inventory summary">
             <span><small>Tracked items</small><strong>{summary.tracked}</strong></span>
@@ -299,14 +285,20 @@ const AdminInventory: React.FC = () => {
               <button
                 type="button"
                 className={activeTab === "inventory" ? "active" : ""}
-                onClick={() => setActiveTab("inventory")}
+                onClick={() => {
+                  setActiveTab("inventory");
+                  navigate("/admin/inventory");
+                }}
               >
                 Stock
               </button>
               <button
                 type="button"
                 className={activeTab === "suppliers" ? "active" : ""}
-                onClick={() => setActiveTab("suppliers")}
+                onClick={() => {
+                  setActiveTab("suppliers");
+                  navigate("/admin/suppliers");
+                }}
               >
                 Suppliers
               </button>
@@ -554,7 +546,7 @@ const AdminInventory: React.FC = () => {
           </section>
         </div>
       ) : null}
-    </Layout>
+    </>
   );
 };
 

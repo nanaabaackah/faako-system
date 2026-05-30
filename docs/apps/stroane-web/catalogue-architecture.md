@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Stroane catalogue data should remain product-focused and scalable without becoming a full ERP. The current source of truth is `apps/stroane-web/src/data/stroaneCatalogue.json`, with storefront normalization in `apps/stroane-web/src/data/products.ts`.
+Stroane catalogue data should remain product-focused and scalable without becoming a full ERP. The browser-safe outage snapshot is `apps/stroane-web/src/data/stroaneCatalogue.json`, with storefront normalization in `apps/stroane-web/src/data/products.ts`. The server-side import source is `apps/stroane-web/prisma/data/stroaneCatalogueSeed.json`; it may retain manual-review metadata that must not enter the Cloudflare Pages bundle.
 
 ## Product Vs Variant Rules
 

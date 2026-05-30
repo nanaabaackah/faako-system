@@ -1,0 +1,47 @@
+.customer-account-placeholder {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(72px + 3rem) 1.25rem 4rem;
+  align-items: center;
+  background: var(--color-bg);
+}
+
+.customer-account-placeholder > div {
+  width: min(100%, 720px);
+}
+
+.customer-account-placeholder span {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.customer-account-placeholder h1 {
+  margin: 0.65rem 0 0;
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  line-height: 1.05;
+}
+
+.customer-account-placeholder p {
+  max-width: 620px;
+  margin: 1rem 0 0;
+  line-height: 1.65;
+}
+
+.customer-account-placeholder__status {
+  color: var(--color-text-primary);
+  font-weight: 750;
+}
+
+.customer-account-placeholder__action,
+.customer-account-placeholder__link {
+  width: fit-content;
+  margin-top: 1.5rem;
+}
+
+.customer-account-placeholder__link {
+  display: block;
+  color: var(--color-primary);
+  font-weight: 750;
+}

@@ -30,8 +30,24 @@ Catalogue endpoints prefer persisted database rows when available and fall back 
 - `GET /api/admin/inventory/movements`
 - `POST /api/admin/inventory/movements`
 - `PATCH /api/admin/products/:id/inventory`
+- `GET /api/admin/products`
+- `GET /api/admin/products/:id`
+- `PATCH /api/admin/products/:id`
+- `PATCH /api/admin/products/:id/media`
+- `PATCH /api/admin/products/:id/publishing`
+- `PATCH /api/admin/products/:id/suppliers`
 
 Private endpoints require backend `SiteUser` bearer auth. `ADMIN` and `VIEWER` can read admin order/inventory data; write/update routes require `ADMIN`. Public customer sign-in/sign-up is not a backend security boundary.
+
+## Frontend Route Boundaries
+
+- Public storefront routes, including `/catalogue` and `/products/:slug`, render outside the ERP shell.
+- Public customer placeholders live at `/account`, `/orders`, and `/quotes`.
+- Staff authenticate at `/admin/signin`.
+- Protected operations routes render inside the shared ERP shell under `/admin/*`.
+- `/admin/operations` is the primary order-operations route. `/admin/orders` remains a compatibility alias.
+
+Frontend route guards are navigation boundaries only. Protected `/api/admin/*` endpoints continue to enforce backend `SiteUser` bearer authorization.
 
 ## Railway Deployment Contract
 
@@ -46,7 +62,7 @@ Cloudflare Pages is the frontend host. Railway hosts the API and Postgres databa
 
 ## Internal Inventory Operations UI
 
-- Frontend route: `/admin/inventory`
+- Frontend routes: `/admin/inventory` and `/admin/suppliers`
 - Existing staff sessions from backend `POST /api/auth/login` are reused.
 - `ADMIN` can review inventory, suppliers, movement history, and submit audited inventory movements.
 - `VIEWER` can review the same operational data without write actions.
@@ -91,6 +107,29 @@ These routes are internal API foundations only. Do not expose supplier notes, co
 - `PATCH /api/admin/products/:id/inventory`
   - Admin-only. Updates storefront-facing `CatalogueProduct` stock fields and syncs/creates an `InventoryItem` unless `syncInventoryItem=false`.
   - `:id` may be a catalogue product id or slug.
+
+## Admin Product And Media Operations
+
+The internal product editor lives at `/admin/products`. These routes are bearer-protected and return private operational fields only to staff sessions:
+
+- `GET /api/admin/products?search=&publishingStatus=&categorySlug=&tag=&limit=`
+  - Returns product rows, publishing status, stock summary, private preferred-supplier summary, and active category options.
+- `GET /api/admin/products/:id`
+  - Returns one internal product record for the edit drawer.
+- `PATCH /api/admin/products/:id`
+  - Admin-only. Updates catalogue copy, slug, SKU, price, compare-at price, currency, category, and tags.
+- `PATCH /api/admin/products/:id/media`
+  - Admin-only. Updates thumbnail and gallery paths. Paths must resolve below `/imgs/products/`, use a supported image extension, and omit traversal segments, query strings, and fragments.
+- `PATCH /api/admin/products/:id/publishing`
+  - Admin-only. Updates `draft`, `active`, or `archived` publishing state and featured status. Only `active` products remain public.
+- `PATCH /api/admin/products/:id/suppliers`
+  - Admin-only. Selects or clears a preferred supplier and stores the supplier product code and private supplier notes.
+
+Product updates append lightweight `InventoryAuditEntry` records. Public catalogue responses deliberately omit supplier references, supplier notes, internal cost fields, catalogue import/review metadata, draft products, and archived products. The server-side JSON-seed fallback passes through the same public mapper.
+
+The checked-in browser fallback remains a deliberately public outage snapshot. It cannot observe a Railway database publishing change while the API is unavailable. If an active fallback product is archived or becomes unsuitable for public display, update the checked-in public catalogue snapshot and redeploy the Cloudflare Pages frontend as part of the publishing operation.
+
+Direct media upload, external media hosting, product creation, category editing, bulk product editing, automated stock reservation, and order-to-inventory allocation are intentionally deferred.
 
 ## Inventory Rules To Preserve
 

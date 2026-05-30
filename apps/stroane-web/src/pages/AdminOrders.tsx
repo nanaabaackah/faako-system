@@ -2,23 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   HiOutlineCheckCircle,
   HiOutlineClipboardList,
-  HiOutlineLockClosed,
-  HiOutlineLogout,
   HiOutlineRefresh,
   HiOutlineSearch,
 } from "react-icons/hi";
-import Layout from "../components/Layout";
-import AdminSectionNav from "../components/AdminSectionNav";
 import {
   adminOrderApi,
-  clearAdminSession,
-  getStoredAdminSession,
-  storeAdminSession,
   type AdminOrderDetail,
   type AdminOrderFilters,
   type AdminOrderSummary,
-  type AdminSession,
 } from "../api/adminOrders";
+import { useAdminPortal } from "../context/AdminPortalContext";
 import { formatCurrency } from "../data/products";
 import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/AdminOrders.css";
@@ -88,75 +81,8 @@ const canFulfill = (order?: AdminOrderDetail | null) => {
   return order.paymentStatus === "paid" || order.status === "paid" || Boolean(order.paidAt);
 };
 
-const AdminLogin: React.FC<{
-  onLogin: (session: AdminSession) => void;
-}> = ({ onLogin }) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const session = await adminOrderApi.login(username, password);
-      storeAdminSession(session);
-      onLogin(session);
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Unable to sign in.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Layout>
-      <section className="admin-orders-page admin-orders-page--login">
-        <div className="admin-orders-login">
-          <span className="admin-orders-kicker">
-            <HiOutlineLockClosed aria-hidden="true" />
-            Stroane admin
-          </span>
-          <h1>Order management</h1>
-          <p>
-            Private backend access for Stroane staff. Public customer sign-in is separate and
-            does not unlock this area.
-          </p>
-          <form className="admin-orders-login__form" onSubmit={submit}>
-            <label>
-              <span>Username</span>
-              <input
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label>
-              <span>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            {error ? <p className="admin-orders-error">{error}</p> : null}
-            <button type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-        </div>
-      </section>
-    </Layout>
-  );
-};
-
 const AdminOrders: React.FC = () => {
-  const [session, setSession] = useState<AdminSession | null>(() => getStoredAdminSession());
+  const { session } = useAdminPortal();
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderDetail | null>(null);
   const [filters, setFilters] = useState<AdminOrderFilters>({});
@@ -245,13 +171,6 @@ const AdminOrders: React.FC = () => {
 
   const filteredTotal = useMemo(() => orders.length, [orders]);
 
-  const signOut = () => {
-    clearAdminSession();
-    setSession(null);
-    setOrders([]);
-    setSelectedOrder(null);
-  };
-
   const updateFilters = (key: keyof AdminOrderFilters, value: string) => {
     const nextFilters = { ...filters, [key]: value || undefined };
     setFilters(nextFilters);
@@ -297,13 +216,10 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  if (!session) {
-    return <AdminLogin onLogin={setSession} />;
-  }
+  if (!session) return null;
 
   return (
-    <Layout>
-      <section className="admin-orders-page">
+    <section className="admin-orders-page">
         <div className="admin-orders-shell">
           <header className="admin-orders-head">
             <div>
@@ -314,17 +230,7 @@ const AdminOrders: React.FC = () => {
               <h1>Orders</h1>
               <p>Review paid orders, fulfillment notes, and lightweight delivery status.</p>
             </div>
-            <div className="admin-orders-session">
-              <span>{session.username}</span>
-              <strong>{session.role}</strong>
-              <button type="button" onClick={signOut}>
-                <HiOutlineLogout aria-hidden="true" />
-                Sign out
-              </button>
-            </div>
           </header>
-
-          <AdminSectionNav />
 
           <div className="admin-orders-toolbar">
             <label className="admin-orders-search">
@@ -589,8 +495,7 @@ const AdminOrders: React.FC = () => {
             </aside>
           </div>
         </div>
-      </section>
-    </Layout>
+    </section>
   );
 };
 

@@ -14,7 +14,7 @@ Stroane Web is a full-stack commerce app. It pairs a React 19 + TypeScript front
 
 ## Catalogue And Inquiry Foundation
 
-Stroane product catalogue data now lives in `src/data/stroaneCatalogue.json`, with typed storefront helpers in `src/data/products.ts`. The seed is normalized around categories, products, brands, SKUs, descriptions, features, pricing, availability placeholders, inquiry CTAs, tags, use cases, and source references. It is based on the reviewed thermometer catalogue, thermometer price list, and food safety posters/aprons brochure.
+The public browser fallback lives in `src/data/stroaneCatalogue.json`, with typed storefront helpers in `src/data/products.ts`. Seed-only import notes and manual-review metadata live separately in `prisma/data/stroaneCatalogueSeed.json` so operational review details are not bundled into the Cloudflare Pages frontend. Both datasets are normalized around categories, products, brands, SKUs, descriptions, features, pricing, availability placeholders, inquiry CTAs, tags, and use cases.
 
 The catalogue now separates customer-filterable leaf categories from parent category groups. Thermometers are standalone products; apron styles are variant-parent products with colour/style variants. See `docs/apps/stroane-web/catalogue-architecture.md` for the current product-vs-variant rules.
 
@@ -111,9 +111,17 @@ Order notification boundaries:
 - Order received, processing, completed, payment pending, and payment failed templates exist for future workflows but are not automated yet.
 - Duplicate sends are reduced with `customerNotificationSentAt`, but a full payment event and notification log/audit table is still needed before webhook replay tooling, retries, or multi-channel automation.
 
-## Lightweight Admin Orders
+## Public Site, Customer Area, And Operations Portal
 
-Private order management is available at `/admin/orders`. This route is intentionally not linked from the public navigation. It uses backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
+Stroane now keeps its three browser route areas intentionally separate:
+
+- Public storefront: `/`, `/catalogue`, `/shop`, `/products`, `/products/:slug`, and informational pages render with the public website layout.
+- Future customer account area: `/account`, `/orders`, and `/quotes` are safe placeholders. They do not render the operations shell and do not expose backend order data yet.
+- Internal operations portal: `/admin`, `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/reports`, and `/admin/settings` render inside the shared `@faako/ui` ERP shell after private staff authentication at `/admin/signin`.
+
+The public `/signin` and `/signup` pages are customer-only placeholders. Staff login is deliberately separate at `/admin/signin`, uses backend `SiteUser` auth, and is not linked from public storefront navigation.
+
+Private order management remains available through `/admin/operations`; the previous `/admin/orders` route is retained as a compatibility alias. It uses backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
 
 Admin order capabilities are intentionally small:
 
@@ -124,6 +132,22 @@ Admin order capabilities are intentionally small:
 - Paystack references are masked in admin responses; raw payment metadata, provider payloads, secrets, card details, and MoMo details are not shown.
 
 The admin order fields are additive on `CommerceOrder`: `fulfillmentStatus`, `deliveryMethod`, `expectedDeliveryDate`, `adminDeliveryNotes`, `internalNotes`, `statusUpdatedAt`, and `statusUpdatedById`. This is not a delivery logistics system, CRM, stock deduction workflow, or full ERP.
+
+## Internal Product And Media Operations
+
+Authenticated staff can open `/admin/products` inside the operations shell. The page reuses shared `@faako/ui` tables, fields, selects, actions, badges, and drawer patterns for searchable product review and edit-light catalogue operations.
+
+`ADMIN` accounts can edit product copy, slug, SKU, price, compare-at price, currency, category, tags, thumbnail path, gallery paths, featured state, publishing state, and the preferred supplier link. `VIEWER` accounts can inspect the same operational product surface without save actions. Supplier notes remain private.
+
+Publishing uses three explicit states: `draft`, `active`, and `archived`. Public catalogue APIs return only active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
+
+The checked-in browser fallback is a public outage snapshot, not a live publishing source. If an existing fallback product is archived or should no longer appear publicly, update the snapshot and redeploy Cloudflare Pages as part of that publishing change.
+
+Deploy the additive publishing migration before enabling this workflow:
+
+```bash
+pnpm --filter @faako/stroane-web run db:deploy:prod
+```
 
 ## Security And Production Readiness
 
@@ -148,7 +172,7 @@ Checkout/payment integrity rules:
 - Browser callback verification is not final payment truth; the signed webhook path marks orders paid only after server-side Paystack transaction verification confirms the reference, amount, and currency.
 - Railway-level rate limiting, Railway Postgres least-privilege access, payment event logging, and notification log idempotency are still required before fulfillment automation or broader order operations.
 
-Current public sign-in/sign-up pages are intentionally retained. Customer accounts are still frontend-only `localStorage` account/session flows and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. The public sign-in page can also route private staff usernames through the backend `SiteUser` login and send valid `ADMIN`/`VIEWER` users to `/admin/orders`; staff accounts still live in the database and are not read from the CSV at runtime.
+Current public sign-in/sign-up pages are intentionally retained. Customer accounts are still frontend-only `localStorage` account/session flows and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. Private staff usernames go through the dedicated backend-backed `/admin/signin` entrypoint; staff accounts still live in the database and are not read from the CSV at runtime.
 
 Detailed app security posture and remaining production gaps are tracked in `docs/apps/stroane-web/security-notes.md`.
 
@@ -185,7 +209,7 @@ pnpm --filter @faako/stroane-web run db:deploy:prod
 APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue
 ```
 
-Run migrations and the catalogue seed only after the target database has been verified. The catalogue seed upserts catalogue categories/products/business-profile content from `src/data/stroaneCatalogue.json`; it does not touch payments, orders, supplier records, inventory movements, CRM records, or notifications. The catalogue stock metadata, supplier/inventory foundation, commerce, payment metadata, notification metadata, webhook metadata, and admin fulfillment metadata migrations are additive and must be deployed before storefront stock gating, inventory admin/API work, `/api/orders`, Paystack confirmation, customer email metadata, and `/admin/orders` fulfillment notes can persist correctly.
+Run migrations and the catalogue seed only after the target database has been verified. The catalogue seed upserts catalogue categories/products/business-profile content from the server-side `prisma/data/stroaneCatalogueSeed.json`; it does not touch payments, orders, supplier records, inventory movements, CRM records, or notifications. The catalogue stock metadata, supplier/inventory foundation, commerce, payment metadata, notification metadata, webhook metadata, and admin fulfillment metadata migrations are additive and must be deployed before storefront stock gating, inventory admin/API work, `/api/orders`, Paystack confirmation, customer email metadata, and `/admin/orders` fulfillment notes can persist correctly.
 
 Manual review still needed:
 
@@ -254,7 +278,7 @@ Only browser-safe values should use the `VITE_*` prefix.
 
 Legacy `VITE_PAYSTACK_PUBLIC_KEY` usage should not be used for production settlement. Current checkout uses backend initialization, browser-return status checks, signed webhook confirmation, and server-side Paystack transaction verification before paid order finalization. Payment event logging plus notification-log idempotency remain the next hardening steps before automated fulfillment, staff alerts, or multi-channel order updates.
 
-Current customer sign-in/sign-up support is front-end-only and stores account/session data in browser localStorage. It is not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and can sign in from `/signin` with their staff username/password, then continue to `/admin/orders`; keep this limited to one seeded admin and one seeded viewer account for now.
+Current customer sign-in/sign-up support is front-end-only and stores account/session data in browser localStorage. It is not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and sign in from `/admin/signin` with their staff username/password, then continue into the protected `/admin/*` portal; keep this limited to one seeded admin and one seeded viewer account for now.
 
 Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and maintenance/read-only/degraded UI wrappers are available in `@faako/config` and `@faako/ui`, but Stroane has not wired them into runtime behavior yet. Use them only after deciding the public-site maintenance copy, contact fallback, and any backend/API guard requirements.
 
@@ -262,7 +286,7 @@ Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and m
 
 Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
 
-Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin order surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, and `/admin/orders` on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
+Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, `/admin/signin`, `/admin/inventory`, and `/admin/operations` on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
 
 ## Build And Deploy
 

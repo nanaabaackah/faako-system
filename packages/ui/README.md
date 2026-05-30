@@ -81,6 +81,8 @@ The component accepts optional `className` and `style` props so apps can apply a
 
 Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. Shared selects use a CSS chevron so Safari/iOS does not render mismatched native controls. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
 
+Shared ERP field wrappers associate visible labels with their inputs, selects, and textareas. Keep using the provided `label` prop so keyboard users, assistive technology, and browser automation receive the same accessible field name.
+
 ## Environment variables
 
 None.

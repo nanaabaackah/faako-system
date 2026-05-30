@@ -184,14 +184,25 @@ export function ERPFieldGroup({
       {...props}
     >
       {label ? (
-        <span className={joinClasses("ui-erp-field__label", labelClassName)}>
-          {label}
-          {required ? (
-            <span className="ui-erp-field__required" aria-hidden="true">
-              *
-            </span>
-          ) : null}
-        </span>
+        as === "div" && htmlFor ? (
+          <label className={joinClasses("ui-erp-field__label", labelClassName)} htmlFor={htmlFor}>
+            {label}
+            {required ? (
+              <span className="ui-erp-field__required" aria-hidden="true">
+                *
+              </span>
+            ) : null}
+          </label>
+        ) : (
+          <span className={joinClasses("ui-erp-field__label", labelClassName)}>
+            {label}
+            {required ? (
+              <span className="ui-erp-field__required" aria-hidden="true">
+                *
+              </span>
+            ) : null}
+          </span>
+        )
       ) : null}
       {children}
       {error ? (

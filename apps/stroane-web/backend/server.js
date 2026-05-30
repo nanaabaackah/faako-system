@@ -48,6 +48,7 @@ import {
 } from "./src/orderNotifications.js";
 import { createAdminOrdersRouter } from "./src/adminOrders.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
+import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
 dotenv.config();
@@ -307,6 +308,7 @@ app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
 // Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
 app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
 app.use("/api/admin/orders", adminRateLimit, createAdminOrdersRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
 
 // Health check route

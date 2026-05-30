@@ -9,6 +9,8 @@
     "dev:with-backend": "concurrently -k -n backend,frontend -c magenta,cyan \"pnpm run server:dev\" \"pnpm run dev:frontend\"",
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
+    "test:backend": "node --test backend/*.test.js",
+    "test:e2e": "playwright test",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:studio": "APP_ENV=development prisma studio",
@@ -52,6 +54,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.10",
     "@types/express": "^4.17.22",
     "@types/node": "^20.12.0",

@@ -206,7 +206,6 @@ export const prepareCommerceOrder = async (prisma, payload = {}) => {
         stockQuantity: toNullableInteger(product.stockQuantity),
         availableQuantity: getAvailableQuantity(product),
         reservedQuantity: toNullableInteger(product.reservedQuantity),
-        sourceRefs: product.sourceRefs || [],
       }),
     });
   }
