@@ -47,6 +47,7 @@ import {
   sendCustomerOrderEmail,
 } from "./src/orderNotifications.js";
 import { createAdminOrdersRouter } from "./src/adminOrders.js";
+import { createAdminInventoryRouter } from "./src/inventory/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
 dotenv.config();
@@ -74,14 +75,14 @@ const connectionString =
     ? process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL
     : process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL;
 
-let prisma;
-if (connectionString) {
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaPg(pool);
-  prisma = new PrismaClient({ adapter });
-} else {
-  prisma = new PrismaClient();
+if (!connectionString) {
+  console.error("Stroane API configuration error: DATABASE_URL is required.");
+  process.exit(1);
 }
+
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -125,8 +126,11 @@ const adminRateLimit = createApiRateLimitMiddleware({
 
 const getCatalogueCategoriesForResponse = async () => {
   try {
-    const categories = await listPersistedCatalogueCategories(prisma);
-    if (categories.length) {
+    const [categories, products] = await Promise.all([
+      listPersistedCatalogueCategories(prisma),
+      listPersistedCatalogueProducts(prisma),
+    ]);
+    if (categories.length && products.length) {
       return { categories, source: "stroane-catalogue-db" };
     }
   } catch (error) {
@@ -303,6 +307,7 @@ app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
 // Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
 app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
 app.use("/api/admin/orders", adminRateLimit, createAdminOrdersRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
 
 // Health check route
 app.get("/health", (req, res) => {

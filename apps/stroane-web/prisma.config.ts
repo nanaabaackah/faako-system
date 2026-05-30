@@ -9,7 +9,7 @@ const normalizeEnvironmentName = (value: unknown) => {
 };
 
 const getRuntimeEnvironment = () =>
-  normalizeEnvironmentName(process.env.NODE_ENV || process.env.APP_ENV || "development");
+  normalizeEnvironmentName(process.env.APP_ENV || process.env.NODE_ENV || "development");
 
 const loadEnvironmentConfig = () => {
   dotenv.config();

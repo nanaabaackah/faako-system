@@ -47,6 +47,9 @@
 
 - Confirm Cloudflare Pages build command: `pnpm --filter @faako/stroane-web build`.
 - Confirm Cloudflare Pages output directory: `apps/stroane-web/dist`.
+- Confirm Cloudflare Pages output contains `_headers` from `apps/stroane-web/public/_headers`.
+- Confirm Railway API build command: `pnpm --filter @faako/stroane-web exec prisma generate`.
+- Confirm Railway API pre-deploy command: `pnpm --filter @faako/stroane-web run db:deploy:prod`.
 - Confirm Railway API start command: `pnpm --filter @faako/stroane-web start:api`.
 - Confirm Cloudflare routes `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend.
 - Confirm the API uses `https://stroane-api-production.up.railway.app` unless a future `api.stroanesolutions.com` cleanup is explicitly approved.

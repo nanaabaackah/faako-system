@@ -31,7 +31,15 @@ Current product image fields are:
 - `media`: normalized media entries with `url`, `alt`, `type`, `sortOrder`, optional `publicId`, optional `secureUrl`, and optional `variantId`
 - `imageAlt`: customer-facing alt text
 
-Use lower-case slug filenames and WebP where possible, for example `/imgs/products/astro-ai-ir-thermometer.webp`. Keep `/imgs/products/product-placeholder.webp` as the fallback for products that need manual image review.
+Use lower-case slug filenames and WebP where possible, for example `/imgs/products/astro-ai-ir-thermometer.webp`. Transparent catalogue cutouts should use the `-transparent.webp` suffix and remain mapped in `src/data/stroaneCatalogue.json`. Keep `/imgs/products/product-placeholder.webp` as the fallback for products that need manual image review.
+
+To regenerate transparent product cutouts from the current catalogue references:
+
+```bash
+pnpm --filter @faako/stroane-web assets:cutout
+```
+
+The cutout script removes connected near-white image backgrounds, writes optimized transparent WebP files, and updates catalogue image references. Keep original source images in place for manual review and rollback.
 
 Product variants can define their own SKU, price placeholder, stock placeholder, image, media, and option labels. The current storefront can preview/switch variant imagery, but variant-level checkout remains disabled until a separate safe variant checkout/admin stock workflow is approved.
 
@@ -215,7 +223,7 @@ Typical local ports:
 
 ## Database
 
-Recommended provider: Railway Postgres. Railway is the current frontend and backend host direction, while Cloudflare manages DNS/domain routing only. Keep any registrar/email provider separate from application hosting and database responsibilities. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
+Recommended provider: Railway Postgres. Cloudflare Pages hosts the frontend, Railway hosts the API/backend and database, and Cloudflare manages DNS/domain routing. Keep any registrar/email provider separate from application hosting and database responsibilities. Use separate Railway Postgres credentials/roles for migrations and runtime if available, and keep database URLs out of browser-visible env values.
 
 ```bash
 pnpm --filter @faako/stroane-web run db:migrate:dev
@@ -226,11 +234,21 @@ pnpm --filter @faako/stroane-web run db:deploy:prod
 pnpm --filter @faako/stroane-web run db:seed:catalogue
 ```
 
-Backend user seeding is private and CSV-driven through `pnpm --filter @faako/stroane-web run db:seed`. For now, seed only one `ADMIN` account and one `VIEWER` account, then remove the plaintext CSV from local disk after seeding. Do not use the public sign-up page for backend admin/viewer accounts. Runtime staff login uses the persisted `SiteUser` rows through `/api/auth/login`; the CSV is only an import source.
+Backend user seeding is private and CSV-driven. For local development, use
+`pnpm --filter @faako/stroane-web run db:seed`; it explicitly targets
+`.env.development`. Production seeding requires the intentionally separate
+`pnpm --filter @faako/stroane-web run db:seed:prod` command. For now, seed only
+one `ADMIN` account and one `VIEWER` account, then remove the plaintext CSV from
+local disk after seeding. Do not use the public sign-up page for backend
+admin/viewer accounts. Runtime staff login uses the persisted `SiteUser` rows
+through `/api/auth/login`; the CSV is only an import source.
 
 ## Configuration
 
-Use `apps/stroane-web/.env.example` to create an untracked local env file.
+Use `apps/stroane-web/.env.example` only as a public reference. Local development
+runtime values belong in the ignored `apps/stroane-web/.env.development` file.
+`pnpm run dev:stroane` starts the Stroane frontend and API in development mode,
+so both prefer `.env.development`. Never place real secrets in `.env.example`.
 
 Only browser-safe values should use the `VITE_*` prefix.
 
@@ -260,6 +278,8 @@ pnpm --filter @faako/stroane-web start:api
 
 Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/backend service, Railway Postgres for the database, and Cloudflare for DNS/domain routing. Do not rely on Netlify for the current Stroane deployment.
 
+Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the Railway API origin without relying on a Netlify config artifact.
+
 Cloudflare Pages frontend settings:
 
 - Build command: `pnpm --filter @faako/stroane-web build`
@@ -276,7 +296,7 @@ Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and 
 
 Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The API currently uses `https://stroane-api-production.up.railway.app`; `api.stroanesolutions.com` is optional future cleanup, not a requirement for this phase.
 
-The legacy `apps/stroane-web/netlify.toml` is retained only as a non-primary fallback artifact. The current deployment should not rely on Netlify routing/proxy behavior.
+Stroane no longer includes a Netlify config artifact. Cloudflare Pages uses `public/_headers`, the Railway API URL comes from `VITE_API_BASE_URL`, and local development uses the Vite proxy.
 
 If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.
 

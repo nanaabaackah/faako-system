@@ -16,11 +16,12 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Railway API CORS now allows the live Cloudflare Pages storefront origins by default: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` explicit in Railway for clarity.
 - Prisma schema and migration workflow.
 - Cloudflare Pages frontend deployment pattern with Railway API/backend and Railway Postgres.
+- Cloudflare Pages static response headers are defined in `public/_headers`; Stroane no longer requires a Netlify config artifact for frontend security headers or SPA deployment.
 - Public marketing pages: Home, About, Services, Resources, Contact, Shop, Product Detail.
 - Catalogue seed foundation in `src/data/stroaneCatalogue.json` with typed helpers in `src/data/products.ts`.
 - Normalized catalogue architecture: parent category groups, leaf storefront categories, standalone thermometer products, apron variant-parent products, structured media entries, structured specifications, variant image metadata, and manual-review inventory placeholders.
 - Additive Prisma/Postgres catalogue persistence foundation for `CatalogueCategory`, `CatalogueProduct`, `CatalogueInquiry`, and `BusinessProfileContent`.
-- Read-only catalogue API foundation: `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated. Legacy `/api/categories` and `/api/products` aliases remain available during rollout.
+- Read-only catalogue API foundation: `GET /api/catalogue/categories`, `GET /api/catalogue/products`, and `GET /api/catalogue/products/:slug` prefer persisted `CatalogueCategory`/`CatalogueProduct` rows when available and fall back to the local JSON seed when the database is unavailable or not yet migrated. Persisted categories are returned only when persisted published products also exist so partially seeded databases do not mix stale database categories with seed products. Legacy `/api/categories` and `/api/products` aliases remain available during rollout.
 - API-first catalogue frontend foundation: `/shop`, `/products`, and product detail routes try the backend catalogue APIs first and fall back to the local JSON seed with user-visible fallback notices.
 - Catalogue API diagnostics log the public `VITE_API_BASE_URL`, requested endpoint, HTTP status when available, and safe error messages when the browser falls back to local catalogue data. No secrets or database values are logged.
 - Catalogue browsing UX: category overview, category tabs, search, sort, result counts, responsive product cards, mapped product images, product-detail specifications/use cases, and product-specific inquiry CTAs.
@@ -33,7 +34,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Additive commerce order persistence foundation for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`.
 - Paystack checkout MVP: `POST /api/orders/:orderId/paystack/initialize` initializes Paystack server-side for validated orders, `/checkout/return` displays customer payment status, and `POST /api/paystack/verify` acts as a browser-return status check without finalizing successful payments.
 - Paystack webhook confirmation: `POST /api/paystack/webhook` verifies `x-paystack-signature`, validates charge events, checks reference/amount/currency against the stored order, and is the trusted path for marking an order paid.
-- Lightweight admin order management: unlinked `/admin/orders` uses private backend `SiteUser` auth for order search/list/detail, masked payment references, and admin-only fulfillment/status/note updates.
+- Lightweight internal operations: `/admin/orders` uses private backend `SiteUser` auth for order search/list/detail, masked payment references, and admin-only fulfillment/status/note updates. `/admin/inventory` reuses the same private staff session for stock visibility, supplier review, movement history, and admin-only audited stock movements.
 - Security hardening foundation: Stroane backend now reuses shared `@faako/security` API headers, keeps CORS allowlist/trusted proxy controls, applies route-specific rate limits for auth/inquiry/checkout/Paystack routes, revalidates stock/pricing before payment initialization, and minimizes Paystack provider metadata.
 - Commerce stabilization/Safari UI QA: shared and Stroane form controls now normalize unwanted Safari/iOS native button/input/select/search/date styling while preserving focus states and token-based theming. Checkout, admin orders, auth, error, services, shared app screens, dropdowns, and maintenance pages use `100dvh` fallbacks where safe for mobile browser toolbar behavior.
 - Order notification foundation: after successful webhook-confirmed payment, the backend can send a customer-safe payment-confirmed email through Resend when configured. Shared templates also exist for future order received, processing, completed, payment pending/failed, WhatsApp, and SMS updates.
@@ -55,7 +56,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Product browsing, inquiry conversion, pending-order checkout, and Paystack test-mode checkout refinement; product pages now support backend-backed catalogue reads, seed fallback, mapped imagery, product-specific inquiry forms, and checkout can prepare pending orders plus initialize/verify Paystack payments.
 - Real stock count entry for online purchasing. Current PDF-imported catalogue products default to non-purchasable until Stroane confirms quantities, thresholds, and backorder policy.
-- Inventory and supplier admin/API workflows. The schema foundation exists, but product stock editing, restock entry screens, supplier management screens, and order-to-inventory reservation/deduction are not wired yet.
+- Inventory operations UI is now available at protected route `/admin/inventory` for stock visibility, supplier review, movement history, and audited movement entry against configured inventory items. Initial stock-item setup, supplier editing, product-supplier linking, and order-to-inventory reservation/deduction are not wired into the UI yet.
 - Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
 - Inquiry routing decision. The current API can persist minimal inquiry records, but should not be treated as a CRM or lead-management system yet.
 - Production backend/database deployment on Railway with Railway Postgres.
@@ -65,23 +66,23 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Contact/product inquiry delivery — the frontend can submit through `/api/inquiries` when the backend/database is available and falls back to direct email if unavailable.
 - Order/payment operations after pending order creation. Checkout can prepare a pending order, initialize Paystack, process signed Paystack webhooks, verify Paystack transactions server-side before final paid status, verify Paystack return references for customer messaging only, send payment-confirmed customer email when Resend is configured, and provide a private lightweight admin order screen for fulfillment status/notes. Fulfillment automation, staff notifications, and broader operational order management remain future backend work.
 - Front-end-only customer sign-in/sign-up pages have been added and pass core checks, but are not server-enforced customer account flows yet.
-- `/signin` can also submit private backend `SiteUser` staff credentials and route valid admin/viewer users to `/admin/orders`. Private backend access should remain seeded as one admin and one viewer account until a broader admin account model is approved.
+- `/signin` can also submit private backend `SiteUser` staff credentials and route valid admin/viewer users back to the intended `/admin/...` screen. Private backend access should remain seeded as one admin and one viewer account until a broader admin account model is approved.
 
 ## Experimental modules/features
 
 - Any new purchasing, checkout, inventory, payment, or account features until validated with the client.
-- Product admin/category admin/inquiry lead views until scope and access control are approved. The current admin surface is limited to protected order review and lightweight fulfillment status/notes.
+- Product admin/category admin/inquiry lead views until scope and access control are approved. The current internal surface is limited to protected order review, lightweight fulfillment status/notes, inventory visibility, supplier review, and audited inventory movement entry.
 - Inquiry notifications, staff order alerts, WhatsApp/SMS order messages, and non-payment-confirmed order emails until provider secrets, consent, retry rules, idempotency, and data retention are approved.
 - New integrations or backend hosting changes until proven in a production-like environment.
 - Strict webhook/notification idempotency. Current MVP uses signed webhook verification plus an order-level sent timestamp, but a full payment event log and notification audit trail are still pending.
-- Railway/provider-level rate limiting, Railway Postgres least-privilege access, backend-enforced admin auth, and centralized redacted logging are still pending production-hardening items.
+- Railway/provider-level rate limiting, Railway Postgres least-privilege access, production `SiteUser` bootstrap/auth deployment verification, and centralized redacted logging are still pending production-hardening items.
 - Device/browser acceptance testing against the deployed Cloudflare Pages/Railway API pairing is still pending after the Safari/native-control CSS cleanup. Local build, lint, type, Prisma, backend tests, and security gates pass.
 
 ## High-risk areas
 
 - Purchasing, checkout, order capture, payment-adjacent, and customer-facing flows.
 - Product pricing accuracy, especially quote-only poster/apron items and any PDF content not fully extracted.
-- Product stock accuracy. Online purchasing should stay disabled for products with unknown stock; backend validation must remain in place until a lightweight stock editor/admin flow exists.
+- Product stock accuracy. Online purchasing should stay disabled for products with unknown stock; backend validation must remain in place while confirmed counts are entered through the protected inventory setup API and audited movement screen.
 - Product variant stock accuracy. Apron colour/style variants now have variant-level stock placeholders, but checkout remains product-level and non-purchasable until a safe variant checkout/admin stock workflow is approved.
 - Inquiry handling because it persists customer contact details once the migration is deployed.
 - Front-end-only account/session state in localStorage; it must not protect sensitive workflows without backend validation.

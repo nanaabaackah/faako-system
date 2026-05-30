@@ -6,7 +6,7 @@ Track Stroane-specific security posture, hardening work, and production-readines
 
 ## Current Security Posture
 
-Date reviewed: 2026-05-21
+Date reviewed: 2026-05-30
 
 Stroane Web is now a customer-facing commerce app with product, inquiry, order, payment, and notification data. Treat checkout, product availability, customer contact details, database access, payment references, and deployment configuration as production-sensitive.
 
@@ -19,7 +19,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Current Backend Protections
 
 - Express disables `x-powered-by`.
-- CORS is allowlist-based and fails closed in production if `CORS_ORIGINS` is unset.
+- CORS is allowlist-based. Production defaults include the Stroane apex and `www` domains, and Railway should still set `CORS_ORIGINS` explicitly.
 - `TRUST_PROXY_HOPS` must be explicit before Express trusts proxy-derived client IPs.
 - JSON request bodies are limited to `1mb`.
 - Paystack webhook raw-body capture is limited to `/api/paystack/webhook`.
@@ -47,7 +47,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Product records support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`.
 - Current PDF-imported products default to unknown stock and non-purchasable until real stock counts are entered.
 - Frontend availability messaging is advisory. Backend order and payment preparation validation remains the enforcement point.
-- This is storefront stock gating only; no inventory deduction, warehouse reservation, or inventory audit trail exists yet.
+- This is storefront stock gating plus a protected manual operations foundation. Inventory movement audit entries exist for staff adjustments, but automatic order deduction and warehouse reservation are intentionally not wired.
 
 ## Database Access Notes
 
@@ -73,6 +73,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Deployment Security Notes
 
 - Keep Cloudflare Pages for frontend hosting, Railway for backend/rate-limit layer, and Railway Postgres for the production database. Cloudflare manages DNS/domain routing; keep registrar/email services separate from application database duties.
+- Cloudflare Pages static responses use `apps/stroane-web/public/_headers`; Netlify configuration is not required.
 - Keep `VITE_*` values browser-safe only. `VITE_API_BASE_URL` is acceptable; secrets, database URLs, provider keys, session keys, and webhook secrets are not. `VITE_BACKEND_BASE_URL` should be treated as a legacy fallback only.
 - Set `CORS_ORIGINS` to the exact deployed frontend origin.
 - Set `PAYSTACK_CALLBACK_URL` to the public `/checkout/return` URL for the deployed frontend.

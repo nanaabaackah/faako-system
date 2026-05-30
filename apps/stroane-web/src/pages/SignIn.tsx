@@ -44,7 +44,9 @@ const SignIn: React.FC = () => {
       try {
         const session = await adminOrderApi.login(identifier, password);
         storeAdminSession(session);
-        navigate("/admin/orders", { replace: true });
+        navigate(redirectTo.startsWith("/admin/") ? redirectTo : "/admin/orders", {
+          replace: true,
+        });
       } catch {
         setError("No account matched those credentials.");
         setLoading(false);

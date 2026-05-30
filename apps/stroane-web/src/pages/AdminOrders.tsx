@@ -8,6 +8,7 @@ import {
   HiOutlineSearch,
 } from "react-icons/hi";
 import Layout from "../components/Layout";
+import AdminSectionNav from "../components/AdminSectionNav";
 import {
   adminOrderApi,
   clearAdminSession,
@@ -322,6 +323,8 @@ const AdminOrders: React.FC = () => {
               </button>
             </div>
           </header>
+
+          <AdminSectionNav />
 
           <div className="admin-orders-toolbar">
             <label className="admin-orders-search">

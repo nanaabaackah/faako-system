@@ -1,12 +1,5 @@
 import { formatCurrency } from "../data/products";
-
-const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_BASE_URL ||
-  ""
-).replace(/\/$/, "");
-
-const apiPath = (path: string) => `${BASE_URL}${path}`;
+import { apiPath } from "./config";
 
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
   const body = await response.json().catch(() => null);

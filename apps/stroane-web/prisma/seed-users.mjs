@@ -20,7 +20,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(__dirname, "..");
 const CSV_PATH = path.join(__dirname, "seeds", "users.csv");
+
+const envName = String(process.env.APP_ENV || process.env.NODE_ENV || "development")
+  .trim()
+  .toLowerCase();
+dotenv.config({ path: path.join(appRoot, `.env.${envName}`), override: true });
 
 const SCRYPT_KEYLEN = 64;
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
@@ -43,9 +49,13 @@ const parseCSV = (raw) => {
 
 const { PrismaClient } = prismaPkg;
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString =
+  envName === "production"
+    ? process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL
+    : process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL;
+
 if (!connectionString) {
-  console.error("DATABASE_URL is not set. Make sure .env is loaded.");
+  console.error("Missing DATABASE_URL_DEVELOPMENT, DATABASE_URL_PRODUCTION, or DATABASE_URL.");
   process.exit(1);
 }
 
@@ -54,6 +64,8 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const run = async () => {
+  console.log(`Target environment: ${envName}`);
+
   if (!fs.existsSync(CSV_PATH)) {
     console.error(`CSV not found at ${CSV_PATH}`);
     process.exit(1);

@@ -1,18 +1,9 @@
 import type { CatalogueCategory, Product } from "../types/index";
-
-const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_BASE_URL ||
-  ""
-).replace(/\/$/, "");
+import { API_BASE_URL, apiPath, describeApiBaseUrl } from "./config";
 const CATALOGUE_API_PATH = "/api/catalogue";
 
-const apiPath = (path: string) => `${BASE_URL}${path}`;
-
-const describeApiBaseUrl = () => BASE_URL || "(same-origin fallback)";
-
-if (BASE_URL) {
-  console.info("Stroane API base URL configured", { baseUrl: BASE_URL });
+if (API_BASE_URL) {
+  console.info("Stroane API base URL configured", { baseUrl: API_BASE_URL });
 } else {
   console.warn("Stroane API base URL is not configured; catalogue requests will use same-origin API paths.");
 }

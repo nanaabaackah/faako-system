@@ -22,10 +22,12 @@
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
     "start:api": "APP_ENV=production node backend/server.js",
-    "db:seed": "node prisma/seed-users.mjs",
+    "assets:cutout": "node scripts/remove-white-background.mjs",
+    "db:seed": "APP_ENV=development node prisma/seed-users.mjs",
+    "db:seed:prod": "APP_ENV=production node prisma/seed-users.mjs",
     "db:seed:catalogue": "node prisma/seed-catalogue.mjs",
     "server:with-migrate": "pnpm run db:generate && pnpm run migrate:deploy && node backend/server.js",
-    "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); const staticPagesInstall = Boolean(process.env.NETLIFY || process.env.CF_PAGES); if (!staticPagesInstall && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
+    "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); const staticPagesInstall = Boolean(process.env.CF_PAGES); if (!staticPagesInstall && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },
   "dependencies": {
     "@faako/core": "workspace:*",
@@ -65,6 +67,7 @@
     "globals": "^16.0.0",
     "postcss": "^8.5.5",
     "prisma": "^7.2.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.59.3",

@@ -1,11 +1,6 @@
-const BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_BASE_URL ||
-  ""
-).replace(/\/$/, "");
-const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
+import { apiPath } from "./config";
 
-const apiPath = (path: string) => `${BASE_URL}${path}`;
+const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
 
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
   const body = await response.json().catch(() => null);

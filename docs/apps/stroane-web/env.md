@@ -1,5 +1,28 @@
 # Stroane Environment Variables
 
+## Local Development
+
+Use the ignored `apps/stroane-web/.env.development` file for local frontend and
+API values. `apps/stroane-web/.env.example` is a public reference only and is
+never a runtime configuration file.
+
+From the monorepo root, `pnpm run dev:stroane` starts both the Vite frontend and
+the API backend in development mode. Vite loads `.env.development`, and the API
+loads `.env.development` with development values taking precedence over any
+generic `.env` fallback. Prisma commands with `APP_ENV=development` follow the
+same precedence.
+
+For the standard local setup, leave `VITE_API_BASE_URL=` blank in
+`.env.development`. Vite proxies same-origin `/api` requests to the local API on
+`http://localhost:3000`. Do not append `/api` to configured base URLs; the
+frontend helpers append route paths themselves.
+
+Private user seeding follows the same separation:
+
+- `pnpm --filter @faako/stroane-web run db:seed` targets `.env.development`.
+- `pnpm --filter @faako/stroane-web run db:seed:prod` targets production and
+  must be run only after explicitly verifying the intended database.
+
 ## Frontend
 
 - `VITE_API_BASE_URL`: primary browser-safe Stroane API base URL. Leave blank when using same-origin API routing or the local catalogue fallback.
@@ -27,10 +50,15 @@ Production Railway API service:
 - `DATABASE_URL=<Railway Postgres connection string>`
 - `NODE_ENV=production`
 - `APP_ENV=production`
+- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com`
+- `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
+- `APP_AUTH_SECRET=<rotated backend-only signing secret>`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
 
 Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
+
+Use `APP_AUTH_SECRET` for new Railway deployments. `STROANE_AUTH_SECRET` remains a compatibility fallback in the current backend only; rotate any secret that has been pasted into chat, screenshots, tickets, or logs.
 
 ## Database
 
@@ -39,6 +67,8 @@ Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com`
 - `DATABASE_URL_PRODUCTION`: optional production database URL.
 
 Use Railway Postgres for production. Prefer separate migration/runtime credentials where Railway setup allows it.
+
+The Railway API requires a database URL at startup. If no production connection string is configured, it exits with a safe configuration error instead of attempting to run without a Prisma Postgres adapter.
 
 ## Payment And Email
 
