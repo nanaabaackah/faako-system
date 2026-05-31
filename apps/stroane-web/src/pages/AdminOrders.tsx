@@ -14,6 +14,7 @@ import {
 import { useAdminPortal } from "../context/AdminPortalContext";
 import { formatCurrency } from "../data/products";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { portalUrl } from "../config/appSurface";
 import "../styles/pages/AdminOrders.css";
 
 const ORDER_STATUS_OPTIONS = [
@@ -104,7 +105,7 @@ const AdminOrders: React.FC = () => {
   useSEOMeta({
     title: "Admin orders | Stroane",
     description: "Private Stroane order management.",
-    canonical: "https://stroanesolutions.com/admin/orders",
+    canonical: portalUrl("/admin/orders"),
     noIndex: true,
   });
 

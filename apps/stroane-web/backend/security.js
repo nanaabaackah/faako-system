@@ -5,7 +5,11 @@ const normalizePositiveInteger = (value) => {
   const number = Number.parseInt(String(value || ""), 10);
   return Number.isInteger(number) && number > 0 ? number : 0;
 };
-const DEFAULT_PRODUCTION_ORIGINS = ["https://stroanesolutions.com", "https://www.stroanesolutions.com"];
+const DEFAULT_PRODUCTION_ORIGINS = [
+  "https://stroanesolutions.com",
+  "https://www.stroanesolutions.com",
+  "https://portal.stroanesolutions.com",
+];
 const DEFAULT_DEVELOPMENT_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:5175",

@@ -24,6 +24,19 @@ Next step:
 
 ## Entries
 
+### Stroane portal subdomain separation
+
+Date: 2026-05-31
+Change name: Stroane portal subdomain separation
+Apps/packages affected: Stroane Web, platform documentation
+What changed: Split the Stroane frontend into lazy storefront and portal surfaces from the same workspace. `stroanesolutions.com` remains public-facing, while `portal.stroanesolutions.com` owns `/login` and protected `/admin/*` operations. Railway CORS includes the portal origin. Portal bearer auth remains origin-scoped and no parent-domain cookie was introduced.
+Why it changed: Align Stroane with the Faako/REEBS pattern of keeping client storefronts separate from operational portals without destabilizing existing inventory, supplier, catalogue fallback, or protected API workflows.
+Data impact: None.
+Security impact: Positive hostname separation and explicit CORS expansion for the private portal origin.
+Testing done: See Stroane progress log and final verification summary.
+Rollback notes: Revert the Stroane surface router, portal URL handoff, CORS origin addition, and documentation.
+Next step: Provision the Cloudflare Pages portal project and hosted portal DNS, then run login/logout and protected-route acceptance checks.
+
 ### Faako client-app boundary audit and Dev ERP operational stabilization
 
 Date: 2026-05-31

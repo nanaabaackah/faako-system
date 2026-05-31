@@ -14,7 +14,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
 - The API server listens on `process.env.PORT` with a local fallback, and `/health` returns a database-independent JSON response for Railway health checks.
 - Public storefront, future customer account, and private staff portal routes are now separate. See `docs/apps/stroane-web/portal-architecture.md`.
-- Staff authentication belongs at `/admin/signin`; public `/signin` is customer-only. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary.
+- Staff authentication belongs at `https://portal.stroanesolutions.com/login`; public sign-in actions and legacy apex auth/admin entries hand off to the portal hostname. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary.
 - Stroane Vite dedupes `react-router-dom` alongside React so shared `@faako/ui` ERP navigation links resolve against the app's router context.
 - `/admin/products` now reuses shared `@faako/ui` table, field, select, badge, action, and drawer primitives. Shared ERP visible labels are associated with their native controls for accessible keyboard, Safari/mobile, and browser-automation behavior.
 - Product media edits are URL/path based for now and intentionally accept local `/imgs/products/` paths only. Do not add direct upload or external media-provider credentials to the browser bundle.
@@ -176,7 +176,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 ### Lightweight admin order management - 2026-05-21
 
 - `/admin/operations` is a private staff screen inside the shared ERP shell. The previous `/admin/orders` route remains a compatibility alias. Staff login uses backend `SiteUser` auth via `/api/auth/login`.
-- `/admin/signin` is the dedicated staff entrypoint. Public `/signin` remains customer-only and no longer attempts backend `SiteUser` login.
+- `/login` on `portal.stroanesolutions.com` is the dedicated staff entrypoint. The old `/admin/signin` route redirects there for compatibility. Staff bearer tokens remain portal-origin `sessionStorage` values and are not shared with the storefront.
 - `GET /api/admin/orders` and `GET /api/admin/orders/:orderId` require backend bearer auth and allow `ADMIN` or `VIEWER` roles. `PATCH /api/admin/orders/:orderId/status` requires `ADMIN`.
 - Order list/detail responses include customer contact data because the route is protected, but Paystack references are masked and raw payment metadata/provider payloads are not returned.
 - Admin status actions are intentionally limited to `paid`, `processing`, `ready`, `out_for_delivery`, `completed`, and `cancelled`.

@@ -14,8 +14,9 @@
 
 - Verify login, session boot, logout, CSRF, roles/capabilities, and organization scoping.
 - Confirm frontend route visibility matches backend enforcement.
-- For split-hosted production frontend/API deployments, set `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and an exact HTTPS frontend origin in `CORS_ORIGINS`.
-- Confirm the frontend `VITE_API_BASE` points to the deployed API origin, then smoke-test login followed by an authenticated module request.
+- For the current direct Railway API deployment, set `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and an exact HTTPS frontend origin in `CORS_ORIGINS`.
+- Confirm frontend `VITE_API_BASE` points to the deployed Railway API origin, then smoke-test login, refresh after the access token expires, browser reopen recovery, and an authenticated module request.
+- A same-site Railway custom API hostname such as `api.dev.example.com` remains an optional hardening step if browser third-party-cookie restrictions affect the direct Railway setup. Use `AUTH_COOKIE_SAME_SITE=lax` after adopting that hostname.
 
 ## API permissions
 
@@ -50,11 +51,12 @@
 - Keep only browser-safe values in `VITE_*`.
 - Confirm email workflow and AI/productivity endpoint variables point to the intended environment.
 
-## Netlify/Railway deployment
+## Cloudflare Pages/Railway deployment
 
-- Confirm Netlify frontend build and publish directory for `apps/dev-erp`.
+- Confirm Cloudflare Pages frontend build and `apps/dev-erp/dist` publish directory.
+- Do not rely on `apps/dev-erp/netlify.toml` redirects in Cloudflare Pages. Configure frontend `VITE_API_BASE` explicitly.
 - Confirm Railway backend start command and repo-root `nixpacks.toml` behavior when deploying backend.
-- Run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/dev-erp`.
+- If the legacy Netlify frontend deploy is used, run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/dev-erp`.
 
 ## Rollback plan
 

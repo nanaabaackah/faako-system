@@ -2,6 +2,7 @@ export const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export const CSRF_EXCLUDED_PATHS = [
   "/auth/login",
   "/auth/logout",
+  "/auth/refresh",
   "/auth/forgot-password",
   "/public/",
   "/webhooks/",

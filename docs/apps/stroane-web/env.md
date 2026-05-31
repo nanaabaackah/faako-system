@@ -27,12 +27,26 @@ Private user seeding follows the same separation:
 
 - `VITE_API_BASE_URL`: primary browser-safe Stroane API base URL. Leave blank when using same-origin API routing or the local catalogue fallback.
 - `VITE_BACKEND_BASE_URL`: legacy browser-safe API base URL fallback. Keep blank for new deployments unless an older build still depends on it.
+- `VITE_APP_SURFACE`: `storefront` or `portal` in Cloudflare Pages. Leave blank locally to expose both route areas for development and Playwright compatibility.
+- `VITE_STOREFRONT_BASE_URL`: public storefront origin.
+- `VITE_PORTAL_BASE_URL`: private operational portal origin.
 
-Production Cloudflare Pages frontend:
+Production Cloudflare Pages storefront:
 
 - `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_APP_SURFACE=storefront`
+- `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
-`VITE_API_BASE_URL` is compiled into the Cloudflare Pages bundle. If it is added or changed, redeploy the frontend before expecting `https://stroanesolutions.com` to call the Railway API.
+Production Cloudflare Pages operational portal:
+
+- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_APP_SURFACE=portal`
+- `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
+
+`VITE_*` values are compiled into each Cloudflare Pages bundle. Redeploy the
+affected project after any change.
 
 Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service-role keys, or webhook signing values in `VITE_*` variables.
 
@@ -50,13 +64,18 @@ Production Railway API service:
 - `DATABASE_URL=<Railway Postgres connection string>`
 - `NODE_ENV=production`
 - `APP_ENV=production`
-- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com`
+- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com`
 - `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
 - `APP_AUTH_SECRET=<rotated backend-only signing secret>`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
 
-Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
+Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
+
+Current staff authentication stores a short-lived bearer token in
+portal-origin `sessionStorage`. There is no Stroane parent-domain auth cookie to
+configure. If cookie sessions are introduced later, prefer secure, HTTP-only,
+host-only cookies and complete a CSRF/subdomain-risk review first.
 
 Use `APP_AUTH_SECRET` for new Railway deployments. `STROANE_AUTH_SECRET` remains a compatibility fallback in the current backend only; rotate any secret that has been pasted into chat, screenshots, tickets, or logs.
 

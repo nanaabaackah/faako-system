@@ -34,6 +34,7 @@ import {
 } from "../api/adminProducts";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { portalUrl } from "../config/appSurface";
 import {
   PRODUCT_IMAGE_FALLBACK,
   normalizeProductImagePath,
@@ -165,7 +166,7 @@ const AdminProducts: React.FC = () => {
   useSEOMeta({
     title: "Product operations | Stroane",
     description: "Private Stroane product and media operations.",
-    canonical: "https://stroanesolutions.com/admin/products",
+    canonical: portalUrl("/admin/products"),
     noIndex: true,
   });
 

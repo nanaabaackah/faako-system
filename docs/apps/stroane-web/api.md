@@ -79,7 +79,7 @@ WhatsApp Cloud API, Twilio, or another provider.
 
 - Public storefront routes, including `/catalogue` and `/products/:slug`, render outside the ERP shell.
 - Public customer placeholders live at `/account`, `/orders`, and `/quotes`.
-- Staff authenticate at `/admin/signin`.
+- Staff authenticate at `https://portal.stroanesolutions.com/login`.
 - Protected operations routes render inside the shared ERP shell under `/admin/*`.
 - `/admin/operations` is the primary order-operations route. `/admin/orders` remains a compatibility alias.
 
@@ -92,7 +92,7 @@ Frontend route guards are navigation boundaries only. Protected `/api/admin/*` e
 - Railway API pre-deploy migration command: `pnpm --filter @faako/stroane-web run db:deploy:prod`
 - Railway API start command: `pnpm --filter @faako/stroane-web start:api`
 - Cloudflare Pages public API base: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
-- Browser CORS origins: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, approved local development origins, and Cloudflare Pages preview domains ending in `.pages.dev`.
+- Browser CORS origins: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, approved local development origins, and Cloudflare Pages preview domains ending in `.pages.dev`.
 
 Cloudflare Pages is the frontend host. Railway hosts the API and Postgres database. Netlify configuration is not required.
 

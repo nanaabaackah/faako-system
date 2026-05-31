@@ -7,13 +7,14 @@ import {
 } from "react-icons/hi";
 import { Link } from "react-router-dom";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { portalUrl } from "../config/appSurface";
 import "../styles/pages/AdminPortal.css";
 
 const AdminPortalHome: React.FC = () => {
   useSEOMeta({
     title: "Operations portal | Stroane",
     description: "Private Stroane operations overview.",
-    canonical: "https://stroanesolutions.com/admin",
+    canonical: portalUrl("/admin"),
     noIndex: true,
   });
 

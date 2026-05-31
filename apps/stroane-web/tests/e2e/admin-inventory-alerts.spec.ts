@@ -94,7 +94,7 @@ const mockInventoryApi = async (page: Page) => {
 
 test("inventory admin route remains protected", async ({ page }) => {
   await page.goto("/admin/inventory", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/admin\/signin$/);
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("inventory dashboard shows owner alert summary and restock recommendations", async ({ page }) => {

@@ -13,7 +13,7 @@ Fully live system with real operational data. Treat all changes as production-se
 - Shared ERP shell, sidebar, topbar, and mobile-safe layout conventions.
 - Backend composition through focused route slices.
 - Cookie-based session boot from `/api/auth/session`.
-- Secure cross-site cookie support for separately hosted frontend/API deployments, with CSRF token handoff through authenticated responses and server-side cookie/header validation.
+- Secure cookie-session support for separately hosted frontend/API deployments, including the current direct Railway API hostname. A same-site custom API hostname remains an optional browser-compatibility hardening step. CSRF token handoff remains in authenticated responses, unsafe business writes keep server-side cookie/header validation, and refresh-cookie recovery supports reopened sessions.
 - Capability middleware, organization scoping, and shared API client behavior.
 - Additive invoice `paidAmount`, derived balance-due, and manual partial-payment presentation.
 

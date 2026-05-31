@@ -1,8 +1,9 @@
 import React, { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import useSEOMeta from "../hooks/useSEOMeta";
 import { useAuth } from "../context/AuthContext";
+import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/pages/Auth.css";
 
 const SignUp: React.FC = () => {
@@ -126,7 +127,7 @@ const SignUp: React.FC = () => {
           </form>
 
             <p className="auth-card__alt">
-              Already have an account? <Link to="/signin">Sign in</Link>
+              Already have an account? <a href={PORTAL_LOGIN_URL}>Sign in</a>
             </p>
           </div>
         </div>

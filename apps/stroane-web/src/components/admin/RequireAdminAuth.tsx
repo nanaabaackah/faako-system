@@ -7,7 +7,7 @@ const RequireAdminAuth: React.FC = () => {
   const location = useLocation();
 
   if (!session) {
-    return <Navigate to="/admin/signin" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;

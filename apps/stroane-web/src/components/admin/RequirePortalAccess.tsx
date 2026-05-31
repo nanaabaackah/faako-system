@@ -8,7 +8,7 @@ const RequirePortalAccess: React.FC = () => {
   const { session } = useAdminPortal();
 
   if (!session || !PORTAL_ROLES.has(session.role)) {
-    return <Navigate to="/admin/signin" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

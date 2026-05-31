@@ -50,6 +50,24 @@ test("csrf middleware skips excluded auth paths", () => {
   assert.equal(nextCalled, true);
 });
 
+test("csrf middleware allows refresh recovery without a browser-readable csrf token", () => {
+  const middleware = createCsrfMiddleware({
+    getCookieValue,
+    authCookieName: "auth",
+    csrfCookieName: "csrf",
+    timingSafeEqual,
+  });
+  let nextCalled = false;
+  middleware(
+    { method: "POST", path: "/auth/refresh", cookies: { auth: "expired-cookie" }, header: () => "" },
+    createResponse(),
+    () => {
+      nextCalled = true;
+    }
+  );
+  assert.equal(nextCalled, true);
+});
+
 test("csrf middleware blocks unsafe cookie-authenticated requests without matching token", () => {
   const middleware = createCsrfMiddleware({
     getCookieValue,

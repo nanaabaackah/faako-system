@@ -13,6 +13,8 @@
 
 - Verify any customer, admin, or staff access paths affected by the change.
 - Confirm access control is enforced by the backend if protected flows exist.
+- Confirm `https://portal.stroanesolutions.com/login` signs in with a private staff account, protected routes remain portal-only, and logout returns to `/login`.
+- Confirm staff tokens remain scoped to portal-origin `sessionStorage`; do not add a parent-domain auth cookie without dedicated review.
 
 ## API permissions
 
@@ -45,13 +47,17 @@
 
 ## Cloudflare Pages, Railway API, and Cloudflare DNS
 
-- Confirm Cloudflare Pages build command: `pnpm --filter @faako/stroane-web build`.
-- Confirm Cloudflare Pages output directory: `apps/stroane-web/dist`.
+- Confirm both Cloudflare Pages projects use build command: `pnpm --filter @faako/stroane-web build`.
+- Confirm both Cloudflare Pages projects use output directory: `apps/stroane-web/dist`.
+- Confirm storefront Pages config uses `VITE_APP_SURFACE=storefront`.
+- Confirm portal Pages config uses `VITE_APP_SURFACE=portal`.
 - Confirm Cloudflare Pages output contains `_headers` from `apps/stroane-web/public/_headers`.
 - Confirm Railway API build command: `pnpm --filter @faako/stroane-web exec prisma generate`.
 - Confirm Railway API pre-deploy command: `pnpm --filter @faako/stroane-web run db:deploy:prod`.
 - Confirm Railway API start command: `pnpm --filter @faako/stroane-web start:api`.
-- Confirm Cloudflare routes `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend.
+- Confirm Cloudflare routes `stroanesolutions.com` and `www.stroanesolutions.com` to the storefront Pages project.
+- Confirm Cloudflare routes `portal.stroanesolutions.com` to the operational portal Pages project.
+- Confirm Railway `CORS_ORIGINS` includes the apex, `www`, and portal origins.
 - Confirm the API uses `https://stroane-api-production.up.railway.app` unless a future `api.stroanesolutions.com` cleanup is explicitly approved.
 
 ## Rollback plan
@@ -63,6 +69,8 @@
 ## Manual testing
 
 - Test homepage, product browsing, purchasing flow, API calls, and error states.
+- Test public sign-in links hand off to `https://portal.stroanesolutions.com/login`.
+- Test portal login, protected inventory/products routes, and logout.
 - Test from the deployed domain with the deployed backend.
 - Check responsive behavior for core commerce pages.
 

@@ -9,19 +9,36 @@
 
 Do not assume Netlify for the current Stroane deployment. Railway is for the Stroane API/backend and database only.
 
-## Cloudflare Pages Frontend
+## Cloudflare Pages Frontends
 
-Run the build command from the monorepo root.
+Deploy two Cloudflare Pages projects from the same workspace so public and
+operational hostnames have explicit surfaces. Run the build command from the
+monorepo root for both projects.
 
 - Build command: `pnpm --filter @faako/stroane-web build`
 - Output directory: `apps/stroane-web/dist`
 - Static response headers: `apps/stroane-web/public/_headers`
 
-Frontend environment variables:
+Public storefront project environment variables:
 
 - `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_APP_SURFACE=storefront`
+- `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
+
+Operational portal project environment variables:
+
+- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_APP_SURFACE=portal`
+- `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
 Cloudflare Pages bakes `VITE_*` values into the browser bundle at build time. After adding or changing `VITE_API_BASE_URL`, trigger a fresh Cloudflare Pages deploy before testing the live site.
+
+The storefront surface lazy-loads portal code only in localhost compatibility
+mode. Production storefront browsers do not fetch ERP shell or admin workflow
+chunks. The portal surface loads the private operational shell without mounting
+storefront cart/customer providers.
 
 Do not set `DATABASE_URL`, Paystack secrets, Resend keys, auth secrets, or webhook secrets in Cloudflare Pages.
 
@@ -42,7 +59,7 @@ API environment variables:
 - `NODE_ENV=production`
 - `APP_ENV=production`
 - `PORT=<provided by Railway>`
-- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com`
+- `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com`
 - `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
 - `APP_AUTH_SECRET=<server-only secret>`
 
@@ -62,7 +79,12 @@ details or cron secrets to Cloudflare Pages.
 
 Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it. `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend.
 
-The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
+The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
+
+Current staff auth uses a portal-origin `sessionStorage` bearer token. It does
+not need a shared `.stroanesolutions.com` cookie. If a future phase replaces
+bearer auth with cookies, prefer secure, HTTP-only, host-only cookies and review
+CSRF/subdomain risks before adding any parent-domain cookie.
 
 Run the production migration command as a separate Railway pre-deploy/release step. Do not combine schema migration with the long-running start command. The existing migration set is forward-only and additive; verify the target Railway Postgres database before running it.
 
@@ -74,6 +96,7 @@ Current recommended DNS setup:
 
 - `stroanesolutions.com` -> Cloudflare Pages frontend
 - `www.stroanesolutions.com` -> Cloudflare Pages frontend
+- `portal.stroanesolutions.com` -> Cloudflare Pages operational portal project
 
 The API currently uses the Railway public URL:
 
@@ -108,11 +131,11 @@ into chat, screenshots, tickets, or logs.
 
 After the API routes pass, authenticate with a private backend `SiteUser` account and smoke test the protected frontend route:
 
-- `https://stroanesolutions.com/admin/signin`
-- `https://stroanesolutions.com/admin/inventory`
-- `https://stroanesolutions.com/admin/suppliers`
-- `https://stroanesolutions.com/admin/products`
-- `https://stroanesolutions.com/admin/operations`
+- `https://portal.stroanesolutions.com/login`
+- `https://portal.stroanesolutions.com/admin/inventory`
+- `https://portal.stroanesolutions.com/admin/suppliers`
+- `https://portal.stroanesolutions.com/admin/products`
+- `https://portal.stroanesolutions.com/admin/operations`
 
 Confirm an `ADMIN` can record a test adjustment against a configured inventory item, confirm its before/after quantity in the activity view, edit one non-critical product media path/publishing draft, and confirm a `VIEWER` can read the dashboards without seeing write actions.
 
@@ -132,8 +155,8 @@ The catalogue endpoint now keeps category and product sources coherent during ro
 3. Run `pnpm --filter @faako/stroane-web run db:deploy:prod`.
 4. Start or redeploy the Railway API with `pnpm --filter @faako/stroane-web start:api`.
 5. Confirm `/health`, catalogue endpoints, and unauthenticated rejection on `/api/admin/inventory` and `/api/admin/products`.
-6. Set `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app` in Cloudflare Pages and trigger a fresh Pages deploy.
-7. Confirm `/shop`, `/catalogue`, one product detail route, public customer `/signin`, private staff `/admin/signin`, authenticated `/admin/inventory`, and authenticated `/admin/products`.
+6. Deploy the storefront Cloudflare Pages project with `VITE_APP_SURFACE=storefront`, bind `stroanesolutions.com` and `www.stroanesolutions.com`, and confirm the public sign-in link targets the portal host.
+7. Deploy the portal Cloudflare Pages project with `VITE_APP_SURFACE=portal`, bind `portal.stroanesolutions.com`, then confirm `/login`, authenticated `/admin/inventory`, authenticated `/admin/products`, and logout back to `/login`.
 8. Run one authenticated manual alert check, verify cooldown deduplication on an immediate repeat, and confirm the scheduler route rejects missing or incorrect bearer secrets.
 
 If persisted catalogue rows should replace seed fallback, run the catalogue seed only after reviewing the target database:

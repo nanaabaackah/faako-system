@@ -11,6 +11,7 @@ import {
 } from "react-icons/hi";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -162,13 +163,13 @@ const Header: React.FC = () => {
                 <HiOutlineLogout size={18} aria-hidden="true" />
               </button>
             ) : (
-              <Link
-                to="/signin"
+              <a
+                href={PORTAL_LOGIN_URL}
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label="Sign in"
               >
                 <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
-              </Link>
+              </a>
             )}
             <button
               className={`page-header__menu-btn${isDark ? " page-header__menu-btn--dark" : ""}`}
@@ -264,14 +265,14 @@ const Header: React.FC = () => {
                     <span>Sign out ({user.name})</span>
                   </button>
                 ) : (
-                  <Link
-                    to="/signin"
+                  <a
+                    href={PORTAL_LOGIN_URL}
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
                     <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
                     <span>Sign in</span>
-                  </Link>
+                  </a>
                 )}
                 <Link
                   to="/contact"

@@ -9,6 +9,7 @@ import {
   HiOutlineLogout,
 } from "react-icons/hi";
 import { useAuth } from "../context/AuthContext";
+import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -129,9 +130,9 @@ const FloatingHeader: React.FC = () => {
               <HiOutlineLogout size={18} aria-hidden="true" />
             </button>
           ) : (
-            <Link to="/signin" className="nav-search-btn" aria-label="Sign in">
+            <a href={PORTAL_LOGIN_URL} className="nav-search-btn" aria-label="Sign in">
               <HiOutlineUser size={20} aria-hidden="true" />
-            </Link>
+            </a>
           )}
           <button
             className="hero-header__menu-btn"
@@ -183,7 +184,7 @@ const FloatingHeader: React.FC = () => {
                   type="button"
                   className="nav-search-btn"
                   aria-label="Sign in"
-                  onClick={() => navigate("/signin")}
+                  onClick={() => window.location.assign(PORTAL_LOGIN_URL)}
                 >
                   <HiOutlineUser size={18} aria-hidden="true" />
                 </button>
@@ -233,13 +234,13 @@ const FloatingHeader: React.FC = () => {
                       <HiOutlineLogout size={18} aria-hidden="true" />
                     </button>
                   ) : (
-                    <Link
-                      to="/signin"
+                    <a
+                      href={PORTAL_LOGIN_URL}
                       className="nav-search-btn nav-search-btn--dark"
                       aria-label="Sign in"
                     >
                       <HiOutlineUser size={18} aria-hidden="true" />
-                    </Link>
+                    </a>
                   )}
                 </li>
               </ul>
@@ -273,13 +274,13 @@ const FloatingHeader: React.FC = () => {
                   <HiOutlineLogout size={18} aria-hidden="true" />
                 </button>
               ) : (
-                <Link
-                  to="/signin"
+                <a
+                  href={PORTAL_LOGIN_URL}
                   className="nav-search-btn nav-search-btn--dark"
                   aria-label="Sign in"
                 >
                   <HiOutlineUser size={18} aria-hidden="true" />
-                </Link>
+                </a>
               )}
               <button
                 className="page-header__menu-btn page-header__menu-btn--dark"
@@ -367,14 +368,14 @@ const FloatingHeader: React.FC = () => {
                     <span>Sign out ({user.name})</span>
                   </button>
                 ) : (
-                  <Link
-                    to="/signin"
+                  <a
+                    href={PORTAL_LOGIN_URL}
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
                     <HiOutlineUser size={18} aria-hidden="true" />
                     <span>Sign in</span>
-                  </Link>
+                  </a>
                 )}
                 <Link
                   to="/contact"

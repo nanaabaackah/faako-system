@@ -19,7 +19,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Current Backend Protections
 
 - Express disables `x-powered-by`.
-- CORS is allowlist-based. Production defaults include the Stroane apex and `www` domains, and Railway should still set `CORS_ORIGINS` explicitly.
+- CORS is allowlist-based. Production defaults include the Stroane apex, `www`, and `portal` domains, and Railway should still set `CORS_ORIGINS` explicitly.
 - `TRUST_PROXY_HOPS` must be explicit before Express trusts proxy-derived client IPs.
 - JSON request bodies are limited to `1mb`.
 - Paystack webhook raw-body capture is limited to `/api/paystack/webhook`.
@@ -59,10 +59,10 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Current Gaps
 
 - Current customer sign-in/sign-up pages are frontend-only `localStorage` account/session flows. They are intentionally retained for now but are not server-enforced auth and must not protect admin, order, payment, customer, or stock management workflows.
-- Staff usernames now use the dedicated backend-backed `/admin/signin` route. Public `/signin` is customer-only, and staff accounts remain database-backed rather than CSV-backed at runtime.
+- Staff usernames now use the dedicated backend-backed `https://portal.stroanesolutions.com/login` route. Legacy apex `/signin` and `/admin/*` entries hand off to the portal host, and staff accounts remain database-backed rather than CSV-backed at runtime.
 - Backend `SiteUser` access should remain private and seeded as one `ADMIN` and one `VIEWER` account until a proper admin surface is approved.
 - `APP_AUTH_SECRET` is required for backend `SiteUser` token signing and must remain server-side.
-- Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for bearer authorization. The current `sessionStorage` bearer-token approach is transitional and should be reviewed before expanding staff account management.
+- Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for bearer authorization. The current bearer token stays in portal-origin `sessionStorage`, so it is not shared with the public storefront. It remains transitional and should be reviewed before expanding staff account management. Do not add a `.stroanesolutions.com` parent-domain auth cookie without a dedicated CSRF/subdomain-risk review.
 - Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.

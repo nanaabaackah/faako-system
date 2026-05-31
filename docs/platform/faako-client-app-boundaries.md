@@ -6,11 +6,11 @@ Date: 2026-05-31
 
 Stroane is correctly separated into:
 
-- public storefront routes such as `/`, `/catalogue`, and `/products/:slug`
+- public storefront routes such as `/`, `/catalogue`, and `/products/:slug` on `stroanesolutions.com`
 - future customer account placeholders such as `/account`, `/orders`, and `/quotes`
-- protected staff operations under `/admin/*`
+- protected staff operations under `/admin/*` on `portal.stroanesolutions.com`
 
-The private portal uses the shared `@faako/ui` ERP shell structure while keeping Stroane-specific navigation, inventory semantics, and API permissions app-owned.
+The private portal uses the shared `@faako/ui` ERP shell structure while keeping Stroane-specific navigation, inventory semantics, API permissions, and portal-origin bearer sessions app-owned. Storefront browsers do not fetch lazy portal workflow chunks.
 
 ## Keep App-Owned
 

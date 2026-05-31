@@ -21,6 +21,7 @@ import {
 } from "../api/adminInventory";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { portalUrl } from "../config/appSurface";
 import "../styles/pages/AdminInventory.css";
 
 type AdminInventoryTab = "inventory" | "suppliers" | "activity";
@@ -127,7 +128,7 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
   useSEOMeta({
     title: "Inventory operations | Stroane",
     description: "Private Stroane inventory and supplier operations.",
-    canonical: "https://stroanesolutions.com/admin/inventory",
+    canonical: portalUrl("/admin/inventory"),
     noIndex: true,
   });
 

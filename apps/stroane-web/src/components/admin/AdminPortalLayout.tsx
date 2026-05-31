@@ -10,7 +10,7 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineShoppingBag,
 } from "react-icons/hi";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ErpBottomNav,
   ErpNavSidebar,
@@ -21,6 +21,7 @@ import {
 } from "@faako/ui";
 import type { ErpBranding, ErpNavItem } from "@faako/types";
 import { useAdminPortal } from "../../context/AdminPortalContext";
+import { STOREFRONT_BASE_URL } from "../../config/appSurface";
 import "../../styles/pages/AdminPortal.css";
 
 const PORTAL_BRAND: ErpBranding = {
@@ -28,7 +29,7 @@ const PORTAL_BRAND: ErpBranding = {
   shortName: "ST",
   sidebarTitle: "Operations portal",
   homePath: "/admin",
-  publicUrl: "/",
+  publicUrl: STOREFRONT_BASE_URL,
 };
 
 const PORTAL_ITEMS: ErpNavItem[] = [
@@ -87,7 +88,7 @@ const AdminPortalLayout: React.FC = () => {
 
   const handleSignOut = () => {
     signOut();
-    navigate("/admin/signin", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const sidebar = (
@@ -103,10 +104,10 @@ const AdminPortalLayout: React.FC = () => {
         <div className="stroane-admin-portal__sidebar-footer">
           <span>{session?.username}</span>
           <strong>{session?.role}</strong>
-          <Link to="/">
+          <a href={STOREFRONT_BASE_URL}>
             <HiOutlineExternalLink aria-hidden="true" />
             Storefront
-          </Link>
+          </a>
         </div>
       }
     />

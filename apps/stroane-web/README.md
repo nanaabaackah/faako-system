@@ -113,13 +113,20 @@ Order notification boundaries:
 
 ## Public Site, Customer Area, And Operations Portal
 
-Stroane now keeps its three browser route areas intentionally separate:
+Stroane now keeps its browser surfaces intentionally separate:
 
-- Public storefront: `/`, `/catalogue`, `/shop`, `/products`, `/products/:slug`, and informational pages render with the public website layout.
+- Public storefront: `https://stroanesolutions.com` serves `/`, `/catalogue`, `/shop`, `/products`, `/products/:slug`, and informational pages with the public website layout.
 - Future customer account area: `/account`, `/orders`, and `/quotes` are safe placeholders. They do not render the operations shell and do not expose backend order data yet.
-- Internal operations portal: `/admin`, `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/reports`, and `/admin/settings` render inside the shared `@faako/ui` ERP shell after private staff authentication at `/admin/signin`.
+- Internal operations portal: `https://portal.stroanesolutions.com` serves `/login`, `/admin`, `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/reports`, and `/admin/settings`. Protected routes render inside the shared `@faako/ui` ERP shell after private staff authentication.
 
-The public `/signin` and `/signup` pages are customer-only placeholders. Staff login is deliberately separate at `/admin/signin`, uses backend `SiteUser` auth, and is not linked from public storefront navigation.
+Public sign-in actions and the legacy storefront `/signin` route redirect to `https://portal.stroanesolutions.com/login`. `/signup` remains a public placeholder. Staff login uses backend `SiteUser` auth. The old portal `/admin/signin` path redirects to `/login` for bookmark compatibility.
+
+Cloudflare Pages should build two surfaces from this workspace:
+
+- storefront: `VITE_APP_SURFACE=storefront`
+- portal: `VITE_APP_SURFACE=portal`
+
+Storefront browsers do not fetch the lazy portal modules. Localhost keeps a combined compatibility mode when `VITE_APP_SURFACE` is blank so local development and Playwright can cover both surfaces.
 
 Private order management remains available through `/admin/operations`; the previous `/admin/orders` route is retained as a compatibility alias. It uses backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
 
@@ -172,7 +179,7 @@ Checkout/payment integrity rules:
 - Browser callback verification is not final payment truth; the signed webhook path marks orders paid only after server-side Paystack transaction verification confirms the reference, amount, and currency.
 - Railway-level rate limiting, Railway Postgres least-privilege access, payment event logging, and notification log idempotency are still required before fulfillment automation or broader order operations.
 
-Current public sign-in/sign-up pages are intentionally retained. Customer accounts are still frontend-only `localStorage` account/session flows and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. Private staff usernames go through the dedicated backend-backed `/admin/signin` entrypoint; staff accounts still live in the database and are not read from the CSV at runtime.
+Customer account placeholders remain frontend-only and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. Private staff usernames go through the dedicated backend-backed `https://portal.stroanesolutions.com/login` entrypoint; staff accounts still live in the database and are not read from CSV at runtime.
 
 Detailed app security posture and remaining production gaps are tracked in `docs/apps/stroane-web/security-notes.md`.
 
@@ -278,7 +285,7 @@ Only browser-safe values should use the `VITE_*` prefix.
 
 Legacy `VITE_PAYSTACK_PUBLIC_KEY` usage should not be used for production settlement. Current checkout uses backend initialization, browser-return status checks, signed webhook confirmation, and server-side Paystack transaction verification before paid order finalization. Payment event logging plus notification-log idempotency remain the next hardening steps before automated fulfillment, staff alerts, or multi-channel order updates.
 
-Current customer sign-in/sign-up support is front-end-only and stores account/session data in browser localStorage. It is not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and sign in from `/admin/signin` with their staff username/password, then continue into the protected `/admin/*` portal; keep this limited to one seeded admin and one seeded viewer account for now.
+Current customer account placeholders are not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and sign in from `https://portal.stroanesolutions.com/login` with their staff username/password, then continue into protected `/admin/*` portal routes; keep this limited to one seeded admin and one seeded viewer account for now. Staff bearer tokens remain scoped to portal-origin `sessionStorage`; no parent-domain cookie is required.
 
 Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and maintenance/read-only/degraded UI wrappers are available in `@faako/config` and `@faako/ui`, but Stroane has not wired them into runtime behavior yet. Use them only after deciding the public-site maintenance copy, contact fallback, and any backend/API guard requirements.
 
@@ -286,7 +293,7 @@ Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and m
 
 Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
 
-Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test `/shop`, product detail, `/checkout`, `/checkout/return`, `/admin/signin`, `/admin/inventory`, and `/admin/operations` on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
+Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test storefront `/shop`, product detail, `/checkout`, and `/checkout/return`, plus portal `/login`, `/admin/inventory`, and `/admin/operations`, on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
 
 ## Build And Deploy
 

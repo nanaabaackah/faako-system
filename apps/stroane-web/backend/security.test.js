@@ -36,6 +36,7 @@ test("resolveAllowedOrigins includes current production storefront origins by de
   });
   assert.equal(allowedOrigins.has("https://stroanesolutions.com"), true);
   assert.equal(allowedOrigins.has("https://www.stroanesolutions.com"), true);
+  assert.equal(allowedOrigins.has("https://portal.stroanesolutions.com"), true);
 
   const validator = createCorsOriginValidator({ allowedOrigins });
   let allowed = false;

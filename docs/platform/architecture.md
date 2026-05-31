@@ -14,6 +14,12 @@ Public storefronts and marketing sites own customer-facing routing, content, SEO
 
 Client portals own authenticated operational workflows such as inventory, suppliers, publishing, and app-specific staff permissions. Portal routes must remain structurally separate from public routes and future customer account areas.
 
+Where a client portal has operational depth, prefer a dedicated portal hostname.
+Stroane uses `stroanesolutions.com` for the storefront and
+`portal.stroanesolutions.com` for private operations. The shared package layer
+provides shell primitives; each app still owns its auth strategy, permissions,
+business-state transitions, and deployment-specific environment values.
+
 ### Dev ERP
 
 Dev ERP is a live internal operational system. Its rent, accounting, invoices, reports, permissions, and integrations remain app-owned unless a dedicated extraction phase proves a narrower shared contract.

@@ -110,7 +110,8 @@ Important safeguards:
 - access sessions use a short-lived server JWT; the shared API client retries once through `/api/auth/refresh` before signing out when the access cookie expires
 - backend access is enforced by capability middleware and organization scoping, not only by frontend route visibility
 - the shared API client in `src/api/client.ts` handles credentials, CSRF headers, JSON parsing, and normalized API errors
-- when the hosted frontend and Railway API are on different sites, configure Railway with `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and a narrow `CORS_ORIGINS` allow-list containing the frontend origin. Login, `/api/auth/session`, and refresh responses return the matching CSRF token for browser session storage while the API still validates the CSRF cookie/header pair.
+- the current hosted frontend can call the Railway API URL directly through `VITE_API_BASE`, for example `https://app-production.up.railway.app`. For that split-site setup, configure Railway with `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and a narrow `CORS_ORIGINS` allow-list containing the exact frontend origin. A same-site Railway custom API hostname such as `https://api.dev.example.com` remains an optional hardening step for browsers that restrict third-party cookies; when adopted, use `AUTH_COOKIE_SAME_SITE=lax`.
+- login, `/api/auth/session`, and refresh responses return the matching CSRF token for browser session storage while unsafe business writes still validate the CSRF cookie/header pair. `/api/auth/refresh` is intentionally recovery-only: it validates and rotates the path-scoped HttpOnly refresh token after the CORS allow-list has accepted the browser origin, allowing a reopened browser session to recover when its prior `sessionStorage` CSRF token is gone.
 
 ## Invoice Payment Tracking
 
@@ -131,13 +132,17 @@ pnpm --filter @faako/dev-erp run build
 
 ## Deployment
 
-The frontend can build through Netlify with:
+The static frontend currently deploys through Cloudflare Pages with:
 
 ```bash
 pnpm --filter @faako/dev-erp run build
 ```
 
-The publish folder is `apps/dev-erp/dist`, and selective deploy checks use:
+The publish folder is `apps/dev-erp/dist`. The existing `netlify.toml` remains as a
+legacy deploy option, but Cloudflare Pages does not apply its `/api/*` proxy rule.
+Set Cloudflare Pages `VITE_API_BASE` explicitly to the deployed Railway API URL.
+An optional same-site custom API hostname can be adopted later. Legacy selective
+Netlify deploy checks use:
 
 ```bash
 node ./scripts/netlify-ignore.mjs @faako/dev-erp

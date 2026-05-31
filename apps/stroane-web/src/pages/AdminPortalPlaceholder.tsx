@@ -1,5 +1,6 @@
 import React from "react";
 import useSEOMeta from "../hooks/useSEOMeta";
+import { portalUrl } from "../config/appSurface";
 import "../styles/pages/AdminPortal.css";
 
 type AdminPortalPlaceholderArea = "products" | "reports" | "settings";
@@ -25,7 +26,7 @@ const AdminPortalPlaceholder: React.FC<{ area: AdminPortalPlaceholderArea }> = (
   useSEOMeta({
     title: `${copy.title} | Stroane operations`,
     description: `Private Stroane ${copy.title.toLowerCase()} portal area.`,
-    canonical: `https://stroanesolutions.com/admin/${area}`,
+    canonical: portalUrl(`/admin/${area}`),
     noIndex: true,
   });
 

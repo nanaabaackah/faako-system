@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Hosted login persistence hardening
+
+Date: 2026-05-31
+Feature/change name: Dev ERP hosted login persistence hardening
+Apps affected: Dev ERP
+What changed: Audited the live Cloudflare-hosted frontend and Railway API login path. Added refresh-cookie recovery when the browser no longer has the previous CSRF token in `sessionStorage`, while leaving CSRF validation intact for unsafe business writes. Updated deployment guidance for the current direct Railway API hostname and documented a same-site custom API hostname as an optional browser-compatibility hardening step.
+Why it changed: The live frontend bundle currently calls `https://dev-production-9f73.up.railway.app` directly. CORS is healthy, but the resulting API cookies are third-party relative to `https://dev.nanaabaackah.com` and can be blocked by Safari or privacy-restricted browsers. Reopened sessions could also fail refresh after the access cookie expired because the prior browser-tab CSRF token no longer existed.
+Files changed: apps/dev-erp/backend/security/csrf.js, apps/dev-erp/backend/security/csrf.test.js, apps/dev-erp/.env.example, apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/pre-deploy-checklist.md.
+Data impact: None. No schema, migration, operational record, payment, rent, invoice, proposal, or report data changes.
+Security impact: Unsafe business writes still require matching CSRF cookie/header tokens. `/api/auth/refresh` is recovery-only and continues to require the path-scoped HttpOnly refresh cookie, server-side token lookup, expiry/revocation checks, active user checks, organization scope checks, refresh rotation, and the configured CORS origin allow-list.
+Testing done: Live read-only smoke tests confirmed `https://dev.nanaabaackah.com` is served by Cloudflare Pages, `/api/auth/session` on that host falls through to SPA HTML, the live frontend bundle calls `https://dev-production-9f73.up.railway.app` directly, Railway `/healthz` returns `200`, and Railway CORS preflight accepts `https://dev.nanaabaackah.com`. `node --check apps/dev-erp/backend/security/csrf.js`; `node --check apps/dev-erp/backend/server.js`; focused auth/CSRF tests passed with 32 tests; `pnpm --filter @faako/dev-erp run test` passed with 99 tests; `pnpm --filter @faako/dev-erp run lint` passed; `pnpm --filter @faako/dev-erp run build` passed; `git diff --check -- apps/dev-erp docs/apps/dev-erp` passed. `pnpm --filter @faako/dev-erp exec tsc --noEmit` could not run because this workspace does not install a `tsc` binary.
+Rollback notes: Remove `/auth/refresh` from `CSRF_EXCLUDED_PATHS` and revert the same-site API deployment guidance. Reopened sessions may again require a fresh login after the access cookie expires.
+Next step: Keep frontend `VITE_API_BASE=https://dev-production-9f73.up.railway.app`, set Railway `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, retain `CORS_ORIGINS=https://dev.nanaabaackah.com`, redeploy the API, and smoke-test login persistence. If browser third-party-cookie restrictions still interfere, optionally add a same-site Railway custom API hostname such as `api.dev.nanaabaackah.com`.
+
 ### Cross-site session stabilization and invoice paid-amount tracking
 
 Date: 2026-05-31

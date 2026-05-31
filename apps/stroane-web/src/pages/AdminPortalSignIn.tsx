@@ -1,7 +1,8 @@
 import React, { useState, type FormEvent } from "react";
 import { HiOutlineLockClosed } from "react-icons/hi";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAdminPortal } from "../context/AdminPortalContext";
+import { STOREFRONT_BASE_URL, portalUrl } from "../config/appSurface";
 import useSEOMeta from "../hooks/useSEOMeta";
 import "../styles/pages/AdminPortal.css";
 
@@ -25,7 +26,7 @@ const AdminPortalSignIn: React.FC = () => {
   useSEOMeta({
     title: "Operations sign in | Stroane",
     description: "Private Stroane operations portal sign in.",
-    canonical: "https://stroanesolutions.com/admin/signin",
+    canonical: portalUrl("/login"),
     noIndex: true,
   });
 
@@ -79,9 +80,9 @@ const AdminPortalSignIn: React.FC = () => {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-        <Link className="stroane-portal-login__back" to="/">
+        <a className="stroane-portal-login__back" href={STOREFRONT_BASE_URL}>
           Return to storefront
-        </Link>
+        </a>
       </div>
     </main>
   );

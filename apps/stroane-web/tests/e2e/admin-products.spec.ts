@@ -133,14 +133,40 @@ test("public catalogue retains the local fallback when the API is unavailable", 
   await page.goto("/catalogue");
   await expect(page.getByText("Catalogue fallback active")).toBeVisible();
   await expect(page.locator(".erp-shell-frame")).toHaveCount(0);
+  await expect(page.locator('a[aria-label="Sign in"]').first()).toHaveAttribute(
+    "href",
+    "https://portal.stroanesolutions.com/login"
+  );
 });
 
 test("admin products redirect to the internal sign-in when no staff session exists", async ({
   page,
 }) => {
   await page.goto("/admin/products");
-  await expect(page).toHaveURL(/\/admin\/signin$/);
+  await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Stroane operations" })).toBeVisible();
+});
+
+test("legacy admin sign-in redirects to the portal login route", async ({ page }) => {
+  await page.goto("/admin/signin");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("portal login and logout retain the portal-scoped staff session flow", async ({ page }) => {
+  await page.route("**/api/auth/login", (route) =>
+    route.fulfill(json({ ok: true, ...ADMIN_SESSION }))
+  );
+
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("admin");
+  await page.getByLabel("Password").fill("not-a-real-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole("heading", { name: "Operations overview" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(() => window.sessionStorage.getItem("stroane_admin_session_v1"))).toBeNull();
 });
 
 test("admin products show a safe API failure state", async ({ page }) => {
