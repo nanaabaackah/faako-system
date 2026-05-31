@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Hosted login verification guard
+
+Date: 2026-05-31
+Feature/change name: Dev ERP hosted login verification guard
+Apps affected: Dev ERP
+What changed: Added a post-login `/api/auth/session` verification before the frontend stores the authenticated user or navigates into the dashboard. Updated the deployment runbook to state that the current Railway API hostname remains supported, while a same-site custom API hostname is required for reliable Safari persistence.
+Why it changed: Live smoke tests confirmed that Railway health and CORS are healthy. The reported console sequence showed protected requests and `/api/auth/refresh` returning `401` immediately after login, which is consistent with Safari rejecting third-party cookies issued by `dev-production-9f73.up.railway.app` while the page is loaded from `dev.nanaabaackah.com`.
+Files changed: apps/dev-erp/src/pages/Login/Login.jsx, apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/pre-deploy-checklist.md.
+Data impact: None. No schema, migration, operational record, payment, rent, invoice, proposal, or report data changes.
+Security impact: Positive. The frontend no longer treats credential acceptance alone as proof that a browser session exists. Access tokens and refresh tokens remain HttpOnly cookies; no browser-readable bearer token or weakened cookie fallback was introduced.
+Testing done: Live read-only checks confirmed Railway `/healthz` returns `200`, the login preflight permits `https://dev.nanaabaackah.com`, and unauthenticated `/api/auth/session` correctly returns `401`. `node --check apps/dev-erp/backend/server.js`; `node --check apps/dev-erp/backend/security/csrf.js`; `pnpm --filter @faako/dev-erp run test` passed with 99 tests; `pnpm --filter @faako/dev-erp run lint` passed; `pnpm --filter @faako/dev-erp run build` passed; `git diff --check -- apps/dev-erp docs/apps/dev-erp` passed.
+Rollback notes: Revert the login session-verification request and this documentation entry. Doing so restores the previous immediate dashboard navigation, including the burst of unauthorized API calls when a browser rejects cookies.
+Next step: For Safari reliability, map a Railway custom API domain such as `api.dev.nanaabaackah.com`, set Cloudflare Pages `VITE_API_BASE=https://api.dev.nanaabaackah.com`, retain Railway `CORS_ORIGINS=https://dev.nanaabaackah.com`, set Railway `AUTH_COOKIE_SAME_SITE=lax`, redeploy both services, and smoke-test login and browser reopen recovery.
+
 ### Hosted login persistence hardening
 
 Date: 2026-05-31

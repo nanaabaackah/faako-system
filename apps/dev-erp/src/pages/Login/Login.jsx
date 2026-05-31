@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiPost } from "../../api/client";
-import { setAuthenticatedUser } from "../../auth/authStore";
+import { apiGet, apiPost } from "../../api/client";
+import { clearAuthStore, setAuthenticatedUser } from "../../auth/authStore";
 import ThemeToggle from "../../components/ThemeToggle";
 import "./Login.css";
 
@@ -29,9 +29,19 @@ const Login = ({ theme, onToggleTheme }) => {
       if (!data?.user) {
         throw new Error("Login succeeded but user details were missing.");
       }
-      setAuthenticatedUser(data.user);
+
+      const session = await apiGet("/api/auth/session", {
+        cache: "no-store",
+        fallbackMessage: "Your browser could not establish a secure session. Please reload and try again.",
+      });
+      if (!session?.user) {
+        throw new Error("Your browser could not establish a secure session. Please reload and try again.");
+      }
+
+      setAuthenticatedUser(session.user);
       navigate("/dashboard");
     } catch (err) {
+      clearAuthStore();
       setError(err.message || "Network error or server unavailable");
       console.error("Login error:", err);
     }

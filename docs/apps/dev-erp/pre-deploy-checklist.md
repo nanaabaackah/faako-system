@@ -16,7 +16,7 @@
 - Confirm frontend route visibility matches backend enforcement.
 - For the current direct Railway API deployment, set `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and an exact HTTPS frontend origin in `CORS_ORIGINS`.
 - Confirm frontend `VITE_API_BASE` points to the deployed Railway API origin, then smoke-test login, refresh after the access token expires, browser reopen recovery, and an authenticated module request.
-- A same-site Railway custom API hostname such as `api.dev.example.com` remains an optional hardening step if browser third-party-cookie restrictions affect the direct Railway setup. Use `AUTH_COOKIE_SAME_SITE=lax` after adopting that hostname.
+- A same-site Railway custom API hostname such as `api.dev.example.com` is required when reliable Safari login persistence is needed because Safari blocks third-party cookies by default. Use `AUTH_COOKIE_SAME_SITE=lax` after adopting that hostname.
 
 ## API permissions
 
