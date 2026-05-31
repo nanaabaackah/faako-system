@@ -48,6 +48,10 @@ import {
 } from "./src/orderNotifications.js";
 import { createAdminOrdersRouter } from "./src/adminOrders.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
+import {
+  createAdminInventoryAlertRouter,
+  createInternalInventoryAlertRouter,
+} from "./src/inventoryAlerts/routes.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
@@ -122,6 +126,11 @@ const webhookRateLimit = createApiRateLimitMiddleware({
 const adminRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "admin",
   limit: 120,
+  windowMs: 10 * 60_000,
+});
+const inventoryAlertRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "inventory-alert",
+  limit: 20,
   windowMs: 10 * 60_000,
 });
 
@@ -309,7 +318,13 @@ app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
 app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
 app.use("/api/admin/orders", adminRateLimit, createAdminOrdersRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
+app.use(
+  "/api/internal/inventory/alerts",
+  inventoryAlertRateLimit,
+  createInternalInventoryAlertRouter(prisma)
+);
 
 // Health check route
 app.get("/health", (req, res) => {

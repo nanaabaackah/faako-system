@@ -81,6 +81,7 @@ export interface InventoryItem {
   lowStockThreshold?: number | null;
   stockStatus: string;
   computedStockStatus: string;
+  inventoryTrackingEnabled: boolean;
   allowBackorder?: boolean | null;
   isPurchasable?: boolean | null;
   isLowStock: boolean;
@@ -136,6 +137,43 @@ export interface InventoryMovementPayload {
   reason?: string;
   supplierNote?: string;
   purchaseNote?: string;
+}
+
+export interface InventoryAlert {
+  id: string;
+  alertType: "LOW_STOCK" | "OUT_OF_STOCK" | "RESTOCKED";
+  status: string;
+  reason?: string | null;
+  productSlug?: string | null;
+  productName?: string | null;
+  sku?: string | null;
+  availableQuantity?: number | null;
+  reservedQuantity?: number | null;
+  reorderThreshold?: number | null;
+  firstDetectedAt?: string | null;
+  lastDetectedAt?: string | null;
+  lastNotificationAttemptAt?: string | null;
+  lastNotifiedAt?: string | null;
+  notificationCount: number;
+}
+
+export interface InventoryAlertSummary {
+  active: InventoryAlert[];
+  recentDispatches: Array<{
+    id: string;
+    batchKey: string;
+    trigger: string;
+    alertType: string;
+    channel: string;
+    status: string;
+    recipientCount: number;
+    createdAt?: string | null;
+  }>;
+  counts: {
+    lowStock: number;
+    outOfStock: number;
+    total: number;
+  };
 }
 
 export const adminInventoryApi = {
@@ -202,5 +240,37 @@ export const adminInventoryApi = {
       body: JSON.stringify(payload),
     });
     return parseJsonResponse(response, "Unable to record inventory movement.");
+  },
+
+  async getAlertSummary(session: AdminSession): Promise<InventoryAlertSummary> {
+    const response = await fetch(apiPath("/api/admin/inventory/alerts"), {
+      headers: authHeaders(session),
+    });
+    const data = await parseJsonResponse<{ summary: InventoryAlertSummary }>(
+      response,
+      "Unable to load inventory alerts."
+    );
+    return data.summary;
+  },
+
+  async runAlertCheck(session: AdminSession): Promise<{
+    checked: number;
+    detected: number;
+    restocked: number;
+    dispatched: number;
+  }> {
+    const response = await fetch(apiPath("/api/admin/inventory/alerts/check"), {
+      method: "POST",
+      headers: authHeaders(session),
+    });
+    const data = await parseJsonResponse<{
+      result: {
+        checked: number;
+        detected: number;
+        restocked: number;
+        dispatched: number;
+      };
+    }>(response, "Unable to run inventory alert check.");
+    return data.result;
   },
 };

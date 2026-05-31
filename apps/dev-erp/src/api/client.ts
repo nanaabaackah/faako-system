@@ -2,6 +2,8 @@ import { buildApiUrl } from "../api-url";
 import {
   clearStoredSession,
   hasStoredSession,
+  readStoredCsrfToken,
+  writeStoredCsrfToken,
 } from "../utils/authSession";
 import { getApiErrorMessage, readJsonResponse } from "../utils/http";
 
@@ -60,6 +62,16 @@ const readCookie = (name: string): string => {
   return "";
 };
 
+const captureCsrfToken = (payload: unknown) => {
+  const token =
+    payload && typeof payload === "object" && "csrfToken" in payload
+      ? (payload as { csrfToken?: unknown }).csrfToken
+      : "";
+  if (typeof token === "string" && token.trim()) {
+    writeStoredCsrfToken(token);
+  }
+};
+
 const isCsrfMethod = (method: unknown): boolean => {
   const normalized = String(method || "GET").toUpperCase();
   return !["GET", "HEAD", "OPTIONS"].includes(normalized);
@@ -112,7 +124,7 @@ const withApiDefaults = (input: RequestInfo | URL, init: RequestInit = {}): Requ
   const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
 
   if (isCsrfMethod(method) && !headers.has("x-csrf-token")) {
-    const csrfToken = readCookie(AUTH_CSRF_COOKIE_NAME);
+    const csrfToken = readCookie(AUTH_CSRF_COOKIE_NAME) || readStoredCsrfToken();
     if (csrfToken) {
       headers.set("x-csrf-token", csrfToken);
     }
@@ -148,7 +160,12 @@ const requestSessionRefresh = (fetcher: ApiFetcher): Promise<boolean> => {
       refreshUrl,
       withApiDefaults(refreshUrl, { method: "POST" })
     )
-      .then((response) => response.ok)
+      .then(async (response) => {
+        if (response.ok) {
+          captureCsrfToken(await response.clone().json().catch(() => null));
+        }
+        return response.ok;
+      })
       .catch(() => false)
       .finally(() => {
         refreshSessionPromise = null;
@@ -201,6 +218,7 @@ export const apiRequest = async <T = unknown>(
   const url = buildApiUrl(path);
   const response = await fetch(url, withApiDefaults(url, fetchOptions));
   const payload = await readJsonResponse<T>(response);
+  captureCsrfToken(payload);
 
   if (!response.ok) {
     handleUnauthorized(url, response.status);

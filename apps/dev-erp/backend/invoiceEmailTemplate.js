@@ -222,6 +222,8 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
   const taxAmount = Number(invoice?.taxAmount ?? 0);
   const discount = Number(invoice?.discount ?? 0);
   const total = Number(invoice?.total ?? subtotal + taxAmount - discount);
+  const paidAmount = Math.max(Number(invoice?.paidAmount ?? 0), 0);
+  const balanceDue = Math.max(total - paidAmount, 0);
   const invoiceNumber = invoice?.invoiceNumber || "DRAFT";
   const clientName = invoice?.clientName || "Client";
   const clientEmail = invoice?.clientEmail || "N/A";
@@ -230,7 +232,9 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
   const issueDateLabel = resolveInvoiceDateLabel(invoice?.issueDate);
   const dueDateLabel = resolveInvoiceDateLabel(invoice?.dueDate);
   const paymentPrompt =
-    dueDateLabel !== "N/A"
+    balanceDue <= 0
+      ? "Your invoice balance has been settled."
+      : dueDateLabel !== "N/A"
       ? `Please arrange payment by ${dueDateLabel}.`
       : "Please arrange payment at your earliest convenience.";
   const notesText = notes ? `Notes: ${notes}` : null;
@@ -268,7 +272,9 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     `Subtotal (excluding monthly charges): ${formatInvoiceCurrency(regularSubtotal, currency)}`,
     `Tax (${taxRate.toFixed(2)}%): ${formatInvoiceCurrency(taxAmount, currency)}`,
     `Discount: -${formatInvoiceCurrency(discount, currency)}`,
-    `Total due: ${formatInvoiceCurrency(total, currency)}`,
+    `Total: ${formatInvoiceCurrency(total, currency)}`,
+    `Payment received: ${formatInvoiceCurrency(paidAmount, currency)}`,
+    `Balance due: ${formatInvoiceCurrency(balanceDue, currency)}`,
     ...(notesText ? ["", notesText] : []),
     "",
     supportMessage,
@@ -297,7 +303,7 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     [
       { label: "Invoice", value: invoiceNumber },
       { label: "Due date", value: dueDateLabel },
-      { label: "Total due", value: formatInvoiceCurrency(total, currency) },
+      { label: "Balance due", value: formatInvoiceCurrency(balanceDue, currency) },
     ],
     { theme }
   );
@@ -396,9 +402,21 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
             )}</td>
           </tr>
           <tr>
-            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};color:${theme.heading};font:800 16px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Total due</td>
+            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};color:${theme.heading};font:800 16px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Total</td>
             <td style="padding:12px 0 0;border-top:1px solid ${theme.border};text-align:right;color:${theme.heading};font:800 20px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
               formatInvoiceCurrency(total, currency)
+            )}</td>
+          </tr>
+          <tr>
+            <td style="padding:7px 0;color:${theme.muted};font:400 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Payment received</td>
+            <td style="padding:7px 0;text-align:right;color:${theme.text};font:600 14px/1.55 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+              formatInvoiceCurrency(paidAmount, currency)
+            )}</td>
+          </tr>
+          <tr>
+            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};color:${theme.heading};font:800 16px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">Balance due</td>
+            <td style="padding:12px 0 0;border-top:1px solid ${theme.border};text-align:right;color:${theme.heading};font:800 20px/1.4 Arial,sans-serif;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(
+              formatInvoiceCurrency(balanceDue, currency)
             )}</td>
           </tr>
         </tbody>
@@ -425,7 +443,7 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
     theme,
     preheader: isQuotation
       ? `Quotation ${invoiceNumber} from ${senderName}. Total ${formatInvoiceCurrency(total, currency)}. Please review and respond.`
-      : `Invoice ${invoiceNumber} from ${senderName}. Total due ${formatInvoiceCurrency(total, currency)}.`,
+      : `Invoice ${invoiceNumber} from ${senderName}. Balance due ${formatInvoiceCurrency(balanceDue, currency)}.`,
     brandName: senderName,
     brandTagline: headerTagline,
     eyebrow: isQuotation ? "Quotation" : "Invoice",

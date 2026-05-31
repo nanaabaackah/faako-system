@@ -14,6 +14,8 @@
 
 - Verify login, session boot, logout, CSRF, roles/capabilities, and organization scoping.
 - Confirm frontend route visibility matches backend enforcement.
+- For split-hosted production frontend/API deployments, set `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and an exact HTTPS frontend origin in `CORS_ORIGINS`.
+- Confirm the frontend `VITE_API_BASE` points to the deployed API origin, then smoke-test login followed by an authenticated module request.
 
 ## API permissions
 
@@ -23,6 +25,7 @@
 ## Database/data loss risk
 
 - Review Prisma migrations and data scripts.
+- Deploy the additive `20260531000000_add_invoice_paid_amount` migration before relying on invoice partial-payment fields.
 - Confirm `ENFORCE_DATABASE_ISOLATION=true` where appropriate.
 - Confirm local work cannot accidentally write to production data.
 
@@ -34,6 +37,7 @@
 ## Payments/receipts if relevant
 
 - Verify rent, invoice, accounting, payment-adjacent, and reporting calculations before deploy.
+- For invoices, verify total, payment received, balance due, and manual status behavior for unpaid, partially paid, and fully paid records.
 
 ## Inventory/bookings/orders if relevant
 

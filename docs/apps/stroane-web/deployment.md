@@ -48,6 +48,18 @@ API environment variables:
 
 Payment/email provider variables, when enabled, belong on the Railway API service only.
 
+Inventory-owner alert configuration also belongs on the Railway API service
+only:
+
+- `STROANE_ALERT_EMAILS=<comma-separated private recipients>`
+- `STROANE_ALERT_WHATSAPP_NUMBERS=<comma-separated private recipients>` for provider-neutral preparation only
+- `STROANE_ALERT_COOLDOWN_MINUTES=720`
+- `STROANE_ALERT_CRON_SECRET=<rotated backend-only scheduler bearer secret>`
+- Optional: `STROANE_ALERT_FROM`, `STROANE_ALERT_REPLY_TO`
+
+Operational email sending requires `RESEND_API_KEY`. Do not add alert recipient
+details or cron secrets to Cloudflare Pages.
+
 Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it. `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend.
 
 The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
@@ -84,6 +96,15 @@ Protected supplier/inventory admin routes should be tested with a backend `SiteU
 - `GET https://stroane-api-production.up.railway.app/api/admin/inventory`
 - `GET https://stroane-api-production.up.railway.app/api/admin/inventory/movements`
 - `GET https://stroane-api-production.up.railway.app/api/admin/products`
+- `GET https://stroane-api-production.up.railway.app/api/admin/inventory/alerts`
+
+After configuring a Railway cron/scheduler with the private bearer secret, test:
+
+- `POST https://stroane-api-production.up.railway.app/api/internal/inventory/alerts/check`
+
+The scheduler route is intentionally server-to-server only. Store the bearer
+secret in Railway scheduler configuration and rotate it if it is ever pasted
+into chat, screenshots, tickets, or logs.
 
 After the API routes pass, authenticate with a private backend `SiteUser` account and smoke test the protected frontend route:
 
@@ -113,6 +134,7 @@ The catalogue endpoint now keeps category and product sources coherent during ro
 5. Confirm `/health`, catalogue endpoints, and unauthenticated rejection on `/api/admin/inventory` and `/api/admin/products`.
 6. Set `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app` in Cloudflare Pages and trigger a fresh Pages deploy.
 7. Confirm `/shop`, `/catalogue`, one product detail route, public customer `/signin`, private staff `/admin/signin`, authenticated `/admin/inventory`, and authenticated `/admin/products`.
+8. Run one authenticated manual alert check, verify cooldown deduplication on an immediate repeat, and confirm the scheduler route rejects missing or incorrect bearer secrets.
 
 If persisted catalogue rows should replace seed fallback, run the catalogue seed only after reviewing the target database:
 

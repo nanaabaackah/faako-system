@@ -291,6 +291,7 @@ model Invoice {
   taxAmount          Decimal       @default(0) @db.Decimal(14, 2)
   discount           Decimal       @default(0) @db.Decimal(14, 2)
   total              Decimal       @db.Decimal(14, 2)
+  paidAmount         Decimal       @default(0) @db.Decimal(14, 2)
   viewToken          String?       @unique
   viewTokenExpiresAt DateTime?
   respondedAt        DateTime?

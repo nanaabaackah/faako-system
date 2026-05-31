@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { formatCurrencyMajor } from "@faako/finance";
+import {
+  FINANCE_STATUS_LABELS,
+  calculateBalanceDueMajor,
+  calculateFinanceStatusFromMajor,
+  formatCurrencyMajor,
+} from "@faako/finance";
 import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
@@ -28,6 +33,13 @@ const STATUS_TONE = {
   PAID: "success",
   OVERDUE: "danger",
   VOID: "danger",
+};
+
+const PAYMENT_STATUS_TONE = {
+  unpaid: "warning",
+  part_paid: "info",
+  paid: "success",
+  overpaid: "warning",
 };
 
 const CURRENCY_OPTIONS = ["CAD", "GHS"];
@@ -197,11 +209,26 @@ const buildInvoiceForm = ({ organizationId = "", invoice = null } = {}) => ({
   notes: typeof invoice?.notes === "string" && invoice.notes.trim() ? invoice.notes : buildInvoiceNotes(),
   taxRate: invoice?.taxRate !== undefined ? String(invoice.taxRate) : "0",
   discount: invoice?.discount !== undefined ? String(invoice.discount) : "0",
+  paidAmount: invoice?.paidAmount !== undefined ? String(invoice.paidAmount) : "0",
   lineItems:
     Array.isArray(invoice?.lineItems) && invoice.lineItems.length
       ? buildFormLineItems(invoice.lineItems)
       : [createLineItem()],
 });
+
+const getInvoicePaymentSummary = (invoice = {}) => {
+  const total = Number(invoice?.total || 0);
+  const paidAmount = Number(invoice?.paidAmount || 0);
+  return {
+    paidAmount,
+    balanceDue:
+      invoice?.balanceDue !== undefined
+        ? Number(invoice.balanceDue)
+        : calculateBalanceDueMajor({ total, paid: paidAmount }),
+    paymentStatus:
+      invoice?.paymentStatus || calculateFinanceStatusFromMajor({ total, paid: paidAmount }),
+  };
+};
 
 const Invoicing = () => {
   const storedUser = useMemo(() => readStoredSessionUser(), []);
@@ -348,6 +375,25 @@ const Invoicing = () => {
       Math.max((selectedInvoiceTotals.subtotal ?? 0) - (selectedMonthlyChargeTotal || 0), 0),
     [selectedInvoiceTotals.subtotal, selectedMonthlyChargeTotal]
   );
+  const selectedInvoicePayment = useMemo(
+    () => getInvoicePaymentSummary(selectedInvoice || {}),
+    [selectedInvoice]
+  );
+  const formPayment = useMemo(() => {
+    const paidAmount = Number(formState.paidAmount || 0);
+    const normalizedPaidAmount = Number.isFinite(paidAmount) ? paidAmount : 0;
+    return {
+      paidAmount: normalizedPaidAmount,
+      balanceDue: calculateBalanceDueMajor({
+        total: invoiceTotals.total,
+        paid: normalizedPaidAmount,
+      }),
+      paymentStatus: calculateFinanceStatusFromMajor({
+        total: invoiceTotals.total,
+        paid: normalizedPaidAmount,
+      }),
+    };
+  }, [formState.paidAmount, invoiceTotals.total]);
 
   const formItemTotals = useMemo(() => {
     let regularSubtotal = 0;
@@ -544,6 +590,11 @@ const Invoicing = () => {
       setFormError("Add at least one valid line item.");
       return;
     }
+    const paidAmount = Number(formState.paidAmount || 0);
+    if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+      setFormError("Payment received must be 0 or greater.");
+      return;
+    }
 
     const payload = {
       invoiceNumber: formState.invoiceNumber.trim() || undefined,
@@ -557,6 +608,7 @@ const Invoicing = () => {
       notes: formState.notes.trim() || null,
       taxRate: Number(formState.taxRate || 0),
       discount: Number(formState.discount || 0),
+      paidAmount,
       lineItems: formState.lineItems.map((lineItem) => ({
         description: serializeLineItemDescription(lineItem),
         quantity: Number(lineItem.quantity || 0),
@@ -727,6 +779,7 @@ const Invoicing = () => {
         })),
         taxRate: invoice.taxRate,
         discount: invoice.discount,
+        paidAmount: invoice.paidAmount,
         notes: invoice.notes || "",
       });
       setNotice(`Invoice ${invoice.invoiceNumber} PDF downloaded.`);
@@ -861,20 +914,22 @@ const Invoicing = () => {
             </div>
 
             {invoices.length ? (
-              invoices.map((invoice) => (
-                <div
-                  className="table-row is-7 invoice-row-clickable"
-                  key={invoice.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openInvoiceModal(invoice)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      openInvoiceModal(invoice);
-                    }
-                  }}
-                >
+              invoices.map((invoice) => {
+                const payment = getInvoicePaymentSummary(invoice);
+                return (
+                  <div
+                    className="table-row is-7 invoice-row-clickable"
+                    key={invoice.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openInvoiceModal(invoice)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openInvoiceModal(invoice);
+                      }
+                    }}
+                  >
                   <div className="table-cell-stack">
                     <span className="table-strong">{invoice.invoiceNumber}</span>
                     {invoice.organization?.name ? (
@@ -887,10 +942,20 @@ const Invoicing = () => {
                   </div>
                   <span>{formatDate(invoice.issueDate)}</span>
                   <span>{formatDate(invoice.dueDate)}</span>
-                  <span className="table-strong">{formatAmount(invoice.total, invoice.currency)}</span>
-                  <span className={`status-pill is-${STATUS_TONE[invoice.status] || "info"}`}>
-                    {invoice.status}
-                  </span>
+                    <div className="table-cell-stack">
+                      <span className="table-strong">{formatAmount(invoice.total, invoice.currency)}</span>
+                      <span className="muted">
+                        Balance: {formatAmount(payment.balanceDue, invoice.currency)}
+                      </span>
+                    </div>
+                    <div className="table-cell-stack">
+                      <span className={`status-pill is-${STATUS_TONE[invoice.status] || "info"}`}>
+                        {invoice.status}
+                      </span>
+                      <span className={`status-pill is-${PAYMENT_STATUS_TONE[payment.paymentStatus] || "info"}`}>
+                        {FINANCE_STATUS_LABELS[payment.paymentStatus] || payment.paymentStatus}
+                      </span>
+                    </div>
                   <div className="row-actions invoice-ledger-actions">
                     {isAdmin ? (
                       <button
@@ -941,8 +1006,9 @@ const Invoicing = () => {
                       <FiDownload size={14} aria-hidden="true" />
                     </button>
                   </div>
-                </div>
-              ))
+                  </div>
+                );
+              })
             ) : (
               <p className="muted">No invoices found.</p>
             )}
@@ -994,12 +1060,12 @@ const Invoicing = () => {
               </div>
               <div className="invoice-preview-hero__stats">
                 <div className="invoice-preview-stat">
-                  <span>Total due</span>
-                  <strong>{formatAmount(selectedInvoiceTotals.total ?? 0, selectedInvoice.currency)}</strong>
+                  <span>Balance due</span>
+                  <strong>{formatAmount(selectedInvoicePayment.balanceDue, selectedInvoice.currency)}</strong>
                 </div>
                 <div className="invoice-preview-stat">
-                  <span>Monthly charges</span>
-                  <strong>{formatAmount(selectedMonthlyChargeTotal, selectedInvoice.currency)}</strong>
+                  <span>Payment received</span>
+                  <strong>{formatAmount(selectedInvoicePayment.paidAmount, selectedInvoice.currency)}</strong>
                 </div>
                 <div className="invoice-preview-stat">
                   <span>Issue date</span>
@@ -1089,6 +1155,13 @@ const Invoicing = () => {
                       <span>Organization</span>
                       <strong>{selectedInvoice.organization?.name || "-"}</strong>
                     </div>
+                    <div className="invoice-preview-detail">
+                      <span>Payment status</span>
+                      <strong>
+                        {FINANCE_STATUS_LABELS[selectedInvoicePayment.paymentStatus] ||
+                          selectedInvoicePayment.paymentStatus}
+                      </strong>
+                    </div>
                   </div>
                 </section>
 
@@ -1122,6 +1195,14 @@ const Invoicing = () => {
                     <div className="invoice-preview-totals__row is-total">
                       <span>Total</span>
                       <strong>{formatAmount(selectedInvoiceTotals.total ?? 0, selectedInvoice.currency)}</strong>
+                    </div>
+                    <div className="invoice-preview-totals__row">
+                      <span>Payment received</span>
+                      <strong>{formatAmount(selectedInvoicePayment.paidAmount, selectedInvoice.currency)}</strong>
+                    </div>
+                    <div className="invoice-preview-totals__row is-total">
+                      <span>Balance due</span>
+                      <strong>{formatAmount(selectedInvoicePayment.balanceDue, selectedInvoice.currency)}</strong>
                     </div>
                   </div>
                 </section>
@@ -1452,6 +1533,17 @@ const Invoicing = () => {
                     onChange={(event) => updateFormField("discount", event.target.value)}
                   />
                 </label>
+                <label className="form-field">
+                  <span>Payment received</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formState.paidAmount}
+                    onChange={(event) => updateFormField("paidAmount", event.target.value)}
+                  />
+                </label>
               </div>
 
               <label className="form-field">
@@ -1486,6 +1578,14 @@ const Invoicing = () => {
                 <div className="invoice-summary__row is-total">
                   <span>Total</span>
                   <span>{formatAmount(invoiceTotals.total, formState.currency)}</span>
+                </div>
+                <div className="invoice-summary__row">
+                  <span>Payment received</span>
+                  <span>{formatAmount(formPayment.paidAmount, formState.currency)}</span>
+                </div>
+                <div className="invoice-summary__row is-total">
+                  <span>Balance due</span>
+                  <span>{formatAmount(formPayment.balanceDue, formState.currency)}</span>
                 </div>
               </div>
 

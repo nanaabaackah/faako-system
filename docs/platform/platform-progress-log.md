@@ -24,6 +24,20 @@ Next step:
 
 ## Entries
 
+### Faako client-app boundary audit and Dev ERP operational stabilization
+
+Date: 2026-05-31
+Change name: Faako client-app boundary audit and Dev ERP operational stabilization
+Apps/packages affected: Stroane Web, Dev ERP, `@faako/notifications`, `@faako/finance`, platform documentation
+What changed: Documented public-site, client-portal, internal-ERP, and shared-package ownership boundaries. Stroane owner-alert text sanitization now reuses `@faako/notifications` while Stroane catalogue, inventory, supplier, alert orchestration, and bearer auth stay app-owned. Dev ERP hosted cookie sessions now support separate frontend/API origins without weakening CSRF, and invoices add an additive paid-amount field with shared pure balance/status arithmetic plus operator, public-view, PDF, and email presentation.
+Why it changed: The platform needs deliberate reuse boundaries, and Dev ERP had two urgent production-sensitive gaps: cross-site hosted-session cookies and missing partial-invoice payment visibility.
+Files changed: docs/platform/architecture.md, docs/platform/faako-client-app-boundaries.md, docs/platform/platform-progress-log.md, Stroane notification helper/package files, Dev ERP auth/session/invoice/schema/migration/UI/docs files.
+Data impact: Stroane has no data change. Dev ERP has one additive invoice migration: existing paid invoices are backfilled to their total, and other existing invoices default to zero payment received.
+Security impact: Positive. Shared notification sanitation removes local drift. Dev ERP cookies remain secure cross-site cookies, CSRF cookie/header validation remains enforced, refresh rechecks organization scope, and no browser-readable access token was introduced.
+Testing done: See app-specific progress logs. Dev ERP backend tests passed with 98 tests; Stroane backend tests passed with 30 tests; Stroane Playwright passed with 9 tests; shared finance and notification package tests passed with 4 and 5 tests respectively; affected builds, lint checks, Prisma validation, `pnpm run security:gate`, `pnpm run monitoring:check`, and `git diff --check` passed.
+Rollback notes: Revert helper adoption and docs for Stroane. For Dev ERP, revert runtime/UI changes; preserve entered paid amounts before any separately reviewed forward migration removing the column.
+Next step: Deploy Dev ERP migration and Railway cookie env values, then run hosted login and partial-invoice acceptance tests before broader shared extraction.
+
 ### Stroane catalogue normalization and Faako onboarding submit fix
 
 Date: 2026-05-22

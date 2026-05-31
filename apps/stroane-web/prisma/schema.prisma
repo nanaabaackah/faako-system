@@ -151,36 +151,85 @@ model CatalogueProductSupplier {
 }
 
 model InventoryItem {
-  id                String              @id @default(cuid())
-  productId         String?
-  product           CatalogueProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productSlug       String
-  variantId         String?
-  sku               String?
-  supplierId        String?
-  supplier          Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  quantityOnHand    Int?
-  reservedQuantity  Int?
-  availableQuantity Int?
-  reorderThreshold  Int?
-  lowStockThreshold Int?
-  stockStatus       String              @default("unavailable")
-  allowBackorder    Boolean?
-  isPurchasable     Boolean?
-  lastCountedAt     DateTime?
-  lastRestockedAt   DateTime?
-  notes             String?
-  movements         InventoryMovement[]
-  auditEntries      InventoryAuditEntry[]
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id                       String              @id @default(cuid())
+  productId                String?
+  product                  CatalogueProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSlug              String
+  variantId                String?
+  sku                      String?
+  supplierId               String?
+  supplier                 Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  quantityOnHand           Int?
+  reservedQuantity         Int?
+  availableQuantity        Int?
+  reorderThreshold         Int?
+  lowStockThreshold        Int?
+  stockStatus              String              @default("unavailable")
+  inventoryTrackingEnabled Boolean             @default(true)
+  allowBackorder           Boolean?
+  isPurchasable            Boolean?
+  lastCountedAt            DateTime?
+  lastRestockedAt          DateTime?
+  notes                    String?
+  movements                InventoryMovement[]
+  auditEntries             InventoryAuditEntry[]
+  alerts                   InventoryAlert[]
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
 
   @@unique([productSlug, variantId])
   @@index([productId])
   @@index([productSlug])
   @@index([variantId])
   @@index([stockStatus])
+  @@index([inventoryTrackingEnabled])
   @@index([supplierId])
+}
+
+model InventoryAlert {
+  id                        String                   @id @default(cuid())
+  inventoryItemId           String
+  inventoryItem             InventoryItem            @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  alertType                 String
+  status                    String                   @default("ACTIVE")
+  reason                    String?
+  availableQuantity         Int?
+  reservedQuantity          Int?
+  reorderThreshold          Int?
+  firstDetectedAt           DateTime                 @default(now())
+  lastDetectedAt            DateTime                 @default(now())
+  lastNotificationAttemptAt DateTime?
+  lastNotifiedAt            DateTime?
+  notificationCount         Int                      @default(0)
+  resolvedAt                DateTime?
+  dispatches                InventoryAlertDispatch[]
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+
+  @@unique([inventoryItemId, alertType])
+  @@index([status, alertType])
+  @@index([lastNotifiedAt])
+}
+
+model InventoryAlertDispatch {
+  id             String          @id @default(cuid())
+  alertId        String?
+  alert          InventoryAlert? @relation(fields: [alertId], references: [id], onDelete: SetNull)
+  batchKey       String
+  trigger        String
+  alertType      String
+  channel        String
+  status         String
+  recipientCount Int             @default(0)
+  providerId     String?
+  error          String?
+  payloadSummary Json?
+  createdAt      DateTime        @default(now())
+
+  @@index([alertId])
+  @@index([batchKey])
+  @@index([channel, status])
+  @@index([createdAt])
 }
 
 model InventoryMovement {

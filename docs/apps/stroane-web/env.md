@@ -82,6 +82,22 @@ The Railway API requires a database URL at startup. If no production connection 
 - `ORDER_NOTIFICATION_FROM`: customer-safe sender.
 - `ORDER_NOTIFICATION_REPLY_TO`: customer-safe reply-to.
 
+## Inventory Owner Alerts
+
+These values belong on the Railway API service only. Never add recipient details
+or scheduler secrets to Cloudflare Pages or any `VITE_*` variable.
+
+- `STROANE_ALERT_EMAILS`: comma-separated owner/admin email recipients for grouped low-stock, out-of-stock, and restocked summaries.
+- `STROANE_ALERT_WHATSAPP_NUMBERS`: comma-separated owner/admin WhatsApp recipients. The current phase prepares provider-neutral WhatsApp messages but does not send them.
+- `STROANE_ALERT_FROM`: optional operational alert sender, for example `Example Store Operations <alerts@example.com>`.
+- `STROANE_ALERT_REPLY_TO`: optional operational alert reply-to.
+- `STROANE_ALERT_COOLDOWN_MINUTES`: optional duplicate-attempt cooldown. Defaults to `720` minutes.
+- `STROANE_ALERT_CRON_SECRET`: backend-only bearer secret for scheduled `POST /api/internal/inventory/alerts/check` calls.
+
+Operational email delivery also requires `RESEND_API_KEY`. If recipient or
+provider configuration is absent, the inventory scan still records a safe
+skipped dispatch audit entry instead of failing stock updates.
+
 ## Monitoring Metadata
 
 Keep app-specific monitoring override names in private operations configuration, not in the public `.env.example`.

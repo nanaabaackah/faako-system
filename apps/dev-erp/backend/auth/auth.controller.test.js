@@ -4,6 +4,7 @@ import {
   createForgotPasswordHandler,
   createGetSessionHandler,
   createLoginHandler,
+  createRefreshHandler,
 } from "./auth.controller.js";
 
 const createMockResponse = () => {
@@ -149,6 +150,64 @@ test("createLoginHandler rejects users with invalid password state instead of th
   });
 });
 
+test("createLoginHandler returns the CSRF token needed by a cross-site frontend", async () => {
+  const cookieCalls = [];
+  const handler = createLoginHandler({
+    prisma: {
+      user: {
+        async findUnique() {
+          return {
+            id: 71,
+            email: "owner@example.com",
+            password: "hashed-password",
+            status: "ACTIVE",
+            loginAttempts: 0,
+            lockedUntil: null,
+            organizationId: 4,
+            fullName: "Owner Example",
+            role: {
+              id: 1,
+              name: "Admin",
+              permissions: { modules: ["invoicing"] },
+            },
+          };
+        },
+        async update() {},
+      },
+    },
+    bcrypt: {
+      async compare() {
+        return true;
+      },
+    },
+    buildToken() {
+      return "access-token";
+    },
+    createCsrfToken() {
+      return "csrf-token";
+    },
+    setAuthCookies(_res, payload) {
+      cookieCalls.push(payload);
+    },
+  });
+  const res = createMockResponse();
+
+  await handler(
+    {
+      body: {
+        email: "OWNER@example.com",
+        password: "secret",
+      },
+    },
+    res
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(cookieCalls, [{ token: "access-token", csrfToken: "csrf-token" }]);
+  assert.equal(res.body.csrfToken, "csrf-token");
+  assert.equal(res.body.user.email, "owner@example.com");
+});
+
 test("createGetSessionHandler returns the server-authoritative session user", async () => {
   const handler = createGetSessionHandler({
     prisma: {
@@ -242,6 +301,116 @@ test("createGetSessionHandler reflects current role permissions after role chang
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.user.allowedModules, ["rent"]);
   assert.equal(res.body.user.role.name, "Tenant");
+});
+
+test("createGetSessionHandler rotates and returns a CSRF token when configured", async () => {
+  const cookieCalls = [];
+  const handler = createGetSessionHandler({
+    prisma: {
+      user: {
+        async findUnique() {
+          return {
+            id: 54,
+            email: "csrf@example.com",
+            firstName: "Csrf",
+            lastName: "Owner",
+            fullName: "Csrf Owner",
+            status: "ACTIVE",
+            organizationId: 8,
+            role: {
+              id: 2,
+              name: "Admin",
+              permissions: { modules: ["invoicing"] },
+            },
+          };
+        },
+      },
+    },
+    createCsrfToken() {
+      return "session-csrf-token";
+    },
+    setCsrfCookie(_res, token) {
+      cookieCalls.push(token);
+    },
+  });
+  const res = createMockResponse();
+
+  await handler({ user: { userId: 54 } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(cookieCalls, ["session-csrf-token"]);
+  assert.equal(res.body.csrfToken, "session-csrf-token");
+});
+
+test("createRefreshHandler rotates the CSRF token for cross-site API replay", async () => {
+  const authCookieCalls = [];
+  const refreshCookieCalls = [];
+  const handler = createRefreshHandler({
+    prisma: {
+      refreshToken: {
+        async findUnique() {
+          return {
+            id: 5,
+            userId: 88,
+            expiresAt: new Date(Date.now() + 60_000),
+            revokedAt: null,
+          };
+        },
+        async update() {},
+      },
+      user: {
+        async findUnique() {
+          return {
+            id: 88,
+            status: "ACTIVE",
+            organizationId: 3,
+            role: { id: 1, name: "Admin", permissions: null },
+          };
+        },
+      },
+    },
+    crypto: {
+      createHash() {
+        return {
+          update() {
+            return this;
+          },
+          digest() {
+            return "refresh-token-hash";
+          },
+        };
+      },
+    },
+    buildToken() {
+      return "rotated-access-token";
+    },
+    setAuthCookies(_res, payload) {
+      authCookieCalls.push(payload);
+    },
+    createCsrfToken() {
+      return "rotated-csrf-token";
+    },
+    async issueRefreshToken() {
+      return "rotated-refresh-token";
+    },
+    setRefreshCookie(_res, token) {
+      refreshCookieCalls.push(token);
+    },
+    getCookieValue() {
+      return "existing-refresh-token";
+    },
+    refreshCookieName: "refresh-cookie",
+  });
+  const res = createMockResponse();
+
+  await handler({}, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true, csrfToken: "rotated-csrf-token" });
+  assert.deepEqual(refreshCookieCalls, ["rotated-refresh-token"]);
+  assert.deepEqual(authCookieCalls, [
+    { token: "rotated-access-token", csrfToken: "rotated-csrf-token" },
+  ]);
 });
 
 test("createGetSessionHandler rejects users without organization scope", async () => {

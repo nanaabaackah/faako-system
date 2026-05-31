@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@faako/core": "workspace:*",
+    "@faako/notifications": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/theme": "workspace:*",
     "@faako/types": "workspace:*",

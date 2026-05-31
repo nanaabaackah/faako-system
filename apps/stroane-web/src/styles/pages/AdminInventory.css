@@ -135,6 +135,76 @@
   display: block;
 }
 
+.admin-inventory-alert-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+}
+
+.admin-inventory-alert-summary .admin-inventory-kicker {
+  margin-bottom: 0.25rem;
+}
+
+.admin-inventory-alert-summary p,
+.admin-inventory-alert-summary small {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.admin-inventory-alert-summary__counts {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.admin-inventory-alert-summary__counts span,
+.admin-inventory-alert-summary__counts small,
+.admin-inventory-alert-summary__counts strong {
+  display: block;
+}
+
+.admin-inventory-alert-summary__counts small {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-inventory-alert-summary__counts strong {
+  margin-top: 0.18rem;
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+}
+
+.admin-inventory-alert-summary button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 42px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.admin-inventory-alert-summary button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .admin-inventory-summary small {
   color: var(--color-text-muted);
   font-size: 0.7rem;
@@ -597,9 +667,18 @@
   }
 
   .admin-inventory-summary,
+  .admin-inventory-alert-summary,
   .admin-inventory-filters,
   .admin-inventory-supplier-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-inventory-alert-summary__counts {
+    justify-content: space-between;
+  }
+
+  .admin-inventory-alert-summary button {
+    width: 100%;
   }
 
   .admin-inventory-summary span,

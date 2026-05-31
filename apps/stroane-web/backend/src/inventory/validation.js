@@ -206,6 +206,13 @@ export const validateInventoryPatchPayload = (body = {}) => {
     data.stockStatus = normalizeStatus(body.stockStatus, STOCK_STATUSES, "Stock status");
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "inventoryTrackingEnabled")) {
+    data.inventoryTrackingEnabled = parseBoolean(
+      body.inventoryTrackingEnabled,
+      "Inventory tracking enabled"
+    );
+  }
+
   if (Object.prototype.hasOwnProperty.call(body, "allowBackorder")) {
     data.allowBackorder = parseBoolean(body.allowBackorder, "Allow backorder");
   }

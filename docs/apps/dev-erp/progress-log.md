@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Cross-site session stabilization and invoice paid-amount tracking
+
+Date: 2026-05-31
+Feature/change name: Dev ERP cross-site session stabilization and invoice paid-amount tracking
+Apps affected: Dev ERP
+What changed: Corrected hosted-session behavior for the separately deployed frontend and Railway API by defaulting production cookies to secure `SameSite=None`, returning CSRF tokens from login, session bootstrap, and refresh responses, retaining the token in frontend `sessionStorage`, and using it as the unsafe-request header fallback when the API-domain CSRF cookie cannot be read by the frontend origin. Added additive `Invoice.paidAmount` persistence, derived `balanceDue` and `unpaid`/`part_paid`/`paid`/`overpaid` display status, operator edit support, and matching internal preview, ledger, public invoice view, PDF, and invoice-email presentation.
+Why it changed: Cross-site `SameSite=Lax` cookies were not attached to hosted API requests, causing successful login to collapse into immediate logout and module API failures. Invoice operators also needed partial-payment visibility without introducing a new payment ledger.
+Files changed: apps/dev-erp/backend/auth/auth.controller.js, apps/dev-erp/backend/auth/auth.controller.test.js, apps/dev-erp/backend/invoices/paymentSummary.js, apps/dev-erp/backend/invoices/paymentSummary.test.js, apps/dev-erp/backend/invoiceEmailTemplate.js, apps/dev-erp/backend/server.js, apps/dev-erp/prisma/schema.prisma, apps/dev-erp/prisma/migrations/20260531000000_add_invoice_paid_amount/migration.sql, apps/dev-erp/src/api/client.ts, apps/dev-erp/src/utils/authSession.js, apps/dev-erp/src/utils/authSession.d.ts, apps/dev-erp/src/pages/Invoicing/Invoicing.jsx, apps/dev-erp/src/pages/InvoiceView/InvoiceView.jsx, apps/dev-erp/src/utils/invoicePdf.js, apps/dev-erp/.env.example, apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/pre-deploy-checklist.md.
+Data impact: Additive forward migration only. Existing invoices receive `paidAmount=0`, except existing `PAID` invoices are backfilled to their stored total so their derived balance remains zero. No rent payment, accounting entry, proposal, report, or operational record is removed.
+Security impact: Positive. Production cross-site cookies remain `Secure`; CSRF validation is preserved through a backend cookie plus frontend header token; refresh now rechecks organization scope; and CORS remains origin allow-list driven. No browser-readable access token was introduced.
+Testing done: Added auth controller coverage for cross-site CSRF token handoff and refresh rotation, plus pure invoice payment-summary tests. `node --check` passed for the server, auth controller, invoice summary helper, and invoice email template. `pnpm --filter @faako/dev-erp exec prisma validate` passed. `pnpm --filter @faako/dev-erp run test` passed with 98 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `pnpm --filter @faako/finance run test` passed with 4 tests. Migration inspection found no destructive SQL.
+Rollback notes: Revert the auth/session handoff and invoice tracking changes. If the invoice migration has deployed, preserve any entered `paidAmount` values before removing the column through a separately reviewed forward migration.
+Next step: Configure Railway with `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and the hosted frontend in `CORS_ORIGINS`; deploy the additive migration; then smoke-test login persistence and partial invoice edits against the hosted environment.
+
 ### Client proposal approval and request changes MVP
 
 Date: 2026-05-19

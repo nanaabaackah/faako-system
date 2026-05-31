@@ -91,6 +91,11 @@ const InvoiceView = () => {
 
   const canRespond = invoice && ["QUOTATION", "SENT"].includes(invoice.status);
   const orgName = invoice?.organizationName || "By Nana";
+  const paidAmount = Number(invoice?.paidAmount || 0);
+  const balanceDue =
+    invoice?.balanceDue !== undefined
+      ? Number(invoice.balanceDue)
+      : Math.max(Number(invoice?.total || 0) - paidAmount, 0);
 
   return (
     <div className="invoice-view-page">
@@ -126,8 +131,8 @@ const InvoiceView = () => {
                   <p className="muted">{STATUS_LABELS[invoice.status] || invoice.status}</p>
                 </div>
                 <div className="invoice-view-card__total">
-                  <span className="muted">Total</span>
-                  <strong>{formatAmount(invoice.total, invoice.currency)}</strong>
+                  <span className="muted">Balance due</span>
+                  <strong>{formatAmount(balanceDue, invoice.currency)}</strong>
                 </div>
               </div>
 
@@ -188,6 +193,14 @@ const InvoiceView = () => {
                 <div className="invoice-view-totals__row is-total">
                   <span>Total</span>
                   <strong>{formatAmount(invoice.total, invoice.currency)}</strong>
+                </div>
+                <div className="invoice-view-totals__row">
+                  <span>Payment received</span>
+                  <strong>{formatAmount(paidAmount, invoice.currency)}</strong>
+                </div>
+                <div className="invoice-view-totals__row is-total">
+                  <span>Balance due</span>
+                  <strong>{formatAmount(balanceDue, invoice.currency)}</strong>
                 </div>
               </div>
 

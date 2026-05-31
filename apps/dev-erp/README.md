@@ -110,6 +110,15 @@ Important safeguards:
 - access sessions use a short-lived server JWT; the shared API client retries once through `/api/auth/refresh` before signing out when the access cookie expires
 - backend access is enforced by capability middleware and organization scoping, not only by frontend route visibility
 - the shared API client in `src/api/client.ts` handles credentials, CSRF headers, JSON parsing, and normalized API errors
+- when the hosted frontend and Railway API are on different sites, configure Railway with `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and a narrow `CORS_ORIGINS` allow-list containing the frontend origin. Login, `/api/auth/session`, and refresh responses return the matching CSRF token for browser session storage while the API still validates the CSRF cookie/header pair.
+
+## Invoice Payment Tracking
+
+Invoice records now persist `paidAmount`, derive `balanceDue`, and present `unpaid`, `part_paid`, `paid`, or `overpaid` status without introducing an external payment ledger. Apply the additive production migration before deploying the updated backend:
+
+```bash
+pnpm --filter @faako/dev-erp run db:deploy:prod
+```
 
 ## Verify Changes
 

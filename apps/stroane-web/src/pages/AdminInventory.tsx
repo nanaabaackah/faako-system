@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   HiOutlineAdjustments,
+  HiOutlineBell,
   HiOutlineCube,
   HiOutlineExclamation,
   HiOutlineOfficeBuilding,
@@ -13,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import {
   adminInventoryApi,
   type InventoryItem,
+  type InventoryAlertSummary,
   type InventoryMovement,
   type SupplierDetail,
   type SupplierSummary,
@@ -42,6 +44,16 @@ const MOVEMENT_TYPE_OPTIONS = [
   { value: "RESERVED", label: "Reserve quantity" },
   { value: "RELEASED", label: "Release reserved quantity" },
 ];
+
+const EMPTY_ALERT_SUMMARY: InventoryAlertSummary = {
+  active: [],
+  recentDispatches: [],
+  counts: {
+    lowStock: 0,
+    outOfStock: 0,
+    total: 0,
+  },
+};
 
 const formatLabel = (value = "") =>
   value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -98,6 +110,9 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [alertSummary, setAlertSummary] = useState<InventoryAlertSummary>(EMPTY_ALERT_SUMMARY);
+  const [alertStatus, setAlertStatus] = useState("");
+  const [checkingAlerts, setCheckingAlerts] = useState(false);
   const [movementItem, setMovementItem] = useState<InventoryItem | null>(null);
   const [movementDraft, setMovementDraft] = useState({
     movementType: "RESTOCK",
@@ -129,6 +144,13 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
       setInventory(nextInventory);
       setSuppliers(nextSuppliers);
       setMovements(nextMovements);
+      try {
+        setAlertSummary(await adminInventoryApi.getAlertSummary(session));
+        setAlertStatus("");
+      } catch {
+        setAlertSummary(EMPTY_ALERT_SUMMARY);
+        setAlertStatus("Inventory alert status is temporarily unavailable.");
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load inventory.");
     } finally {
@@ -216,6 +238,27 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
     setNotice("");
   };
 
+  const runAlertCheck = async () => {
+    if (!session || !isAdmin) return;
+    setCheckingAlerts(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await adminInventoryApi.runAlertCheck(session);
+      setAlertSummary(await adminInventoryApi.getAlertSummary(session));
+      setAlertStatus("");
+      setNotice(
+        `Inventory alert check completed: ${result.detected} active warning(s), ${result.restocked} recovery update(s).`
+      );
+    } catch (alertError) {
+      setError(
+        alertError instanceof Error ? alertError.message : "Unable to run inventory alert check."
+      );
+    } finally {
+      setCheckingAlerts(false);
+    }
+  };
+
   const submitMovement = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!session || !movementItem || !isAdmin) return;
@@ -241,6 +284,10 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
         items.map((item) => (item.id === result.inventoryItem.id ? result.inventoryItem : item))
       );
       setMovements((items) => [result.movement, ...items].slice(0, 60));
+      adminInventoryApi
+        .getAlertSummary(session)
+        .then(setAlertSummary)
+        .catch(() => setAlertStatus("Inventory alert status is temporarily unavailable."));
       setMovementItem(null);
       setNotice(
         `${formatLabel(result.movement.movementType)} recorded for ${getProductName(
@@ -278,6 +325,31 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
             <span><small>Low stock</small><strong>{summary.lowStock}</strong></span>
             <span><small>Unavailable</small><strong>{summary.unavailable}</strong></span>
             <span><small>Suppliers</small><strong>{summary.suppliers}</strong></span>
+          </div>
+
+          <div className="admin-inventory-alert-summary" aria-label="Inventory alert summary">
+            <div>
+              <span className="admin-inventory-kicker">
+                <HiOutlineBell aria-hidden="true" />
+                Owner alerts
+              </span>
+              <p>
+                {alertSummary.counts.total
+                  ? `${alertSummary.counts.total} product alert(s) need attention.`
+                  : "No active low-stock or out-of-stock alerts."}
+              </p>
+              {alertStatus ? <small>{alertStatus}</small> : null}
+            </div>
+            <div className="admin-inventory-alert-summary__counts">
+              <span><small>Low stock</small><strong>{alertSummary.counts.lowStock}</strong></span>
+              <span><small>Out of stock</small><strong>{alertSummary.counts.outOfStock}</strong></span>
+            </div>
+            {isAdmin ? (
+              <button type="button" onClick={runAlertCheck} disabled={checkingAlerts}>
+                <HiOutlineRefresh aria-hidden="true" />
+                {checkingAlerts ? "Checking..." : "Check alerts"}
+              </button>
+            ) : null}
           </div>
 
           <div className="admin-inventory-viewbar">
@@ -383,7 +455,11 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                         <td>{displayQuantity(item.availableQuantity)}</td>
                         <td>{displayQuantity(item.reservedQuantity)}</td>
                         <td>{displayQuantity(item.reorderThreshold)}</td>
-                        <td><span className={getStockBadgeClass(item.computedStockStatus)}>{formatLabel(item.computedStockStatus)}</span></td>
+                        <td>
+                          <span className={getStockBadgeClass(item.computedStockStatus)}>{formatLabel(item.computedStockStatus)}</span>
+                          {item.computedStockStatus === "out_of_stock" ? <small>Restock required</small> : null}
+                          {item.computedStockStatus !== "out_of_stock" && item.needsReorder ? <small>Reorder recommended</small> : null}
+                        </td>
                         <td>{item.supplier?.name || "Not linked"}</td>
                         <td>{formatDateTime(item.updatedAt)}</td>
                         <td>

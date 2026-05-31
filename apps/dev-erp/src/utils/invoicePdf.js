@@ -171,10 +171,13 @@ export const downloadInvoicePdf = async ({
   lineItems = [],
   taxRate = 0,
   discount = 0,
+  paidAmount = 0,
   notes = "",
 }) => {
   const { jsPDF } = await import("jspdf");
   const totals = calculateInvoiceTotals({ lineItems, taxRate, discount });
+  const normalizedPaidAmount = Math.max(asNumber(paidAmount), 0);
+  const balanceDue = Math.max(totals.total - normalizedPaidAmount, 0);
 
   const doc = new jsPDF({
     unit: "pt",
@@ -244,10 +247,10 @@ export const downloadInvoicePdf = async ({
   doc.setTextColor(...PDF_COLORS.white);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("TOTAL DUE", totalBoxX + 14, totalBoxY + 18);
+  doc.text("BALANCE DUE", totalBoxX + 14, totalBoxY + 18);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text(formatMoney(totals.total, currency), totalBoxX + totalBoxWidth - 14, totalBoxY + 40, {
+  doc.text(formatMoney(balanceDue, currency), totalBoxX + totalBoxWidth - 14, totalBoxY + 40, {
     align: "right",
   });
 
@@ -448,6 +451,7 @@ export const downloadInvoicePdf = async ({
     ["Subtotal (excluding monthly charges)", formatMoney(totals.regularSubtotal, currency)],
     [`Tax (${totals.taxRate.toFixed(2)}%)`, formatMoney(totals.taxAmount, currency)],
     ["Discount", `-${formatMoney(totals.discount, currency)}`],
+    ["Payment received", formatMoney(normalizedPaidAmount, currency)],
   ];
   const summaryLabelWidth = 152;
   const summaryRowLayouts = summaryRows.map(([label, value]) => {
@@ -512,10 +516,10 @@ export const downloadInvoicePdf = async ({
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...PDF_COLORS.white);
-  doc.text("TOTAL DUE", totalBlockX + 16, totalBlockY + 18);
+  doc.text("BALANCE DUE", totalBlockX + 16, totalBlockY + 18);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text(formatMoney(totals.total, currency), totalBlockX + totalBlockWidth - 16, totalBlockY + 35, {
+  doc.text(formatMoney(balanceDue, currency), totalBlockX + totalBlockWidth - 16, totalBlockY + 35, {
     align: "right",
   });
 

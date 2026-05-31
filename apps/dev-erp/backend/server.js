@@ -85,6 +85,10 @@ import {
   resolveUserStatusForPasswordState,
 } from "./utils/accessUsers.js";
 import {
+  buildInvoicePaymentSummary,
+  parseInvoicePaidAmount,
+} from "./invoices/paymentSummary.js";
+import {
   resolveEmailDeliveryRecipients,
   resolveSingleEmailDeliveryTarget,
 } from "./utils/emailDelivery.js";
@@ -475,7 +479,10 @@ const AUTH_COOKIE_MAX_AGE_MS = parsePositiveInt(
     max: 14 * 24 * 60 * 60 * 1000,
   }
 );
-const AUTH_COOKIE_SAME_SITE = normalizeSameSite(process.env.AUTH_COOKIE_SAME_SITE, "lax");
+const AUTH_COOKIE_SAME_SITE = normalizeSameSite(
+  process.env.AUTH_COOKIE_SAME_SITE,
+  isProduction ? "none" : "lax"
+);
 const AUTH_COOKIE_SECURE = parseEnvBoolean(process.env.AUTH_COOKIE_SECURE, isProduction);
 const REFRESH_COOKIE_NAME = String(process.env.REFRESH_COOKIE_NAME || "dev_kpi_refresh").trim() || "dev_kpi_refresh";
 const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1668,6 +1675,10 @@ const setAuthCookies = (res, { token, csrfToken }) => {
     httpOnly: true,
     maxAge: AUTH_COOKIE_MAX_AGE_MS,
   });
+  setCsrfCookie(res, csrfToken);
+};
+
+const setCsrfCookie = (res, csrfToken) => {
   res.cookie(AUTH_CSRF_COOKIE_NAME, csrfToken, {
     ...authCookieBaseOptions,
     httpOnly: false,
@@ -4835,7 +4846,11 @@ const loginHandler = createLoginHandler({
   issueRefreshToken,
   setRefreshCookie,
 });
-const getSessionHandler = createGetSessionHandler({ prisma });
+const getSessionHandler = createGetSessionHandler({
+  prisma,
+  createCsrfToken,
+  setCsrfCookie,
+});
 const logoutHandler = createLogoutHandler({
   clearAuthCookies,
   clearRefreshCookie,
@@ -7779,7 +7794,7 @@ app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: "currency must be CAD or GHS" });
   }
 
-  const status =
+  let status =
     req.body?.status !== undefined
       ? normalizeInvoiceStatus(req.body.status)
       : "DRAFT";
@@ -7850,6 +7865,22 @@ app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: totals.error });
   }
 
+  const parsedPaidAmount = parseInvoicePaidAmount(
+    req.body?.paidAmount,
+    status === "PAID" ? totals.total : 0
+  );
+  if (parsedPaidAmount.error) {
+    return res.status(400).json({ error: parsedPaidAmount.error });
+  }
+  const { paidAmount } = parsedPaidAmount;
+  if (status === "PAID" && paidAmount < totals.total) {
+    return res.status(400).json({ error: "paidAmount must cover the invoice total when status is PAID." });
+  }
+  if (paidAmount > 0 && paidAmount >= totals.total) {
+    status = "PAID";
+    paidAt = paidAt || new Date();
+  }
+
   const requestedInvoiceNumber = normalizeInvoiceNumber(req.body?.invoiceNumber);
   let invoiceNumber = requestedInvoiceNumber;
 
@@ -7903,6 +7934,7 @@ app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
       taxAmount: toCurrencyDecimal(totals.taxAmount),
       discount: toCurrencyDecimal(totals.discount),
       total: toCurrencyDecimal(totals.total),
+      paidAmount: toCurrencyDecimal(paidAmount),
       lineItems: {
         create: parsedLineItems.lineItems.map((lineItem) => ({
           description: lineItem.description,
@@ -8046,6 +8078,14 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
         : null;
   }
 
+  if (req.body?.paidAmount !== undefined) {
+    const parsedPaidAmount = parseInvoicePaidAmount(req.body.paidAmount);
+    if (parsedPaidAmount.error) {
+      return res.status(400).json({ error: parsedPaidAmount.error });
+    }
+    updateData.paidAmount = toCurrencyDecimal(parsedPaidAmount.paidAmount);
+  }
+
   let lineItems = null;
   if (req.body?.lineItems !== undefined) {
     const parsedLineItems = parseInvoiceLineItems(req.body.lineItems);
@@ -8096,7 +8136,23 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
     return res.status(400).json({ error: "dueDate cannot be earlier than issueDate" });
   }
 
-  const nextStatus = updateData.status ?? invoice.status;
+  const nextTotal = Number(updateData.total ?? invoice.total);
+  let nextPaidAmount = Number(updateData.paidAmount ?? invoice.paidAmount ?? 0);
+  let nextStatus = updateData.status ?? invoice.status;
+  if (nextStatus === "PAID" && req.body?.paidAmount === undefined && nextPaidAmount < nextTotal) {
+    nextPaidAmount = nextTotal;
+    updateData.paidAmount = toCurrencyDecimal(nextPaidAmount);
+  }
+  if (nextStatus === "PAID" && nextPaidAmount < nextTotal) {
+    return res.status(400).json({ error: "paidAmount must cover the invoice total when status is PAID." });
+  }
+  if (nextPaidAmount > 0 && nextPaidAmount >= nextTotal) {
+    nextStatus = "PAID";
+    updateData.status = "PAID";
+  } else if (invoice.status === "PAID" && req.body?.status === undefined) {
+    nextStatus = "SENT";
+    updateData.status = "SENT";
+  }
   if (nextStatus === "PAID") {
     updateData.paidAt = updateData.paidAt ?? invoice.paidAt ?? new Date();
   } else if (updateData.status !== undefined && req.body?.paidAt === undefined) {
@@ -8186,6 +8242,10 @@ const serializePublicInvoice = (invoice) => ({
   taxAmount: Number(invoice.taxAmount),
   discount: Number(invoice.discount),
   total: Number(invoice.total),
+  ...buildInvoicePaymentSummary({
+    total: Number(invoice.total),
+    paidAmount: Number(invoice.paidAmount ?? 0),
+  }),
   organizationName: invoice.organization?.name ?? null,
   respondedAt: invoice.respondedAt ?? null,
   viewTokenExpiresAt: invoice.viewTokenExpiresAt ?? null,
@@ -10593,6 +10653,16 @@ const serializeInvoice = (invoice) => ({
     typeof invoice.total?.toNumber === "function"
       ? invoice.total.toNumber()
       : Number(invoice.total),
+  ...buildInvoicePaymentSummary({
+    total:
+      typeof invoice.total?.toNumber === "function"
+        ? invoice.total.toNumber()
+        : Number(invoice.total),
+    paidAmount:
+      typeof invoice.paidAmount?.toNumber === "function"
+        ? invoice.paidAmount.toNumber()
+        : Number(invoice.paidAmount ?? 0),
+  }),
   viewToken: invoice.viewToken ?? null,
   viewTokenExpiresAt: invoice.viewTokenExpiresAt ? invoice.viewTokenExpiresAt.toISOString() : null,
   respondedAt: invoice.respondedAt ? invoice.respondedAt.toISOString() : null,

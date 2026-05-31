@@ -105,6 +105,16 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - API/admin endpoints for supplier management, inventory listing, inventory adjustments, restock entry, and stock movement history are planned in `docs/apps/stroane-web/api.md`; do not fake these screens until the backend routes and permission checks are implemented.
 - Product cards/details now show an available-stock count when the catalogue/API provides it. If stock counts are missing, the storefront falls back to the existing availability label and non-purchasable behavior.
 
+### Operational inventory owner alerts - 2026-05-31
+
+- `backend/src/inventoryAlerts/` contains the private alert service layer. Public catalogue reads must remain side-effect free; scans run only after committed inventory mutations, authenticated manual checks, or the scheduler-secret internal route.
+- Alert eligibility requires `InventoryItem.inventoryTrackingEnabled=true`, a linked product, `isPublished=true`, and `publishingStatus=active`. Draft, archived, unpublished, tracking-disabled, and unknown-quantity items do not generate misleading owner notifications.
+- `InventoryAlert` persists alert state and cooldown claims. `InventoryAlertDispatch` persists safe channel audit rows without recipient addresses or WhatsApp numbers.
+- Resend email delivery groups alert rows into one operational summary. WhatsApp support is preparation-only through a provider-neutral formatter; no WhatsApp Cloud API or Twilio call is made.
+- Use Railway-only `STROANE_ALERT_EMAILS`, `STROANE_ALERT_WHATSAPP_NUMBERS`, `STROANE_ALERT_COOLDOWN_MINUTES`, and `STROANE_ALERT_CRON_SECRET`. Cloudflare Pages must not receive these values.
+- The scheduler route is `POST /api/internal/inventory/alerts/check` with `Authorization: Bearer <STROANE_ALERT_CRON_SECRET>`. Manual staff checks use protected `POST /api/admin/inventory/alerts/check`.
+- Deploy additive migration `20260531000000_add_inventory_alert_foundation` before enabling scans. The existing admin inventory page degrades gently if an older API has not received the alert migration yet.
+
 ### Commerce and checkout foundation - 2026-05-20
 
 - `src/context/CartContext.tsx` persists only product IDs and quantities in `localStorage` under `stroane_cart_v1`. It does not store customer details, payment references, prices, or sensitive data locally.

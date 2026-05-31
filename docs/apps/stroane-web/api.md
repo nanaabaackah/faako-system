@@ -36,8 +36,44 @@ Catalogue endpoints prefer persisted database rows when available and fall back 
 - `PATCH /api/admin/products/:id/media`
 - `PATCH /api/admin/products/:id/publishing`
 - `PATCH /api/admin/products/:id/suppliers`
+- `GET /api/admin/inventory/alerts`
+- `POST /api/admin/inventory/alerts/check`
 
 Private endpoints require backend `SiteUser` bearer auth. `ADMIN` and `VIEWER` can read admin order/inventory data; write/update routes require `ADMIN`. Public customer sign-in/sign-up is not a backend security boundary.
+
+## Inventory Owner Alerts
+
+Inventory-owner notifications are private operational workflows. They never run
+from public catalogue requests and never expose configured recipients publicly.
+
+- `GET /api/admin/inventory/alerts`
+  - `ADMIN` and `VIEWER` can review active alert counts, alert rows, and safe dispatch history.
+- `POST /api/admin/inventory/alerts/check`
+  - `ADMIN` only. Runs a manual inventory scan and grouped delivery attempt.
+- `POST /api/internal/inventory/alerts/check`
+  - Internal scheduler route. Requires `Authorization: Bearer <STROANE_ALERT_CRON_SECRET>`.
+
+Alert scans also run after committed admin inventory movements, direct inventory
+updates, and product-inventory updates. A durable cooldown claim prevents
+duplicate sends when multiple scans overlap.
+
+Alert types:
+
+- `LOW_STOCK`: available quantity reached either the low-stock threshold or reorder threshold.
+- `OUT_OF_STOCK`: available quantity is zero.
+- `RESTOCKED`: a previously warned item recovered above its thresholds.
+
+Eligibility rules:
+
+- Product must be published and active.
+- Inventory tracking must be enabled.
+- Draft, archived, unpublished, and tracking-disabled products do not trigger owner notifications.
+- Unknown quantity remains visible for review but does not generate a misleading stock alert.
+
+Email uses the existing backend Resend pattern and groups affected products into
+one operational summary. WhatsApp is provider-neutral preparation only: the
+backend creates a prepared dispatch record and message format without calling a
+WhatsApp Cloud API, Twilio, or another provider.
 
 ## Frontend Route Boundaries
 
@@ -91,7 +127,7 @@ These routes are internal API foundations only. Do not expose supplier notes, co
 - `GET /api/admin/inventory/:id`
   - Returns one inventory item.
 - `PATCH /api/admin/inventory/:id`
-  - Admin-only. Updates stock metadata such as `quantityOnHand`, `stockQuantity`, `reservedQuantity`, `lowStockThreshold`, `reorderThreshold`, `stockStatus`, `allowBackorder`, `isPurchasable`, `supplierId`, `sku`, `lastCountedAt`, and `notes`.
+  - Admin-only. Updates stock metadata such as `quantityOnHand`, `stockQuantity`, `reservedQuantity`, `lowStockThreshold`, `reorderThreshold`, `stockStatus`, `inventoryTrackingEnabled`, `allowBackorder`, `isPurchasable`, `supplierId`, `sku`, `lastCountedAt`, and `notes`.
 
 ### Inventory Movements
 

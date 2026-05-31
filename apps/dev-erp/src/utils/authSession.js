@@ -2,6 +2,7 @@ export const AUTH_SESSION_INVALID_EVENT = "dev-kpi:auth-session-invalid";
 
 const AUTH_TOKEN_STORAGE_KEY = "token";
 const AUTH_USER_STORAGE_KEY = "user";
+const AUTH_CSRF_STORAGE_KEY = "csrfToken";
 
 const dispatchSessionInvalidEvent = (detail = {}) => {
   if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
@@ -32,10 +33,26 @@ export const writeStoredSession = (user) => {
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
 };
 
+export const readStoredCsrfToken = () => {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem(AUTH_CSRF_STORAGE_KEY) || "";
+};
+
+export const writeStoredCsrfToken = (token) => {
+  if (typeof window === "undefined") return;
+  const normalizedToken = typeof token === "string" ? token.trim() : "";
+  if (normalizedToken) {
+    window.sessionStorage.setItem(AUTH_CSRF_STORAGE_KEY, normalizedToken);
+    return;
+  }
+  window.sessionStorage.removeItem(AUTH_CSRF_STORAGE_KEY);
+};
+
 export const clearStoredSession = (options = {}) => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  window.sessionStorage.removeItem(AUTH_CSRF_STORAGE_KEY);
 
   if (options.notify) {
     dispatchSessionInvalidEvent({

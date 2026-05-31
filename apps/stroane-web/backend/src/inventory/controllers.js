@@ -18,6 +18,7 @@ import {
   validateProductInventoryPatchPayload,
   validateSupplierPayload,
 } from "./validation.js";
+import { runInventoryAlertCheckSafely } from "../inventoryAlerts/services.js";
 
 export const createInventoryAdminController = (prisma) => ({
   listSuppliers: async (req, res) => {
@@ -66,7 +67,11 @@ export const createInventoryAdminController = (prisma) => ({
       validateInventoryPatchPayload(req.body),
       req.authUser
     );
-    return sendOk(res, { inventoryItem });
+    const alertCheck = await runInventoryAlertCheckSafely(prisma, {
+      inventoryItemIds: [inventoryItem.id],
+      trigger: "inventory_update",
+    });
+    return sendOk(res, { inventoryItem, alertCheck });
   },
 
   listInventoryMovements: async (req, res) => {
@@ -80,7 +85,11 @@ export const createInventoryAdminController = (prisma) => ({
       validateMovementPayload(req.body),
       req.authUser
     );
-    return sendCreated(res, result);
+    const alertCheck = await runInventoryAlertCheckSafely(prisma, {
+      inventoryItemIds: [result.inventoryItem.id],
+      trigger: "inventory_movement",
+    });
+    return sendCreated(res, { ...result, alertCheck });
   },
 
   updateProductInventory: async (req, res) => {
@@ -90,6 +99,12 @@ export const createInventoryAdminController = (prisma) => ({
       validateProductInventoryPatchPayload(req.body),
       req.authUser
     );
-    return sendOk(res, result);
+    const alertCheck = result.inventoryItem
+      ? await runInventoryAlertCheckSafely(prisma, {
+          inventoryItemIds: [result.inventoryItem.id],
+          trigger: "product_inventory_update",
+        })
+      : null;
+    return sendOk(res, { ...result, alertCheck });
   },
 });

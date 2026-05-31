@@ -185,11 +185,12 @@ export const createLoginHandler =
 
     return res.json({
       user: serializeSessionUser(user),
+      csrfToken,
     });
   };
 
 export const createGetSessionHandler =
-  ({ prisma }) =>
+  ({ prisma, createCsrfToken, setCsrfCookie }) =>
   async (req, res) => {
     const userId = Number(req.user?.userId);
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -204,8 +205,17 @@ export const createGetSessionHandler =
       return res.status(401).json({ error: "Invalid or expired authentication session" });
     }
 
+    const csrfToken =
+      typeof createCsrfToken === "function" && typeof setCsrfCookie === "function"
+        ? createCsrfToken()
+        : null;
+    if (csrfToken) {
+      setCsrfCookie(res, csrfToken);
+    }
+
     return res.json({
       user: serializeSessionUser(user),
+      ...(csrfToken ? { csrfToken } : {}),
     });
   };
 
@@ -269,7 +279,7 @@ export const createRefreshHandler =
       where: { id: stored.userId },
       include: { role: true },
     });
-    if (!user || user.status !== "ACTIVE" || !user.role) {
+    if (!user || user.status !== "ACTIVE" || !user.role || !hasOrganizationScope(user)) {
       return res.status(401).json({ error: "Invalid or expired refresh token." });
     }
 
@@ -285,7 +295,7 @@ export const createRefreshHandler =
     const csrfToken = createCsrfToken();
     setAuthCookies(res, { token: accessToken, csrfToken });
 
-    return res.json({ ok: true });
+    return res.json({ ok: true, csrfToken });
   };
 
 export const createForgotPasswordHandler =

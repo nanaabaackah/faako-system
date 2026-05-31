@@ -59,3 +59,4 @@ The pattern is structurally aligned with REEBS Portal while keeping Stroane-spec
 - Replace frontend-only customer placeholders with server-backed account auth before exposing customer records.
 - Add token expiry handling and a server-backed session strategy before expanding staff account management.
 - Add product setup and settings workflows only when their protected API contracts are approved.
+- Keep catalogue persistence, supplier operations, inventory transitions, alert cooldowns, and portal auth app-owned. Reuse shared packages for pure sanitizers, security baselines, and ERP presentation primitives only.
