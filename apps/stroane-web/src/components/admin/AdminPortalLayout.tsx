@@ -27,6 +27,7 @@ import "../../styles/pages/AdminPortal.css";
 const PORTAL_BRAND: ErpBranding = {
   name: "Stroane Operations",
   shortName: "ST",
+  sidebarMarkUrl: "/assets/logos/Emblem_logo-colour.png",
   sidebarTitle: "Operations portal",
   homePath: "/admin",
   publicUrl: STOREFRONT_BASE_URL,
@@ -49,11 +50,11 @@ const PORTAL_ITEMS: ErpNavItem[] = [
 ];
 
 const MOBILE_ITEMS = PORTAL_ITEMS.filter((item) =>
-  ["inventory", "suppliers", "operations", "settings"].includes(item.id)
+  ["overview", "inventory", "suppliers", "products", "settings"].includes(item.id)
 );
 
 const PAGE_TITLES: Record<string, string> = {
-  "/admin": "Operations overview",
+  "/admin": "Operations dashboard",
   "/admin/inventory": "Inventory",
   "/admin/suppliers": "Suppliers",
   "/admin/products": "Products",
@@ -71,6 +72,11 @@ const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "operations") return <HiOutlineClipboardList />;
   if (iconKey === "reports") return <HiOutlineChartBar />;
   return <HiOutlineCog />;
+};
+
+const getUserInitials = (username?: string) => {
+  const parts = username?.trim().split(/\s+/).filter(Boolean) || [];
+  return parts.map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
 };
 
 const AdminPortalLayout: React.FC = () => {
@@ -102,11 +108,18 @@ const AdminPortalLayout: React.FC = () => {
       searchPlaceholder="Search operations..."
       footer={
         <div className="stroane-admin-portal__sidebar-footer">
-          <span>{session?.username}</span>
-          <strong>{session?.role}</strong>
-          <a href={STOREFRONT_BASE_URL}>
+          <div className="stroane-admin-portal__sidebar-user" title={session?.username}>
+            <span className="stroane-admin-portal__sidebar-avatar" aria-hidden="true">
+              {getUserInitials(session?.username)}
+            </span>
+            <span className="stroane-admin-portal__sidebar-user-copy">
+              <span>{session?.username}</span>
+              <strong>{session?.role}</strong>
+            </span>
+          </div>
+          <a href={STOREFRONT_BASE_URL} aria-label="Open storefront" title="Open storefront">
             <HiOutlineExternalLink aria-hidden="true" />
-            Storefront
+            <span>Storefront</span>
           </a>
         </div>
       }

@@ -3,6 +3,8 @@
  *
  * Usage:
  *   APP_ENV=development pnpm --filter @faako/stroane-web run db:seed:catalogue
+ *   APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:plan
+ *   APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:reconcile
  *
  * This is a catalogue/import helper only. It does not create orders, payments,
  * inventory automation, CRM records, or notifications.
@@ -16,14 +18,18 @@ import prismaPkg from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
+dotenv.config({ path: path.join(appRoot, ".env") });
+
 const envName = String(process.env.APP_ENV || process.env.NODE_ENV || "development")
   .trim()
   .toLowerCase();
 dotenv.config({ path: path.join(appRoot, `.env.${envName}`), override: true });
+
+const isEnabled = (value) => String(value || "").trim().toLowerCase() === "true";
+const dryRun = isEnabled(process.env.STROANE_CATALOGUE_SEED_DRY_RUN);
+const archiveStale = isEnabled(process.env.STROANE_CATALOGUE_ARCHIVE_STALE);
 
 const resolveDatabaseUrl = () => {
   if (envName === "production") {
@@ -85,9 +91,31 @@ const cataloguePath = path.join(appRoot, "prisma", "data", "stroaneCatalogueSeed
 const catalogue = JSON.parse(fs.readFileSync(cataloguePath, "utf8"));
 
 const run = async () => {
+  const categorySlugs = catalogue.categories.map((category) => category.id);
+  const productSlugs = catalogue.products.map((product) => product.id);
+  const [persistedCategories, persistedProducts] = await Promise.all([
+    prisma.catalogueCategory.findMany({ select: { slug: true, isActive: true } }),
+    prisma.catalogueProduct.findMany({
+      select: { slug: true, isPublished: true, publishingStatus: true },
+    }),
+  ]);
+  const staleCategories = persistedCategories.filter((category) => !categorySlugs.includes(category.slug));
+  const staleProducts = persistedProducts.filter((product) => !productSlugs.includes(product.slug));
+  const incomingProducts = productSlugs.filter(
+    (slug) => !persistedProducts.some((product) => product.slug === slug)
+  );
+
   console.log(
     `Seeding ${catalogue.categories.length} category record(s) and ${catalogue.products.length} product record(s).`
   );
+  console.log(
+    `Plan: ${incomingProducts.length} new product(s), ${staleProducts.length} stale product(s), ${staleCategories.length} stale category record(s).`
+  );
+
+  if (dryRun) {
+    console.log("Dry run only. No catalogue records were changed.");
+    return;
+  }
 
   await prisma.businessProfileContent.upsert({
     where: { key: "business_profile" },
@@ -201,6 +229,37 @@ const run = async () => {
         ),
       },
     });
+  }
+
+  if (archiveStale) {
+    const archivedProducts = await prisma.catalogueProduct.updateMany({
+      where: {
+        slug: { notIn: productSlugs },
+        OR: [{ isPublished: true }, { publishingStatus: { not: "archived" } }],
+      },
+      data: {
+        isPublished: false,
+        publishingStatus: "archived",
+        isFeatured: false,
+        isPurchasable: false,
+        stockStatus: "unavailable",
+        availability: "Unavailable",
+      },
+    });
+    const archivedCategories = await prisma.catalogueCategory.updateMany({
+      where: {
+        slug: { notIn: categorySlugs },
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+    console.log(
+      `Archived ${archivedProducts.count} stale product record(s) and ${archivedCategories.count} stale category record(s).`
+    );
+  } else if (staleProducts.length || staleCategories.length) {
+    console.log(
+      "Stale rows were left unchanged. Use db:seed:catalogue:reconcile after reviewing the dry-run plan."
+    );
   }
 
   console.log("Catalogue seed complete.");

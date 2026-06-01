@@ -145,6 +145,12 @@ test("admin products redirect to the internal sign-in when no staff session exis
   await page.goto("/admin/products");
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Stroane operations" })).toBeVisible();
+  await expect(page.locator(".page-header")).toBeVisible();
+  await expect(page.locator(".site-footer")).toBeVisible();
+  await expect(page.locator(".page-header__logo").locator("..")).toHaveAttribute(
+    "href",
+    "https://stroanesolutions.com/"
+  );
 });
 
 test("legacy admin sign-in redirects to the portal login route", async ({ page }) => {
@@ -162,10 +168,14 @@ test("portal login and logout retain the portal-scoped staff session flow", asyn
   await page.getByLabel("Password").fill("not-a-real-password");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole("heading", { name: "Operations overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Good to see you, admin" })).toBeVisible();
+  await expect(page.locator(".page-header")).toHaveCount(0);
+  await expect(page.locator(".site-footer")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
+  await expect(page.locator(".page-header")).toBeVisible();
+  await expect(page.locator(".site-footer")).toBeVisible();
   expect(await page.evaluate(() => window.sessionStorage.getItem("stroane_admin_session_v1"))).toBeNull();
 });
 
@@ -179,7 +189,7 @@ test("admin products show a safe API failure state", async ({ page }) => {
 
 test("admin products show loading and empty states", async ({ page }) => {
   await useAdminSession(page);
-  await mockAdminApi(page, { products: [], productDelayMs: 400 });
+  await mockAdminApi(page, { products: [], productDelayMs: 2_500 });
   await page.goto("/admin/products");
   await expect(page.getByText("Loading products...")).toBeVisible();
   await expect(page.getByText("No catalogue products found")).toBeVisible();

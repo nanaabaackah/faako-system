@@ -34,7 +34,12 @@ const NAV_COLUMNS = [
   },
 ];
 
-const Footer: React.FC = () => {
+const toSiteUrl = (baseUrl: string | undefined, path: string) =>
+  baseUrl ? new URL(path, `${baseUrl.replace(/\/+$/, "")}/`).toString() : path;
+
+const Footer: React.FC<{ externalNavigationBaseUrl?: string }> = ({
+  externalNavigationBaseUrl,
+}) => {
   return (
     <footer className="site-footer">
 
@@ -47,9 +52,15 @@ const Footer: React.FC = () => {
           Book a 45-minute consultation. We will assess your current setup
           and tell you exactly where to start.
         </p>
-        <Link to="/contact" className="footer__cta-btn">
-          Book a Consultation
-        </Link>
+        {externalNavigationBaseUrl ? (
+          <a href={toSiteUrl(externalNavigationBaseUrl, "/contact")} className="footer__cta-btn">
+            Book a Consultation
+          </a>
+        ) : (
+          <Link to="/contact" className="footer__cta-btn">
+            Book a Consultation
+          </Link>
+        )}
       </div>
 
       {/* ── Divider + Emblem ── */}
@@ -72,7 +83,11 @@ const Footer: React.FC = () => {
               <ul className="footer__col-links">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link to={link.to}>{link.label}</Link>
+                    {externalNavigationBaseUrl ? (
+                      <a href={toSiteUrl(externalNavigationBaseUrl, link.to)}>{link.label}</a>
+                    ) : (
+                      <Link to={link.to}>{link.label}</Link>
+                    )}
                   </li>
                 ))}
               </ul>

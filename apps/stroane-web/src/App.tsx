@@ -1,6 +1,7 @@
 import "./styles/globals.css";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
+import { AnimatedLoadingState } from "@faako/ui";
 import { resolveAppSurface } from "./config/appSurface";
 
 const PortalApp = lazy(() => import("./PortalApp"));
@@ -20,7 +21,15 @@ const SurfaceApp: React.FC = () => {
 const App: React.FC = () => {
   return (
     <Router>
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense
+        fallback={
+          <AnimatedLoadingState
+            page
+            title="Loading Stroane"
+            message="Preparing the next view."
+          />
+        }
+      >
         <SurfaceApp />
       </Suspense>
     </Router>

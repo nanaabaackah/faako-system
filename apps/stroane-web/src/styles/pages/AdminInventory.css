@@ -1,8 +1,12 @@
 .admin-inventory-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: calc(100vh - 72px);
   min-height: calc(100dvh - 72px);
   padding: calc(72px + 2.5rem) 0 calc(5rem + env(safe-area-inset-bottom));
   background: var(--color-bg);
+  overflow-x: hidden;
 }
 
 .admin-inventory-page section,
@@ -12,6 +16,8 @@
 
 .admin-inventory-shell {
   width: min(1280px, calc(100% - 2rem));
+  min-width: 0;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -366,7 +372,12 @@
 }
 
 .admin-inventory-table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  contain: inline-size;
 }
 
 .admin-inventory-table {

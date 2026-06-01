@@ -118,7 +118,15 @@ export function ErpNavSidebar({
             aria-label={collapsed ? brand.sidebarTitle || brand.name : undefined}
           >
             <span className="erp-nav-sidebar__brand-mark" aria-hidden="true">
-              {brandMark}
+              {brand.sidebarMarkUrl ? (
+                <img
+                  className="erp-nav-sidebar__brand-mark-image"
+                  src={brand.sidebarMarkUrl}
+                  alt=""
+                />
+              ) : (
+                brandMark
+              )}
             </span>
             <span className="erp-nav-sidebar__brand-copy">
               <span className="erp-nav-sidebar__eyebrow">{brand.shortName || "ERP"}</span>

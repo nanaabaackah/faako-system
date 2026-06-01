@@ -45,7 +45,7 @@ These remain safe storefront placeholders only. They do not render the ERP shell
 - `/admin/reports`
 - `/admin/settings`
 
-The old `/admin/signin` path redirects to `/login` for bookmark compatibility. Protected `/admin/*` routes render inside the shared `@faako/ui` ERP shell with a portal sidebar, topbar, and mobile bottom navigation.
+The old `/admin/signin` path redirects to `/login` for bookmark compatibility. The portal login page reuses the public Stroane site header and footer so staff retain a clear storefront handoff; its header, footer, search, cart, and informational links point back to `https://stroanesolutions.com`. Protected `/admin/*` routes render inside the shared `@faako/ui` ERP shell with a portal sidebar, topbar, and mobile bottom navigation, without storefront chrome.
 
 ## Frontend Surface Split
 
@@ -69,6 +69,16 @@ The same Vite workspace can build two Cloudflare Pages surfaces:
 Stroane reuses `ErpShellFrame`, `ErpPageContent`, `ErpNavSidebar`, `ErpShellTopbar`, `ErpBottomNav`, and `useSidebarCollapsedState` from `@faako/ui`.
 
 The pattern is structurally aligned with REEBS Portal while keeping Stroane-specific navigation and business modules separate.
+
+The `/admin` entry screen is a restrained operational dashboard rather than a marketing-style or full-ERP analytics surface. It uses existing protected APIs to present:
+
+- KPI tiles for catalogue products, tracked inventory, available units, reserved units, low-stock items, out-of-stock items, draft products, and active suppliers
+- catalogue-readiness indicators for publication, stock tracking, and supplier-link coverage
+- low-stock, out-of-stock, and reorder attention items
+- recent inventory movements
+- direct links into inventory, suppliers, products, and lightweight order operations
+
+Each data source degrades independently. If one protected API is temporarily unavailable, the portal keeps the remaining operational context visible and shows a safe partial-data notice.
 
 ## Future Work
 

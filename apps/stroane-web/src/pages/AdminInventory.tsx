@@ -11,6 +11,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import { AnimatedLoadingState } from "@faako/ui";
 import {
   adminInventoryApi,
   type InventoryItem,
@@ -436,7 +437,13 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
               </div>
 
               <div className="admin-inventory-table-wrap">
-                <table className="admin-inventory-table">
+                {loading && !inventory.length ? (
+                  <AnimatedLoadingState
+                    compact
+                    title="Loading inventory"
+                    message="Pulling current stock records."
+                  />
+                ) : <table className="admin-inventory-table">
                   <thead>
                     <tr>
                       <th>Product</th>
@@ -474,12 +481,12 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table>}
                 {!loading && !filteredInventory.length ? (
                   <div className="admin-inventory-empty">
                     <HiOutlineExclamation aria-hidden="true" />
                     <h2>No inventory items found</h2>
-                    <p>Try another filter. Catalogue inventory records will appear after stock setup.</p>
+                    <p>Try another filter. Catalogue products appear here after the one-time inventory bootstrap; quantities remain unavailable until a physical count or restock is recorded.</p>
                   </div>
                 ) : null}
               </div>
@@ -489,6 +496,13 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
           {activeTab === "suppliers" ? (
             <div className="admin-inventory-supplier-grid">
               <div className="admin-inventory-supplier-list">
+                {loading && !suppliers.length ? (
+                  <AnimatedLoadingState
+                    compact
+                    title="Loading suppliers"
+                    message="Pulling linked supplier records."
+                  />
+                ) : null}
                 {!loading && !filteredSuppliers.length ? (
                   <div className="admin-inventory-empty">
                     <HiOutlineOfficeBuilding aria-hidden="true" />
@@ -504,7 +518,13 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                 ))}
               </div>
               <aside className="admin-inventory-supplier-detail">
-                {supplierLoading ? <p>Loading supplier...</p> : selectedSupplier ? (
+                {supplierLoading ? (
+                  <AnimatedLoadingState
+                    compact
+                    title="Loading supplier"
+                    message="Pulling private supplier details."
+                  />
+                ) : selectedSupplier ? (
                   <>
                     <span className="admin-inventory-kicker">Supplier detail</span>
                     <h2>{selectedSupplier.name}</h2>
@@ -543,7 +563,13 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
 
           {activeTab === "activity" ? (
             <div className="admin-inventory-table-wrap">
-              <table className="admin-inventory-table">
+              {loading && !movements.length ? (
+                <AnimatedLoadingState
+                  compact
+                  title="Loading activity"
+                  message="Pulling accountable stock movements."
+                />
+              ) : <table className="admin-inventory-table">
                 <thead>
                   <tr>
                     <th>Timestamp</th>
@@ -570,7 +596,7 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table>}
               {!loading && !movements.length ? (
                 <div className="admin-inventory-empty">
                   <HiOutlineAdjustments aria-hidden="true" />

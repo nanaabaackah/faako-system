@@ -32,7 +32,12 @@ const HERO_ROUTES = new Set<string>([
   "/contact",
 ]);
 
-const Header: React.FC = () => {
+const toSiteUrl = (baseUrl: string | undefined, path: string) =>
+  baseUrl ? new URL(path, `${baseUrl.replace(/\/+$/, "")}/`).toString() : path;
+
+const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
+  externalNavigationBaseUrl,
+}) => {
   const [scrolled, setScrolled]     = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen]     = useState(false);
@@ -90,7 +95,12 @@ const Header: React.FC = () => {
     if (!q) return;
     setSearchOpen(false);
     setQuery("");
-    navigate(`/search?q=${encodeURIComponent(q)}`);
+    const searchPath = `/search?q=${encodeURIComponent(q)}`;
+    if (externalNavigationBaseUrl) {
+      window.location.assign(toSiteUrl(externalNavigationBaseUrl, searchPath));
+      return;
+    }
+    navigate(searchPath);
   };
 
   return (
@@ -103,25 +113,37 @@ const Header: React.FC = () => {
         <div className="page-header__inner">
 
           {/* Logo — far left */}
-          <Link to="/">
+          {externalNavigationBaseUrl ? (
+            <a href={toSiteUrl(externalNavigationBaseUrl, "/")}>
+              <img
+                src="/assets/logos/logo_long.png"
+                alt="Stroane Solutions"
+                className="page-header__logo"
+              />
+            </a>
+          ) : <Link to="/">
             <img
               src="/assets/logos/logo_long.png"
               alt="Stroane Solutions"
               className="page-header__logo"
             />
-          </Link>
+          </Link>}
 
           {/* Nav — absolutely centred */}
           <nav className="page-header__nav" aria-label="Main navigation">
             <ul className="page-header__links">
               {NAV_LINKS.map((link) => (
                 <li key={link.to}>
-                  <NavLink
-                    to={link.to}
-                    className={({ isActive }) => (isActive ? "is-active" : "")}
-                  >
-                    {link.label}
-                  </NavLink>
+                  {externalNavigationBaseUrl ? (
+                    <a href={toSiteUrl(externalNavigationBaseUrl, link.to)}>{link.label}</a>
+                  ) : (
+                    <NavLink
+                      to={link.to}
+                      className={({ isActive }) => (isActive ? "is-active" : "")}
+                    >
+                      {link.label}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
@@ -129,12 +151,21 @@ const Header: React.FC = () => {
 
           {/* Actions — far right */}
           <div className="page-header__actions">
-            <Link
-              to="/contact"
-              className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
-            >
-              Book a consultation
-            </Link>
+            {externalNavigationBaseUrl ? (
+              <a
+                href={toSiteUrl(externalNavigationBaseUrl, "/contact")}
+                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
+              >
+                Book a consultation
+              </a>
+            ) : (
+              <Link
+                to="/contact"
+                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
+              >
+                Book a consultation
+              </Link>
+            )}
             <button
               className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
               onClick={() => {
@@ -145,14 +176,25 @@ const Header: React.FC = () => {
             >
               <HiOutlineSearch size={18} aria-hidden="true" />
             </button>
-            <Link
-              to="/checkout"
-              className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
-              aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
-            >
-              <HiOutlineShoppingCart size={18} aria-hidden="true" />
-              {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
-            </Link>
+            {externalNavigationBaseUrl ? (
+              <a
+                href={toSiteUrl(externalNavigationBaseUrl, "/checkout")}
+                className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
+                aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
+              >
+                <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
+              </a>
+            ) : (
+              <Link
+                to="/checkout"
+                className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
+                aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
+              >
+                <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
+              </Link>
+            )}
             {user ? (
               <button
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
@@ -194,13 +236,25 @@ const Header: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mobile-nav-sheet__header">
-              <Link to="/" className="mobile-nav-sheet__brand" onClick={() => setMenuOpen(false)}>
+              {externalNavigationBaseUrl ? (
+                <a
+                  href={toSiteUrl(externalNavigationBaseUrl, "/")}
+                  className="mobile-nav-sheet__brand"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <img
+                    src="/assets/logos/logo_long.png"
+                    alt="Stroane Solutions"
+                    className="mobile-nav-sheet__logo"
+                  />
+                </a>
+              ) : <Link to="/" className="mobile-nav-sheet__brand" onClick={() => setMenuOpen(false)}>
                 <img
                   src="/assets/logos/logo_long.png"
                   alt="Stroane Solutions"
                   className="mobile-nav-sheet__logo"
                 />
-              </Link>
+              </Link>}
               <button
                 type="button"
                 className="mobile-nav-sheet__close"
@@ -214,21 +268,33 @@ const Header: React.FC = () => {
             <nav className="mobile-nav-sheet__body" aria-label="Mobile navigation">
               <div className="mobile-nav-sheet__links">
                 {NAV_LINKS.map((link) => (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    className={({ isActive }) =>
-                      `mobile-nav-sheet__link${isActive ? " is-active" : ""}`
-                    }
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <span className="mobile-nav-sheet__label">{link.label}</span>
-                    <HiArrowRight
-                      className="mobile-nav-sheet__arrow"
-                      size={18}
-                      aria-hidden="true"
-                    />
-                  </NavLink>
+                  externalNavigationBaseUrl ? (
+                    <a
+                      key={link.to}
+                      href={toSiteUrl(externalNavigationBaseUrl, link.to)}
+                      className="mobile-nav-sheet__link"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <span className="mobile-nav-sheet__label">{link.label}</span>
+                      <HiArrowRight className="mobile-nav-sheet__arrow" size={18} aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      className={({ isActive }) =>
+                        `mobile-nav-sheet__link${isActive ? " is-active" : ""}`
+                      }
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <span className="mobile-nav-sheet__label">{link.label}</span>
+                      <HiArrowRight
+                        className="mobile-nav-sheet__arrow"
+                        size={18}
+                        aria-hidden="true"
+                      />
+                    </NavLink>
+                  )
                 ))}
               </div>
 
@@ -244,14 +310,25 @@ const Header: React.FC = () => {
                   <HiOutlineSearch size={18} aria-hidden="true" />
                   <span>Search the site</span>
                 </button>
-                <Link
-                  to="/checkout"
-                  className="mobile-nav-sheet__search"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <HiOutlineShoppingCart size={18} aria-hidden="true" />
-                  <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
-                </Link>
+                {externalNavigationBaseUrl ? (
+                  <a
+                    href={toSiteUrl(externalNavigationBaseUrl, "/checkout")}
+                    className="mobile-nav-sheet__search"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                    <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
+                  </a>
+                ) : (
+                  <Link
+                    to="/checkout"
+                    className="mobile-nav-sheet__search"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                    <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
+                  </Link>
+                )}
                 {user ? (
                   <button
                     type="button"
@@ -274,14 +351,25 @@ const Header: React.FC = () => {
                     <span>Sign in</span>
                   </a>
                 )}
-                <Link
-                  to="/contact"
-                  className="mobile-nav-sheet__cta"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <span>Book a consultation</span>
-                  <HiArrowRight size={16} aria-hidden="true" />
-                </Link>
+                {externalNavigationBaseUrl ? (
+                  <a
+                    href={toSiteUrl(externalNavigationBaseUrl, "/contact")}
+                    className="mobile-nav-sheet__cta"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <span>Book a consultation</span>
+                    <HiArrowRight size={16} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link
+                    to="/contact"
+                    className="mobile-nav-sheet__cta"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <span>Book a consultation</span>
+                    <HiArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                )}
               </div>
             </nav>
           </div>

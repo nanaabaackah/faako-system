@@ -24,6 +24,7 @@ Expanded the ERP shell and low-risk presentation foundation with reusable wrappe
 - `src/components/ERPModal.tsx`: shared modal, drawer, and confirm-dialog shells with accessible labels and Escape-key close support.
 - `src/components/ERPNotifications.tsx`: shared in-app notification/alert foundation — `ERPNotice`, `ERPAlert`, `ERPBanner`, `ERPSyncAlert`, `ERPOfflineNotice`, `ERPToastStack`, `useERPToastStack`, plus `ERPToastProvider`/`useERPToast` re-exports.
 - `src/components/ERPActivityFeed.tsx`: shared operational activity feed — `ERPActivityFeed`, `ERPActivityFeedItem`, `ERPActivityItemTone`. Timeline-style list with tone dots, relative timestamps, status badges, actor/entity metadata lines, detail lines, loading/empty/error states, and compact mode.
+- `src/components/Feedback.tsx`: shared feedback states, including the shimmer-based `AnimatedLoadingState` skeleton for compact operational fetches and full-page lazy-loading transitions. The skeleton respects reduced-motion preferences and uses shared theme tokens.
 - `src/ui.css`: shared primitive styles, including section-header defaults.
 
 ## How to use it
@@ -61,7 +62,7 @@ import {
 } from "@faako/ui";
 ```
 
-The shell supports registry-driven navigation metadata, module groups, module visibility states, responsive sidebar collapse, mobile bottom navigation, and placeholder slots for offline, sync, notifications, and future organization switching.
+The shell supports registry-driven navigation metadata, optional `sidebarMarkUrl` emblem assets with letter-mark fallback, module groups, module visibility states, responsive sidebar collapse with compact icon-safe rail spacing, compact top-aligned desktop navigation rows, mobile bottom navigation, and placeholder slots for offline, sync, notifications, and future organization switching.
 
 The ERP panel/form wrappers intentionally keep legacy class names such as `panel-grid`, `panel`, `panel-header`, `stack`, and `form-field` so apps can adopt them without changing existing CSS or business behavior.
 

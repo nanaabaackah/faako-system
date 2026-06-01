@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prismaPkg from "@prisma/client";
 import { Pool } from "pg";
@@ -55,9 +56,11 @@ import {
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
-dotenv.config();
+const appDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+dotenv.config({ path: path.join(appDirectory, ".env") });
 if (process.env.APP_ENV === "development") {
-  dotenv.config({ path: ".env.development", override: true });
+  dotenv.config({ path: path.join(appDirectory, ".env.development"), override: true });
 }
 
 const { PrismaClient } = prismaPkg;
@@ -181,8 +184,12 @@ const sanitizeNotificationError = (value) =>
 
 const toSafeErrorLog = (error) => ({
   message: sanitizeNotificationError(error?.message || "Unknown error"),
+  code: error?.code || undefined,
   statusCode: error?.statusCode || undefined,
 });
+
+const isDatabaseSchemaReadinessError = (error) =>
+  ["P2021", "P2022"].includes(String(error?.code || ""));
 
 const updateOrderNotificationMetadata = async (orderId, data) => {
   if (!prisma.commerceOrder?.update) return null;
@@ -927,8 +934,13 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error("Unhandled Stroane backend error:", toSafeErrorLog(err));
-  res.status(err?.statusCode || 500).json({
-    error: err?.statusCode ? err.message : "Internal server error",
+  const schemaNotReady = isDatabaseSchemaReadinessError(err);
+  res.status(err?.statusCode || (schemaNotReady ? 503 : 500)).json({
+    error: err?.statusCode
+      ? err.message
+      : schemaNotReady
+        ? "Database schema is not ready. Apply the latest Stroane migrations and restart the API."
+        : "Internal server error",
   });
 });
 
@@ -936,7 +948,17 @@ const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
 
 // Start server
 if (isDirectRun) {
-  app.listen(PORT, () => {
+  app.listen(PORT, (error) => {
+    if (error) {
+      console.error("Unable to start Stroane backend server:", {
+        message: error.message,
+        code: error.code,
+        port: PORT,
+      });
+      process.exitCode = 1;
+      return;
+    }
+
     console.log(`Stroane backend server running on port ${PORT}`);
     console.log(`Environment: ${runtimeEnvironment}`);
   });

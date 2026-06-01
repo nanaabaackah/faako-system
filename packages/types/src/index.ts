@@ -31,6 +31,7 @@ export interface ErpQuickAction {
 export interface ErpBranding {
   name: string;
   shortName?: string;
+  sidebarMarkUrl?: string;
   sidebarTitle?: string;
   homePath?: string;
   topbarLabel?: string;

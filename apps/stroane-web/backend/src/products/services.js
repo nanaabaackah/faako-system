@@ -47,11 +47,13 @@ const getBaseInventoryItem = (product) =>
 
 const toStockSummary = (product) => {
   const inventory = getBaseInventoryItem(product);
-  const quantityOnHand = inventory?.quantityOnHand ?? product.stockQuantity;
-  const reservedQuantity = inventory?.reservedQuantity ?? product.reservedQuantity ?? 0;
-  const availableQuantity =
-    inventory?.availableQuantity ?? product.availableQuantity ??
-    calculateAvailableQuantity(quantityOnHand, reservedQuantity);
+  const quantityOnHand = inventory ? inventory.quantityOnHand : product.stockQuantity;
+  const reservedQuantity = inventory
+    ? inventory.reservedQuantity ?? 0
+    : product.reservedQuantity ?? 0;
+  const availableQuantity = inventory
+    ? calculateAvailableQuantity(quantityOnHand, reservedQuantity)
+    : product.availableQuantity ?? calculateAvailableQuantity(quantityOnHand, reservedQuantity);
   const stockStatus = evaluateStockStatus({
     quantityOnHand,
     reservedQuantity,

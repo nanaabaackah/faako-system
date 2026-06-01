@@ -150,6 +150,56 @@ const FeedbackGlyph = ({ tone }: { tone: FeedbackTone }) => {
   );
 };
 
+export function AnimatedLoadingState({
+  title = "Loading",
+  message = "Pulling the latest information.",
+  compact = false,
+  page = false,
+  className = "",
+}: {
+  title?: string;
+  message?: ReactNode;
+  compact?: boolean;
+  page?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={joinClasses(
+        "ui-animated-loading-state",
+        compact && "is-compact",
+        page && "is-page",
+        className,
+      )}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="ui-animated-loading-state__skeleton" aria-hidden="true">
+        <div className="ui-animated-loading-state__skeleton-head">
+          <span className="ui-animated-loading-state__skeleton-mark" />
+          <span className="ui-animated-loading-state__skeleton-line is-title" />
+          <span className="ui-animated-loading-state__skeleton-line is-action" />
+        </div>
+        <div className="ui-animated-loading-state__skeleton-metrics">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="ui-animated-loading-state__skeleton-rows">
+          <span><i /><i /><i /></span>
+          <span><i /><i /><i /></span>
+          <span><i /><i /><i /></span>
+        </div>
+      </div>
+      <span className="ui-animated-loading-state__copy">
+        <strong>{title}</strong>
+        {message ? <span>{message}</span> : null}
+      </span>
+    </div>
+  );
+}
+
 export function InlineNotice({
   tone = "info",
   title,

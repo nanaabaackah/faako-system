@@ -90,6 +90,14 @@ Run the production migration command as a separate Railway pre-deploy/release st
 
 The API intentionally fails fast with a safe configuration message when no database URL is present. Public storefront resilience is provided by the Cloudflare frontend's local catalogue fallback, not by starting a partially configured API.
 
+If protected portal reads return `503` with `Database schema is not ready`, run
+`pnpm --filter @faako/stroane-web run db:status:prod`, apply
+`pnpm --filter @faako/stroane-web run db:deploy:prod` if migrations are pending,
+then redeploy or restart the Railway API. Prisma `P2021`/`P2022` errors are
+reported as schema-readiness failures without exposing database details. If the
+migration status is already current, restart the API so it reloads the intended
+environment and regenerated Prisma client before investigating schema drift.
+
 ## Cloudflare DNS
 
 Current recommended DNS setup:
@@ -162,10 +170,17 @@ The catalogue endpoint now keeps category and product sources coherent during ro
 If persisted catalogue rows should replace seed fallback, run the catalogue seed only after reviewing the target database:
 
 ```bash
-APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:plan
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:reconcile
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory:apply
 ```
 
-The seed upserts catalogue records. Review existing active category rows before running it against production because rollout databases may still contain earlier category records.
+The first and third commands are read-only plans. The catalogue reconciliation
+upserts the normalized source and archives stale public rows instead of deleting
+them. Inventory bootstrap creates missing portal records without overwriting
+existing rows or inventing counts. Review the plan output, verify the intended
+Railway Postgres target, and take a backup before applying either write command.
 
 ## Verification
 

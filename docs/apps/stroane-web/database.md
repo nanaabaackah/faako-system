@@ -94,6 +94,23 @@ Seed catalogue data only after confirming the database target:
 APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue
 ```
 
+For an existing deployment, use the reviewed non-destructive reconciliation
+workflow. The planning commands are read-only. Reconciliation archives stale
+public rows and deactivates stale categories; it does not delete them. Inventory
+bootstrap creates only missing base inventory records and never overwrites
+existing counts:
+
+```bash
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:plan
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:reconcile
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory:apply
+```
+
+New inventory rows keep unknown quantities as `null`, remain non-purchasable,
+and include an `INVENTORY_ITEM_BOOTSTRAPPED` audit entry. Staff must record a
+physical count or restock movement before enabling online purchasing.
+
 Private `SiteUser` seeding is environment-specific:
 
 ```bash

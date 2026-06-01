@@ -28,6 +28,10 @@
     "db:seed": "APP_ENV=development node prisma/seed-users.mjs",
     "db:seed:prod": "APP_ENV=production node prisma/seed-users.mjs",
     "db:seed:catalogue": "node prisma/seed-catalogue.mjs",
+    "db:seed:catalogue:plan": "STROANE_CATALOGUE_SEED_DRY_RUN=true STROANE_CATALOGUE_ARCHIVE_STALE=true node prisma/seed-catalogue.mjs",
+    "db:seed:catalogue:reconcile": "STROANE_CATALOGUE_ARCHIVE_STALE=true node prisma/seed-catalogue.mjs",
+    "db:sync:inventory": "node prisma/sync-inventory-items.mjs",
+    "db:sync:inventory:apply": "STROANE_INVENTORY_BOOTSTRAP_APPLY=true node prisma/sync-inventory-items.mjs",
     "server:with-migrate": "pnpm run db:generate && pnpm run migrate:deploy && node backend/server.js",
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); const staticPagesInstall = Boolean(process.env.CF_PAGES); if (!staticPagesInstall && hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },

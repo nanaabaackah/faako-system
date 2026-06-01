@@ -67,6 +67,21 @@ The current backend foundation exposes:
 
 Catalogue read endpoints prefer persisted `CatalogueCategory` and `CatalogueProduct` rows when the database has been migrated and seeded. If the database is unavailable, empty, or not yet migrated, the endpoints fall back to `src/data/stroaneCatalogue.json` so the public catalogue can keep rendering safely. Legacy aliases remain available at `/api/categories`, `/api/products`, and `/api/products/:slug` during the Railway API rollout.
 
+Production catalogue reconciliation is explicit and non-destructive. Review the
+plan, archive stale public rows without deleting them, then bootstrap missing
+inventory records:
+
+```bash
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:plan
+APP_ENV=production pnpm --filter @faako/stroane-web run db:seed:catalogue:reconcile
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory
+APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory:apply
+```
+
+The inventory bootstrap never overwrites existing rows and does not invent stock
+counts. Newly bootstrapped products stay visible in the operations portal with
+unknown quantities until staff records a physical count or restock movement.
+
 `POST /api/inquiries` validates basic contact details and persists a minimal `CatalogueInquiry` record when the database migration has been deployed. It does not send email, create orders, take payments, update inventory, or run CRM automation. If storage is unavailable, the endpoint returns a safe error so the frontend can fall back to direct email.
 
 Frontend catalogue pages use the centralized catalogue helpers. `/shop`, `/products`, and product detail routes attempt the API first and fall back to local seed data if the backend is unavailable. The catalogue page includes category browsing, search, sort, local fallback notices, and mobile-friendly product cards. Product pages include product-specific inquiry forms; priced products keep cart quantity controls, while custom-order/price-unavailable products avoid checkout quantity controls.

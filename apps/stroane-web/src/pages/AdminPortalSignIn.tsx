@@ -47,7 +47,7 @@ const AdminPortalSignIn: React.FC = () => {
   };
 
   return (
-    <main className="stroane-portal-login">
+    <section className="stroane-portal-login">
       <div className="stroane-portal-login__panel">
         <span className="stroane-portal-login__kicker">
           <HiOutlineLockClosed aria-hidden="true" />
@@ -84,7 +84,7 @@ const AdminPortalSignIn: React.FC = () => {
           Return to storefront
         </a>
       </div>
-    </main>
+    </section>
   );
 };
 

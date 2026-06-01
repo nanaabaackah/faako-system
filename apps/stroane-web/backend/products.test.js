@@ -3,6 +3,7 @@ import test from "node:test";
 import { requireSiteUser } from "./src/adminAuth.js";
 import { listCatalogueProducts, listPersistedCatalogueProducts } from "./src/catalogue.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
+import { toAdminProduct } from "./src/products/services.js";
 import {
   normalizeProductImagePath,
   validateProductMediaPayload,
@@ -166,4 +167,31 @@ test("seed fallback catalogue responses omit internal review metadata", () => {
   assert.equal("sourceRefs" in product, false);
   assert.equal("manualReviewRequired" in product, false);
   assert.equal("reviewNotes" in product, false);
+});
+
+test("admin products preserve unknown operational stock instead of inheriting catalogue zeroes", () => {
+  const product = toAdminProduct({
+    id: "product-unknown-stock",
+    slug: "unknown-stock",
+    name: "Unknown stock",
+    stockQuantity: 0,
+    availableQuantity: 0,
+    reservedQuantity: 0,
+    stockStatus: "out_of_stock",
+    inventoryItems: [
+      {
+        id: "inventory-unknown-stock",
+        variantId: null,
+        quantityOnHand: null,
+        reservedQuantity: 0,
+        availableQuantity: null,
+        stockStatus: "unavailable",
+      },
+    ],
+    supplierLinks: [],
+  });
+
+  assert.equal(product.stock.quantityOnHand, null);
+  assert.equal(product.stock.availableQuantity, null);
+  assert.equal(product.stock.stockStatus, "unavailable");
 });

@@ -491,8 +491,8 @@
   --ui-app-sidebar-empty-size: 0.9rem;
   --ui-app-sidebar-footer-gap: 0.85rem;
   --ui-app-sidebar-footer-padding-top: 0.85rem;
-  --ui-app-sidebar-collapsed-panel-padding-inline: 0.75rem;
-  --ui-app-sidebar-collapsed-link-padding: 0.75rem;
+  --ui-app-sidebar-collapsed-panel-padding-inline: 0.5rem;
+  --ui-app-sidebar-collapsed-link-padding: 0.5rem;
   --ui-app-sidebar-collapsed-marker-inset: 0.35rem;
 }
 
@@ -1418,6 +1418,242 @@
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.ui-animated-loading-state {
+  --ui-loading-bg: var(--sys-bg, #f8fafc);
+  --ui-loading-surface: var(--sys-surface, #ffffff);
+  --ui-loading-block: color-mix(in srgb, var(--sys-accent, #2563eb) 11%, var(--ui-loading-surface));
+  --ui-loading-shimmer: color-mix(in srgb, var(--sys-accent, #2563eb) 3%, var(--ui-loading-surface));
+  --ui-loading-border: var(--sys-border, rgba(148, 163, 184, 0.28));
+  min-height: 10rem;
+  padding: 1.25rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  color: var(--sys-text, #0f172a);
+  text-align: center;
+}
+
+.ui-animated-loading-state.is-page {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 0;
+  background: var(--ui-loading-bg);
+}
+
+.ui-animated-loading-state.is-compact {
+  min-height: 8rem;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: start;
+  justify-items: start;
+  text-align: left;
+}
+
+.ui-animated-loading-state__skeleton {
+  width: min(100%, 42rem);
+  overflow: hidden;
+  border: 1px solid var(--ui-loading-border);
+  border-radius: var(--sys-radius-md);
+  padding: 0.85rem;
+  background: var(--ui-loading-surface);
+  box-shadow: var(--sys-shadow-sm, 0 8px 24px rgba(15, 23, 42, 0.08));
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton {
+  display: grid;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  align-content: stretch;
+  grid-template-rows: auto minmax(8rem, 0.42fr) minmax(12rem, 1fr);
+  border: 0;
+  border-radius: 0;
+  padding: clamp(1.25rem, 4vw, 4rem);
+  background: var(--ui-loading-surface);
+  box-shadow: none;
+}
+
+.ui-animated-loading-state.is-compact .ui-animated-loading-state__skeleton {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 0.85rem 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ui-animated-loading-state__skeleton-head,
+.ui-animated-loading-state__skeleton-rows span {
+  display: grid;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ui-animated-loading-state__skeleton-head {
+  grid-template-columns: 1.65rem minmax(4.5rem, 0.52fr) minmax(3rem, 0.22fr);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--ui-loading-border);
+}
+
+.ui-animated-loading-state__skeleton-mark,
+.ui-animated-loading-state__skeleton-line,
+.ui-animated-loading-state__skeleton-metrics span,
+.ui-animated-loading-state__skeleton-rows i {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ui-loading-block);
+}
+
+.ui-animated-loading-state__skeleton-mark {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: var(--sys-radius-sm);
+}
+
+.ui-animated-loading-state__skeleton-line {
+  height: 0.62rem;
+}
+
+.ui-animated-loading-state__skeleton-line.is-action {
+  justify-self: end;
+  width: 100%;
+  max-width: 5.5rem;
+}
+
+.ui-animated-loading-state__skeleton-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.75rem 0;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton-metrics {
+  align-items: stretch;
+  padding: clamp(1rem, 3vw, 2.5rem) 0;
+}
+
+.ui-animated-loading-state__skeleton-metrics span {
+  height: 2.85rem;
+  border-radius: var(--sys-radius-sm);
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton-metrics span {
+  height: auto;
+  min-height: 5.5rem;
+}
+
+.ui-animated-loading-state__skeleton-rows {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton-rows {
+  align-content: stretch;
+  grid-template-rows: repeat(3, minmax(3rem, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.ui-animated-loading-state__skeleton-rows span {
+  grid-template-columns: minmax(4rem, 1fr) minmax(2.5rem, 0.34fr) minmax(2.5rem, 0.22fr);
+  min-height: 1.6rem;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton-rows span {
+  min-height: 0;
+}
+
+.ui-animated-loading-state__skeleton-rows i {
+  height: 0.58rem;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__skeleton-rows i {
+  height: 100%;
+  min-height: 1.25rem;
+}
+
+.ui-animated-loading-state__skeleton-mark::after,
+.ui-animated-loading-state__skeleton-line::after,
+.ui-animated-loading-state__skeleton-metrics span::after,
+.ui-animated-loading-state__skeleton-rows i::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ui-loading-shimmer),
+    transparent
+  );
+  opacity: 0.72;
+  transform: translateX(-110%);
+  animation: ui-loading-shimmer 1.45s ease-in-out infinite;
+}
+
+.ui-animated-loading-state__skeleton-metrics span:nth-child(2)::after,
+.ui-animated-loading-state__skeleton-rows span:nth-child(2) i::after {
+  animation-delay: 0.12s;
+}
+
+.ui-animated-loading-state__skeleton-metrics span:nth-child(3)::after,
+.ui-animated-loading-state__skeleton-rows span:nth-child(3) i::after {
+  animation-delay: 0.24s;
+}
+
+.ui-animated-loading-state__copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__copy {
+  position: absolute;
+  right: clamp(1.25rem, 4vw, 4rem);
+  bottom: clamp(1.25rem, 4vw, 4rem);
+  left: clamp(1.25rem, 4vw, 4rem);
+  width: fit-content;
+  border: 1px solid var(--ui-loading-border);
+  border-radius: var(--sys-radius-md);
+  padding: 0.75rem 0.9rem;
+  background: var(--ui-loading-surface);
+  box-shadow: var(--sys-shadow-sm, 0 8px 24px rgba(15, 23, 42, 0.08));
+  text-align: left;
+}
+
+.ui-animated-loading-state.is-compact .ui-animated-loading-state__copy {
+  padding-bottom: 0.2rem;
+}
+
+.ui-animated-loading-state__copy span {
+  color: var(--sys-muted, #64748b);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+@keyframes ui-loading-shimmer {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-animated-loading-state__skeleton-mark::after,
+  .ui-animated-loading-state__skeleton-line::after,
+  .ui-animated-loading-state__skeleton-metrics span::after,
+  .ui-animated-loading-state__skeleton-rows i::after {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
 }
 
 .ui-modal-frame {

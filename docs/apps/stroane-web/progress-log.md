@@ -23,6 +23,157 @@ Next step:
 
 ## Entries
 
+### Stroane collapsed portal rail polish
+
+Date: 2026-06-01
+Feature/change name: Stroane collapsed portal rail polish
+What changed:
+- Reduced shared collapsed ERP-sidebar panel and link padding so navigation icons fit inside the narrow rail without clipping.
+- Limited collapsed sidebar navigation to vertical scrolling and constrained compact links to the rail width.
+- Reworked the Stroane portal footer identity into an avatar plus username and role block.
+- Kept the full identity visible in expanded mode while collapsed mode now shows the user avatar and an icon-only storefront shortcut.
+- Added Playwright coverage that collapses the rail, confirms there is no horizontal navigation overflow, verifies that all module icons remain inside the rail, and checks the compact avatar state.
+Why it changed: The collapsed portal rail retained expanded spacing and identity content, which clipped module icons, introduced horizontal scrolling, and cropped the signed-in user footer.
+Files changed: packages/ui/src/ui.css, packages/theme/src/erp-shell.css, packages/ui/README.md, apps/stroane-web/src/components/admin/AdminPortalLayout.tsx, apps/stroane-web/src/styles/pages/AdminPortal.css, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, docs/apps/stroane-web/progress-log.md.
+Data impact: None.
+Security impact: None. Existing protected portal access and session handling remain unchanged.
+Testing notes: `pnpm exec tsc -p tsconfig.app.json --noEmit`, `pnpm run lint`, `pnpm run build`, the six focused portal Playwright checks, and `git diff --check` passed. The loading-state mock delay was lengthened so its skeleton assertion remains deterministic during cold portal renders.
+Rollback notes: Revert the compact shared rail spacing, Stroane footer markup/styles, and collapsed-rail Playwright assertions.
+Next step: Deploy the Cloudflare portal frontend after review.
+
+### Stroane portal emblem branding
+
+Date: 2026-06-01
+Feature/change name: Stroane portal emblem branding
+What changed:
+- Replaced the protected portal sidebar `ST` letter placeholder with the existing Stroane colour emblem.
+- Extended the shared ERP sidebar branding type with an optional `sidebarMarkUrl` asset while preserving its existing letter-mark fallback for other apps.
+- Set the Stroane portal emblem tile to white so the colour emblem remains clear against the blue sidebar panel.
+- Added a Playwright regression assertion confirming that the portal shell renders the expected emblem asset.
+Why it changed: The operations portal should carry the established Stroane emblem instead of a temporary text placeholder.
+Files changed: apps/stroane-web/src/components/admin/AdminPortalLayout.tsx, apps/stroane-web/appSystem.js, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, packages/types/src/index.ts, packages/ui/src/ErpNavSidebar.tsx, packages/theme/src/erp-shell.css, packages/ui/README.md, docs/apps/stroane-web/progress-log.md.
+Data impact: None.
+Security impact: None. The logo asset is already public and portal access controls remain unchanged.
+Testing notes: `pnpm exec tsc -p tsconfig.app.json --noEmit`, `pnpm run lint`, `pnpm run build`, the six focused portal Playwright checks, and `git diff --check` passed.
+Rollback notes: Remove `sidebarMarkUrl` from the Stroane portal brand and revert the optional shared-shell emblem support.
+Next step: Deploy the Cloudflare portal frontend after review.
+
+### Stroane portal sidebar backing cleanup
+
+Date: 2026-06-01
+Feature/change name: Stroane portal sidebar backing cleanup
+What changed:
+- Removed the dark navy backing surface behind the protected ERP sidebar navigation.
+- Preserved the blue gradient navigation panel, active-link contrast, sidebar controls, and mobile bottom navigation.
+- Gave the light collapse control an explicit blue chevron, visible border, and blue-tinted hover state.
+- Added Playwright regression assertions confirming that the outer desktop sidebar wrapper remains transparent and the collapse chevron remains visible.
+Why it changed: The inset blue operations menu already provides the intended navigation surface. The additional dark wrapper background created an unnecessary heavy gutter behind it.
+Files changed: apps/stroane-web/appSystem.js, apps/stroane-web/src/styles/pages/AdminPortal.css, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, docs/apps/stroane-web/progress-log.md.
+Data impact: None. No catalogue, inventory, supplier, alert, order, payment, or customer data changed.
+Security impact: None. Protected routes and staff auth remain unchanged.
+Testing notes: Focused TypeScript, lint, and portal Playwright verification completed successfully.
+Rollback notes: Restore `--erp-sidebar-bg` to `var(--color-primary-dark)`, remove the Stroane collapse-toggle CSS override, and revert the regression assertions.
+Next step: Deploy the Cloudflare portal frontend after review.
+
+### Stroane uncounted inventory display correction
+
+Date: 2026-06-01
+Feature/change name: Stroane uncounted inventory display correction and local portal bootstrap
+What changed:
+- Corrected the protected admin product mapper so an existing operational `InventoryItem` with an unknown physical count remains `null` instead of inheriting a catalogue-level zero.
+- Updated the operations-overview `Available units` KPI to render `Not set` with an awaiting-count message when tracked inventory exists but no physical counts have been recorded.
+- Added backend and Playwright regression coverage for uncounted stock so unknown availability remains distinct from confirmed zero stock.
+- Seeded the configured development database with the existing normalized catalogue and applied the additive inventory bootstrap: 10 categories, 18 products, and 18 inventory placeholders.
+- Fixed Express 5 API startup diagnostics so bind failures such as a duplicate local port report an actionable error and non-zero exit instead of printing a false listening message.
+Why it changed: The public storefront can render its browser-safe fallback catalogue while the private portal depends on persisted operational inventory. Unknown physical counts were being presented as zero in the overview, which could be mistaken for confirmed out-of-stock data.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/products/services.js, apps/stroane-web/backend/products.test.js, apps/stroane-web/src/pages/AdminPortalHome.tsx, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, docs/apps/stroane-web/progress-log.md.
+Data impact: Development only: added 10 normalized categories, 18 catalogue products, 18 inventory placeholders, and their additive bootstrap audit entries to the configured development database. No quantities were invented and no existing inventory rows were overwritten. Production was queried read-only: it has 18 inventory rows with unknown quantities, zero confirmed-zero inventory rows, and 24 catalogue rows including 6 archived legacy rows. No production writes were performed.
+Security impact: None. The production audit was read-only, printed no credentials or recipient data, and preserved backend-only configuration.
+Testing notes: Read-only development verification confirmed 18 inventory rows with `availableQuantity=null`, zero rows with confirmed zero stock, and 18 normalized catalogue products. Read-only production verification confirmed 18 inventory rows with `availableQuantity=null`, zero rows with confirmed zero stock, and the admin product mapper returning `null` availability for all currently uncounted products. `node --check backend/server.js`, `node --check backend/src/products/services.js`, `pnpm run test:backend` with 31 tests, `pnpm exec tsc -p tsconfig.app.json --noEmit`, `pnpm run lint`, `pnpm exec prisma validate`, and `pnpm run build` passed. The focused inventory Playwright suite passed with 6 tests after adding an explicit allowance for cold lazy-route transforms. An isolated development API smoke on port `3001` returned a healthy `/health` response and 18 products plus 10 categories from `/api/catalogue/products`.
+Rollback notes: Revert the mapper, overview KPI, regression tests, and this documentation entry. Development bootstrap rows are additive and audit-backed; review them before removal. No production data rollback is required.
+Next step: Record reviewed physical stock counts or restock movements through the protected portal, then deploy the API and Cloudflare portal updates so hosted staff see `Not set` until counts are entered.
+
+### Stroane skeleton loading refinement
+
+Date: 2026-06-01
+Feature/change name: Stroane shared skeleton loading animation
+What changed:
+- Replaced the shared three-bar loading pulse with a structured animated skeleton surface.
+- Added header, metric, and table-row placeholder blocks with a restrained shimmer animation.
+- Expanded the lazy-loading page skeleton into a full-width, full-height viewport scaffold while retaining region-contained compact skeletons for operational panels.
+- Realigned Stroane's shared `--sys-*` theme mappings with its existing `--color-*` tokens so shared portal UI resolves visible surfaces, accents, borders, and shadows consistently.
+- Preserved compact loading states for private inventory, supplier, supplier-detail, and movement fetches while improving the full-page lazy portal transition.
+- Added reduced-motion handling and Playwright coverage for the skeleton row structure.
+Why it changed: Stroane loading transitions needed to feel more intentional and operationally polished while data is loading, without adding app-specific duplicate components.
+Files changed: apps/stroane-web/appSystem.js, packages/ui/src/components/Feedback.tsx, packages/ui/src/ui.css, packages/ui/README.md, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, docs/apps/stroane-web/progress-log.md.
+Data impact: None. No schema, migration, catalogue, inventory, supplier, alert, order, payment, or customer data changed.
+Security impact: None. This is a shared presentation-only refinement.
+Testing notes: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing local-env Vite `NODE_ENV=production` warning. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' pnpm --filter @faako/stroane-web run test:e2e` passed with 13 tests. A local Chrome render audit confirmed that the lazy page skeleton measures exactly to the viewport at `1440x1100` desktop and `390x844` phone sizes with zero horizontal overflow. A delayed private-inventory audit confirmed that the compact skeleton remains full-width within its operational region, renders three shimmer rows, and remains usable at both widths. `git diff --check -- packages/ui apps/stroane-web docs/apps/stroane-web` passed.
+Rollback notes: Revert the shared skeleton markup, styles, E2E assertion, and documentation. No data rollback is required.
+Next step: Reuse the shared skeleton in additional operational table states only where their loading lifecycle is already explicit.
+
+### Stroane portal login site chrome
+
+Date: 2026-06-01
+Feature/change name: Stroane portal login site header and footer
+What changed:
+- Wrapped the private portal `/login` screen with the existing Stroane public header and footer.
+- Added an optional storefront navigation base URL to the existing site layout, header, and footer so login-page links return to `https://stroanesolutions.com` rather than navigating inside the portal hostname.
+- Kept authenticated `/admin/*` routes inside the operational ERP shell only.
+- Added Playwright assertions for login-page chrome, storefront logo handoff, and the absence of storefront chrome after staff authentication.
+Why it changed: Staff should recognize the Stroane site context when entering the operations portal, while the operational workspace should remain focused after sign-in.
+Files changed: apps/stroane-web/src/PortalApp.tsx, apps/stroane-web/src/components/Layout.tsx, apps/stroane-web/src/components/Header.tsx, apps/stroane-web/src/components/Footer.tsx, apps/stroane-web/src/pages/AdminPortalSignIn.tsx, apps/stroane-web/src/styles/pages/AdminPortal.css, apps/stroane-web/tests/e2e/admin-products.spec.ts, docs/apps/stroane-web/portal-architecture.md, docs/apps/stroane-web/progress-log.md.
+Data impact: None. No schema, migration, catalogue, inventory, supplier, alert, order, payment, or customer data changed.
+Security impact: None. The login form and staff bearer-token flow are unchanged. Public chrome is mounted only around `/login`, and protected admin routes remain inside existing route guards and backend authorization.
+Testing notes: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing local-env Vite `NODE_ENV=production` warning. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' pnpm --filter @faako/stroane-web exec playwright test tests/e2e/admin-products.spec.ts` passed with 8 tests. A local Chrome render audit confirmed visible login-page header and footer content, a storefront logo handoff to `https://stroanesolutions.com/`, and zero horizontal overflow at `1440px` desktop and `390px` phone widths. `git diff --check -- apps/stroane-web docs/apps/stroane-web` passed.
+Rollback notes: Revert the login wrapper, external storefront navigation support, scoped login padding, tests, and documentation entry. No data rollback is required.
+Next step: Perform a hosted portal login smoke test after the next Cloudflare Pages deployment.
+
+### Stroane API schema-readiness hardening and blue portal sidebar
+
+Date: 2026-05-31
+Feature/change name: Stroane API schema-readiness hardening and blue portal sidebar
+What changed:
+- Anchored backend `.env` and `.env.development` loading to `apps/stroane-web` so API database resolution no longer depends on the shell working directory.
+- Added safe Prisma `P2021`/`P2022` handling: schema-readiness failures now return an actionable `503` response instead of an opaque `500`.
+- Added Prisma error codes to sanitized backend logs without exposing connection strings or database values.
+- Added shared ERP-shell token overrides for a Stroane blue portal sidebar and adjusted portal footer contrast with existing Stroane tokens.
+- Removed an unused `Layout` import from the portal sign-in page so the existing sign-in work continues to pass TypeScript checks.
+Why it changed: The portal inventory, product, and alert reads were reporting missing-column errors from a running API process even though both configured Stroane databases had the additive migrations recorded. The runtime should consistently load Stroane-owned env files and fail with a useful operational message if a deployed schema is genuinely behind.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/appSystem.js, apps/stroane-web/src/styles/pages/AdminPortal.css, apps/stroane-web/src/pages/AdminPortalSignIn.tsx, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md.
+Data impact: None. No schema, migration, seed, catalogue, stock, supplier, alert, order, payment, or customer data changed.
+Security impact: Positive operational hardening. Error responses remain customer-safe, logs include only sanitized message/code metadata, and backend env lookup remains server-side.
+Testing notes: Both `APP_ENV=development` and `APP_ENV=production` Prisma migration status checks reported all 11 migrations applied. Read-only service smoke queries passed for inventory, admin products, and inventory-alert summaries against both configured databases. A monorepo-root API launch resolved the Stroane development environment and reached the listening state. `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 30 tests. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing local-env Vite `NODE_ENV=production` warning. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' pnpm --filter @faako/stroane-web run test:e2e` passed with 12 tests. A local Chrome render audit confirmed a blue-to-navy sidebar gradient, white sidebar text, one portal sidebar instance, and zero horizontal overflow. `git diff --check -- apps/stroane-web docs/apps/stroane-web` passed.
+Rollback notes: Revert the app-relative dotenv paths, safe schema-readiness mapping, Stroane ERP-shell token overrides, footer contrast adjustment, and this documentation entry. No data rollback is required.
+Next step: Restart any already-running local API process with `pnpm run dev:stroane`. For Railway, redeploy the API after `pnpm --filter @faako/stroane-web run db:deploy:prod` so the process reloads generated Prisma code and production env.
+
+### Stroane ERP operations overview design foundation
+
+Date: 2026-05-31
+Feature/change name: Stroane ERP operations overview design foundation
+What changed:
+- Replaced the private `/admin` static link directory with a live operational overview.
+- Added protected API-backed dashboard KPI tiles for catalogue products, tracked stock, available units, reserved units, low-stock items, out-of-stock items, draft products, and active suppliers.
+- Added compact catalogue-readiness indicators for publication, stock-tracking, and supplier-link coverage.
+- Added a stock-attention work queue for low-stock, reorder, out-of-stock, unavailable, and manual-review inventory items.
+- Added a compact recent inventory movement feed and retained direct links into inventory, suppliers, products, and order operations.
+- Added resilient partial-data handling so one unavailable admin API does not collapse the full portal overview.
+- Updated Playwright coverage for the signed-in overview, stock attention signals, and recent movement rendering.
+Why it changed: The separated Stroane portal had the right route and shell architecture, but its entry screen was still a static directory. Staff need an operational first view that helps them decide where to work without turning Stroane into a full ERP.
+Files changed:
+- apps/stroane-web/src/pages/AdminPortalHome.tsx
+- apps/stroane-web/src/components/admin/AdminPortalLayout.tsx
+- apps/stroane-web/src/styles/pages/AdminPortal.css
+- apps/stroane-web/tests/e2e/admin-products.spec.ts
+- apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts
+- docs/apps/stroane-web/portal-architecture.md
+- docs/apps/stroane-web/progress-log.md
+Data impact: None. Existing protected read APIs are reused. No schema, migration, seed, catalogue, inventory movement, supplier, order, payment, or storefront data changes.
+Security impact: None. The overview remains inside existing `RequireAdminAuth` and `RequirePortalAccess` route guards and uses the existing protected bearer-auth admin APIs. No internal data is exposed to public storefront routes.
+Testing notes: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 30 tests. `pnpm --filter @faako/stroane-web run build` passed with the existing local-env Vite `NODE_ENV=production` warning. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' pnpm --filter @faako/stroane-web run test:e2e` passed with 12 tests after making the existing product loading-state mock deterministic. Coverage includes public fallback catalogue behavior, protected portal routes, portal login/logout, stock alerts, dashboard KPI and readiness rendering, product API error/loading/empty states, authenticated product edits, and mobile portal behavior. A built-preview Chrome screenshot audit confirmed eight KPI tiles, three readiness progress indicators, and zero horizontal overflow at `1440px` desktop and `390px` phone widths. `git diff --check -- apps/stroane-web docs/apps/stroane-web` passed.
+Rollback notes: Revert the overview component, scoped portal styles, E2E updates, and documentation entry. Existing admin routes and API behavior remain intact.
+Next step: Continue with a dedicated supplier operations page and a compact settings surface for alert preferences, while keeping procurement and warehouse automation deferred.
+
 ### Stroane storefront and portal subdomain separation
 
 Date: 2026-05-31
@@ -555,3 +706,19 @@ Security impact: The site is now publicly accessible — no credential gate. Acc
 Testing done: Verified no remaining `useAuth`/`AuthGate`/`AuthProvider`/`UserManagement` references via grep. Header and FloatingHeader render without the admin link.
 Rollback notes: `git revert` restores the gate, the admin page, and the proxy. The deleted files come back via git history. If the gate is re-introduced later, an actual backend deployment is needed first or login will fail the same way it did before.
 Next step: Decide whether to delete the unused backend (`backend/`, `prisma/`, auth routes, seeds) entirely, or keep it for a possible future admin area. Update `pre-deploy-checklist.md` and the Stroane README to reflect the public-site posture.
+### Catalogue reconciliation, portal inventory bootstrap, and shell loading polish
+
+Date: 2026-05-31
+Feature/change name: Stroane production catalogue reconciliation and inventory portal bootstrap
+What changed:
+- Added read-only catalogue reconciliation planning plus an opt-in apply command that upserts the normalized catalogue, archives stale public product rows, and deactivates stale categories without deleting records.
+- Added dry-run-by-default inventory bootstrap plus an opt-in apply command that creates only missing base `InventoryItem` rows, keeps unknown quantities nullable, preserves existing inventory records, and writes an audit entry per created row.
+- Fixed shared ERP sidebar navigation rows stretching vertically by top-aligning the grid content.
+- Updated the Stroane portal mobile bottom navigation to expose Overview, Inventory, Suppliers, Products, and Settings, tightened narrow-screen labels, and contained dense inventory-table scrolling inside the table surface.
+- Added the shared `AnimatedLoadingState` feedback component and used it for lazy route transitions plus private inventory, supplier, and movement fetches.
+- Clarified the inventory empty state: bootstrapped rows remain unavailable until staff records a physical count or restock movement.
+Data impact: No automatic startup write. The reviewed production apply completed intentionally: 16 normalized products were added, 6 stale products were archived, 3 stale categories were deactivated, and 18 missing inventory records plus 18 bootstrap audit entries were created. Existing rows were not deleted and stock counts remain unknown until staff records physical counts or restocks.
+Security impact: No secrets are exposed. Scripts load app-root environment files, require an explicit apply command for inventory creation, never overwrite existing stock counts, and keep unknown-stock products non-purchasable.
+Testing done: `node --check` for catalogue and inventory scripts, `git diff --check`, Stroane lint, Stroane build, Prisma validate, backend test suite, Playwright portal checks, and desktop/mobile shell visual audit.
+Rollback notes: Revert the script/UI changes. If reconciliation was applied, restore archived rows intentionally from a reviewed backup or by publishing the required product rows; inventory bootstrap rows are additive audit-backed records and should be reviewed before removal.
+Next step: Enter physical stock counts through audited movements, redeploy the Cloudflare portal for UI polish, and verify the protected inventory workspace against Railway after the deploy.

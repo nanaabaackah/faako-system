@@ -10,7 +10,8 @@ From the monorepo root, `pnpm run dev:stroane` starts both the Vite frontend and
 the API backend in development mode. Vite loads `.env.development`, and the API
 loads `.env.development` with development values taking precedence over any
 generic `.env` fallback. Prisma commands with `APP_ENV=development` follow the
-same precedence.
+same precedence. The backend resolves its env files from `apps/stroane-web`
+itself, so direct API launches are not dependent on the current shell directory.
 
 For the standard local setup, leave `VITE_API_BASE_URL=` blank in
 `.env.development`. Vite proxies same-origin `/api` requests to the local API on
