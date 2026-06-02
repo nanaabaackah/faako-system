@@ -387,6 +387,10 @@
   text-align: left;
 }
 
+.admin-inventory-mobile-list {
+  display: none;
+}
+
 .admin-inventory-table th,
 .admin-inventory-table td {
   padding: 0.85rem;
@@ -593,7 +597,7 @@
 
 .admin-inventory-modal-backdrop {
   position: fixed;
-  z-index: 1000;
+  z-index: 1300;
   inset: 0;
   display: grid;
   align-items: center;
@@ -667,6 +671,10 @@
     padding-top: calc(72px + 1.25rem);
   }
 
+  .admin-inventory-shell {
+    width: 100%;
+  }
+
   .admin-inventory-head {
     align-items: stretch;
     flex-direction: column;
@@ -714,5 +722,115 @@
 
   .admin-inventory-tabs button {
     flex: 1;
+  }
+
+  .admin-inventory-table--desktop-stock,
+  .admin-inventory-table--desktop-activity {
+    display: none;
+  }
+
+  .admin-inventory-mobile-list {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.7rem;
+  }
+
+  .admin-inventory-mobile-item {
+    display: grid;
+    gap: 0.72rem;
+    padding: 0.85rem;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .admin-inventory-mobile-item header,
+  .admin-inventory-mobile-item footer {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .admin-inventory-mobile-item header {
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .admin-inventory-mobile-item footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-inventory-mobile-item strong,
+  .admin-inventory-mobile-item small {
+    display: block;
+  }
+
+  .admin-inventory-mobile-item header strong {
+    color: var(--color-text-primary);
+    line-height: 1.35;
+  }
+
+  .admin-inventory-mobile-item header small,
+  .admin-inventory-mobile-item footer small {
+    margin-top: 0.2rem;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+  }
+
+  .admin-inventory-mobile-item dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin: 0;
+  }
+
+  .admin-inventory-mobile-item dl div {
+    min-width: 0;
+    padding: 0.55rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+  }
+
+  .admin-inventory-mobile-item dt {
+    color: var(--color-text-muted);
+    font-size: 0.62rem;
+    font-weight: 850;
+    text-transform: uppercase;
+  }
+
+  .admin-inventory-mobile-item dd {
+    margin: 0.25rem 0 0;
+    color: var(--color-text-primary);
+    font-size: 1rem;
+    font-weight: 850;
+  }
+
+  .admin-inventory-mobile-item p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .admin-inventory-mobile-item .admin-inventory-row-action {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-inventory-modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .admin-inventory-modal {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  .admin-inventory-submit {
+    width: 100%;
+    min-height: 46px;
   }
 }

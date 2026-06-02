@@ -443,45 +443,85 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                     title="Loading inventory"
                     message="Pulling current stock records."
                   />
-                ) : <table className="admin-inventory-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Available</th>
-                      <th>Reserved</th>
-                      <th>Reorder at</th>
-                      <th>Status</th>
-                      <th>Supplier</th>
-                      <th>Updated</th>
-                      <th><span className="sr-only">Actions</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredInventory.map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{getProductName(item)}</strong><small>{item.sku || item.productSlug}</small></td>
-                        <td>{displayQuantity(item.availableQuantity)}</td>
-                        <td>{displayQuantity(item.reservedQuantity)}</td>
-                        <td>{displayQuantity(item.reorderThreshold)}</td>
-                        <td>
-                          <span className={getStockBadgeClass(item.computedStockStatus)}>{formatLabel(item.computedStockStatus)}</span>
-                          {item.computedStockStatus === "out_of_stock" ? <small>Restock required</small> : null}
-                          {item.computedStockStatus !== "out_of_stock" && item.needsReorder ? <small>Reorder recommended</small> : null}
-                        </td>
-                        <td>{item.supplier?.name || "Not linked"}</td>
-                        <td>{formatDateTime(item.updatedAt)}</td>
-                        <td>
-                          {isAdmin ? (
-                            <button type="button" className="admin-inventory-row-action" onClick={() => openMovement(item)}>
-                              <HiOutlineAdjustments aria-hidden="true" />
-                              Adjust
-                            </button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>}
+                ) : (
+                  <>
+                    <table className="admin-inventory-table admin-inventory-table--desktop-stock">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Available</th>
+                          <th>Reserved</th>
+                          <th>Reorder at</th>
+                          <th>Status</th>
+                          <th>Supplier</th>
+                          <th>Updated</th>
+                          <th><span className="sr-only">Actions</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredInventory.map((item) => (
+                          <tr key={item.id}>
+                            <td><strong>{getProductName(item)}</strong><small>{item.sku || item.productSlug}</small></td>
+                            <td>{displayQuantity(item.availableQuantity)}</td>
+                            <td>{displayQuantity(item.reservedQuantity)}</td>
+                            <td>{displayQuantity(item.reorderThreshold)}</td>
+                            <td>
+                              <span className={getStockBadgeClass(item.computedStockStatus)}>{formatLabel(item.computedStockStatus)}</span>
+                              {item.computedStockStatus === "out_of_stock" ? <small>Restock required</small> : null}
+                              {item.computedStockStatus !== "out_of_stock" && item.needsReorder ? <small>Reorder recommended</small> : null}
+                            </td>
+                            <td>{item.supplier?.name || "Not linked"}</td>
+                            <td>{formatDateTime(item.updatedAt)}</td>
+                            <td>
+                              {isAdmin ? (
+                                <button type="button" className="admin-inventory-row-action" onClick={() => openMovement(item)}>
+                                  <HiOutlineAdjustments aria-hidden="true" />
+                                  Adjust
+                                </button>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="admin-inventory-mobile-list" aria-label="Mobile inventory list">
+                      {filteredInventory.map((item) => (
+                        <article className="admin-inventory-mobile-item" key={item.id}>
+                          <header>
+                            <div>
+                              <strong>{getProductName(item)}</strong>
+                              <small>{item.sku || item.productSlug}</small>
+                            </div>
+                            <span className={getStockBadgeClass(item.computedStockStatus)}>
+                              {formatLabel(item.computedStockStatus)}
+                            </span>
+                          </header>
+                          <dl>
+                            <div><dt>Available</dt><dd>{displayQuantity(item.availableQuantity)}</dd></div>
+                            <div><dt>Reserved</dt><dd>{displayQuantity(item.reservedQuantity)}</dd></div>
+                            <div><dt>Reorder at</dt><dd>{displayQuantity(item.reorderThreshold)}</dd></div>
+                          </dl>
+                          <p>
+                            {item.computedStockStatus === "out_of_stock"
+                              ? "Restock required"
+                              : item.needsReorder
+                                ? "Reorder recommended"
+                                : item.supplier?.name || "Supplier not linked"}
+                          </p>
+                          <footer>
+                            <small>Updated {formatDateTime(item.updatedAt)}</small>
+                            {isAdmin ? (
+                              <button type="button" className="admin-inventory-row-action" onClick={() => openMovement(item)}>
+                                <HiOutlineAdjustments aria-hidden="true" />
+                                Adjust quantity
+                              </button>
+                            ) : null}
+                          </footer>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {!loading && !filteredInventory.length ? (
                   <div className="admin-inventory-empty">
                     <HiOutlineExclamation aria-hidden="true" />
@@ -569,34 +609,67 @@ const AdminInventory: React.FC<{ initialTab?: AdminInventoryTab }> = ({
                   title="Loading activity"
                   message="Pulling accountable stock movements."
                 />
-              ) : <table className="admin-inventory-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Product</th>
-                    <th>Movement</th>
-                    <th>Delta</th>
-                    <th>Before / after</th>
-                    <th>Notes</th>
-                    <th>Actor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movements.map((movement) => (
-                    <tr key={movement.id}>
-                      <td>{formatDateTime(movement.createdAt)}</td>
-                      <td><strong>{formatLabel(movement.productSlug)}</strong></td>
-                      <td><span className={getMovementBadgeClass(movement.movementType)}>{formatLabel(movement.movementType)}</span></td>
-                      <td className={movement.quantityDelta < 0 ? "admin-inventory-negative" : "admin-inventory-positive"}>
-                        {movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta}
-                      </td>
-                      <td>{movement.quantityBefore} / {movement.quantityAfter}</td>
-                      <td>{movement.reason || "No notes"}</td>
-                      <td>{movement.createdByName || "System"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>}
+              ) : (
+                <>
+                  <table className="admin-inventory-table admin-inventory-table--desktop-activity">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Product</th>
+                        <th>Movement</th>
+                        <th>Delta</th>
+                        <th>Before / after</th>
+                        <th>Notes</th>
+                        <th>Actor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movements.map((movement) => (
+                        <tr key={movement.id}>
+                          <td>{formatDateTime(movement.createdAt)}</td>
+                          <td><strong>{formatLabel(movement.productSlug)}</strong></td>
+                          <td><span className={getMovementBadgeClass(movement.movementType)}>{formatLabel(movement.movementType)}</span></td>
+                          <td className={movement.quantityDelta < 0 ? "admin-inventory-negative" : "admin-inventory-positive"}>
+                            {movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta}
+                          </td>
+                          <td>{movement.quantityBefore} / {movement.quantityAfter}</td>
+                          <td>{movement.reason || "No notes"}</td>
+                          <td>{movement.createdByName || "System"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="admin-inventory-mobile-list" aria-label="Mobile inventory activity">
+                    {movements.map((movement) => (
+                      <article className="admin-inventory-mobile-item admin-inventory-mobile-item--activity" key={movement.id}>
+                        <header>
+                          <div>
+                            <strong>{formatLabel(movement.productSlug)}</strong>
+                            <small>{formatDateTime(movement.createdAt)}</small>
+                          </div>
+                          <span className={getMovementBadgeClass(movement.movementType)}>
+                            {formatLabel(movement.movementType)}
+                          </span>
+                        </header>
+                        <dl>
+                          <div>
+                            <dt>Delta</dt>
+                            <dd className={movement.quantityDelta < 0 ? "admin-inventory-negative" : "admin-inventory-positive"}>
+                              {movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta}
+                            </dd>
+                          </div>
+                          <div><dt>Before</dt><dd>{movement.quantityBefore}</dd></div>
+                          <div><dt>After</dt><dd>{movement.quantityAfter}</dd></div>
+                        </dl>
+                        <p>{movement.reason || "No notes"}</p>
+                        <footer>
+                          <small>Recorded by {movement.createdByName || "System"}</small>
+                        </footer>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
               {!loading && !movements.length ? (
                 <div className="admin-inventory-empty">
                   <HiOutlineAdjustments aria-hidden="true" />

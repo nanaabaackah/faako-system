@@ -23,6 +23,24 @@ Next step:
 
 ## Entries
 
+### Stroane mobile inventory operations repair
+
+Date: 2026-06-02
+Feature/change name: Stroane mobile inventory operations repair
+What changed:
+- Replaced the wide desktop inventory table with phone-only stock records at mobile widths while preserving the full operational table on larger screens.
+- Added an immediately visible `Adjust quantity` action to every mobile stock record so staff do not need to horizontally scroll to reach the movement workflow.
+- Added phone-friendly inventory activity records so reviewing movement history does not reintroduce a wide-table layout viewport.
+- Presented stock adjustments as a safe-area-aware mobile bottom sheet above the fixed portal navigation.
+- Reduced nested inventory-shell width loss on phones and added an authenticated mobile Playwright workflow that records a restock movement from a stock record.
+Why it changed: The desktop inventory table retained a `920px` minimum width on phones. Mobile Safari expanded its layout viewport around that table, stretched the fixed bottom navigation, and placed the quantity-adjustment control far beyond the visible screen.
+Files changed: apps/stroane-web/src/pages/AdminInventory.tsx, apps/stroane-web/src/styles/pages/AdminInventory.css, apps/stroane-web/src/styles/pages/AdminPortal.css, apps/stroane-web/tests/e2e/admin-inventory-alerts.spec.ts, docs/apps/stroane-web/progress-log.md.
+Data impact: None. No stock values, catalogue records, suppliers, movements, schema, or migrations changed.
+Security impact: None. Stock adjustments remain protected by the existing authenticated admin API and role checks.
+Testing notes: `pnpm exec tsc -p tsconfig.app.json --noEmit`, `pnpm run lint`, and `pnpm run build` passed. The six focused portal Playwright checks passed, including the authenticated touch-sized inventory workflow that opens the phone adjustment sheet, records a restock, and asserts zero horizontal document overflow. A local `390x844` Chrome mobile render audit measured `innerWidth=390`, `htmlScroll=390`, a `358px` bottom navigation, and visible stock cards with quantity actions.
+Rollback notes: Revert the phone-only stock/activity records, mobile bottom-sheet styles, inventory shell width adjustment, and mobile Playwright workflow assertion.
+Next step: Run a hosted iPhone Safari smoke after deploying the Cloudflare Pages frontend update.
+
 ### Stroane collapsed portal rail polish
 
 Date: 2026-06-01

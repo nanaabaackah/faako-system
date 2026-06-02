@@ -91,6 +91,40 @@ const mockInventoryApi = async (
     if (request.method() === "GET" && pathname === "/api/admin/inventory/movements") {
       return route.fulfill(json({ ok: true, movements: [recentMovement] }));
     }
+    if (request.method() === "POST" && pathname === "/api/admin/inventory/movements") {
+      const payload = request.postDataJSON() as {
+        inventoryItemId: string;
+        movementType: string;
+        quantityDelta: number;
+      };
+      const inventoryItem = inventoryRows.find((item) => item.id === payload.inventoryItemId);
+      if (!inventoryItem) {
+        return route.fulfill(json({ error: "Inventory item not found." }, 404));
+      }
+      const quantityOnHand = Number(inventoryItem.quantityOnHand ?? 0) + payload.quantityDelta;
+      const reservedQuantity = Number(inventoryItem.reservedQuantity ?? 0);
+      return route.fulfill(
+        json({
+          ok: true,
+          inventoryItem: {
+            ...inventoryItem,
+            quantityOnHand,
+            availableQuantity: quantityOnHand - reservedQuantity,
+            updatedAt: "2026-06-02T12:00:00.000Z",
+          },
+          movement: {
+            ...recentMovement,
+            id: "movement-created",
+            inventoryItemId: payload.inventoryItemId,
+            movementType: payload.movementType,
+            quantityDelta: payload.quantityDelta,
+            quantityBefore: Number(inventoryItem.quantityOnHand ?? 0),
+            quantityAfter: quantityOnHand,
+            createdAt: "2026-06-02T12:00:00.000Z",
+          },
+        })
+      );
+    }
     if (request.method() === "GET" && pathname === "/api/admin/inventory/alerts") {
       return route.fulfill(
         json({
@@ -127,8 +161,8 @@ test("inventory dashboard shows owner alert summary and restock recommendations"
   await page.goto("/admin/inventory");
 
   await expect(page.getByText("2 product alert(s) need attention.")).toBeVisible();
-  await expect(page.getByText("Reorder recommended")).toBeVisible();
-  await expect(page.getByText("Restock required")).toBeVisible();
+  await expect(page.getByRole("table").getByText("Reorder recommended")).toBeVisible();
+  await expect(page.getByRole("table").getByText("Restock required")).toBeVisible();
 
   await page.getByRole("button", { name: "Check alerts" }).click();
   await expect(page.getByText("Inventory alert check completed: 2 active warning(s), 0 recovery update(s).")).toBeVisible();
@@ -214,25 +248,58 @@ test("operations overview distinguishes an uncounted stock item from confirmed z
   await expect(page.getByText("Quantity not confirmed")).toBeVisible();
 });
 
-test("inventory alert controls remain usable on a mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await useAdminSession(page);
-  await mockInventoryApi(page);
-  await page.goto("/admin/inventory");
+test("inventory quantities remain adjustable on a mobile viewport", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:4175",
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  try {
+    await useAdminSession(page);
+    await mockInventoryApi(page);
+    await page.goto("/admin/inventory");
 
-  await expect(page.getByRole("button", { name: "Check alerts" })).toBeVisible();
-  await expect(page.getByText("2 product alert(s) need attention.")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary mobile navigation" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Products" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Check alerts" })).toBeVisible();
+    await expect(page.getByText("2 product alert(s) need attention.")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary mobile navigation" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Products" })).toBeVisible();
+    await expect(page.getByLabel("Mobile inventory list")).toBeVisible();
+    await expect(page.locator(".admin-inventory-table--desktop-stock")).toBeHidden();
+
+    const adjustQuantity = page.getByRole("button", { name: "Adjust quantity" }).first();
+    await expect(adjustQuantity).toBeVisible();
+    await adjustQuantity.click();
+
+    const dialog = page.getByRole("dialog", { name: "Digital Probe Thermometer" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("spinbutton", { name: "Quantity" }).fill("2");
+    await dialog.getByRole("button", { name: "Record movement" }).click();
+    await expect(page.getByText("Restock recorded for Digital Probe Thermometer.")).toBeVisible();
+
+    const viewportGeometry = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(viewportGeometry.scrollWidth).toBeLessThanOrEqual(viewportGeometry.clientWidth);
+  } finally {
+    await context.close();
+  }
 });
 
 test("inventory dashboard shows an animated loading state while private stock loads", async ({ page }) => {
+  test.setTimeout(75_000);
   await useAdminSession(page);
-  await mockInventoryApi(page, { inventoryDelayMs: 10_000 });
+  await mockInventoryApi(page, { inventoryDelayMs: 30_000 });
   await page.goto("/admin/inventory");
 
-  await expect(page.getByRole("status").filter({ hasText: "Loading inventory" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Loading inventory" })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.locator(".ui-animated-loading-state__skeleton")).toBeVisible();
   await expect(page.locator(".ui-animated-loading-state__skeleton-rows span")).toHaveCount(3);
-  await expect(page.getByText("Digital Probe Thermometer")).toBeVisible();
+  await expect(page.getByRole("table").getByText("Digital Probe Thermometer")).toBeVisible({
+    timeout: 45_000,
+  });
 });

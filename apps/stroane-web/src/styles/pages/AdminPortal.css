@@ -596,6 +596,10 @@
     padding: 1rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
   }
 
+  .stroane-admin-portal .admin-inventory-shell {
+    width: 100%;
+  }
+
   .stroane-portal-overview__grid {
     grid-template-columns: 1fr;
   }

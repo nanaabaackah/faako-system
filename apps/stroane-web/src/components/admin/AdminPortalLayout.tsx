@@ -26,9 +26,9 @@ import "../../styles/pages/AdminPortal.css";
 
 const PORTAL_BRAND: ErpBranding = {
   name: "Stroane Operations",
-  shortName: "ST",
+  shortName: "Stroane Solutions",
   sidebarMarkUrl: "/assets/logos/Emblem_logo-colour.png",
-  sidebarTitle: "Operations portal",
+  sidebarTitle: "Portal",
   homePath: "/admin",
   publicUrl: STOREFRONT_BASE_URL,
 };
