@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { buildMailtoHref, formatBookingConfirmationDraft } from "@faako/notifications";
+import { AnimatedLoadingState } from "@faako/ui";
 import { formatDateTime } from "../../utils/formatters";
 import { apiGet, apiPost } from "../../api/client";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
@@ -349,10 +350,7 @@ const Bookings = () => {
             </div>
           </div>
           {isLoading ? (
-            <div className="loading-card" role="status" aria-live="polite">
-              <span className="spinner" aria-hidden="true" />
-              <span>Loading appointments...</span>
-            </div>
+            <AnimatedLoadingState compact title="Loading appointments" />
           ) : upcomingBookings.length ? (
             <div className="data-table bookings-table">
               <div className="table-row table-head is-7">

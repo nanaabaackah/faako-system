@@ -80,6 +80,11 @@ import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemp
 import { buildForgotPasswordEmailContent } from "./forgotPasswordEmailTemplate.js";
 import { getMonorepoMonitoringSites } from "@faako/config";
 import {
+  buildSiteStatus as buildConfiguredSiteStatus,
+  buildSiteStatusFallback as buildConfiguredSiteStatusFallback,
+  getAggregateSiteStatus,
+} from "./monitoring/siteStatus.js";
+import {
   getDeleteUserBlocker,
   getResendInvitationBlocker,
   resolveUserStatusForPasswordState,
@@ -532,7 +537,10 @@ const googleNightlySyncHour = Number(process.env.GOOGLE_NIGHTLY_SYNC_HOUR ?? 2);
 const googleNightlySyncMinute = Number(process.env.GOOGLE_NIGHTLY_SYNC_MINUTE ?? 0);
 const SITE_STATUS_TIMEOUT_MS = Number(process.env.SITE_STATUS_TIMEOUT_MS ?? 12000);
 const SITE_STATUS_CACHE_TTL_MS = Number(process.env.SITE_STATUS_CACHE_TTL_MS ?? 5 * 60 * 1000);
-const SITE_STATUS_FAILURE_CACHE_TTL_MS = 30 * 1000;
+const SITE_STATUS_CONCURRENCY = parsePositiveInt(process.env.SITE_STATUS_CONCURRENCY, 8, {
+  min: 1,
+  max: 24,
+});
 const TRUST_STATS_CACHE_TTL_MS = Number(
   process.env.TRUST_STATS_CACHE_TTL_MS ?? 5 * 60 * 1000
 );
@@ -686,38 +694,15 @@ const checkUrlStatus = async (url) => {
 };
 
 const buildSiteStatus = async () => {
-  // Check sites sequentially to avoid cold-start connection burst timeouts.
-  const results = [];
-  for (const site of SITE_PAGES) {
-    const pages = await Promise.all(
-      site.pages.map(async (page) => {
-        const url = new URL(page.path, site.baseUrl).toString();
-        const status = await checkUrlStatus(url);
-        return { ...page, url, status };
-      })
-    );
-    results.push({ ...site, pages });
-  }
-  return results;
+  return buildConfiguredSiteStatus({
+    sites: SITE_PAGES,
+    checkUrlStatus,
+    concurrency: SITE_STATUS_CONCURRENCY,
+  });
 };
 
 const buildSiteStatusFallback = (status = "unknown") =>
-  SITE_PAGES.map((site) => ({
-    ...site,
-    pages: site.pages.map((page) => ({
-      ...page,
-      url: new URL(page.path, site.baseUrl).toString(),
-      status,
-    })),
-  }));
-
-const getAggregateStatus = (pages = []) => {
-  if (!pages.length) return "unknown";
-  if (pages.some((page) => page.status === "offline")) return "offline";
-  if (pages.some((page) => page.status === "degraded")) return "degraded";
-  if (pages.every((page) => page.status === "online")) return "online";
-  return "unknown";
-};
+  buildConfiguredSiteStatusFallback(SITE_PAGES, status);
 
 const getSiteStatus = async () => {
   const now = Date.now();
@@ -2766,9 +2751,11 @@ const buildWeeklyReportSnapshot = async () => {
   const siteOverview = (siteStatusPayload ?? []).map((site) => ({
     id: site.id,
     title: site.title,
-    aggregateStatus: getAggregateStatus(site.pages ?? []),
+    aggregateStatus: getAggregateSiteStatus(site.pages ?? []),
   }));
-  const totalSites = siteOverview.length;
+  const configuredSites = siteOverview.filter((site) => site.aggregateStatus !== "not_configured");
+  const totalSites = configuredSites.length;
+  const notConfiguredSites = siteOverview.length - configuredSites.length;
   const onlineSites = siteOverview.filter((site) => site.aggregateStatus === "online").length;
   const degradedSites = siteOverview.filter((site) => site.aggregateStatus === "degraded").length;
   const offlineSites = siteOverview.filter((site) => site.aggregateStatus === "offline").length;
@@ -2841,6 +2828,7 @@ const buildWeeklyReportSnapshot = async () => {
       onlineSites,
       degradedSites,
       offlineSites,
+      notConfiguredSites,
     },
   };
 };
@@ -2895,7 +2883,7 @@ const buildWeeklyReportEmailContent = (snapshot, templateOptions = {}, contentOp
   if (contentOptions.siteHealth !== false) {
     rows.push([
       "Site health",
-      `${snapshot.siteHealth.onlineSites}/${snapshot.siteHealth.totalSites} online • ${snapshot.siteHealth.degradedSites} degraded • ${snapshot.siteHealth.offlineSites} offline`,
+      `${snapshot.siteHealth.onlineSites}/${snapshot.siteHealth.totalSites} online • ${snapshot.siteHealth.degradedSites} degraded • ${snapshot.siteHealth.offlineSites} offline${snapshot.siteHealth.notConfiguredSites ? ` • ${snapshot.siteHealth.notConfiguredSites} not configured` : ""}`,
     ]);
   }
 
@@ -3848,6 +3836,14 @@ const buildScopedAuditWhere = (organizationScope, query = {}) =>
     q: query.q,
   });
 
+const buildAuditIncidentWhere = (where) => ({
+  AND: [where, { OR: [{ source: "railway" }, { category: "incident" }] }],
+});
+
+const buildAuditFailureWhere = (where) => ({
+  AND: [where, { severity: { in: ["warning", "error"] } }],
+});
+
 const buildLabeledCounts = (entries = [], key) => {
   const counts = entries.reduce((map, entry) => {
     const label = normalizeRailwayText(entry?.[key] || "Unknown", 120);
@@ -3862,21 +3858,20 @@ const buildLabeledCounts = (entries = [], key) => {
 
 const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) => {
   const where = buildScopedAuditWhere(organizationScope, query);
-  const [logs, totalEvents] = await Promise.all([
+  const [logs, totalEvents, totalIncidents, totalFailures] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: 250,
     }),
     prisma.auditLog.count({ where }),
+    prisma.auditLog.count({ where: buildAuditIncidentWhere(where) }),
+    prisma.auditLog.count({ where: buildAuditFailureWhere(where) }),
   ]);
 
   const serializedLogs = logs.map(serializeAuditLog);
   const incidentLogs = serializedLogs.filter(
     (entry) => entry.source === "railway" || entry.category === "incident"
-  );
-  const failureLogs = serializedLogs.filter((entry) =>
-    ["warning", "error"].includes(String(entry.severity || "").toLowerCase())
   );
   const actorCounts = serializedLogs.reduce((counts, entry) => {
     const label = normalizeRailwayText(entry.actorLabel || entry.targetId || "", 120);
@@ -3913,13 +3908,13 @@ const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) 
       {
         key: "incidents",
         label: "Incidents",
-        value: formatAuditKpiValue(incidentLogs.length),
+        value: formatAuditKpiValue(totalIncidents),
         helper: "Railway and system incidents",
       },
       {
         key: "failures",
         label: "Warnings and errors",
-        value: formatAuditKpiValue(failureLogs.length),
+        value: formatAuditKpiValue(totalFailures),
         helper: "Events that need follow-up",
       },
       {
@@ -5512,7 +5507,7 @@ app.get("/api/reports", authMiddleware, requireAdmin, async (_req, res) => {
   res.json({ reports });
 });
 
-app.get("/api/reports/summary", authMiddleware, requireAdmin, async (req, res) => {
+const sendAuditReportSummary = async (req, res) => {
   const organizationScope = await resolveOrganizationReadScope({
     user: req.user,
     organizationParam: req.query.organizationId,
@@ -5528,7 +5523,11 @@ app.get("/api/reports/summary", authMiddleware, requireAdmin, async (req, res) =
     user: req.user,
   });
   return res.json(summary);
-});
+};
+
+// Retained as a compatibility alias for frontend deploys that predate the
+// Audit Logs ownership split.
+app.get("/api/reports/summary", authMiddleware, requireAdmin, sendAuditReportSummary);
 
 app.patch("/api/reports/:key", authMiddleware, requireAdmin, async (req, res) => {
   const key = String(req.params.key || "").trim();
@@ -5646,6 +5645,8 @@ app.post("/api/reports/:key/send", authMiddleware, requireAdmin, async (req, res
   });
 });
 
+app.get("/api/audit-logs/summary", authMiddleware, requireAdmin, sendAuditReportSummary);
+
 app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   const organizationScope = await resolveOrganizationReadScope({
     user: req.user,
@@ -5658,20 +5659,27 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 
   const where = buildScopedAuditWhere(organizationScope, req.query);
   const take = parseAuditTake(req.query.take, 100, 300);
-  const logs = await prisma.auditLog.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take,
-  });
+  const [logs, total, incidents, failures, actors] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+    }),
+    prisma.auditLog.count({ where }),
+    prisma.auditLog.count({ where: buildAuditIncidentWhere(where) }),
+    prisma.auditLog.count({ where: buildAuditFailureWhere(where) }),
+    prisma.auditLog.findMany({
+      where: { AND: [where, { actorLabel: { not: null } }] },
+      distinct: ["actorLabel"],
+      select: { actorLabel: true },
+    }),
+  ]);
   const entries = logs.map(serializeAuditLog);
   const summary = {
-    total: entries.length,
-    incidents: entries.filter((entry) => entry.source === "railway" || entry.category === "incident")
-      .length,
-    failures: entries.filter((entry) =>
-      ["warning", "error"].includes(String(entry.severity || "").toLowerCase())
-    ).length,
-    actors: new Set(entries.map((entry) => entry.actorLabel).filter(Boolean)).size,
+    total,
+    incidents,
+    failures,
+    actors: actors.filter((entry) => String(entry.actorLabel || "").trim()).length,
   };
 
   return res.json({
@@ -5776,7 +5784,7 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     id: site.id,
     title: site.title,
     pages: site.pages ?? [],
-    aggregateStatus: getAggregateStatus(site.pages ?? []),
+    aggregateStatus: getAggregateSiteStatus(site.pages ?? []),
   }));
 
   maybeSendStatusAlerts(systemEntries, siteOverview);

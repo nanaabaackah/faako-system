@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatedLoadingState, SelectField } from "@faako/ui";
 import { apiGet } from "../../api/client";
+import downloadCsv from "../../utils/exportCsv";
 import { formatDateTime } from "../../utils/formatters";
 import "./AuditLogs.css";
 
@@ -36,6 +38,13 @@ const CATEGORY_OPTIONS = [
 ];
 
 const formatCount = (value) => Number(value || 0).toLocaleString("en-US");
+const DEFAULT_FILTERS = {
+  range: "7d",
+  source: "",
+  category: "",
+  severity: "",
+  q: "",
+};
 
 const buildQuery = (filters) => {
   const params = new URLSearchParams();
@@ -48,13 +57,8 @@ const buildQuery = (filters) => {
 };
 
 const AuditLogs = () => {
-  const [filters, setFilters] = useState({
-    range: "7d",
-    source: "",
-    category: "",
-    severity: "",
-    q: "",
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [entries, setEntries] = useState([]);
   const [summary, setSummary] = useState({
     total: 0,
@@ -65,6 +69,8 @@ const AuditLogs = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsError, setAnalyticsError] = useState("");
 
   const loadAuditLogs = useCallback(async ({ silent = false } = {}) => {
     if (silent) {
@@ -74,20 +80,38 @@ const AuditLogs = () => {
     }
 
     try {
-      const query = buildQuery(filters);
-      const payload = await apiGet(`/api/audit-logs${query ? `?${query}` : ""}`, {
-        fallbackMessage: "Unable to load audit logs.",
-      });
-      setEntries(Array.isArray(payload?.entries) ? payload.entries : []);
-      setSummary(payload?.summary || { total: 0, incidents: 0, failures: 0, actors: 0 });
-      setError("");
+      const query = buildQuery(appliedFilters);
+      const suffix = query ? `?${query}` : "";
+      const [logsResult, analyticsResult] = await Promise.allSettled([
+        apiGet(`/api/audit-logs${suffix}`, {
+          fallbackMessage: "Unable to load audit logs.",
+        }),
+        apiGet(`/api/audit-logs/summary${suffix}`, {
+          fallbackMessage: "Unable to load audit analytics.",
+        }),
+      ]);
+      if (logsResult.status === "fulfilled") {
+        const payload = logsResult.value;
+        setEntries(Array.isArray(payload?.entries) ? payload.entries : []);
+        setSummary(payload?.summary || { total: 0, incidents: 0, failures: 0, actors: 0 });
+        setError("");
+      } else {
+        setError(logsResult.reason?.message || "Unable to load audit logs.");
+      }
+
+      if (analyticsResult.status === "fulfilled") {
+        setAnalytics(analyticsResult.value || null);
+        setAnalyticsError("");
+      } else {
+        setAnalyticsError(analyticsResult.reason?.message || "Unable to load audit analytics.");
+      }
     } catch (loadError) {
       setError(loadError.message || "Unable to load audit logs.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filters]);
+  }, [appliedFilters]);
 
   useEffect(() => {
     loadAuditLogs();
@@ -102,10 +126,39 @@ const AuditLogs = () => {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
-    loadAuditLogs();
+    if (buildQuery(filters) === buildQuery(appliedFilters)) {
+      loadAuditLogs();
+      return;
+    }
+    setAppliedFilters({ ...filters });
   };
 
   const latestEvent = useMemo(() => entries[0] || null, [entries]);
+  const handleExportSnapshot = () => {
+    if (!analytics) return;
+    const rows = [
+      ["Metric", "Value"],
+      ...((Array.isArray(analytics.kpis) ? analytics.kpis : []).map((item) => [
+        item.label,
+        item.value,
+      ])),
+      [],
+      ["Top action", "Count"],
+      ...((Array.isArray(analytics.topActions) ? analytics.topActions : []).map((item) => [
+        item.label,
+        item.count,
+      ])),
+      [],
+      ["Date", "Events", "Incidents", "Failures"],
+      ...((Array.isArray(analytics.series) ? analytics.series : []).map((item) => [
+        item.date,
+        item.total,
+        item.incidents,
+        item.failures,
+      ])),
+    ];
+    downloadCsv(`audit_report_${appliedFilters.range}.csv`, rows);
+  };
 
   return (
     <section className="page audit-logs-page">
@@ -126,15 +179,22 @@ const AuditLogs = () => {
           >
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={handleExportSnapshot}
+            disabled={!analytics}
+          >
+            Export analytics
+          </button>
         </div>
       </header>
 
       <section className="panel audit-filters-panel">
         <form className="audit-filters" onSubmit={handleSearchSubmit}>
-          <label className="field">
-            <span>Range</span>
-            <select
-              className="input"
+          <SelectField
+              fieldClassName="field"
+              label="Range"
               value={filters.range}
               onChange={(event) => handleFilterChange("range", event.target.value)}
             >
@@ -143,12 +203,10 @@ const AuditLogs = () => {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Source</span>
-            <select
-              className="input"
+          </SelectField>
+          <SelectField
+              fieldClassName="field"
+              label="Source"
               value={filters.source}
               onChange={(event) => handleFilterChange("source", event.target.value)}
             >
@@ -157,12 +215,10 @@ const AuditLogs = () => {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Category</span>
-            <select
-              className="input"
+          </SelectField>
+          <SelectField
+              fieldClassName="field"
+              label="Category"
               value={filters.category}
               onChange={(event) => handleFilterChange("category", event.target.value)}
             >
@@ -171,12 +227,10 @@ const AuditLogs = () => {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Severity</span>
-            <select
-              className="input"
+          </SelectField>
+          <SelectField
+              fieldClassName="field"
+              label="Severity"
               value={filters.severity}
               onChange={(event) => handleFilterChange("severity", event.target.value)}
             >
@@ -185,8 +239,7 @@ const AuditLogs = () => {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
+          </SelectField>
           <label className="field audit-filters__search">
             <span>Search</span>
             <input
@@ -206,15 +259,18 @@ const AuditLogs = () => {
       </section>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading audit logs...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading audit logs" />
       ) : null}
 
       {error ? (
         <div className="notice is-error" role="alert">
           {error}
+        </div>
+      ) : null}
+
+      {analyticsError ? (
+        <div className="notice is-error" role="alert">
+          {analyticsError}
         </div>
       ) : null}
 
@@ -242,6 +298,80 @@ const AuditLogs = () => {
           </span>
         </article>
       </section>
+
+      {analytics ? (
+        <section className="audit-analytics-grid" aria-label="Audit analytics">
+          <article className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Recent incidents</h3>
+                <p className="muted">
+                  Railway and system events captured in the current audit window.
+                </p>
+              </div>
+            </div>
+            <div className="timeline">
+              {(Array.isArray(analytics.recentIncidents) ? analytics.recentIncidents : []).length ? (
+                analytics.recentIncidents.map((entry) => (
+                  <div className="timeline-row" key={entry.id}>
+                    <span className="timeline-time">{formatDateTime(entry.createdAt)}</span>
+                    <div>
+                      <span className="table-strong">{entry.summary}</span>
+                      <p className="muted">
+                        {entry.action}
+                        {entry.targetId ? ` · ${entry.targetId}` : ""}
+                      </p>
+                    </div>
+                    <span className={`priority is-${entry.severity || "normal"}`}>
+                      {entry.status || entry.severity || "event"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="muted">No incidents recorded in this window.</p>
+              )}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Activity hotspots</h3>
+                <p className="muted">Top actions, sources, and actors from the audit stream.</p>
+              </div>
+            </div>
+            <div className="audit-summary-list">
+              <div className="audit-summary-item">
+                <span>Top actions</span>
+                <strong>
+                  {(Array.isArray(analytics.topActions) ? analytics.topActions : [])
+                    .slice(0, 4)
+                    .map((item) => `${item.label} (${item.count})`)
+                    .join(", ") || "No data"}
+                </strong>
+              </div>
+              <div className="audit-summary-item">
+                <span>Top sources</span>
+                <strong>
+                  {(Array.isArray(analytics.topSources) ? analytics.topSources : [])
+                    .slice(0, 4)
+                    .map((item) => `${item.label} (${item.count})`)
+                    .join(", ") || "No data"}
+                </strong>
+              </div>
+              <div className="audit-summary-item">
+                <span>Top actors</span>
+                <strong>
+                  {(Array.isArray(analytics.topActors) ? analytics.topActors : [])
+                    .slice(0, 4)
+                    .map((item) => `${item.label} (${item.count})`)
+                    .join(", ") || "No data"}
+                </strong>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
 
       <article className="panel">
         <div className="panel-header">

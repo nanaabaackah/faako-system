@@ -1,15 +1,16 @@
 import React from 'react';
+import { AnimatedLoadingState } from '@faako/ui';
 
 function Loader({ active = false }) {
+  if (!active) return null;
+
   return (
-    <div className={`site-loader ${active ? 'is-active' : ''}`} aria-hidden={!active}>
-      <div className="site-loader__veil" />
-      <div className="site-loader__content" role="status" aria-live="polite">
-        <span className="site-loader__label">Loading</span>
-        <span className="site-loader__pulse" aria-hidden="true" />
-      </div>
-      <span className="site-loader__bar" aria-hidden="true" />
-    </div>
+    <AnimatedLoadingState
+      page
+      overlay
+      title="Loading By Nana"
+      message="Preparing the next view."
+    />
   );
 }
 

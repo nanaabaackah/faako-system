@@ -62,6 +62,13 @@ const calendarValueFormatter = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   year: "numeric",
 });
+const monthValueFormatter = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+});
+const shortMonthFormatter = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+});
 
 type OptionChildProps = {
   value?: string | number;
@@ -83,6 +90,45 @@ const formatDateValue = (date: Date) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const parseMonthValue = (value?: string | number | null) => {
+  if (!value) return null;
+  const match = String(value).match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, 1);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatMonthValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
+const formatTimeLabel = (value: string) => {
+  const [hoursValue, minutesValue] = value.split(":");
+  const hours = Number(hoursValue);
+  const minutes = Number(minutesValue);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return value;
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
+};
+
+const buildTimeOptions = (intervalMinutes = 15) => {
+  const safeInterval =
+    Number.isInteger(intervalMinutes) && intervalMinutes > 0 && intervalMinutes <= 60
+      ? intervalMinutes
+      : 15;
+  return Array.from({ length: Math.ceil((24 * 60) / safeInterval) }, (_, index) => {
+    const minutesFromMidnight = index * safeInterval;
+    const hours = Math.floor(minutesFromMidnight / 60);
+    const minutes = minutesFromMidnight % 60;
+    const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    return { value, label: formatTimeLabel(value) };
+  });
 };
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -788,6 +834,309 @@ export const DateField = forwardRef<
         : null}
     </FieldShell>
   );
+});
+
+export const MonthField = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+    label?: ReactNode;
+    hint?: ReactNode;
+    error?: ReactNode;
+    fieldClassName?: string;
+    inputClassName?: string;
+    value?: string;
+    onChangeValue?: (nextValue: string) => void;
+    onChange?: (event: { target: { value: string }; currentTarget: { value: string } }) => void;
+    placeholder?: string;
+    clearable?: boolean;
+    ariaLabel?: string;
+  }
+>(function MonthField(
+  {
+    label,
+    hint,
+    error,
+    fieldClassName = "",
+    inputClassName = "",
+    value = "",
+    onChangeValue,
+    onChange,
+    placeholder = "Select month",
+    disabled = false,
+    required = false,
+    name,
+    min,
+    max,
+    clearable = true,
+    ariaLabel,
+    id,
+    className = "",
+    onBlur,
+  },
+  ref,
+) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const selectedMonth = useMemo(() => parseMonthValue(value), [value]);
+  const minMonth = useMemo(() => parseMonthValue(min), [min]);
+  const maxMonth = useMemo(() => parseMonthValue(max), [max]);
+  const today = useMemo(() => startOfMonth(new Date()), []);
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => (selectedMonth || today).getFullYear());
+  const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
+  const months = useMemo(
+    () => Array.from({ length: 12 }, (_, month) => new Date(viewYear, month, 1)),
+    [viewYear],
+  );
+
+  const assignInputRef = (node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  };
+
+  const updatePanelPosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger || typeof window === "undefined") return;
+    const rect = trigger.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const targetWidth = Math.max(rect.width, 286);
+    const width = Math.min(targetWidth, viewportWidth - 16);
+    let left = rect.left;
+    if (left + width > viewportWidth - 8) {
+      left = viewportWidth - width - 8;
+    }
+    left = Math.max(8, left);
+    const estimatedHeight = 246;
+    const belowTop = rect.bottom + 8;
+    const aboveTop = rect.top - estimatedHeight - 8;
+    const top = belowTop + estimatedHeight <= viewportHeight || aboveTop < 8 ? belowTop : aboveTop;
+    setPanelStyle({
+      position: "fixed",
+      top,
+      left,
+      width,
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    updatePanelPosition();
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    const handleViewportChange = () => updatePanelPosition();
+    document.addEventListener("mousedown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!selectedMonth) return;
+    setViewYear(selectedMonth.getFullYear());
+  }, [selectedMonth]);
+
+  const minTime = minMonth?.getTime() ?? null;
+  const maxTime = maxMonth?.getTime() ?? null;
+  const displayValue = selectedMonth ? monthValueFormatter.format(selectedMonth) : "";
+  const applyValue = (nextMonth: Date | null) => {
+    const nextValue = nextMonth ? formatMonthValue(nextMonth) : "";
+    onChangeValue?.(nextValue);
+    onChange?.({
+      target: { value: nextValue },
+      currentTarget: { value: nextValue },
+    });
+    setOpen(false);
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => triggerRef.current?.focus());
+      return;
+    }
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <FieldShell
+      label={label}
+      hint={hint}
+      error={error}
+      as="div"
+      className={joinClasses(fieldClassName, className, "ui-date-field", "ui-month-field", open && "is-open")}
+    >
+      <div className="ui-date-field__shell">
+        <input
+          ref={assignInputRef}
+          id={id}
+          type="month"
+          name={name}
+          value={value}
+          min={min}
+          max={max}
+          required={required}
+          disabled={disabled}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="ui-date-field__native"
+          onChange={() => {}}
+          onBlur={onBlur}
+          readOnly
+        />
+        <button
+          ref={triggerRef}
+          type="button"
+          className={joinClasses(
+            "ui-date-field__trigger",
+            !displayValue && "is-placeholder",
+            className,
+            inputClassName,
+          )}
+          onClick={() => {
+            if (disabled) return;
+            setOpen((current) => !current);
+          }}
+          aria-label={ariaLabel || (typeof label === "string" ? label : "Select month")}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-required={required}
+          disabled={disabled}
+        >
+          <span className="ui-date-field__value">{displayValue || placeholder}</span>
+          <span className="ui-date-field__icon" aria-hidden="true">
+            <CalendarGlyph />
+          </span>
+        </button>
+      </div>
+
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className="ui-date-field__popover ui-month-field__popover"
+              style={panelStyle}
+              role="dialog"
+              aria-modal="false"
+              aria-label={ariaLabel || "Choose month"}
+            >
+              <div className="ui-date-field__header">
+                <button
+                  type="button"
+                  className="ui-date-field__nav"
+                  onClick={() => setViewYear((current) => current - 1)}
+                  aria-label="Previous year"
+                >
+                  <ChevronGlyph direction="left" />
+                </button>
+                <strong className="ui-date-field__title">{viewYear}</strong>
+                <button
+                  type="button"
+                  className="ui-date-field__nav"
+                  onClick={() => setViewYear((current) => current + 1)}
+                  aria-label="Next year"
+                >
+                  <ChevronGlyph direction="right" />
+                </button>
+              </div>
+
+              <div className="ui-month-field__grid">
+                {months.map((month) => {
+                  const monthTime = month.getTime();
+                  const isSelected = selectedMonth?.getTime() === monthTime;
+                  const isCurrent = today.getTime() === monthTime;
+                  const isDisabled =
+                    (minTime !== null && monthTime < minTime) ||
+                    (maxTime !== null && monthTime > maxTime);
+                  return (
+                    <button
+                      key={formatMonthValue(month)}
+                      type="button"
+                      className={joinClasses(
+                        "ui-date-field__day",
+                        "ui-month-field__option",
+                        isSelected && "is-selected",
+                        isCurrent && "is-today",
+                        isDisabled && "is-disabled",
+                      )}
+                      onClick={() => applyValue(month)}
+                      disabled={isDisabled}
+                      aria-pressed={isSelected}
+                    >
+                      {shortMonthFormatter.format(month)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="ui-date-field__footer">
+                <button type="button" className="ui-date-field__action" onClick={() => applyValue(today)}>
+                  This month
+                </button>
+                {clearable ? (
+                  <button
+                    type="button"
+                    className="ui-date-field__action"
+                    onClick={() => applyValue(null)}
+                    disabled={!value}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </FieldShell>
+  );
+});
+
+export const TimeField = forwardRef<
+  HTMLSelectElement,
+  Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange"> & {
+    label?: ReactNode;
+    hint?: ReactNode;
+    error?: ReactNode;
+    fieldClassName?: string;
+    inputClassName?: string;
+    options?: SelectOption[];
+    placeholder?: string;
+    intervalMinutes?: number;
+    onChangeValue?: (nextValue: string | string[]) => void;
+    onChange?: (event: {
+      target: { value: string | string[] };
+      currentTarget: { value: string | string[] };
+    }) => void;
+    ariaLabel?: string;
+  }
+>(function TimeField({ options = [], intervalMinutes = 15, value = "", ...props }, ref) {
+  const normalizedValue = Array.isArray(value) ? String(value[0] || "") : String(value || "");
+  const timeOptions = useMemo(() => {
+    const generatedOptions = options.length ? options : buildTimeOptions(intervalMinutes);
+    if (!normalizedValue || generatedOptions.some((option) => String(option.value) === normalizedValue)) {
+      return generatedOptions;
+    }
+    return [{ value: normalizedValue, label: formatTimeLabel(normalizedValue) }, ...generatedOptions];
+  }, [intervalMinutes, normalizedValue, options]);
+
+  return <SelectField ref={ref} {...props} value={normalizedValue} options={timeOptions} />;
 });
 
 export const SearchField = forwardRef<

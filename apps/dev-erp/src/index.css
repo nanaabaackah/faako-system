@@ -810,6 +810,17 @@ body.nav-open .mobile-tabbar {
   outline: none;
 }
 
+.site-card--static {
+  cursor: default;
+}
+
+.site-card--static:hover,
+.site-card--static:focus-visible {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
 .site-card.is-expanded {
   border-color: color-mix(in oklab, var(--accent), var(--border) 42%);
 }
@@ -905,47 +916,6 @@ body.nav-open .mobile-tabbar {
   gap: 0.6rem;
   box-shadow: var(--shadow);
   min-width: 0;
-}
-
-.loading-card {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.loading-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 10%,
-    color-mix(in oklab, var(--accent-soft), transparent 72%) 45%,
-    transparent 82%
-  );
-  transform: translateX(-100%);
-  animation: loading-card-sheen 1.8s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.loading-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.loading-card > span:last-child {
-  color: var(--muted);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.loading-card .spinner {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
 }
 
 .spinner {
@@ -2303,19 +2273,6 @@ body.nav-open .mobile-tabbar {
   display: block;
 }
 
-select.input {
-  height: auto;
-}
-
-.input[type="date"],
-.input[type="month"],
-.input[type="time"],
-.input[type="datetime-local"] {
-  min-inline-size: 0;
-  max-inline-size: 100%;
-  overflow: hidden;
-}
-
 textarea.input {
   min-height: 110px;
   resize: vertical;
@@ -2324,52 +2281,6 @@ textarea.input {
 .input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-@supports (-webkit-touch-callout: none) {
-  .input[type="date"],
-  .input[type="month"],
-  .input[type="time"],
-  .input[type="datetime-local"] {
-    height: auto;
-    min-height: 3rem;
-    padding-block: 0.75rem;
-  }
-
-  .input[type="date"]::-webkit-date-and-time-value,
-  .input[type="month"]::-webkit-date-and-time-value,
-  .input[type="time"]::-webkit-date-and-time-value,
-  .input[type="datetime-local"]::-webkit-date-and-time-value {
-    min-height: 1.25em;
-    width: 100%;
-    max-width: 100%;
-    text-align: left;
-  }
-
-  .input[type="date"]::-webkit-datetime-edit,
-  .input[type="month"]::-webkit-datetime-edit,
-  .input[type="time"]::-webkit-datetime-edit,
-  .input[type="datetime-local"]::-webkit-datetime-edit {
-    padding: 0;
-    min-height: 1.25em;
-  }
-
-  .input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-  .input[type="month"]::-webkit-datetime-edit-fields-wrapper,
-  .input[type="time"]::-webkit-datetime-edit-fields-wrapper,
-  .input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-    min-width: 0;
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  .input[type="date"]::-webkit-calendar-picker-indicator,
-  .input[type="month"]::-webkit-calendar-picker-indicator,
-  .input[type="time"]::-webkit-calendar-picker-indicator,
-  .input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    margin: 0;
-  }
 }
 
 .password-input-inline {
@@ -2585,16 +2496,6 @@ textarea.input {
   50% {
     transform: scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes loading-card-sheen {
-  0% {
-    transform: translateX(-100%);
-  }
-  60%,
-  100% {
-    transform: translateX(100%);
   }
 }
 
@@ -2937,6 +2838,10 @@ textarea.input {
   .site-card__actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .site-card__row {
+    align-items: start;
   }
 
   .invoice-grid {

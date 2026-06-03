@@ -215,7 +215,8 @@ export const MONOREPO_APP_REGISTRY = [
     purpose: "Internal starter app for new platform systems.",
     category: "internal",
     productionSensitive: false,
-    monitoringEnabled: false,
+    monitoringEnabled: true,
+    monitoringOptional: true,
     envBaseUrlKeys: ["SYSTEM_STARTER_BASE_URL"],
     monitoringPages: [{ label: "Home", path: "/" }],
   },
@@ -227,7 +228,8 @@ export const MONOREPO_APP_REGISTRY = [
     purpose: "Internal shared UI verification workbench.",
     category: "internal",
     productionSensitive: false,
-    monitoringEnabled: false,
+    monitoringEnabled: true,
+    monitoringOptional: true,
     envBaseUrlKeys: ["UI_WORKBENCH_BASE_URL"],
     monitoringPages: [{ label: "Home", path: "/" }],
   },
@@ -252,6 +254,8 @@ export const getMonorepoMonitoringSites = (env = {}) =>
           path: app.path,
           title: app.title,
           baseUrl,
+          configured: Boolean(baseUrl),
+          monitoringOptional: Boolean(app.monitoringOptional),
           productionSensitive: Boolean(app.productionSensitive),
           pages: compactPages(app.monitoringPages),
         },
@@ -279,4 +283,4 @@ export const getMonorepoMonitoringSites = (env = {}) =>
 
       return sites;
     })
-    .filter((site) => site.baseUrl && site.pages.length);
+    .filter((site) => site.pages.length);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   AppBottomBar,
+  AnimatedLoadingState,
   Button,
   Card,
   DataTable,
@@ -91,6 +92,14 @@ function StarterScreen() {
               { id: "owner", content: "" , empty: true },
               { id: "status", content: "2 configured", align: "right" },
             ]}
+          />
+        </Card>
+
+        <Card>
+          <AnimatedLoadingState
+            compact
+            title="Loading workspace"
+            message="Use the shared app-themed skeleton for route and data fetch transitions."
           />
         </Card>
       </PageShell>

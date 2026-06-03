@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { AnimatedLoadingState, DateField, SelectField, TimeField } from "@faako/ui";
 import { buildApiUrl } from "../../api-url";
 import { formatDateTime } from "../../utils/formatters";
 import {
@@ -401,10 +402,7 @@ const PublicBooking = () => {
 
       <div className="panel">
         {isLoading ? (
-          <div className="loading-card" role="status" aria-live="polite">
-            <span className="spinner" aria-hidden="true" />
-            <span>Loading availability...</span>
-          </div>
+          <AnimatedLoadingState compact title="Loading availability" />
         ) : (
           <form className="public-booking__form" onSubmit={handleSubmit}>
             <section className="public-booking__availability">
@@ -423,10 +421,7 @@ const PublicBooking = () => {
               {availabilityError ? (
                 <div className="notice is-error">{availabilityError}</div>
               ) : availabilityLoading ? (
-                <div className="loading-card" role="status" aria-live="polite">
-                  <span className="spinner" aria-hidden="true" />
-                  <span>Loading availability...</span>
-                </div>
+                <AnimatedLoadingState compact title="Loading availability" />
               ) : (
                 <>
                   {visibleHolidayRows.length ? (
@@ -639,32 +634,25 @@ const PublicBooking = () => {
             </label>
 
             <div className="public-booking__grid">
-              <label className="form-field">
-                <span>Date</span>
-                <input
-                  className="input"
-                  type="date"
+              <DateField
+                  fieldClassName="form-field"
+                  label="Date"
                   value={form.date}
                   onChange={handleChange("date")}
                   required
-                />
-              </label>
-              <label className="form-field">
-                <span>Time</span>
-                <input
-                  className="input"
-                  type="time"
+              />
+              <TimeField
+                  fieldClassName="form-field"
+                  label="Time"
                   value={form.time}
                   onChange={handleChange("time")}
                   required
-                />
-              </label>
+              />
             </div>
 
-            <label className="form-field">
-              <span>Duration</span>
-              <select
-                className="input"
+            <SelectField
+                fieldClassName="form-field"
+                label="Duration"
                 value={form.duration}
                 onChange={handleChange("duration")}
               >
@@ -673,8 +661,7 @@ const PublicBooking = () => {
                     {minutes} minutes
                   </option>
                 ))}
-              </select>
-            </label>
+            </SelectField>
 
             <label className="form-field">
               <span>Notes (optional)</span>

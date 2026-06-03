@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { AnimatedLoadingState } from "@faako/ui";
 import { apiGet, apiPatch, ApiError } from "../../api/client";
 import { clearAuthStore, setAuthenticatedUser } from "../../auth/authStore";
 import {
@@ -232,10 +233,7 @@ const Profile = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading profile...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading profile" />
       ) : null}
 
       {error ? (

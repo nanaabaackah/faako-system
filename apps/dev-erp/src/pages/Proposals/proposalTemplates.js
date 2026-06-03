@@ -4,7 +4,7 @@ import {
   PROPOSAL_TYPES,
   createProposalBlock,
   createProposalDraft,
-} from "./proposalSchema";
+} from "./proposalSchema.js";
 
 export const PROPOSAL_TEMPLATE_KEYS = Object.freeze({
   BLANK: "blank-proposal-template",
@@ -36,6 +36,33 @@ export const DEFAULT_PROPOSAL_SECTION_ORDER = Object.freeze([
 
 const cloneArray = (items = []) =>
   Array.isArray(items) ? items.map((item) => (typeof item === "object" ? { ...item } : item)) : [];
+
+const cloneTemplateValue = (value) => {
+  if (Array.isArray(value)) return value.map((item) => cloneTemplateValue(item));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneTemplateValue(item)])
+    );
+  }
+  return value;
+};
+
+const templateValuesMatch = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+
+const preserveEditedTemplateValue = (currentValue, sourceValue, nextValue) => {
+  if (currentValue === undefined || templateValuesMatch(currentValue, sourceValue)) {
+    return cloneTemplateValue(nextValue);
+  }
+  return cloneTemplateValue(currentValue);
+};
+
+const mergeTemplateFields = (current = {}, source = {}, next = {}) =>
+  Object.fromEntries(
+    [...new Set([...Object.keys(next), ...Object.keys(current)])].map((key) => [
+      key,
+      preserveEditedTemplateValue(current[key], source[key], next[key]),
+    ])
+  );
 
 const normalizeSectionOrder = (sectionOrder = DEFAULT_PROPOSAL_SECTION_ORDER) => {
   const knownSections = new Set(Object.values(PROPOSAL_BLOCK_TYPES));
@@ -631,6 +658,63 @@ export const createProposalFromTemplate = (templateKey) => {
       ...(template.defaultContent?.personalNotes || {}),
     },
     blocks: createProposalBlocksFromTemplate(template),
+  };
+};
+
+const getProposalSourceTemplateKey = (proposal = {}) =>
+  proposal.template?.key ||
+  proposal.metadata?.templateKey ||
+  proposal.metadata?.templateId ||
+  PROPOSAL_TEMPLATE_KEYS.BLANK;
+
+const getBlockByType = (proposal, type) =>
+  (proposal?.blocks || []).find((block) => block.type === type) || {};
+
+export const applyProposalTemplate = (proposal, templateKey) => {
+  const current = proposal && typeof proposal === "object" ? proposal : {};
+  const source = createProposalFromTemplate(getProposalSourceTemplateKey(current));
+  const next = createProposalFromTemplate(templateKey);
+
+  return {
+    ...next,
+    ...current,
+    id: next.id,
+    title: preserveEditedTemplateValue(current.title, source.title, next.title),
+    clientName: preserveEditedTemplateValue(current.clientName, source.clientName, next.clientName),
+    preparedBy: preserveEditedTemplateValue(current.preparedBy, source.preparedBy, next.preparedBy),
+    preparedDate: preserveEditedTemplateValue(
+      current.preparedDate,
+      source.preparedDate,
+      next.preparedDate
+    ),
+    proposalType: preserveEditedTemplateValue(
+      current.proposalType,
+      source.proposalType,
+      next.proposalType
+    ),
+    metadata: {
+      ...(current.metadata || {}),
+      ...next.metadata,
+    },
+    template: next.template,
+    branding: mergeTemplateFields(current.branding, source.branding, next.branding),
+    personalNotes: mergeTemplateFields(
+      current.personalNotes,
+      source.personalNotes,
+      next.personalNotes
+    ),
+    blocks: next.blocks.map((nextBlock) => ({
+      ...nextBlock,
+      ...mergeTemplateFields(
+        getBlockByType(current, nextBlock.type),
+        getBlockByType(source, nextBlock.type),
+        nextBlock
+      ),
+      id: nextBlock.id,
+      type: nextBlock.type,
+      label: nextBlock.label,
+      required: nextBlock.required,
+    })),
   };
 };
 

@@ -16,7 +16,7 @@
 - Confirm frontend route visibility matches backend enforcement.
 - For the current direct Railway API deployment, set `AUTH_COOKIE_SAME_SITE=none`, `AUTH_COOKIE_SECURE=true`, and an exact HTTPS frontend origin in `CORS_ORIGINS`.
 - Confirm frontend `VITE_API_BASE` points to the deployed Railway API origin, then smoke-test login, refresh after the access token expires, browser reopen recovery, and an authenticated module request.
-- A same-site Railway custom API hostname such as `api.dev.example.com` is required when reliable Safari login persistence is needed because Safari blocks third-party cookies by default. Use `AUTH_COOKIE_SAME_SITE=lax` after adopting that hostname.
+- A same-site Railway custom API hostname such as `api.dev.example.com` is required when reliable Safari login persistence is needed because Safari blocks third-party cookies by default. Register the hostname on Railway, point its DNS CNAME to Railway's provided target rather than Cloudflare Pages, and use `AUTH_COOKIE_SAME_SITE=lax` after adopting that hostname.
 
 ## API permissions
 
@@ -29,6 +29,7 @@
 - Deploy the additive `20260531000000_add_invoice_paid_amount` migration before relying on invoice partial-payment fields.
 - Confirm `ENFORCE_DATABASE_ISOLATION=true` where appropriate.
 - Confirm local work cannot accidentally write to production data.
+- Keep local `VITE_API_BASE=""`, `AUTH_COOKIE_SAME_SITE=lax`, and `AUTH_COOKIE_SECURE=false` so Vite proxies `/api` to `VITE_API_PROXY_TARGET` and local HTTP can persist auth cookies instead of inheriting hosted settings.
 
 ## Customer/user data
 
@@ -55,6 +56,7 @@
 
 - Confirm Cloudflare Pages frontend build and `apps/dev-erp/dist` publish directory.
 - Do not rely on `apps/dev-erp/netlify.toml` redirects in Cloudflare Pages. Configure frontend `VITE_API_BASE` explicitly.
+- For a same-site custom API hostname, confirm DNS resolves to the Railway custom-domain target and that `/healthz` returns the Railway API response before deploying the frontend value.
 - Confirm Railway backend start command and repo-root `nixpacks.toml` behavior when deploying backend.
 - If the legacy Netlify frontend deploy is used, run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/dev-erp`.
 
@@ -70,6 +72,8 @@
 - Test at least one full workflow across frontend and backend.
 - Test affected rent/payment records, customer/client data, reports, email workflows, and AI/productivity endpoints when relevant.
 - Test responsive shell behavior for layout changes.
+- Verify Dashboard and System Health show every registered app workspace, including optional internal apps as `Not configured` when their URLs are blank.
+- Verify Reports contains scheduled email configuration and manual-send workflows only, then verify Audit Logs filtering, analytics, export, refresh, and mobile timeline layout separately.
 
 ## Post-deploy verification
 

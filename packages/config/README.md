@@ -87,7 +87,7 @@ Supported module groups are `core`, `sales`, `operations`, `finance`, `insights`
 
 Shared shell placeholders are `offlineIndicator`, `syncStatus`, `notificationArea`, and `organizationSwitcher`. They are structural metadata only and do not implement backend sync, notifications, or tenant switching.
 
-`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. It includes production-sensitive apps such as REEBS Portal, Dev ERP, Stroane Web, Faako Website, and Faako API, plus the existing public portfolio, REEBS website, and Faako ERP demo entries. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them. Apps can also define optional additional monitoring surfaces. Stroane Web now has an optional `stroane-api` monitoring surface for `/health`, `/api/products`, and `/api/categories`; it is emitted only when a backend base URL env value is supplied, so the public Netlify frontend is not marked unhealthy while the backend is hosted separately or not yet deployed.
+`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. Every registered app workspace is represented. Public and hosted apps fall back to documented defaults, while optional internal apps such as System Starter and UI Workbench remain visible as unconfigured until hosted URLs are supplied. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them. Apps can also define optional additional monitoring surfaces. Stroane Web has an optional `stroane-api` monitoring surface for `/health`, `/api/products`, and `/api/categories`; it is emitted only when a backend base URL env value is supplied, so the public frontend is not marked unhealthy while the backend is hosted separately or not yet deployed.
 
 Run `pnpm run monitoring:check` from the repo root after adding apps. The script scans `apps/`, compares app directories to `src/monorepoApps/appRegistry.js`, verifies monitoring-enabled apps resolve into monitoring output, and prints only app keys/counts so private URLs and secrets are not exposed.
 
@@ -125,8 +125,10 @@ Optional monitoring URL overrides can be supplied by apps that consume `getMonor
 - `REEBS_WEBSITE_BASE_URL`
 - `BYNANA_PORTFOLIO_BASE_URL`
 - `FAAKO_ERP_BASE_URL`
+- `SYSTEM_STARTER_BASE_URL`
+- `UI_WORKBENCH_BASE_URL`
 
-If an override is not set, the helper falls back to the documented production/default URL for monitored public apps.
+If an override is not set, the helper falls back to the documented production/default URL for monitored public apps. Optional internal apps remain present with no base URL so consumers can display them as not configured.
 
 Optional app-mode values are read by `resolveAppModeFromEnv(env)`:
 

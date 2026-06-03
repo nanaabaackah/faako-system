@@ -1,28 +1,30 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
+import { AnimatedLoadingState } from "@faako/ui";
 import { useFrontFacingScrollReveal } from "@faako/ui/useFrontFacingScrollReveal";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
 import Particles from "./components/Particles.jsx";
-import Home from "./pages/Home.jsx";
-import Pricing from "./pages/Pricing.jsx";
-import ModuleConfig from "./pages/ModuleConfig.jsx";
-import ModuleDetail from "./pages/ModuleDetail.jsx";
-import Signup from "./pages/Signup.jsx";
-import Contact from "./pages/Contact.jsx";
-import NotFound from "./pages/NotFound.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import Solutions from "./pages/Solutions.jsx";
-import CaseStudies from "./pages/CaseStudies.jsx";
-import About from "./pages/About.jsx";
-import Privacy from "./pages/Privacy.jsx";
-import Terms from "./pages/Terms.jsx";
-import Login from "./pages/Login.jsx";
-import ForgotPassword from "./pages/ForgotPassword.jsx";
 import { getModuleById } from "./data/modules.js";
 import "./styles/components/button.css";
+
+const Home = lazy(() => import("./pages/Home.jsx"));
+const Pricing = lazy(() => import("./pages/Pricing.jsx"));
+const ModuleConfig = lazy(() => import("./pages/ModuleConfig.jsx"));
+const ModuleDetail = lazy(() => import("./pages/ModuleDetail.jsx"));
+const Signup = lazy(() => import("./pages/Signup.jsx"));
+const Contact = lazy(() => import("./pages/Contact.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
+const Solutions = lazy(() => import("./pages/Solutions.jsx"));
+const CaseStudies = lazy(() => import("./pages/CaseStudies.jsx"));
+const About = lazy(() => import("./pages/About.jsx"));
+const Privacy = lazy(() => import("./pages/Privacy.jsx"));
+const Terms = lazy(() => import("./pages/Terms.jsx"));
+const Login = lazy(() => import("./pages/Login.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 
 const themeStorageKey = "faako-theme";
 const appTitle = "Faako";
@@ -201,24 +203,34 @@ export default function App() {
           disableRotation={false}
           pixelRatio={1}
         />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/solutions" element={<Solutions />} />
-          <Route path="/case-studies" element={<CaseStudies />} />
-          <Route path="/case-studies/:slug" element={<Navigate to="/case-studies" replace />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/configure" element={<ModuleConfig />} />
-          <Route path="/modules/:moduleId" element={<ModuleDetail />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <AnimatedLoadingState
+              compact
+              title="Loading Faako"
+              message="Preparing the next view."
+            />
+          }
+        >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/solutions" element={<Solutions />} />
+            <Route path="/case-studies" element={<CaseStudies />} />
+            <Route path="/case-studies/:slug" element={<Navigate to="/case-studies" replace />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/configure" element={<ModuleConfig />} />
+            <Route path="/modules/:moduleId" element={<ModuleDetail />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
       {showScrollTop ? (
         <button

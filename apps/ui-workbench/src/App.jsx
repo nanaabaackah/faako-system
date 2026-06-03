@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { SYSTEM_THEME_PRESETS } from "@faako/theme";
 import {
   AppBottomBar,
+  AnimatedLoadingState,
   Button,
   Card,
   DataTable,
@@ -160,6 +161,11 @@ function WorkbenchScreen({ presetId, setPresetId }) {
               <InlineNotice tone="success" title="Settings saved" message="Your changes were written and synchronized." />
               <InlineNotice tone="loading" title="Sending email" message="Message delivery is in progress." />
               <NoticeBanner tone="warning" title="Privilege escalation blocked" message="This action needs a stronger role before it can continue." />
+              <AnimatedLoadingState
+                compact
+                title="Loading workspace"
+                message="Shared skeleton animation with the active app theme."
+              />
             </div>
           </Card>
         </div>

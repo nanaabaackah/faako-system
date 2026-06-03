@@ -27,6 +27,40 @@
   gap: 0;
 }
 
+.audit-analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.audit-summary-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.audit-summary-item {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--surface), var(--card) 24%);
+}
+
+.audit-summary-item span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.audit-summary-item strong {
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .audit-timeline__row {
   align-items: start;
 }
@@ -63,6 +97,10 @@
     grid-template-columns: 1fr;
   }
 
+  .audit-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
   .audit-filters__actions {
     justify-content: stretch;
   }
@@ -73,5 +111,25 @@
 
   .audit-entry__badges {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .audit-timeline__row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "time"
+      "content"
+      "badges";
+  }
+
+  .audit-timeline__row > .audit-entry {
+    grid-area: content;
+  }
+
+  .audit-timeline__row > .audit-entry__badges {
+    grid-area: badges;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }

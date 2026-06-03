@@ -155,12 +155,14 @@ export function AnimatedLoadingState({
   message = "Pulling the latest information.",
   compact = false,
   page = false,
+  overlay = false,
   className = "",
 }: {
   title?: string;
   message?: ReactNode;
   compact?: boolean;
   page?: boolean;
+  overlay?: boolean;
   className?: string;
 }) {
   return (
@@ -169,6 +171,7 @@ export function AnimatedLoadingState({
         "ui-animated-loading-state",
         compact && "is-compact",
         page && "is-page",
+        overlay && "is-overlay",
         className,
       )}
       role="status"

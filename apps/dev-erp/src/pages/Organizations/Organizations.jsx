@@ -1,4 +1,5 @@
 import React from "react";
+import { AnimatedLoadingState } from "@faako/ui";
 import useDashboardData from "../../hooks/useDashboardData";
 import downloadCsv from "../../utils/exportCsv";
 import { formatDateTime } from "../../utils/formatters";
@@ -69,10 +70,7 @@ const Organizations = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading organization data...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading organization data" />
       ) : null}
 
       {error ? (

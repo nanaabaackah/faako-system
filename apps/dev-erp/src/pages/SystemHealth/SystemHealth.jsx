@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ERPStatusBadge, ERPTable } from "@faako/ui";
+import { AnimatedLoadingState, ERPStatusBadge, ERPTable } from "@faako/ui";
 import useDashboardData from "../../hooks/useDashboardData";
 import { formatDateTime } from "../../utils/formatters";
+import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 
 const INCIDENT_NOTES_KEY = "dev-incident-notes";
@@ -51,14 +52,6 @@ const SystemHealth = () => {
     );
   };
 
-  const getAggregateStatus = (pages = []) => {
-    if (!pages.length) return "unknown";
-    if (pages.some((page) => page.status === "offline")) return "offline";
-    if (pages.some((page) => page.status === "degraded")) return "degraded";
-    if (pages.every((page) => page.status === "online")) return "online";
-    return "unknown";
-  };
-
   const systemStatus = kpiData?.status ?? {};
   const rawSiteStatuses = kpiData?.siteStatus?.sites;
   const siteStatuses = useMemo(
@@ -103,7 +96,7 @@ const SystemHealth = () => {
           id: site.id,
           title: site.title,
           pages,
-          aggregateStatus: getAggregateStatus(pages),
+          aggregateStatus: getAggregateSiteStatus(pages),
         };
       }),
     [siteStatuses]
@@ -219,10 +212,7 @@ const SystemHealth = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading system health...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading system health" />
       ) : null}
 
       {error ? (
@@ -280,15 +270,15 @@ const SystemHealth = () => {
               <div className="site-grid">
                 {siteOverview.length ? (
                   siteOverview.map((site) => (
-                    <article key={site.id} className="site-card">
+                    <article key={site.id} className="site-card site-card--static">
                       <div className="site-card__header">
                         <span className="table-strong">{site.title}</span>
                         {renderStatusPill(site.aggregateStatus)}
                       </div>
                       <div className="site-card__list">
                         {site.pages.map((page) => (
-                          <div className="site-card__row" key={page.url}>
-                            <span>{page.label}</span>
+                          <div className="site-card__row" key={page.url || `${site.id}:${page.path}`}>
+                            <span>{page.url ? page.label : `${page.label} URL`}</span>
                             {renderStatusPill(page.status)}
                           </div>
                         ))}

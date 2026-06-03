@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import {
   AppBottomBar,
+  AnimatedLoadingState,
   ErpBottomNav,
   ErpNavSidebar,
   ErpPageContent,
@@ -15,25 +16,26 @@ import {
   observeElementHeightVar,
   toTitleCase,
 } from "@faako/utils";
-import Dashboard from "./pages/Dashboard.jsx";
-import Orders from "./pages/Orders.jsx";
-import Inventory from "./pages/Inventory.jsx";
-import Bookings from "./pages/Bookings.jsx";
-import Vendors from "./pages/Vendors.jsx";
-import Expenses from "./pages/Expenses.jsx";
-import Finance from "./pages/Finance.jsx";
-import Reports from "./pages/Reports.jsx";
-import People from "./pages/People.jsx";
-import Customers from "./pages/Customers.jsx";
-import Notifications from "./pages/Notifications.jsx";
-import Modules from "./pages/Modules.jsx";
-import Settings from "./pages/Settings.jsx";
-import NotFound from "./pages/NotFound.jsx";
 import { getErpShellConfig } from "./config/erpShell.js";
 import DemoAccessGate from "./components/DemoAccessGate.jsx";
 import { useAuth } from "./contexts/AuthContext.jsx";
 import useDemoScenario from "./hooks/useDemoScenario.jsx";
 import "./styles/components/panel.css";
+
+const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
+const Orders = lazy(() => import("./pages/Orders.jsx"));
+const Inventory = lazy(() => import("./pages/Inventory.jsx"));
+const Bookings = lazy(() => import("./pages/Bookings.jsx"));
+const Vendors = lazy(() => import("./pages/Vendors.jsx"));
+const Expenses = lazy(() => import("./pages/Expenses.jsx"));
+const Finance = lazy(() => import("./pages/Finance.jsx"));
+const Reports = lazy(() => import("./pages/Reports.jsx"));
+const People = lazy(() => import("./pages/People.jsx"));
+const Customers = lazy(() => import("./pages/Customers.jsx"));
+const Notifications = lazy(() => import("./pages/Notifications.jsx"));
+const Modules = lazy(() => import("./pages/Modules.jsx"));
+const Settings = lazy(() => import("./pages/Settings.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 const iconStrokeProps = {
   stroke: "currentColor",
@@ -345,22 +347,32 @@ function AppLayout() {
           )}
         />
         <ErpPageContent className="erp-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/bookings" element={<Bookings />} />
-            <Route path="/vendors" element={<Vendors />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/finance" element={<Finance />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/people" element={<People />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/modules" element={<Modules />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense
+            fallback={
+              <AnimatedLoadingState
+                compact
+                title="Loading Faako ERP"
+                message="Preparing the next workspace view."
+              />
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/bookings" element={<Bookings />} />
+              <Route path="/vendors" element={<Vendors />} />
+              <Route path="/expenses" element={<Expenses />} />
+              <Route path="/finance" element={<Finance />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/people" element={<People />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/modules" element={<Modules />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </ErpPageContent>
         <div className="ui-bottom-bar-shell faako-erp-bottom-bar-shell">
           <AppBottomBar businessName={scenario.brand.name} />

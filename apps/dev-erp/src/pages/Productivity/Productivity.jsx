@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ReceiptItem, TaskSquare, Timer1 } from "iconsax-react";
 import { FiCheckCircle, FiCircle, FiTrash2 } from "react-icons/fi";
+import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import JobsWidget from "../../components/JobsWidget/JobsWidget";
 import { formatDateTime } from "../../utils/formatters";
@@ -517,10 +518,7 @@ const Productivity = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading productivity tracker...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading productivity tracker" />
       ) : null}
 
       {error ? (
@@ -605,19 +603,15 @@ const Productivity = () => {
                 />
               </label>
               <div className="productivity-todos__meta">
-                <label className="form-field">
-                  <span>Due</span>
-                  <input
-                    className="input"
-                    type="date"
+                <DateField
+                    fieldClassName="form-field"
+                    label="Due"
                     value={todoForm.dueAt}
                     onChange={(event) => handleTodoField("dueAt", event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Priority</span>
-                  <select
-                    className="input"
+                />
+                <SelectField
+                    fieldClassName="form-field"
+                    label="Priority"
                     value={todoForm.priority}
                     onChange={(event) => handleTodoField("priority", event.target.value)}
                   >
@@ -626,8 +620,7 @@ const Productivity = () => {
                         {option.label}
                       </option>
                     ))}
-                  </select>
-                </label>
+                </SelectField>
               </div>
               <button className="button button-primary" type="submit" disabled={todoSaving}>
                 {todoSaving ? "Adding..." : "Add to-do"}
@@ -655,10 +648,7 @@ const Productivity = () => {
             ) : null}
 
             {todoLoading ? (
-              <div className="loading-card" role="status" aria-live="polite">
-                <span className="spinner" aria-hidden="true" />
-                <span>Loading to-do list...</span>
-              </div>
+              <AnimatedLoadingState compact title="Loading to-do list" />
             ) : (
               <div className="list productivity-todos__list">
                 {todos.length ? (
@@ -713,15 +703,12 @@ const Productivity = () => {
             </div>
 
             <div className="productivity-editor__fields">
-              <label className="form-field productivity-editor__field">
-                <span>Date</span>
-                <input
-                  className="input"
-                  type="date"
+              <DateField
+                  fieldClassName="form-field productivity-editor__field"
+                  label="Date"
                   value={formState.entryDate}
                   onChange={(event) => handleField("entryDate", event.target.value)}
-                />
-              </label>
+              />
               <label className="form-field productivity-editor__field">
                 <span>Planned</span>
                 <input

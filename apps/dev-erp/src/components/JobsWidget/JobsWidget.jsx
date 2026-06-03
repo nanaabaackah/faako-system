@@ -1,5 +1,6 @@
 import React from "react";
 import { FiBriefcase, FiExternalLink } from "react-icons/fi";
+import { AnimatedLoadingState } from "@faako/ui";
 import { formatDateTime } from "../../utils/formatters";
 import { getSafeExternalUrl } from "../../utils/safeUrl";
 import "./JobsWidget.css";
@@ -72,10 +73,7 @@ const JobsWidget = ({
     {jobsMeta.warning ? <div className="notice">{jobsMeta.warning}</div> : null}
 
     {jobsLoading ? (
-      <div className="loading-card" role="status" aria-live="polite">
-        <span className="spinner" aria-hidden="true" />
-        <span>Loading recommendations...</span>
-      </div>
+      <AnimatedLoadingState compact title="Loading recommendations" />
     ) : (
       <div className="productivity-jobs__list">
         {jobs.length ? (

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff, FiMail, FiSave, FiTrash2 } from "react-icons/fi";
+import { AnimatedLoadingState, SelectField } from "@faako/ui";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import "./UserControl.css";
@@ -415,10 +416,7 @@ const UserControl = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading user control data...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading user control data" />
       ) : null}
 
       {error ? (
@@ -549,8 +547,8 @@ const UserControl = () => {
                       />
                     </td>
                     <td data-label="Role">
-                      <select
-                        className="input"
+                      <SelectField
+                        ariaLabel={`Role for ${draft.email || user.email}`}
                         value={draft.roleId || ""}
                         onChange={(event) => handleUserDraft(user.id, "roleId", event.target.value)}
                       >
@@ -559,18 +557,18 @@ const UserControl = () => {
                             {role.name}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </td>
                     <td data-label="Status">
-                      <select
-                        className="input"
+                      <SelectField
+                        ariaLabel={`Status for ${draft.email || user.email}`}
                         value={draft.status || "ACTIVE"}
                         onChange={(event) => handleUserDraft(user.id, "status", event.target.value)}
                       >
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="SUSPENDED">SUSPENDED</option>
                         <option value="PENDING">PENDING</option>
-                      </select>
+                      </SelectField>
                     </td>
                     <td data-label="New password">
                       <div className="user-control-password-cell">
@@ -792,10 +790,9 @@ const UserControl = () => {
                 </button>
               </div>
             </label>
-            <label className="form-field">
-              <span>Role</span>
-              <select
-                className="input"
+            <SelectField
+                fieldClassName="form-field"
+                label="Role"
                 value={createForm.roleId}
                 onChange={(event) =>
                   setCreateForm((prev) => ({ ...prev, roleId: event.target.value }))
@@ -810,12 +807,10 @@ const UserControl = () => {
                     {role.name}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="form-field">
-              <span>Status</span>
-              <select
-                className="input"
+            </SelectField>
+            <SelectField
+                fieldClassName="form-field"
+                label="Status"
                 value={createFormHasPassword ? createForm.status : "PENDING"}
                 onChange={(event) =>
                   setCreateForm((prev) => ({ ...prev, status: event.target.value }))
@@ -825,8 +820,7 @@ const UserControl = () => {
                 <option value="PENDING">PENDING</option>
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="SUSPENDED">SUSPENDED</option>
-              </select>
-            </label>
+            </SelectField>
           </div>
           <p className="muted">{PASSWORD_POLICY_HELP}</p>
           <p className="muted">

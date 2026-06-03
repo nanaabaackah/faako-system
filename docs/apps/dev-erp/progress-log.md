@@ -23,6 +23,76 @@ Next step:
 
 ## Entries
 
+### Shared branded form control adoption
+
+Date: 2026-06-02
+Feature/change name: Shared branded form control adoption
+Apps affected: Dev ERP, shared UI package
+What changed: Replaced the remaining page-owned native selects and date-like inputs in Dev ERP with shared Faako `SelectField`, `DateField`, `MonthField`, and `TimeField` controls. Added reusable branded month and time variants to `@faako/ui`, removed obsolete Dev ERP native date-input compatibility CSS, and preserved the existing form state, validation, submit handlers, permissions, and API calls.
+Why it changed: Several operational modules still exposed browser-native dropdown, calendar, month, and time widgets instead of the Faako shared visual language, creating inconsistent behavior and styling across browsers and smaller screens.
+Files changed: packages/ui/src/components/Fields.tsx, packages/ui/src/ui.css, packages/ui/README.md, Dev ERP Accounting, Invoicing, Rent, Proposals, Productivity, Reports, Audit Logs, Dashboard, Public Booking, and User Control page files, apps/dev-erp/src/index.css, apps/dev-erp/src/pages/Productivity/Productivity.css, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None. No schema, migration, seed, operational record, payment, invoice, rent, proposal, report, or audit-log persistence changes.
+Security impact: None. Existing auth, CSRF, permission, organization-scoping, and API boundaries remain unchanged.
+Testing done: The Dev ERP raw-control sweep returned no page-owned `<select>` or `date`/`month`/`time` inputs under `apps/dev-erp/src`. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run test` passed with 104 tests. `pnpm --filter @faako/dev-erp run build` passed. `pnpm --filter @faako/ui-workbench run build` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit` passed. `git diff --check -- packages/ui apps/dev-erp docs/apps/dev-erp/progress-log.md docs/platform/platform-progress-log.md` passed.
+Rollback notes: Restore the native page controls and Dev ERP compatibility CSS, then remove the shared month/time variants and this documentation entry. No data rollback is required.
+Next step: Smoke-test the migrated selectors on desktop and a narrow viewport after deployment, especially rent payment month selection and public booking date/time selection.
+
+### Document-first proposal generator
+
+Date: 2026-06-02
+Feature/change name: Document-first proposal generator
+Apps affected: Dev ERP
+What changed: Reworked `/proposals` into a complete document-first proposal builder. The left side is now the editable proposal document instead of a separate form beside a live preview. Added a modern setup rail for template selection, save/version actions, browser print/save-as-PDF export, secure-link preparation, secure-link copy, proposal metadata, theme controls, and the existing review workflow. Added removable pricing/timeline rows, a guarded New draft action, compact proposal loading skeletons, and a print-only clean preview renderer. Template switching now keeps edited compatible fields, manually chosen section visibility, saved-record identity, workflow state, and manually overridden theme values while adopting the new template's untouched defaults and section order.
+Why it changed: Proposal creation needed to feel like editing the proposal itself. Switching templates also needed to preserve entered client and proposal content instead of forcing admins to retype shared fields.
+Files changed: apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/Proposals.css, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/pages/Proposals/proposalTemplates.test.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. Existing proposal JSON content, proposal records, versions, secure tokens, client responses, invoices, payments, rent records, accounting entries, reports, and audit logs keep their existing persistence paths. Template changes remain local until the admin saves.
+Security impact: Existing authenticated admin proposal APIs, organization scoping, CSRF behavior, expiring share tokens, client-safe payload stripping, and token-scoped client approval/request-changes rules remain unchanged.
+Testing done: Added focused template-switch tests. `pnpm --filter @faako/dev-erp run test` passed with 104 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `git diff --check -- apps/dev-erp/src/pages/Proposals docs/apps/dev-erp apps/dev-erp/README.md` passed.
+Rollback notes: Restore the previous split editor/live-preview JSX and CSS, remove `applyProposalTemplate` plus its tests, and revert the proposal documentation entries. No data rollback is required.
+Next step: Smoke-test proposal editing, template switching, print/save-as-PDF, save/version increments, and secure shared-link approval on desktop and a narrow viewport after deployment.
+
+### Shared themed skeleton loading adoption
+
+Date: 2026-06-02
+Feature/change name: Shared themed skeleton loading adoption
+Apps affected: Dev ERP, shared UI package
+What changed: Replaced Dev ERP session and module-fetch loading cards with the shared app-themed `AnimatedLoadingState` skeleton. Converted page imports to lazy route chunks behind a full-page skeleton boundary while preserving existing route guards, module access checks, public routes, and error boundaries.
+Why it changed: Dev ERP used a separate spinner-card language for data fetches and plain session text during auth boot. Shared skeletons now give route transitions and operational fetches one consistent loading treatment.
+Files changed: apps/dev-erp/src/App.jsx, apps/dev-erp/src/index.css, apps/dev-erp/src/components/JobsWidget/JobsWidget.jsx, Dev ERP page components with explicit fetch loading states, packages/ui/src/components/Feedback.tsx, packages/ui/src/ui.css, packages/ui/README.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None. No schema, migration, seed, operational record, payment, rent, invoice, proposal, report, or audit-log mutation changes.
+Security impact: None. Existing auth boot, route guards, capability checks, organization scoping, cookies, CSRF handling, and API behavior remain unchanged.
+Testing done: `pnpm --filter @faako/dev-erp run test` passed with 102 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `git diff --check` passed.
+Rollback notes: Restore eager imports and the prior Dev ERP loading-card styles/usages, then revert the shared overlay option and this documentation entry. No data rollback is required.
+Next step: Smoke-test auth boot and first navigation to Dashboard, Rent, Reports, and Audit Logs on desktop and a narrow viewport after deployment.
+
+### Registry-complete monitoring and Insights workflow split
+
+Date: 2026-06-02
+Feature/change name: Registry-complete monitoring and Insights workflow split
+Apps affected: Dev ERP, shared config registry
+What changed: Reworked site monitoring to include every registered app workspace, preserve optional internal apps as `Not configured`, and fetch hosted pages through a bounded concurrent worker pool. Split Reports back to scheduled email configuration and manual-send workflows only. Moved audit analytics, incidents, hotspots, CSV export, and applied-filter loading into Audit Logs. Added standalone Insights navigation entries for Reports, System Health, and Audit Logs, plus responsive layout fixes for the newer monitoring and audit surfaces.
+Why it changed: The monitoring dashboard silently omitted registered apps and checked sites in a sequential waterfall. Reports also mixed scheduled-report workflows with audit-log analytics, while smaller screens could overlap audit timeline content and badges.
+Files changed: packages/config/src/monorepoApps/appRegistry.js, packages/config/README.md, apps/dev-erp/.env.example, apps/dev-erp/README.md, apps/dev-erp/backend/server.js, apps/dev-erp/backend/monitoring/siteStatus.js, apps/dev-erp/backend/monitoring/siteStatus.test.js, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/index.css, apps/dev-erp/src/utils/siteStatus.js, apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/src/pages/SystemHealth/SystemHealth.jsx, apps/dev-erp/src/pages/Reports/Reports.jsx, apps/dev-erp/src/pages/Reports/Reports.css, apps/dev-erp/src/pages/AuditLogs/AuditLogs.jsx, apps/dev-erp/src/pages/AuditLogs/AuditLogs.css, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/module-consolidation-plan.md, docs/apps/dev-erp/pre-deploy-checklist.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. No database schema, migration, seed, operational record, payment, rent, invoice, proposal, report configuration, or audit-log mutation changes.
+Security impact: Existing authenticated admin and capability boundaries remain in place. The compatibility `/api/reports/summary` route remains available for older frontend deploys, while current audit analytics use `/api/audit-logs/summary`.
+Testing done: `pnpm run monitoring:check` passed with 10 registered and 10 monitored app workspaces. `pnpm --filter @faako/dev-erp run test` passed with 102 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `node --check apps/dev-erp/backend/server.js`, `node --check apps/dev-erp/backend/monitoring/siteStatus.js`, and `git diff --check -- apps/dev-erp packages/config docs/apps/dev-erp` passed.
+Rollback notes: Revert the registry, worker-pool helper, Reports/Audit Logs split, navigation metadata, responsive styles, and documentation entry. No data rollback is required.
+Next step: Deploy backend and frontend together, configure optional internal hosted URLs only when available, and smoke-test Dashboard, System Health, Reports, and Audit Logs on desktop and a narrow viewport.
+
+### Custom API DNS diagnosis and local proxy override
+
+Date: 2026-06-02
+Feature/change name: Dev ERP custom API DNS diagnosis and local proxy override
+Apps affected: Dev ERP
+What changed: Added untracked local `VITE_API_BASE=""`, `AUTH_COOKIE_SAME_SITE=lax`, and `AUTH_COOKIE_SECURE=false` overrides so Vite uses the local `/api` proxy and local HTTP can persist auth cookies, and clarified the hosted custom-domain deployment notes.
+Why it changed: Live read-only checks confirmed `api.dev.nanaabaackah.com` currently resolves to the Cloudflare Pages frontend instead of the Railway backend. The Pages response returns SPA HTML for `/api/auth/session` and a wildcard-origin `405` for the login preflight. The Railway hostname itself returns the expected credential-aware CORS preflight. Local Vite also inherited the hosted API base and cookie flags from `.env`, bypassing its local proxy and preventing local HTTP session persistence.
+Files changed: apps/dev-erp/.env.development (untracked local env), apps/dev-erp/.env.example, apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/pre-deploy-checklist.md.
+Data impact: None. No database, migration, operational record, payment, rent, invoice, proposal, or report changes.
+Security impact: Positive. The fix preserves explicit credential-aware CORS and avoids widening the Railway origin allow-list for local development.
+Testing done: Live read-only DNS lookup confirmed the custom API hostname CNAME points to the Cloudflare Pages project. Live preflight checks confirmed the custom hostname returns `405` with wildcard CORS, the Railway hostname accepts `https://dev.nanaabaackah.com`, and the Railway hostname rejects `http://localhost:5173`. The deployed frontend bundle contains `https://api.dev.nanaabaackah.com`.
+Rollback notes: Remove the local override and documentation clarifications. No data rollback required.
+Next step: Register `api.dev.nanaabaackah.com` as a Railway custom domain, replace its DNS CNAME with Railway's provided target, set Railway `AUTH_COOKIE_SAME_SITE=lax`, verify `/healthz` and auth preflight through the custom hostname, then smoke-test hosted and local login.
+
 ### Hosted login verification guard
 
 Date: 2026-05-31

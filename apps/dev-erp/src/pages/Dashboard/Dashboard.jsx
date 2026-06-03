@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiChevronDown } from "react-icons/fi";
+import { AnimatedLoadingState, SelectField } from "@faako/ui";
 import KPICard from "../../components/KPICard/KPICard";
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
@@ -9,6 +10,7 @@ import WeatherWidget from "../../components/WeatherWidget/WeatherWidget";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import { formatDateTime, formatPercent, formatRatio } from "../../utils/formatters";
+import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "../../utils/offlineCache";
 import "./Dashboard.css";
@@ -781,14 +783,6 @@ const Dashboard = () => {
     return <span className={`status-pill is-${tone}`}>{count}</span>;
   };
 
-  const getAggregateStatus = (pages = []) => {
-    if (!pages.length) return "unknown";
-    if (pages.some((page) => page.status === "offline")) return "offline";
-    if (pages.some((page) => page.status === "degraded")) return "degraded";
-    if (pages.every((page) => page.status === "online")) return "online";
-    return "unknown";
-  };
-
   const organizationStatusBreakdown = kpiData?.organizationStatusBreakdown ?? [];
   const organizations = Array.isArray(kpiData?.organizations) ? kpiData.organizations : [];
   const topLevelOrganizations =
@@ -830,7 +824,7 @@ const Dashboard = () => {
       id: site.id,
       title: site.title,
       pages,
-      aggregateStatus: getAggregateStatus(pages),
+      aggregateStatus: getAggregateSiteStatus(pages),
     };
   });
   const orderedSites = [...siteOverview].sort((left, right) => {
@@ -844,9 +838,12 @@ const Dashboard = () => {
   const healthyServices = systemEntries.filter(
     (entry) => entry.status && isHealthyStatus(entry.status)
   ).length;
-  const totalSites = siteOverview.length;
+  const configuredSites = siteOverview.filter((site) => site.aggregateStatus !== "not_configured");
+  const totalSites = configuredSites.length;
+  const notConfiguredSites = siteOverview.length - configuredSites.length;
   const onlineSites = siteOverview.filter((site) => site.aggregateStatus === "online").length;
-  const totalPages = sitePages.length;
+  const configuredPages = sitePages.filter((page) => page.status !== "not_configured");
+  const totalPages = configuredPages.length;
   const onlinePages = sitePages.filter((page) => page.status === "online").length;
   const serviceHealthPercent = formatPercent(healthyServices, totalServices);
   const siteHealthPercent = formatPercent(onlineSites, totalSites);
@@ -1037,10 +1034,7 @@ const Dashboard = () => {
       </div>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading dashboard data...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading dashboard data" />
       ) : null}
 
       {error ? (
@@ -1080,10 +1074,7 @@ const Dashboard = () => {
         ) : null}
 
         {availabilityLoading ? (
-          <div className="loading-card" role="status" aria-live="polite">
-            <span className="spinner" aria-hidden="true" />
-            <span>Loading availability...</span>
-          </div>
+          <AnimatedLoadingState compact title="Loading availability" />
         ) : null}
 
         {nextAvailable ? (
@@ -1301,10 +1292,9 @@ const Dashboard = () => {
                   disabled={isExternalBooking || isSlotBlocked || isSlotSaving}
                 />
               </label>
-              <label className="form-field">
-                <span>Status</span>
-                <select
-                  className="input"
+              <SelectField
+                  fieldClassName="form-field"
+                  label="Status"
                   value={slotForm.status}
                   onChange={(event) =>
                     setSlotForm((prev) => ({ ...prev, status: event.target.value }))
@@ -1316,8 +1306,7 @@ const Dashboard = () => {
                       {option.label}
                     </option>
                   ))}
-                </select>
-              </label>
+              </SelectField>
               <label className="form-field">
                 <span>Notes</span>
                 <textarea
@@ -1362,10 +1351,7 @@ const Dashboard = () => {
         ) : null}
 
         {accountingLoading ? (
-          <div className="loading-card" role="status" aria-live="polite">
-            <span className="spinner" aria-hidden="true" />
-            <span>Loading accounting summary...</span>
-          </div>
+          <AnimatedLoadingState compact title="Loading accounting summary" />
         ) : null}
 
         {!accountingLoading && accountingSummary ? (
@@ -1680,7 +1666,11 @@ const Dashboard = () => {
                       <div className="site-card__header">
                         <div className="site-card__meta">
                           <span className="table-strong">{site.title}</span>
-                          <span className="muted">{site.pages.length} pages tracked</span>
+                          <span className="muted">
+                            {site.aggregateStatus === "not_configured"
+                              ? "URL not configured"
+                              : `${site.pages.length} pages tracked`}
+                          </span>
                         </div>
                         <div className="site-card__actions">
                           {renderStatusPill(site.aggregateStatus)}
@@ -1693,8 +1683,8 @@ const Dashboard = () => {
                         <div className="site-card__list" id={listId}>
                           {site.pages.length ? (
                             site.pages.map((page) => (
-                              <div className="site-card__row" key={page.url}>
-                                <span>{page.label}</span>
+                              <div className="site-card__row" key={page.url || `${site.id}:${page.path}`}>
+                                <span>{page.url ? page.label : `${page.label} URL`}</span>
                                 {renderStatusPill(page.status)}
                               </div>
                             ))
@@ -1710,6 +1700,12 @@ const Dashboard = () => {
                 <p className="muted">No site checks yet.</p>
               )}
             </div>
+            {notConfiguredSites ? (
+              <p className="muted">
+                {notConfiguredSites} optional app URL{notConfiguredSites === 1 ? "" : "s"} not
+                configured.
+              </p>
+            ) : null}
           </section>
         </>
       ) : null}

@@ -13,6 +13,7 @@ import {
 import {
   ERPActionBar,
   ERPActivityFeed,
+  AnimatedLoadingState,
   ERPFieldGroup,
   ERPNotice,
   ERPPrimaryAction,
@@ -241,10 +242,7 @@ const Settings = () => {
       ) : null}
 
       {isLoadingPrefs ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading settings...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading settings" />
       ) : null}
 
       {!isLoadingPrefs ? (

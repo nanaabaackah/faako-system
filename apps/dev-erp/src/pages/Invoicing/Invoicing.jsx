@@ -6,6 +6,7 @@ import {
   formatCurrencyMajor,
 } from "@faako/finance";
 import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
+import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
@@ -831,10 +832,9 @@ const Invoicing = () => {
           </div>
         </div>
         <div className="invoice-grid">
-          <label className="form-field">
-            <span>Status</span>
-            <select
-              className="input"
+          <SelectField
+              fieldClassName="form-field"
+              label="Status"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
@@ -843,14 +843,12 @@ const Invoicing = () => {
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
+          </SelectField>
 
           {isAdmin ? (
-            <label className="form-field">
-              <span>Organization</span>
-              <select
-                className="input"
+            <SelectField
+                fieldClassName="form-field"
+                label="Organization"
                 value={selectedOrganizationId}
                 onChange={(event) => setSelectedOrganizationId(event.target.value)}
               >
@@ -860,8 +858,7 @@ const Invoicing = () => {
                     {organization.name}
                   </option>
                 ))}
-              </select>
-            </label>
+            </SelectField>
           ) : null}
         </div>
       </section>
@@ -897,10 +894,7 @@ const Invoicing = () => {
         </div>
 
         {loading ? (
-          <div className="loading-card" role="status" aria-live="polite">
-            <span className="spinner" aria-hidden="true" />
-            <span>Loading invoices...</span>
-          </div>
+          <AnimatedLoadingState compact title="Loading invoices" />
         ) : (
           <div className="data-table">
             <div className="table-row table-head is-7">
@@ -1305,10 +1299,9 @@ const Invoicing = () => {
               <div className="invoice-meta">
                 <div className="invoice-grid">
                   {isAdmin ? (
-                    <label className="form-field">
-                      <span>Organization</span>
-                      <select
-                        className="input"
+                    <SelectField
+                        fieldClassName="form-field"
+                        label="Organization"
                         value={formState.organizationId}
                         onChange={(event) => updateFormField("organizationId", event.target.value)}
                         required
@@ -1319,8 +1312,7 @@ const Invoicing = () => {
                             {organization.name}
                           </option>
                         ))}
-                      </select>
-                    </label>
+                    </SelectField>
                   ) : null}
 
                   <label className="form-field">
@@ -1334,10 +1326,9 @@ const Invoicing = () => {
                     />
                   </label>
 
-                  <label className="form-field">
-                    <span>Status</span>
-                    <select
-                      className="input"
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Status"
                       value={formState.status}
                       onChange={(event) => updateFormField("status", event.target.value)}
                     >
@@ -1346,13 +1337,11 @@ const Invoicing = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                  </SelectField>
 
-                  <label className="form-field">
-                    <span>Currency</span>
-                    <select
-                      className="input"
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Currency"
                       value={formState.currency}
                       onChange={(event) => updateFormField("currency", event.target.value)}
                     >
@@ -1361,29 +1350,22 @@ const Invoicing = () => {
                           {currency}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                  </SelectField>
 
-                  <label className="form-field">
-                    <span>Issue date</span>
-                    <input
-                      className="input"
-                      type="date"
+                  <DateField
+                      fieldClassName="form-field"
+                      label="Issue date"
                       value={formState.issueDate}
                       onChange={(event) => updateFormField("issueDate", event.target.value)}
                       required
-                    />
-                  </label>
+                  />
 
-                  <label className="form-field">
-                    <span>Due date</span>
-                    <input
-                      className="input"
-                      type="date"
+                  <DateField
+                      fieldClassName="form-field"
+                      label="Due date"
                       value={formState.dueDate}
                       onChange={(event) => updateFormField("dueDate", event.target.value)}
-                    />
-                  </label>
+                  />
 
                   <label className="form-field">
                     <span>Client name</span>
@@ -1454,10 +1436,9 @@ const Invoicing = () => {
                       onChange={(event) => updateLineItem(lineItem.id, "quantity", event.target.value)}
                     />
                   </label>
-                  <label className="form-field">
-                    <span>Unit</span>
-                    <select
-                      className="input"
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Unit"
                       value={normalizeQuantityUnit(lineItem.unit)}
                       onChange={(event) => updateLineItem(lineItem.id, "unit", event.target.value)}
                     >
@@ -1471,8 +1452,7 @@ const Invoicing = () => {
                           {normalizeQuantityUnit(lineItem.unit)}
                         </option>
                       ) : null}
-                    </select>
-                  </label>
+                  </SelectField>
                   <label className="form-field">
                     <span>Rate</span>
                     <input

@@ -1067,6 +1067,17 @@
   border-color: transparent;
 }
 
+.ui-month-field__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.ui-month-field__option {
+  min-height: 2.8rem;
+  padding: 0.45rem;
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ui-date-field__popover {
     background: var(--sys-surface);
@@ -1423,8 +1434,9 @@
 .ui-animated-loading-state {
   --ui-loading-bg: var(--sys-bg, #f8fafc);
   --ui-loading-surface: var(--sys-surface, #ffffff);
-  --ui-loading-block: color-mix(in srgb, var(--sys-accent, #2563eb) 11%, var(--ui-loading-surface));
-  --ui-loading-shimmer: color-mix(in srgb, var(--sys-accent, #2563eb) 3%, var(--ui-loading-surface));
+  --ui-loading-accent: var(--sys-accent, var(--accent, var(--color-primary, #2563eb)));
+  --ui-loading-block: color-mix(in srgb, var(--ui-loading-accent) 11%, var(--ui-loading-surface));
+  --ui-loading-shimmer: color-mix(in srgb, var(--ui-loading-accent) 3%, var(--ui-loading-surface));
   --ui-loading-border: var(--sys-border, rgba(148, 163, 184, 0.28));
   min-height: 10rem;
   padding: 1.25rem;
@@ -1445,6 +1457,12 @@
   overflow: hidden;
   padding: 0;
   background: var(--ui-loading-bg);
+}
+
+.ui-animated-loading-state.is-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
 }
 
 .ui-animated-loading-state.is-compact {

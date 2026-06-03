@@ -7,6 +7,7 @@ import {
   useOnlineStatus,
 } from "@faako/offline-sync";
 import { FiArrowUpRight, FiTrash2 } from "react-icons/fi";
+import { AnimatedLoadingState, DateField, MonthField, SelectField } from "@faako/ui";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import {
@@ -819,10 +820,7 @@ const Rent = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading rent dashboard...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading rent dashboard" />
       ) : null}
 
       {error ? (
@@ -1168,10 +1166,7 @@ const Rent = () => {
             ) : null}
 
             {isPaymentsLoading ? (
-              <div className="loading-card rent-payments-loading" role="status" aria-live="polite">
-                <span className="spinner" aria-hidden="true" />
-                <span>Loading payments...</span>
-              </div>
+              <AnimatedLoadingState compact className="rent-payments-loading" title="Loading payments" />
             ) : paymentsWithTenants.length ? (
               <div className="rent-payments-history">
                 {paymentsWithTenants.map((payment) => (
@@ -1274,10 +1269,9 @@ const Rent = () => {
               </label>
 
               <div className="rent-form-row">
-                <label className="form-field">
-                  <span>Currency</span>
-                  <select
-                    className="input"
+                <SelectField
+                    fieldClassName="form-field"
+                    label="Currency"
                     value={tenantForm.currency}
                     onChange={(event) =>
                       setTenantForm((prev) => ({ ...prev, currency: event.target.value }))
@@ -1286,8 +1280,7 @@ const Rent = () => {
                   >
                     <option value="GHS">GHS</option>
                     <option value="CAD">CAD</option>
-                  </select>
-                </label>
+                </SelectField>
 
                 <label className="form-field">
                   <span>Monthly rent</span>
@@ -1306,30 +1299,24 @@ const Rent = () => {
               </div>
 
               <div className="rent-form-row">
-                <label className="form-field">
-                  <span>Lease start</span>
-                  <input
-                    className="input"
-                    type="date"
+                <DateField
+                    fieldClassName="form-field"
+                    label="Lease start"
                     value={tenantForm.leaseStartDate}
                     onChange={(event) =>
                       setTenantForm((prev) => ({ ...prev, leaseStartDate: event.target.value }))
                     }
                     required
-                  />
-                </label>
+                />
 
-                <label className="form-field">
-                  <span>Lease end</span>
-                  <input
-                    className="input"
-                    type="date"
+                <DateField
+                    fieldClassName="form-field"
+                    label="Lease end"
                     value={tenantForm.leaseEndDate}
                     onChange={(event) =>
                       setTenantForm((prev) => ({ ...prev, leaseEndDate: event.target.value }))
                     }
-                  />
-                </label>
+                />
               </div>
 
               <div className="rent-form-row">
@@ -1347,10 +1334,9 @@ const Rent = () => {
                   />
                 </label>
 
-                <label className="form-field">
-                  <span>Status</span>
-                  <select
-                    className="input"
+                <SelectField
+                    fieldClassName="form-field"
+                    label="Status"
                     value={tenantForm.status}
                     onChange={(event) =>
                       setTenantForm((prev) => ({ ...prev, status: event.target.value }))
@@ -1358,8 +1344,7 @@ const Rent = () => {
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
-                  </select>
-                </label>
+                </SelectField>
               </div>
 
               <label className="form-field">
@@ -1430,10 +1415,9 @@ const Rent = () => {
 
             <form className="stack rent-payment-form" onSubmit={submitPayment}>
               <div className="rent-payment-main-row">
-                <label className="form-field">
-                  <span>Tenant</span>
-                  <select
-                    className="input"
+                <SelectField
+                    fieldClassName="form-field"
+                    label="Tenant"
                     value={paymentForm.tenantId}
                     onChange={(event) => {
                       const nextTenant =
@@ -1454,8 +1438,7 @@ const Rent = () => {
                         {tenant.tenantName} ({tenant.currency})
                       </option>
                     ))}
-                  </select>
-                </label>
+                </SelectField>
 
                 <label className="form-field">
                   <span>Amount</span>
@@ -1472,18 +1455,15 @@ const Rent = () => {
                   />
                 </label>
 
-                <label className="form-field">
-                  <span>Payment month</span>
-                  <input
-                    className="input"
-                    type="month"
+                <MonthField
+                    fieldClassName="form-field"
+                    label="Payment month"
                     value={paymentForm.paidAt}
                     onChange={(event) =>
                       setPaymentForm((prev) => ({ ...prev, paidAt: event.target.value }))
                     }
                     required
-                  />
-                </label>
+                />
               </div>
 
               {selectedPaymentTenant ? (

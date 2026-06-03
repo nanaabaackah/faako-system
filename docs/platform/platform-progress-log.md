@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Shared branded month and time fields
+
+Date: 2026-06-02
+Change name: Shared branded month and time fields
+Apps/packages affected: `@faako/ui`, Dev ERP
+What changed: Extended the shared Faako field set with branded `MonthField` and `TimeField` controls alongside the existing dropdown and calendar-date controls. Migrated Dev ERP's remaining native select, date, month, and time widgets across its operational modules to the shared field language while keeping app-owned state and workflow handlers.
+Why it changed: The shared field system needed reusable month and time variants before Dev ERP could remove its remaining browser-native form widgets consistently.
+Files changed: packages/ui/src/components/Fields.tsx, packages/ui/src/ui.css, packages/ui/README.md, Dev ERP page and style files, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None.
+Security impact: None. Presentation-only shared UI adoption.
+Testing done: The Dev ERP raw-control sweep returned no page-owned `<select>` or `date`/`month`/`time` inputs under `apps/dev-erp/src`. Dev ERP lint passed, Dev ERP tests passed with 104 tests, Dev ERP and UI Workbench production builds passed, the Stroane Web TypeScript check passed, and the affected-file `git diff --check` passed.
+Rollback notes: Restore the prior Dev ERP native fields, remove the shared month/time controls and styles, and revert these documentation entries.
+Next step: Reuse the shared variants in other apps when their date, month, or time controls are next reviewed.
+
+### Shared themed skeleton loading adoption
+
+Date: 2026-06-02
+Change name: Shared themed skeleton loading adoption
+Apps/packages affected: `@faako/ui`, By Nana Portfolio, Dev ERP, Faako ERP, Faako Website, REEBS Portal, REEBS Website, Stroane Web, System Starter, UI Workbench
+What changed: Reused the shared `AnimatedLoadingState` skeleton across frontend apps. Added fixed overlay support for route transitions, kept shimmer colors app-owned through shared theme tokens, replaced duplicated REEBS loader implementations, converted Dev ERP module fetch states to compact skeletons, and added lazy route boundaries to Dev ERP, Faako Website, and Faako ERP. By Nana now uses the shared full-page overlay during its existing route transition. System Starter and UI Workbench expose the compact skeleton as the canonical scaffold/reference example. Stroane already used the shared skeleton and inherits the overlay-capable shared primitive without an app-local change.
+Why it changed: Loading states had drifted into app-local spinners, plain text, and bespoke animations. The monorepo now has one consistent three-row skeleton language while preserving each app's own accent color.
+Files changed: packages/ui/src/components/Feedback.tsx, packages/ui/src/ui.css, packages/ui/README.md, apps/bynana-portfolio/src/components/Loader.jsx, apps/bynana-portfolio/src/styles/global.css, apps/dev-erp/src/App.jsx, Dev ERP loading-state page/component files, apps/faako-erp/src/App.jsx, apps/faako-website/src/App.jsx, REEBS SiteLoader files, apps/system-starter/src/App.jsx, apps/ui-workbench/src/App.jsx, docs/platform/platform-progress-log.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. No schema, migration, seed, operational record, customer, order, payment, report, or audit data changed.
+Security impact: None. Presentation and frontend bundle-splitting only. Existing route guards, auth checks, permissions, cookies, CSRF behavior, and API ownership remain unchanged.
+Testing done: All nine frontend production builds passed: By Nana Portfolio, Dev ERP, Faako ERP, Faako Website, REEBS Portal, REEBS Website, Stroane Web, System Starter, and UI Workbench. Dev ERP tests passed with 102 tests. Dev ERP, By Nana Portfolio, and Stroane Web lint passed. Faako Website and Faako ERP lint scripts remain blocked because their workspace dependency graphs do not install `eslint`. REEBS Website sitemap generation used its existing fallback because network fetch was unavailable; the generated sitemap diff was restored. `git diff --check` passed.
+Rollback notes: Revert the shared overlay option, route lazy boundaries, shared loader wrappers, Dev ERP compact loader adoption, starter/workbench examples, and this documentation entry. No data rollback is required.
+Next step: Smoke-test route transitions on narrow and desktop viewports after deployment, especially Dev ERP auth boot, REEBS lazy routes, and By Nana overlay transitions.
+
 ### Stroane portal subdomain separation
 
 Date: 2026-05-31

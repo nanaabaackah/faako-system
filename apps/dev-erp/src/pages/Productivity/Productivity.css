@@ -48,7 +48,7 @@
   font-weight: 700;
 }
 
-.productivity-editor .input[type="date"] {
+.productivity-editor .ui-date-field__trigger {
   text-align: left;
   font-weight: 600;
 }

@@ -8,7 +8,7 @@ Document a safe, app-specific consolidation path for Dev ERP modules before any 
 
 Team consolidation is pending for Dev ERP. User Control and Profile remain unchanged because they have different access assumptions, and forcing a visible Team grouping could disrupt live restricted-module users.
 
-Settings consolidation was reviewed and left unchanged. `/settings` is already the only current Settings/config route, while system health and audit logs remain Reports-owned until a separate live capability review says otherwise.
+Settings consolidation was reviewed and left unchanged. `/settings` is already the only current Settings/config route. Reports owns scheduled report-email workflows only; System Health and Audit Logs are standalone Insights modules.
 
 Bookings/Rentals/Schedule consolidation was reviewed and left unchanged. `/bookings` is already nested under Rent as Appointments, and no separate rentals or schedule route exists to safely group under a new Bookings module without a live capability review.
 
@@ -45,7 +45,9 @@ Current registry modules:
 - Rent: `/rent`, with Appointments child `/bookings`
 - Customers: `/organizations`
 - Payments: `/accounting`, with Accounting child `/accounting` and Invoicing child `/invoicing`
-- Reports: `/reports`, with System Health child `/system-health` and Audit Logs child `/audit-logs`
+- Reports: `/reports`
+- System Health: `/system-health`
+- Audit Logs: `/audit-logs`
 - Users: `/user-control`, with Profile child `/profile`
 - Settings: `/settings`
 
@@ -101,7 +103,7 @@ Do not implement new redirects until a separate implementation phase defines exa
 - Dev ERP contains real operational data, so navigation changes can disrupt live rent, accounting, invoicing, reporting, and user-control workflows even without data changes.
 - Rent-only user navigation is intentionally narrow and could break if Dashboard/Rent/Profile assumptions change.
 - API capability checks may not map one-to-one to visual module grouping.
-- Grouping system health and audit logs under Reports could hide important operational monitoring surfaces.
+- Re-grouping system health and audit logs under Reports could hide important operational monitoring surfaces.
 - Renaming Payments to Finance may affect user expectations and documentation.
 - Public invoice and booking routes must stay outside authenticated navigation assumptions.
 
@@ -125,7 +127,7 @@ Future implementation must not change auth, sessions, CSRF, API permissions, bac
 4. Add grouped navigation metadata behind the current visible navigation behavior.
 5. Verify normal authenticated users and rent-only users separately.
 6. Group Accounting and Invoicing under Finance.
-7. Group System Health and Audit Logs under Reports.
+7. Keep Reports, System Health, and Audit Logs as separate Insights modules.
 8. Group User Control and Profile under Team.
 9. Keep Bookings under Rent until a live workflow review says otherwise. Current review found no safe Bookings/Rentals/Schedule grouping to implement beyond the existing Rent/Appointments structure.
 10. Review whether Settings should own any future integration/configuration children. Current review found no safe Settings grouping to implement beyond the existing `/settings` route.

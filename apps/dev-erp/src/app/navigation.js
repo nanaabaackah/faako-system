@@ -23,6 +23,7 @@ import {
 } from "@faako/config";
 import { DEV_ERP_ADMIN_MODULES } from "../config/adminModules.js";
 import { hasModuleAccess, isRentOnlyUser } from "../utils/moduleAccess.js";
+import { getAggregateSiteStatus } from "../utils/siteStatus.js";
 
 const NAV_ITEM_ORDER = [
   "dashboard",
@@ -114,14 +115,6 @@ const RENT_ONLY_MOBILE_TAB_ITEMS = [
 
 const isHealthyStatus = (status) => status === "ok" || status === "online";
 
-const getSiteAggregateStatus = (pages = []) => {
-  if (!Array.isArray(pages) || !pages.length) return "unknown";
-  if (pages.some((page) => page?.status === "offline")) return "offline";
-  if (pages.some((page) => page?.status === "degraded")) return "degraded";
-  if (pages.every((page) => page?.status === "online")) return "online";
-  return "unknown";
-};
-
 export const getAlertNotificationCount = (dashboardPayload) => {
   const systemStatus = dashboardPayload?.status ?? {};
   const systemEntries = [systemStatus.api, systemStatus.portfolioDb, systemStatus.reebsDb, systemStatus.faakoDb];
@@ -131,7 +124,7 @@ export const getAlertNotificationCount = (dashboardPayload) => {
     ? dashboardPayload.siteStatus.sites
     : [];
   const siteAlerts = siteStatuses.filter((site) => {
-    const aggregateStatus = getSiteAggregateStatus(site?.pages ?? []);
+    const aggregateStatus = getAggregateSiteStatus(site?.pages ?? []);
     return aggregateStatus === "offline" || aggregateStatus === "degraded";
   }).length;
 

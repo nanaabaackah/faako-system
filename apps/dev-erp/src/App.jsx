@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -12,32 +12,14 @@ import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import {
   HambergerMenu,
 } from "iconsax-react";
-import Login from "./pages/Login/Login";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Bookings from "./pages/Bookings/Bookings";
-import PublicBooking from "./pages/PublicBooking/PublicBooking";
-import Organizations from "./pages/Organizations/Organizations";
-import Profile from "./pages/Profile/Profile";
-import SystemHealth from "./pages/SystemHealth/SystemHealth";
-import Reports from "./pages/Reports/Reports";
-import Proposals from "./pages/Proposals/Proposals";
-import ProposalClientView from "./pages/Proposals/ProposalClientView";
-import Settings from "./pages/Settings/Settings";
-import AuditLogs from "./pages/AuditLogs/AuditLogs";
-import Rent from "./pages/Rent/Rent";
-import UserControl from "./pages/UserControl/UserControl";
-import SetupAccount from "./pages/SetupAccount/SetupAccount";
 import ThemeToggle from "./components/ThemeToggle";
-import Accounting from "./pages/Accounting/Accounting";
-import Invoicing from "./pages/Invoicing/Invoicing";
-import InvoiceView from "./pages/InvoiceView/InvoiceView";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SideNav from "./components/SideNav";
-import ErrorPage from "./pages/ErrorPage/ErrorPage";
 import useScrollAnimations from "./hooks/useScrollAnimations";
 import { apiGet, apiPost } from "./api/client";
 import {
   AppBottomBar,
+  AnimatedLoadingState,
   ErpMobileBottomNavFrame,
   ErpPageContent,
   ErpShellTopbar,
@@ -69,17 +51,41 @@ import {
   getVisibleNavItems,
 } from "./app/navigation";
 
+const Login = lazy(() => import("./pages/Login/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const Bookings = lazy(() => import("./pages/Bookings/Bookings"));
+const PublicBooking = lazy(() => import("./pages/PublicBooking/PublicBooking"));
+const Organizations = lazy(() => import("./pages/Organizations/Organizations"));
+const Profile = lazy(() => import("./pages/Profile/Profile"));
+const SystemHealth = lazy(() => import("./pages/SystemHealth/SystemHealth"));
+const Reports = lazy(() => import("./pages/Reports/Reports"));
+const Proposals = lazy(() => import("./pages/Proposals/Proposals"));
+const ProposalClientView = lazy(() => import("./pages/Proposals/ProposalClientView"));
+const Settings = lazy(() => import("./pages/Settings/Settings"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs/AuditLogs"));
+const Rent = lazy(() => import("./pages/Rent/Rent"));
+const UserControl = lazy(() => import("./pages/UserControl/UserControl"));
+const SetupAccount = lazy(() => import("./pages/SetupAccount/SetupAccount"));
+const Accounting = lazy(() => import("./pages/Accounting/Accounting"));
+const Invoicing = lazy(() => import("./pages/Invoicing/Invoicing"));
+const InvoiceView = lazy(() => import("./pages/InvoiceView/InvoiceView"));
+const ErrorPage = lazy(() => import("./pages/ErrorPage/ErrorPage"));
+
 const NAV_SWIPE_CLOSE_THRESHOLD = 72;
 const NAV_SWIPE_VERTICAL_TOLERANCE = 72;
 const NAV_SWIPE_MIN_HORIZONTAL_DELTA = 12;
 
+const RouteFallback = () => (
+  <AnimatedLoadingState
+    page
+    title="Loading Dev ERP"
+    message="Preparing the next workspace view."
+  />
+);
+
 const PrivateRoute = ({ authReady, currentUser, children }) => {
   if (!authReady) {
-    return (
-      <div className="app-loading" role="status" aria-live="polite">
-        Checking session...
-      </div>
-    );
+    return <RouteFallback />;
   }
 
   return currentUser ? children : <Navigate to="/login" />;
@@ -529,7 +535,8 @@ function App() {
     <Router>
       <TitleManager />
       <ScrollAnimationManager />
-      <Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
         <Route
           path="/login"
           element={
@@ -705,7 +712,8 @@ function App() {
             </RouteBoundary>
           }
         />
-      </Routes>
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

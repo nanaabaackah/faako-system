@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DocumentDownload, NoteText, ReceiptItem } from "iconsax-react";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
+import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
@@ -686,9 +687,9 @@ const Accounting = () => {
             ))}
           </div>
           {organizations.length ? (
-            <label className="form-field" style={{ minWidth: "220px" }}>
-              <select
-                className="input"
+            <div style={{ minWidth: "220px" }}>
+              <SelectField
+                ariaLabel="Organization"
                 value={selectedOrganizationId}
                 onChange={(event) => setSelectedOrganizationId(event.target.value)}
               >
@@ -698,8 +699,8 @@ const Accounting = () => {
                     {org.name}
                   </option>
                 ))}
-              </select>
-            </label>
+              </SelectField>
+            </div>
           ) : null}
           <button
             className="button button-ghost"
@@ -726,10 +727,7 @@ const Accounting = () => {
       </header>
 
       {loading ? (
-        <div className="panel loading-card" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span>Loading accounting data...</span>
-        </div>
+        <AnimatedLoadingState compact className="panel" title="Loading accounting data" />
       ) : null}
 
       {error ? (
@@ -794,10 +792,9 @@ const Accounting = () => {
               <div className="page-grid">
                 <div className="stack">
                   {organizations.length ? (
-                    <label className="form-field">
-                      <span>Organization</span>
-                      <select
-                        className="input"
+                    <SelectField
+                        fieldClassName="form-field"
+                        label="Organization"
                         value={formState.organizationId}
                         onChange={(event) =>
                           setFormState((prev) => ({ ...prev, organizationId: event.target.value }))
@@ -808,13 +805,11 @@ const Accounting = () => {
                             {org.name}
                           </option>
                         ))}
-                      </select>
-                    </label>
+                    </SelectField>
                   ) : null}
-                  <label className="form-field">
-                    <span>Type</span>
-                    <select
-                      className="input"
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Type"
                       value={formState.type}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, type: event.target.value }))
@@ -825,12 +820,10 @@ const Accounting = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="form-field">
-                    <span>Status</span>
-                    <select
-                      className="input"
+                  </SelectField>
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Status"
                       value={formState.status}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, status: event.target.value }))
@@ -841,12 +834,10 @@ const Accounting = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="form-field">
-                    <span>Currency</span>
-                    <select
-                      className="input"
+                  </SelectField>
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Currency"
                       value={formState.currency}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, currency: event.target.value }))
@@ -857,12 +848,10 @@ const Accounting = () => {
                           {currency}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="form-field">
-                    <span>Billing cadence</span>
-                    <select
-                      className="input"
+                  </SelectField>
+                  <SelectField
+                      fieldClassName="form-field"
+                      label="Billing cadence"
                       value={formState.recurringInterval}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, recurringInterval: event.target.value }))
@@ -873,8 +862,7 @@ const Accounting = () => {
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                  </SelectField>
                 </div>
                 <div className="stack">
                   <label className="form-field">
@@ -903,17 +891,14 @@ const Accounting = () => {
                       placeholder="Consulting retainer"
                     />
                   </label>
-                  <label className="form-field">
-                    <span>{formState.status === "PAID" ? "Paid date" : "Due date"}</span>
-                    <input
-                      className="input"
-                      type="date"
+                  <DateField
+                      fieldClassName="form-field"
+                      label={formState.status === "PAID" ? "Paid date" : "Due date"}
                       value={formState.date}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, date: event.target.value }))
                       }
-                    />
-                  </label>
+                  />
                 </div>
               </div>
               <label className="form-field">
@@ -994,28 +979,21 @@ const Accounting = () => {
                     placeholder="billing@company.com"
                   />
                 </label>
-                <label className="form-field">
-                  <span>Issue date</span>
-                  <input
-                    className="input"
-                    type="date"
+                <DateField
+                    fieldClassName="form-field"
+                    label="Issue date"
                     value={invoiceForm.issueDate}
                     onChange={(event) => updateInvoiceField("issueDate", event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Due date</span>
-                  <input
-                    className="input"
-                    type="date"
+                />
+                <DateField
+                    fieldClassName="form-field"
+                    label="Due date"
                     value={invoiceForm.dueDate}
                     onChange={(event) => updateInvoiceField("dueDate", event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Currency</span>
-                  <select
-                    className="input"
+                />
+                <SelectField
+                    fieldClassName="form-field"
+                    label="Currency"
                     value={invoiceForm.currency}
                     onChange={(event) => updateInvoiceField("currency", event.target.value)}
                   >
@@ -1024,8 +1002,7 @@ const Accounting = () => {
                         {currency}
                       </option>
                     ))}
-                  </select>
-                </label>
+                </SelectField>
                 <label className="form-field">
                   <span>Client address</span>
                   <input

@@ -17,14 +17,14 @@ Expanded the ERP shell and low-risk presentation foundation with reusable wrappe
 - `src/ErpStatusBadge.tsx`: shared status/module badge pattern.
 - `src/ErpNavSidebar.tsx` and `src/ErpBottomNav.tsx`: registry-friendly navigation primitives.
 - `src/components/Primitives.tsx`: shared page/card/button/status primitives plus low-risk ERP panel, panel header, section header, stack, and form-group wrappers.
-- `src/components/Fields.tsx`: shared field controls and typed option parsing for display/input surfaces.
+- `src/components/Fields.tsx`: shared field controls and typed option parsing for display/input surfaces, including branded dropdown, calendar-date, month, and time selectors.
 - `src/components/ERPTable.tsx`: shared ERP table foundation, toolbar/search/filter/action wrappers, controlled pagination, empty/loading states, and visual status badges.
 - `src/components/ERPForm.tsx`: shared ERP form foundation, section/row/action wrappers, field groups, common input/select/date/textarea/search-select controls, validation messages, and notices.
 - `src/components/ERPActions.tsx`: shared action bars, button groups, primary/secondary/danger action buttons, and icon actions with loading/disabled states.
 - `src/components/ERPModal.tsx`: shared modal, drawer, and confirm-dialog shells with accessible labels and Escape-key close support.
 - `src/components/ERPNotifications.tsx`: shared in-app notification/alert foundation — `ERPNotice`, `ERPAlert`, `ERPBanner`, `ERPSyncAlert`, `ERPOfflineNotice`, `ERPToastStack`, `useERPToastStack`, plus `ERPToastProvider`/`useERPToast` re-exports.
 - `src/components/ERPActivityFeed.tsx`: shared operational activity feed — `ERPActivityFeed`, `ERPActivityFeedItem`, `ERPActivityItemTone`. Timeline-style list with tone dots, relative timestamps, status badges, actor/entity metadata lines, detail lines, loading/empty/error states, and compact mode.
-- `src/components/Feedback.tsx`: shared feedback states, including the shimmer-based `AnimatedLoadingState` skeleton for compact operational fetches and full-page lazy-loading transitions. The skeleton respects reduced-motion preferences and uses shared theme tokens.
+- `src/components/Feedback.tsx`: shared feedback states, including the shimmer-based `AnimatedLoadingState` skeleton for compact operational fetches, full-page lazy-loading transitions, and fixed route-transition overlays. The skeleton respects reduced-motion preferences and uses each app's shared theme tokens.
 - `src/ui.css`: shared primitive styles, including section-header defaults.
 
 ## How to use it
@@ -80,7 +80,7 @@ The component accepts optional `className` and `style` props so apps can apply a
 
 ## Browser And Mobile Rendering
 
-Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. Shared selects use a CSS chevron so Safari/iOS does not render mismatched native controls. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
+Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. `SelectField`, `DateField`, `MonthField`, and `TimeField` render branded triggers and popovers while keeping hidden native form controls for value semantics. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
 
 Shared ERP field wrappers associate visible labels with their inputs, selects, and textareas. Keep using the provided `label` prop so keyboard users, assistive technology, and browser automation receive the same accessible field name.
 

@@ -124,17 +124,20 @@ Reusable blocks currently support:
 - Terms/support
 - Approval section
 
-Blocks are ordered in the draft and can be moved up/down in the editor shell. Optional blocks can be hidden from preview without deleting the schema entry.
+Blocks are ordered in the draft and can be moved up/down in the editable document. Optional blocks can be hidden from the generated proposal without deleting the schema entry. Pricing and timeline rows can be added or removed directly from their sections.
 
 ## Preview Behavior
 
-- The proposal landing area now uses a clean hero, search/action area, category filter chips, thumbnail-first visual template gallery, and compact recent proposal list.
-- Template cards keep text minimal, avoid heavy metadata, and start the selected template directly when clicked.
+- The proposal landing area uses a clean hero, document builder, search/action area, category filter chips, thumbnail-first visual template gallery, and compact recent proposal list.
+- The main working surface is document-first: admins edit client details, personal messaging, headings, copy, bullets, pricing, and timeline rows directly on the proposal-like canvas.
+- The right setup rail owns template selection, save/version actions, browser print/save-as-PDF export, secure-link preparation/copy, metadata, theme controls, and internal workflow review.
+- Template cards keep text minimal, avoid heavy metadata, and apply the selected template directly when clicked.
+- Template switching preserves entered compatible fields and manually changed section visibility while applying untouched defaults and the selected template's section order.
 - Recent proposal cards open the selected saved proposal directly without extra card action strips.
-- Desktop editing uses a two-column layout: editor/content inputs on the left and live document preview on the right.
-- Tablet/mobile layout stacks sections and exposes a preview toggle from the editor actions.
+- Desktop editing uses a two-column layout: editable proposal document on the left and compact controls on the right.
+- Tablet/mobile layout stacks without a side-by-side preview dependency.
 - Preview supports simple theme variants using Dev ERP variables and shared tokens.
-- Print media hides the hero, gallery, recent list, and editor shell, then prints the preview area only.
+- Print media hides the hero, gallery, recent list, editable document, and setup rail, then prints a clean export-safe preview only.
 - `/proposals/:proposalId/preview` is an authenticated internal preview route. It does not expose proposal content publicly.
 
 ## PDF/Export Architecture Foundation
@@ -171,15 +174,15 @@ The draft shape includes:
 - Founder/consultant message
 - Optional closing note
 
-These are editable in local state and visible in the preview shell.
+These are editable in local state directly on the document and visible in the generated preview.
 
 ## Styling Approach
 
 - Uses Dev ERP app variables such as `--accent`, `--surface`, `--card`, `--border`, `--ink`, and `--muted`.
 - Uses existing shared UI wrappers from `@faako/ui`.
 - Does not introduce a new hardcoded visual system.
-- The current UI direction is template-gallery first, inspired by clean proposal-template browsing patterns: simple hero, search/filter controls, thumbnail-led template cards, compact recent work, and a document-like preview surface.
-- `bubble-card` is applied only where intended for template/search/recent proposal cards; the preview remains proposal-document oriented rather than dashboard-card heavy.
+- The current UI direction is document-first: simple hero, editable proposal canvas, setup rail, search/filter controls, thumbnail-led template cards, and compact recent work.
+- `bubble-card` is applied only where intended for template/search/recent proposal cards; the editable document and export preview remain proposal-document oriented rather than dashboard-card heavy.
 - Does not attempt to fully match the uploaded Stroane proposal PDF yet. PDF-specific styling belongs to a later PDF phase.
 
 ## Security And Data Boundaries
@@ -240,13 +243,14 @@ Remove the `/proposals` and `/proposals/:proposalId/preview` routes, proposal AP
 - `/proposals` loads for authenticated admin users.
 - Proposal list loads saved proposals scoped to the authenticated organization.
 - Rent-only users remain scoped to rent/dashboard/profile behavior.
-- Template selection resets the local draft only.
-- Template selection applies the selected template's default section order, disabled sections, style reference, and placeholder content.
+- Template switching remains local until saved.
+- Template switching applies the selected template's section order, disabled-section defaults, style reference, and untouched placeholder content while preserving edited compatible values and explicit section visibility choices.
 - Template search and category filters narrow the visible gallery without changing saved proposal data.
-- Clicking a template card starts that local draft only.
+- Clicking a template card applies that template without erasing compatible entered fields.
+- New draft requires confirmation before discarding unsaved local changes.
 - Saving a new draft creates a proposal record and navigates to `/proposals/:proposalId/preview`.
 - Saving an existing proposal increments the version number.
-- Proposal details edit the preview before save.
+- Proposal details edit directly on the proposal-like document before save.
 - Workflow status supports draft, internal_review, shared, changes_requested, approved, and archived.
 - Review notes, internal comments, change-request notes, and readiness checks persist after save.
 - Shared client links show Approve proposal and Request changes actions.
@@ -256,6 +260,7 @@ Remove the `/proposals` and `/proposals/:proposalId/preview` routes, proposal AP
 - Blocks can be moved up/down.
 - Optional blocks can be hidden from preview.
 - Pricing and timeline rows render in preview.
+- Pricing and timeline rows can be added and removed from the editable document.
 - Secure token preparation is disabled for unsaved or dirty drafts.
 - Secure token preparation stores token metadata and exposes client-safe proposal content only for shared/approved/changes-requested proposals.
 - Client approval updates status to approved without creating invoices, payments, Paystack links, email notifications, or digital signatures.
