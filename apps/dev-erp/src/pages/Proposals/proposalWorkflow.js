@@ -41,8 +41,8 @@ export const PROPOSAL_STATUS_DESCRIPTIONS = Object.freeze({
   [PROPOSAL_STATUSES.DRAFT]: "Private working draft.",
   [PROPOSAL_STATUSES.INTERNAL_REVIEW]: "Internal team review before client sharing.",
   [PROPOSAL_STATUSES.SHARED]: "Shared for controlled client review.",
-  [PROPOSAL_STATUSES.CHANGES_REQUESTED]: "Client requested changes. No invoice/payment automation yet.",
-  [PROPOSAL_STATUSES.APPROVED]: "Client approved. No invoice/payment automation yet.",
+  [PROPOSAL_STATUSES.CHANGES_REQUESTED]: "Client requested changes. Revise before invoice handoff.",
+  [PROPOSAL_STATUSES.APPROVED]: "Client approved. Ready for invoice draft handoff.",
   [PROPOSAL_STATUSES.ARCHIVED]: "Inactive proposal record.",
 });
 
@@ -92,8 +92,3 @@ export const getProposalReadinessSummary = (workflow = {}) => {
     isReady: completed === PROPOSAL_REVIEW_CHECKS.length,
   };
 };
-
-// TODO(proposal-comments): Replace these lightweight review fields with
-// server-owned proposal comments after access rules and notification behavior exist.
-// TODO(proposal-approval-audit): Replace client response JSON with server-owned
-// approval/audit records once digital signature and notification requirements are designed.

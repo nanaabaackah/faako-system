@@ -116,8 +116,3 @@ export const getProposalExportMetadata = (proposal, target = PROPOSAL_EXPORT_TAR
     ...getProposalExportSectionConfig(block.type),
   })),
 });
-
-// TODO(proposal-pdf-service): Use this export metadata as the contract for a
-// server-side PDF renderer after approval, public-view, and audit rules exist.
-// TODO(proposal-template-assets): Map the uploaded presentation-style template
-// into theme tokens/assets before enabling production PDF downloads.

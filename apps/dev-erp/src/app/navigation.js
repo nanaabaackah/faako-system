@@ -84,9 +84,6 @@ const sortByNavigationOrder = (items = []) =>
   });
 
 const NAV_ITEMS = sortByNavigationOrder(
-  // TODO: Pass database-backed module toggles, org-level module config,
-  // permissions integration, and SaaS plan gating into getVisibleModules
-  // after those controls exist server-side.
   getVisibleModules(DEV_ERP_ADMIN_MODULES).map((module) => toNavigationItem(module))
 );
 
@@ -117,7 +114,17 @@ const isHealthyStatus = (status) => status === "ok" || status === "online";
 
 export const getAlertNotificationCount = (dashboardPayload) => {
   const systemStatus = dashboardPayload?.status ?? {};
-  const systemEntries = [systemStatus.api, systemStatus.portfolioDb, systemStatus.reebsDb, systemStatus.faakoDb];
+  const apiSurfaceStatuses = Array.isArray(dashboardPayload?.apiSurfaces)
+    ? dashboardPayload.apiSurfaces.map((surface) => surface?.status)
+    : [systemStatus.faakoApi, systemStatus.stroaneApi];
+  const systemEntries = [
+    systemStatus.api,
+    ...apiSurfaceStatuses,
+    systemStatus.portfolioDb,
+    systemStatus.reebsDb,
+    systemStatus.faakoDb,
+    systemStatus.stroaneDb,
+  ];
   const systemAlerts = systemEntries.filter((status) => status && !isHealthyStatus(status)).length;
 
   const siteStatuses = Array.isArray(dashboardPayload?.siteStatus?.sites)

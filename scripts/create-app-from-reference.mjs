@@ -1,5 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  MONOREPO_APP_REGISTRY,
+  PORTFOLIO_PROJECT_REGISTRY,
+} from "../packages/config/src/index.js";
 import { findWorkspaceRoot } from "./workspace-graph.mjs";
 
 const TEXT_FILE_EXTENSIONS = new Set([
@@ -43,6 +47,14 @@ const SENSITIVE_BASENAMES = new Set([
 ]);
 const APP_DIR_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const WORKSPACE_PACKAGE_NAME_PATTERN = /^@[a-z0-9-]+\/[a-z0-9][a-z0-9-]*$/;
+const TITLE_WORD_OVERRIDES = new Map([
+  ["api", "API"],
+  ["crm", "CRM"],
+  ["erp", "ERP"],
+  ["hr", "HR"],
+  ["pos", "POS"],
+  ["ui", "UI"],
+]);
 
 const parseArgs = (argv) => {
   const options = {};
@@ -179,15 +191,294 @@ const replaceInTextFile = (filePath, replacements) => {
   }
 };
 
+const quote = (value) => JSON.stringify(value);
+
+const toDisplayTitle = (value) =>
+  String(value || "")
+    .split("-")
+    .filter(Boolean)
+    .map((word) => TITLE_WORD_OVERRIDES.get(word) || `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`)
+    .join(" ");
+
+const toEnvPrefix = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const toArrayLiteral = (values = [], indent = 4) => {
+  const padding = " ".repeat(indent);
+  const itemPadding = " ".repeat(indent + 2);
+  if (!values.length) return "[]";
+  return `[\n${values.map((value) => `${itemPadding}${quote(value)},`).join("\n")}\n${padding}]`;
+};
+
+const toMonitoringPagesLiteral = (pages = []) => {
+  if (!pages.length) return "[]";
+  return `[\n${pages
+    .map((page) => `      { label: ${quote(page.label)}, path: ${quote(page.path)} },`)
+    .join("\n")}\n    ]`;
+};
+
+const findSourceRegistryApp = (sourceApp) =>
+  MONOREPO_APP_REGISTRY.find((app) => app.key === sourceApp || app.path === `apps/${sourceApp}`) || null;
+
+const inferMonitoringCategory = ({ sourceRegistryApp, targetApp }) => {
+  const normalizedTarget = String(targetApp || "");
+  const sourceCategory = sourceRegistryApp?.category;
+
+  if (/(^|-)api($|-)/.test(normalizedTarget)) return "api";
+  if (/(^|-)(erp|portal|admin)($|-)/.test(normalizedTarget)) return "erp";
+  if (/(^|-)(store|shop|commerce)($|-)/.test(normalizedTarget)) return "commerce";
+  if (/(^|-)(site|website|marketing)($|-)/.test(normalizedTarget)) return "marketing";
+  if (sourceCategory && sourceCategory !== "internal") return sourceCategory;
+  return "client";
+};
+
+const defaultMonitoringPagesForCategory = (category, sourceRegistryApp) => {
+  if (sourceRegistryApp?.category !== "internal" && Array.isArray(sourceRegistryApp?.monitoringPages)) {
+    return sourceRegistryApp.monitoringPages
+      .filter((page) => page?.path)
+      .map((page) => ({
+        label: page.label || page.path,
+        path: page.path,
+      }));
+  }
+
+  if (category === "api") {
+    return [{ label: "Health", path: "/api/health" }];
+  }
+
+  if (category === "erp") {
+    return [
+      { label: "Dashboard", path: "/" },
+      { label: "Login", path: "/login" },
+      { label: "Health", path: "/health" },
+    ];
+  }
+
+  return [{ label: "Home", path: "/" }];
+};
+
+const inferProjectType = (category) => {
+  if (category === "api") return "API / Backend Service";
+  if (category === "erp") return "ERP / Portal App";
+  if (category === "commerce") return "Commerce Website";
+  if (category === "marketing") return "Marketing Website";
+  if (category === "portfolio") return "Portfolio Website";
+  return "Client App";
+};
+
+const inferTechStack = (targetDir, targetManifest) => {
+  const dependencies = {
+    ...(targetManifest.dependencies || {}),
+    ...(targetManifest.devDependencies || {}),
+  };
+  const stack = new Set(["Faako monorepo"]);
+
+  if (dependencies.react) stack.add("React");
+  if (dependencies.vite) stack.add("Vite");
+  if (dependencies.typescript || fs.existsSync(path.join(targetDir, "tsconfig.json"))) {
+    stack.add("TypeScript");
+  }
+  if (dependencies.express) stack.add("Express");
+  if (dependencies["@prisma/client"] || fs.existsSync(path.join(targetDir, "prisma"))) {
+    stack.add("Prisma");
+  }
+  if (dependencies["@faako/ui"]) stack.add("@faako/ui");
+  if (dependencies["@faako/config"]) stack.add("@faako/config");
+
+  return [...stack];
+};
+
+const formatMonorepoAppRegistryEntry = ({
+  key,
+  packageName,
+  appPath,
+  title,
+  purpose,
+  category,
+  envBaseUrlKeys,
+  monitoringPages,
+}) => `  {
+    key: ${quote(key)},
+    packageName: ${quote(packageName)},
+    path: ${quote(appPath)},
+    title: ${quote(title)},
+    purpose: ${quote(purpose)},
+    category: ${quote(category)},
+    productionSensitive: false,
+    monitoringEnabled: true,
+    monitoringOptional: true,
+    envBaseUrlKeys: ${toArrayLiteral(envBaseUrlKeys, 4)},
+    monitoringPages: ${toMonitoringPagesLiteral(monitoringPages)},
+  },
+`;
+
+const formatPortfolioProjectRegistryEntry = ({
+  key,
+  appPath,
+  projectName,
+  projectType,
+  shortDescription,
+  longDescription,
+  techStack,
+  features,
+  latestMilestone,
+  lastUpdated,
+  relatedDocsPath,
+  notes,
+}) => `  {
+    key: ${quote(key)},
+    appKey: ${quote(key)},
+    appPath: ${quote(appPath)},
+    projectName: ${quote(projectName)},
+    projectType: ${quote(projectType)},
+    status: "foundation",
+    visibility: PROJECT_VISIBILITY.PRIVATE,
+    clientPublic: false,
+    privateInternal: true,
+    caseStudyEnabled: false,
+    caseStudyStatus: PROJECT_CASE_STUDY_STATUS.DISABLED,
+    shortDescription: ${quote(shortDescription)},
+    longDescription: ${quote(longDescription)},
+    techStack: ${toArrayLiteral(techStack, 4)},
+    features: ${toArrayLiteral(features, 4)},
+    liveUrl: "",
+    screenshots: [],
+    screenshotPlaceholders: ${toArrayLiteral(["Primary app screen", "Future deployed health check"], 4)},
+    latestMilestone: ${quote(latestMilestone)},
+    lastUpdated: ${quote(lastUpdated)},
+    relatedDocsPath: ${quote(relatedDocsPath)},
+    notes: ${quote(notes)},
+  },
+`;
+
+const insertIntoExportedArray = ({ filePath, arrayName, entryText }) => {
+  const content = fs.readFileSync(filePath, "utf8");
+  const startMarker = `export const ${arrayName} = [`;
+  const startIndex = content.indexOf(startMarker);
+  if (startIndex === -1) {
+    throw new Error(`Could not find ${arrayName} in ${filePath}.`);
+  }
+
+  const endIndex = content.indexOf("\n];", startIndex);
+  if (endIndex === -1) {
+    throw new Error(`Could not find the end of ${arrayName} in ${filePath}.`);
+  }
+
+  fs.writeFileSync(filePath, `${content.slice(0, endIndex)}${entryText}${content.slice(endIndex)}`);
+};
+
+const ensureMonorepoRegistryEntry = ({
+  rootDir,
+  sourceApp,
+  targetApp,
+  packageName,
+  targetDir,
+  targetManifest,
+}) => {
+  const appPath = `apps/${targetApp}`;
+  if (MONOREPO_APP_REGISTRY.some((app) => app.key === targetApp || app.path === appPath)) {
+    return false;
+  }
+
+  const sourceRegistryApp = findSourceRegistryApp(sourceApp);
+  const category = inferMonitoringCategory({ sourceRegistryApp, targetApp });
+  const title = toDisplayTitle(targetApp);
+  const envPrefix = toEnvPrefix(targetApp);
+  const entryText = formatMonorepoAppRegistryEntry({
+    key: targetApp,
+    packageName,
+    appPath,
+    title,
+    purpose: `Auto-registered app workspace created from apps/${sourceApp}.`,
+    category,
+    envBaseUrlKeys: [`${envPrefix}_BASE_URL`, `${envPrefix}_URL`],
+    monitoringPages: defaultMonitoringPagesForCategory(category, sourceRegistryApp),
+    targetDir,
+    targetManifest,
+  });
+
+  insertIntoExportedArray({
+    filePath: path.join(rootDir, "packages/config/src/monorepoApps/appRegistry.js"),
+    arrayName: "MONOREPO_APP_REGISTRY",
+    entryText,
+  });
+
+  return true;
+};
+
+const ensurePortfolioProjectEntry = ({
+  rootDir,
+  sourceApp,
+  targetApp,
+  targetDir,
+  targetManifest,
+}) => {
+  const appPath = `apps/${targetApp}`;
+  if (PORTFOLIO_PROJECT_REGISTRY.some((project) => project.key === targetApp || project.appPath === appPath)) {
+    return false;
+  }
+
+  const sourceRegistryApp = findSourceRegistryApp(sourceApp);
+  const category = inferMonitoringCategory({ sourceRegistryApp, targetApp });
+  const title = toDisplayTitle(targetApp);
+  const today = new Date().toISOString().slice(0, 10);
+  const entryText = formatPortfolioProjectRegistryEntry({
+    key: targetApp,
+    appPath,
+    projectName: title,
+    projectType: inferProjectType(category),
+    shortDescription: `Auto-created portfolio metadata for ${title}.`,
+    longDescription:
+      "Generated by the app creation workflow. Review positioning, screenshots, live URLs, client visibility, and case-study readiness before publishing.",
+    techStack: inferTechStack(targetDir, targetManifest),
+    features: [
+      `Scaffolded from apps/${sourceApp}`,
+      "Monitoring registry foundation",
+      "Portfolio metadata foundation",
+    ],
+    latestMilestone: "App scaffold created",
+    lastUpdated: today,
+    relatedDocsPath: `docs/apps/${targetApp}`,
+    notes:
+      "Auto-created by pnpm create:app. Keep private until the project has approved copy, screenshots, and a reviewed public publishing decision.",
+  });
+
+  insertIntoExportedArray({
+    filePath: path.join(rootDir, "packages/config/src/projectRegistry/projectRegistry.js"),
+    arrayName: "PORTFOLIO_PROJECT_REGISTRY",
+    entryText,
+  });
+
+  return true;
+};
+
+const ensureProjectDocsScaffold = ({ rootDir, sourceApp, targetApp, title }) => {
+  const docsDir = path.join(rootDir, "docs/apps", targetApp);
+  const readmePath = path.join(docsDir, "README.md");
+
+  fs.mkdirSync(docsDir, { recursive: true });
+  if (fs.existsSync(readmePath)) return false;
+
+  fs.writeFileSync(
+    readmePath,
+    `# ${title}\n\nAuto-created project notes for apps/${targetApp}.\n\n- Source app: apps/${sourceApp}\n- Review branding, copy, routes, deployment URLs, screenshots, and portfolio visibility before publishing.\n- Keep client-sensitive details private until approved.\n`,
+  );
+  return true;
+};
+
 const rootDir = findWorkspaceRoot();
 const options = parseArgs(process.argv.slice(2));
 
-  if (!options.packageName) {
-    console.error(
+if (!options.packageName) {
+  console.error(
     "Usage: pnpm create:app -- --package <workspace-package-name> [--target <new-app-dir>] [--source <existing-app-dir>] (defaults to system-starter)",
   );
-    process.exit(1);
-  }
+  process.exit(1);
+}
 
 try {
   options.sourceApp = options.sourceApp || "system-starter";
@@ -236,10 +527,49 @@ try {
     replaceInTextFile(filePath, replacements);
   });
 
+  const title = toDisplayTitle(targetApp);
+  const monitoringRegistered = ensureMonorepoRegistryEntry({
+    rootDir,
+    sourceApp: options.sourceApp,
+    targetApp,
+    packageName: options.packageName,
+    targetDir,
+    targetManifest,
+  });
+  const portfolioRegistered = ensurePortfolioProjectEntry({
+    rootDir,
+    sourceApp: options.sourceApp,
+    targetApp,
+    targetDir,
+    targetManifest,
+  });
+  const docsCreated = ensureProjectDocsScaffold({
+    rootDir,
+    sourceApp: options.sourceApp,
+    targetApp,
+    title,
+  });
+
   console.log(`Created apps/${targetApp} from apps/${options.sourceApp}.`);
+  console.log(
+    monitoringRegistered
+      ? `Added apps/${targetApp} to monorepo monitoring registry.`
+      : `Skipped monitoring registry insert because apps/${targetApp} is already registered.`,
+  );
+  console.log(
+    portfolioRegistered
+      ? `Added apps/${targetApp} to byNana portfolio project registry as a private draft.`
+      : `Skipped portfolio project registry insert because apps/${targetApp} is already registered.`,
+  );
+  console.log(
+    docsCreated
+      ? `Created docs/apps/${targetApp}/README.md.`
+      : `Skipped docs scaffold because docs/apps/${targetApp}/README.md already exists.`,
+  );
   console.log("Manual follow-up:");
   console.log("- Update company branding, copy, logos, and env values inside the new app.");
   console.log("- Search the new app for source-company wording and replace it intentionally.");
+  console.log("- Review monitoring URLs, project description, screenshots, and portfolio visibility before publishing.");
   console.log("- If this app mirrors another app at build time, add that relationship to workspace-links.json.");
   console.log("- Keep secrets only in local or hosted env settings; the clone intentionally skips env and key material.");
 } catch (error) {

@@ -23,6 +23,34 @@ Next step:
 
 ## Entries
 
+### Proposal readiness, invoice handoff, and dashboard date filter
+
+Date: 2026-06-03
+Feature/change name: Proposal readiness, invoice handoff, and dashboard date filter
+Apps affected: Dev ERP
+What changed: Removed the Proposals experimental status, completed the proposal readiness flow with a Share proposal action, audit events for proposal create/update/share/client responses/invoice handoff, and an approved-proposal to editable invoice-draft backend handoff. The Proposals setup rail now shows invoice handoff state and can open Invoicing after a draft is linked. Invoice status validation now accepts quotation/accepted/declined states already used by the Invoicing UI. Dashboard daily brief now has a shared `DateField` that drives the displayed date, selected-day appointment cards, cached availability window, and weekly bookings fetch; the dashboard data hook also fetches/caches per selected range. Runtime TODO/FIXME comments were cleared from Dev ERP app/backend code.
+Why it changed: Proposals was visually mature but still marked experimental and lacked the operational bridge from shared/client-approved proposals to finance. The dashboard brief date/range controls also looked interactive while part of the data path stayed fixed.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/hooks/useDashboardData.js, apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/src/pages/Dashboard/Dashboard.css, apps/dev-erp/src/pages/Proposals/Proposals.jsx, apps/dev-erp/src/pages/Proposals/ProposalClientView.jsx, apps/dev-erp/src/pages/Proposals/proposalWorkflow.js, apps/dev-erp/src/pages/Proposals/proposalExportConfig.js, apps/dev-erp/src/pages/Proposals/proposalTemplates.js, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/pages/Rent/offlineRentPaymentQueue.js, apps/dev-erp/README.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md.
+Data impact: No schema migration. Proposal records can now store invoice handoff metadata in existing JSON fields, and approved proposals can create new Invoice/InvoiceLineItem records through an authenticated admin action. Existing proposal drafts, share tokens, client responses, invoice send/quotation/payment behavior, rent, accounting, reports, and Paystack planning remain compatible.
+Security impact: Proposal invoice creation remains authenticated/admin-only and organization-scoped. Public proposal links still use random expiring tokens and do not expose drafts, internal notes, staff metadata, editor controls, raw tokens, or invoice creation actions. Audit log writes add operational visibility without changing auth, CSRF, cookies, permissions, or payment-provider behavior.
+Testing done: `node --check apps/dev-erp/backend/server.js`; runtime TODO/FIXME scan; `git diff --check -- apps/dev-erp docs/apps/dev-erp`; `pnpm --filter @faako/dev-erp run test` passed 104/104; `pnpm --filter @faako/dev-erp run lint` passed; `pnpm --filter @faako/dev-erp run build` passed.
+Rollback notes: Revert the proposal share/invoice handoff route and UI actions, restore Proposals status metadata if needed, remove the dashboard date-field/range-hook changes, and revert the documentation updates. If invoice drafts were created from proposals, archive/delete those draft invoices manually according to finance policy before reverting behavior.
+Next step: Smoke-test `/proposals`, `/proposal/view/:token`, `/invoicing`, and `/dashboard` in the deployed environment with one approved proposal and one selected future brief date.
+
+### Stroane organization and surface-aware monitoring
+
+Date: 2026-06-03
+Feature/change name: Stroane organization and surface-aware monitoring
+Apps affected: Dev ERP, shared config registry
+What changed: Added Stroane as a default managed organization under Faako, added optional Stroane database health via `STROANE_DATABASE_URL`, expanded monitored frontend route coverage for Stroane, Faako, and REEBS public/portal surfaces, and moved Faako/Stroane API health into System Status instead of the website page grid. API and internal-only registry surfaces such as System Starter and UI Workbench are filtered out of website/portal page health.
+Why it changed: Stroane was missing from Organizations and DB status, while the website health view was mixing hosted websites with backend/API and internal-only app surfaces.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/src/pages/SystemHealth/SystemHealth.jsx, apps/dev-erp/src/app/navigation.js, apps/dev-erp/.env.example, apps/dev-erp/README.md, packages/config/src/monorepoApps/appRegistry.js, packages/config/src/monorepoApps/appRegistry.test.js, packages/config/README.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/progress-log.md.
+Data impact: Startup seeding now ensures a `stroane` organization exists if missing and syncs it under Faako. No schema, migration, existing record mutation beyond default organization hierarchy sync, payment, invoice, rent, report, audit-log, or proposal persistence changes.
+Security impact: No auth, CSRF, permission, cookie, CORS, or route-guard changes. Optional external DB/API checks only report health status when env values are configured.
+Testing done: Focused registry/status tests passed. `pnpm run monitoring:check` passed with 10 registered app workspaces and 12 monitored surfaces. `pnpm --filter @faako/dev-erp run test` passed with 104 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `node --check apps/dev-erp/backend/server.js` and affected-file `git diff --check` passed.
+Rollback notes: Remove the Stroane org seed/default hierarchy entry, optional Stroane DB pool/status, API/internal surface filtering, registry route expansions, and docs/test additions. No data rollback is required unless the newly seeded Stroane organization should be manually removed.
+Next step: Deploy backend and frontend together, set `STROANE_DATABASE_URL` and Stroane/Faako API monitoring envs only where those health checks should be active, then smoke-test Organizations, Dashboard System Status, and System Health.
+
 ### Shared branded form control adoption
 
 Date: 2026-06-02

@@ -35,7 +35,7 @@ The static frontend should only receive browser-safe `VITE_*` values. Sensitive 
 
 ## Project Metadata Registry
 
-Shared project metadata for future portfolio/case-study consumption lives in `@faako/config` under `packages/config/src/projectRegistry/projectRegistry.js`. Stroane Web is registered there as a public client website/product-catalogue project, but `caseStudyEnabled` remains `false`; this app should not auto-publish Stroane or any future client case study without an explicit UI/content pass and client-safe review.
+Shared project metadata for future portfolio/case-study consumption lives in `@faako/config` under `packages/config/src/projectRegistry/projectRegistry.js`. Stroane Web is registered there as a public client website/product-catalogue project, but `caseStudyEnabled` remains `false`; this app should not auto-publish Stroane or any future client case study without an explicit UI/content pass and client-safe review. New apps created with `pnpm create:app` are automatically added as private draft project metadata so the portfolio pipeline has a placeholder without publishing the project.
 
 Run this from the repo root when meaningful app changes should be reflected in shared project metadata:
 

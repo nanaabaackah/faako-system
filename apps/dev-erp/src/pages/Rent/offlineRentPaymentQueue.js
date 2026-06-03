@@ -29,7 +29,6 @@ export const createRentPaymentIdempotencyKey = () =>
 
 export const isRentPaymentReviewError = (errorMessage = "") => {
   const normalized = String(errorMessage || "").toLowerCase();
-  // TODO(offline-rent-payment-conflicts): replace text matching with server conflict codes when sync APIs expose them.
   return [
     "already",
     "auth",

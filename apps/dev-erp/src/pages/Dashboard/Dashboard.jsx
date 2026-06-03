@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiChevronDown } from "react-icons/fi";
-import { AnimatedLoadingState, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import KPICard from "../../components/KPICard/KPICard";
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
@@ -92,7 +92,7 @@ const buildAccountingSummary = (entries = []) => {
   return base;
 };
 
-const buildTodayDate = () => new Date().toISOString().slice(0, 10);
+const buildTodayDate = () => toDateKey(new Date());
 
 const DEFAULT_DAILY_VERSE = {
   status: "idle",
@@ -124,8 +124,9 @@ const formatTemperatureValue = (value, unit) => {
   return `${Math.round(value)}°${getTemperatureUnitSymbol(unit)}`;
 };
 
-const buildWeekDays = () => {
-  const start = new Date();
+const buildWeekDays = (startDate = new Date()) => {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
   const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short" });
   const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
@@ -160,6 +161,17 @@ const toDateKey = (date) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const parseDateKey = (value) => {
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map((part) => Number(part));
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return new Date();
+  }
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
 const getEasterDate = (year) => {
@@ -325,8 +337,9 @@ const ModulePanelLink = ({ to, label }) => (
 const Dashboard = () => {
   const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
-  const { data: kpiData, loading, isRefreshing, error, reload } = useDashboardData();
-  const [timeRange, setTimeRange] = useState("7d");
+  const [timeRange] = useState("7d");
+  const [briefDateKey] = useState(() => buildTodayDate());
+  const { data: kpiData, loading, error } = useDashboardData({ range: timeRange });
   const [availabilityBookings, setAvailabilityBookings] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(true);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -341,7 +354,7 @@ const Dashboard = () => {
   const [selectedAvailabilityDayKey, setSelectedAvailabilityDayKey] = useState("");
   const [verseOfDay, setVerseOfDay] = useState(DEFAULT_DAILY_VERSE);
   const [dailyWeather, setDailyWeather] = useState(DEFAULT_DAILY_WEATHER);
-  const [briefRefreshTick, setBriefRefreshTick] = useState(0);
+  const [briefRefreshTick] = useState(0);
   const [activityLogs, setActivityLogs] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityActiveUsers, setActivityActiveUsers] = useState(0);
@@ -351,12 +364,12 @@ const Dashboard = () => {
         weekday: "long",
         month: "long",
         day: "numeric",
-      }).format(new Date()),
-    []
+      }).format(parseDateKey(briefDateKey)),
+    [briefDateKey]
   );
   const availabilityCacheKey = useMemo(
-    () => buildUserScopedCacheKey("dashboard:availability"),
-    []
+    () => buildUserScopedCacheKey(`dashboard:availability:${briefDateKey}`),
+    [briefDateKey]
   );
   const accountingCacheKey = useMemo(
     () => buildUserScopedCacheKey("dashboard:accounting-summary"),
@@ -365,7 +378,7 @@ const Dashboard = () => {
   const verseCacheKey = useMemo(() => buildUserScopedCacheKey("dashboard:verse"), []);
   const weatherCacheKey = useMemo(() => buildUserScopedCacheKey("dashboard:weather"), []);
 
-  const days = useMemo(() => buildWeekDays(), []);
+  const days = useMemo(() => buildWeekDays(parseDateKey(briefDateKey)), [briefDateKey]);
   const holidayMap = useMemo(() => buildHolidayMap(days), [days]);
 
   const availabilityMatrix = useMemo(
@@ -406,7 +419,8 @@ const Dashboard = () => {
 
   const totalSlots = TIME_SLOTS.length * days.length;
   const availableSlots = availabilityTotals.available;
-  const todayDateKey = buildTodayDate();
+  const todayDateKey = briefDateKey || buildTodayDate();
+  const isBriefDateToday = todayDateKey === buildTodayDate();
 
   const todayBookingsCount = useMemo(
     () =>
@@ -503,7 +517,7 @@ const Dashboard = () => {
     setAvailabilityLoading(true);
     setAvailabilityError("");
     try {
-      const from = new Date();
+      const from = parseDateKey(briefDateKey);
       from.setHours(0, 0, 0, 0);
       const to = new Date(from);
       to.setDate(to.getDate() + 6);
@@ -530,7 +544,7 @@ const Dashboard = () => {
     } finally {
       setAvailabilityLoading(false);
     }
-  }, [availabilityCacheKey]);
+  }, [availabilityCacheKey, briefDateKey]);
 
   useEffect(() => {
     loadAvailability();
@@ -749,16 +763,6 @@ const Dashboard = () => {
     loadActivityLogs();
   }, [loadActivityLogs]);
 
-  const handleRefresh = () => {
-    if (!isRefreshing) {
-      reload({ silent: true });
-    }
-    loadAvailability();
-    loadAccountingSummary({ silent: true });
-    loadActivityLogs();
-    setBriefRefreshTick((previous) => previous + 1);
-  };
-
   const toggleSiteExpansion = (siteId) => {
     setExpandedSites((prev) => ({ ...prev, [siteId]: !prev[siteId] }));
   };
@@ -778,12 +782,6 @@ const Dashboard = () => {
     return <span className={`status-pill is-${tone}`}>{formatStatusLabel(status)}</span>;
   };
 
-  const renderStatusCount = (status, count) => {
-    const tone = getStatusTone(status);
-    return <span className={`status-pill is-${tone}`}>{count}</span>;
-  };
-
-  const organizationStatusBreakdown = kpiData?.organizationStatusBreakdown ?? [];
   const organizations = Array.isArray(kpiData?.organizations) ? kpiData.organizations : [];
   const topLevelOrganizations =
     kpiData?.topLevelOrganizations ?? organizations.filter((organization) => organization.isTopLevel).length;
@@ -795,9 +793,31 @@ const Dashboard = () => {
 
   const siteStatuses = kpiData?.siteStatus?.sites ?? [];
   const systemStatus = kpiData?.status ?? {};
+  const apiSurfaces = Array.isArray(kpiData?.apiSurfaces)
+    ? kpiData.apiSurfaces
+    : [
+        {
+          id: "faako-api",
+          label: "Faako API",
+          status: systemStatus.faakoApi,
+          note: "API surface",
+        },
+        {
+          id: "stroane-api",
+          label: "Stroane API",
+          status: systemStatus.stroaneApi,
+          note: "API surface",
+        },
+      ].filter((surface) => surface.status);
   const lastSyncedLabel = kpiData?.lastSyncedAt ? formatDateTime(kpiData.lastSyncedAt) : "N/A";
   const systemEntries = [
-    { id: "api", label: "API", status: systemStatus.api, note: "Auth + metrics" },
+    { id: "api", label: "Dev ERP API", status: systemStatus.api, note: "Auth + metrics" },
+    ...apiSurfaces.map((surface) => ({
+      id: surface.id,
+      label: surface.label,
+      status: surface.status,
+      note: surface.note || "API surface",
+    })),
     {
       id: "portfolio",
       label: "Primary DB",
@@ -816,6 +836,12 @@ const Dashboard = () => {
       status: systemStatus.faakoDb,
       note: "ERP members",
     },
+    {
+      id: "stroane",
+      label: "Stroane DB",
+      status: systemStatus.stroaneDb,
+      note: "Client commerce data",
+    },
   ];
 
   const siteOverview = siteStatuses.map((site) => {
@@ -823,13 +849,14 @@ const Dashboard = () => {
     return {
       id: site.id,
       title: site.title,
+      category: site.category,
       pages,
       aggregateStatus: getAggregateSiteStatus(pages),
     };
   });
   const orderedSites = [...siteOverview].sort((left, right) => {
-    if (left.id === "reebs-portal") return 1;
-    if (right.id === "reebs-portal") return -1;
+    if (left.id === "stroane-portal" || left.id === "reebs-portal") return 1;
+    if (right.id === "stroane-portal" || right.id === "reebs-portal") return -1;
     return 0;
   });
 
@@ -909,7 +936,7 @@ const Dashboard = () => {
           id: "sync",
           timestamp: kpiData.lastSyncedAt,
           title: "KPI ingestion completed",
-          detail: `Orgs ${kpiData.totalOrganizations ?? 0} | Sites ${onlineSites}/${totalSites} online`,
+          detail: `Orgs ${kpiData.totalOrganizations ?? 0} | Surfaces ${onlineSites}/${totalSites} online`,
           badge: "Sync",
           priority: "normal",
         }
@@ -918,8 +945,8 @@ const Dashboard = () => {
       ? {
           id: "site-check",
           timestamp: kpiData.siteStatus.checkedAt,
-          title: "Website health check",
-          detail: `${onlineSites}/${totalSites} sites online | ${onlinePages}/${totalPages} pages online`,
+          title: "App surface health check",
+          detail: `${onlineSites}/${totalSites} surfaces online | ${onlinePages}/${totalPages} pages online`,
           badge: attentionItems.length ? "Alert" : "Check",
           priority: attentionItems.length ? "urgent" : "normal",
         }
@@ -963,10 +990,9 @@ const Dashboard = () => {
     <section className="page dashboard">
       <div className="dashboard-hero availability-hero">
         <div className="dashboard-hero__intro">
-          <p className="eyebrow">Daily brief</p>
-          <h1>Welcome Baaba</h1>
+          <h1 className="heading">Welcome Baaba</h1>
           <p className="muted">
-            {todayLabel} | Window {rangeDescription} | Last synced {lastSyncedLabel}
+            {todayLabel} | Last synced {lastSyncedLabel}
           </p>
           <VerseWidget textLabel={verseTextLabel} referenceLabel={verseReferenceLabel} />
         </div>
@@ -979,14 +1005,14 @@ const Dashboard = () => {
             />
             <KPICard
               variant="brief"
-              label="Appointments today"
+              label={isBriefDateToday ? "Appointments today" : "Appointments selected day"}
               value={todayBookingsCount}
               meta="Scheduled appointments"
               delta={`Availability ${availableSlots}/${totalSlots}`}
             />
             <KPICard
               variant="brief"
-              label="Open slots today"
+              label={isBriefDateToday ? "Open slots today" : "Open slots selected day"}
               value={`${todayOpenSlots}/${TIME_SLOTS.length}`}
               meta="Available windows"
               delta={
@@ -1000,35 +1026,8 @@ const Dashboard = () => {
               label="Service health"
               value={serviceHealthPercent}
               meta={`${healthyServices}/${totalServices} healthy services`}
-              delta={`${onlineSites}/${totalSites} sites online`}
+              delta={`${onlineSites}/${totalSites} surfaces online`}
             />
-          </div>
-
-          <div className="hero-actions">
-            <div className="segmented" role="tablist" aria-label="Time range">
-              {RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  className={`segment ${option.value === timeRange ? "is-active" : ""}`}
-                  type="button"
-                  aria-pressed={option.value === timeRange}
-                  onClick={() => setTimeRange(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={handleRefresh}
-              disabled={isRefreshing || loading}
-            >
-              {isRefreshing ? "Refreshing..." : "Refresh metrics"}
-            </button>
-            <a className="button button-ghost" href="#site-status">
-              Site status
-            </a>
           </div>
         </div>
       </div>
@@ -1408,7 +1407,6 @@ const Dashboard = () => {
 
       {kpiData ? (
         <>
-          <p className="muted">KPI window: {rangeDescription}.</p>
           <div className="kpi-grid">
             {[
               {
@@ -1425,7 +1423,7 @@ const Dashboard = () => {
               },
               {
                 id: "sites",
-                label: "Sites online",
+                label: "Surfaces online",
                 value: formatRatio(onlineSites, totalSites),
                 delta: `${siteHealthPercent}% uptime`,
               },
@@ -1456,9 +1454,9 @@ const Dashboard = () => {
               },
               {
                 id: "site-health",
-                label: "Site health",
+                label: "Surface health",
                 value: siteHealthPercent,
-                hint: `${onlineSites}/${totalSites} sites online`,
+                hint: `${onlineSites}/${totalSites} surfaces online`,
               },
               {
                 id: "tracked-organizations",
@@ -1505,28 +1503,6 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="glass-card panel">
-              <div className="panel-header">
-                <div>
-                  <h3>System status</h3>
-                </div>
-              </div>
-              <div className="glass-card data-table">
-                <div className="table-row table-head is-3">
-                  <span>Service</span>
-                  <span>Status</span>
-                  <span>Notes</span>
-                </div>
-                {systemEntries.map((row) => (
-                  <div className="table-row is-3" key={row.id}>
-                    <span className="table-strong">{row.label}</span>
-                    {renderStatusPill(row.status)}
-                    <span className="muted">{row.note}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
             <article className="bubble-card panel">
               <div className="panel-header">
                 <div>
@@ -1545,7 +1521,7 @@ const Dashboard = () => {
                 </div>
                 <div className="health-row">
                   <div className="health-row__header">
-                    <span className="table-strong">Sites online</span>
+                    <span className="table-strong">Surfaces online</span>
                     <span>{formatRatio(onlineSites, totalSites)}</span>
                   </div>
                   <div className="progress">
@@ -1587,23 +1563,25 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="bubble-card panel">
+            <article className="glass-card panel panel-span-2">
               <div className="panel-header">
                 <div>
-                  <h3>Organization statuses</h3>
+                  <h3>System status</h3>
                 </div>
               </div>
-              <div className="list">
-                {organizationStatusBreakdown.length ? (
-                  organizationStatusBreakdown.map((item) => (
-                    <div className="list-row is-split" key={item.status}>
-                      <span className="table-strong">{formatStatusLabel(item.status)}</span>
-                      {renderStatusCount(item.status, item.count)}
-                    </div>
-                  ))
-                ) : (
-                  <p className="muted">No org statuses yet.</p>
-                )}
+              <div className="glass-card data-table">
+                <div className="table-row table-head is-3">
+                  <span>Service</span>
+                  <span>Status</span>
+                  <span>Notes</span>
+                </div>
+                {systemEntries.map((row) => (
+                  <div className="table-row is-3" key={row.id}>
+                    <span className="table-strong">{row.label}</span>
+                    {renderStatusPill(row.status)}
+                    <span className="muted">{row.note}</span>
+                  </div>
+                ))}
               </div>
             </article>
 
@@ -1642,7 +1620,7 @@ const Dashboard = () => {
           <section className="glass-card panel site-status" id="site-status">
             <div className="panel-header">
               <div>
-                <h3>Website health</h3>
+                <h3>Website and portal health</h3>
               </div>
             </div>
             <div className="site-grid">
@@ -1653,7 +1631,7 @@ const Dashboard = () => {
                   return (
                     <article
                       key={site.id}
-                      className={`site-card ${site.id === "reebs-portal" ? "is-portal" : ""} ${
+                      className={`site-card ${site.category === "portal" ? "is-portal" : site.category === "erp" ? "is-erp" : ""} ${
                         isExpanded ? "is-expanded" : ""
                       }`.trim()}
                       role="button"

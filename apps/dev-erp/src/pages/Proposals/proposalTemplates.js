@@ -725,10 +725,3 @@ export const getProposalTemplateSectionSummary = (template) => {
 
   return `${enabledCount} default sections${disabledCopy}`;
 };
-
-// TODO(proposal-template-editor): add drag-and-drop section ordering after workflow permissions are reviewed.
-// TODO(proposal-template-branding): support custom proposal themes and reusable cover designs.
-// TODO(proposal-template-ai): add AI-generated sections only after customer-data handling is approved.
-// TODO(proposal-template-travel): add dedicated travel itinerary blocks after travel data needs are mapped.
-// TODO(proposal-template-pricing): add reusable pricing blocks after invoice conversion planning is complete.
-// TODO(proposal-template-analytics): add proposal analytics only after privacy and retention rules exist.

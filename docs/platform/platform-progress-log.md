@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Automatic app registry onboarding
+
+Date: 2026-06-03
+Change name: Automatic app registry onboarding
+Apps/packages affected: App creation script, `@faako/config`, byNana portfolio metadata
+What changed: Updated `pnpm create:app` so newly cloned apps are automatically added to shared monorepo monitoring metadata, private draft portfolio project metadata, and `docs/apps/<new-app>/README.md`. Monitoring category/pages/env overrides are inferred from the source app and target name, while project metadata stays private until explicitly reviewed for publication.
+Why it changed: New app creation previously required manual registry and portfolio metadata edits, which made Dev ERP monitoring and future byNana portfolio project tracking easy to miss.
+Files changed: scripts/create-app-from-reference.mjs, docs/app-platform.md, apps/bynana-portfolio/README.md, packages/config/README.md, docs/platform/platform-progress-log.md.
+Data impact: None. Future create-app runs edit source-controlled metadata only; no database, migration, hosted service, payment, customer, report, or audit data changes.
+Security impact: New portfolio entries are private drafts by default. The clone flow still skips env/key material and does not publish case studies automatically.
+Testing done: `node --check scripts/create-app-from-reference.mjs` passed. Focused registry/status tests passed. `pnpm run monitoring:check` passed. `pnpm run project-registry:check` completed with existing legacy-app metadata warnings only. Dev ERP tests passed with 104 tests. Dev ERP lint and build passed. Affected-file `git diff --check` passed.
+Rollback notes: Revert the create-app auto-registration helpers and documentation updates; app cloning would return to manual registry follow-up.
+Next step: When creating a real app, review the generated monitoring route list and private project metadata before deployment or public portfolio publication.
+
+### Surface-aware app monitoring registry
+
+Date: 2026-06-03
+Change name: Surface-aware app monitoring registry
+Apps/packages affected: `@faako/config`, Dev ERP
+What changed: Expanded shared app monitoring metadata for Stroane, Faako, and REEBS frontend/portal routes, added Stroane portal and backend API surfaces, and documented that Dev ERP keeps API/internal-only surfaces out of website page health while promoting APIs into System Status.
+Why it changed: The monitoring view needed complete hosted frontend/portal coverage without showing backend APIs, System Starter, or UI Workbench as website pages.
+Files changed: packages/config/src/monorepoApps/appRegistry.js, packages/config/src/monorepoApps/appRegistry.test.js, packages/config/README.md, Dev ERP monitoring/status files, Dev ERP docs.
+Data impact: None in shared config. Dev ERP separately seeds the missing Stroane organization when its backend starts.
+Security impact: None. Monitoring metadata only; no auth, permission, cookie, CORS, or API write behavior changed.
+Testing done: Focused registry/status tests, `pnpm run monitoring:check`, Dev ERP tests/lint/build, backend syntax check, and affected-file `git diff --check` passed.
+Rollback notes: Restore the previous registry route list and Dev ERP monitoring separation.
+Next step: Reuse the same category split when adding future hosted portals or backend APIs to the registry.
+
 ### Shared branded month and time fields
 
 Date: 2026-06-02

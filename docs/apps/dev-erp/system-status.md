@@ -25,13 +25,12 @@ Fully live system with real operational data. Treat all changes as production-se
 - Shared shell and form styling alignment with other ERP-style apps.
 - Backend route hardening and deployment readiness.
 - Paystack invoice/payment foundation planning. Current work is config/documentation only and does not generate payment links, verify webhooks, create receipts, or mutate payment/invoice records.
-- Proposal persistence, preview, secure client view, and lightweight client response foundation. Current `/proposals` work supports private authenticated proposal records, lightweight versioning, internal preview routing, secure-token preparation, `/proposal/view/:token` client viewing, and approve/request-changes responses for `shared` proposals. It does not expose drafts/internal-review proposals, create invoices, generate Paystack links, create digital signatures, send approval notifications, or run AI generation.
+- Proposal persistence, preview, secure client view, lightweight client responses, audit logging, and invoice draft handoff. Current `/proposals` work supports private authenticated proposal records, lightweight versioning, internal preview routing, secure-token preparation/sharing, `/proposal/view/:token` client viewing, approve/request-changes responses for `shared` proposals, and editable invoice drafts for approved proposals. It does not expose drafts/internal-review proposals, generate Paystack links, create digital signatures, send approval notifications, or run AI generation.
 
 ## Experimental modules/features
 
 - Any local-only workflow prototypes until explicitly reviewed for production use.
 - New integrations, alerts, AI/productivity endpoints, and automation jobs until validated against live-system safety expectations.
-- Proposal Generator client-view/response MVP until server-owned approval records, digital signatures, approval audit logs, version locking, server PDF rendering/storage, invoice conversion, Paystack links, expiry-management UI, view tracking, notifications, and AI boundaries are reviewed.
 
 ## High-risk areas
 

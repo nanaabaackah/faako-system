@@ -38,15 +38,6 @@ import {
 } from "./proposalWorkflow";
 import "./Proposals.css";
 
-// TODO(proposal-pdf-generation): wire export metadata to a dedicated PDF service later.
-// TODO(proposal-client-view): add access logging, expiry controls, and email/share sending after privacy review.
-// TODO(proposal-approval-flow): replace client response JSON with server-owned approval records later.
-// TODO(proposal-invoice-conversion): map approved proposals to invoices only after finance review.
-// TODO(proposal-paystack): connect Paystack only after verified references and webhook handling exist.
-// TODO(proposal-client-approval-actions): add digital signatures, comments, and client notifications after access rules exist.
-// TODO(proposal-versioning-analytics-ai): add revision history, analytics, and AI wording after privacy review.
-// TODO(proposal-template-management): add custom template editing only after permission and audit boundaries exist.
-
 const BLOCKS_WITH_ITEMS = new Set([
   PROPOSAL_BLOCK_TYPES.ABOUT_BUSINESS,
   PROPOSAL_BLOCK_TYPES.GOALS,
@@ -149,6 +140,7 @@ const mapProposalRecordToDraft = (record) => {
     hasShareToken: Boolean(record.hasShareToken),
     shareTokenCreatedAt: record.shareTokenCreatedAt || null,
     shareTokenExpiresAt: record.shareTokenExpiresAt || null,
+    sharedAt: record.sharedAt || null,
     shareLink: record.shareLink || null,
     branding: {
       ...fallback.branding,
@@ -175,6 +167,7 @@ const buildProposalSavePayload = (proposal) => {
     "hasShareToken",
     "shareTokenCreatedAt",
     "shareTokenExpiresAt",
+    "sharedAt",
     "shareLink",
     "metadata",
   ].forEach((key) => {
@@ -542,21 +535,43 @@ function ProposalSetupPanel({
   enabledBlockCount,
   isSaving,
   isPreparingShareLink,
+  isSharingProposal,
+  isCreatingInvoice,
   hasUnsavedChanges,
   onApplyTemplate,
   onProposalChange,
   onBrandingChange,
   onSave,
   onPrepareShareLink,
+  onShareProposal,
   onCopyShareLink,
+  onCreateInvoice,
+  onOpenInvoices,
   onPrint,
   onStartNewDraft,
 }) {
+  const invoiceNumber = proposal.metadata?.invoiceNumber || proposal.metadata?.invoiceDraftNumber || "";
+  const hasInvoiceDraft = Boolean(proposal.metadata?.invoiceId || invoiceNumber);
+  const canShare =
+    proposal.savedId &&
+    !hasUnsavedChanges &&
+    !isSaving &&
+    !isPreparingShareLink &&
+    !isSharingProposal &&
+    proposal.status !== PROPOSAL_STATUSES.ARCHIVED;
+  const canCreateInvoice =
+    proposal.savedId &&
+    !hasUnsavedChanges &&
+    !isSaving &&
+    !isCreatingInvoice &&
+    !hasInvoiceDraft &&
+    proposal.status === PROPOSAL_STATUSES.APPROVED;
+
   return (
     <ErpPanel className="proposal-setup-panel">
       <ErpPanelHeader
         title="Proposal setup"
-        description="Adjust the document, save versions, and prepare a secure client link."
+        description="Adjust the document, save versions, share a secure client link, and hand approved proposals to invoicing."
         actions={(
           <>
             <button
@@ -657,6 +672,18 @@ function ProposalSetupPanel({
           >
             {isPreparingShareLink ? "Preparing..." : "Prepare secure link"}
           </button>
+          <button
+            type="button"
+            className="button"
+            onClick={onShareProposal}
+            disabled={!canShare}
+          >
+            {isSharingProposal
+              ? "Sharing..."
+              : proposal.status === PROPOSAL_STATUSES.SHARED
+                ? "Refresh shared link"
+                : "Share proposal"}
+          </button>
         </div>
         <div className="proposal-record-meta" aria-label="Proposal record metadata">
           <span>Template: {proposal.template?.name || proposal.metadata?.templateName || "Custom draft"}</span>
@@ -669,6 +696,11 @@ function ProposalSetupPanel({
             <span>Secure token expires {formatProposalTimestamp(proposal.shareTokenExpiresAt)}</span>
           ) : (
             <span>No secure token prepared</span>
+          )}
+          {invoiceNumber ? (
+            <span>Invoice handoff: {invoiceNumber}</span>
+          ) : (
+            <span>No invoice handoff yet</span>
           )}
         </div>
         {proposal.shareLink ? (
@@ -693,6 +725,35 @@ function ProposalSetupPanel({
             </div>
           </div>
         ) : null}
+        <div className="proposal-share-foundation" role="note">
+          <strong>{hasInvoiceDraft ? "Invoice draft ready" : "Invoice handoff"}</strong>
+          <span>
+            {hasInvoiceDraft
+              ? `Proposal is linked to ${invoiceNumber || "an invoice draft"}.`
+              : proposal.status === PROPOSAL_STATUSES.APPROVED
+                ? "Create a draft invoice from the approved pricing summary."
+                : "Available after the client approves the shared proposal."}
+          </span>
+          <small>
+            The draft stays editable in Invoicing before sending, quotation, or payment workflows.
+          </small>
+          <div className="proposal-share-foundation__actions">
+            {hasInvoiceDraft ? (
+              <button type="button" className="button button-ghost" onClick={onOpenInvoices}>
+                Open Invoicing
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={onCreateInvoice}
+                disabled={!canCreateInvoice}
+              >
+                {isCreatingInvoice ? "Creating..." : "Create invoice draft"}
+              </button>
+            )}
+          </div>
+        </div>
       </StackGroup>
     </ErpPanel>
   );
@@ -838,6 +899,8 @@ function Proposals() {
   const [isLoadingProposal, setIsLoadingProposal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPreparingShareLink, setIsPreparingShareLink] = useState(false);
+  const [isSharingProposal, setIsSharingProposal] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateFilter, setTemplateFilter] = useState("all");
@@ -1088,6 +1151,83 @@ function Proposals() {
     }
   };
 
+  const shareProposal = async () => {
+    if (!proposal.savedId || hasUnsavedChanges) return;
+    setIsSharingProposal(true);
+    try {
+      const response = await apiPost(
+        `/api/proposals/${proposal.savedId}/share-token`,
+        { status: PROPOSAL_STATUSES.SHARED },
+        {
+          fallbackMessage: "Unable to share proposal",
+        }
+      );
+      const savedRecord = response?.proposal;
+      if (savedRecord) {
+        const draft = mapProposalRecordToDraft(savedRecord);
+        setProposal(draft);
+        setSelectedTemplateId(
+          draft.template?.key || draft.metadata?.templateKey || PROPOSAL_TEMPLATE_LIBRARY[0].id
+        );
+        setSavedProposals((records) => upsertProposalRecord(records, savedRecord));
+        setHasUnsavedChanges(false);
+        setNotice({
+          tone: "success",
+          message: "Proposal shared. The secure client view is now available.",
+        });
+      }
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error?.message || "Unable to share proposal.",
+      });
+    } finally {
+      setIsSharingProposal(false);
+    }
+  };
+
+  const createInvoiceFromProposal = async () => {
+    if (!proposal.savedId || hasUnsavedChanges) return;
+    if (proposal.status !== PROPOSAL_STATUSES.APPROVED) {
+      setNotice({
+        tone: "warning",
+        message: "Create the invoice draft after the proposal is approved.",
+      });
+      return;
+    }
+
+    setIsCreatingInvoice(true);
+    try {
+      const response = await apiPost(
+        `/api/proposals/${proposal.savedId}/create-invoice`,
+        { status: "DRAFT" },
+        {
+          fallbackMessage: "Unable to create invoice draft",
+        }
+      );
+      const savedRecord = response?.proposal;
+      if (savedRecord) {
+        const draft = mapProposalRecordToDraft(savedRecord);
+        setProposal(draft);
+        setSavedProposals((records) => upsertProposalRecord(records, savedRecord));
+      }
+      setNotice({
+        tone: "success",
+        message:
+          response?.created === false
+            ? `Invoice ${response?.invoice?.invoiceNumber || "draft"} is already linked to this proposal.`
+            : `Invoice ${response?.invoice?.invoiceNumber || "draft"} created from the approved proposal.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error?.message || "Unable to create invoice draft.",
+      });
+    } finally {
+      setIsCreatingInvoice(false);
+    }
+  };
+
   const copyShareLink = async () => {
     const shareUrl = proposal.shareLink?.clientViewUrl || proposal.shareLink?.clientViewPath;
     if (!shareUrl) return;
@@ -1304,13 +1444,18 @@ function Proposals() {
                   enabledBlockCount={enabledBlockCount}
                   isSaving={isSaving}
                   isPreparingShareLink={isPreparingShareLink}
+                  isSharingProposal={isSharingProposal}
+                  isCreatingInvoice={isCreatingInvoice}
                   hasUnsavedChanges={hasUnsavedChanges}
                   onApplyTemplate={applyTemplate}
                   onProposalChange={updateProposal}
                   onBrandingChange={updateBranding}
                   onSave={saveProposal}
                   onPrepareShareLink={prepareShareLink}
+                  onShareProposal={shareProposal}
                   onCopyShareLink={copyShareLink}
+                  onCreateInvoice={createInvoiceFromProposal}
+                  onOpenInvoices={() => navigate("/invoicing")}
                   onPrint={printProposal}
                   onStartNewDraft={startNewDraft}
                 />

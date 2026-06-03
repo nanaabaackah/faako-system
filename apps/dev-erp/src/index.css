@@ -963,6 +963,10 @@ body.nav-open .mobile-tabbar {
   color: var(--muted);
 }
 
+.heading{
+  margin:0;
+}
+
 .dashboard-hero {
   display: flex;
   align-items: center;

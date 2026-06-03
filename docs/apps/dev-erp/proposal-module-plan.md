@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Document the Dev ERP Proposal Generator foundation before server PDF rendering, digital signatures, invoice conversion, Paystack payment links, or AI-assisted proposal generation are implemented.
+Document the Dev ERP Proposal Generator foundation, including secure sharing and approved-proposal invoice draft handoff, before server PDF rendering, digital signatures, Paystack payment links, or AI-assisted proposal generation are implemented.
 
 ## Current Foundation
 
@@ -15,7 +15,7 @@ Document the Dev ERP Proposal Generator foundation before server PDF rendering, 
 - Template management helpers: `apps/dev-erp/src/pages/Proposals/proposalTemplates.js`
 - Export metadata helpers: `apps/dev-erp/src/pages/Proposals/proposalExportConfig.js`
 - Styles: `apps/dev-erp/src/pages/Proposals/Proposals.css`
-- Authenticated API routes: `/api/proposals`, `/api/proposals/:id`, `/api/proposals/:id/share-token`
+- Authenticated API routes: `/api/proposals`, `/api/proposals/:id`, `/api/proposals/:id/share-token`, `/api/proposals/:id/create-invoice`
 - Client-safe public API routes: `/api/proposals/view/:token`, `/api/proposals/view/:token/approve`, `/api/proposals/view/:token/request-changes`
 - Client-facing route: `/proposal/view/:token`
 - Additive schema: `Proposal`
@@ -23,7 +23,7 @@ Document the Dev ERP Proposal Generator foundation before server PDF rendering, 
 - Registry entry: `apps/dev-erp/src/config/adminModules.js`
 - Navigation adapter: `apps/dev-erp/src/app/navigation.js`
 
-The current implementation supports private, authenticated proposal persistence, internal preview, secure token-based client view, and lightweight client approval/request-changes responses. Draft, internal-review, archived, invalid, and expired proposals are not exposed through the client view. Client actions are available only while a proposal is `shared`; approved and changes-requested proposals remain viewable for confirmation. Invoice/payment workflows remain disabled.
+The current implementation supports private, authenticated proposal persistence, internal preview, secure token-based client view, lightweight client approval/request-changes responses, audit events for proposal state changes, and an approved-proposal to invoice-draft handoff. Draft, internal-review, archived, invalid, and expired proposals are not exposed through the client view. Client actions are available only while a proposal is `shared`; approved and changes-requested proposals remain viewable for confirmation. Invoice drafts remain editable in the authenticated Invoicing module before sending, quotation, payment, or Paystack workflows.
 
 ## Persistence Foundation
 
@@ -68,7 +68,20 @@ The version number increments when a proposal record is saved through the authen
 - Approving through the secure link updates the proposal status to `approved` and stores client name/contact plus an approved timestamp inside `content.workflow.clientResponse`.
 - Requesting changes through the secure link requires feedback text, updates the proposal status to `changes_requested`, stores client name/contact/message plus requested-changes timestamp inside `content.workflow.clientResponse`, and mirrors the message into `clientChangeRequestNotes` for internal review.
 - The internal Dev ERP proposal workflow panel shows the current status and any client response/feedback.
-- This is not a full collaboration, notification, audit-log, digital signature, invoice conversion, or payment workflow system.
+- Client approvals and change requests write audit log events for operational visibility.
+- This is not a full collaboration, notification, digital signature, payment, or immutable approval-record system.
+
+## Invoice Draft Handoff
+
+- Approved proposals expose a Create invoice draft action in the authenticated proposal setup rail.
+- The backend endpoint is `/api/proposals/:id/create-invoice`.
+- Only authenticated admins can create invoice drafts, and the proposal must be in `approved` status.
+- Pricing rows from enabled proposal pricing sections become editable invoice line items.
+- Unresolved proposal amounts such as `TBD` become zero-value invoice rows and are noted on the invoice for manual review.
+- The created invoice is linked back to proposal metadata with `invoiceId`, `invoiceNumber`, `invoiceStatus`, and creator/timestamp fields.
+- Re-running the handoff for a linked proposal returns the existing invoice instead of creating duplicates.
+- The handoff writes proposal and invoice audit events.
+- No invoice is sent automatically. Public invoice links, quotation sends, paid status, receipts, and Paystack payment links remain owned by the Invoicing/payment workflows.
 
 ## Proposal Types
 
@@ -196,13 +209,13 @@ These are editable in local state directly on the document and visible in the ge
 - Share tokens are never returned by the client-safe proposal payload.
 - Proposal metadata sanitization drops sensitive key names such as secrets, API keys, tokens, cookies, credentials, and webhook values.
 - No server PDF generation.
-- Lightweight client approval/request-changes actions are token-scoped and stored in proposal content JSON. No digital signature, server-owned approval record table, email notification, audit-log event, invoice conversion, or payment link is created.
-- No invoice conversion.
+- Lightweight client approval/request-changes actions are token-scoped and stored in proposal content JSON. No digital signature, server-owned approval record table, email notification, automatic invoice send, or payment link is created.
+- Approved proposals can create editable invoice drafts from authenticated admin routes.
 - No Paystack payment links.
 - No AI generation.
-- No payment, invoice, rent, accounting, report, receipt, auth, permission, or existing production workflow behavior changed.
+- No payment, rent, accounting, report, receipt, auth, permission, or existing production workflow behavior changed.
 
-## Future TODOs
+## Future Work
 
 - Add access logging, expiry controls/renewal UX, and view tracking for the client-view route.
 - Replace lightweight client response JSON with server-owned approval records and optional digital signatures after requirements are designed.
@@ -212,7 +225,7 @@ These are editable in local state directly on the document and visible in the ge
 - Add PDF generation following the approved presentation-style/Stroane proposal direction.
 - Replace the approval foundation with server-owned approval records and digital signature support.
 - Add proposal comments/feedback after notification and access-control rules are designed.
-- Add invoice conversion after finance workflow review.
+- Expand invoice handoff only after finance workflow review covers quotation sends, accepted quotations, payment states, receipts, and rollback rules.
 - Add Paystack payment links only after webhook verification, idempotency, and payment-reference persistence exist.
 - Add onboarding conversion after approved-proposal handoff rules are mapped.
 - Add proposal analytics after privacy and retention rules are defined.
@@ -220,19 +233,18 @@ These are editable in local state directly on the document and visible in the ge
 - Reuse proposal blocks for travel proposals and itinerary approval flows after travel-specific data needs are mapped.
 - Add drag-and-drop template editing after permissions and audit boundaries are reviewed.
 - Add custom branding/themes and reusable cover designs after PDF/export styling decisions are approved.
-- Add reusable pricing blocks after proposal-to-invoice conversion planning is complete.
+- Add reusable pricing blocks after invoice handoff rules are proven against live invoice workflows.
 
 ## Recommended Implementation Order
 
-1. Proposal-to-invoice conversion planning.
-2. Server-owned approval records, approval audit logs, proposal version locks, and optional digital signature planning.
-3. PDF renderer proof of concept using the online preview/export metadata as the source of truth.
-4. Access logging, expiry controls, and view tracking for client proposal links.
-5. Full revision history and audit events.
-6. Paystack payment-link integration.
-7. Onboarding conversion planning.
-8. Travel itinerary proposal rendering and approval flow planning.
-9. AI-assisted wording.
+1. Server-owned approval records, proposal version locks, and optional digital signature planning.
+2. Server PDF renderer proof of concept using the online preview/export metadata as the source of truth.
+3. Access logging, expiry controls, and view tracking for client proposal links.
+4. Full revision history and immutable approval records.
+5. Paystack payment-link integration after invoice/payment safety review.
+6. Onboarding conversion planning.
+7. Travel itinerary proposal rendering and approval flow planning.
+8. AI-assisted wording.
 
 ## Rollback Notes
 
@@ -263,9 +275,12 @@ Remove the `/proposals` and `/proposals/:proposalId/preview` routes, proposal AP
 - Pricing and timeline rows can be added and removed from the editable document.
 - Secure token preparation is disabled for unsaved or dirty drafts.
 - Secure token preparation stores token metadata and exposes client-safe proposal content only for shared/approved/changes-requested proposals.
-- Client approval updates status to approved without creating invoices, payments, Paystack links, email notifications, or digital signatures.
+- Share proposal publishes a saved clean draft to `shared` status and opens the secure client view.
+- Client approval updates status to approved without sending invoices, payments, Paystack links, email notifications, or digital signatures.
 - Client request changes updates status to changes_requested and preserves the message without creating comments, notifications, invoices, payments, or Paystack links.
+- Approved proposals can create an editable invoice draft in Invoicing.
+- Re-running invoice handoff on a linked proposal returns the existing invoice instead of duplicating it.
 - Mobile layout stacks without horizontal overflow.
 - Print preview shows only the proposal preview area.
 - Print preview preserves cover/personal note/pricing/timeline/terms/approval section ordering.
-- Existing invoice, rent payment, accounting, report, and Paystack planning behavior remains unchanged.
+- Existing invoice send, quotation, rent payment, accounting, report, and Paystack planning behavior remains unchanged.

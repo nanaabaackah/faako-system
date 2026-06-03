@@ -12,13 +12,6 @@ import {
 import ProposalPreview from "./ProposalPreview";
 import "./Proposals.css";
 
-// TODO(proposal-digital-signature): replace this lightweight response form with
-// signed approval records when legal/signature requirements are defined.
-// TODO(proposal-client-notifications): notify staff by email only after consent,
-// delivery-provider, audit, and retry behavior are reviewed.
-// TODO(proposal-post-approval-workflows): keep invoice conversion and Paystack
-// payment links disabled until finance/payment safety reviews are complete.
-
 const CLIENT_VIEW_STATE_COPY = {
   LOADING: {
     title: "Loading proposal",
@@ -295,8 +288,8 @@ function ProposalClientView() {
               {canRespond ? (
                 <>
                   <p>
-                    You can approve this proposal or request changes. This does not create an
-                    invoice, payment link, or digital signature yet.
+                    You can approve this proposal or request changes. Approval lets the team create
+                    an editable invoice draft before anything is sent.
                   </p>
                   <div className="proposal-client-approval-actions">
                     <button

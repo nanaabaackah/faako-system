@@ -95,15 +95,49 @@ export const MONOREPO_APP_REGISTRY = [
       { label: "Home", path: "/" },
       { label: "About", path: "/about" },
       { label: "Services", path: "/services" },
+      { label: "Catalogue", path: "/catalogue" },
       { label: "Resources", path: "/resources" },
       { label: "Shop", path: "/shop" },
       { label: "Contact", path: "/contact" },
+      { label: "Products", path: "/products" },
+      { label: "Checkout", path: "/checkout" },
+      { label: "Checkout return", path: "/checkout/return" },
+      { label: "Account", path: "/account" },
+      { label: "Orders", path: "/orders" },
+      { label: "Quotes", path: "/quotes" },
+      { label: "Sign in", path: "/signin" },
+      { label: "Sign up", path: "/signup" },
+      { label: "Terms", path: "/terms" },
+      { label: "Privacy", path: "/privacy" },
+      { label: "Cookies", path: "/cookies" },
+      { label: "Sitemap", path: "/sitemap" },
+      { label: "Search", path: "/search" },
     ],
     additionalMonitoringSites: [
+      {
+        id: "stroane-portal",
+        title: "portal.stroanesolutions.com",
+        purpose: "Stroane authenticated admin portal surface.",
+        category: "portal",
+        defaultBaseUrl: "https://portal.stroanesolutions.com",
+        envBaseUrlKeys: ["STROANE_PORTAL_BASE_URL", "STROANE_PORTAL_URL"],
+        monitoringPages: [
+          { label: "Admin dashboard", path: "/admin" },
+          { label: "Inventory", path: "/admin/inventory" },
+          { label: "Suppliers", path: "/admin/suppliers" },
+          { label: "Products", path: "/admin/products" },
+          { label: "Operations", path: "/admin/operations" },
+          { label: "Orders", path: "/admin/orders" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Settings", path: "/admin/settings" },
+          { label: "Login", path: "/login" },
+        ],
+      },
       {
         id: "stroane-api",
         title: "Stroane API",
         purpose: "Optional Stroane backend/API health and catalogue endpoints.",
+        category: "api",
         envBaseUrlKeys: [
           "STROANE_API_BASE_URL",
           "STROANE_BACKEND_BASE_URL",
@@ -111,6 +145,8 @@ export const MONOREPO_APP_REGISTRY = [
         ],
         monitoringPages: [
           { label: "Health", path: "/health" },
+          { label: "Catalogue products", path: "/api/catalogue/products" },
+          { label: "Catalogue categories", path: "/api/catalogue/categories" },
           { label: "Products API", path: "/api/products" },
           { label: "Categories API", path: "/api/categories" },
         ],
@@ -131,8 +167,18 @@ export const MONOREPO_APP_REGISTRY = [
     envBaseUrlKeys: ["FAAKO_WEBSITE_BASE_URL", "FAAKO_BASE_URL"],
     monitoringPages: [
       { label: "Home", path: "/" },
+      { label: "Solutions", path: "/solutions" },
+      { label: "Case studies", path: "/case-studies" },
+      { label: "About", path: "/about" },
       { label: "Pricing", path: "/pricing" },
+      { label: "Configure", path: "/configure" },
+      { label: "Dashboard", path: "/dashboard" },
       { label: "Signup", path: "/signup" },
+      { label: "Login", path: "/login" },
+      { label: "Forgot password", path: "/forgot-password" },
+      { label: "Contact", path: "/contact" },
+      { label: "Privacy", path: "/privacy" },
+      { label: "Terms", path: "/terms" },
     ],
   },
   {
@@ -162,12 +208,22 @@ export const MONOREPO_APP_REGISTRY = [
     envBaseUrlKeys: ["REEBS_WEBSITE_BASE_URL", "REEBS_WEBSITE_URL"],
     monitoringPages: [
       { label: "Home", path: "/" },
+      { label: "About", path: "/about" },
       { label: "Shop", path: "/shop" },
       { label: "Rentals", path: "/rentals" },
+      { label: "Cart", path: "/cart" },
+      { label: "Checkout", path: "/checkout" },
       { label: "Gallery", path: "/gallery" },
       { label: "FAQ", path: "/faq" },
       { label: "Contact", path: "/contact" },
       { label: "Book", path: "/book" },
+      { label: "Customer login", path: "/customer-login" },
+      { label: "Login", path: "/login" },
+      { label: "Reset password", path: "/reset-password" },
+      { label: "Delivery policy", path: "/delivery-policy" },
+      { label: "Privacy policy", path: "/privacy-policy" },
+      { label: "Refund policy", path: "/refund-policy" },
+      { label: "Terms of service", path: "/terms-of-service" },
     ],
   },
   {
@@ -253,6 +309,7 @@ export const getMonorepoMonitoringSites = (env = {}) =>
           packageName: app.packageName,
           path: app.path,
           title: app.title,
+          category: app.category,
           baseUrl,
           configured: Boolean(baseUrl),
           monitoringOptional: Boolean(app.monitoringOptional),
@@ -266,8 +323,10 @@ export const getMonorepoMonitoringSites = (env = {}) =>
         const additionalBaseUrl = normalizeBaseUrl(
           additionalEnvBaseUrl || additionalSite.defaultBaseUrl
         );
+        const pages = compactPages(additionalSite.monitoringPages);
+        const showWhenUnconfigured = additionalSite.showWhenUnconfigured !== false;
 
-        if (!additionalBaseUrl) continue;
+        if (!additionalBaseUrl && !showWhenUnconfigured) continue;
 
         sites.push({
           id: additionalSite.id || `${app.key}-api`,
@@ -275,9 +334,12 @@ export const getMonorepoMonitoringSites = (env = {}) =>
           packageName: app.packageName,
           path: app.path,
           title: additionalSite.title || app.title,
+          category: additionalSite.category || app.category,
           baseUrl: additionalBaseUrl,
+          configured: Boolean(additionalBaseUrl),
+          monitoringOptional: Boolean(additionalSite.monitoringOptional),
           productionSensitive: Boolean(app.productionSensitive),
-          pages: compactPages(additionalSite.monitoringPages),
+          pages,
         });
       }
 

@@ -89,12 +89,17 @@ That command:
 - keeps the real working structure instead of generating boilerplate
 - rewrites the workspace package name
 - rewrites app-path references like `apps/faako-erp`
+- adds the app to shared monorepo monitoring metadata with blank hosted URL env overrides
+- adds private draft project metadata for future byNana portfolio/case-study workflows
+- creates `docs/apps/<new-app>/README.md` as the first project documentation stub
 - leaves company branding/content changes for a manual pass
 
 Manual follow-up after cloning:
 
 - update branding, copy, domains, logos, and company-specific env values
 - search the new app for source-company wording and replace it deliberately
+- review the generated monitoring category, route list, and env override names
+- review the generated private portfolio metadata before making it public
 - review sibling-app references and local URLs
 - if the new app mirrors another app during build, register that in `workspace-links.json`
 

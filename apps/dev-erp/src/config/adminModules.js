@@ -45,7 +45,7 @@ export const DEV_ERP_ADMIN_MODULES = [
     ...DEFAULT_MODULE_STATE,
     path: "/proposals",
     group: ERP_MODULE_GROUPS.SALES,
-    status: ERP_MODULE_STATUSES.EXPERIMENTAL,
+    status: ERP_MODULE_STATUSES.STABLE,
     core: false,
     requiredPermission: "proposals",
   },

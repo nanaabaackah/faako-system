@@ -54,6 +54,26 @@ const SystemHealth = () => {
 
   const systemStatus = kpiData?.status ?? {};
   const rawSiteStatuses = kpiData?.siteStatus?.sites;
+  const apiSurfaces = useMemo(
+    () =>
+      Array.isArray(kpiData?.apiSurfaces)
+        ? kpiData.apiSurfaces
+        : [
+            {
+              id: "faako-api",
+              label: "Faako API",
+              status: systemStatus.faakoApi,
+              note: "API surface",
+            },
+            {
+              id: "stroane-api",
+              label: "Stroane API",
+              status: systemStatus.stroaneApi,
+              note: "API surface",
+            },
+          ].filter((surface) => surface.status),
+    [kpiData?.apiSurfaces, systemStatus.faakoApi, systemStatus.stroaneApi]
+  );
   const siteStatuses = useMemo(
     () => (Array.isArray(rawSiteStatuses) ? rawSiteStatuses : []),
     [rawSiteStatuses]
@@ -65,7 +85,13 @@ const SystemHealth = () => {
 
   const systemEntries = useMemo(
     () => [
-      { id: "api", label: "API", status: systemStatus.api, note: "Auth + metrics" },
+      { id: "api", label: "Dev ERP API", status: systemStatus.api, note: "Auth + metrics" },
+      ...apiSurfaces.map((surface) => ({
+        id: surface.id,
+        label: surface.label,
+        status: surface.status,
+        note: surface.note || "API surface",
+      })),
       {
         id: "portfolio",
         label: "Primary DB",
@@ -84,8 +110,21 @@ const SystemHealth = () => {
         status: systemStatus.faakoDb,
         note: "ERP members",
       },
+      {
+        id: "stroane",
+        label: "Stroane DB",
+        status: systemStatus.stroaneDb,
+        note: "Client commerce data",
+      },
     ],
-    [systemStatus.api, systemStatus.faakoDb, systemStatus.portfolioDb, systemStatus.reebsDb]
+    [
+      apiSurfaces,
+      systemStatus.api,
+      systemStatus.faakoDb,
+      systemStatus.portfolioDb,
+      systemStatus.reebsDb,
+      systemStatus.stroaneDb,
+    ]
   );
 
   const siteOverview = useMemo(
@@ -95,6 +134,7 @@ const SystemHealth = () => {
         return {
           id: site.id,
           title: site.title,
+          category: site.category,
           pages,
           aggregateStatus: getAggregateSiteStatus(pages),
         };
@@ -263,7 +303,7 @@ const SystemHealth = () => {
             <section className="panel site-status" id="site-health">
               <div className="panel-header">
                 <div>
-                  <h3>Website health</h3>
+                  <h3>Website and portal health</h3>
                   <p className="muted">Last refreshed {lastCheckedLabel}.</p>
                 </div>
               </div>

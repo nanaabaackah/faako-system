@@ -379,6 +379,7 @@ const { PrismaClient } = prismaPkg;
 const prisma = new PrismaClient({ adapter });
 const reebsDatabaseUrl = process.env.REEBS_DATABASE_URL;
 const faakoDatabaseUrl = process.env.FAAKO_DATABASE_URL;
+const stroaneDatabaseUrl = process.env.STROANE_DATABASE_URL;
 const ALLOW_START_WITHOUT_DATABASE = parseEnvBoolean(
   process.env.ALLOW_START_WITHOUT_DATABASE,
   !isProduction
@@ -506,6 +507,15 @@ const faakoPool = faakoDatabaseUrl
       ssl: resolvePgSslConfig({
         connectionString: faakoDatabaseUrl,
         envPrefix: "FAAKO_DATABASE",
+      }),
+    })
+  : null;
+const stroanePool = stroaneDatabaseUrl
+  ? new Pool({
+      connectionString: stroaneDatabaseUrl,
+      ssl: resolvePgSslConfig({
+        connectionString: stroaneDatabaseUrl,
+        envPrefix: "STROANE_DATABASE",
       }),
     })
   : null;
@@ -703,6 +713,8 @@ const buildSiteStatus = async () => {
 
 const buildSiteStatusFallback = (status = "unknown") =>
   buildConfiguredSiteStatusFallback(SITE_PAGES, status);
+
+const isWebsiteHealthSurface = (site) => site?.category !== "api" && site?.category !== "internal";
 
 const getSiteStatus = async () => {
   const now = Date.now();
@@ -1291,6 +1303,8 @@ const REEBS_ORG_NAME = process.env.REEBS_ORG_NAME ?? "Reebs";
 const REEBS_ORG_SLUG = process.env.REEBS_ORG_SLUG ?? "reebs";
 const FAAKO_ORG_NAME = process.env.FAAKO_ORG_NAME ?? "Faako";
 const FAAKO_ORG_SLUG = process.env.FAAKO_ORG_SLUG ?? "faako";
+const STROANE_ORG_NAME = process.env.STROANE_ORG_NAME ?? "Stroane";
+const STROANE_ORG_SLUG = process.env.STROANE_ORG_SLUG ?? "stroane";
 const normalizeOrganizationSlug = (value) => String(value || "").trim().toLowerCase();
 const parseOrganizationSlugList = (value) =>
   String(value || "")
@@ -1304,6 +1318,7 @@ const FAAKO_CHILD_ORG_SLUGS = Array.from(
       normalizeOrganizationSlug(BY_NANA_ORG_SLUG),
       normalizeOrganizationSlug(DEFAULT_ORG_SLUG),
       normalizeOrganizationSlug(REEBS_ORG_SLUG),
+      normalizeOrganizationSlug(STROANE_ORG_SLUG),
     ].filter(Boolean)
   )
 ).filter((slug) => slug !== normalizeOrganizationSlug(FAAKO_ORG_SLUG));
@@ -2751,8 +2766,9 @@ const buildWeeklyReportSnapshot = async () => {
   const siteOverview = (siteStatusPayload ?? []).map((site) => ({
     id: site.id,
     title: site.title,
+    category: site.category,
     aggregateStatus: getAggregateSiteStatus(site.pages ?? []),
-  }));
+  })).filter(isWebsiteHealthSurface);
   const configuredSites = siteOverview.filter((site) => site.aggregateStatus !== "not_configured");
   const totalSites = configuredSites.length;
   const notConfiguredSites = siteOverview.length - configuredSites.length;
@@ -5731,6 +5747,9 @@ app.post("/api/webhooks/railway", async (req, res) => {
 });
 
 app.get("/api/dashboard", authMiddleware, async (req, res) => {
+  const dashboardRange = req.query.range && AUDIT_RANGE_LABELS[req.query.range]
+    ? req.query.range
+    : "7d";
   const fullOrganizationSummary = await buildOrganizationHierarchySummary();
   const organizationSummary = scopeOrganizationHierarchySummary(fullOrganizationSummary, req.user, {
     isGlobalAdmin,
@@ -5760,6 +5779,16 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     }
   }
 
+  let stroaneStatus = stroanePool ? "ok" : "not_configured";
+  if (stroanePool) {
+    try {
+      await stroanePool.query("SELECT 1");
+    } catch (error) {
+      console.warn("Stroane database health query failed", error);
+      stroaneStatus = "error";
+    }
+  }
+
   let siteStatusPayload = null;
   let siteStatusCheckedAt = null;
   try {
@@ -5773,21 +5802,38 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     siteStatusPayload = buildSiteStatusFallback("unknown");
   }
 
-  const systemEntries = [
-    { id: "api", label: "API", status: "ok", note: "Auth + metrics" },
-    { id: "portfolio", label: "Primary DB", status: "ok", note: "Core organization data" },
-    { id: "reebs", label: "Reebs DB", status: reebsStatus, note: "Operational data" },
-    { id: "faako", label: "Faako DB", status: faakoStatus, note: "ERP members" },
-  ];
-
   const siteOverview = (siteStatusPayload ?? []).map((site) => ({
     id: site.id,
     title: site.title,
+    category: site.category,
     pages: site.pages ?? [],
     aggregateStatus: getAggregateSiteStatus(site.pages ?? []),
   }));
+  const getSurfaceStatus = (siteId) =>
+    siteOverview.find((site) => site.id === siteId)?.aggregateStatus ?? "not_configured";
+  const faakoApiStatus = getSurfaceStatus("faako-api");
+  const stroaneApiStatus = getSurfaceStatus("stroane-api");
+  const apiSurfaceEntries = siteOverview
+    .filter((site) => site.category === "api")
+    .map((site) => ({
+      id: site.id,
+      label: site.title,
+      status: site.aggregateStatus,
+      note: "API surface",
+    }));
+  const pageSurfaceStatuses = (siteStatusPayload ?? []).filter(isWebsiteHealthSurface);
+  const pageSurfaceOverview = siteOverview.filter(isWebsiteHealthSurface);
 
-  maybeSendStatusAlerts(systemEntries, siteOverview);
+  const systemEntries = [
+    { id: "api", label: "Dev ERP API", status: "ok", note: "Auth + metrics" },
+    ...apiSurfaceEntries,
+    { id: "portfolio", label: "Primary DB", status: "ok", note: "Core organization data" },
+    { id: "reebs", label: "Reebs DB", status: reebsStatus, note: "Operational data" },
+    { id: "faako", label: "Faako DB", status: faakoStatus, note: "ERP members" },
+    { id: "stroane", label: "Stroane DB", status: stroaneStatus, note: "Client commerce data" },
+  ];
+
+  maybeSendStatusAlerts(systemEntries, pageSurfaceOverview);
 
   const countManagedOrganizationsForSlug = (slug) => {
     const normalizedSlug = normalizeOrganizationSlug(slug);
@@ -5814,18 +5860,29 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     faako: {
       organizations: countManagedOrganizationsForSlug(FAAKO_ORG_SLUG),
     },
+    stroane: {
+      organizations: countManagedOrganizationsForSlug(STROANE_ORG_SLUG),
+    },
     lastSyncedAt: new Date().toISOString(),
     status: {
       api: "ok",
+      faakoApi: faakoApiStatus,
+      stroaneApi: stroaneApiStatus,
       portfolioDb: "ok",
       reebsDb: reebsStatus,
       faakoDb: faakoStatus,
+      stroaneDb: stroaneStatus,
     },
     siteStatus: {
       checkedAt: siteStatusCheckedAt,
-      sites: siteStatusPayload,
+      sites: pageSurfaceStatuses,
     },
+    apiSurfaces: apiSurfaceEntries,
     organizationStatusBreakdown: organizationSummary.organizationStatusBreakdown,
+    range: {
+      key: dashboardRange,
+      label: AUDIT_RANGE_LABELS[dashboardRange],
+    },
   });
 });
 
@@ -7398,6 +7455,36 @@ const findScopedProposal = async (proposalId, user) => {
   return { proposal };
 };
 
+const recordProposalAudit = (req, {
+  action,
+  proposal,
+  summary,
+  metadata = null,
+  category = "admin",
+  severity = "info",
+  status = "ok",
+} = {}) =>
+  writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: proposal?.organizationId ?? req.user?.organizationId,
+      action,
+      targetType: "proposal",
+      targetId: proposal?.id ? String(proposal.id) : null,
+      source: "api",
+      category,
+      severity,
+      status,
+      summary,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata,
+    },
+    { environment: APP_ENV }
+  );
+
 app.get("/api/proposals", authMiddleware, requireAdmin, async (req, res) => {
   const isAdmin = req.user?.roleName === "Admin";
   const organizationScope = await resolveOrganizationReadScope({
@@ -7493,6 +7580,28 @@ app.post("/api/proposals/view/:token/approve", async (req, res) => {
       content,
     },
   });
+  await writeAuditLog(
+    prisma,
+    {
+      organizationId: proposal.organizationId,
+      action: "PROPOSAL_CLIENT_APPROVED",
+      targetType: "proposal",
+      targetId: String(proposal.id),
+      source: "api",
+      category: "admin",
+      severity: "info",
+      status: "ok",
+      summary: `Client approved proposal ${proposal.title}.`,
+      actorType: "client",
+      actorLabel: clientResponse.clientName || "Client via share link",
+      ipAddress: req.ip,
+      metadata: {
+        clientContact: clientResponse.clientContact || null,
+        respondedAt: clientResponse.respondedAt,
+      },
+    },
+    { environment: APP_ENV }
+  );
 
   return res.json({
     proposal: serializeClientProposal(proposal),
@@ -7544,6 +7653,28 @@ app.post("/api/proposals/view/:token/request-changes", async (req, res) => {
       content,
     },
   });
+  await writeAuditLog(
+    prisma,
+    {
+      organizationId: proposal.organizationId,
+      action: "PROPOSAL_CLIENT_CHANGES_REQUESTED",
+      targetType: "proposal",
+      targetId: String(proposal.id),
+      source: "api",
+      category: "admin",
+      severity: "warning",
+      status: "ok",
+      summary: `Client requested changes for proposal ${proposal.title}.`,
+      actorType: "client",
+      actorLabel: clientResponse.clientName || "Client via share link",
+      ipAddress: req.ip,
+      metadata: {
+        clientContact: clientResponse.clientContact || null,
+        respondedAt: clientResponse.respondedAt,
+      },
+    },
+    { environment: APP_ENV }
+  );
 
   return res.json({
     proposal: serializeClientProposal(proposal),
@@ -7579,6 +7710,15 @@ app.post("/api/proposals", authMiddleware, requireAdmin, async (req, res) => {
     },
     include: proposalInclude,
   });
+  await recordProposalAudit(req, {
+    action: "PROPOSAL_CREATED",
+    proposal,
+    summary: `Created proposal ${proposal.title}.`,
+    metadata: {
+      status: proposal.status,
+      proposalType: proposal.proposalType,
+    },
+  });
 
   res.status(201).json({ proposal: serializeProposal(proposal) });
 });
@@ -7599,6 +7739,16 @@ app.patch("/api/proposals/:id", authMiddleware, requireAdmin, async (req, res) =
     },
     include: proposalInclude,
   });
+  await recordProposalAudit(req, {
+    action: "PROPOSAL_UPDATED",
+    proposal,
+    summary: `Updated proposal ${proposal.title}.`,
+    metadata: {
+      previousStatus: scoped.proposal.status,
+      status: proposal.status,
+      version: proposal.version,
+    },
+  });
 
   res.json({ proposal: serializeProposal(proposal, { includeShareLink: true }) });
 });
@@ -7613,15 +7763,52 @@ app.post("/api/proposals/:id/share-token", authMiddleware, requireAdmin, async (
   const shareToken = buildProposalShareToken();
   const shareTokenCreatedAt = new Date();
   const shareTokenExpiresAt = new Date(shareTokenCreatedAt.getTime() + PROPOSAL_SHARE_TOKEN_TTL_MS);
+  const requestedStatus = Object.prototype.hasOwnProperty.call(req.body || {}, "status")
+    ? normalizeProposalStatus(req.body?.status)
+    : null;
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, "status") && requestedStatus !== "shared") {
+    return res.status(400).json({ error: "status must be shared when publishing a proposal link." });
+  }
+  const nextStatus = requestedStatus === "shared" ? "shared" : scoped.proposal.status;
+  const contentResult = cloneProposalJson(scoped.proposal.content || {}, { fallback: {} });
+  if (contentResult.error) return res.status(400).json({ error: contentResult.error });
+  const content =
+    contentResult.value && typeof contentResult.value === "object" && !Array.isArray(contentResult.value)
+      ? contentResult.value
+      : {};
+  content.status = nextStatus;
+  content.workflow = normalizeProposalWorkflow(content.workflow, {
+    status: nextStatus,
+    previousStatus: scoped.proposal.status,
+    existingWorkflow: scoped.proposal.content?.workflow || null,
+    user: req.user,
+  });
+
   const proposal = await prisma.proposal.update({
     where: { id: scoped.proposal.id },
     data: {
       shareToken,
       shareTokenCreatedAt,
       shareTokenExpiresAt,
+      status: nextStatus,
+      content,
+      sharedAt: nextStatus === "shared" ? scoped.proposal.sharedAt ?? new Date() : scoped.proposal.sharedAt,
       lastEditedByUserId: req.user.userId,
     },
     include: proposalInclude,
+  });
+  await recordProposalAudit(req, {
+    action: nextStatus === "shared" ? "PROPOSAL_SHARED" : "PROPOSAL_SHARE_TOKEN_PREPARED",
+    proposal,
+    summary:
+      nextStatus === "shared"
+        ? `Shared proposal ${proposal.title}.`
+        : `Prepared secure link for proposal ${proposal.title}.`,
+    metadata: {
+      previousStatus: scoped.proposal.status,
+      status: proposal.status,
+      shareTokenExpiresAt: proposal.shareTokenExpiresAt?.toISOString?.() ?? null,
+    },
   });
 
   res.json({
@@ -7746,6 +7933,305 @@ const buildNextInvoiceNumber = async (organizationId) => {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 };
 
+const parseProposalPricingAmount = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return roundCurrencyAmount(value);
+  }
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const normalized = text
+    .replace(/,/g, "")
+    .replace(/[^\d.-]/g, "");
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return roundCurrencyAmount(parsed);
+};
+
+const inferProposalInvoiceCurrency = (proposal, requestedCurrency) => {
+  const normalizedRequested = normalizeAccountingCurrency(requestedCurrency);
+  if (normalizedRequested) return normalizedRequested;
+
+  const pricingText = JSON.stringify(proposal?.content?.blocks || []).toUpperCase();
+  if (pricingText.includes("GHS") || pricingText.includes("GH₵") || pricingText.includes("₵")) {
+    return "GHS";
+  }
+  return "CAD";
+};
+
+const extractProposalInvoiceLineItems = (proposal) => {
+  const blocks = Array.isArray(proposal?.content?.blocks) ? proposal.content.blocks : [];
+  const pricingRows = blocks
+    .filter((block) => block?.type === "pricing" && (block.required || block.enabled !== false))
+    .flatMap((block) => (Array.isArray(block.pricingItems) ? block.pricingItems : []));
+
+  if (!pricingRows.length) {
+    return {
+      lineItems: [
+        {
+          description: proposal?.title || "Approved proposal",
+          quantity: 1,
+          unitPrice: 0,
+        },
+      ],
+      unresolvedAmounts: [],
+    };
+  }
+
+  const unresolvedAmounts = [];
+  const lineItems = pricingRows.map((item, index) => {
+    const label = normalizeProposalText(item?.label || `Proposal line ${index + 1}`, {
+      maxLength: 180,
+    }) || `Proposal line ${index + 1}`;
+    const note = normalizeProposalText(item?.note, { maxLength: 220, nullable: true });
+    const amount = parseProposalPricingAmount(item?.amount);
+    if (amount === null) {
+      unresolvedAmounts.push({
+        label,
+        amount: String(item?.amount || "").trim() || "Not set",
+      });
+    }
+    return {
+      description: [label, note].filter(Boolean).join(" - "),
+      quantity: 1,
+      unitPrice: amount ?? 0,
+    };
+  });
+
+  return { lineItems, unresolvedAmounts };
+};
+
+const buildProposalInvoiceNotes = (proposal, unresolvedAmounts = []) => {
+  const notes = [
+    `Created from approved proposal #${proposal.id}: ${proposal.title}.`,
+    "Review all copied pricing before sending this invoice or quotation.",
+  ];
+  if (unresolvedAmounts.length) {
+    notes.push(
+      `Unresolved proposal pricing: ${unresolvedAmounts
+        .map((item) => `${item.label} (${item.amount})`)
+        .join("; ")}.`
+    );
+  }
+  return notes.join("\n");
+};
+
+app.post("/api/proposals/:id/create-invoice", authMiddleware, requireAdmin, async (req, res) => {
+  const scoped = await findScopedProposal(req.params.id, req.user);
+  if (scoped.error) return res.status(scoped.status).json({ error: scoped.error });
+  if (scoped.proposal.status !== "approved") {
+    return res.status(409).json({ error: "Only approved proposals can create invoice drafts." });
+  }
+
+  const metadata =
+    scoped.proposal.metadata && typeof scoped.proposal.metadata === "object" && !Array.isArray(scoped.proposal.metadata)
+      ? scoped.proposal.metadata
+      : {};
+  const linkedInvoiceId = Number(metadata.invoiceId || metadata.invoiceDraftId);
+  if (Number.isInteger(linkedInvoiceId) && linkedInvoiceId > 0) {
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: {
+        id: linkedInvoiceId,
+        organizationId: scoped.proposal.organizationId,
+      },
+      include: {
+        organization: { select: { id: true, name: true, slug: true } },
+        lineItems: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+    if (existingInvoice) {
+      return res.json({
+        created: false,
+        invoice: serializeInvoice(existingInvoice),
+        proposal: serializeProposal(scoped.proposal, { includeShareLink: true }),
+      });
+    }
+  }
+
+  const status = req.body?.status !== undefined ? normalizeInvoiceStatus(req.body.status) : "DRAFT";
+  if (!status || !["DRAFT", "QUOTATION"].includes(status)) {
+    return res.status(400).json({ error: "status must be DRAFT or QUOTATION for proposal invoice drafts." });
+  }
+
+  const currency = inferProposalInvoiceCurrency(scoped.proposal, req.body?.currency);
+  const issueDate = parseDateValue(req.body?.issueDate) || new Date();
+  let dueDate = parseDateValue(req.body?.dueDate);
+  if (!dueDate) {
+    dueDate = new Date(issueDate);
+    dueDate.setDate(dueDate.getDate() + 14);
+  }
+  if (dueDate < issueDate) {
+    return res.status(400).json({ error: "dueDate cannot be earlier than issueDate" });
+  }
+
+  const { lineItems, unresolvedAmounts } = extractProposalInvoiceLineItems(scoped.proposal);
+  const parsedLineItems = parseInvoiceLineItems(lineItems);
+  if (parsedLineItems.error) {
+    return res.status(400).json({ error: parsedLineItems.error });
+  }
+
+  const totals = calculateInvoiceTotals({
+    lineItems: parsedLineItems.lineItems,
+    taxRate: req.body?.taxRate,
+    discount: req.body?.discount,
+  });
+  if (totals.error) {
+    return res.status(400).json({ error: totals.error });
+  }
+
+  let invoiceNumber = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidate = await buildNextInvoiceNumber(scoped.proposal.organizationId);
+    const existing = await prisma.invoice.findFirst({
+      where: {
+        organizationId: scoped.proposal.organizationId,
+        invoiceNumber: candidate,
+      },
+      select: { id: true },
+    });
+    if (!existing) {
+      invoiceNumber = candidate;
+      break;
+    }
+  }
+  if (!invoiceNumber) {
+    return res.status(500).json({ error: "Unable to generate invoice number." });
+  }
+
+  const clientEmail =
+    typeof req.body?.clientEmail === "string" && req.body.clientEmail.trim()
+      ? req.body.clientEmail.trim()
+      : null;
+  if (clientEmail && !EMAIL_PATTERN.test(clientEmail)) {
+    return res.status(400).json({ error: "clientEmail must be a valid email" });
+  }
+
+  const contentResult = cloneProposalJson(scoped.proposal.content || {}, { fallback: {} });
+  if (contentResult.error) return res.status(400).json({ error: contentResult.error });
+  const proposalContent =
+    contentResult.value && typeof contentResult.value === "object" && !Array.isArray(contentResult.value)
+      ? contentResult.value
+      : {};
+
+  const nowIso = new Date().toISOString();
+  const { invoice, proposal } = await prisma.$transaction(async (tx) => {
+    const createdInvoice = await tx.invoice.create({
+      data: {
+        organizationId: scoped.proposal.organizationId,
+        invoiceNumber,
+        status,
+        currency,
+        issueDate,
+        dueDate,
+        paidAt: null,
+        clientName: scoped.proposal.clientName || scoped.proposal.title,
+        clientEmail,
+        clientAddress:
+          typeof req.body?.clientAddress === "string" && req.body.clientAddress.trim()
+            ? req.body.clientAddress.trim()
+            : null,
+        notes: buildProposalInvoiceNotes(scoped.proposal, unresolvedAmounts),
+        subtotal: toCurrencyDecimal(totals.subtotal),
+        taxRate: toCurrencyDecimal(totals.taxRate),
+        taxAmount: toCurrencyDecimal(totals.taxAmount),
+        discount: toCurrencyDecimal(totals.discount),
+        total: toCurrencyDecimal(totals.total),
+        paidAmount: toCurrencyDecimal(0),
+        lineItems: {
+          create: parsedLineItems.lineItems.map((lineItem) => ({
+            description: lineItem.description,
+            quantity: toCurrencyDecimal(lineItem.quantity),
+            unitPrice: toCurrencyDecimal(lineItem.unitPrice),
+            amount: toCurrencyDecimal(lineItem.amount),
+            sortOrder: lineItem.sortOrder,
+          })),
+        },
+      },
+      include: {
+        organization: { select: { id: true, name: true, slug: true } },
+        lineItems: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+
+    const invoiceMetadata = {
+      ...metadata,
+      invoiceId: createdInvoice.id,
+      invoiceNumber: createdInvoice.invoiceNumber,
+      invoiceStatus: createdInvoice.status,
+      invoiceCreatedAt: nowIso,
+      invoiceCreatedByUserId: req.user.userId,
+    };
+    proposalContent.workflow = {
+      ...normalizeProposalWorkflow(proposalContent.workflow, {
+        status: scoped.proposal.status,
+        previousStatus: scoped.proposal.status,
+        existingWorkflow: scoped.proposal.content?.workflow || null,
+        user: req.user,
+      }),
+      invoiceHandoff: {
+        invoiceId: createdInvoice.id,
+        invoiceNumber: createdInvoice.invoiceNumber,
+        createdAt: nowIso,
+      },
+    };
+
+    const updatedProposal = await tx.proposal.update({
+      where: { id: scoped.proposal.id },
+      data: {
+        metadata: invoiceMetadata,
+        content: proposalContent,
+        lastEditedByUserId: req.user.userId,
+      },
+      include: proposalInclude,
+    });
+
+    return { invoice: createdInvoice, proposal: updatedProposal };
+  });
+
+  await Promise.all([
+    recordProposalAudit(req, {
+      action: "PROPOSAL_INVOICE_DRAFT_CREATED",
+      proposal,
+      summary: `Created invoice ${invoice.invoiceNumber} from proposal ${proposal.title}.`,
+      category: "financial",
+      metadata: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceStatus: invoice.status,
+        unresolvedPricingCount: unresolvedAmounts.length,
+      },
+    }),
+    writeAuditLog(
+      prisma,
+      {
+        userId: req.user?.userId,
+        organizationId: invoice.organizationId,
+        action: "INVOICE_CREATED_FROM_PROPOSAL",
+        targetType: "invoice",
+        targetId: String(invoice.id),
+        source: "api",
+        category: "financial",
+        severity: "info",
+        status: "ok",
+        summary: `Created invoice ${invoice.invoiceNumber} from proposal ${proposal.title}.`,
+        actorLabel: req.user?.fullName || req.user?.email || null,
+        requestId: String(req.headers["x-request-id"] || ""),
+        ipAddress: req.ip,
+        metadata: {
+          proposalId: proposal.id,
+          proposalTitle: proposal.title,
+        },
+      },
+      { environment: APP_ENV }
+    ),
+  ]);
+
+  return res.status(201).json({
+    created: true,
+    invoice: serializeInvoice(invoice),
+    proposal: serializeProposal(proposal, { includeShareLink: true }),
+  });
+});
+
 app.get("/api/invoices", authMiddleware, async (req, res) => {
   const isAdmin = req.user?.roleName === "Admin";
   const organizationParam = req.query?.organizationId;
@@ -7766,7 +8252,9 @@ app.get("/api/invoices", authMiddleware, async (req, res) => {
       ? normalizeInvoiceStatus(statusParam)
       : null;
   if (statusParam && statusParam.toLowerCase() !== "all" && !status) {
-    return res.status(400).json({ error: "status must be DRAFT, SENT, PAID, OVERDUE, or VOID" });
+    return res.status(400).json({
+      error: "status must be DRAFT, QUOTATION, SENT, ACCEPTED, DECLINED, PAID, OVERDUE, or VOID",
+    });
   }
 
   const invoices = await prisma.invoice.findMany({
@@ -7807,7 +8295,9 @@ app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
       ? normalizeInvoiceStatus(req.body.status)
       : "DRAFT";
   if (!status) {
-    return res.status(400).json({ error: "status must be DRAFT, SENT, PAID, OVERDUE, or VOID" });
+    return res.status(400).json({
+      error: "status must be DRAFT, QUOTATION, SENT, ACCEPTED, DECLINED, PAID, OVERDUE, or VOID",
+    });
   }
 
   const issueDate = parseDateValue(req.body?.issueDate);
@@ -8008,7 +8498,9 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   if (req.body?.status !== undefined) {
     const status = normalizeInvoiceStatus(req.body.status);
     if (!status) {
-      return res.status(400).json({ error: "status must be DRAFT, SENT, PAID, OVERDUE, or VOID" });
+      return res.status(400).json({
+        error: "status must be DRAFT, QUOTATION, SENT, ACCEPTED, DECLINED, PAID, OVERDUE, or VOID",
+      });
     }
     updateData.status = status;
   }
@@ -8905,7 +9397,16 @@ const ACCOUNTING_TYPE_VALUES = new Set(["REVENUE", "EXPENSE"]);
 const ACCOUNTING_STATUS_VALUES = new Set(["PAID", "PENDING", "SCHEDULED", "OVERDUE"]);
 const ACCOUNTING_CURRENCY_VALUES = new Set(["CAD", "GHS"]);
 const ACCOUNTING_INTERVAL_VALUES = new Set(["MONTHLY", "QUARTERLY", "YEARLY"]);
-const INVOICE_STATUS_VALUES = new Set(["DRAFT", "SENT", "PAID", "OVERDUE", "VOID"]);
+const INVOICE_STATUS_VALUES = new Set([
+  "DRAFT",
+  "QUOTATION",
+  "SENT",
+  "ACCEPTED",
+  "DECLINED",
+  "PAID",
+  "OVERDUE",
+  "VOID",
+]);
 const RENT_TENANT_STATUS_VALUES = new Set(["ACTIVE", "INACTIVE"]);
 const PRODUCTIVITY_TODO_PRIORITY_VALUES = new Set(["low", "medium", "high"]);
 const PRODUCTIVITY_RANGE_DAYS = {
@@ -11528,6 +12029,7 @@ const ensureDefaults = async () => {
     { name: BY_NANA_ORG_NAME, slug: BY_NANA_ORG_SLUG, seedAdmin: false },
     { name: REEBS_ORG_NAME, slug: REEBS_ORG_SLUG, seedAdmin: false },
     { name: FAAKO_ORG_NAME, slug: FAAKO_ORG_SLUG, seedAdmin: false },
+    { name: STROANE_ORG_NAME, slug: STROANE_ORG_SLUG, seedAdmin: false },
   ].filter(
     (org, index, list) =>
       Boolean(org.slug) && list.findIndex((entry) => entry.slug === org.slug) === index
