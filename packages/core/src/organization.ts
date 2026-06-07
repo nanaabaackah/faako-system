@@ -13,7 +13,9 @@ export const AUTH_USER_STORAGE_KEY = "reebs_auth_user";
 export const AUTH_TOKEN_STORAGE_KEY = "reebs_auth_token";
 export const AUTH_INVALID_EVENT = "reebs:auth-invalid";
 
-const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
+const LEGACY_FUNCTION_PREFIX = "/.netlify/functions/";
+const API_PREFIX = "/api/";
+const DEFAULT_BACKEND_BASE_URL = "https://api.reebspartythemes.com";
 const DEFAULT_LOCAL_BACKEND_BASE_URL = "http://localhost:8888";
 const USE_FUNCTION_PROXY_IN_DEV = ["1", "true", "yes", "on"].includes(
   String(import.meta.env?.VITE_FUNCTIONS_VIA_PROXY || "").trim().toLowerCase(),
@@ -30,10 +32,17 @@ const getLocalDevBackendBaseUrl = () => {
   return "";
 };
 
+const normalizeBackendBaseUrl = (value: unknown) => {
+  const trimmed = typeof value === "string" ? value.trim().replace(/\/+$/, "") : "";
+  if (!trimmed) return "";
+  return trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+};
+
 const getBackendBaseUrl = () => {
-  const envBase = import.meta.env?.VITE_BACKEND_BASE_URL;
-  const trimmed = typeof envBase === "string" ? envBase.trim() : "";
-  if (trimmed) return trimmed.replace(/\/+$/, "");
+  const envBase = normalizeBackendBaseUrl(
+    import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_BACKEND_BASE_URL,
+  );
+  if (envBase) return envBase;
 
   if (import.meta.env?.DEV && typeof window !== "undefined") {
     return getLocalDevBackendBaseUrl() || window.location.origin;
@@ -229,25 +238,44 @@ export const getOrganizationId = () => {
   return parseOrganizationId(params.get("organizationId"));
 };
 
-const isNetlifyFunctionRequest = (url: string) => {
+const isReebsApiPath = (pathname: string) =>
+  pathname.startsWith(LEGACY_FUNCTION_PREFIX) || pathname.startsWith(API_PREFIX);
+
+const isReebsApiRequest = (url: string) => {
   if (typeof window === "undefined") return false;
 
   try {
     const parsed = new URL(url, window.location.origin);
-    return parsed.pathname.startsWith("/.netlify/functions/");
+    return isReebsApiPath(parsed.pathname);
   } catch {
     return false;
   }
 };
 
+const getApiPathFromParsedUrl = (parsed: URL) => {
+  if (parsed.pathname.startsWith(LEGACY_FUNCTION_PREFIX)) {
+    return `${API_PREFIX}${parsed.pathname.slice(LEGACY_FUNCTION_PREFIX.length)}`;
+  }
+
+  return parsed.pathname;
+};
+
 const resolveBackendUrl = (url: string) => {
-  if (!url.startsWith("/.netlify/functions/")) return url;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (import.meta.env?.DEV && USE_FUNCTION_PROXY_IN_DEV) return url;
-  if (!BACKEND_BASE_URL) return url;
+  if (typeof window === "undefined") return url;
 
   try {
-    return new URL(url, BACKEND_BASE_URL).toString();
+    const parsed = new URL(url, window.location.origin);
+    if (!isReebsApiPath(parsed.pathname)) return url;
+
+    const apiPath = getApiPathFromParsedUrl(parsed);
+    const normalizedPath = `${apiPath}${parsed.search}${parsed.hash}`;
+    if (import.meta.env?.DEV && USE_FUNCTION_PROXY_IN_DEV) {
+      return normalizedPath;
+    }
+
+    return BACKEND_BASE_URL
+      ? new URL(normalizedPath, `${BACKEND_BASE_URL}/`).toString()
+      : normalizedPath;
   } catch {
     return url;
   }
@@ -258,7 +286,7 @@ const shouldAttachOrganizationId = (url: string) => {
 
   try {
     const parsed = new URL(url, window.location.origin);
-    if (!parsed.pathname.startsWith("/.netlify/functions/")) return false;
+    if (!isReebsApiPath(parsed.pathname)) return false;
     if (parsed.origin === window.location.origin) return true;
     return BACKEND_ORIGIN ? parsed.origin === BACKEND_ORIGIN : false;
   } catch {
@@ -284,7 +312,7 @@ export const patchOrganizationFetch = () => {
   patchedWindow.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input?.url;
 
-    if (!url || !isNetlifyFunctionRequest(url)) {
+    if (!url || !isReebsApiRequest(url)) {
       return originalFetch(input, init);
     }
 
@@ -310,9 +338,12 @@ export const patchOrganizationFetch = () => {
     if (input instanceof Request) {
       const request = new Request(input, init);
       const requestWithUrl = new Request(nextUrl, request);
+      const requestedCredentials = init?.credentials || request.credentials;
       const nextRequest = new Request(requestWithUrl, {
         cache: request.cache === "default" ? "no-store" : request.cache,
-        credentials: request.credentials || "include",
+        credentials: requestedCredentials && requestedCredentials !== "same-origin"
+          ? requestedCredentials
+          : "include",
         headers,
       });
 

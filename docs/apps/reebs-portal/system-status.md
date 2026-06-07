@@ -13,7 +13,7 @@ Live/private beta and used by authenticated users. Treat changes as production-s
 - Authenticated portal shell and role-based navigation.
 - Core operations modules such as orders, inventory, CRM, users, employees, directory, maintenance, timesheets, and rentals.
 - Admin modules for bookings, schedule, accounting, expenses, vendors, delivery, documents, settings, HR, roles, invoicing, marketing, advanced tools, and website templates.
-- Netlify Functions backend and Prisma-managed database workflows.
+- Express API wrapper at `api.reebspartythemes.com` adapting the existing backend handlers, plus Prisma-managed database workflows.
 
 ## In-progress modules/features
 

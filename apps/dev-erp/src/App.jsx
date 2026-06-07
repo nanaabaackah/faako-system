@@ -34,7 +34,7 @@ import {
   refreshAuthSession,
   useAuthSnapshot,
 } from "./auth/authStore";
-import { canAccessPath, isRentOnlyUser } from "./utils/moduleAccess";
+import { canAccessPath, getDefaultPathForUser, isRentOnlyUser } from "./utils/moduleAccess";
 import {
   addSessionInvalidListener,
 } from "./utils/authSession";
@@ -465,7 +465,7 @@ const RouteBoundary = ({ children }) => {
 const ModuleScopeRoute = ({ currentUser, children }) => {
   const location = useLocation();
   if (!canAccessPath(currentUser, location.pathname)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getDefaultPathForUser(currentUser)} replace />;
   }
   return children;
 };

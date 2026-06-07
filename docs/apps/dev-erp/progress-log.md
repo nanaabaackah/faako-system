@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Dev ERP module run-through and access alignment
+
+Date: 2026-06-07
+Feature/change name: Dev ERP module run-through and access alignment
+Apps affected: Dev ERP
+What changed: Completed a full route/module/API pass across Dev ERP. Tightened restricted frontend route access so custom module-scoped users can only open allowed module routes and are redirected to their first allowed module instead of always `/dashboard`. Preserved the rent-only `/dashboard` landing. Made Dashboard skip Bookings availability and Accounting snapshot subfetches/panels when the user lacks those modules. Classified the legacy `/api/reports/summary` compatibility route under the `audit-logs` backend capability so Reports stays focused on scheduled email reports while Audit Logs owns audit analytics. Added focused regression tests for frontend module route access and backend Reports/Audit Logs capability ownership.
+Why it changed: The proposal work was complete, but the broader module run-through found that navigation and backend capabilities were stricter than direct frontend route access for custom restricted users. It also found a Reports/Audit Logs compatibility alias that needed capability ownership aligned with the current product split.
+Files changed: apps/dev-erp/src/utils/moduleAccess.js, apps/dev-erp/src/utils/moduleAccess.test.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/pages/Dashboard/Dashboard.jsx, apps/dev-erp/backend/auth/accessConfig.js, apps/dev-erp/backend/auth/accessConfig.test.js, apps/dev-erp/README.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. No schema, migration, seed, operational record, payment, rent, invoice, proposal, report config, report send, audit-log, or environment behavior changed.
+Security impact: Positive. Frontend route access now better matches restricted module permissions, Dashboard avoids cross-module blocked calls for restricted users, and the Reports summary compatibility alias requires Audit Logs capability.
+Testing done: Focused module access and backend capability tests passed. `pnpm --filter @faako/dev-erp run test` passed with 110 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run build` passed. `pnpm run monitoring:check` passed with 10 registered app workspaces and 12 monitored surfaces. `pnpm --filter @faako/config exec node --test src/monorepoApps/appRegistry.test.js` passed. `node --check apps/dev-erp/backend/server.js` passed. `git diff --check -- apps/dev-erp docs/apps/dev-erp packages/config scripts apps/bynana-portfolio` passed. `pnpm run project-registry:check` exited cleanly with the existing warning-only metadata coverage notes.
+Rollback notes: Revert the module access route map/default redirect, Dashboard conditional subpanels, `/api/reports/summary` capability rule, tests, and documentation entry. No data rollback is required.
+Next step: Smoke-test restricted-role navigation, Dashboard with and without Bookings/Accounting modules, Reports, Audit Logs, System Health, and Proposals on desktop and a narrow viewport after deployment.
+
 ### Proposal readiness, invoice handoff, and dashboard date filter
 
 Date: 2026-06-03

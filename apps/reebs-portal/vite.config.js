@@ -5,7 +5,12 @@ import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const backendBaseUrl = String(env.VITE_BACKEND_BASE_URL || "http://localhost:8888").trim();
+  const apiProxyTarget = String(
+    env.VITE_API_PROXY_TARGET
+      || env.VITE_API_BASE_URL
+      || env.VITE_BACKEND_BASE_URL
+      || "http://localhost:8888"
+  ).trim();
 
   return {
     plugins: [react()],
@@ -25,8 +30,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
+        "/api": {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
         "/.netlify/functions": {
-          target: backendBaseUrl,
+          target: apiProxyTarget,
           changeOrigin: true,
         },
       },

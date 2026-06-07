@@ -25,3 +25,8 @@ test("module capability routes cover authenticated productivity surfaces", () =>
   assert.deepEqual(resolveModulesForPath("/api/jobs/recommendations"), ["dashboard"]);
   assert.deepEqual(resolveModulesForPath("/api/ai/productivity-coach"), ["dashboard"]);
 });
+
+test("reports summary compatibility route stays owned by audit logs", () => {
+  assert.deepEqual(resolveModulesForPath("/api/reports/summary"), ["audit-logs"]);
+  assert.deepEqual(resolveModulesForPath("/api/reports/weekly_kpi/send"), ["reports"]);
+});

@@ -24,10 +24,10 @@ const stubRates = {
 };
 
 const mockData = async (page) => {
-  await page.route('**/.netlify/functions/inventory', (route) =>
+  await page.route(/.*\/(?:api|\.netlify\/functions)\/inventory$/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stubProducts) })
   );
-  await page.route('**/.netlify/functions/bouncy_castles', (route) =>
+  await page.route(/.*\/(?:api|\.netlify\/functions)\/bouncy_castles$/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stubBouncyTypes) })
   );
   await page.route('**/v6.exchangerate-api.com/**', (route) =>

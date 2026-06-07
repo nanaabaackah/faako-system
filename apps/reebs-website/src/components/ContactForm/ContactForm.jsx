@@ -7,7 +7,6 @@ import {
   saveExpiringDraft,
 } from '/src/utils/formDrafts';
 
-const FORM_NAME = "contact";
 const CONTACT_DRAFT_KEY = "contactFormDraft";
 const MAX_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 120;
@@ -27,14 +26,6 @@ const createInitialValues = (prefillEmail = "") => ({
 });
 
 const clampValue = (value, maxLength) => String(value || "").slice(0, maxLength);
-
-const encodeFormData = (values) =>
-  new URLSearchParams(
-    Object.entries(values).reduce((payload, [key, value]) => {
-      payload[key] = typeof value === "string" ? value : String(value ?? "");
-      return payload;
-    }, {})
-  ).toString();
 
 function ContactForm() {
   const location = useLocation();
@@ -101,7 +92,6 @@ function ContactForm() {
     }
 
     const payload = {
-      "form-name": FORM_NAME,
       "bot-field": formValues.botField,
       name: formValues.name.trim(),
       email: formValues.email.trim(),
@@ -117,12 +107,12 @@ function ContactForm() {
     setSubmitSuccess("");
 
     try {
-      const response = await fetch("/", {
+      const response = await fetch("/api/contact", {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/json",
         },
-        body: encodeFormData(payload),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -142,16 +132,12 @@ function ContactForm() {
   return (
     <form
       className="contact-form form-shell"
-      name={FORM_NAME}
+      name="contact"
       method="POST"
-      action="/contact"
-      data-netlify="true"
-      netlify-honeypot="bot-field"
       acceptCharset="UTF-8"
       onSubmit={handleSubmit}
       aria-busy={submitting}
     >
-      <input type="hidden" name="form-name" value={FORM_NAME} />
       <p className="hidden">
         <label>
           Do not fill this out: <input name="bot-field" value={formValues.botField} onChange={updateField("botField", 200)} />

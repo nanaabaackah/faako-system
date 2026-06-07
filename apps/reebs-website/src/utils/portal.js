@@ -1,5 +1,5 @@
 const DEFAULT_PORTAL_BASE_URL = "https://portal.reebspartythemes.com";
-const LOCAL_PORTAL_BASE_URL = "http://localhost:8888";
+const LOCAL_PORTAL_BASE_URL = "http://localhost:5174";
 
 const normalizeBaseUrl = (value) => {
   const trimmed = String(value || "").trim();
@@ -15,9 +15,6 @@ const normalizeBaseUrl = (value) => {
 export const getPortalBaseUrl = () => {
   const explicitPortalBase = normalizeBaseUrl(import.meta.env?.VITE_REEBS_PORTAL_URL);
   if (explicitPortalBase) return explicitPortalBase;
-
-  const backendBase = normalizeBaseUrl(import.meta.env?.VITE_BACKEND_BASE_URL);
-  if (backendBase) return backendBase;
 
   if (import.meta.env?.DEV) {
     return LOCAL_PORTAL_BASE_URL;

@@ -8,7 +8,6 @@ Reebs Website is the public REEBS storefront, rentals, and booking site. It is t
 
 - `src/`: React + Vite public website
 - `scripts/generateSitemap.mjs`: sitemap generation used before builds
-- `netlify.toml`: deploy configuration
 - `.env.example`: public runtime variable reference
 
 ## Run It Locally
@@ -35,39 +34,44 @@ Typical local ports:
 
 - website: `5173`
 - companion portal frontend: `5174`
-- companion backend/functions: `8888`
+- companion API backend: `8888`
 
 ## Current System Notes
 
 - rental listings and rental detail pages now resolve through the same shared rental catalog rules so storefront links and detail slugs stay in sync
-- this app should stay frontend-focused in production and point at the deployed REEBS portal/backend for data and auth-adjacent flows
+- this app should stay frontend-focused in production and point at `https://api.reebspartythemes.com` for data and auth-adjacent flows
 
 ## Configuration
 
 Important browser-visible values:
 
+- `VITE_API_BASE_URL`
 - `VITE_BACKEND_BASE_URL`
 - `VITE_REEBS_PORTAL_URL`
 
-Keep secrets in the portal/backend environment, not in `VITE_*` values.
+Prefer `VITE_API_BASE_URL`; `VITE_BACKEND_BASE_URL` is a legacy fallback. Keep secrets in the portal/API backend environment, not in `VITE_*` values.
 
 ## Common Commands
 
 ```bash
 pnpm --filter @faako/reebs-website run sitemap
 pnpm --filter @faako/reebs-website run build
-pnpm --filter @faako/reebs-website run netlify
 pnpm --filter @faako/reebs-website run test:e2e
 ```
 
 ## Deployment
 
-This app has its own Netlify config in `apps/reebs-website/netlify.toml`.
-
-Netlify builds with:
+Cloudflare Pages builds with:
 
 ```bash
 pnpm --filter @faako/reebs-website run build
 ```
 
-The site should point at the deployed REEBS portal/backend in production.
+Use these Cloudflare Pages settings:
+
+- Build command: `pnpm --filter @faako/reebs-website build`
+- Output directory: `apps/reebs-website/dist`
+- Environment variable: `VITE_API_BASE_URL=https://api.reebspartythemes.com`
+- Environment variable: `VITE_REEBS_PORTAL_URL=https://portal.reebspartythemes.com`
+
+The site should point at the deployed REEBS API backend in production.

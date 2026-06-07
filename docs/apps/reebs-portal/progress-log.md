@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Cloudflare frontend and REEBS API wrapper migration
+
+Date: 2026-06-07
+Feature/change name: Cloudflare frontend and REEBS API wrapper migration
+Apps affected: REEBS Portal, REEBS Website, shared core fetch wrapper, app registry
+What changed: Added `apps/reebs-portal/backend/server.js` as an Express adapter that serves existing backend handlers at `/api/*` with a legacy `/.netlify/functions/*` alias, added `/api/contact` to replace Netlify Forms delivery, updated REEBS frontend scripts/env defaults/Vite proxies to use `VITE_API_BASE_URL`, removed REEBS Netlify deploy configs, and registered `api.reebspartythemes.com` for monitoring.
+Why it changed: Move REEBS Portal and Website frontends to Cloudflare Pages while keeping backend traffic on a dedicated API domain.
+Files changed: apps/reebs-portal/backend/server.js, apps/reebs-portal/netlify/functions/contact.js, REEBS package/env/Vite/docs files, apps/reebs-website package/env/Vite/contact/sitemap files, packages/core/src/organization.ts, packages/config/src/monorepoApps/appRegistry.js
+Data impact: No schema or data migration. Existing handler behavior is adapted behind `/api/*`.
+Security impact: Browser-visible config now uses `VITE_API_BASE_URL`; server secrets remain on the API service. API requests keep credentials included for same-site cookies and reuse existing CORS/security headers.
+Testing done: `pnpm --filter @faako/reebs-portal exec node --check backend/server.js`; `pnpm --filter @faako/reebs-portal exec node --check netlify/functions/contact.js`; `pnpm run monitoring:check`; `pnpm --filter @faako/reebs-portal run build`; `pnpm --filter @faako/reebs-website run build` (sitemap live API fetch skipped in sandbox and fell back safely); local API smoke for `/health`, `/api/health`, `/api/noSuchFunction`, legacy `/.netlify/functions/noSuchFunction`, and `/api/bouncy_castles`.
+Rollback notes: Restore the previous REEBS Netlify configs/scripts and point `VITE_BACKEND_BASE_URL` back to the old portal/function host if the API wrapper deploy fails.
+Next step: Deploy Cloudflare Pages frontends with `VITE_API_BASE_URL=https://api.reebspartythemes.com`, deploy the API service, then smoke test `/health`, `/api/inventoryCounts`, auth session/login, contact, checkout, bookings, and admin inventory.
+
 ### Theme and styling consistency fix
 
 Date: 2026-05-13

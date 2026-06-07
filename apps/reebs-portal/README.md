@@ -2,15 +2,15 @@
 
 Workspace package: `@faako/reebs-portal`
 
-Reebs Portal is the admin portal and Netlify Functions backend for REEBS. It owns the operational frontend, Prisma-backed backend functions, product and variant management, bookings, invoicing, delivery, accounting, website content, and the internal modules used by the REEBS stack.
+Reebs Portal is the admin portal and API backend source for REEBS. It owns the operational frontend, Prisma-backed backend handlers, product and variant management, bookings, invoicing, delivery, accounting, website content, and the internal modules used by the REEBS stack.
 
 ## What Lives Here
 
 - `src/`: React admin portal frontend
-- `netlify/functions/`: backend functions
+- `backend/server.js`: Express API wrapper for `api.reebspartythemes.com`
+- `netlify/functions/`: legacy function handler source adapted by the API wrapper
 - `prisma/`: Prisma schema, migrations, and generated client output
 - `docs/`: deeper frontend and backend notes
-- `netlify.toml`: local and hosted Netlify configuration
 - `.env.example`: runtime configuration reference
 
 ## Run It Locally
@@ -21,7 +21,7 @@ Frontend only:
 pnpm --filter @faako/reebs-portal run dev:frontend
 ```
 
-Backend/functions only:
+Backend/API only:
 
 ```bash
 pnpm --filter @faako/reebs-portal run dev:backend
@@ -36,13 +36,14 @@ pnpm run dev:reebs
 Typical local ports:
 
 - portal frontend: `5174`
-- functions/backend: `8888`
+- API backend: `8888`
 
 ## Common Commands
 
 ```bash
 pnpm --filter @faako/reebs-portal run build
-pnpm --filter @faako/reebs-portal run netlify
+pnpm --filter @faako/reebs-portal run dev:backend
+pnpm --filter @faako/reebs-portal run server:prod
 pnpm --filter @faako/reebs-portal run db:generate
 pnpm --filter @faako/reebs-portal run db:migrate:dev
 pnpm --filter @faako/reebs-portal run db:deploy:dev
@@ -73,8 +74,8 @@ pnpm --filter @faako/reebs-portal run test:e2e
 - `@faako/notifications` is used only for customer-safe receipt share drafts in the order receipt preview. Copy summary, email draft, and WhatsApp draft actions are user-triggered display/share helpers; they do not send automated messages, change backend receipt delivery, change Resend/email behavior, persist notification data, or alter order/payment/receipt workflows.
 - `@faako/offline-sync` is used for the REEBS admin shell online/offline indicator, local draft storage for Store Mode POS carts and unsent manual order payment forms, queued Store Mode POS order creation, queued manual order payment recording, queued inventory stock adjustments, and queued booking create/edit/status actions when the browser is offline. Queued POS orders, manual payments, inventory adjustments, and booking actions are user/org scoped where possible and submit to existing online endpoints when connectivity returns; the server still owns auth, permissions, stock validation, booking availability validation, rental/variant checks, payment persistence, receipt creation, accounting effects, balances, reservations, and final status.
 - The Admin Workspace Offline Sync view includes the shared `SyncReviewPanel` from `@faako/offline-sync`. Use it to review local POS, payment, inventory, and booking queue counts, retry failed/needs-review items by re-arming them for existing sync handlers, cancel local queue items, or mark locally reviewed items resolved. The panel intentionally shows summary metadata and last errors only, not raw queue payloads. No environment variables, setup steps, migrations, route changes, permission changes, or server workflow changes are required.
-- Offline inventory adjustment queue support lives in `src/pages/Admin/offlineInventoryAdjustmentQueue.js` and is wired from `src/pages/Admin/Admin.jsx`. Use it by opening Inventory, choosing Adjust stock, and submitting while offline; the adjustment stays local as pending sync until the existing `/.netlify/functions/stock` endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, or route changes are required.
-- Offline booking queue support lives in `src/pages/AdminBookings/offlineBookingQueue.js` and is wired from `src/pages/AdminBookings/AdminBookings.jsx`. Use it by opening Bookings and creating, editing, or changing status while offline; the action stays local as pending sync until the existing `/.netlify/functions/bookings` endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, route changes, payment changes, receipt changes, or inventory-reservation logic changes are required.
+- Offline inventory adjustment queue support lives in `src/pages/Admin/offlineInventoryAdjustmentQueue.js` and is wired from `src/pages/Admin/Admin.jsx`. Use it by opening Inventory, choosing Adjust stock, and submitting while offline; the adjustment stays local as pending sync until the stock API endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, or route changes are required.
+- Offline booking queue support lives in `src/pages/AdminBookings/offlineBookingQueue.js` and is wired from `src/pages/AdminBookings/AdminBookings.jsx`. Use it by opening Bookings and creating, editing, or changing status while offline; the action stays local as pending sync until the bookings API endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, route changes, payment changes, receipt changes, or inventory-reservation logic changes are required.
 - The registry uses shared helpers from `@faako/config`; it has no required environment variables, setup steps, migrations, database impact, billing behavior, SaaS plan gating, or access-control enforcement changes.
 - Known limitation: the registry now drives navigation metadata, but route guards and backend permissions remain manual and unchanged. Database-backed module toggles, org-level module config, permissions integration, SaaS plan gating, and visual grouped navigation remain future work.
 - Known limitation: shell placeholder support for offline/sync/notifications/org switching is structural only; REEBS production notification/search behavior remains app-owned.
@@ -144,19 +145,23 @@ pnpm --filter @faako/reebs-portal run source-categories:relink:apply
 
 ## Deployment
 
-This app has its own Netlify config in `apps/reebs-portal/netlify.toml`.
-
-Netlify builds with:
+Cloudflare Pages builds the portal frontend with:
 
 ```bash
 pnpm --filter @faako/reebs-portal run build
 ```
 
-Functions are served from `apps/reebs-portal/netlify/functions`, and selective deploy checks use:
+Use these Cloudflare Pages settings:
 
-```bash
-node ./scripts/netlify-ignore.mjs @faako/reebs-portal
-```
+- Build command: `pnpm --filter @faako/reebs-portal build`
+- Output directory: `apps/reebs-portal/dist`
+- Environment variable: `VITE_API_BASE_URL=https://api.reebspartythemes.com`
+
+The API service should run the Express adapter from the monorepo root:
+
+- Build command: `pnpm --filter @faako/reebs-portal run db:generate`
+- Start command: `pnpm --filter @faako/reebs-portal run server:with-migrate`
+- Public API base: `https://api.reebspartythemes.com`
 
 ## More Detail
 

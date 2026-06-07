@@ -7,7 +7,7 @@ const appRoot = path.resolve(__dirname, "..");
 const publicSitemapPath = path.join(appRoot, "public", "sitemap.xml");
 
 const SITE_URL = "https://www.reebspartythemes.com";
-const DEFAULT_BACKEND_BASE_URL = "https://portal.reebspartythemes.com";
+const DEFAULT_API_BASE_URL = "https://api.reebspartythemes.com";
 const today = new Date().toISOString().slice(0, 10);
 
 const staticRoutes = [
@@ -48,15 +48,18 @@ const buildRentalPath = (item = {}) => {
   return slug ? `/rentals/${slug}` : null;
 };
 
-const normalizeBackendBaseUrl = (value = "") =>
-  String(value || "").trim().replace(/\/+$/, "");
+const normalizeApiBaseUrl = (value = "") => {
+  const normalized = String(value || "").trim().replace(/\/+$/, "");
+  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
+};
 
-const getBackendBaseUrl = () =>
-  normalizeBackendBaseUrl(
-    process.env.VITE_BACKEND_BASE_URL
+const getApiBaseUrl = () =>
+  normalizeApiBaseUrl(
+    process.env.VITE_API_BASE_URL
+      || process.env.REEBS_API_BASE_URL
       || process.env.BACKEND_BASE_URL
-      || process.env.PORTAL_URL
-      || DEFAULT_BACKEND_BASE_URL
+      || process.env.VITE_BACKEND_BASE_URL
+      || DEFAULT_API_BASE_URL
   );
 
 const isRentalInventoryItem = (item = {}) => {
@@ -72,12 +75,12 @@ const isRentalInventoryItem = (item = {}) => {
 };
 
 const loadRentalRoutes = async () => {
-  const backendBaseUrl = getBackendBaseUrl();
-  if (!backendBaseUrl) return [];
+  const apiBaseUrl = getApiBaseUrl();
+  if (!apiBaseUrl) return [];
 
   let items = [];
   try {
-    const response = await fetch(new URL("/.netlify/functions/inventory", backendBaseUrl));
+    const response = await fetch(new URL("/api/inventory", apiBaseUrl));
     if (!response.ok) {
       throw new Error(`Inventory request failed: ${response.status}`);
     }

@@ -131,12 +131,15 @@ const mockData = async (page: Page) => {
     vendors: [],
   };
 
-  await page.route('**/.netlify/functions/**', (route) => {
+  const fulfillApiFixture = (route) => {
     const url = new URL(route.request().url());
     const endpoint = url.pathname.split('/').pop() || '';
     const payload = fixtures[endpoint] ?? {};
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
-  });
+  };
+
+  await page.route('**/.netlify/functions/**', fulfillApiFixture);
+  await page.route('**/api/**', fulfillApiFixture);
   await page.route('**/v6.exchangerate-api.com/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stubRates) })
   );

@@ -15,9 +15,10 @@ Fully live system with real operational data. Treat all changes as production-se
 - Cookie-based session boot from `/api/auth/session`.
 - Secure cookie-session support for separately hosted frontend/API deployments, including the current direct Railway API hostname. Login verifies the issued session before opening the dashboard. A same-site custom API hostname is required for reliable Safari persistence because Safari blocks third-party cookies by default. CSRF token handoff remains in authenticated responses, unsafe business writes keep server-side cookie/header validation, and refresh-cookie recovery supports reopened sessions.
 - Capability middleware, organization scoping, and shared API client behavior.
+- Frontend route guards for restricted module users are aligned with backend module capability keys, with the rent-only dashboard landing preserved.
 - Additive invoice `paidAmount`, derived balance-due, and manual partial-payment presentation.
 - Registry-complete site monitoring with bounded concurrent fetches. Optional internal apps remain visible as `Not configured` until hosted URLs exist.
-- Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, and CSV export.
+- Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, CSV export, and the legacy `/api/reports/summary` compatibility alias capability.
 
 ## In-progress modules/features
 

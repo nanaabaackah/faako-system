@@ -13,6 +13,7 @@ import { formatDateTime, formatPercent, formatRatio } from "../../utils/formatte
 import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "../../utils/offlineCache";
+import { hasModuleAccess } from "../../utils/moduleAccess";
 import "./Dashboard.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
@@ -337,14 +338,16 @@ const ModulePanelLink = ({ to, label }) => (
 const Dashboard = () => {
   const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
+  const canUseBookings = hasModuleAccess(storedUser, "bookings");
+  const canUseAccounting = hasModuleAccess(storedUser, "accounting");
   const [timeRange] = useState("7d");
   const [briefDateKey] = useState(() => buildTodayDate());
   const { data: kpiData, loading, error } = useDashboardData({ range: timeRange });
   const [availabilityBookings, setAvailabilityBookings] = useState([]);
-  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(canUseBookings);
   const [availabilityError, setAvailabilityError] = useState("");
   const [accountingSummary, setAccountingSummary] = useState(null);
-  const [accountingLoading, setAccountingLoading] = useState(true);
+  const [accountingLoading, setAccountingLoading] = useState(canUseAccounting);
   const [accountingError, setAccountingError] = useState("");
   const [slotModal, setSlotModal] = useState(null);
   const [slotForm, setSlotForm] = useState(DEFAULT_SLOT_FORM);
@@ -474,6 +477,10 @@ const Dashboard = () => {
 
   const handleSlotSave = async () => {
     if (!slotModal) return;
+    if (!canUseBookings) {
+      setSlotStatus({ tone: "error", message: "Bookings access is required to save appointments." });
+      return;
+    }
 
     const title = slotForm.title.trim();
     if (!title) {
@@ -514,6 +521,13 @@ const Dashboard = () => {
   };
 
   const loadAvailability = useCallback(async () => {
+    if (!canUseBookings) {
+      setAvailabilityBookings([]);
+      setAvailabilityError("");
+      setAvailabilityLoading(false);
+      return;
+    }
+
     setAvailabilityLoading(true);
     setAvailabilityError("");
     try {
@@ -544,7 +558,7 @@ const Dashboard = () => {
     } finally {
       setAvailabilityLoading(false);
     }
-  }, [availabilityCacheKey, briefDateKey]);
+  }, [availabilityCacheKey, briefDateKey, canUseBookings]);
 
   useEffect(() => {
     loadAvailability();
@@ -563,6 +577,13 @@ const Dashboard = () => {
 
   const loadAccountingSummary = useCallback(
     async ({ silent = false } = {}) => {
+      if (!canUseAccounting) {
+        setAccountingSummary(null);
+        setAccountingError("");
+        setAccountingLoading(false);
+        return;
+      }
+
       if (!silent) {
         setAccountingLoading(true);
       }
@@ -592,7 +613,7 @@ const Dashboard = () => {
         setAccountingLoading(false);
       }
     },
-    [accountingCacheKey, isAdmin]
+    [accountingCacheKey, canUseAccounting, isAdmin]
   );
 
   useEffect(() => {
@@ -1003,24 +1024,28 @@ const Dashboard = () => {
               secondaryLabel={weatherSecondaryLabel}
               feelsLikeLabel={weatherFeelsLikeLabel}
             />
-            <KPICard
-              variant="brief"
-              label={isBriefDateToday ? "Appointments today" : "Appointments selected day"}
-              value={todayBookingsCount}
-              meta="Scheduled appointments"
-              delta={`Availability ${availableSlots}/${totalSlots}`}
-            />
-            <KPICard
-              variant="brief"
-              label={isBriefDateToday ? "Open slots today" : "Open slots selected day"}
-              value={`${todayOpenSlots}/${TIME_SLOTS.length}`}
-              meta="Available windows"
-              delta={
-                nextAvailable
-                  ? `Next open ${nextAvailable.day.dateLabel} ${nextAvailable.time}`
-                  : "No open slots"
-              }
-            />
+            {canUseBookings ? (
+              <>
+                <KPICard
+                  variant="brief"
+                  label={isBriefDateToday ? "Appointments today" : "Appointments selected day"}
+                  value={todayBookingsCount}
+                  meta="Scheduled appointments"
+                  delta={`Availability ${availableSlots}/${totalSlots}`}
+                />
+                <KPICard
+                  variant="brief"
+                  label={isBriefDateToday ? "Open slots today" : "Open slots selected day"}
+                  value={`${todayOpenSlots}/${TIME_SLOTS.length}`}
+                  meta="Available windows"
+                  delta={
+                    nextAvailable
+                      ? `Next open ${nextAvailable.day.dateLabel} ${nextAvailable.time}`
+                      : "No open slots"
+                  }
+                />
+              </>
+            ) : null}
             <KPICard
               variant="brief"
               label="Service health"
@@ -1042,10 +1067,11 @@ const Dashboard = () => {
         </div>
       ) : null}
 
-      <section
-        className="panel glass-card availability-panel dashboard-module-panel dashboard-module-panel--interactive"
-        id="availability"
-      >
+      {canUseBookings ? (
+        <section
+          className="panel glass-card availability-panel dashboard-module-panel dashboard-module-panel--interactive"
+          id="availability"
+        >
         <div className="panel-header">
           <div>
             <h3>Weekly availability</h3>
@@ -1187,9 +1213,10 @@ const Dashboard = () => {
         </div>
 
         <ModulePanelLink to="/bookings" label="Open bookings module" />
-      </section>
+        </section>
+      ) : null}
 
-      {slotModal ? (
+      {canUseBookings && slotModal ? (
         <div className="slot-modal" role="dialog" aria-modal="true" aria-labelledby="slot-modal-title">
           <div className="slot-modal__card">
             <div className="slot-modal__header">
@@ -1336,12 +1363,13 @@ const Dashboard = () => {
       ) : null}
 
 
-      <section className="glass-card panel stack dashboard-module-panel dashboard-accounting-snapshot">
-        <div className="panel-header">
-          <div>
-            <h3>Accounting snapshot</h3>
+      {canUseAccounting ? (
+        <section className="glass-card panel stack dashboard-module-panel dashboard-accounting-snapshot">
+          <div className="panel-header">
+            <div>
+              <h3>Accounting snapshot</h3>
+            </div>
           </div>
-        </div>
 
         {accountingError ? (
           <div className="notice is-error" role="alert">
@@ -1402,8 +1430,9 @@ const Dashboard = () => {
           </div>
         ) : null}
 
-        <ModulePanelLink to="/accounting" label="Open accounting module" />
-      </section>
+          <ModulePanelLink to="/accounting" label="Open accounting module" />
+        </section>
+      ) : null}
 
       {kpiData ? (
         <>

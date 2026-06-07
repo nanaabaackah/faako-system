@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:frontend": "VITE_BACKEND_BASE_URL=http://localhost:8888 VITE_REEBS_PORTAL_URL=http://localhost:5174 vite --host 0.0.0.0 --port 5173",
+    "dev:frontend": "VITE_API_BASE_URL=http://localhost:8888 VITE_REEBS_PORTAL_URL=http://localhost:5174 vite --host 0.0.0.0 --port 5173",
     "dev:with-backend": "concurrently -k -n backend,portal,website -c magenta,cyan,blue \"pnpm --dir ../reebs-portal run dev:backend\" \"pnpm --dir ../reebs-portal run dev:frontend\" \"pnpm run dev:frontend\"",
     "sitemap": "node scripts/generateSitemap.mjs",
     "prebuild": "pnpm run sitemap",
     "build": "vite build",
-    "netlify": "APP_ENV=development pnpm exec netlify dev",
     "db:generate": "APP_ENV=development prisma generate",
     "db:studio:dev": "APP_ENV=development prisma studio",
     "db:migrate:dev": "APP_ENV=development prisma migrate dev",
@@ -19,9 +18,9 @@
     "db:deploy:dev": "APP_ENV=development prisma migrate deploy",
     "db:deploy:prod": "APP_ENV=production prisma migrate deploy",
     "rehash:passwords": "node scripts/rehashPasswords.js",
-    "test:e2e": "PORT=8888 npx playwright test",
-    "test:e2e:ui": "PORT=8888 npx playwright test --ui",
-    "test:e2e:all": "concurrently \"pnpm run netlify\" \"pnpm run test:e2e\""
+    "test:e2e": "PORT=5173 npx playwright test",
+    "test:e2e:ui": "PORT=5173 npx playwright test --ui",
+    "test:e2e:all": "concurrently \"pnpm --dir ../reebs-portal run dev:backend\" \"pnpm --dir ../reebs-portal run dev:frontend\" \"pnpm run dev:frontend\" \"pnpm run test:e2e\""
   },
   "dependencies": {
     "@faako/core": "workspace:*",

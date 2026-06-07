@@ -28,12 +28,24 @@ const getHeaderValue = (event, key) => {
   ).trim();
 };
 
+const splitConfiguredOrigins = (value) =>
+  String(value || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
 const getAllowedOrigins = () => {
   const configured = [
     process.env.URL,
     process.env.DEPLOY_PRIME_URL,
+    process.env.CF_PAGES_URL,
     process.env.SITE_URL,
     process.env.APP_URL,
+    process.env.APP_BASE_URL,
+    process.env.REEBS_PORTAL_URL,
+    process.env.REEBS_WEBSITE_URL,
+    ...splitConfiguredOrigins(process.env.CORS_ORIGINS),
+    ...splitConfiguredOrigins(process.env.ALLOWED_ORIGINS),
   ];
   return mergeAllowedOrigins(DEFAULT_ALLOWED_ORIGINS, configured);
 };

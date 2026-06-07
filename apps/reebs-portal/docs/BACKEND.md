@@ -1,7 +1,7 @@
 # Reebs Backend Documentation
 
 ## Overview
-The backend is a set of Netlify Serverless Functions written in Node.js. Data is stored in PostgreSQL (Railway). Prisma is used for schema and migrations, but the functions primarily use `pg` directly.
+The backend is an Express API wrapper that adapts the existing Node handler modules. Data is stored in PostgreSQL. Prisma is used for schema and migrations, but the handlers primarily use `pg` directly.
 
 Key responsibilities:
 - Auth (staff login + manager PIN)
@@ -12,28 +12,30 @@ Key responsibilities:
 - Marketing discounts
 
 ## Runtime and Data Access
-- Functions live in `netlify/functions/*.js`.
-- Production base URL: `https://portal.reebspartythemes.com/.netlify/functions/*`.
+- API wrapper lives in `backend/server.js`.
+- Handler source lives in `netlify/functions/*.js` for compatibility during the migration.
+- Production base URL: `https://api.reebspartythemes.com/api/*`.
+- Legacy `/.netlify/functions/*` remains an API-server alias while browser calls migrate to `/api/*`.
 - Each function now loads the shared runtime env helper, resolves `DATABASE_URL` from the active app environment, and uses `resolvePgSslConfig()` so local Postgres can run with `DATABASE_SSL_MODE="disable"` while hosted Postgres keeps SSL enabled.
 - `prisma/schema.prisma` is the source of truth for table definitions.
 - `prismaClient.js` configures Prisma with the Postgres adapter (used by scripts).
 
 ## Authentication
 ### Staff Login
-- Endpoint: `POST /.netlify/functions/login`
+- Endpoint: `POST /api/login`
 - Validates user credentials from the `user` table.
 - Passwords are hashed with `utils/passwords.js` (scrypt).
 - Returns a signed token with `USER_APP_SECRET`.
 
 ### Manager Login (Mobile App)
-- Endpoint: `POST /.netlify/functions/managerLogin`
+- Endpoint: `POST /api/managerLogin`
 - Expects 6-digit PIN, checked against `MANAGER_PIN_HASH`.
 - Returns manager token signed with `MANAGER_APP_SECRET`.
 
 ### Token Handling
 - Staff token is validated by `requireUser()` in `netlify/functions/_shared/userAuth.js`.
 - Manager token is validated by `getManagerFromEvent()` in `netlify/functions/_shared/managerAuth.js`.
-- Frontend attaches the token as `Authorization: Bearer <token>` for Netlify function calls.
+- Frontend includes credentials and attaches the token as `Authorization: Bearer <token>` for API calls when a legacy token is present.
 
 ## Organization Scoping
 - `netlify/functions/_shared/organization.js` resolves `organizationId` from:

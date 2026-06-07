@@ -7,7 +7,7 @@
 ## Environment affected
 
 - Identify local, development, staging, private beta, or production.
-- Confirm the target database and Netlify site before deploy.
+- Confirm the target database, Cloudflare Pages project, and REEBS API service before deploy.
 
 ## Auth and roles
 
@@ -43,15 +43,17 @@
 - Confirm `VITE_*` values are safe to expose in the browser.
 - Compare required env vars against `apps/reebs-portal/.env.example`.
 
-## Netlify/Railway deployment
+## Cloudflare/API deployment
 
-- Confirm Netlify build command and function directory are correct for `apps/reebs-portal`.
-- Run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/reebs-portal`.
-- Railway is not the primary deployment target for this app unless a future backend split is introduced.
+- Confirm Cloudflare Pages build command is `pnpm --filter @faako/reebs-portal build`.
+- Confirm Cloudflare Pages output directory is `apps/reebs-portal/dist`.
+- Confirm frontend `VITE_API_BASE_URL` points to `https://api.reebspartythemes.com`.
+- Confirm the API service starts with `pnpm --filter @faako/reebs-portal run server:with-migrate`.
+- Confirm API service env includes server-only secrets such as `DATABASE_URL`, `USER_APP_SECRET`, email provider keys, and messaging provider keys.
 
 ## Rollback plan
 
-- Identify the previous known-good Netlify deploy.
+- Identify the previous known-good Cloudflare Pages deploy and API service deploy.
 - Note any database migrations that cannot be safely rolled back.
 - Prepare a user-facing incident note if operational workflows are affected.
 
@@ -64,5 +66,5 @@
 ## Post-deploy verification
 
 - Confirm the deployed portal loads and authenticated routes work.
-- Check affected Netlify Functions and logs.
+- Check affected API routes and API service logs.
 - Verify no unexpected permission, data, booking, order, receipt, or inventory regressions are visible.

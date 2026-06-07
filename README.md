@@ -23,7 +23,7 @@ Main directories:
 | `@faako/faako-api` | `apps/faako-api` | Faako Netlify Functions API for signup and health flows | `pnpm --filter @faako/faako-api run dev:backend` |
 | `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` |
 | `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
-| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus Netlify backend | `pnpm --filter @faako/reebs-portal run dev:frontend` |
+| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:frontend` |
 | `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
 | `@faako/dev-erp` | `apps/dev-erp` | Fully live operational ERP with real operational data | `pnpm --filter @faako/dev-erp run dev:with-backend` |
 | `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and serverless contact flows | `pnpm --filter @faako/bynana-portfolio run dev` |
@@ -118,7 +118,8 @@ pnpm security:all
 ## Deployment
 
 - `dev-erp` backend/server deploys through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml).
-- The other deployable apps use Netlify, and each app owns its own `netlify.toml`.
+- REEBS Portal and REEBS Website deploy as Cloudflare Pages frontends and call the REEBS API wrapper at `https://api.reebspartythemes.com`.
+- Remaining Netlify-hosted apps own their own `netlify.toml` where applicable.
 - `faako-website` mirrors `faako-api` functions during build when it serves signup endpoints itself.
 - Selective deploy checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs) and [scripts/netlify-ignore.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/netlify-ignore.mjs).
 

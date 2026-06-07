@@ -32,7 +32,7 @@ export const MONOREPO_APP_REGISTRY = [
     path: "apps/reebs-portal",
     title: "portal.reebspartythemes.com",
     purpose: "Live/private beta ERP portal for authenticated REEBS users.",
-    category: "erp",
+    category: "portal",
     productionSensitive: true,
     monitoringEnabled: true,
     defaultBaseUrl: "https://portal.reebspartythemes.com",
@@ -61,6 +61,22 @@ export const MONOREPO_APP_REGISTRY = [
       { label: "Marketing", path: "/admin/marketing" },
       { label: "Settings", path: "/admin/settings" },
       { label: "Website template", path: "/admin/website-template" },
+    ],
+    additionalMonitoringSites: [
+      {
+        id: "reebs-api",
+        title: "api.reebspartythemes.com",
+        purpose: "REEBS backend/API wrapper for portal and website data flows.",
+        category: "api",
+        defaultBaseUrl: "https://api.reebspartythemes.com",
+        envBaseUrlKeys: ["REEBS_API_BASE_URL", "REEBS_BACKEND_BASE_URL", "VITE_API_BASE_URL"],
+        monitoringPages: [
+          { label: "Health", path: "/health" },
+          { label: "Inventory counts", path: "/api/inventoryCounts" },
+          { label: "Bouncy castles", path: "/api/bouncy_castles" },
+          { label: "Machines", path: "/api/machines" },
+        ],
+      },
     ],
   },
   {

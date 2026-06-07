@@ -595,15 +595,7 @@
   display: grid;
   gap: 0.7rem;
   min-width: 0;
-  padding: clamp(1rem, 2.8vw, 1.8rem);
   border-radius: calc(var(--radius) - 4px);
-  background:
-    linear-gradient(
-      140deg,
-      color-mix(in oklab, var(--proposal-accent-soft), transparent 12%),
-      transparent 62%
-    ),
-    var(--proposal-paper-strong);
 }
 
 .proposal-document-editor__client .eyebrow {

@@ -47,6 +47,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/integrations\/google(?:\/|$)/, modules: ["bookings"] },
   { pattern: /^\/api\/organizations(?:\/|$)/, modules: ["organizations"] },
   { pattern: /^\/api\/debug(?:\/|$)/, modules: ["system-health"] },
+  { pattern: /^\/api\/reports\/summary(?:\/|$)/, modules: ["audit-logs"] },
   { pattern: /^\/api\/reports(?:\/|$)/, modules: ["reports"] },
   { pattern: /^\/api\/audit-logs(?:\/|$)/, modules: ["audit-logs"] },
   { pattern: /^\/api\/alerts(?:\/|$)/, modules: ["settings"] },

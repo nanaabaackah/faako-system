@@ -6,7 +6,7 @@ Reebs is a hybrid ERP + ecommerce site built with React and Vite. The frontend i
 - Checkout + booking flows (Cart, Checkout, Book)
 - Admin console (inventory, orders, bookings, accounting, HR, etc.)
 
-The app consumes Netlify Functions at `/.netlify/functions/*` (defaulting to `https://portal.reebspartythemes.com/.netlify/functions/*` for production).
+The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythemes.com`. Legacy `/.netlify/functions/*` browser calls are translated by `patchOrganizationFetch()` during the Cloudflare/API migration.
 
 ## Stack
 - React 19 + Vite
@@ -19,19 +19,19 @@ The app consumes Netlify Functions at `/.netlify/functions/*` (defaulting to `ht
 
 ## Entry Points and Boot
 - `src/main.jsx` bootstraps the React app and calls `patchOrganizationFetch()`.
-- `patchOrganizationFetch()` injects `x-organization-id` and `Authorization` headers on Netlify function calls.
+- `patchOrganizationFetch()` maps legacy function paths to `/api/*`, includes credentials, and injects `x-organization-id` and `Authorization` headers when available.
 - `src/App.jsx` wires routing, auth gating, cart overlay, and global UI shell.
 
 ## System Architecture (High Level)
 ```mermaid
 flowchart LR
-  Browser[Web Frontend (React/Vite)] -->|HTTPS| Functions[Netlify Functions API]
-  Mobile[Manager App (Expo)] -->|HTTPS| Functions
-  Functions -->|SQL| DB[(PostgreSQL)]
-  Functions -->|Notifications| WhatsApp[WhatsApp Cloud API]
-  Functions -->|Push| Expo[Expo Push Service]
-  Functions -->|Geocode| OSM[Nominatim]
-  Functions -->|Geocode (optional)| Google[Google Geocoding API]
+  Browser[Web Frontend (React/Vite)] -->|HTTPS| API[REEBS API Wrapper]
+  Mobile[Manager App (Expo)] -->|HTTPS| API
+  API -->|SQL| DB[(PostgreSQL)]
+  API -->|Notifications| WhatsApp[WhatsApp Cloud API]
+  API -->|Push| Expo[Expo Push Service]
+  API -->|Geocode| OSM[Nominatim]
+  API -->|Geocode (optional)| Google[Google Geocoding API]
 ```
 
 ## Route Map
@@ -93,10 +93,10 @@ Location: `src/components/CurrencyContext.jsx`
 - Not currently wired in `App.jsx`, but available for future use.
 
 ## API Integration
-All API calls are routed through Netlify Functions under `/.netlify/functions/*`.
-- `patchOrganizationFetch()` automatically adds `x-organization-id` and `Authorization` headers if present.
+All API calls should resolve through `/api/*` on the configured API base.
+- `patchOrganizationFetch()` automatically maps legacy `/.netlify/functions/*` paths to `/api/*`, includes credentials, and adds `x-organization-id` and `Authorization` headers if present.
 - Auth token is stored in `window.__reebsAuthToken` and local/session storage.
-- Set `VITE_BACKEND_BASE_URL` to override the functions host (default: `https://portal.reebspartythemes.com`).
+- Set `VITE_API_BASE_URL` to override the API host (production: `https://api.reebspartythemes.com`). `VITE_BACKEND_BASE_URL` is a legacy fallback.
 
 Caching:
 - `src/utils/inventoryCache.js` caches inventory for 5 minutes in sessionStorage.

@@ -29,19 +29,10 @@ const SEVERITY_OPTIONS = [
   { value: "error", label: "Error" },
 ];
 
-const CATEGORY_OPTIONS = [
-  { value: "", label: "All categories" },
-  { value: "access", label: "Access" },
-  { value: "admin", label: "Admin" },
-  { value: "financial", label: "Financial" },
-  { value: "incident", label: "Incident" },
-];
-
 const formatCount = (value) => Number(value || 0).toLocaleString("en-US");
 const DEFAULT_FILTERS = {
   range: "7d",
   source: "",
-  category: "",
   severity: "",
   q: "",
 };
@@ -211,18 +202,6 @@ const AuditLogs = () => {
               onChange={(event) => handleFilterChange("source", event.target.value)}
             >
               {SOURCE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-          </SelectField>
-          <SelectField
-              fieldClassName="field"
-              label="Category"
-              value={filters.category}
-              onChange={(event) => handleFilterChange("category", event.target.value)}
-            >
-              {CATEGORY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
