@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { buildApiUrl } from "../../api-url";
+import { DISPLAY_CURRENCY_CODE, formatAmountAsGhs } from "../../utils/displayCurrency";
 import "./InvoiceView.css";
 
 const formatDate = (value) => {
@@ -10,11 +11,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-const formatAmount = (amount, currency) =>
-  `${currency} ${Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const formatAmount = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const STATUS_LABELS = {
   QUOTATION: "Awaiting your response",
@@ -152,7 +149,7 @@ const InvoiceView = () => {
                   <p className="eyebrow">Details</p>
                   <p className="muted">Issue date: {formatDate(invoice.issueDate)}</p>
                   {invoice.dueDate ? <p className="muted">Due date: {formatDate(invoice.dueDate)}</p> : null}
-                  <p className="muted">Currency: {invoice.currency}</p>
+                  <p className="muted">Display currency: {DISPLAY_CURRENCY_CODE}</p>
                 </div>
               </div>
 

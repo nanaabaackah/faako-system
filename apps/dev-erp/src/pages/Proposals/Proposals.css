@@ -857,6 +857,14 @@
   gap: 0.7rem;
 }
 
+.proposal-pricing-table {
+  padding: 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--border), var(--proposal-paper) 32%);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--proposal-paper), var(--card) 12%);
+  box-shadow: var(--table-shadow);
+}
+
 .proposal-pricing-table__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

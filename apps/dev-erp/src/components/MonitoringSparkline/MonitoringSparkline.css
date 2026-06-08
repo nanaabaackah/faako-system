@@ -1,0 +1,38 @@
+.monitoring-sparkline {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  color: var(--info);
+  filter: drop-shadow(0 12px 22px color-mix(in oklab, currentColor, transparent 78%));
+}
+
+.monitoring-sparkline.is-success {
+  color: var(--success);
+}
+
+.monitoring-sparkline.is-warning {
+  color: var(--warning);
+}
+
+.monitoring-sparkline.is-danger {
+  color: var(--danger);
+}
+
+.monitoring-sparkline__area {
+  fill: currentColor;
+  opacity: 0.14;
+}
+
+.monitoring-sparkline__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.monitoring-sparkline__point {
+  fill: var(--card);
+  stroke: currentColor;
+  stroke-width: 2.4;
+}

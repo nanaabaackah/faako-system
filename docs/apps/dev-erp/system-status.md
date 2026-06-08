@@ -17,8 +17,9 @@ Fully live system with real operational data. Treat all changes as production-se
 - Capability middleware, organization scoping, and shared API client behavior.
 - Frontend route guards for restricted module users are aligned with backend module capability keys, with the rent-only dashboard landing preserved.
 - Additive invoice `paidAmount`, derived balance-due, and manual partial-payment presentation.
-- Registry-complete site monitoring with bounded concurrent fetches. Optional internal apps remain visible as `Not configured` until hosted URLs exist.
-- Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, CSV export, and the legacy `/api/reports/summary` compatibility alias capability.
+- GHS display currency normalization for financial figures, with optional backend currency API hydration through `CURRENCY_API_URL`/`CURRENCY_API_KEY` and non-secret fallback rates through `CAD_TO_GHS_RATE`/`VITE_CAD_TO_GHS_RATE`. Persisted source currencies remain unchanged.
+- Registry-complete site/API monitoring with bounded concurrent fetches. API surfaces, including the Dev ERP Railway/custom API host, render in System Status only; website and portal page health excludes API/internal surfaces. Optional internal apps remain visible as `Not configured` until hosted URLs exist.
+- Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, CSV export, Railway webhook diagnostics, terminal-style live log streams, and the legacy `/api/reports/summary` compatibility alias capability.
 
 ## In-progress modules/features
 
@@ -39,6 +40,8 @@ Fully live system with real operational data. Treat all changes as production-se
 - Operational records, rent records, payment records, customer/client data, reports, and data exports.
 - Prisma migrations, database schema changes, production data targeting, and environment-specific database isolation.
 - Environment variables, OAuth token encryption, email workflows, third-party integrations, and AI/productivity endpoints.
+- CAD-to-GHS display conversion depends on the backend rate endpoint. Keep currency API keys server-side only, monitor provider failures, and keep fallback rates current enough that dashboards, PDFs, public invoice views, reports, and emails do not disagree badly during provider outages.
+- Railway log visibility depends on `RAILWAY_WEBHOOK_SECRET` being set on the Dev API service and the Railway project webhook posting to `/api/webhooks/railway` with the matching secret. Missing or mismatched webhook config means Railway events will not appear in Audit Logs even when the rest of the API is healthy.
 - Paystack keys, payment references, webhook signature verification, invoice paid-state reconciliation, manual payment fallback, receipt ownership, and future payment-provider audit logging.
 
 ## Production sensitivity

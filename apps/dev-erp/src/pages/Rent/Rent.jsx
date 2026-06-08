@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatCurrencyMajor } from "@faako/finance";
 import {
   SYNC_STATES,
   createIndexedDbQueueStorage,
@@ -10,6 +9,12 @@ import { FiArrowUpRight, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, MonthField, SelectField } from "@faako/ui";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
+import {
+  DISPLAY_CURRENCY_CODE,
+  formatAmountAsGhs,
+  formatGhsAmount,
+  sumAmountsAsDisplayGhs,
+} from "../../utils/displayCurrency";
 import {
   buildQueuedRentPayment,
   getQueuedRentPaymentNotice,
@@ -26,8 +31,7 @@ const isRentManagerRole = (roleName) => roleName === "Admin" || roleName === "La
 const getNoticeClassName = (tone = "") =>
   `notice ${tone === "error" ? "is-error" : tone === "success" ? "is-success" : ""}`.trim();
 
-const formatAmount = (amount, currency) =>
-  formatCurrencyMajor(amount, currency, { display: "code", locale: "en-US" });
+const formatAmount = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const formatCurrencySummary = (entries) => {
   const normalizedEntries = Array.isArray(entries)
@@ -38,9 +42,11 @@ const formatCurrencySummary = (entries) => {
 
   if (!normalizedEntries.length) return "-";
 
-  return normalizedEntries
-    .map(([currency, amount]) => formatAmount(amount, currency))
-    .join(" · ");
+  return formatGhsAmount(
+    sumAmountsAsDisplayGhs(
+      normalizedEntries.map(([currency, amount]) => ({ currency, amount }))
+    )
+  );
 };
 
 const formatDate = (value) => {
@@ -791,6 +797,44 @@ const Rent = () => {
 
     return formatCurrencySummary(Array.from(totals.entries()));
   }, [currencyTotals, payments]);
+  const displayCurrencyTotals = useMemo(() => {
+    const rows = currencyTotals.map(([currency, totals]) => ({
+      currency,
+      monthlyRent: totals?.monthlyRent ?? 0,
+      paidThisMonth: totals?.paidThisMonth ?? 0,
+      expectedThisMonth: totals?.expectedThisMonth ?? 0,
+      outstandingThisMonth: totals?.outstandingThisMonth ?? 0,
+      outstandingYear: totals?.outstandingYear ?? totals?.outstandingTotal ?? 0,
+    }));
+
+    return {
+      monthlyRent: sumAmountsAsDisplayGhs(
+        rows,
+        (entry) => entry.monthlyRent,
+        (entry) => entry.currency
+      ),
+      paidThisMonth: sumAmountsAsDisplayGhs(
+        rows,
+        (entry) => entry.paidThisMonth,
+        (entry) => entry.currency
+      ),
+      expectedThisMonth: sumAmountsAsDisplayGhs(
+        rows,
+        (entry) => entry.expectedThisMonth,
+        (entry) => entry.currency
+      ),
+      outstandingThisMonth: sumAmountsAsDisplayGhs(
+        rows,
+        (entry) => entry.outstandingThisMonth,
+        (entry) => entry.currency
+      ),
+      outstandingYear: sumAmountsAsDisplayGhs(
+        rows,
+        (entry) => entry.outstandingYear,
+        (entry) => entry.currency
+      ),
+    };
+  }, [currencyTotals]);
   const singleTenant = tenants.length === 1 ? tenants[0] : null;
   const isSingleTenantView = Boolean(singleTenant);
 
@@ -970,7 +1014,7 @@ const Rent = () => {
                 <strong>{singleTenant.tenantName}</strong>
                 <span className="muted">{singleTenant.tenantEmail}</span>
               </div>
-              <span className="rent-single-tenant-card__currency">{singleTenant.currency}</span>
+              <span className="rent-single-tenant-card__currency">{DISPLAY_CURRENCY_CODE}</span>
             </div>
 
             <div className="rent-single-tenant-summary-grid">
@@ -1025,29 +1069,27 @@ const Rent = () => {
         <>
           <div className="panel-grid rent-currency-grid rent-overview-grid">
             {currencyTotals.length ? (
-              currencyTotals.map(([currency, totals]) => (
-                <article className="panel rent-currency-card" key={currency}>
-                  <h3>{currency} Summary</h3>
-                  <dl>
-                    <div>
-                      <dt>Paid this month</dt>
-                      <dd>{formatAmount(totals.paidThisMonth, currency)}</dd>
-                    </div>
-                    <div>
-                      <dt>Expected this month</dt>
-                      <dd>{formatAmount(totals.expectedThisMonth, currency)}</dd>
-                    </div>
-                    <div>
-                      <dt>Outstanding this month</dt>
-                      <dd>{formatAmount(totals.outstandingThisMonth, currency)}</dd>
-                    </div>
-                    <div>
-                      <dt>Year-end outstanding</dt>
-                      <dd>{formatAmount(totals.outstandingYear ?? totals.outstandingTotal, currency)}</dd>
-                    </div>
-                  </dl>
-                </article>
-              ))
+              <article className="panel rent-currency-card">
+                <h3>{DISPLAY_CURRENCY_CODE} Summary</h3>
+                <dl>
+                  <div>
+                    <dt>Paid this month</dt>
+                    <dd>{formatGhsAmount(displayCurrencyTotals.paidThisMonth)}</dd>
+                  </div>
+                  <div>
+                    <dt>Expected this month</dt>
+                    <dd>{formatGhsAmount(displayCurrencyTotals.expectedThisMonth)}</dd>
+                  </div>
+                  <div>
+                    <dt>Outstanding this month</dt>
+                    <dd>{formatGhsAmount(displayCurrencyTotals.outstandingThisMonth)}</dd>
+                  </div>
+                  <div>
+                    <dt>Year-end outstanding</dt>
+                    <dd>{formatGhsAmount(displayCurrencyTotals.outstandingYear)}</dd>
+                  </div>
+                </dl>
+              </article>
             ) : (
               <article className="panel">
                 <p className="muted">No rent tenants have been added yet.</p>

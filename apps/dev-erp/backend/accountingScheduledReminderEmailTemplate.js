@@ -1,4 +1,5 @@
 import emailKit from "../../../packages/email-kit/src/index.cjs";
+import { formatAmountAsGhs } from "./utils/displayCurrency.js";
 
 const {
   EMAIL_THEMES,
@@ -9,8 +10,7 @@ const {
   renderParagraphs,
 } = emailKit;
 
-const formatMoney = (amount, currency) =>
-  `${currency} ${Number(amount || 0).toFixed(2)}`;
+const formatMoney = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const formatUtcDateLabel = (value) => {
   const date = value instanceof Date ? value : new Date(value);

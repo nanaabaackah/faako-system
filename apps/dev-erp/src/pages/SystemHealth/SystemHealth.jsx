@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AnimatedLoadingState, ERPStatusBadge, ERPTable } from "@faako/ui";
+import { AnimatedLoadingState, ERPStatusBadge } from "@faako/ui";
+import MonitoringSparkline from "../../components/MonitoringSparkline/MonitoringSparkline";
+import {
+  buildMonitoringSparklineValues,
+  getMonitoringHealthScore,
+  getMonitoringStatusSummary,
+  getMonitoringTone,
+} from "../../components/MonitoringSparkline/monitoringSparklineUtils";
 import useDashboardData from "../../hooks/useDashboardData";
-import { formatDateTime } from "../../utils/formatters";
+import { formatDateTime, formatPercent, formatRatio } from "../../utils/formatters";
 import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 
@@ -60,6 +67,12 @@ const SystemHealth = () => {
         ? kpiData.apiSurfaces
         : [
             {
+              id: "dev-erp-api",
+              label: "Dev ERP API",
+              status: systemStatus.api,
+              note: "API surface",
+            },
+            {
               id: "faako-api",
               label: "Faako API",
               status: systemStatus.faakoApi,
@@ -72,7 +85,7 @@ const SystemHealth = () => {
               note: "API surface",
             },
           ].filter((surface) => surface.status),
-    [kpiData?.apiSurfaces, systemStatus.faakoApi, systemStatus.stroaneApi]
+    [kpiData?.apiSurfaces, systemStatus.api, systemStatus.faakoApi, systemStatus.stroaneApi]
   );
   const siteStatuses = useMemo(
     () => (Array.isArray(rawSiteStatuses) ? rawSiteStatuses : []),
@@ -85,7 +98,6 @@ const SystemHealth = () => {
 
   const systemEntries = useMemo(
     () => [
-      { id: "api", label: "Dev ERP API", status: systemStatus.api, note: "Auth + metrics" },
       ...apiSurfaces.map((surface) => ({
         id: surface.id,
         label: surface.label,
@@ -119,7 +131,6 @@ const SystemHealth = () => {
     ],
     [
       apiSurfaces,
-      systemStatus.api,
       systemStatus.faakoDb,
       systemStatus.portfolioDb,
       systemStatus.reebsDb,
@@ -131,16 +142,99 @@ const SystemHealth = () => {
     () =>
       siteStatuses.map((site) => {
         const pages = site.pages ?? [];
+        const aggregateStatus = getAggregateSiteStatus(pages);
+        const summary = getMonitoringStatusSummary(pages);
+        const score = aggregateStatus === "not_configured"
+          ? 0
+          : summary.configured
+            ? summary.score
+            : getMonitoringHealthScore(aggregateStatus);
         return {
           id: site.id,
           title: site.title,
           category: site.category,
           pages,
-          aggregateStatus: getAggregateSiteStatus(pages),
+          aggregateStatus,
+          summary,
+          score,
+          tone: getMonitoringTone(aggregateStatus),
+          sparkline: buildMonitoringSparklineValues({
+            status: aggregateStatus,
+            score,
+            seed: site.title?.length || site.id?.length || 1,
+          }),
         };
       }),
     [siteStatuses]
   );
+
+  const sitePages = siteOverview.flatMap((site) => site.pages);
+  const totalServices = systemEntries.filter((entry) => entry.status).length;
+  const healthyServices = systemEntries.filter(
+    (entry) => entry.status && isHealthyStatus(entry.status)
+  ).length;
+  const configuredSites = siteOverview.filter((site) => site.aggregateStatus !== "not_configured");
+  const totalSites = configuredSites.length;
+  const onlineSites = siteOverview.filter((site) => site.aggregateStatus === "online").length;
+  const configuredPages = sitePages.filter((page) => page.status !== "not_configured");
+  const totalPages = configuredPages.length;
+  const onlinePages = sitePages.filter((page) => page.status === "online").length;
+  const serviceHealthPercent = formatPercent(healthyServices, totalServices);
+  const siteHealthPercent = formatPercent(onlineSites, totalSites);
+  const pageHealthPercent = formatPercent(onlinePages, totalPages);
+  const systemMonitorEntries = systemEntries.map((entry, index) => {
+    const score = getMonitoringHealthScore(entry.status);
+    return {
+      ...entry,
+      score,
+      tone: getMonitoringTone(entry.status),
+      sparkline: buildMonitoringSparklineValues({
+        status: entry.status,
+        score,
+        seed: index + entry.label.length,
+      }),
+    };
+  });
+  const snapshotCards = [
+    {
+      id: "services",
+      label: "Services healthy",
+      value: `${serviceHealthPercent}%`,
+      detail: formatRatio(healthyServices, totalServices),
+      helper: `${totalServices} services tracked`,
+      status: healthyServices === totalServices ? "online" : healthyServices ? "degraded" : "offline",
+      score: serviceHealthPercent,
+      seed: 2,
+    },
+    {
+      id: "surfaces",
+      label: "Surfaces online",
+      value: `${siteHealthPercent}%`,
+      detail: formatRatio(onlineSites, totalSites),
+      helper: `${totalSites} configured surfaces`,
+      status: onlineSites === totalSites ? "online" : onlineSites ? "degraded" : "offline",
+      score: siteHealthPercent,
+      seed: 7,
+    },
+    {
+      id: "pages",
+      label: "Pages online",
+      value: `${pageHealthPercent}%`,
+      detail: formatRatio(onlinePages, totalPages),
+      helper: `${totalPages} configured pages`,
+      status: onlinePages === totalPages ? "online" : onlinePages ? "degraded" : "offline",
+      score: pageHealthPercent,
+      seed: 11,
+    },
+  ].map((card) => ({
+    ...card,
+    tone: getMonitoringTone(card.status),
+    sparkline: buildMonitoringSparklineValues({
+      status: card.status,
+      score: card.score,
+      seed: card.seed,
+    }),
+  }));
 
   const attentionItems = useMemo(
     () => [
@@ -267,37 +361,77 @@ const SystemHealth = () => {
             <article className="panel">
               <div className="panel-header">
                 <div>
-                  <h3>Service status</h3>
-                  <p className="muted">API and database checks.</p>
+                  <h3>Monitoring snapshot</h3>
+                  <p className="muted">Health ratios and current signal shape.</p>
                 </div>
               </div>
-              <ERPTable
-                columns={[
-                  {
-                    id: "service",
-                    header: "Service",
-                    mobileLabel: "Service",
-                    render: (row) => <span className="table-strong">{row.label}</span>,
-                  },
-                  {
-                    id: "status",
-                    header: "Status",
-                    mobileLabel: "Status",
-                    render: (row) => renderStatusPill(row.status),
-                  },
-                  {
-                    id: "notes",
-                    header: "Notes",
-                    mobileLabel: "Notes",
-                    render: (row) => <span className="muted">{row.note}</span>,
-                  },
-                ]}
-                rows={systemEntries}
-                rowKey="id"
-                tableProps={{ "aria-label": "API and database service status checks" }}
-                mobileMode="cards"
-                dense
-              />
+              <div className="monitoring-card-grid">
+                {snapshotCards.map((card) => (
+                  <article className={`monitoring-card is-${card.tone}`} key={card.id}>
+                    <div className="monitoring-card__header">
+                      <div className="monitoring-card__title">
+                        <span className="kpi-label">{card.label}</span>
+                        <strong>{card.detail}</strong>
+                      </div>
+                      {renderStatusPill(card.status)}
+                    </div>
+                    <div className="monitoring-card__metric">
+                      <strong>{card.value}</strong>
+                      <span>uptime</span>
+                    </div>
+                    <div
+                      className="monitoring-card__rail"
+                      style={{ "--monitoring-score": `${card.score}%` }}
+                      aria-hidden="true"
+                    >
+                      <span />
+                    </div>
+                    <div className="monitoring-card__spark">
+                      <MonitoringSparkline
+                        values={card.sparkline}
+                        status={card.status}
+                        label={`${card.label} sparkline`}
+                      />
+                    </div>
+                    <div className="monitoring-card__footer">
+                      <span className="muted">{card.helper}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </article>
+
+            <article className="panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Service status</h3>
+                  <p className="muted">API and database checks with compact telemetry.</p>
+                </div>
+              </div>
+              <div className="monitoring-card-grid">
+                {systemMonitorEntries.map((row) => (
+                  <article className={`monitoring-card is-${row.tone}`} key={row.id}>
+                    <div className="monitoring-card__header">
+                      <div className="monitoring-card__title">
+                        <strong>{row.label}</strong>
+                        <span className="muted">{row.note}</span>
+                      </div>
+                      {renderStatusPill(row.status)}
+                    </div>
+                    <div className="monitoring-card__metric">
+                      <strong>{row.score}</strong>
+                      <span>score</span>
+                    </div>
+                    <div className="monitoring-card__spark">
+                      <MonitoringSparkline
+                        values={row.sparkline}
+                        status={row.status}
+                        label={`${row.label} health sparkline`}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
             </article>
 
             <section className="panel site-status" id="site-health">
@@ -310,10 +444,54 @@ const SystemHealth = () => {
               <div className="site-grid">
                 {siteOverview.length ? (
                   siteOverview.map((site) => (
-                    <article key={site.id} className="site-card site-card--static">
+                    <article key={site.id} className={`site-card site-card--static is-${site.tone}`}>
                       <div className="site-card__header">
-                        <span className="table-strong">{site.title}</span>
-                        {renderStatusPill(site.aggregateStatus)}
+                        <div className="site-card__meta">
+                          <span className="table-strong">{site.title}</span>
+                          <span className="muted">
+                            {site.aggregateStatus === "not_configured"
+                              ? "URL not configured"
+                              : `${site.summary.configured}/${site.summary.total} endpoints configured`}
+                          </span>
+                        </div>
+                        <div className="site-card__actions">
+                          {renderStatusPill(site.aggregateStatus)}
+                        </div>
+                      </div>
+                      <div className="site-card__telemetry">
+                        <div className="site-card__score">
+                          <strong>
+                            {site.aggregateStatus === "not_configured" ? "--" : `${site.score}%`}
+                          </strong>
+                          <span>surface score</span>
+                        </div>
+                        <div className="site-card__spark">
+                          <MonitoringSparkline
+                            values={site.sparkline}
+                            status={site.aggregateStatus}
+                            label={`${site.title} health sparkline`}
+                          />
+                        </div>
+                      </div>
+                      <div className="site-card__chips" aria-label={`${site.title} endpoint mix`}>
+                        <span className="site-card__chip is-success">
+                          {site.summary.online} online
+                        </span>
+                        {site.summary.degraded ? (
+                          <span className="site-card__chip is-warning">
+                            {site.summary.degraded} degraded
+                          </span>
+                        ) : null}
+                        {site.summary.offline ? (
+                          <span className="site-card__chip is-danger">
+                            {site.summary.offline} offline
+                          </span>
+                        ) : null}
+                        {site.summary.notConfigured ? (
+                          <span className="site-card__chip">
+                            {site.summary.notConfigured} missing URL
+                          </span>
+                        ) : null}
                       </div>
                       <div className="site-card__list">
                         {site.pages.map((page) => (

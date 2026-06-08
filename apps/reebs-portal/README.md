@@ -162,6 +162,7 @@ The API service should run the Express adapter from the monorepo root:
 - Build command: `pnpm --filter @faako/reebs-portal run db:generate`
 - Start command: `pnpm --filter @faako/reebs-portal run server:with-migrate`
 - Public API base: `https://api.reebspartythemes.com`
+- If Railway/Postgres returns `SELF_SIGNED_CERT_IN_CHAIN`, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` on the API service or provide `DATABASE_SSL_CA`.
 
 ## More Detail
 

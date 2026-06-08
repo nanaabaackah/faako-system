@@ -1,6 +1,7 @@
-const DEFAULT_UPSTREAM_URL = 'https://dev-production-9f73.up.railway.app/api/public/trust-stats';
+const DEFAULT_UPSTREAM_URL = 'https://api.dev.nanaabaackah.com/api/public/trust-stats';
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 4000;
 const DEFAULT_CACHE_CONTROL = 'public, max-age=120, s-maxage=600, stale-while-revalidate=1200';
+const DEFAULT_ORGANIZATIONS_FALLBACK = 3;
 const env = globalThis.process?.env ?? {};
 
 const buildBaseHeaders = () => ({
@@ -131,6 +132,20 @@ const parsePositiveInteger = (value, fallback) => {
   return Math.floor(parsed);
 };
 
+const getFallbackOrganizations = () =>
+  parsePositiveInteger(env.TRUST_STATS_FALLBACK_ORGANIZATIONS, DEFAULT_ORGANIZATIONS_FALLBACK);
+
+const createFallbackResponse = (method, reason) =>
+  createJsonResponse(
+    200,
+    {
+      organizations: getFallbackOrganizations(),
+      stale: true,
+      warning: reason,
+    },
+    { omitBody: method === 'HEAD' },
+  );
+
 export async function handler(event) {
   const method = event?.httpMethod || 'GET';
 
@@ -168,7 +183,7 @@ export async function handler(event) {
     // Validate at runtime so bad env values fail closed.
     new URL(upstreamUrl);
   } catch {
-    return createJsonResponse(500, { error: 'Proxy misconfigured' }, { omitBody: method === 'HEAD' });
+    return createFallbackResponse(method, 'proxy-misconfigured');
   }
 
   const upstreamTimeoutMs = parsePositiveInteger(
@@ -197,31 +212,19 @@ export async function handler(event) {
     });
 
     if (!upstreamResponse.ok) {
-      return createJsonResponse(
-        502,
-        { error: 'Upstream unavailable' },
-        { omitBody: method === 'HEAD' }
-      );
+      return createFallbackResponse(method, 'upstream-unavailable');
     }
 
     const contentType = upstreamResponse.headers.get('content-type') || '';
     if (!contentType.toLowerCase().includes('application/json')) {
-      return createJsonResponse(
-        502,
-        { error: 'Invalid upstream response' },
-        { omitBody: method === 'HEAD' }
-      );
+      return createFallbackResponse(method, 'invalid-upstream-response');
     }
 
     const payload = await upstreamResponse.json();
     const organizations = extractOrganizationsCount(payload);
 
     if (organizations === null) {
-      return createJsonResponse(
-        502,
-        { error: 'Invalid upstream payload' },
-        { omitBody: method === 'HEAD' }
-      );
+      return createFallbackResponse(method, 'invalid-upstream-payload');
     }
 
     return createJsonResponse(
@@ -230,11 +233,9 @@ export async function handler(event) {
       { omitBody: method === 'HEAD' }
     );
   } catch (error) {
-    const statusCode = error?.name === 'AbortError' ? 504 : 502;
-    return createJsonResponse(
-      statusCode,
-      { error: 'Unable to load trust stats' },
-      { omitBody: method === 'HEAD' }
+    return createFallbackResponse(
+      method,
+      error?.name === 'AbortError' ? 'upstream-timeout' : 'upstream-fetch-failed',
     );
   } finally {
     clearTimeout(timeoutId);

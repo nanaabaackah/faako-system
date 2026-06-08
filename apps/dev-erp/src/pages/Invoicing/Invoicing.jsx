@@ -3,12 +3,17 @@ import {
   FINANCE_STATUS_LABELS,
   calculateBalanceDueMajor,
   calculateFinanceStatusFromMajor,
-  formatCurrencyMajor,
 } from "@faako/finance";
 import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
+import {
+  DISPLAY_CURRENCY_CODE,
+  convertAmountToDisplayGhs,
+  formatAmountAsGhs,
+  formatGhsAmount,
+} from "../../utils/displayCurrency";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
 import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoicePdf";
 
@@ -88,8 +93,7 @@ const formatDate = (value) => {
   });
 };
 
-const formatAmount = (amount, currency) =>
-  formatCurrencyMajor(amount, currency, { display: "code", locale: "en-US" });
+const formatAmount = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const toDateInput = (value) => {
   if (!value) return "";
@@ -422,23 +426,23 @@ const Invoicing = () => {
       openCount: 0,
       overdueCount: 0,
       paidCount: 0,
-      openTotal: { CAD: 0, GHS: 0 },
-      paidTotal: { CAD: 0, GHS: 0 },
+      openTotalGhs: 0,
+      paidTotalGhs: 0,
     };
 
     invoices.forEach((invoice) => {
       const amount = Number(invoice.total || 0);
-      const currency = invoice.currency === "GHS" ? "GHS" : "CAD";
+      const displayAmount = convertAmountToDisplayGhs(amount, invoice.currency);
 
       if (invoice.status === "OVERDUE") {
         base.overdueCount += 1;
       }
       if (invoice.status === "PAID") {
         base.paidCount += 1;
-        base.paidTotal[currency] += amount;
+        base.paidTotalGhs += displayAmount;
       } else if (invoice.status !== "VOID") {
         base.openCount += 1;
-        base.openTotal[currency] += amount;
+        base.openTotalGhs += displayAmount;
       }
     });
 
@@ -867,9 +871,7 @@ const Invoicing = () => {
         <article className="panel kpi-card">
           <span className="kpi-label">Open invoices</span>
           <div className="kpi-value">{summary.openCount}</div>
-          <span className="kpi-delta">
-            {formatAmount(summary.openTotal.CAD, "CAD")} · {formatAmount(summary.openTotal.GHS, "GHS")}
-          </span>
+          <span className="kpi-delta">{formatGhsAmount(summary.openTotalGhs)}</span>
         </article>
         <article className="panel kpi-card">
           <span className="kpi-label">Overdue</span>
@@ -879,9 +881,7 @@ const Invoicing = () => {
         <article className="panel kpi-card">
           <span className="kpi-label">Paid invoices</span>
           <div className="kpi-value">{summary.paidCount}</div>
-          <span className="kpi-delta is-positive">
-            {formatAmount(summary.paidTotal.CAD, "CAD")} · {formatAmount(summary.paidTotal.GHS, "GHS")}
-          </span>
+          <span className="kpi-delta is-positive">{formatGhsAmount(summary.paidTotalGhs)}</span>
         </article>
       </div>
 
@@ -1142,8 +1142,8 @@ const Invoicing = () => {
                       <strong>{selectedInvoice.clientEmail || "-"}</strong>
                     </div>
                     <div className="invoice-preview-detail">
-                      <span>Currency</span>
-                      <strong>{selectedInvoice.currency}</strong>
+                      <span>Display currency</span>
+                      <strong>{DISPLAY_CURRENCY_CODE}</strong>
                     </div>
                     <div className="invoice-preview-detail">
                       <span>Organization</span>

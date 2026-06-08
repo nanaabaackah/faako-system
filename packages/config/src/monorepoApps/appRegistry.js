@@ -92,8 +92,21 @@ export const MONOREPO_APP_REGISTRY = [
     envBaseUrlKeys: ["DEV_ERP_BASE_URL", "APP_BASE_URL", "VITE_BACKEND_BASE_URL"],
     monitoringPages: [
       { label: "Dashboard", path: "/" },
-      { label: "Health", path: "/health" },
       { label: "Login", path: "/login" },
+    ],
+    additionalMonitoringSites: [
+      {
+        id: "dev-erp-api",
+        title: "api.dev.nanaabaackah.com",
+        purpose: "Dev ERP Railway API health and public API availability.",
+        category: "api",
+        defaultBaseUrl: "https://api.dev.nanaabaackah.com",
+        envBaseUrlKeys: ["DEV_ERP_API_BASE_URL", "DEV_API_BASE_URL", "VITE_API_BASE"],
+        monitoringPages: [
+          { label: "Health", path: "/healthz" },
+          { label: "Public trust stats", path: "/api/public/trust-stats" },
+        ],
+      },
     ],
   },
   {
@@ -206,9 +219,8 @@ export const MONOREPO_APP_REGISTRY = [
     category: "api",
     productionSensitive: true,
     monitoringEnabled: true,
-    defaultBaseUrl: "https://faako.nanaabaackah.com",
     envBaseUrlKeys: ["FAAKO_API_BASE_URL", "FAAKO_API_URL"],
-    monitoringPages: [{ label: "Health", path: "/api/health" }],
+    monitoringPages: [{ label: "Health", path: "/health" }],
   },
   {
     key: "reebs-website",

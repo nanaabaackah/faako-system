@@ -52,6 +52,9 @@ Trust stats proxy settings:
 - `TRUST_STATS_ALLOWED_ORIGINS`
 - `TRUST_STATS_UPSTREAM_TIMEOUT_MS`
 - `TRUST_STATS_CACHE_CONTROL`
+- `TRUST_STATS_FALLBACK_ORGANIZATIONS`
+
+The proxy returns a stale fallback organization count instead of a 5xx response when the Dev ERP trust-stats upstream is temporarily unavailable. Keep `TRUST_STATS_FALLBACK_ORGANIZATIONS` aligned with the public home-page fallback.
 
 Contact function settings:
 

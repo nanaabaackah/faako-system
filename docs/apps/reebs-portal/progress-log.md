@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Railway API live smoke follow-up
+
+Date: 2026-06-08
+Feature/change name: Railway API live smoke follow-up
+Apps affected: REEBS Portal, REEBS Website, shared core fetch wrapper
+What changed: Live smoke-tested `api.reebspartythemes.com`, confirmed the API wrapper and CORS are reachable, hardened the shared fetch wrapper so stale frontend host values in `VITE_BACKEND_BASE_URL` cannot become the API base, and documented the Railway Postgres SSL setting required for hosted/self-signed certificate chains.
+Why it changed: The Railway API service is now set up, but database-backed API routes were returning `SELF_SIGNED_CERT_IN_CHAIN` and the live website bundle still contained a legacy `VITE_BACKEND_BASE_URL=https://portal.reebspartythemes.com` fallback.
+Files changed: packages/core/src/organization.ts, apps/reebs-portal/.env.example, apps/reebs-portal/README.md, docs/apps/reebs-portal/implementation-notes.md, docs/apps/reebs-portal/pre-deploy-checklist.md, docs/apps/reebs-portal/progress-log.md
+Data impact: No schema or data change.
+Security impact: Positive routing hardening only. Browser API traffic now falls back to `https://api.reebspartythemes.com` if a legacy env var points at a REEBS frontend host. Railway should use `DATABASE_SSL_REJECT_UNAUTHORIZED=false` only when no CA is configured for the hosted database chain.
+Testing done: Live `GET https://api.reebspartythemes.com/health` and `/api/health` returned 200; live legacy alias reached the same handler surface; live CORS preflight allowed `https://reebspartythemes.com` and `https://portal.reebspartythemes.com`; live frontend roots `https://reebspartythemes.com`, `https://www.reebspartythemes.com`, and `https://portal.reebspartythemes.com` returned 200; live database-backed `/api/inventory`, `/api/inventoryCounts`, `/api/bouncy_castles`, and `/api/machines` returned 500 due to `SELF_SIGNED_CERT_IN_CHAIN`; `pnpm --filter @faako/reebs-portal run build`; `pnpm --filter @faako/reebs-website run build`; `git diff --check`.
+Rollback notes: Revert the shared fetch wrapper host guard if it blocks a legitimate future REEBS API hostname, but keep `VITE_API_BASE_URL` as the preferred frontend config.
+Next step: Set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` on the Railway REEBS API service or provide `DATABASE_SSL_CA`, redeploy Railway, set Cloudflare Pages `VITE_API_BASE_URL=https://api.reebspartythemes.com` and remove the stale `VITE_BACKEND_BASE_URL=https://portal.reebspartythemes.com`, then rerun the API smoke tests.
+
 ### Cloudflare frontend and REEBS API wrapper migration
 
 Date: 2026-06-07

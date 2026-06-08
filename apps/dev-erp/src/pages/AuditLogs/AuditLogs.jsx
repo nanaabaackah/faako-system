@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatedLoadingState, SelectField } from "@faako/ui";
+import TerminalLogStream from "../../components/TerminalLogStream/TerminalLogStream";
 import { apiGet } from "../../api/client";
 import downloadCsv from "../../utils/exportCsv";
 import { formatDateTime } from "../../utils/formatters";
@@ -30,6 +31,7 @@ const SEVERITY_OPTIONS = [
 ];
 
 const formatCount = (value) => Number(value || 0).toLocaleString("en-US");
+const AUDIT_LOG_REFRESH_INTERVAL_MS = 10000;
 const DEFAULT_FILTERS = {
   range: "7d",
   source: "",
@@ -62,6 +64,8 @@ const AuditLogs = () => {
   const [error, setError] = useState("");
   const [analytics, setAnalytics] = useState(null);
   const [analyticsError, setAnalyticsError] = useState("");
+  const [railwayWebhook, setRailwayWebhook] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState("");
 
   const loadAuditLogs = useCallback(async ({ silent = false } = {}) => {
     if (silent) {
@@ -85,6 +89,8 @@ const AuditLogs = () => {
         const payload = logsResult.value;
         setEntries(Array.isArray(payload?.entries) ? payload.entries : []);
         setSummary(payload?.summary || { total: 0, incidents: 0, failures: 0, actors: 0 });
+        setRailwayWebhook(payload?.integrations?.railwayWebhook || null);
+        setLastUpdatedAt(new Date().toISOString());
         setError("");
       } else {
         setError(logsResult.reason?.message || "Unable to load audit logs.");
@@ -108,6 +114,15 @@ const AuditLogs = () => {
     loadAuditLogs();
   }, [loadAuditLogs]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      loadAuditLogs({ silent: true });
+    }, AUDIT_LOG_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadAuditLogs]);
+
   const handleFilterChange = (field, value) => {
     setFilters((current) => ({
       ...current,
@@ -125,6 +140,64 @@ const AuditLogs = () => {
   };
 
   const latestEvent = useMemo(() => entries[0] || null, [entries]);
+  const terminalEntries = useMemo(
+    () =>
+      entries.map((entry) => ({
+        id: entry.id,
+        timestamp: entry.createdAt,
+        level: entry.severity || "info",
+        source: entry.source || "api",
+        message: entry.summary || entry.action || "Audit event",
+        detail: [
+          entry.action,
+          entry.actorLabel,
+          entry.targetType,
+          entry.targetId,
+        ].filter(Boolean).join(" · "),
+        metadata: entry.metadata,
+      })),
+    [entries]
+  );
+  const recentIncidentEntries = useMemo(
+    () =>
+      (Array.isArray(analytics?.recentIncidents) ? analytics.recentIncidents : []).map((entry) => ({
+        id: entry.id,
+        timestamp: entry.createdAt,
+        level: entry.severity || "warning",
+        source: entry.source || "system",
+        message: entry.summary || entry.action || "Incident event",
+        detail: [
+          entry.action,
+          entry.status,
+          entry.targetId,
+        ].filter(Boolean).join(" · "),
+        metadata: entry.metadata,
+      })),
+    [analytics]
+  );
+  const railwayWebhookNotice = useMemo(() => {
+    if (!railwayWebhook) return null;
+    if (!railwayWebhook.configured) {
+      return {
+        tone: "warning",
+        message:
+          "Railway webhook logging is not configured on this API. Set RAILWAY_WEBHOOK_SECRET on Railway and point the Railway webhook to /api/webhooks/railway.",
+      };
+    }
+    if (!railwayWebhook.latestEventAt) {
+      return {
+        tone: "info",
+        message:
+          "Railway webhook logging is configured, but no Railway events were found in this filter window. Confirm the Railway project webhook is posting to the Dev API with the matching secret.",
+      };
+    }
+    return {
+      tone: "info",
+      message: `Railway webhook logging is configured. Latest Railway event ${formatDateTime(
+        railwayWebhook.latestEventAt
+      )}.`,
+    };
+  }, [railwayWebhook]);
   const handleExportSnapshot = () => {
     if (!analytics) return;
     const rows = [
@@ -155,7 +228,6 @@ const AuditLogs = () => {
     <section className="page audit-logs-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Compliance</p>
           <h1>Audit logs</h1>
           <p className="muted">
             Review server activity, admin operations, and Railway incident events.
@@ -253,6 +325,12 @@ const AuditLogs = () => {
         </div>
       ) : null}
 
+      {railwayWebhookNotice ? (
+        <div className={`notice is-${railwayWebhookNotice.tone}`} role="status">
+          {railwayWebhookNotice.message}
+        </div>
+      ) : null}
+
       <section className="kpi-grid" aria-label="Audit log summary">
         <article className="panel">
           <span className="kpi-label">Events</span>
@@ -276,11 +354,20 @@ const AuditLogs = () => {
             {latestEvent ? `Latest event ${formatDateTime(latestEvent.createdAt)}` : "No events yet"}
           </span>
         </article>
+        <article className="panel">
+          <span className="kpi-label">Railway Events</span>
+          <div className="kpi-value">{formatCount(summary.railway)}</div>
+          <span className="kpi-delta">
+            {summary.latestRailwayEventAt
+              ? `Latest ${formatDateTime(summary.latestRailwayEventAt)}`
+              : "Waiting for webhook events"}
+          </span>
+        </article>
       </section>
 
       {analytics ? (
         <section className="audit-analytics-grid" aria-label="Audit analytics">
-          <article className="panel">
+          <article>
             <div className="panel-header">
               <div>
                 <h3>Recent incidents</h3>
@@ -289,27 +376,14 @@ const AuditLogs = () => {
                 </p>
               </div>
             </div>
-            <div className="timeline">
-              {(Array.isArray(analytics.recentIncidents) ? analytics.recentIncidents : []).length ? (
-                analytics.recentIncidents.map((entry) => (
-                  <div className="timeline-row" key={entry.id}>
-                    <span className="timeline-time">{formatDateTime(entry.createdAt)}</span>
-                    <div>
-                      <span className="table-strong">{entry.summary}</span>
-                      <p className="muted">
-                        {entry.action}
-                        {entry.targetId ? ` · ${entry.targetId}` : ""}
-                      </p>
-                    </div>
-                    <span className={`priority is-${entry.severity || "normal"}`}>
-                      {entry.status || entry.severity || "event"}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="muted">No incidents recorded in this window.</p>
-              )}
-            </div>
+            <TerminalLogStream
+              entries={recentIncidentEntries}
+              emptyMessage="No incidents recorded in this window."
+              isLive
+              isRefreshing={refreshing}
+              lastUpdatedAt={lastUpdatedAt}
+              ariaLabel="Recent incident terminal log"
+            />
           </article>
 
           <article className="panel">
@@ -352,7 +426,7 @@ const AuditLogs = () => {
         </section>
       ) : null}
 
-      <article className="panel">
+      <article>
         <div className="panel-header">
           <div>
             <h3>Recent activity</h3>
@@ -363,37 +437,14 @@ const AuditLogs = () => {
             </p>
           </div>
         </div>
-        <div className="timeline audit-timeline">
-          {entries.length ? (
-            entries.map((entry) => (
-              <div className="timeline-row audit-timeline__row" key={entry.id}>
-                <span className="timeline-time">{formatDateTime(entry.createdAt)}</span>
-                <div className="audit-entry">
-                  <span className="table-strong">{entry.summary || entry.action}</span>
-                  <p className="muted">
-                    {entry.action}
-                    {entry.actorLabel ? ` · ${entry.actorLabel}` : ""}
-                    {entry.targetType ? ` · ${entry.targetType}` : ""}
-                    {entry.targetId ? ` ${entry.targetId}` : ""}
-                  </p>
-                  {entry.metadata ? (
-                    <pre className="audit-entry__metadata">
-                      {JSON.stringify(entry.metadata, null, 2)}
-                    </pre>
-                  ) : null}
-                </div>
-                <div className="audit-entry__badges">
-                  <span className={`priority is-${entry.severity || "normal"}`}>
-                    {entry.severity || "info"}
-                  </span>
-                  <span className="priority">{entry.source || "api"}</span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="muted">No audit logs yet.</p>
-          )}
-        </div>
+        <TerminalLogStream
+          entries={terminalEntries}
+          emptyMessage={loading ? "Loading audit logs..." : "No audit logs yet."}
+          isLive
+          isRefreshing={refreshing}
+          lastUpdatedAt={lastUpdatedAt}
+          ariaLabel="Audit activity terminal log"
+        />
       </article>
     </section>
   );

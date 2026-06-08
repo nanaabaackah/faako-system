@@ -6,6 +6,27 @@ import { getMonorepoMonitoringSites } from "./appRegistry.js";
 const findSite = (sites, id) => sites.find((site) => site.id === id);
 const pagePaths = (site) => new Set((site?.pages ?? []).map((page) => page.path));
 
+test("monorepo monitoring keeps Dev ERP API checks in system status surfaces", () => {
+  const sites = getMonorepoMonitoringSites({});
+  const devErp = findSite(sites, "dev-erp");
+  const devErpApi = findSite(sites, "dev-erp-api");
+
+  assert.ok(devErp, "expected Dev ERP website monitoring surface");
+  assert.ok(devErpApi, "expected Dev ERP API monitoring surface");
+  assert.equal(devErp.category, "erp");
+  assert.equal(devErpApi.category, "api");
+  assert.equal(devErpApi.baseUrl, "https://api.dev.nanaabaackah.com");
+
+  const websitePages = pagePaths(devErp);
+  assert.ok(websitePages.has("/"));
+  assert.ok(websitePages.has("/login"));
+  assert.equal(websitePages.has("/health"), false);
+
+  const apiPages = pagePaths(devErpApi);
+  assert.ok(apiPages.has("/healthz"));
+  assert.ok(apiPages.has("/api/public/trust-stats"));
+});
+
 test("monorepo monitoring includes Stroane storefront, portal, and backend surfaces", () => {
   const sites = getMonorepoMonitoringSites({});
   const stroaneWeb = findSite(sites, "stroane-web");
@@ -45,4 +66,20 @@ test("monorepo monitoring includes the full Faako marketing route surface", () =
   assert.ok(paths.has("/forgot-password"));
   assert.ok(paths.has("/privacy"));
   assert.ok(paths.has("/terms"));
+});
+
+test("monorepo monitoring keeps Faako API optional until an API host is configured", () => {
+  const faakoApi = findSite(getMonorepoMonitoringSites({}), "faako-api");
+  assert.ok(faakoApi, "expected Faako API monitoring surface");
+  assert.equal(faakoApi.category, "api");
+  assert.equal(faakoApi.baseUrl, "");
+  assert.equal(faakoApi.configured, false);
+  assert.ok(pagePaths(faakoApi).has("/health"));
+
+  const configured = findSite(
+    getMonorepoMonitoringSites({ FAAKO_API_BASE_URL: "https://api.faako.example.com" }),
+    "faako-api"
+  );
+  assert.equal(configured.baseUrl, "https://api.faako.example.com");
+  assert.equal(configured.configured, true);
 });

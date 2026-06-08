@@ -5,6 +5,12 @@ import { FiPlus, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
+import {
+  DISPLAY_CURRENCY_CODE,
+  convertAmountToDisplayGhs,
+  formatAmountAsGhs,
+  formatGhsAmount,
+} from "../../utils/displayCurrency";
 import { buildInvoiceNotes } from "../../utils/invoiceNotes";
 import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoicePdf";
 
@@ -60,14 +66,6 @@ const formatDate = (value) => {
     year: "numeric",
   });
 };
-
-const formatAmountValue = (amount) =>
-  Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const formatAmount = (amount, currency) => `${currency} ${formatAmountValue(amount)}`;
 
 const buildTodayDate = () => new Date().toISOString().slice(0, 10);
 
@@ -297,9 +295,9 @@ const Accounting = () => {
 
   const summary = useMemo(() => {
     const base = {
-      paidRevenue: { CAD: 0, GHS: 0 },
-      paidExpenses: { CAD: 0, GHS: 0 },
-      pendingPayables: { CAD: 0, GHS: 0 },
+      paidRevenueGhs: 0,
+      paidExpensesGhs: 0,
+      pendingPayablesGhs: 0,
       counts: {
         paidRevenue: 0,
         paidExpenses: 0,
@@ -310,16 +308,17 @@ const Accounting = () => {
     entries.forEach((entry) => {
       const amount = Number(entry.amount || 0);
       if (!Number.isFinite(amount)) return;
+      const displayAmount = convertAmountToDisplayGhs(amount, entry.currency);
       if (entry.type === "REVENUE" && entry.status === "PAID") {
-        base.paidRevenue[entry.currency] += amount;
+        base.paidRevenueGhs += displayAmount;
         base.counts.paidRevenue += 1;
       }
       if (entry.type === "EXPENSE" && entry.status === "PAID") {
-        base.paidExpenses[entry.currency] += amount;
+        base.paidExpensesGhs += displayAmount;
         base.counts.paidExpenses += 1;
       }
       if (entry.type === "EXPENSE" && entry.status !== "PAID") {
-        base.pendingPayables[entry.currency] += amount;
+        base.pendingPayablesGhs += displayAmount;
         base.counts.pendingPayables += 1;
       }
     });
@@ -328,10 +327,7 @@ const Accounting = () => {
   }, [entries]);
 
   const netTotals = useMemo(
-    () => ({
-      CAD: summary.paidRevenue.CAD - summary.paidExpenses.CAD,
-      GHS: summary.paidRevenue.GHS - summary.paidExpenses.GHS,
-    }),
+    () => summary.paidRevenueGhs - summary.paidExpensesGhs,
     [summary]
   );
 
@@ -616,8 +612,8 @@ const Accounting = () => {
           <div className="table-strong">{formatDate(resolveEntryDate(entry))}</div>
           <span className="muted">{dateLabel}</span>
         </div>
-        <span className="table-strong">{formatAmountValue(entry.amount)}</span>
-        <span>{entry.currency}</span>
+        <span className="table-strong">{formatAmountAsGhs(entry.amount, entry.currency)}</span>
+        <span>{DISPLAY_CURRENCY_CODE}</span>
         <div className="row-actions">
           <span className={`status-pill is-${STATUS_TONE[entry.status] || "info"}`}>
             {entry.status}
@@ -1122,19 +1118,19 @@ const Accounting = () => {
             <div className="invoice-summary">
               <div className="invoice-summary__row">
                 <span>Subtotal</span>
-                <span>{formatAmount(invoiceTotals.subtotal, invoiceForm.currency)}</span>
+                <span>{formatAmountAsGhs(invoiceTotals.subtotal, invoiceForm.currency)}</span>
               </div>
               <div className="invoice-summary__row">
                 <span>Tax ({invoiceTotals.taxRate.toFixed(2)}%)</span>
-                <span>{formatAmount(invoiceTotals.taxAmount, invoiceForm.currency)}</span>
+                <span>{formatAmountAsGhs(invoiceTotals.taxAmount, invoiceForm.currency)}</span>
               </div>
               <div className="invoice-summary__row">
                 <span>Discount</span>
-                <span>-{formatAmount(invoiceTotals.discount, invoiceForm.currency)}</span>
+                <span>-{formatAmountAsGhs(invoiceTotals.discount, invoiceForm.currency)}</span>
               </div>
               <div className="invoice-summary__row is-total">
                 <span>Total</span>
-                <span>{formatAmount(invoiceTotals.total, invoiceForm.currency)}</span>
+                <span>{formatAmountAsGhs(invoiceTotals.total, invoiceForm.currency)}</span>
               </div>
             </div>
 
@@ -1162,8 +1158,7 @@ const Accounting = () => {
             <div>
               <p className="muted">Paid revenue</p>
               <div className="health-row">
-                <span className="table-strong">{formatAmount(summary.paidRevenue.CAD, "CAD")}</span>
-                <span className="table-strong">{formatAmount(summary.paidRevenue.GHS, "GHS")}</span>
+                <span className="table-strong">{formatGhsAmount(summary.paidRevenueGhs)}</span>
               </div>
             </div>
             <span className="status-pill is-success">{summary.counts.paidRevenue} paid</span>
@@ -1175,8 +1170,7 @@ const Accounting = () => {
             <div>
               <p className="muted">Paid expenses</p>
               <div className="health-row">
-                <span className="table-strong">{formatAmount(summary.paidExpenses.CAD, "CAD")}</span>
-                <span className="table-strong">{formatAmount(summary.paidExpenses.GHS, "GHS")}</span>
+                <span className="table-strong">{formatGhsAmount(summary.paidExpensesGhs)}</span>
               </div>
             </div>
             <span className="status-pill is-info">{summary.counts.paidExpenses} paid</span>
@@ -1188,8 +1182,7 @@ const Accounting = () => {
             <div>
               <p className="muted">Net profit</p>
               <div className="health-row">
-                <span className="table-strong">{formatAmount(netTotals.CAD, "CAD")}</span>
-                <span className="table-strong">{formatAmount(netTotals.GHS, "GHS")}</span>
+                <span className="table-strong">{formatGhsAmount(netTotals)}</span>
               </div>
             </div>
             <span className="status-pill is-success">After paid expenses</span>
@@ -1201,8 +1194,7 @@ const Accounting = () => {
             <div>
               <p className="muted">Pending payables</p>
               <div className="health-row">
-                <span className="table-strong">{formatAmount(summary.pendingPayables.CAD, "CAD")}</span>
-                <span className="table-strong">{formatAmount(summary.pendingPayables.GHS, "GHS")}</span>
+                <span className="table-strong">{formatGhsAmount(summary.pendingPayablesGhs)}</span>
               </div>
             </div>
             <span className="status-pill is-warning">{summary.counts.pendingPayables} pending</span>
@@ -1214,7 +1206,7 @@ const Accounting = () => {
           <div>
             <h3>Paid services ledger</h3>
             <p className="muted">
-              {sortedEntries.length} entries • Amounts tracked in CAD and GHS.
+              {sortedEntries.length} entries • Amounts shown in {DISPLAY_CURRENCY_CODE}.
             </p>
           </div>
           <span className="status-pill is-info">{RANGE_LABELS[timeRange] || "Month to date"}</span>
@@ -1227,7 +1219,7 @@ const Accounting = () => {
             <span>Type</span>
             <span>Paid date</span>
             <span>Amount</span>
-            <span>Currency</span>
+            <span>Display currency</span>
             <span>Status</span>
           </div>
           {sortedEntries.map(renderLedgerRow)}
@@ -1246,7 +1238,7 @@ const Accounting = () => {
                 <div>
                   <h3>{section.label}</h3>
                   <p className="muted">
-                    {rows.length} entries • Amounts tracked in CAD and GHS.
+                    {rows.length} entries • Amounts shown in {DISPLAY_CURRENCY_CODE}.
                   </p>
                 </div>
                 <span className={`status-pill is-${STATUS_TONE[section.status] || "info"}`}>
@@ -1261,7 +1253,7 @@ const Accounting = () => {
                   <span>Type</span>
                   <span>Paid date</span>
                   <span>Amount</span>
-                  <span>Currency</span>
+                  <span>Display currency</span>
                   <span>Status</span>
                 </div>
                 {rows.length ? rows.map(renderLedgerRow) : null}

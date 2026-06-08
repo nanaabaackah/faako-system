@@ -2,8 +2,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiArrowRight, FiChevronDown } from "react-icons/fi";
-import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, ERPStatusBadge, SelectField } from "@faako/ui";
 import KPICard from "../../components/KPICard/KPICard";
+import TerminalLogStream from "../../components/TerminalLogStream/TerminalLogStream";
+import MonitoringSparkline from "../../components/MonitoringSparkline/MonitoringSparkline";
+import {
+  buildMonitoringSparklineValues,
+  getMonitoringHealthScore,
+  getMonitoringStatusSummary,
+  getMonitoringTone,
+} from "../../components/MonitoringSparkline/monitoringSparklineUtils";
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
 import WeatherWidget from "../../components/WeatherWidget/WeatherWidget";
@@ -14,9 +22,11 @@ import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { formatStatusLabel, getStatusTone, isHealthyStatus } from "../../utils/status";
 import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "../../utils/offlineCache";
 import { hasModuleAccess } from "../../utils/moduleAccess";
+import { convertAmountToDisplayGhs, formatGhsAmount } from "../../utils/displayCurrency";
 import "./Dashboard.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
+const DASHBOARD_ACTIVITY_REFRESH_INTERVAL_MS = 15000;
 const RANGE_OPTIONS = [
   { value: "24h", label: "24H", description: "Last 24 hours", hours: 24 },
   { value: "7d", label: "7D", description: "Last 7 days", hours: 24 * 7 },
@@ -53,19 +63,11 @@ const DEFAULT_SLOT_FORM = {
   description: "",
 };
 
-const formatAmountValue = (amount) =>
-  Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const formatAmount = (amount, currency) => `${currency} ${formatAmountValue(amount)}`;
-
 const buildAccountingSummary = (entries = []) => {
   const base = {
-    paidRevenue: { CAD: 0, GHS: 0 },
-    paidExpenses: { CAD: 0, GHS: 0 },
-    pendingPayables: { CAD: 0, GHS: 0 },
+    paidRevenueGhs: 0,
+    paidExpensesGhs: 0,
+    pendingPayablesGhs: 0,
     counts: {
       paidRevenue: 0,
       paidExpenses: 0,
@@ -76,16 +78,17 @@ const buildAccountingSummary = (entries = []) => {
   entries.forEach((entry) => {
     const amount = Number(entry.amount || 0);
     if (!Number.isFinite(amount)) return;
+    const displayAmount = convertAmountToDisplayGhs(amount, entry.currency);
     if (entry.type === "REVENUE" && entry.status === "PAID") {
-      base.paidRevenue[entry.currency] += amount;
+      base.paidRevenueGhs += displayAmount;
       base.counts.paidRevenue += 1;
     }
     if (entry.type === "EXPENSE" && entry.status === "PAID") {
-      base.paidExpenses[entry.currency] += amount;
+      base.paidExpensesGhs += displayAmount;
       base.counts.paidExpenses += 1;
     }
     if (entry.type === "EXPENSE" && entry.status !== "PAID") {
-      base.pendingPayables[entry.currency] += amount;
+      base.pendingPayablesGhs += displayAmount;
       base.counts.pendingPayables += 1;
     }
   });
@@ -361,6 +364,7 @@ const Dashboard = () => {
   const [activityLogs, setActivityLogs] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityActiveUsers, setActivityActiveUsers] = useState(0);
+  const [activityLastUpdatedAt, setActivityLastUpdatedAt] = useState("");
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
@@ -765,23 +769,37 @@ const Dashboard = () => {
     };
   }, [weatherCacheKey, briefRefreshTick]);
 
-  const loadActivityLogs = useCallback(async () => {
-    setActivityLoading(true);
+  const loadActivityLogs = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setActivityLoading(true);
+    }
     try {
       const payload = await apiGet(`/api/dashboard/activity?range=${timeRange}`, {
         fallbackMessage: "Unable to load activity",
       });
       setActivityLogs(Array.isArray(payload.entries) ? payload.entries : []);
       setActivityActiveUsers(Number(payload.activeUserCount) || 0);
+      setActivityLastUpdatedAt(new Date().toISOString());
     } catch {
       // silently fall through — timeline still shows synthetic events
     } finally {
-      setActivityLoading(false);
+      if (!silent) {
+        setActivityLoading(false);
+      }
     }
-  }, [timeRange]);
+  }, [setActivityActiveUsers, timeRange]);
 
   useEffect(() => {
     loadActivityLogs();
+  }, [loadActivityLogs]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      loadActivityLogs({ silent: true });
+    }, DASHBOARD_ACTIVITY_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
   }, [loadActivityLogs]);
 
   const toggleSiteExpansion = (siteId) => {
@@ -800,7 +818,11 @@ const Dashboard = () => {
 
   const renderStatusPill = (status) => {
     const tone = getStatusTone(status);
-    return <span className={`status-pill is-${tone}`}>{formatStatusLabel(status)}</span>;
+    return (
+      <ERPStatusBadge tone={tone} className={`status-pill is-${tone}`}>
+        {formatStatusLabel(status)}
+      </ERPStatusBadge>
+    );
   };
 
   const organizations = Array.isArray(kpiData?.organizations) ? kpiData.organizations : [];
@@ -818,6 +840,12 @@ const Dashboard = () => {
     ? kpiData.apiSurfaces
     : [
         {
+          id: "dev-erp-api",
+          label: "Dev ERP API",
+          status: systemStatus.api,
+          note: "API surface",
+        },
+        {
           id: "faako-api",
           label: "Faako API",
           status: systemStatus.faakoApi,
@@ -832,7 +860,6 @@ const Dashboard = () => {
       ].filter((surface) => surface.status);
   const lastSyncedLabel = kpiData?.lastSyncedAt ? formatDateTime(kpiData.lastSyncedAt) : "N/A";
   const systemEntries = [
-    { id: "api", label: "Dev ERP API", status: systemStatus.api, note: "Auth + metrics" },
     ...apiSurfaces.map((surface) => ({
       id: surface.id,
       label: surface.label,
@@ -867,12 +894,27 @@ const Dashboard = () => {
 
   const siteOverview = siteStatuses.map((site) => {
     const pages = site.pages ?? [];
+    const aggregateStatus = getAggregateSiteStatus(pages);
+    const summary = getMonitoringStatusSummary(pages);
+    const score = aggregateStatus === "not_configured"
+      ? 0
+      : summary.configured
+        ? summary.score
+        : getMonitoringHealthScore(aggregateStatus);
     return {
       id: site.id,
       title: site.title,
       category: site.category,
       pages,
-      aggregateStatus: getAggregateSiteStatus(pages),
+      aggregateStatus,
+      summary,
+      score,
+      tone: getMonitoringTone(aggregateStatus),
+      sparkline: buildMonitoringSparklineValues({
+        status: aggregateStatus,
+        score,
+        seed: site.title?.length || site.id?.length || 1,
+      }),
     };
   });
   const orderedSites = [...siteOverview].sort((left, right) => {
@@ -896,12 +938,62 @@ const Dashboard = () => {
   const serviceHealthPercent = formatPercent(healthyServices, totalServices);
   const siteHealthPercent = formatPercent(onlineSites, totalSites);
   const pageHealthPercent = formatPercent(onlinePages, totalPages);
+  const systemMonitorEntries = systemEntries.map((entry, index) => {
+    const score = getMonitoringHealthScore(entry.status);
+    return {
+      ...entry,
+      score,
+      tone: getMonitoringTone(entry.status),
+      sparkline: buildMonitoringSparklineValues({
+        status: entry.status,
+        score,
+        seed: index + entry.label.length,
+      }),
+    };
+  });
+  const snapshotCards = [
+    {
+      id: "services",
+      label: "Services healthy",
+      value: `${serviceHealthPercent}%`,
+      detail: formatRatio(healthyServices, totalServices),
+      helper: `${totalServices} services tracked`,
+      status: healthyServices === totalServices ? "online" : healthyServices ? "degraded" : "offline",
+      score: serviceHealthPercent,
+      seed: 2,
+    },
+    {
+      id: "surfaces",
+      label: "Surfaces online",
+      value: `${siteHealthPercent}%`,
+      detail: formatRatio(onlineSites, totalSites),
+      helper: `${notConfiguredSites} optional unconfigured`,
+      status: onlineSites === totalSites ? "online" : onlineSites ? "degraded" : "offline",
+      score: siteHealthPercent,
+      seed: 7,
+    },
+    {
+      id: "pages",
+      label: "Pages online",
+      value: `${pageHealthPercent}%`,
+      detail: formatRatio(onlinePages, totalPages),
+      helper: `${totalPages} configured pages`,
+      status: onlinePages === totalPages ? "online" : onlinePages ? "degraded" : "offline",
+      score: pageHealthPercent,
+      seed: 11,
+    },
+  ].map((card) => ({
+    ...card,
+    tone: getMonitoringTone(card.status),
+    sparkline: buildMonitoringSparklineValues({
+      status: card.status,
+      score: card.score,
+      seed: card.seed,
+    }),
+  }));
   const accountingNetTotals = useMemo(() => {
     if (!accountingSummary) return null;
-    return {
-      CAD: accountingSummary.paidRevenue.CAD - accountingSummary.paidExpenses.CAD,
-      GHS: accountingSummary.paidRevenue.GHS - accountingSummary.paidExpenses.GHS,
-    };
+    return accountingSummary.paidRevenueGhs - accountingSummary.paidExpensesGhs;
   }, [accountingSummary]);
   const verseTextLabel =
     verseOfDay.status === "ready" && verseOfDay.text
@@ -959,6 +1051,8 @@ const Dashboard = () => {
           title: "KPI ingestion completed",
           detail: `Orgs ${kpiData.totalOrganizations ?? 0} | Surfaces ${onlineSites}/${totalSites} online`,
           badge: "Sync",
+          source: "dashboard",
+          level: "success",
           priority: "normal",
         }
       : null,
@@ -969,6 +1063,8 @@ const Dashboard = () => {
           title: "App surface health check",
           detail: `${onlineSites}/${totalSites} surfaces online | ${onlinePages}/${totalPages} pages online`,
           badge: attentionItems.length ? "Alert" : "Check",
+          source: "monitor",
+          level: attentionItems.length ? "warning" : "info",
           priority: attentionItems.length ? "urgent" : "normal",
         }
       : null,
@@ -986,6 +1082,8 @@ const Dashboard = () => {
       title: formatAuditAction(log.action),
       detail: [userName, targetInfo].filter(Boolean).join(" · "),
       badge,
+      source: log.source || "audit",
+      level: log.severity || (priority === "urgent" ? "warning" : "info"),
       priority,
     };
   });
@@ -997,6 +1095,14 @@ const Dashboard = () => {
       return Date.now() - eventTime <= rangeWindowMs;
     })
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const terminalTimelineEvents = timelineEvents.map((event) => ({
+    id: event.id,
+    timestamp: event.timestamp,
+    level: event.level || (event.priority === "urgent" ? "warning" : "info"),
+    source: event.source || event.badge || "dashboard",
+    message: event.title,
+    detail: event.detail,
+  }));
 
   const isExternalBooking = slotModal?.booking?.source
     ? slotModal.booking.source !== "MANUAL"
@@ -1069,7 +1175,7 @@ const Dashboard = () => {
 
       {canUseBookings ? (
         <section
-          className="panel glass-card availability-panel dashboard-module-panel dashboard-module-panel--interactive"
+          className="glass-card panel availability-panel dashboard-module-panel dashboard-module-panel--interactive"
           id="availability"
         >
         <div className="panel-header">
@@ -1385,46 +1491,22 @@ const Dashboard = () => {
           <div className="kpi-grid">
             <KPICard
               label="Paid revenue"
-              value={
-                <>
-                  <div>{formatAmount(accountingSummary.paidRevenue.CAD, "CAD")}</div>
-                  <div>{formatAmount(accountingSummary.paidRevenue.GHS, "GHS")}</div>
-                </>
-              }
-              valueClassName="kpi-card__value-stack"
+              value={formatGhsAmount(accountingSummary.paidRevenueGhs)}
               delta={`${accountingSummary.counts.paidRevenue} paid`}
             />
             <KPICard
               label="Paid expenses"
-              value={
-                <>
-                  <div>{formatAmount(accountingSummary.paidExpenses.CAD, "CAD")}</div>
-                  <div>{formatAmount(accountingSummary.paidExpenses.GHS, "GHS")}</div>
-                </>
-              }
-              valueClassName="kpi-card__value-stack"
+              value={formatGhsAmount(accountingSummary.paidExpensesGhs)}
               delta={`${accountingSummary.counts.paidExpenses} paid`}
             />
             <KPICard
               label="Net profit"
-              value={
-                <>
-                  <div>{formatAmount(accountingNetTotals?.CAD ?? 0, "CAD")}</div>
-                  <div>{formatAmount(accountingNetTotals?.GHS ?? 0, "GHS")}</div>
-                </>
-              }
-              valueClassName="kpi-card__value-stack"
+              value={formatGhsAmount(accountingNetTotals ?? 0)}
               delta="After paid expenses"
             />
             <KPICard
               label="Pending payables"
-              value={
-                <>
-                  <div>{formatAmount(accountingSummary.pendingPayables.CAD, "CAD")}</div>
-                  <div>{formatAmount(accountingSummary.pendingPayables.GHS, "GHS")}</div>
-                </>
-              }
-              valueClassName="kpi-card__value-stack"
+              value={formatGhsAmount(accountingSummary.pendingPayablesGhs)}
               delta={`${accountingSummary.counts.pendingPayables} pending`}
             />
           </div>
@@ -1532,40 +1614,46 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="bubble-card panel">
+            <article className="panel panel-span-3">
               <div className="panel-header">
                 <div>
                   <h3>Operational snapshot</h3>
+                  <p className="muted">Live health ratios with recent signal shape.</p>
                 </div>
               </div>
-              <div className="stack">
-                <div className="health-row">
-                  <div className="health-row__header">
-                    <span className="table-strong">Services healthy</span>
-                    <span>{formatRatio(healthyServices, totalServices)}</span>
-                  </div>
-                  <div className="progress">
-                    <span style={{ width: `${serviceHealthPercent}%` }} />
-                  </div>
-                </div>
-                <div className="health-row">
-                  <div className="health-row__header">
-                    <span className="table-strong">Surfaces online</span>
-                    <span>{formatRatio(onlineSites, totalSites)}</span>
-                  </div>
-                  <div className="progress">
-                    <span style={{ width: `${siteHealthPercent}%` }} />
-                  </div>
-                </div>
-                <div className="health-row">
-                  <div className="health-row__header">
-                    <span className="table-strong">Pages online</span>
-                    <span>{formatRatio(onlinePages, totalPages)}</span>
-                  </div>
-                  <div className="progress">
-                    <span style={{ width: `${pageHealthPercent}%` }} />
-                  </div>
-                </div>
+              <div className="monitoring-card-grid">
+                {snapshotCards.map((card) => (
+                  <article className={`bubble-card monitoring-card is-${card.tone}`} key={card.id}>
+                    <div className="monitoring-card__header">
+                      <div className="monitoring-card__title">
+                        <span className="kpi-label">{card.label}</span>
+                        <strong>{card.detail}</strong>
+                      </div>
+                      {renderStatusPill(card.status)}
+                    </div>
+                    <div className="monitoring-card__metric">
+                      <strong>{card.value}</strong>
+                      <span>uptime</span>
+                    </div>
+                    <div
+                      className="monitoring-card__rail"
+                      style={{ "--monitoring-score": `${card.score}%` }}
+                      aria-hidden="true"
+                    >
+                      <span />
+                    </div>
+                    <div className="monitoring-card__spark">
+                      <MonitoringSparkline
+                        values={card.sparkline}
+                        status={card.status}
+                        label={`${card.label} sparkline`}
+                      />
+                    </div>
+                    <div className="monitoring-card__footer">
+                      <span className="muted">{card.helper}</span>
+                    </div>
+                  </article>
+                ))}
               </div>
             </article>
 
@@ -1596,20 +1684,31 @@ const Dashboard = () => {
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
+                  <p className="muted">APIs and databases by current health signal.</p>
                 </div>
               </div>
-              <div className="glass-card data-table">
-                <div className="table-row table-head is-3">
-                  <span>Service</span>
-                  <span>Status</span>
-                  <span>Notes</span>
-                </div>
-                {systemEntries.map((row) => (
-                  <div className="table-row is-3" key={row.id}>
-                    <span className="table-strong">{row.label}</span>
-                    {renderStatusPill(row.status)}
-                    <span className="muted">{row.note}</span>
-                  </div>
+              <div className="monitoring-card-grid">
+                {systemMonitorEntries.map((row) => (
+                  <article className={`bubble-card monitoring-card is-${row.tone}`} key={row.id}>
+                    <div className="monitoring-card__header">
+                      <div className="monitoring-card__title">
+                        <strong>{row.label}</strong>
+                        <span className="muted">{row.note}</span>
+                      </div>
+                      {renderStatusPill(row.status)}
+                    </div>
+                    <div className="monitoring-card__metric">
+                      <strong>{row.score}</strong>
+                      <span>score</span>
+                    </div>
+                    <div className="monitoring-card__spark">
+                      <MonitoringSparkline
+                        values={row.sparkline}
+                        status={row.status}
+                        label={`${row.label} health sparkline`}
+                      />
+                    </div>
+                  </article>
                 ))}
               </div>
             </article>
@@ -1620,29 +1719,21 @@ const Dashboard = () => {
                   <h3>Activity timeline</h3>
                   <p className="muted">
                     {activityLoading
-                      ? "Loading…"
+                      ? "Loading..."
                       : `${timelineEvents.length} event${timelineEvents.length !== 1 ? "s" : ""} · ${activityActiveUsers} active user${activityActiveUsers !== 1 ? "s" : ""} · ${rangeDescription}`}
                   </p>
                 </div>
               </div>
-              <div className="timeline">
-                {timelineEvents.length ? (
-                  timelineEvents.map((event) => (
-                    <div className="timeline-row" key={event.id}>
-                      <span className="timeline-time">{formatDateTime(event.timestamp)}</span>
-                      <div>
-                        <span className="table-strong">{event.title}</span>
-                        {event.detail ? <p className="muted">{event.detail}</p> : null}
-                      </div>
-                      <span className={`priority is-${event.priority}`}>{event.badge}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="muted">
-                    {activityLoading ? "Loading activity…" : "No activity logged in this window."}
-                  </p>
-                )}
-              </div>
+              <TerminalLogStream
+                entries={terminalTimelineEvents}
+                emptyMessage={
+                  activityLoading ? "Loading activity..." : "No activity logged in this window."
+                }
+                isLive
+                isRefreshing={activityLoading}
+                lastUpdatedAt={activityLastUpdatedAt}
+                ariaLabel="Dashboard activity terminal log"
+              />
             </article>
           </div>
 
@@ -1660,9 +1751,7 @@ const Dashboard = () => {
                   return (
                     <article
                       key={site.id}
-                      className={`site-card ${site.category === "portal" ? "is-portal" : site.category === "erp" ? "is-erp" : ""} ${
-                        isExpanded ? "is-expanded" : ""
-                      }`.trim()}
+                      className={`bubble-card site-card is-${site.tone} ${site.category}`.trim()}
                       role="button"
                       tabIndex={0}
                       aria-expanded={isExpanded}
@@ -1676,30 +1765,45 @@ const Dashboard = () => {
                           <span className="muted">
                             {site.aggregateStatus === "not_configured"
                               ? "URL not configured"
-                              : `${site.pages.length} pages tracked`}
-                          </span>
-                        </div>
-                        <div className="site-card__actions">
-                          {renderStatusPill(site.aggregateStatus)}
-                          <span className="site-card__chevron" aria-hidden="true">
-                            <FiChevronDown />
+                              : `${site.summary.configured}/${site.summary.total} endpoints configured`}
                           </span>
                         </div>
                       </div>
-                      {isExpanded ? (
-                        <div className="site-card__list" id={listId}>
-                          {site.pages.length ? (
-                            site.pages.map((page) => (
-                              <div className="site-card__row" key={page.url || `${site.id}:${page.path}`}>
-                                <span>{page.url ? page.label : `${page.label} URL`}</span>
-                                {renderStatusPill(page.status)}
-                              </div>
-                            ))
-                          ) : (
-                            <p className="muted">No pages tracked.</p>
-                          )}
+                      <div className="site-card__telemetry">
+                        <div className="site-card__score">
+                          <strong>
+                            {site.aggregateStatus === "not_configured" ? "--" : `${site.score}%`}
+                          </strong>
+                          <span>surface score</span>
                         </div>
-                      ) : null}
+                        <div className="site-card__spark">
+                          <MonitoringSparkline
+                            values={site.sparkline}
+                            status={site.aggregateStatus}
+                            label={`${site.title} health sparkline`}
+                          />
+                        </div>
+                      </div>
+                      <div className="site-card__chips" aria-label={`${site.title} endpoint mix`}>
+                        <span className="site-card__chip is-success">
+                          {site.summary.online} online
+                        </span>
+                        {site.summary.degraded ? (
+                          <span className="site-card__chip is-warning">
+                            {site.summary.degraded} degraded
+                          </span>
+                        ) : null}
+                        {site.summary.offline ? (
+                          <span className="site-card__chip is-danger">
+                            {site.summary.offline} offline
+                          </span>
+                        ) : null}
+                        {site.summary.notConfigured ? (
+                          <span className="site-card__chip">
+                            {site.summary.notConfigured} missing URL
+                          </span>
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })

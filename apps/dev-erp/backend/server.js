@@ -113,6 +113,8 @@ import { buildInvoiceEmailContent } from "./invoiceEmailTemplate.js";
 import { buildRentMonthlySummaryEmailContent } from "./rentMonthlySummaryEmailTemplate.js";
 import { buildRentPaymentRecordedEmailContent } from "./rentPaymentRecordedEmailTemplate.js";
 import { buildAccountingScheduledReminderEmailContent } from "./accountingScheduledReminderEmailTemplate.js";
+import { sumAmountsAsDisplayGhs } from "./utils/displayCurrency.js";
+import { refreshDisplayCurrencyRate } from "./utils/currencyRateService.js";
 import { createRequire } from "module";
 import emailKit from "@faako/email-kit";
 
@@ -603,6 +605,7 @@ const JOB_RECOMMENDATION_CACHE_TTL_MS = Number(
 );
 const SITE_STATUS_USER_AGENT =
   process.env.SITE_STATUS_USER_AGENT ?? "bynana-portfolio-status/1.0 (+https://dev.nanaabaackah.com)";
+const RAILWAY_WEBHOOK_SECRET = String(process.env.RAILWAY_WEBHOOK_SECRET || "").trim();
 
 const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"];
 
@@ -715,6 +718,35 @@ const buildSiteStatusFallback = (status = "unknown") =>
   buildConfiguredSiteStatusFallback(SITE_PAGES, status);
 
 const isWebsiteHealthSurface = (site) => site?.category !== "api" && site?.category !== "internal";
+
+const buildApiSurfaceEntry = (site) => {
+  const pages = Array.isArray(site?.pages) ? site.pages : [];
+  const configured = site?.configured !== false && Boolean(site?.baseUrl);
+  const onlinePages = pages.filter((page) => page?.status === "online").length;
+  const degradedPages = pages.filter((page) => page?.status === "degraded").length;
+  const offlinePages = pages.filter((page) => page?.status === "offline").length;
+  const notConfiguredPages = pages.filter((page) => page?.status === "not_configured").length;
+  const endpointLabel = pages.length === 1 ? "endpoint" : "endpoints";
+  const statusSummary = configured
+    ? `${onlinePages}/${pages.length} ${endpointLabel} online`
+    : "Base URL not configured";
+
+  return {
+    id: site.id,
+    label: site.title,
+    status: site.aggregateStatus,
+    note: [
+      statusSummary,
+      degradedPages ? `${degradedPages} degraded` : "",
+      offlinePages ? `${offlinePages} offline` : "",
+      notConfiguredPages ? `${notConfiguredPages} not configured` : "",
+    ].filter(Boolean).join(" | "),
+    category: site.category,
+    configured,
+    baseUrl: configured ? site.baseUrl : "",
+    pages,
+  };
+};
 
 const getSiteStatus = async () => {
   const now = Date.now();
@@ -3872,6 +3904,71 @@ const buildLabeledCounts = (entries = [], key) => {
     .sort((left, right) => right.count - left.count);
 };
 
+const unwrapRailwayWebhookPayload = (payload = {}) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+
+  const nestedCandidates = [
+    payload.payload,
+    payload.data,
+    payload.eventPayload,
+    payload.webhook,
+  ];
+  const usefulNested = nestedCandidates.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === "object" &&
+      !Array.isArray(candidate) &&
+      (
+        candidate.deployment ||
+        candidate.service ||
+        candidate.project ||
+        candidate.environment ||
+        candidate.alert ||
+        candidate.type ||
+        candidate.eventType ||
+        candidate.status
+      )
+  );
+
+  return usefulNested || payload;
+};
+
+const getRailwayWebhookMetadata = (rawPayload = {}, payload = rawPayload) => {
+  if (payload === rawPayload) return rawPayload;
+  return {
+    event: payload,
+    envelope: rawPayload,
+  };
+};
+
+const getRailwayWebhookDiagnostics = ({ currentWindowEvents = 0, latestEvent = null } = {}) => ({
+  configured: Boolean(RAILWAY_WEBHOOK_SECRET),
+  endpoint: "/api/webhooks/railway",
+  secretInputs: [
+    "Authorization: Bearer <secret>",
+    "x-faako-webhook-secret",
+    "x-railway-webhook-secret",
+    "x-webhook-secret",
+    "?secret=<secret>",
+  ],
+  currentWindowEvents,
+  latestEventAt: latestEvent?.createdAt ? latestEvent.createdAt.toISOString() : null,
+});
+
+const extractRailwayWebhookSecret = (req) => {
+  const authorization = String(req.headers?.authorization || "").trim();
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch?.[1]) return bearerMatch[1].trim();
+
+  return String(
+    req.query?.secret
+      || req.headers["x-faako-webhook-secret"]
+      || req.headers["x-railway-webhook-secret"]
+      || req.headers["x-webhook-secret"]
+      || ""
+  ).trim();
+};
+
 const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) => {
   const where = buildScopedAuditWhere(organizationScope, query);
   const [logs, totalEvents, totalIncidents, totalFailures] = await Promise.all([
@@ -3952,34 +4049,59 @@ const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) 
   };
 };
 
-const buildRailwayWebhookAuditEvent = (payload = {}) => {
+const buildRailwayWebhookAuditEvent = (rawPayload = {}) => {
+  const payload = unwrapRailwayWebhookPayload(rawPayload);
   const eventType = normalizeRailwayText(
-    payload?.type || payload?.eventType || payload?.event || payload?.trigger || "event",
+    payload?.type
+      || payload?.eventType
+      || payload?.eventName
+      || payload?.event
+      || payload?.trigger
+      || rawPayload?.type
+      || "event",
     80
   );
   const deploymentStatus = normalizeRailwayText(
-    payload?.status || payload?.deployment?.status || payload?.alert?.state || "",
+    payload?.status
+      || payload?.deployment?.status
+      || payload?.deploymentStatus
+      || payload?.alert?.state
+      || rawPayload?.status
+      || "",
     80
   );
   const serviceName = normalizeRailwayText(
     payload?.service?.name
       || payload?.deployment?.service?.name
+      || payload?.serviceName
       || payload?.resource?.name
       || payload?.alert?.service?.name
       || "",
     120
   );
   const environmentName = normalizeRailwayText(
-    payload?.environment?.name || payload?.deployment?.environment?.name || "",
+    payload?.environment?.name
+      || payload?.deployment?.environment?.name
+      || payload?.environmentName
+      || "",
     80
   );
   const projectName = normalizeRailwayText(
-    payload?.project?.name || payload?.deployment?.project?.name || "",
+    payload?.project?.name
+      || payload?.deployment?.project?.name
+      || payload?.projectName
+      || "",
     120
   );
   const eventId =
     normalizeRailwayText(
-      payload?.id || payload?.eventId || payload?.deliveryId || payload?.deployment?.id || "",
+      payload?.id
+        || payload?.eventId
+        || payload?.deliveryId
+        || payload?.deployment?.id
+        || payload?.deploymentId
+        || rawPayload?.id
+        || "",
       160
     )
     || crypto.createHash("sha256").update(JSON.stringify(payload || {})).digest("hex");
@@ -4013,7 +4135,7 @@ const buildRailwayWebhookAuditEvent = (payload = {}) => {
       actorType: "system",
       actorLabel: "Railway",
       externalRef: eventId,
-      metadata: payload,
+      metadata: getRailwayWebhookMetadata(rawPayload, payload),
     },
     { environment: APP_ENV }
   );
@@ -4088,6 +4210,7 @@ const sendRentPaymentRecordedNotification = async ({ tenant, payment }) => {
     asOfDate: paymentDate,
   });
   const serializedPayment = serializeRentPayment(payment);
+  await refreshDisplayCurrencyRate();
   const { subject, text, html } = buildRentPaymentRecordedEmailContent({
     summary,
     payment: serializedPayment,
@@ -4268,6 +4391,7 @@ const runAccountingScheduledPaymentReminders = async ({ ignoreEnabled = false } 
     if (!recipients.length) continue;
 
     const organizationName = organizationEntries[0]?.organization?.name || "";
+    await refreshDisplayCurrencyRate();
     const { subject, text, html } = buildAccountingScheduledReminderEmailContent({
       entries: organizationEntries.map((entry) => ({
         serviceName: entry.serviceName,
@@ -4394,6 +4518,7 @@ const runRentMonthlyTenantUpdates = async ({ ignoreEnabled = false } = {}) => {
     });
     const recipients = resolveRentMonthlySummaryRecipients(tenant);
     if (!recipients.length) continue;
+    await refreshDisplayCurrencyRate();
     const { subject, text, html } = buildRentMonthlySummaryEmailContent({
       summary,
       monthLabel,
@@ -4925,6 +5050,14 @@ registerUserRoutes(app, {
   setAuthCookies,
   serializeUserRole,
   extractAllowedModules,
+});
+
+app.get("/api/currency/display-rate", async (_req, res) => {
+  const snapshot = await refreshDisplayCurrencyRate();
+  res.json({
+    ok: true,
+    ...snapshot,
+  });
 });
 
 app.get("/api/organizations", authMiddleware, requireAdmin, async (req, res) => {
@@ -5675,7 +5808,8 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 
   const where = buildScopedAuditWhere(organizationScope, req.query);
   const take = parseAuditTake(req.query.take, 100, 300);
-  const [logs, total, incidents, failures, actors] = await Promise.all([
+  const railwayWhere = { AND: [where, { source: "railway" }] };
+  const [logs, total, incidents, failures, actors, railwayEvents, latestRailwayEvent] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -5689,6 +5823,12 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
       distinct: ["actorLabel"],
       select: { actorLabel: true },
     }),
+    prisma.auditLog.count({ where: railwayWhere }),
+    prisma.auditLog.findFirst({
+      where: railwayWhere,
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
   ]);
   const entries = logs.map(serializeAuditLog);
   const summary = {
@@ -5696,6 +5836,10 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
     incidents,
     failures,
     actors: actors.filter((entry) => String(entry.actorLabel || "").trim()).length,
+    railway: railwayEvents,
+    latestRailwayEventAt: latestRailwayEvent?.createdAt
+      ? latestRailwayEvent.createdAt.toISOString()
+      : null,
   };
 
   return res.json({
@@ -5714,23 +5858,23 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
       includeAllOrganizations: Boolean(organizationScope?.includeAllOrganizations),
       selectedOrganization: organizationScope?.selectedOrganization ?? null,
     },
+    integrations: {
+      railwayWebhook: getRailwayWebhookDiagnostics({
+        currentWindowEvents: railwayEvents,
+        latestEvent: latestRailwayEvent,
+      }),
+    },
   });
 });
 
 app.post("/api/webhooks/railway", async (req, res) => {
-  const configuredSecret = String(process.env.RAILWAY_WEBHOOK_SECRET || "").trim();
-  if (!configuredSecret) {
+  if (!RAILWAY_WEBHOOK_SECRET) {
     return res.status(503).json({ error: "RAILWAY_WEBHOOK_SECRET is not configured." });
   }
 
-  const suppliedSecret = String(
-    req.query?.secret
-      || req.headers["x-faako-webhook-secret"]
-      || req.headers["x-railway-webhook-secret"]
-      || ""
-  ).trim();
+  const suppliedSecret = extractRailwayWebhookSecret(req);
 
-  if (!suppliedSecret || suppliedSecret !== configuredSecret) {
+  if (!suppliedSecret || suppliedSecret !== RAILWAY_WEBHOOK_SECRET) {
     return res.status(401).json({ error: "Invalid webhook secret." });
   }
 
@@ -5806,6 +5950,8 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     id: site.id,
     title: site.title,
     category: site.category,
+    baseUrl: site.baseUrl,
+    configured: site.configured,
     pages: site.pages ?? [],
     aggregateStatus: getAggregateSiteStatus(site.pages ?? []),
   }));
@@ -5815,17 +5961,11 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
   const stroaneApiStatus = getSurfaceStatus("stroane-api");
   const apiSurfaceEntries = siteOverview
     .filter((site) => site.category === "api")
-    .map((site) => ({
-      id: site.id,
-      label: site.title,
-      status: site.aggregateStatus,
-      note: "API surface",
-    }));
+    .map(buildApiSurfaceEntry);
   const pageSurfaceStatuses = (siteStatusPayload ?? []).filter(isWebsiteHealthSurface);
   const pageSurfaceOverview = siteOverview.filter(isWebsiteHealthSurface);
 
   const systemEntries = [
-    { id: "api", label: "Dev ERP API", status: "ok", note: "Auth + metrics" },
     ...apiSurfaceEntries,
     { id: "portfolio", label: "Primary DB", status: "ok", note: "Core organization data" },
     { id: "reebs", label: "Reebs DB", status: reebsStatus, note: "Operational data" },
@@ -5865,7 +6005,7 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
     },
     lastSyncedAt: new Date().toISOString(),
     status: {
-      api: "ok",
+      api: getSurfaceStatus("dev-erp-api"),
       faakoApi: faakoApiStatus,
       stroaneApi: stroaneApiStatus,
       portfolioDb: "ok",
@@ -6564,21 +6704,35 @@ app.get("/api/public/trust-stats", async (req, res) => {
   const range = buildRollingRange(30);
 
   try {
-    const [manualRevenue, managedOrgs, faakoResult] = await Promise.all([
+    const managedOrgs = await resolveManagedOrganizationCount();
+    const [manualRevenueResult, faakoResult] = await Promise.allSettled([
       sumPaidRevenueGhs(range),
-      resolveManagedOrganizationCount(),
       fetchFaakoSubscriptionEntries({ start: range.start, end: range.end }),
     ]);
 
-    const faakoRevenue = (faakoResult?.entries ?? []).reduce((total, entry) => {
-      if (entry?.currency !== "GHS") return total;
-      const amount = Number(entry.amount);
-      return Number.isFinite(amount) ? total + amount : total;
-    }, 0);
+    const warnings = [];
+    const manualRevenue =
+      manualRevenueResult.status === "fulfilled" ? manualRevenueResult.value : 0;
+    if (manualRevenueResult.status === "rejected") {
+      warnings.push("manual-revenue-unavailable");
+      console.warn("Trust stats manual revenue query failed", manualRevenueResult.reason);
+    }
+
+    await refreshDisplayCurrencyRate();
+    const faakoRevenue = sumAmountsAsDisplayGhs(
+      faakoResult.status === "fulfilled" ? faakoResult.value?.entries ?? [] : [],
+      (entry) => entry?.amount,
+      (entry) => entry?.currency
+    );
+    if (faakoResult.status === "rejected") {
+      warnings.push("subscription-revenue-unavailable");
+      console.warn("Trust stats subscription revenue query failed", faakoResult.reason);
+    }
 
     const monthlyTransactions = Math.round((manualRevenue + faakoRevenue) * 100) / 100;
 
     const payload = {
+      ok: true,
       generatedAt: new Date().toISOString(),
       range: {
         start: range.start.toISOString(),
@@ -6590,6 +6744,7 @@ app.get("/api/public/trust-stats", async (req, res) => {
         currency: "GHS",
       },
       organizations: managedOrgs,
+      warnings,
     };
 
     trustStatsCache = { checkedAt: now, data: payload };
@@ -8797,6 +8952,7 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
   const viewInvoiceUrl = buildInvoiceViewUrl(viewToken);
 
   const invoiceSenderName = invoice.organization?.name || INVOICE_EMAIL_SENDER_NAME;
+  await refreshDisplayCurrencyRate();
   const { subject, text, html } = buildInvoiceEmailContent(invoice, {
     senderName: invoiceSenderName,
     headerTagline: INVOICE_EMAIL_HEADER_TAGLINE,
@@ -8903,6 +9059,7 @@ app.post("/api/invoices/:id/send-quotation", authMiddleware, requireAdmin, async
   const viewInvoiceUrl = buildInvoiceViewUrl(viewToken);
 
   const invoiceSenderName = invoice.organization?.name || INVOICE_EMAIL_SENDER_NAME;
+  await refreshDisplayCurrencyRate();
   const { subject, text, html } = buildInvoiceEmailContent(invoice, {
     senderName: invoiceSenderName,
     headerTagline: "Quotation for your review",
@@ -10536,12 +10693,15 @@ const resolveDecimalAmount = (value) => {
 };
 
 const sumPaidRevenueGhs = async ({ start, end }) => {
-  const result = await prisma.accountingEntry.aggregate({
-    _sum: { amount: true },
+  await refreshDisplayCurrencyRate();
+  const entries = await prisma.accountingEntry.findMany({
+    select: {
+      amount: true,
+      currency: true,
+    },
     where: {
       type: "REVENUE",
       status: "PAID",
-      currency: "GHS",
       archivedAt: null,
       OR: [
         { paidAt: { gte: start, lte: end } },
@@ -10549,7 +10709,11 @@ const sumPaidRevenueGhs = async ({ start, end }) => {
       ],
     },
   });
-  const sum = resolveDecimalAmount(result?._sum?.amount);
+  const sum = sumAmountsAsDisplayGhs(
+    entries,
+    (entry) => resolveDecimalAmount(entry.amount),
+    (entry) => entry.currency
+  );
   return Number.isFinite(sum) ? sum : 0;
 };
 

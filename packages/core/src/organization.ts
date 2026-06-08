@@ -17,6 +17,11 @@ const LEGACY_FUNCTION_PREFIX = "/.netlify/functions/";
 const API_PREFIX = "/api/";
 const DEFAULT_BACKEND_BASE_URL = "https://api.reebspartythemes.com";
 const DEFAULT_LOCAL_BACKEND_BASE_URL = "http://localhost:8888";
+const REEBS_FRONTEND_HOSTNAMES = new Set([
+  "portal.reebspartythemes.com",
+  "reebspartythemes.com",
+  "www.reebspartythemes.com",
+]);
 const USE_FUNCTION_PROXY_IN_DEV = ["1", "true", "yes", "on"].includes(
   String(import.meta.env?.VITE_FUNCTIONS_VIA_PROXY || "").trim().toLowerCase(),
 );
@@ -38,10 +43,30 @@ const normalizeBackendBaseUrl = (value: unknown) => {
   return trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
 };
 
+const isKnownFrontendBaseUrl = (value: string) => {
+  try {
+    return REEBS_FRONTEND_HOSTNAMES.has(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+};
+
+const getConfiguredBackendBaseUrl = () => {
+  const candidates = [
+    import.meta.env?.VITE_API_BASE_URL,
+    import.meta.env?.VITE_BACKEND_BASE_URL,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeBackendBaseUrl(candidate);
+    if (normalized && !isKnownFrontendBaseUrl(normalized)) return normalized;
+  }
+
+  return "";
+};
+
 const getBackendBaseUrl = () => {
-  const envBase = normalizeBackendBaseUrl(
-    import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_BACKEND_BASE_URL,
-  );
+  const envBase = getConfiguredBackendBaseUrl();
   if (envBase) return envBase;
 
   if (import.meta.env?.DEV && typeof window !== "undefined") {

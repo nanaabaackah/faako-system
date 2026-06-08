@@ -1,3 +1,5 @@
+import { DISPLAY_CURRENCY_CODE, formatAmountAsGhs } from "./displayCurrency";
+
 const asNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -20,13 +22,7 @@ const PDF_COLORS = {
   danger: [185, 28, 28],
 };
 
-const formatAmountValue = (amount) =>
-  asNumber(amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const formatMoney = (amount, currency) => `${currency} ${formatAmountValue(amount)}`;
+const formatMoney = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const formatDateLabel = (value) => {
   if (!value) return "N/A";
@@ -268,7 +264,7 @@ export const downloadInvoicePdf = async ({
     { label: "Invoice #", value: String(invoiceNumber || "DRAFT") },
     { label: "Issue date", value: formatDateLabel(issueDate) },
     { label: "Due date", value: formatDateLabel(dueDate) },
-    { label: "Currency", value: currency },
+    { label: "Display currency", value: DISPLAY_CURRENCY_CODE },
   ];
   const detailRowLayouts = infoRows.map((row) => {
     const valueLines = doc.splitTextToSize(row.value, detailsWidth - 32);

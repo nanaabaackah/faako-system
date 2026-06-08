@@ -38,6 +38,7 @@ import { canAccessPath, getDefaultPathForUser, isRentOnlyUser } from "./utils/mo
 import {
   addSessionInvalidListener,
 } from "./utils/authSession";
+import { hydrateDisplayCurrencyRate } from "./utils/displayCurrency";
 import {
   formatNotificationCount,
   getAlertNotificationCount,
@@ -492,6 +493,7 @@ const DashboardLanding = ({ currentUser }) => {
 function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [authReady, setAuthReady] = useState(false);
+  const [, setCurrencyRateVersion] = useState(0);
   const auth = useAuthSnapshot();
   const currentUser = auth.user;
 
@@ -499,6 +501,17 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    hydrateDisplayCurrencyRate({ signal: controller.signal }).then((didUpdate) => {
+      if (didUpdate && !controller.signal.aborted) {
+        setCurrencyRateVersion((version) => version + 1);
+      }
+    });
+
+    return () => controller.abort();
+  }, []);
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));

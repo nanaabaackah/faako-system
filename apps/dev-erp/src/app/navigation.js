@@ -116,9 +116,8 @@ export const getAlertNotificationCount = (dashboardPayload) => {
   const systemStatus = dashboardPayload?.status ?? {};
   const apiSurfaceStatuses = Array.isArray(dashboardPayload?.apiSurfaces)
     ? dashboardPayload.apiSurfaces.map((surface) => surface?.status)
-    : [systemStatus.faakoApi, systemStatus.stroaneApi];
+    : [systemStatus.api, systemStatus.faakoApi, systemStatus.stroaneApi];
   const systemEntries = [
-    systemStatus.api,
     ...apiSurfaceStatuses,
     systemStatus.portfolioDb,
     systemStatus.reebsDb,

@@ -87,7 +87,7 @@ Supported module groups are `core`, `sales`, `operations`, `finance`, `insights`
 
 Shared shell placeholders are `offlineIndicator`, `syncStatus`, `notificationArea`, and `organizationSwitcher`. They are structural metadata only and do not implement backend sync, notifications, or tenant switching.
 
-`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. Every registered app workspace is represented. Public and hosted apps fall back to documented defaults, while optional internal apps such as System Starter and UI Workbench remain visible as unconfigured until hosted URLs are supplied. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them. Apps can also define additional monitoring surfaces for portals and backend APIs. Stroane Web now emits the public storefront, `portal.stroanesolutions.com`, and a `stroane-api` backend surface for `/health`, `/api/catalogue/products`, `/api/catalogue/categories`, `/api/products`, and `/api/categories`; backend surfaces remain visible as `Not configured` until a backend base URL env value is supplied. Dev ERP filters API and internal-only surfaces out of the website/portal page list, while API surfaces are promoted into System Status rows.
+`getMonorepoMonitoringSites(env)` returns the config-driven site list used by Dev ERP status checks. Every registered app workspace is represented. Public and hosted apps fall back to documented defaults, while optional internal apps such as System Starter and UI Workbench remain visible as unconfigured until hosted URLs are supplied. Existing legacy monitoring ids (`nana`, `reebs`, and `faako`) are preserved where the dashboard already expects them. Apps can also define additional monitoring surfaces for portals and backend APIs. Dev ERP emits a `dev-erp-api` surface for `https://api.dev.nanaabaackah.com` with `/healthz` and `/api/public/trust-stats`, so the API is monitored in System Status instead of website page health. Faako API remains visible as an API surface but is `Not configured` until `FAAKO_API_BASE_URL` or `FAAKO_API_URL` points at a real API host; this avoids treating the Faako marketing SPA as an API. Stroane Web emits the public storefront, `portal.stroanesolutions.com`, and a `stroane-api` backend surface for `/health`, `/api/catalogue/products`, `/api/catalogue/categories`, `/api/products`, and `/api/categories`; optional backend surfaces remain visible as `Not configured` until a backend base URL env value is supplied. Dev ERP filters API and internal-only surfaces out of the website/portal page list, while API surfaces are promoted into System Status rows.
 
 Run `pnpm run monitoring:check` from the repo root after adding apps. The script scans `apps/`, compares app directories to `src/monorepoApps/appRegistry.js`, verifies monitoring-enabled apps resolve into monitoring output, and prints only app keys/counts so private URLs and secrets are not exposed.
 
@@ -117,7 +117,11 @@ Supported visibility and state metadata:
 Optional monitoring URL overrides can be supplied by apps that consume `getMonorepoMonitoringSites`:
 
 - `REEBS_PORTAL_BASE_URL`
+- `REEBS_API_BASE_URL`
+- `REEBS_BACKEND_BASE_URL`
 - `DEV_ERP_BASE_URL`
+- `DEV_ERP_API_BASE_URL`
+- `DEV_API_BASE_URL`
 - `STROANE_WEB_BASE_URL`
 - `STROANE_PORTAL_BASE_URL`
 - `STROANE_API_BASE_URL`
@@ -125,6 +129,7 @@ Optional monitoring URL overrides can be supplied by apps that consume `getMonor
 - `VITE_BACKEND_BASE_URL` (used by Stroane API monitoring only when supplied to the monitoring process)
 - `FAAKO_WEBSITE_BASE_URL`
 - `FAAKO_API_BASE_URL`
+- `FAAKO_API_URL`
 - `REEBS_WEBSITE_BASE_URL`
 - `BYNANA_PORTFOLIO_BASE_URL`
 - `FAAKO_ERP_BASE_URL`

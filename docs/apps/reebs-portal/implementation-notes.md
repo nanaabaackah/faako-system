@@ -8,6 +8,8 @@ Capture technical notes, open questions, cleanup targets, and risks for REEBS Po
 
 - The app includes a React admin portal, an Express API wrapper at `apps/reebs-portal/backend/server.js`, legacy function handler source under `apps/reebs-portal/netlify/functions`, Prisma schema/migrations, and deeper local app docs under `apps/reebs-portal/docs`.
 - Portal and website frontends should use `VITE_API_BASE_URL=https://api.reebspartythemes.com` in production. The shared `patchOrganizationFetch` compatibility layer maps legacy `/.netlify/functions/*` browser calls to `/api/*` on the configured API host and keeps credentials included for same-site API cookies.
+- The shared fetch wrapper ignores legacy `VITE_BACKEND_BASE_URL` values that point at REEBS frontend hosts, so stale Cloudflare frontend env cannot route API calls to `portal.reebspartythemes.com` or the public website.
+- Railway API services using hosted Postgres may need `DATABASE_SSL_REJECT_UNAUTHORIZED=false` unless `DATABASE_SSL_CA` is configured; otherwise database-backed endpoints can fail with `SELF_SIGNED_CERT_IN_CHAIN`.
 - Role assignment includes Owner, Admin, Manager, Staff, Warehouse, Driver, and Water, with legacy values normalized to Staff.
 - Inventory compatibility still depends on legacy source category and specific category relationships.
 - Variant-aware order, booking, scheduling, and invoicing flows should preserve `variantId` and `variantLabel`.

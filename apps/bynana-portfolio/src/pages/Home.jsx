@@ -41,7 +41,13 @@ const LIVE_SYSTEMS_FALLBACK = '3';
 const buildTrustStatsCandidates = () =>
   Array.from(
     new Set(
-      [TRUST_STATS_ENDPOINT, TRUST_STATS_FUNCTION_ENDPOINT, TRUST_STATS_UPSTREAM_URL].filter(Boolean),
+      [
+        TRUST_STATS_ENDPOINT,
+        TRUST_STATS_FUNCTION_ENDPOINT,
+        TRUST_STATS_UPSTREAM_URL && TRUST_STATS_UPSTREAM_URL !== TRUST_STATS_ENDPOINT
+          ? TRUST_STATS_UPSTREAM_URL
+          : '',
+      ].filter(Boolean),
     ),
   );
 

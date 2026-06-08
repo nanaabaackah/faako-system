@@ -1,0 +1,224 @@
+.terminal-log-stream {
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border), #16f2b3 18%);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 0 0, rgb(22 242 179 / 0.12), transparent 34%),
+    linear-gradient(145deg, #08110f 0%, #0b1417 48%, #05080a 100%);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.22);
+  color: #d7fff3;
+}
+
+.terminal-log-stream__chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.68rem 0.9rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.04);
+}
+
+.terminal-log-stream__dot {
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.18);
+}
+
+.terminal-log-stream__dot.is-red {
+  background: #ff5f57;
+}
+
+.terminal-log-stream__dot.is-yellow {
+  background: #ffbd2e;
+}
+
+.terminal-log-stream__dot.is-green {
+  background: #28c840;
+}
+
+.terminal-log-stream__title {
+  margin-left: 0.3rem;
+  color: rgb(215 255 243 / 0.78);
+  font: 700 0.72rem/1.2 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.terminal-log-stream__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  color: #8affd8;
+  font: 800 0.68rem/1 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.terminal-log-stream__live::before {
+  content: "";
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 16px currentColor;
+  animation: terminal-live-pulse 1.45s ease-in-out infinite;
+}
+
+.terminal-log-stream__live.is-refreshing::before {
+  animation-duration: 0.6s;
+}
+
+.terminal-log-stream__sync {
+  padding: 0.45rem 0.9rem 0;
+  color: rgb(215 255 243 / 0.55);
+  font: 600 0.68rem/1.4 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.terminal-log-stream__body {
+  display: grid;
+  gap: 0;
+  max-height: min(64vh, 720px);
+  overflow: auto;
+  padding: 0.7rem 0;
+}
+
+.terminal-log-row,
+.terminal-log-stream__empty {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(132px, 184px) minmax(68px, 86px) minmax(72px, 120px) minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.55rem 0.9rem;
+  color: rgb(215 255 243 / 0.84);
+  font: 0.78rem/1.5 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.terminal-log-row:nth-child(even) {
+  background: rgb(255 255 255 / 0.025);
+}
+
+.terminal-log-row__prompt {
+  color: #16f2b3;
+  font-weight: 900;
+}
+
+.terminal-log-row__time {
+  color: rgb(215 255 243 / 0.62);
+}
+
+.terminal-log-row__level {
+  justify-self: start;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: #b8d9ff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.terminal-log-row__level.is-success {
+  color: #9dffcb;
+}
+
+.terminal-log-row__level.is-warning {
+  color: #ffe08a;
+}
+
+.terminal-log-row__level.is-error {
+  color: #ff9a9a;
+}
+
+.terminal-log-row__source {
+  color: #8affd8;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.terminal-log-row__message {
+  min-width: 0;
+  color: #f5fffb;
+  overflow-wrap: anywhere;
+}
+
+.terminal-log-row__detail {
+  grid-column: 5;
+  color: rgb(215 255 243 / 0.62);
+  overflow-wrap: anywhere;
+}
+
+.terminal-log-row__metadata {
+  grid-column: 5;
+  max-width: 100%;
+  margin: 0.18rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.24);
+  color: rgb(215 255 243 / 0.7);
+  font: 0.74rem/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.terminal-log-stream__empty {
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  color: rgb(215 255 243 / 0.6);
+}
+
+@keyframes terminal-live-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 900px) {
+  .terminal-log-row {
+    grid-template-columns: 1rem minmax(0, 1fr);
+    gap: 0.25rem 0.6rem;
+  }
+
+  .terminal-log-row__time,
+  .terminal-log-row__level,
+  .terminal-log-row__source,
+  .terminal-log-row__message,
+  .terminal-log-row__detail,
+  .terminal-log-row__metadata {
+    grid-column: 2;
+  }
+
+  .terminal-log-row__level {
+    margin-top: 0.15rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .terminal-log-stream {
+    border-radius: 18px;
+  }
+
+  .terminal-log-stream__chrome {
+    flex-wrap: wrap;
+  }
+
+  .terminal-log-stream__live {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .terminal-log-stream__body {
+    max-height: 68vh;
+  }
+}

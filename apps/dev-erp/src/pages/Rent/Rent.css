@@ -191,6 +191,10 @@
 .rent-table-wrap {
   width: 100%;
   overflow-x: auto;
+  border: 1px solid color-mix(in oklab, var(--border), transparent 16%);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--card), var(--surface) 14%);
+  box-shadow: var(--table-shadow);
 }
 
 .rent-table {

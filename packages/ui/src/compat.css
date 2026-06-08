@@ -6,6 +6,8 @@
   .bubble-card,
   .kpi-card,
   .metric-card,
+  .monitoring-card,
+  .site-card,
   .dashboard-brief-card
 ) {
   color: var(--text-subtle);
@@ -116,7 +118,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   border-bottom-left-radius: var(--sys-radius-sm) !important;
   border-bottom-right-radius: var(--sys-radius-sm) !important;
   background-color: var(--sys-table-card-bg) !important;
-  box-shadow: var(--sys-shadow-sm) !important;
+  box-shadow: var(--sys-shadow-md) !important;
 }
 
 [data-faako-theme] :where(.data-table) {

@@ -48,10 +48,6 @@
 }
 
 .dashboard-verse {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  padding: 0.82rem 0.88rem;
   display: grid;
   gap: 0.34rem;
 }

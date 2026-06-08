@@ -50,6 +50,7 @@
 - Confirm frontend `VITE_API_BASE_URL` points to `https://api.reebspartythemes.com`.
 - Confirm the API service starts with `pnpm --filter @faako/reebs-portal run server:with-migrate`.
 - Confirm API service env includes server-only secrets such as `DATABASE_URL`, `USER_APP_SECRET`, email provider keys, and messaging provider keys.
+- Confirm hosted Postgres SSL config is valid. For Railway/self-signed chains, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` or provide `DATABASE_SSL_CA`.
 
 ## Rollback plan
 

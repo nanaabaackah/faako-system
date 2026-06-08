@@ -1,4 +1,5 @@
 import emailKit from "../../../packages/email-kit/src/index.cjs";
+import { DISPLAY_CURRENCY_CODE, formatAmountAsGhs } from "./utils/displayCurrency.js";
 
 const {
   EMAIL_THEMES,
@@ -12,11 +13,7 @@ const {
   renderButton,
 } = emailKit;
 
-const formatInvoiceCurrency = (amount, currency) =>
-  `${currency} ${Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const formatInvoiceCurrency = (amount, currency) => formatAmountAsGhs(amount, currency);
 
 const resolveInvoiceDateLabel = (value) => {
   if (!value) return "N/A";
@@ -335,7 +332,7 @@ export const buildInvoiceEmailContent = (invoice, templateOptions = {}) => {
                 [
                   ["Issue date", issueDateLabel],
                   ["Due date", dueDateLabel],
-                  ["Currency", currency],
+                  ["Display currency", DISPLAY_CURRENCY_CODE],
                   ["Sender", senderName],
                 ],
                 { theme, labelWidth: "38%" }

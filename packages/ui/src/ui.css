@@ -207,7 +207,7 @@
   border: 1px solid var(--sys-border);
   border-radius: var(--sys-radius-md);
   background: var(--sys-surface);
-  box-shadow: var(--sys-shadow-sm);
+  box-shadow: var(--sys-shadow-md);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   padding: 1.2rem;
@@ -2649,7 +2649,7 @@
   border-bottom-left-radius: var(--sys-radius-sm);
   border-bottom-right-radius: var(--sys-radius-sm);
   background: var(--sys-surface-strong);
-  box-shadow: var(--sys-shadow-sm);
+  box-shadow: var(--sys-shadow-md);
 }
 
 .ui-data-table__header {
@@ -2853,7 +2853,7 @@
   border: 1px solid var(--sys-border);
   border-radius: var(--sys-radius-md);
   background: var(--sys-surface-strong);
-  box-shadow: var(--sys-shadow-sm);
+  box-shadow: var(--sys-shadow-md);
 }
 
 .ui-erp-table__table {
@@ -3073,7 +3073,7 @@
     border: 1px solid var(--sys-border);
     border-radius: var(--sys-radius-md);
     background: var(--sys-surface-strong);
-    box-shadow: var(--sys-shadow-sm);
+    box-shadow: var(--sys-shadow-md);
     overflow: hidden;
   }
 
