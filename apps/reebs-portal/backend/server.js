@@ -178,6 +178,18 @@ export const createReebsApiServer = () => {
     })
   );
 
+  app.get(["/", "/api"], (req, res) =>
+    sendJson(req, res, 200, {
+      ok: true,
+      service: "reebs-api",
+      adapter: "netlify-function-compat",
+      health: "/health",
+      api: "/api/:functionName",
+      legacyAlias: "/.netlify/functions/:functionName",
+      functions: functionFiles.size,
+    })
+  );
+
   app.all(["/api/:functionName", "/.netlify/functions/:functionName"], async (req, res) => {
     const functionName = String(req.params.functionName || "").trim();
     const event = createEvent(req, functionName);
