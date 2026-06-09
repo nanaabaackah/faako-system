@@ -36,57 +36,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    <script>
-      (function initAnalytics() {
-        const configuredId = "%VITE_GA_ID%";
-        const gaId =
-          configuredId && configuredId !== "%VITE_GA_ID%"
-            ? configuredId
-            : "G-5JFM7XNL2Y";
-        if (!gaId) return;
-
-        const host = window.location.hostname;
-        const isLocalHost =
-          host === "localhost"
-          || host === "127.0.0.1"
-          || host === "[::1]";
-        const doNotTrackEnabled =
-          window.doNotTrack === "1"
-          || navigator.doNotTrack === "1"
-          || navigator.msDoNotTrack === "1";
-        if (isLocalHost || doNotTrackEnabled) return;
-
-        const loadAnalytics = () => {
-          if (window.__reebsAnalyticsLoaded) return;
-          window.__reebsAnalyticsLoaded = true;
-
-          const script = document.createElement("script");
-          script.async = true;
-          script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
-          document.head.appendChild(script);
-
-          window.dataLayer = window.dataLayer || [];
-          function gtag() {
-            window.dataLayer.push(arguments);
-          }
-          gtag("js", new Date());
-          gtag("config", gaId);
-        };
-
-        if (typeof window.requestIdleCallback === "function") {
-          window.requestIdleCallback(loadAnalytics, { timeout: 2500 });
-          return;
-        }
-
-        window.addEventListener(
-          "load",
-          () => {
-            window.setTimeout(loadAnalytics, 900);
-          },
-          { once: true }
-        );
-      })();
-    </script>
+    <script src="/analytics.js" defer></script>
 
     <title>REEBS Party Themes</title>
   </head>
