@@ -2838,7 +2838,7 @@ const buildWeeklyReportSnapshot = async () => {
     }),
     prisma.accountingEntry.count({
       where: {
-        status: { in: ["PENDING", "SCHEDULED"] },
+        status: "PENDING",
         archivedAt: null,
       },
     }),

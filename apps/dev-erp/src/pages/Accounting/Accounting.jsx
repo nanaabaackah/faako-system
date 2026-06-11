@@ -317,7 +317,7 @@ const Accounting = () => {
         base.paidExpensesGhs += displayAmount;
         base.counts.paidExpenses += 1;
       }
-      if (entry.type === "EXPENSE" && entry.status !== "PAID") {
+      if (entry.type === "EXPENSE" && entry.status === "PENDING") {
         base.pendingPayablesGhs += displayAmount;
         base.counts.pendingPayables += 1;
       }
