@@ -1,6 +1,6 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("./runtimeConfig");
+const { resolveDatabaseUrl } = require("./runtimeConfig.cjs");
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;

@@ -1,5 +1,5 @@
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("./runtimeConfig");
+const { resolveDatabaseUrl } = require("./runtimeConfig.cjs");
 
 const pool = new Pool({
   connectionString: resolveDatabaseUrl()
