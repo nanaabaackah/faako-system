@@ -375,8 +375,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setNotificationsError("");
       try {
         const requests = [
-          canAccessOrdersModule ? { key: "orders", path: "/.netlify/functions/orders" } : null,
-          canAccessBookingsModule ? { key: "bookings", path: "/.netlify/functions/bookings" } : null,
+          canAccessOrdersModule ? { key: "orders", path: "/api/orders" } : null,
+          canAccessBookingsModule ? { key: "bookings", path: "/api/bookings" } : null,
         ].filter(Boolean);
         const settled = await Promise.all(
           requests.map(async (request) => {
@@ -434,16 +434,16 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setSearchError("");
       const requests = [
         canAccessCustomers
-          ? { key: "customers", label: "customers", path: "/.netlify/functions/customers" }
+          ? { key: "customers", label: "customers", path: "/api/customers" }
           : null,
         canAccessInventoryRecords
-          ? { key: "inventory", label: "inventory", path: "/.netlify/functions/inventory" }
+          ? { key: "inventory", label: "inventory", path: "/api/inventory" }
           : null,
         canAccessOrdersModule
-          ? { key: "orders", label: "orders", path: "/.netlify/functions/orders" }
+          ? { key: "orders", label: "orders", path: "/api/orders" }
           : null,
         canAccessBookingsModule
-          ? { key: "bookings", label: "bookings", path: "/.netlify/functions/bookings" }
+          ? { key: "bookings", label: "bookings", path: "/api/bookings" }
           : null,
       ].filter(Boolean);
 

@@ -54,7 +54,7 @@ test("buildQueuedBookingAction stores minimal booking create payload", () => {
   assert.equal(queued.status, SYNC_STATES.PENDING);
   assert.equal(queued.payload.targetType, "booking");
   assert.equal(queued.payload.targetId, null);
-  assert.equal(queued.payload.endpoint.path, "/.netlify/functions/bookings");
+  assert.equal(queued.payload.endpoint.path, "/api/bookings");
   assert.equal(queued.payload.endpoint.method, "POST");
   assert.deepEqual(queued.payload.booking.items, [
     {

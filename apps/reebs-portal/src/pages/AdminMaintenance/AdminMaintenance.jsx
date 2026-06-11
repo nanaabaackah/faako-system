@@ -64,7 +64,7 @@ function AdminMaintenance() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/maintenance");
+      const res = await fetch("/api/maintenance");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load maintenance logs.");
       setLogs(Array.isArray(data) ? data : []);
@@ -79,7 +79,7 @@ function AdminMaintenance() {
   const fetchProducts = async () => {
     setProductsLoading(true);
     try {
-      const res = await fetch("/.netlify/functions/inventory");
+      const res = await fetch("/api/inventory");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load products.");
       setProducts(Array.isArray(data) ? data : []);
@@ -175,7 +175,7 @@ function AdminMaintenance() {
     setStatus("");
 
     try {
-      const res = await fetch("/.netlify/functions/maintenance", {
+      const res = await fetch("/api/maintenance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,7 +204,7 @@ function AdminMaintenance() {
     setError("");
     setStatus("");
     try {
-      const res = await fetch("/.netlify/functions/maintenance", {
+      const res = await fetch("/api/maintenance", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: log.id, status: nextStatus }),

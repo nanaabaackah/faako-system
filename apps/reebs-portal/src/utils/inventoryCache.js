@@ -84,7 +84,7 @@ export const fetchInventoryWithCache = async ({ signal } = {}) => {
 
   if (!inventoryRequestPromise) {
     inventoryRequestPromise = (async () => {
-      const response = await fetch("/.netlify/functions/inventory");
+      const response = await fetch("/api/inventory");
       if (!response.ok) {
         throw new Error(`Inventory request failed: ${response.status}`);
       }

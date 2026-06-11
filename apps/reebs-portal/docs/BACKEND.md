@@ -13,9 +13,9 @@ Key responsibilities:
 
 ## Runtime and Data Access
 - API wrapper lives in `backend/server.js`.
-- Handler source lives in `netlify/functions/*.js` for compatibility during the migration.
+- Handler source lives in `backend/functions/*.js` for compatibility during the migration.
 - Production base URL: `https://api.reebspartythemes.com/api/*`.
-- Legacy `/.netlify/functions/*` remains an API-server alias while browser calls migrate to `/api/*`.
+- Legacy `/api/*` remains an API-server alias while browser calls migrate to `/api/*`.
 - Each function now loads the shared runtime env helper, resolves `DATABASE_URL` from the active app environment, and uses `resolvePgSslConfig()` so local Postgres can run with `DATABASE_SSL_MODE="disable"` while hosted Postgres keeps SSL enabled.
 - `prisma/schema.prisma` is the source of truth for table definitions.
 - `prismaClient.js` configures Prisma with the Postgres adapter (used by scripts).
@@ -33,12 +33,12 @@ Key responsibilities:
 - Returns manager token signed with `MANAGER_APP_SECRET`.
 
 ### Token Handling
-- Staff token is validated by `requireUser()` in `netlify/functions/_shared/userAuth.js`.
-- Manager token is validated by `getManagerFromEvent()` in `netlify/functions/_shared/managerAuth.js`.
+- Staff token is validated by `requireUser()` in `backend/functions/_shared/userAuth.js`.
+- Manager token is validated by `getManagerFromEvent()` in `backend/functions/_shared/managerAuth.js`.
 - Frontend includes credentials and attaches the token as `Authorization: Bearer <token>` for API calls when a legacy token is present.
 
 ## Organization Scoping
-- `netlify/functions/_shared/organization.js` resolves `organizationId` from:
+- `backend/functions/_shared/organization.js` resolves `organizationId` from:
   - `x-organization-id` header
   - `organizationId` in query/body
   - fallback to user organization
@@ -69,7 +69,7 @@ Main tables from `prisma/schema.prisma`:
 - ManagerDevice: Expo push tokens for manager app
 
 ## API Reference
-Below is a concise map of each Netlify function.
+Below is a concise map of each API handler.
 
 ## Request/Response Examples
 Headers used in most staff-auth endpoints:
@@ -79,7 +79,7 @@ Headers used in most staff-auth endpoints:
 ### Staff Login
 Request:
 ```http
-POST /.netlify/functions/login
+POST /api/login
 Content-Type: application/json
 
 {"email":"staff@example.com","password":"supersecret"}
@@ -103,7 +103,7 @@ Response:
 ### Inventory (List)
 Request:
 ```http
-GET /.netlify/functions/inventory
+GET /api/inventory
 ```
 
 Response:
@@ -129,7 +129,7 @@ Response:
 ### Create Order (Checkout)
 Request:
 ```http
-POST /.netlify/functions/createOrder
+POST /api/createOrder
 Content-Type: application/json
 
 {"customerId":42,"items":[{"productId":101,"quantity":2,"price":12.5}],"deliveryMethod":"delivery","deliveryDetails":{"address":"East Legon, Accra","date":"2025-02-01","window":"11am-1pm"},"source":"checkout"}
@@ -149,7 +149,7 @@ Response:
 ### Create Booking (Public)
 Request:
 ```http
-POST /.netlify/functions/bookings
+POST /api/bookings
 Content-Type: application/json
 
 {"customerId":42,"eventDate":"2025-02-14","startTime":"Morning setup (7am - 11am)","venueAddress":"Spintex, Accra","items":[{"productId":501,"quantity":1}],"applyBundleDiscount":true,"status":"pending"}
@@ -172,7 +172,7 @@ Response:
 ### Stock Movement
 Request:
 ```http
-POST /.netlify/functions/stock
+POST /api/stock
 Content-Type: application/json
 
 {"productId":101,"type":"StockOut","quantity":4,"notes":"Damaged items","reference":"ADJ-2025-02-10"}
@@ -191,7 +191,7 @@ Response:
 ### HR Profile Update
 Request:
 ```http
-PUT /.netlify/functions/hr
+PUT /api/hr
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -217,7 +217,7 @@ Response:
 ### Vendor Create
 Request:
 ```http
-POST /.netlify/functions/vendors
+POST /api/vendors
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -239,7 +239,7 @@ Response:
 ### Expense Create
 Request:
 ```http
-POST /.netlify/functions/expenses
+POST /api/expenses
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -261,7 +261,7 @@ Response:
 ### Document Upload
 Request:
 ```http
-POST /.netlify/functions/documents
+POST /api/documents
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -285,7 +285,7 @@ Response:
 ### Financials Summary
 Request:
 ```http
-GET /.netlify/functions/financials?window=thisMonth
+GET /api/financials?window=thisMonth
 ```
 
 Response:
@@ -308,7 +308,7 @@ Response:
 ### Marketing Discount Validate
 Request:
 ```http
-GET /.netlify/functions/marketing?code=WELCOME10
+GET /api/marketing?code=WELCOME10
 ```
 
 Response:
@@ -331,7 +331,7 @@ Response:
 ### Delivery Upsert
 Request:
 ```http
-POST /.netlify/functions/deliveries
+POST /api/deliveries
 Content-Type: application/json
 
 {"bookingId":455,"status":"scheduled","driverName":"Yaw Doe","routeGroup":"Route A","routeOrder":3,"eta":"1:30pm","notes":"Call on arrival"}
@@ -355,7 +355,7 @@ Response:
 ### Generate Invoice (Order)
 Request:
 ```http
-GET /.netlify/functions/generateInvoice?orderId=778
+GET /api/generateInvoice?orderId=778
 ```
 
 Response:
@@ -372,7 +372,7 @@ Response:
 ### Booking Invoice Details
 Request:
 ```http
-GET /.netlify/functions/getInvoiceDetails?id=455
+GET /api/getInvoiceDetails?id=455
 ```
 
 Response:
@@ -387,162 +387,162 @@ Response:
 ```
 
 ### Auth
-- `POST /.netlify/functions/login`
+- `POST /api/login`
   - Body: `{ email, password }`
   - Returns: `{ id, fullName, role, organizationId, token, expiresInHours }`
-- `POST /.netlify/functions/managerLogin`
+- `POST /api/managerLogin`
   - Body: `{ pin }`
   - Returns: `{ token, expiresInHours }`
-- `POST /.netlify/functions/managerTokens`
+- `POST /api/managerTokens`
   - Auth: manager token required
   - Body: `{ token, platform, deviceId }`
   - Registers Expo push token in `managerDevice`
 
 ### Users and HR
-- `GET /.netlify/functions/users` (auth required)
+- `GET /api/users` (auth required)
   - Lists staff users.
-- `POST /.netlify/functions/users` (auth required)
+- `POST /api/users` (auth required)
   - Creates staff user with generated email and hashed password.
-- `PUT /.netlify/functions/users` (auth required)
+- `PUT /api/users` (auth required)
   - Updates name, role (system admin only), permissions, password.
-- `GET /.netlify/functions/hr` (auth required)
+- `GET /api/hr` (auth required)
   - Staff directory with HR profile data + activity counts.
-- `PUT /.netlify/functions/hr` (auth required)
+- `PUT /api/hr` (auth required)
   - Updates user profile + employee profile fields.
 
 ### Customers
-- `GET /.netlify/functions/customers`
+- `GET /api/customers`
   - Auth required for full list and customer-by-id.
   - Supports lookup by `email`, `phone`, or `name` (used by checkout/booking).
-- `POST /.netlify/functions/customers`
+- `POST /api/customers`
   - Creates or upserts a customer (checkout and booking use this).
-- `PUT /.netlify/functions/customers` (auth required)
+- `PUT /api/customers` (auth required)
   - Updates customer name/email/phone.
 
 ### Inventory and Stock
-- `GET /.netlify/functions/inventory`
+- `GET /api/inventory`
   - Lists products; supports `?view=archived|deleted`.
-- `POST /.netlify/functions/inventory`
+- `POST /api/inventory`
   - Upserts a product. Generates SKU for new items.
-- `PATCH /.netlify/functions/inventory`
+- `PATCH /api/inventory`
   - Actions: `archive` or `unarchive`.
-- `DELETE /.netlify/functions/inventory`
+- `DELETE /api/inventory`
   - Soft-delete (admin only).
-- `POST /.netlify/functions/stock` (auth required)
+- `POST /api/stock` (auth required)
   - Records StockIn/StockOut and updates product stock.
-- `GET /.netlify/functions/stockActivity`
+- `GET /api/stockActivity`
   - Monthly stock in/out aggregates.
-- `GET /.netlify/functions/inventoryCounts`
+- `GET /api/inventoryCounts`
   - Counts rental vs retail products.
 
 ### Orders
-- `POST /.netlify/functions/createOrder`
+- `POST /api/createOrder`
   - Creates order + order items + stock movements.
   - Auth optional if `{ source: "checkout" }`.
   - Sends WhatsApp + push notifications to manager.
-- `GET /.netlify/functions/orders` (auth required)
+- `GET /api/orders` (auth required)
   - Lists orders or `?orderId=123` for detail.
-- `PUT /.netlify/functions/orders` (auth required)
+- `PUT /api/orders` (auth required)
   - Updates order status; cancels restock items.
-- `GET /.netlify/functions/orderStats`
+- `GET /api/orderStats`
   - Dashboard KPIs: revenue, low stock, conflicts, bookings, etc.
-- `GET /.netlify/functions/userStats`
+- `GET /api/userStats`
   - User KPIs for dashboard; add `?details=1` to include lists.
 
 ### Bookings (Rentals)
-- `GET /.netlify/functions/bookings` (auth required)
+- `GET /api/bookings` (auth required)
   - Full booking list with items and staff attribution.
-- `POST /.netlify/functions/bookings`
+- `POST /api/bookings`
   - Creates a booking (public booking form uses this).
   - Enforces rental-only items and auto-adds pump items.
   - Applies bundle discounts when eligible.
-- `PUT /.netlify/functions/bookings` (auth required)
+- `PUT /api/bookings` (auth required)
   - Updates booking and items.
-- `GET /.netlify/functions/managerBookings` (manager token)
+- `GET /api/managerBookings` (manager token)
   - Lightweight list for the mobile manager app.
 
 ### Delivery
-- `GET /.netlify/functions/deliveries`
+- `GET /api/deliveries`
   - Delivery board (booking + items + driver info).
-- `POST /.netlify/functions/deliveries`
+- `POST /api/deliveries`
   - Upserts a delivery record for a booking.
-- `PUT /.netlify/functions/deliveries`
+- `PUT /api/deliveries`
   - Updates delivery status/route/driver.
 
 ### Maintenance
-- `GET /.netlify/functions/maintenance`
+- `GET /api/maintenance`
   - List maintenance logs.
-- `POST /.netlify/functions/maintenance`
+- `POST /api/maintenance`
   - Create a maintenance log and mark product inactive.
-- `PUT /.netlify/functions/maintenance`
+- `PUT /api/maintenance`
   - Update status and re-activate product when resolved.
 
 ### Vendors
-- `GET /.netlify/functions/vendors` (auth required)
+- `GET /api/vendors` (auth required)
   - Vendor list with related product names.
-- `POST /.netlify/functions/vendors` (auth required)
+- `POST /api/vendors` (auth required)
   - Create vendor.
-- `PUT /.netlify/functions/vendors` (auth required)
+- `PUT /api/vendors` (auth required)
   - Update vendor.
 
 ### Timesheets
-- `GET /.netlify/functions/timesheets`
+- `GET /api/timesheets`
   - Requires `userId` in header or query.
   - Returns active shift, history, and weekly/monthly totals.
-- `POST /.netlify/functions/timesheets`
+- `POST /api/timesheets`
   - Toggles clock in/out for the user.
 
 ### Expenses and Financials
-- `GET /.netlify/functions/expenses` (auth required)
+- `GET /api/expenses` (auth required)
   - Lists expenses with optional `?month=YYYY-MM` filter.
   - Returns maintenance costs as expense rows.
-- `POST /.netlify/functions/expenses` (auth required)
+- `POST /api/expenses` (auth required)
   - Adds an expense. Supports linking to order or booking.
   - Supports `seed: true` to insert sample expenses.
-- `GET /.netlify/functions/financials`
+- `GET /api/financials`
   - Revenue, cost, margin, and cashflow summaries by time window.
 
 ### Invoices and Documents
-- `GET /.netlify/functions/documents` (auth required)
+- `GET /api/documents` (auth required)
   - Lists documents or fetches a document by id.
-- `POST /.netlify/functions/documents` (auth required)
+- `POST /api/documents` (auth required)
   - Stores a base64-encoded document.
-- `GET /.netlify/functions/generateInvoice`
+- `GET /api/generateInvoice`
   - Generates invoice data for an order (`orderId` query param).
-- `GET /.netlify/functions/getInvoiceDetails`
+- `GET /api/getInvoiceDetails`
   - Returns booking invoice details (`id` query param).
 
 ### Marketing and Discounts
-- `GET /.netlify/functions/marketing`
+- `GET /api/marketing`
   - Lists discounts or validates a code with `?code=XYZ`.
-- `POST /.netlify/functions/marketing`
+- `POST /api/marketing`
   - Creates discounts or seeds samples with `{ seed: true }`.
-- `PUT /.netlify/functions/marketing`
+- `PUT /api/marketing`
   - Toggles `isActive` for a discount.
 
 ### Catalog Helpers
-- `GET /.netlify/functions/bouncy_castles`
-- `GET /.netlify/functions/indoor_games`
-- `GET /.netlify/functions/machines`
+- `GET /api/bouncy_castles`
+- `GET /api/indoor_games`
+- `GET /api/machines`
 
 ### Geocoding
-- `POST /.netlify/functions/geocode`
+- `POST /api/geocode`
   - Body: `{ address }`
   - Uses OpenStreetMap Nominatim, falls back to Google if `GOOGLE_MAPS_API_KEY` is set.
 
 ### Ops Hub KPIs
-- `GET /.netlify/functions/opsHubKpis`
+- `GET /api/opsHubKpis`
   - Requires `userId` and admin/owner role.
 
 ### Manager Orders (Mobile)
-- `GET /.netlify/functions/managerOrders`
+- `GET /api/managerOrders`
   - Manager token required.
   - Returns recent orders for the mobile app.
 
 ## Notifications
-- WhatsApp notifications: `netlify/functions/_shared/whatsapp.js`
+- WhatsApp notifications: `backend/functions/_shared/whatsapp.js`
   - Requires `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_MANAGER_PHONE`.
-- Expo push notifications: `netlify/functions/_shared/managerPush.js`
+- Expo push notifications: `backend/functions/_shared/managerPush.js`
   - Requires manager device tokens in `managerDevice` table.
 
 ## Scripts and Imports
@@ -565,10 +565,11 @@ Optional integrations:
 - `OPENAI_API_KEY` (used by `backend/utils/openaiClient.js` if AI search is enabled)
 
 ## Deployment and Ops
-Netlify (frontend + functions):
-- Deploys `src/` (Vite build) and `netlify/functions/*`.
-- Recommended local command: `npm run netlify` to mirror Netlify routing in dev.
-- Functions run with Node runtime and read `DATABASE_URL` + secrets from Netlify env.
+Cloudflare Pages + API service:
+- Cloudflare Pages deploys the Vite frontend from `src/`.
+- The API service runs `backend/server.js` and loads handlers from `backend/functions/*`.
+- Recommended local command: `pnpm run dev:reebs`.
+- Handlers run with Node runtime and read `DATABASE_URL` plus secrets from the hosted API env.
 
 Railway (PostgreSQL):
 - Primary database host for `DATABASE_URL`.
@@ -580,7 +581,7 @@ Data imports:
 - These scripts use the same `DATABASE_URL` to seed or transform data.
 
 ## Related Files
-- Functions: `netlify/functions/*.js`
-- Shared helpers: `netlify/functions/_shared/*`
+- Functions: `backend/functions/*.js`
+- Shared helpers: `backend/functions/_shared/*`
 - Prisma schema: `prisma/schema.prisma`
 - Password hashing: `utils/passwords.js`

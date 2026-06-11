@@ -45,10 +45,9 @@ const readIfExists = (filePath) => {
 const hasHeadersBaseline = (appDir, profileId) => {
   const candidates = [
     path.join(appDir, "public", "_headers"),
-    path.join(appDir, "netlify.toml"),
     path.join(appDir, "backend", "security", "securityHeaders.js"),
     path.join(appDir, "src", "security", "securityHeaders.js"),
-    path.join(appDir, "netlify", "functions", "_shared", "http.js"),
+    path.join(appDir, "backend", "functions", "_shared", "http.js"),
   ];
 
   const combined = candidates

@@ -58,29 +58,26 @@ Optional browser-safe env values can live in `apps/faako-erp/.env.dev`. Only pub
 
 ## Deployment
 
-This app has its own Netlify config in `apps/faako-erp/netlify.toml`.
-
-Netlify builds with:
+Cloudflare Pages or any static host builds with:
 
 ```bash
 pnpm --filter @faako/faako-erp run build
 ```
 
-The publish folder is `apps/faako-erp/dist`, and selective deploy checks use:
-
-```bash
-node ./scripts/netlify-ignore.mjs @faako/faako-erp
-```
+The publish folder is `apps/faako-erp/dist`. Cloudflare Pages reads the static header and SPA fallback rules from `public/_headers` and `public/_redirects`.
 
 ## Demo Access Popup
 
-The deployed demo includes a Netlify function at `/api/demo-access` that requests and verifies one-time access codes for the popup gate.
+The demo access gate defaults to local preview mode, so the static Cloudflare Pages deployment does not need a server function for popup access codes.
 
-Set these server-side environment variables in Netlify:
+Browser-safe configuration:
+
+- `VITE_FAAKO_ERP_DEMO_ACCESS_MODE=local`
+- `VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT=/api/demo-access`
+
+Set `VITE_FAAKO_ERP_DEMO_ACCESS_MODE=api` only if a dedicated worker/API is reintroduced. That server-side API would own:
 
 - `FAAKO_ERP_DEMO_ACCESS_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `RESEND_FROM_NAME` (optional)
-
-In preview-style environments without Resend configured, the function falls back to a preview mode and returns the generated code directly so the UI can still be tested.

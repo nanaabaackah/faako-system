@@ -15,8 +15,8 @@ import {
 } from "../../icons/iconSet";
 import "./AdminInventorySettings.css";
 
-const sourceCategoriesUrl = "/.netlify/functions/sourceCategories?includeInactive=1";
-const specificCategoriesUrl = "/.netlify/functions/specificCategories";
+const sourceCategoriesUrl = "/api/sourceCategories?includeInactive=1";
+const specificCategoriesUrl = "/api/specificCategories";
 
 const toArray = (value) => (Array.isArray(value) ? value : []);
 const normalizeSourceToken = (value) =>
@@ -196,7 +196,7 @@ function AdminInventoryProducts() {
     runAction(
       "source:create",
       async () => {
-        const created = await apiRequest("/.netlify/functions/sourceCategories", {
+        const created = await apiRequest("/api/sourceCategories", {
           method: "POST",
           body: JSON.stringify({ name }),
         });
@@ -212,7 +212,7 @@ function AdminInventoryProducts() {
     if (!nextName || nextName.trim() === categoryLabel(category)) return;
     runAction(
       `source:${category.id}`,
-      () => apiRequest("/.netlify/functions/sourceCategories", {
+      () => apiRequest("/api/sourceCategories", {
         method: "PATCH",
         body: JSON.stringify({ id: category.id, name: nextName.trim() }),
       }),
@@ -226,7 +226,7 @@ function AdminInventoryProducts() {
     if (!window.confirm(`Do you want to ${verb} ${categoryLabel(category)}?`)) return;
     runAction(
       `source:${category.id}`,
-      () => apiRequest("/.netlify/functions/sourceCategories", {
+      () => apiRequest("/api/sourceCategories", {
         method: "PATCH",
         body: JSON.stringify({ id: category.id, isActive: nextActive }),
       }),
@@ -247,7 +247,7 @@ function AdminInventoryProducts() {
     if (!window.confirm(`Delete "${categoryLabel(category)}" permanently? This cannot be undone.`)) return;
     runAction(
       `source:${category.id}`,
-      () => apiRequest("/.netlify/functions/sourceCategories", {
+      () => apiRequest("/api/sourceCategories", {
         method: "DELETE",
         body: JSON.stringify({ id: category.id }),
       }),
@@ -276,7 +276,7 @@ function AdminInventoryProducts() {
     }
     runAction(
       `source:${sourceCategory.id}:delete`,
-      () => apiRequest("/.netlify/functions/sourceCategories", {
+      () => apiRequest("/api/sourceCategories", {
         method: "DELETE",
         body: JSON.stringify({
           id: sourceCategory.id,
@@ -302,7 +302,7 @@ function AdminInventoryProducts() {
     runAction(
       "specific:create",
       async () => {
-        await apiRequest("/.netlify/functions/specificCategories", {
+        await apiRequest("/api/specificCategories", {
           method: "POST",
           body: JSON.stringify({
             name,

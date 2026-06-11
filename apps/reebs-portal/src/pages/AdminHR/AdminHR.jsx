@@ -42,7 +42,7 @@ function AdminHR() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/hr");
+      const res = await fetch("/api/hr");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load employees");
       setEmployees(Array.isArray(data) ? data : []);
@@ -117,7 +117,7 @@ function AdminHR() {
     setSaving(true);
     setSaveError("");
     try {
-      const res = await fetch("/.netlify/functions/hr", {
+      const res = await fetch("/api/hr", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

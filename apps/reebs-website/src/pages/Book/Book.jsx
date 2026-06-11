@@ -223,7 +223,7 @@ function Book() {
       try {
         const [inventoryResult, bouncyRes] = await Promise.all([
           fetchInventoryWithCache({ signal: controller.signal }),
-          fetch("/.netlify/functions/bouncy_castles", { signal: controller.signal }),
+          fetch("/api/bouncy_castles", { signal: controller.signal }),
         ]);
 
         const inventoryData = inventoryResult.items;
@@ -482,13 +482,13 @@ function Book() {
   const fetchExistingCustomer = async ({ email: lookupEmail, phone: lookupPhone, name: lookupName }) => {
     const lookups = [];
     if (lookupEmail) {
-      lookups.push(`/.netlify/functions/customers?email=${encodeURIComponent(lookupEmail)}`);
+      lookups.push(`/api/customers?email=${encodeURIComponent(lookupEmail)}`);
     }
     if (lookupPhone) {
-      lookups.push(`/.netlify/functions/customers?phone=${encodeURIComponent(lookupPhone)}`);
+      lookups.push(`/api/customers?phone=${encodeURIComponent(lookupPhone)}`);
     }
     if (lookupName) {
-      lookups.push(`/.netlify/functions/customers?name=${encodeURIComponent(lookupName)}`);
+      lookups.push(`/api/customers?name=${encodeURIComponent(lookupName)}`);
     }
     for (const lookupUrl of lookups) {
       const existingRes = await fetch(lookupUrl);
@@ -557,7 +557,7 @@ function Book() {
     try {
       let customerPayload = await fetchExistingCustomer({ email, phone, name });
       if (!customerPayload?.id) {
-        const customerRes = await fetch("/.netlify/functions/customers", {
+        const customerRes = await fetch("/api/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, phone }),
@@ -592,7 +592,7 @@ function Book() {
         applyBundleDiscount: true,
         status: "pending",
       };
-      let bookingRes = await fetch("/.netlify/functions/bookings", {
+      let bookingRes = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingBody),
@@ -602,7 +602,7 @@ function Book() {
         const existing = await fetchExistingCustomer({ email, phone, name });
         if (existing?.id) {
           bookingBody.customerId = existing.id;
-          bookingRes = await fetch("/.netlify/functions/bookings", {
+          bookingRes = await fetch("/api/bookings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bookingBody),

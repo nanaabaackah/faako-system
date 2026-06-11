@@ -1,4 +1,4 @@
-import type { AdminSession } from "./adminOrders";
+import type { AdminSession } from "./adminSession";
 import { apiPath } from "./config";
 
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
@@ -43,28 +43,6 @@ export interface SupplierSummary {
   contactCount?: number;
   productCount?: number;
   inventoryItemCount?: number;
-}
-
-export interface SupplierDetail extends SupplierSummary {
-  notes?: string | null;
-  contacts: Array<{
-    id: string;
-    name: string;
-    role?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    whatsapp?: string | null;
-    isPrimary: boolean;
-    notes?: string | null;
-  }>;
-  productLinks: Array<{
-    id: string;
-    productId?: string | null;
-    productSlug: string;
-    supplierSku?: string | null;
-    supplierProductName?: string | null;
-    isPreferred: boolean;
-  }>;
 }
 
 export interface InventoryItem {
@@ -130,15 +108,6 @@ export interface InventoryMovementFilters {
   limit?: number;
 }
 
-export interface InventoryMovementPayload {
-  inventoryItemId: string;
-  movementType: string;
-  quantityDelta: number;
-  reason?: string;
-  supplierNote?: string;
-  purchaseNote?: string;
-}
-
 export interface InventoryAlert {
   id: string;
   alertType: "LOW_STOCK" | "OUT_OF_STOCK" | "RESTOCKED";
@@ -202,17 +171,6 @@ export const adminInventoryApi = {
     return data.suppliers;
   },
 
-  async getSupplier(session: AdminSession, supplierId: string): Promise<SupplierDetail> {
-    const response = await fetch(apiPath(`/api/admin/suppliers/${encodeURIComponent(supplierId)}`), {
-      headers: authHeaders(session),
-    });
-    const data = await parseJsonResponse<{ supplier: SupplierDetail }>(
-      response,
-      "Unable to load supplier."
-    );
-    return data.supplier;
-  },
-
   async listMovements(
     session: AdminSession,
     filters: InventoryMovementFilters = {}
@@ -227,21 +185,6 @@ export const adminInventoryApi = {
     return data.movements;
   },
 
-  async createMovement(
-    session: AdminSession,
-    payload: InventoryMovementPayload
-  ): Promise<{ inventoryItem: InventoryItem; movement: InventoryMovement }> {
-    const response = await fetch(apiPath("/api/admin/inventory/movements"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(session),
-      },
-      body: JSON.stringify(payload),
-    });
-    return parseJsonResponse(response, "Unable to record inventory movement.");
-  },
-
   async getAlertSummary(session: AdminSession): Promise<InventoryAlertSummary> {
     const response = await fetch(apiPath("/api/admin/inventory/alerts"), {
       headers: authHeaders(session),
@@ -251,26 +194,5 @@ export const adminInventoryApi = {
       "Unable to load inventory alerts."
     );
     return data.summary;
-  },
-
-  async runAlertCheck(session: AdminSession): Promise<{
-    checked: number;
-    detected: number;
-    restocked: number;
-    dispatched: number;
-  }> {
-    const response = await fetch(apiPath("/api/admin/inventory/alerts/check"), {
-      method: "POST",
-      headers: authHeaders(session),
-    });
-    const data = await parseJsonResponse<{
-      result: {
-        checked: number;
-        detected: number;
-        restocked: number;
-        dispatched: number;
-      };
-    }>(response, "Unable to run inventory alert check.");
-    return data.result;
   },
 };

@@ -6,7 +6,7 @@ import {
   ensureInventoryVariantSchema,
   findSourceCategoryByName,
   seedDefaultSourceCategories,
-} from "../netlify/functions/_shared/inventoryExtensions.js";
+} from "../backend/functions/_shared/inventoryExtensions.js";
 
 const relinkMap = {
   Household: [

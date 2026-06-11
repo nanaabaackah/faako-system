@@ -1,14 +1,9 @@
 import React, { useEffect, type ReactNode } from "react";
 import {
-  HiOutlineChartBar,
-  HiOutlineClipboardList,
   HiOutlineCog,
-  HiOutlineCube,
   HiOutlineExternalLink,
   HiOutlineHome,
   HiOutlineLogout,
-  HiOutlineOfficeBuilding,
-  HiOutlineShoppingBag,
 } from "react-icons/hi";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -34,43 +29,24 @@ const PORTAL_BRAND: ErpBranding = {
 };
 
 const PORTAL_ITEMS: ErpNavItem[] = [
-  { id: "overview", label: "Overview", path: "/admin", iconKey: "home" },
-  { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
-  { id: "suppliers", label: "Suppliers", path: "/admin/suppliers", iconKey: "suppliers" },
-  { id: "products", label: "Products", path: "/admin/products", iconKey: "products" },
-  {
-    id: "operations",
-    label: "Operations",
-    path: "/admin/operations",
-    iconKey: "operations",
-    matchPaths: ["/admin/orders"],
-  },
-  { id: "reports", label: "Reports", path: "/admin/reports", iconKey: "reports" },
-  { id: "settings", label: "Settings", path: "/admin/settings", iconKey: "settings" },
+  { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
 ];
 
-const MOBILE_ITEMS = PORTAL_ITEMS.filter((item) =>
-  ["overview", "inventory", "suppliers", "products", "settings"].includes(item.id)
-);
+const MOBILE_ITEMS = PORTAL_ITEMS;
 
 const PAGE_TITLES: Record<string, string> = {
-  "/admin": "Operations dashboard",
-  "/admin/inventory": "Inventory",
-  "/admin/suppliers": "Suppliers",
-  "/admin/products": "Products",
-  "/admin/operations": "Operations",
-  "/admin/orders": "Operations",
-  "/admin/reports": "Reports",
-  "/admin/settings": "Settings",
+  "/admin": "Dashboard",
+  "/admin/inventory": "Module reset",
+  "/admin/suppliers": "Module reset",
+  "/admin/products": "Module reset",
+  "/admin/operations": "Module reset",
+  "/admin/orders": "Module reset",
+  "/admin/reports": "Module reset",
+  "/admin/settings": "Module reset",
 };
 
 const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "home") return <HiOutlineHome />;
-  if (iconKey === "inventory") return <HiOutlineCube />;
-  if (iconKey === "suppliers") return <HiOutlineOfficeBuilding />;
-  if (iconKey === "products") return <HiOutlineShoppingBag />;
-  if (iconKey === "operations") return <HiOutlineClipboardList />;
-  if (iconKey === "reports") return <HiOutlineChartBar />;
   return <HiOutlineCog />;
 };
 
@@ -105,7 +81,7 @@ const AdminPortalLayout: React.FC = () => {
       renderIcon={renderPortalIcon}
       collapsed={sidebarCollapsed}
       onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-      searchPlaceholder="Search operations..."
+      searchPlaceholder="Search dashboard..."
       footer={
         <div className="stroane-admin-portal__sidebar-footer">
           <div className="stroane-admin-portal__sidebar-user" title={session?.username}>

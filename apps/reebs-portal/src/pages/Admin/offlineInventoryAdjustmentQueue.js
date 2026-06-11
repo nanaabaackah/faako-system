@@ -100,7 +100,7 @@ export const buildQueuedInventoryAdjustment = ({
       targetId: productId,
       source,
       endpoint: {
-        path: "/.netlify/functions/stock",
+        path: "/api/stock",
         method: "POST",
       },
       adjustment: {

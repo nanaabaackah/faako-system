@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
-import { AnimatedLoadingState } from "@faako/ui";
+import { AnimatedLoadingState, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { useFrontFacingScrollReveal } from "@faako/ui/useFrontFacingScrollReveal";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
@@ -28,6 +28,9 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 
 const themeStorageKey = "faako-theme";
 const appTitle = "Faako";
+const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
+const GOOGLE_ANALYTICS_ENABLED =
+  import.meta.env.PROD || import.meta.env.VITE_ENABLE_GA_IN_DEV === "true";
 
 const getDocumentTitle = (pathname) => {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
@@ -178,6 +181,10 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <GoogleAnalyticsRouteTracker
+        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>

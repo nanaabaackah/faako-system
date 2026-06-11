@@ -24,7 +24,7 @@ export default function InstagramFeed() {
     const loadGallery = async () => {
       try {
         setGalleryStatus("loading");
-        const response = await fetch("/.netlify/functions/websiteContent?section=gallery");
+        const response = await fetch("/api/websiteContent?section=gallery");
         if (!response.ok) {
           throw new Error(`Gallery request failed: ${response.status}`);
         }

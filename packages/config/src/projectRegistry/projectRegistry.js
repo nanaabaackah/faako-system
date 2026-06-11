@@ -27,7 +27,7 @@ export const PORTFOLIO_PROJECT_REGISTRY = [
       "A lightweight Stroane Solutions product catalogue and inquiry website foundation for food safety supplies.",
     longDescription:
       "Placeholder for a future public case study after catalogue data, deployment, inquiry persistence, and client-approved screenshots are finalized.",
-    techStack: ["React", "Vite", "TypeScript", "Express", "Prisma", "PostgreSQL", "Netlify", "Railway/Supabase-ready"],
+    techStack: ["React", "Vite", "TypeScript", "Express", "Prisma", "PostgreSQL", "Cloudflare Pages", "Railway/Supabase-ready"],
     features: [
       "Product catalogue foundation",
       "Category browsing",

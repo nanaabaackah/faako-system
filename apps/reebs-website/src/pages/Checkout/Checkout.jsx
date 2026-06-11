@@ -517,7 +517,7 @@ const Checkout = () => {
     const email = paymentDetails.email.trim();
     const phone = formatPhoneNumber(paymentDetails.phoneCode, paymentDetails.phoneLocal);
 
-    const createRes = await fetch("/.netlify/functions/customers", {
+    const createRes = await fetch("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, phone }),
@@ -536,7 +536,7 @@ const Checkout = () => {
     if (email) params.set("email", email);
     if (phone) params.set("phone", phone);
     if (name) params.set("name", name);
-    const lookupRes = await fetch(`/.netlify/functions/customers?${params.toString()}`);
+    const lookupRes = await fetch(`/api/customers?${params.toString()}`);
     if (lookupRes.ok) {
       const match = await readApiPayload(lookupRes);
       if (match?.id) return match;
@@ -619,7 +619,7 @@ const Checkout = () => {
           source: "checkout",
         };
 
-        const orderRes = await fetch("/.netlify/functions/createOrder", {
+        const orderRes = await fetch("/api/createOrder", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(orderPayload),
@@ -655,7 +655,7 @@ const Checkout = () => {
           source: "checkout",
         };
 
-        const bookingRes = await fetch("/.netlify/functions/bookings", {
+        const bookingRes = await fetch("/api/bookings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bookingPayload),

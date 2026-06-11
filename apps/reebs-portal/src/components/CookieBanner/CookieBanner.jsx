@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import {
+  REEBS_ANALYTICS_PREFS_STORAGE_KEY,
+  updateReebsGoogleAnalyticsConsent,
+} from "../../utils/analytics";
 import "./CookieBanner.css";
 
 const CONSENT_COOKIE_NAME = 'reebsCookieConsent_v2';
-const PREFS_STORAGE_KEY = 'reebsCookiePrefs';
 const CONSENT_MAX_AGE_SECONDS = 150 * 24 * 60 * 60;
 
 const readConsentCookie = () => {
@@ -32,7 +35,7 @@ const CookieBanner = () => {
     setIsVisible(!consentValue);
 
     try {
-      const savedPrefs = localStorage.getItem(PREFS_STORAGE_KEY);
+      const savedPrefs = localStorage.getItem(REEBS_ANALYTICS_PREFS_STORAGE_KEY);
       if (savedPrefs) {
         const parsed = JSON.parse(savedPrefs);
         setAnalyticsAllowed(Boolean(parsed.analytics));
@@ -45,17 +48,12 @@ const CookieBanner = () => {
 
   const persistPreferences = (prefs) => {
     try {
-      localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs));
+      localStorage.setItem(REEBS_ANALYTICS_PREFS_STORAGE_KEY, JSON.stringify(prefs));
     } catch (err) {
       console.warn('Unable to store cookie preferences', err);
     }
 
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('consent', 'update', {
-        ad_storage: prefs.marketing ? 'granted' : 'denied',
-        analytics_storage: prefs.analytics ? 'granted' : 'denied',
-      });
-    }
+    updateReebsGoogleAnalyticsConsent(prefs);
   };
 
   const closeBanner = () => {

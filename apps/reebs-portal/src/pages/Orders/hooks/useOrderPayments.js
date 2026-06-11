@@ -17,7 +17,7 @@ export default function useOrderPayments(orderId) {
     const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
-    return fetch(`/.netlify/functions/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
+    return fetch(`/api/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
       .then(async (response) => {
         const payload = await response.json().catch(() => []);
         if (!response.ok) {
@@ -40,7 +40,7 @@ export default function useOrderPayments(orderId) {
 
   const recordPayment = useCallback(async (payload) => {
     const controller = new AbortController();
-    const response = await fetch("/.netlify/functions/orderPayments", {
+    const response = await fetch("/api/orderPayments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, orderId }),

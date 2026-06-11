@@ -6,7 +6,7 @@
 -- BEFORE RUNNING:
 --   1. Run this script as the superuser (postgres / Supabase postgres role).
 --   2. Create the limited app role (Section 1 below) and update DATABASE_URL
---      in your Netlify env to use the new reebs_app credentials.
+--      in your hosted API env to use the new reebs_app credentials.
 --   3. After switching DATABASE_URL, verify queries still work before deploying.
 -- =============================================================================
 

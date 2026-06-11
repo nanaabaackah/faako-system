@@ -163,7 +163,7 @@ export const buildQueuedBookingAction = ({
       targetId,
       source,
       endpoint: {
-        path: "/.netlify/functions/bookings",
+        path: "/api/bookings",
         method: method || (targetId ? "PUT" : "POST"),
       },
       booking: sanitizedBooking,

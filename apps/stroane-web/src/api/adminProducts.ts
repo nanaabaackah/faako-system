@@ -1,4 +1,4 @@
-import type { AdminSession } from "./adminOrders";
+import type { AdminSession } from "./adminSession";
 import { apiPath } from "./config";
 
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
@@ -91,41 +91,6 @@ export interface AdminProductFilters {
   limit?: number;
 }
 
-export interface AdminProductPatch {
-  name: string;
-  slug: string;
-  shortDescription?: string;
-  longDescription?: string;
-  sku?: string;
-  price?: string | null;
-  compareAtPrice?: string | null;
-  currency: string;
-  categorySlug?: string | null;
-  tags?: string[];
-}
-
-const patchProduct = async (
-  session: AdminSession,
-  productId: string,
-  suffix: string,
-  payload: object,
-  fallbackMessage: string
-) => {
-  const response = await fetch(
-    apiPath(`/api/admin/products/${encodeURIComponent(productId)}${suffix}`),
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(session),
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-  const data = await parseJsonResponse<{ product: AdminProduct }>(response, fallbackMessage);
-  return data.product;
-};
-
 export const adminProductsApi = {
   async listProducts(session: AdminSession, filters: AdminProductFilters = {}) {
     const response = await fetch(withQuery("/api/admin/products", filters), {
@@ -134,57 +99,6 @@ export const adminProductsApi = {
     return parseJsonResponse<{ products: AdminProduct[]; categories: AdminProductCategory[] }>(
       response,
       "Unable to load products."
-    );
-  },
-
-  async getProduct(session: AdminSession, productId: string) {
-    const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(productId)}`), {
-      headers: authHeaders(session),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to load product."
-    );
-    return data.product;
-  },
-
-  updateProduct(session: AdminSession, productId: string, payload: AdminProductPatch) {
-    return patchProduct(session, productId, "", payload, "Unable to update product.");
-  },
-
-  updateMedia(
-    session: AdminSession,
-    productId: string,
-    payload: { thumbnailImage?: string | null; galleryImages?: string[] }
-  ) {
-    return patchProduct(session, productId, "/media", payload, "Unable to update product media.");
-  },
-
-  updatePublishing(
-    session: AdminSession,
-    productId: string,
-    payload: { publishingStatus: string; isFeatured: boolean }
-  ) {
-    return patchProduct(
-      session,
-      productId,
-      "/publishing",
-      payload,
-      "Unable to update product publishing."
-    );
-  },
-
-  updateSupplier(
-    session: AdminSession,
-    productId: string,
-    payload: { supplierId: string | null; supplierSku?: string; notes?: string }
-  ) {
-    return patchProduct(
-      session,
-      productId,
-      "/suppliers",
-      payload,
-      "Unable to update product supplier."
     );
   },
 };

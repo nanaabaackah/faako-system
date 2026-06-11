@@ -2,16 +2,14 @@
 
 Workspace package: `@faako/bynana-portfolio`
 
-ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents projects, writing, resume material, and contact entry points, and it owns the serverless integrations needed by that public site.
+ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents projects, writing, resume material, and contact entry points.
 
 ## What Lives Here
 
 - `src/`: React + Vite frontend
-- `netlify/functions/contact-submit`: contact form submission handler
-- `netlify/functions/trust-stats-proxy`: proxy for public trust-stat metrics
 - `public/fonts/`: current custom font assets used by the site
-- `netlify.toml`: redirects, headers, function routing, and deploy settings
-- `.env.example`: local reference for function-side configuration
+- `public/_redirects`: SPA fallback routing
+- `.env.example`: local public configuration reference
 
 ## Run It Locally
 
@@ -31,7 +29,7 @@ pnpm --filter @faako/bynana-portfolio run lint
 
 ## Configuration
 
-The static frontend should only receive browser-safe `VITE_*` values. Sensitive settings belong on the Netlify function side.
+The static frontend should only receive browser-safe `VITE_*` values. The contact form opens a mail draft by default; configure `VITE_CONTACT_SUBMIT_ENDPOINT` only when a dedicated browser-callable contact API exists.
 
 ## Project Metadata Registry
 
@@ -45,41 +43,14 @@ pnpm run project-registry:check
 
 The check reports missing or incomplete metadata as warnings only. Current portfolio pages still use their local content files until a separate migration is planned.
 
-Trust stats proxy settings:
-
-- `TRUST_STATS_UPSTREAM_URL`
-- `TRUST_STATS_UPSTREAM_TOKEN`
-- `TRUST_STATS_ALLOWED_ORIGINS`
-- `TRUST_STATS_UPSTREAM_TIMEOUT_MS`
-- `TRUST_STATS_CACHE_CONTROL`
-- `TRUST_STATS_FALLBACK_ORGANIZATIONS`
-
-The proxy returns a stale fallback organization count instead of a 5xx response when the Dev ERP trust-stats upstream is temporarily unavailable. Keep `TRUST_STATS_FALLBACK_ORGANIZATIONS` aligned with the public home-page fallback.
-
-Contact function settings:
-
-- `RESEND_API_KEY`
-- `CONTACT_NOTIFICATION_TO`
-- `CONTACT_NOTIFICATION_FROM`
-- `CONTACT_NOTIFICATION_SUBJECT_PREFIX`
-- `CONTACT_ALLOWED_ORIGINS`
-- `CONTACT_RATE_LIMIT_WINDOW_MS`
-- `CONTACT_RATE_LIMIT_MAX_REQUESTS`
-- `CONTACT_FORM_SUBMISSION_URL`
-- `CONTACT_FORM_SITE_ORIGIN`
+Trust stats load directly from `VITE_TRUST_STATS_ENDPOINT` when supplied, otherwise the homepage falls back to the public Dev ERP trust-stats endpoint.
 
 ## Deployment
 
-This app has its own Netlify site and config in `apps/bynana-portfolio/netlify.toml`.
-
-Netlify builds with:
+Static hosts build with:
 
 ```bash
 pnpm --filter @faako/bynana-portfolio run build
 ```
 
-The publish folder is `apps/bynana-portfolio/dist`, and selective deploy checks use:
-
-```bash
-node ./scripts/netlify-ignore.mjs @faako/bynana-portfolio
-```
+The publish folder is `apps/bynana-portfolio/dist`.

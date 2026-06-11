@@ -30,7 +30,7 @@ const readEnvValue = (key) => {
 const loadEnvironmentConfig = () => {
   if (globalThis.__reebsRuntimeEnvLoaded) return getRuntimeEnvironment();
 
-  // dotenv.config() does not override already-set env vars (e.g. from Netlify),
+  // dotenv.config() does not override already-set platform env vars,
   // calling it here is safe — it only fills in missing values from .env files.
   const baseEnvironment = dotenv.config();
   if (baseEnvironment.error && baseEnvironment.error.code !== "ENOENT") {
@@ -79,7 +79,7 @@ const readOptionalMultilineEnv = (value) => {
 const pickDatabaseUrl = (environment) => {
   // In production: prefer DATABASE_URL_PRODUCTION, fall back to DATABASE_URL.
   // In development: prefer DATABASE_URL_DEVELOPMENT, fall back to DATABASE_URL
-  // so that platform-injected vars (e.g. Netlify) are always honoured.
+  // so that platform-injected vars are always honoured.
   const candidates =
     environment === "production"
       ? ["DATABASE_URL_PRODUCTION", "DATABASE_URL"]

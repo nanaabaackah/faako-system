@@ -155,7 +155,7 @@ function AdminRoles() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/users");
+      const res = await fetch("/api/users");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load users");
       const list = Array.isArray(data) ? data : [];
@@ -316,7 +316,7 @@ function AdminRoles() {
         throw new Error("Password is required.");
       }
 
-      const res = await fetch("/.netlify/functions/users", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -363,7 +363,7 @@ function AdminRoles() {
       if (isSystemAdmin) {
         body.role = detailRole;
       }
-      const response = await fetch("/.netlify/functions/users", {
+      const response = await fetch("/api/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

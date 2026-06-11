@@ -200,7 +200,7 @@ const AdminPortalHome: React.FC = () => {
       {
         label: "Catalogue products",
         value: summary.products,
-        detail: `${summary.activeProducts} published`,
+        detail: `${summary.activeProducts} live`,
         to: "/admin/products",
         tone: "accent",
         icon: <HiOutlineShoppingBag aria-hidden="true" />,
@@ -272,7 +272,7 @@ const AdminPortalHome: React.FC = () => {
   const readiness = useMemo(
     () => [
       {
-        label: "Published catalogue",
+        label: "Live catalogue",
         value: calculatePercentage(summary.activeProducts, summary.products),
         detail: `${summary.activeProducts} of ${summary.products} products active`,
       },
@@ -298,7 +298,7 @@ const AdminPortalHome: React.FC = () => {
         <div>
           <span>Internal operations</span>
           <h1>Good to see you, {session.username}</h1>
-          <p>Monitor the catalogue, stock posture, and supplier coverage before moving into the relevant workspace.</p>
+          <p>Keep track of your products, stock levels, and supplier coverage before moving into the relevant workspace.</p>
         </div>
         <ERPSecondaryAction
           icon={<HiOutlineRefresh />}
@@ -360,7 +360,7 @@ const AdminPortalHome: React.FC = () => {
               <span><HiOutlineBell aria-hidden="true" /> Stock attention</span>
               <h2>{alerts.counts.total || attentionItems.length} item(s) need a closer look</h2>
             </div>
-            <Link to="/admin/inventory">Open inventory</Link>
+            <Link to="/admin/inventory">Reset shell</Link>
           </div>
           {attentionItems.length ? (
             <div className="stroane-portal-overview__attention-list">
@@ -396,7 +396,7 @@ const AdminPortalHome: React.FC = () => {
               <span><HiOutlineClipboardList aria-hidden="true" /> Recent activity</span>
               <h2>Latest inventory movements</h2>
             </div>
-            <Link to="/admin/inventory">View history</Link>
+            <Link to="/admin/inventory">Reset shell</Link>
           </div>
           {movements.length ? (
             <div className="stroane-portal-overview__activity-list">
@@ -431,19 +431,19 @@ const AdminPortalHome: React.FC = () => {
         <div className="stroane-portal-overview__links">
           <Link to="/admin/inventory">
             <HiOutlineCube aria-hidden="true" />
-            <span><strong>Inventory</strong><small>Review stock levels and record movements</small></span>
+            <span><strong>Inventory</strong><small>Reset shell ready for rebuild</small></span>
           </Link>
           <Link to="/admin/suppliers">
             <HiOutlineOfficeBuilding aria-hidden="true" />
-            <span><strong>Suppliers</strong><small>Check contacts and linked catalogue products</small></span>
+            <span><strong>Suppliers</strong><small>Reset shell ready for rebuild</small></span>
           </Link>
           <Link to="/admin/products">
             <HiOutlineShoppingBag aria-hidden="true" />
-            <span><strong>Products</strong><small>Prepare catalogue media and publishing state</small></span>
+            <span><strong>Products</strong><small>Reset shell, dashboard fetch preserved</small></span>
           </Link>
           <Link to="/admin/operations">
             <HiOutlineClipboardList aria-hidden="true" />
-            <span><strong>Operations</strong><small>Review lightweight order operations</small></span>
+            <span><strong>Operations</strong><small>Reset shell ready for rebuild</small></span>
           </Link>
         </div>
       </section>

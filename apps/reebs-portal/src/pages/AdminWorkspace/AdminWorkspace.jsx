@@ -663,7 +663,7 @@ function AdminWorkspace({ section = "home" }) {
       setInventoryError("");
     }
     try {
-      const response = await fetch("/.netlify/functions/inventory");
+      const response = await fetch("/api/inventory");
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load stock.");
@@ -699,7 +699,7 @@ function AdminWorkspace({ section = "home" }) {
     }
     setCustomerError("");
     try {
-      const response = await fetch("/.netlify/functions/customers");
+      const response = await fetch("/api/customers");
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load customers.");
@@ -782,12 +782,12 @@ function AdminWorkspace({ section = "home" }) {
   }, []);
 
   const sendStockUpdate = useCallback(
-    async (payload) => postJson("/.netlify/functions/stock", payload),
+    async (payload) => postJson("/api/stock", payload),
     [postJson]
   );
 
   const sendPurchase = useCallback(
-    async (payload) => postJson("/.netlify/functions/createOrder", payload),
+    async (payload) => postJson("/api/createOrder", payload),
     [postJson]
   );
 
@@ -992,13 +992,13 @@ function AdminWorkspace({ section = "home" }) {
     try {
       const [ordersRes, bookingsRes, usersRes] = await Promise.all([
         canAccessOrdersModule
-          ? fetch(`/.netlify/functions/orders?ts=${Date.now()}`)
+          ? fetch(`/api/orders?ts=${Date.now()}`)
           : Promise.resolve(null),
         canAccessBookingsModule
-          ? fetch(`/.netlify/functions/bookings?ts=${Date.now()}`)
+          ? fetch(`/api/bookings?ts=${Date.now()}`)
           : Promise.resolve(null),
         canViewHomeKpis
-          ? fetch(`/.netlify/functions/users?ts=${Date.now()}`)
+          ? fetch(`/api/users?ts=${Date.now()}`)
           : Promise.resolve(null),
       ]);
       const [ordersData, bookingsData, usersData] = await Promise.all([
@@ -1038,7 +1038,7 @@ function AdminWorkspace({ section = "home" }) {
     setKpiError("");
     try {
       const response = await fetch(
-        `/.netlify/functions/orderStats?window=${activeWindowConfig.orderStatsWindow}&ts=${Date.now()}`
+        `/api/orderStats?window=${activeWindowConfig.orderStatsWindow}&ts=${Date.now()}`
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -1070,10 +1070,10 @@ function AdminWorkspace({ section = "home" }) {
     try {
       const [currentResponse, previousResponse] = await Promise.all([
         fetch(
-          `/.netlify/functions/financials?window=${activeWindowConfig.financialWindow}&ts=${Date.now()}`
+          `/api/financials?window=${activeWindowConfig.financialWindow}&ts=${Date.now()}`
         ),
         fetch(
-          `/.netlify/functions/financials?window=${activeWindowConfig.previousFinancialWindow}&ts=${Date.now()}`
+          `/api/financials?window=${activeWindowConfig.previousFinancialWindow}&ts=${Date.now()}`
         ),
       ]);
       const [currentPayload, previousPayload] = await Promise.all([
@@ -1117,7 +1117,7 @@ function AdminWorkspace({ section = "home" }) {
     setStockActivityLoading(true);
     setStockActivityError("");
     try {
-      const response = await fetch(`/.netlify/functions/stockActivity?ts=${Date.now()}`);
+      const response = await fetch(`/api/stockActivity?ts=${Date.now()}`);
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Failed to load stock activity.");
@@ -1146,7 +1146,7 @@ function AdminWorkspace({ section = "home" }) {
     setDirectoryLoading(true);
     setDirectoryError("");
     try {
-      const vendorsRes = await fetch("/.netlify/functions/vendors");
+      const vendorsRes = await fetch("/api/vendors");
       const vendorsData = await vendorsRes.json().catch(() => null);
       if (!vendorsRes.ok) {
         throw new Error(vendorsData?.error || "Failed to load vendors.");
@@ -1191,7 +1191,7 @@ function AdminWorkspace({ section = "home" }) {
         scope: canViewHomeKpis ? activityScope : "mine",
         ts: String(Date.now()),
       });
-      const response = await fetch(`/.netlify/functions/userStats?${params.toString()}`);
+      const response = await fetch(`/api/userStats?${params.toString()}`);
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(

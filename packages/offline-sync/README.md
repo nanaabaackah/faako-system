@@ -170,7 +170,7 @@ Queued booking action notes:
 - Queued booking records use `OFFLINE_QUEUE_ACTION_TYPES.CREATE_BOOKING`, `UPDATE_BOOKING_DETAILS`, and `UPDATE_BOOKING_STATUS`.
 - REEBS queues admin booking create/edit/status actions from the Bookings module only.
 - Queued booking payloads store the booking reference when present, selected customer reference/details, event date/time, selected items, venue/delivery location, status action, timestamp/idempotency metadata, and user/org scope.
-- Sync submits to the existing REEBS `/.netlify/functions/bookings` endpoint when the browser is online again.
+- Sync submits to the existing REEBS `/api/bookings` endpoint when the browser is online again.
 - The server remains the source of truth for auth, permissions, booking availability, rental reservation writes, item/date conflicts, customer validity, and final booking status.
 - Failed sync attempts remain local as `needs_review` or `failed` with an error message for staff review.
 

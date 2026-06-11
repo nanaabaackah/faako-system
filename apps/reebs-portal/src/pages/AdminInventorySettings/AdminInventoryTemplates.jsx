@@ -6,7 +6,7 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import "./AdminInventorySettings.css";
 
 const inventoryTemplateSection = "inventory-templates";
-const contentUrl = "/.netlify/functions/websiteContent";
+const contentUrl = "/api/websiteContent";
 
 const templateSlots = [
   {

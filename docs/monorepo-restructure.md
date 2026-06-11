@@ -34,7 +34,7 @@ Monorepo-specific changes retained:
 - Root workspace wiring through `pnpm-workspace.yaml` plus explicit root `package.json` workspace entries
 - Existing local `.gitignore` files
 - Vite config updated to resolve env from the app directory and dedupe `react` and `react-dom`
-- Exclusion of copied standalone `.git`, `node_modules`, `dist`, `.netlify`, and local env files during source sync
+- Exclusion of copied standalone `.git`, `node_modules`, `dist`, generated runtime folders, and local env files during source sync
 - Removal of the stale root `package-lock.json` so the workspace has a single package-manager source of truth
 
 Validation results:
@@ -76,13 +76,13 @@ Shared workspace packages introduced in this step:
 App ownership after this step:
 
 - `apps/reebs-portal`
-  Owns admin routes, backend, Prisma, Netlify functions, and Reebs-specific modules.
+  Owns admin routes, backend, Prisma, API handlers, and Reebs-specific modules.
 - `apps/reebs-website`
   Owns the public site. Shared template configuration and runtime utilities are now workspace packages instead of duplicated local modules.
 - `apps/faako-erp`
   Uses the shared ERP shell packages while keeping Faako-specific routes and branding in local app config.
 - `apps/faako-api`
-  Remains isolated for Netlify functions and Prisma.
+  Remains isolated for API handlers and Prisma.
 - `apps/faako-website`
   Remains isolated for the public Faako marketing site.
 

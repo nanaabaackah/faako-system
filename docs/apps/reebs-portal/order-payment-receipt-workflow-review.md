@@ -8,14 +8,14 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Where Orders Originate
 
-- POS orders originate in `apps/reebs-portal/src/pages/StoreMode/StoreMode.jsx` and post to `/.netlify/functions/orders` with `source: "POS"`, `purchaseChannel: "In Store"`, `isPosOrder: true`, selected payment preference, optional cash or MoMo details, an idempotency key, customer details, and cart items.
-- Manual admin orders originate in `apps/reebs-portal/src/pages/OrderBuilder/OrderBuilder.jsx` and post to `/.netlify/functions/orders` with `source: "Manual Admin Entry"`, `purchaseChannel: "Admin"`, status, pickup/delivery details, discounts, and line items.
-- Booking-linked add-on orders are supported by the backend source context in `apps/reebs-portal/netlify/functions/_shared/shopOrders.js` through `linkedBookingId` or `bookingId`. The backend validates the linked booking within the same organization.
+- POS orders originate in `apps/reebs-portal/src/pages/StoreMode/StoreMode.jsx` and post to `/api/orders` with `source: "POS"`, `purchaseChannel: "In Store"`, `isPosOrder: true`, selected payment preference, optional cash or MoMo details, an idempotency key, customer details, and cart items.
+- Manual admin orders originate in `apps/reebs-portal/src/pages/OrderBuilder/OrderBuilder.jsx` and post to `/api/orders` with `source: "Manual Admin Entry"`, `purchaseChannel: "Admin"`, status, pickup/delivery details, discounts, and line items.
+- Booking-linked add-on orders are supported by the backend source context in `apps/reebs-portal/backend/functions/_shared/shopOrders.js` through `linkedBookingId` or `bookingId`. The backend validates the linked booking within the same organization.
 - Rent-linked orders are not part of REEBS Portal based on the reviewed code paths.
 
 ### POS Flow
 
-- Store Mode builds a customer, cart, payment state, receipt delivery preference, and order payload before creating the order through the orders Netlify function.
+- Store Mode builds a customer, cart, payment state, receipt delivery preference, and order payload before creating the order through the orders API handler.
 - Immediate POS payment paths pass payment method, amount, provider/reference/phone details, and receipt contact data.
 - Pay-later POS paths create an unpaid or pending order without immediate stock commitment from the POS form.
 - The backend creates the order, optionally records the initial full payment, optionally creates a receipt, and commits stock only when payment/status rules allow it.
@@ -29,14 +29,14 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 ### Invoice-Linked Flows
 
 - Order detail pages can link to invoice/receipt document creation through `/admin/invoicing?type=orders&id=...`.
-- `apps/reebs-portal/netlify/functions/invoice-documents.js` stores invoice document records for manual, order, and booking source types.
-- `apps/reebs-portal/netlify/functions/generateInvoice.js` can generate order-based invoice/receipt details using order data and adjustments.
+- `apps/reebs-portal/backend/functions/invoice-documents.js` stores invoice document records for manual, order, and booking source types.
+- `apps/reebs-portal/backend/functions/generateInvoice.js` can generate order-based invoice/receipt details using order data and adjustments.
 - Order receipts generated from payments and invoice document receipts are currently separate concepts and should not be merged without reconciliation.
 
 ### Order Status Flow
 
-- `apps/reebs-portal/netlify/functions/orders.js` handles list/detail reads, order creation, metadata updates, cancellation, and payment-recording compatibility paths.
-- `apps/reebs-portal/netlify/functions/_shared/shopOrders.js` is the central backend source for order creation, payment recording, stock commitment, receipt generation, and accounting journal creation.
+- `apps/reebs-portal/backend/functions/orders.js` handles list/detail reads, order creation, metadata updates, cancellation, and payment-recording compatibility paths.
+- `apps/reebs-portal/backend/functions/_shared/shopOrders.js` is the central backend source for order creation, payment recording, stock commitment, receipt generation, and accounting journal creation.
 - Paid order cancellation is restricted to owner/admin roles.
 - Order status can be updated directly by order mutation routes, but payment recording can also move an order to `partially_paid` or `paid`.
 
@@ -54,7 +54,7 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 - Order detail payments are managed by `apps/reebs-portal/src/pages/Orders/hooks/useOrderPayments.js` and `apps/reebs-portal/src/pages/Orders/components/PaymentLedger.jsx`.
 - Order board/list payment updates are also posted from `apps/reebs-portal/src/pages/OrdersList/OrdersList.jsx` when a payment modal is used during status changes.
 - POS immediate payments are submitted during order creation from Store Mode.
-- Backend payment writes go through `apps/reebs-portal/netlify/functions/orderPayments.js` and ultimately `recordOrderPayment` in `apps/reebs-portal/netlify/functions/_shared/shopOrders.js`.
+- Backend payment writes go through `apps/reebs-portal/backend/functions/orderPayments.js` and ultimately `recordOrderPayment` in `apps/reebs-portal/backend/functions/_shared/shopOrders.js`.
 
 ### Manual Payment Flow
 
@@ -87,9 +87,9 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Payment APIs, Hooks, and Components
 
-- API: `apps/reebs-portal/netlify/functions/orderPayments.js`
-- API compatibility path: `apps/reebs-portal/netlify/functions/orders.js`
-- Backend helper: `apps/reebs-portal/netlify/functions/_shared/shopOrders.js`
+- API: `apps/reebs-portal/backend/functions/orderPayments.js`
+- API compatibility path: `apps/reebs-portal/backend/functions/orders.js`
+- Backend helper: `apps/reebs-portal/backend/functions/_shared/shopOrders.js`
 - Hook: `apps/reebs-portal/src/pages/Orders/hooks/useOrderPayments.js`
 - Components: `PaymentLedger.jsx`, `OrdersList.jsx`, `StoreMode.jsx`
 
@@ -97,7 +97,7 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Where Receipts Are Generated
 
-- Order payment receipts are generated by `createReceiptForPayment` in `apps/reebs-portal/netlify/functions/_shared/shopOrders.js`.
+- Order payment receipts are generated by `createReceiptForPayment` in `apps/reebs-portal/backend/functions/_shared/shopOrders.js`.
 - Receipts are generated after a payment is recorded and payment/order snapshots are available.
 - Invoice document records can also represent receipt documents, but they are stored separately from `OrderReceipt`.
 
@@ -109,7 +109,7 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Receipt Rendering
 
-- Receipt detail data is read through `apps/reebs-portal/netlify/functions/orderReceipts.js`.
+- Receipt detail data is read through `apps/reebs-portal/backend/functions/orderReceipts.js`.
 - `apps/reebs-portal/src/pages/Orders/components/ReceiptViewer.jsx` renders the receipt snapshot.
 - Receipt snapshots include order, payment, customer, item, and total details at generation time.
 
@@ -120,8 +120,8 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### WhatsApp and Email Integrations
 
-- Shared WhatsApp and email helpers exist under `apps/reebs-portal/netlify/functions/_shared/`.
-- Invoice document email sending is implemented in `apps/reebs-portal/netlify/functions/invoice-document-email.js`.
+- Shared WhatsApp and email helpers exist under `apps/reebs-portal/backend/functions/_shared/`.
+- Invoice document email sending is implemented in `apps/reebs-portal/backend/functions/invoice-document-email.js`.
 - Order receipt delivery over WhatsApp/email should be reviewed separately before platform extraction.
 
 ### Receipt Dependencies
@@ -133,9 +133,9 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Invoice Generation Points
 
-- Admin invoicing creates invoice/receipt documents through `apps/reebs-portal/netlify/functions/invoice-documents.js`.
+- Admin invoicing creates invoice/receipt documents through `apps/reebs-portal/backend/functions/invoice-documents.js`.
 - Order detail and booking admin screens can open the invoicing workspace with source type and source id.
-- `apps/reebs-portal/netlify/functions/generateInvoice.js` can build an order-based invoice/receipt response from order data.
+- `apps/reebs-portal/backend/functions/generateInvoice.js` can build an order-based invoice/receipt response from order data.
 
 ### Invoice Dependencies
 
@@ -201,25 +201,25 @@ This review maps the current REEBS Portal order, payment, receipt, invoice, and 
 
 ### Shared Helpers
 
-- `apps/reebs-portal/netlify/functions/_shared/shopOrders.js`
-- `apps/reebs-portal/netlify/functions/_shared/normalizeOrders.js`
-- `apps/reebs-portal/netlify/functions/_shared/orderDetails.js`
-- `apps/reebs-portal/netlify/functions/_shared/deliveryFee.js`
-- `apps/reebs-portal/netlify/functions/_shared/inventoryExtensions.js`
-- `apps/reebs-portal/netlify/functions/_shared/paymentInstructions.js`
-- `apps/reebs-portal/netlify/functions/_shared/auditLog.js`
-- `apps/reebs-portal/netlify/functions/_shared/email.js`
-- `apps/reebs-portal/netlify/functions/_shared/whatsapp.js`
-- `apps/reebs-portal/netlify/functions/_shared/transactionEmailTemplates.js`
+- `apps/reebs-portal/backend/functions/_shared/shopOrders.js`
+- `apps/reebs-portal/backend/functions/_shared/normalizeOrders.js`
+- `apps/reebs-portal/backend/functions/_shared/orderDetails.js`
+- `apps/reebs-portal/backend/functions/_shared/deliveryFee.js`
+- `apps/reebs-portal/backend/functions/_shared/inventoryExtensions.js`
+- `apps/reebs-portal/backend/functions/_shared/paymentInstructions.js`
+- `apps/reebs-portal/backend/functions/_shared/auditLog.js`
+- `apps/reebs-portal/backend/functions/_shared/email.js`
+- `apps/reebs-portal/backend/functions/_shared/whatsapp.js`
+- `apps/reebs-portal/backend/functions/_shared/transactionEmailTemplates.js`
 
 ### Shared APIs
 
-- `apps/reebs-portal/netlify/functions/orders.js`
-- `apps/reebs-portal/netlify/functions/orderPayments.js`
-- `apps/reebs-portal/netlify/functions/orderReceipts.js`
-- `apps/reebs-portal/netlify/functions/invoice-documents.js`
-- `apps/reebs-portal/netlify/functions/invoice-document-email.js`
-- `apps/reebs-portal/netlify/functions/generateInvoice.js`
+- `apps/reebs-portal/backend/functions/orders.js`
+- `apps/reebs-portal/backend/functions/orderPayments.js`
+- `apps/reebs-portal/backend/functions/orderReceipts.js`
+- `apps/reebs-portal/backend/functions/invoice-documents.js`
+- `apps/reebs-portal/backend/functions/invoice-document-email.js`
+- `apps/reebs-portal/backend/functions/generateInvoice.js`
 
 ### Shared Components
 

@@ -5,7 +5,7 @@ export default defineConfig({
     baseURL:
       process.env.TEST_ENV === 'live'
         ? 'https://reebspartythemes.com'
-        : `http://localhost:${process.env.PORT || 8888}`, // default Netlify/Vite dev
+        : `http://localhost:${process.env.PORT || 8888}`,
   },
   timeout: 60000, // optional: safer timeout for a11y scans
 });

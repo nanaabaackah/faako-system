@@ -9,7 +9,6 @@ Dev ERP is a fully live operational ERP in this repo with real operational data.
 - `src/`: React frontend, route shell, auth state, API client, pages, and utilities
 - `backend/`: Express API, feature route slices, auth and capability middleware, jobs, email templates, and integration helpers
 - `prisma/`: Prisma schema and migrations
-- `netlify.toml`: frontend deploy config and API proxying
 - `.env.example`: source of truth for local and hosted environment variables
 
 ## Run It Locally
@@ -148,19 +147,9 @@ The static frontend currently deploys through Cloudflare Pages with:
 pnpm --filter @faako/dev-erp run build
 ```
 
-The publish folder is `apps/dev-erp/dist`. The existing `netlify.toml` remains as a
-legacy deploy option, but Cloudflare Pages does not apply its `/api/*` proxy rule.
-Set Cloudflare Pages `VITE_API_BASE` explicitly to the deployed Railway API URL.
-For a same-site API hostname, add the custom domain to the Railway backend first,
-then point its DNS CNAME to Railway's provided target. Do not map the API
-hostname to the Cloudflare Pages frontend. Legacy selective Netlify deploy checks
-use:
+The publish folder is `apps/dev-erp/dist`. Set Cloudflare Pages `VITE_API_BASE` explicitly to the deployed Railway API URL. For a same-site API hostname, add the custom domain to the Railway backend first, then point its DNS CNAME to Railway's provided target. Do not map the API hostname to the Cloudflare Pages frontend.
 
-```bash
-node ./scripts/netlify-ignore.mjs @faako/dev-erp
-```
-
-The backend deploys separately through Railway using the repo root `nixpacks.toml`. For a standalone backend start:
+The backend deploys separately through Railway using the repo root `nixpacks.toml`. Set the Railway service env to `RAILWAY_WORKSPACE=@faako/dev-erp`; the root launcher will run the workspace build/start scripts. For a standalone backend start:
 
 ```bash
 pnpm --filter @faako/dev-erp run start

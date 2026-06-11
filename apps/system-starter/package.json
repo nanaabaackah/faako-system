@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@faako/ui": "workspace:*",
+    "@faako/utils": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3"

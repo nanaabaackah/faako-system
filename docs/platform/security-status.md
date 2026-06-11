@@ -18,7 +18,7 @@ Date reviewed: 2026-05-21
 
 - Stroane Web: shared API headers, CORS allowlist, explicit trusted proxy handling, in-memory API rate limiting, route-specific write/payment/admin limits, default write deny, server-side stock/price validation, signed Paystack webhook confirmation with transaction verification, protected admin order routes, minimized provider metadata, sanitized route-level error logging for auth/commerce/payment paths, and Safari/iOS-safe shared form-control presentation.
 - Dev ERP: shared backend header helper adoption and app registry/monitoring checks exist; payment and invoice workflow security remains app-owned.
-- REEBS Portal: production-sensitive auth, payment, booking, inventory, offline queue, and Netlify Function surfaces remain app-owned and should be reviewed separately before deeper shared security extraction.
+- REEBS Portal: production-sensitive auth, payment, booking, inventory, offline queue, and API handler surfaces remain app-owned and should be reviewed separately before deeper shared security extraction.
 - Faako Website/Faako API/byNana Portfolio: public-site/API security posture should continue through app-system metadata, env scanning, and deployment-level header checks.
 
 ## Current Platform Gaps

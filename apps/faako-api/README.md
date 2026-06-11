@@ -2,20 +2,19 @@
 
 Workspace package: `@faako/faako-api`
 
-Faako API is the Netlify Functions backend for the current Faako signup flow. It owns the `signup` and `health` functions, Prisma schema, and env-driven runtime config. It can run as its own Netlify site or as the source of mirrored functions inside `apps/faako-website`.
+Faako API is the Express backend for the current Faako signup flow. It owns the signup and health endpoints, Prisma schema, email/PDF intake flow, and env-driven runtime config.
 
 ## What Lives Here
 
-- `netlify/functions/`: serverless API functions
+- `src/server.js`: Express API entrypoint
 - `prisma/`: Prisma schema and migrations
 - `src/`: runtime config and database helpers
-- `netlify/static/`: intentionally minimal publish folder for the API-only site
 - `.env.example`: environment variable reference
 
-Current functions:
+Current endpoints:
 
-- `health`
-- `signup` - accepts client onboarding intake submissions, persists the existing signup compatibility records, generates a PDF summary, and sends client/admin email copies when Resend is configured
+- `GET /health` and `GET /api/health`
+- `POST /signup` and `POST /api/signup` - accepts client onboarding intake submissions, persists the existing signup compatibility records, generates a PDF summary, and sends client/admin email copies when Resend is configured
 
 ## Run It Locally
 
@@ -36,7 +35,7 @@ pnpm run dev:faako
 ## Common Commands
 
 ```bash
-pnpm --filter @faako/faako-api run netlify
+pnpm --filter @faako/faako-api run dev:backend
 pnpm --filter @faako/faako-api run prisma:generate
 pnpm --filter @faako/faako-api run prisma:migrate
 pnpm --filter @faako/faako-api run prisma:migrate:deploy
@@ -60,17 +59,18 @@ Important behavior:
 ## Relationship To Faako Website
 
 - `apps/faako-website` can call this API through `VITE_API_BASE_URL`
-- when `VITE_API_BASE_URL` is not set, the website can serve mirrored copies of these functions through `/api/*`
-- `apps/faako-website` runs a prebuild sync from this app before its build
+- local website development proxies `/api/*` to this API through Vite
 
 ## Deployment
 
-This app has its own Netlify config in `apps/faako-api/netlify.toml`.
-
-Netlify runs Prisma deploy before publish:
+Deploy this as a Node/Express service on Railway. Set the Railway service env to `RAILWAY_WORKSPACE=@faako/faako-api`. Run Prisma migrations before starting a hosted backend:
 
 ```bash
 pnpm --filter @faako/faako-api run prisma:migrate:deploy
 ```
 
-The publish folder is `apps/faako-api/netlify/static`.
+Workspace start command:
+
+```bash
+pnpm --filter @faako/faako-api run server
+```

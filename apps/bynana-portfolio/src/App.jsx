@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { GoogleAnalyticsRouteTracker } from '@faako/ui';
 import { HiXMark } from 'react-icons/hi2';
 
 import Navbar from './components/Navbar';
@@ -21,6 +22,10 @@ import BlogPostDetail from './pages/BlogPostDetail';
 import ErrorPage from './pages/Error';
 import useScrollAnimations from './hooks/useScrollAnimations';
 import { projectDetailsBySlug } from './content/projectDetails';
+
+const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
+const GOOGLE_ANALYTICS_ENABLED =
+  import.meta.env.PROD || import.meta.env.VITE_ENABLE_GA_IN_DEV === 'true';
 
 function AppLayout() {
   const location = useLocation();
@@ -109,6 +114,10 @@ function AppLayout() {
 
   return (
     <div className="app-layer">
+      <GoogleAnalyticsRouteTracker
+        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
       <BackgroundFX />
       <GradualBlur
         target="page"

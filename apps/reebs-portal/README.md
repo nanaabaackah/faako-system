@@ -8,7 +8,7 @@ Reebs Portal is the admin portal and API backend source for REEBS. It owns the o
 
 - `src/`: React admin portal frontend
 - `backend/server.js`: Express API wrapper for `api.reebspartythemes.com`
-- `netlify/functions/`: legacy function handler source adapted by the API wrapper
+- `backend/functions/`: legacy function handler source adapted by the API wrapper
 - `prisma/`: Prisma schema, migrations, and generated client output
 - `docs/`: deeper frontend and backend notes
 - `.env.example`: runtime configuration reference
@@ -157,10 +157,12 @@ Use these Cloudflare Pages settings:
 - Output directory: `apps/reebs-portal/dist`
 - Environment variable: `VITE_API_BASE_URL=https://api.reebspartythemes.com`
 
-The API service should run the Express adapter from the monorepo root:
+The API service should run the Express adapter from the monorepo root with `RAILWAY_WORKSPACE=@faako/reebs-portal`:
 
-- Build command: `pnpm --filter @faako/reebs-portal run db:generate`
-- Start command: `pnpm --filter @faako/reebs-portal run server:with-migrate`
+- Root build command: `node ./scripts/railway-service.mjs build`
+- Root start command: `node ./scripts/railway-service.mjs start`
+- Workspace build script: `pnpm --filter @faako/reebs-portal run db:generate`
+- Workspace start script: `pnpm --filter @faako/reebs-portal run server:with-migrate`
 - Public API base: `https://api.reebspartythemes.com`
 - If Railway/Postgres returns `SELF_SIGNED_CERT_IN_CHAIN`, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` on the API service or provide `DATABASE_SSL_CA`.
 

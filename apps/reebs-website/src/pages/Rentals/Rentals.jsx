@@ -201,9 +201,9 @@ function Rentals() {
             setLoading(!cached);
             try {
                 const inventoryPromise = fetchInventoryWithCache({ signal: controller.signal });
-                const indoorPromise = fetch("/.netlify/functions/indoor_games", { signal: controller.signal });
-                const bouncyPromise = fetch("/.netlify/functions/bouncy_castles", { signal: controller.signal });
-                const machinesPromise = fetch("/.netlify/functions/machines", { signal: controller.signal });
+                const indoorPromise = fetch("/api/indoor_games", { signal: controller.signal });
+                const bouncyPromise = fetch("/api/bouncy_castles", { signal: controller.signal });
+                const machinesPromise = fetch("/api/machines", { signal: controller.signal });
 
                 const { items: inventoryData } = await inventoryPromise;
 

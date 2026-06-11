@@ -172,9 +172,9 @@ function AdminDocuments() {
     setError("");
     try {
       const [ordersRes, bookingsRes, uploadsRes] = await Promise.all([
-        fetch("/.netlify/functions/orders"),
-        fetch("/.netlify/functions/bookings"),
-        fetch("/.netlify/functions/documents"),
+        fetch("/api/orders"),
+        fetch("/api/bookings"),
+        fetch("/api/documents"),
       ]);
       const [ordersData, bookingsData, uploadsData] = await Promise.all([
         ordersRes.json(),
@@ -291,7 +291,7 @@ function AdminDocuments() {
     if (!doc?.referenceId) return;
     setDownloading(doc.id);
     try {
-      const res = await fetch(`/.netlify/functions/documents?id=${doc.referenceId}`);
+      const res = await fetch(`/api/documents?id=${doc.referenceId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to fetch document");
       const mime = data.mimeType || "application/octet-stream";
@@ -445,14 +445,14 @@ function AdminDocuments() {
     setDownloading(doc.id);
     try {
       if (doc.referenceType === "orders") {
-        const res = await fetch(`/.netlify/functions/generateInvoice?orderId=${doc.referenceId}`);
+        const res = await fetch(`/api/generateInvoice?orderId=${doc.referenceId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load receipt");
         const normalized = normalizeOrderDoc(data);
         const pdf = buildPdf(normalized);
         pdf.save(`receipt-${normalized.invoiceNumber || doc.referenceId}.pdf`);
       } else {
-        const res = await fetch(`/.netlify/functions/getInvoiceDetails?id=${doc.referenceId}`);
+        const res = await fetch(`/api/getInvoiceDetails?id=${doc.referenceId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load invoice");
         const normalized = normalizeBookingDoc(data);
@@ -470,7 +470,7 @@ function AdminDocuments() {
     if (!doc?.referenceId) return;
     setDownloading(doc.id);
     try {
-      const res = await fetch(`/.netlify/functions/documents?id=${doc.referenceId}`);
+      const res = await fetch(`/api/documents?id=${doc.referenceId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to fetch document");
       const mime = data.mimeType || "application/octet-stream";
@@ -505,7 +505,7 @@ function AdminDocuments() {
       const base64 = String(dataUrl || "").split(",")[1] || "";
       if (!base64) throw new Error("Unable to encode file.");
 
-      const res = await fetch("/.netlify/functions/documents", {
+      const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

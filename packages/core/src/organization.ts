@@ -13,7 +13,6 @@ export const AUTH_USER_STORAGE_KEY = "reebs_auth_user";
 export const AUTH_TOKEN_STORAGE_KEY = "reebs_auth_token";
 export const AUTH_INVALID_EVENT = "reebs:auth-invalid";
 
-const LEGACY_FUNCTION_PREFIX = "/.netlify/functions/";
 const API_PREFIX = "/api/";
 const DEFAULT_BACKEND_BASE_URL = "https://api.reebspartythemes.com";
 const DEFAULT_LOCAL_BACKEND_BASE_URL = "http://localhost:8888";
@@ -22,9 +21,6 @@ const REEBS_FRONTEND_HOSTNAMES = new Set([
   "reebspartythemes.com",
   "www.reebspartythemes.com",
 ]);
-const USE_FUNCTION_PROXY_IN_DEV = ["1", "true", "yes", "on"].includes(
-  String(import.meta.env?.VITE_FUNCTIONS_VIA_PROXY || "").trim().toLowerCase(),
-);
 
 const getLocalDevBackendBaseUrl = () => {
   if (typeof window === "undefined") return "";
@@ -263,8 +259,7 @@ export const getOrganizationId = () => {
   return parseOrganizationId(params.get("organizationId"));
 };
 
-const isReebsApiPath = (pathname: string) =>
-  pathname.startsWith(LEGACY_FUNCTION_PREFIX) || pathname.startsWith(API_PREFIX);
+const isReebsApiPath = (pathname: string) => pathname.startsWith(API_PREFIX);
 
 const isReebsApiRequest = (url: string) => {
   if (typeof window === "undefined") return false;
@@ -277,14 +272,6 @@ const isReebsApiRequest = (url: string) => {
   }
 };
 
-const getApiPathFromParsedUrl = (parsed: URL) => {
-  if (parsed.pathname.startsWith(LEGACY_FUNCTION_PREFIX)) {
-    return `${API_PREFIX}${parsed.pathname.slice(LEGACY_FUNCTION_PREFIX.length)}`;
-  }
-
-  return parsed.pathname;
-};
-
 const resolveBackendUrl = (url: string) => {
   if (typeof window === "undefined") return url;
 
@@ -292,11 +279,7 @@ const resolveBackendUrl = (url: string) => {
     const parsed = new URL(url, window.location.origin);
     if (!isReebsApiPath(parsed.pathname)) return url;
 
-    const apiPath = getApiPathFromParsedUrl(parsed);
-    const normalizedPath = `${apiPath}${parsed.search}${parsed.hash}`;
-    if (import.meta.env?.DEV && USE_FUNCTION_PROXY_IN_DEV) {
-      return normalizedPath;
-    }
+    const normalizedPath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
 
     return BACKEND_BASE_URL
       ? new URL(normalizedPath, `${BACKEND_BASE_URL}/`).toString()

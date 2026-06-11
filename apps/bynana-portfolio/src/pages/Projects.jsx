@@ -7,8 +7,8 @@ const projects = [
   {
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Split kids party shop and rental business stack with a public storefront, POS/order builder, admin portal, Netlify Functions backend, and PostgreSQL data model.',
-    stack: 'React · Vite · Netlify Functions · PostgreSQL',
+      'Split kids party shop and rental business stack with a public storefront, POS/order builder, admin portal, Express API backend, and PostgreSQL data model.',
+    stack: 'React · Vite · Express API · PostgreSQL',
     impact: 'Live website + portal',
     href: '/projects/kids-party-shop-rental',
     image: '/imgs/mockups/reebs/REEBS_1.png',

@@ -7,9 +7,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako We
 ## Known technical notes
 
 - The app is a React and Vite public website.
-- `scripts/sync-netlify-functions.mjs` syncs mirrored functions from `apps/faako-api` before build.
 - `VITE_API_BASE_URL` points signup to a dedicated API deployment when set.
-- If `VITE_API_BASE_URL` is not set, mirrored functions can serve `/api/*` from the website deployment.
+- Local development can proxy `/api/*` to `apps/faako-api`.
 - `VITE_*` values are browser-visible and must not contain secrets.
 - `Signup.jsx` is now a guided onboarding intake wizard. It sends a structured `intake` payload plus legacy compatibility fields to `/api/signup`.
 - The wizard intentionally does not collect API keys, tokens, passwords, private email credentials, or bank login details. Keep any future credential exchange outside the public form.
@@ -17,22 +16,22 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako We
 
 ## Open questions
 
-- Which deployment mode is preferred long term: dedicated Faako API or website-owned mirrored functions?
+- Which hosted API target should own production signup traffic long term?
 - What signup conversion events and failure alerts should be tracked?
 - Should onboarding intake submissions later appear in a private admin checklist view?
 - Which public pricing and product claims require review before release?
 
 ## Future cleanup
 
-- Keep function sync behavior documented when Faako API changes.
+- Keep website API behavior documented when Faako API changes.
 - Add a release checklist for marketing copy, pricing, and signup analytics.
-- Clarify production ownership of server-side env vars when deployment topology changes.
+- Keep production ownership of server-side env vars on the API service.
 - Add a private intake review/checklist screen before automating setup tasks.
-- Use the platform cleanup audit before consolidating public-site primitives or splitting Signup/Home/Pricing/Module Config. Preserve signup endpoint behavior and mirrored function deployment assumptions.
+- Use the platform cleanup audit before consolidating public-site primitives or splitting Signup/Home/Pricing/Module Config. Preserve signup endpoint behavior and API deployment assumptions.
 
 ## Risks to monitor
 
-- Signup failures caused by API URL or mirrored function drift.
+- Signup failures caused by API URL drift.
 - Public copy or pricing becoming stale.
 - Secrets accidentally placed in browser-visible env vars.
 - Website and API deploys getting out of sync.

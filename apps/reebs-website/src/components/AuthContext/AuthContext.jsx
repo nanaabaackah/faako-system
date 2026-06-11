@@ -110,7 +110,7 @@ function AuthProvider({ children }) {
         : 0;
 
       try {
-        const response = await fetch("/.netlify/functions/authSession", {
+        const response = await fetch("/api/authSession", {
           cache: "no-store",
           signal: controller?.signal,
         });
@@ -153,7 +153,7 @@ function AuthProvider({ children }) {
     setAuthLoading(true);
     setAuthError("");
     try {
-      const res = await fetch("/.netlify/functions/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, remember }),
@@ -175,7 +175,7 @@ function AuthProvider({ children }) {
 
   const logout = () => {
     if (typeof window !== "undefined" && typeof window.fetch === "function") {
-      window.fetch("/.netlify/functions/logout", {
+      window.fetch("/api/logout", {
         method: "POST",
         keepalive: true,
       }).catch((err) => {

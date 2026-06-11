@@ -123,8 +123,8 @@ function OrderBuilder() {
       setError("");
       try {
         const [customerRes, inventoryRes] = await Promise.all([
-          fetch("/.netlify/functions/customers", { signal: controller.signal }),
-          fetch("/.netlify/functions/inventory", { signal: controller.signal }),
+          fetch("/api/customers", { signal: controller.signal }),
+          fetch("/api/inventory", { signal: controller.signal }),
         ]);
 
         if (!customerRes.ok || !inventoryRes.ok) {
@@ -387,7 +387,7 @@ function OrderBuilder() {
         ? crypto.randomUUID()
         : `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      const response = await fetch("/.netlify/functions/orders", {
+      const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

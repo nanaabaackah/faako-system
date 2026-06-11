@@ -110,7 +110,7 @@ function AdminMarketing() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/marketing");
+      const res = await fetch("/api/marketing");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load campaigns.");
       setDiscounts(Array.isArray(data) ? data : []);
@@ -124,7 +124,7 @@ function AdminMarketing() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch("/.netlify/functions/customers");
+      const res = await fetch("/api/customers");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load customers.");
       setCustomers(Array.isArray(data) ? data : []);
@@ -209,7 +209,7 @@ function AdminMarketing() {
         value: Number(form.value),
         minOrderValue: form.minOrderValue === "" ? null : Number(form.minOrderValue),
       };
-      const res = await fetch("/.netlify/functions/marketing", {
+      const res = await fetch("/api/marketing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -240,7 +240,7 @@ function AdminMarketing() {
     setError("");
     setStatus("");
     try {
-      const res = await fetch("/.netlify/functions/marketing", {
+      const res = await fetch("/api/marketing", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: discount.id, isActive: !discount.isActive }),
@@ -259,7 +259,7 @@ function AdminMarketing() {
     setStatus("");
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/marketing", {
+      const res = await fetch("/api/marketing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seed: true }),

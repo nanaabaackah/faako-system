@@ -8,7 +8,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 
 - The app uses a React and TypeScript frontend, Express backend, and Prisma-managed PostgreSQL database.
 - Cloudflare Pages is the current frontend host.
-- Railway is the current API/backend host and Railway Postgres is the production database direction. Do not assume Netlify for this phase.
+- Railway is the current API/backend host and Railway Postgres is the production database direction.
 - `VITE_API_BASE_URL` controls whether the frontend calls an external backend origin. `VITE_BACKEND_BASE_URL` remains a legacy fallback for older deployments.
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
@@ -175,13 +175,9 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 
 ### Lightweight admin order management - 2026-05-21
 
-- `/admin/operations` is a private staff screen inside the shared ERP shell. The previous `/admin/orders` route remains a compatibility alias. Staff login uses backend `SiteUser` auth via `/api/auth/login`.
+- The old `/admin/operations` and `/admin/orders` module screens have been cleared for the portal module rebuild. They now render reset placeholders inside the shared ERP shell. Staff login uses backend `SiteUser` auth via `/api/auth/login`.
 - `/login` on `portal.stroanesolutions.com` is the dedicated staff entrypoint. The old `/admin/signin` route redirects there for compatibility. Staff bearer tokens remain portal-origin `sessionStorage` values and are not shared with the storefront.
-- `GET /api/admin/orders` and `GET /api/admin/orders/:orderId` require backend bearer auth and allow `ADMIN` or `VIEWER` roles. `PATCH /api/admin/orders/:orderId/status` requires `ADMIN`.
-- Order list/detail responses include customer contact data because the route is protected, but Paystack references are masked and raw payment metadata/provider payloads are not returned.
-- Admin status actions are intentionally limited to `paid`, `processing`, `ready`, `out_for_delivery`, `completed`, and `cancelled`.
-- Payment status is not manually editable. `paid` status can only align the order status after webhook-confirmed payment already exists; it does not write `paymentStatus`.
-- Fulfillment actions other than cancellation are blocked until payment is webhook-confirmed/paid.
+- The private order-management UI and admin order routes are not part of the active portal surface after the reset.
 - Additive `CommerceOrder` fields support lightweight fulfillment notes only: `fulfillmentStatus`, `deliveryMethod`, `expectedDeliveryDate`, `adminDeliveryNotes`, `internalNotes`, `statusUpdatedAt`, and `statusUpdatedById`.
 - This is not a full ERP, inventory deduction system, delivery logistics module, CRM, staff notification system, or audit log. Add payment event/notification logs and stock admin separately before fulfillment automation.
 

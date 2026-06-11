@@ -45,7 +45,7 @@ export const fetchInvoiceDocumentById = (id) => {
   }
   return fetchJsonOnce(
     `invoice-document:${documentId}`,
-    `/.netlify/functions/invoice-documents?id=${encodeURIComponent(documentId)}`,
+    `/api/invoice-documents?id=${encodeURIComponent(documentId)}`,
     "Failed to load invoice document."
   );
 };
@@ -57,7 +57,7 @@ export const fetchBookingInvoiceDetails = (bookingId) => {
   }
   return fetchJsonOnce(
     `booking-invoice-details:${sourceId}`,
-    `/.netlify/functions/getInvoiceDetails?id=${encodeURIComponent(sourceId)}`,
+    `/api/getInvoiceDetails?id=${encodeURIComponent(sourceId)}`,
     "Failed to load booking invoice details."
   );
 };
@@ -69,7 +69,7 @@ export const fetchOrderInvoiceDetails = (orderId) => {
   }
   return fetchJsonOnce(
     `order-invoice-details:${sourceId}`,
-    `/.netlify/functions/generateInvoice?orderId=${encodeURIComponent(sourceId)}`,
+    `/api/generateInvoice?orderId=${encodeURIComponent(sourceId)}`,
     "Failed to load order invoice details."
   );
 };

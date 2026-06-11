@@ -36,7 +36,7 @@ test("buildQueuedInventoryAdjustment stores minimal stock adjustment payload", (
   assert.equal(queued.status, SYNC_STATES.PENDING);
   assert.equal(queued.payload.targetType, "inventory-item");
   assert.equal(queued.payload.targetId, 42);
-  assert.equal(queued.payload.endpoint.path, "/.netlify/functions/stock");
+  assert.equal(queued.payload.endpoint.path, "/api/stock");
   assert.deepEqual(queued.payload.adjustment, {
     productId: 42,
     type: "StockOut",

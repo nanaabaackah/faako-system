@@ -102,8 +102,8 @@ function AdminExpenses() {
   const fetchLinks = async () => {
     try {
       const [ordersRes, bookingsRes] = await Promise.all([
-        fetch("/.netlify/functions/orders"),
-        fetch("/.netlify/functions/bookings"),
+        fetch("/api/orders"),
+        fetch("/api/bookings"),
       ]);
       const [ordersData, bookingsData] = await Promise.all([
         ordersRes.ok ? ordersRes.json() : [],
@@ -127,7 +127,7 @@ function AdminExpenses() {
         params.set("month", `${month}-01`);
       }
       const query = params.toString();
-      const res = await fetch(`/.netlify/functions/expenses${query ? `?${query}` : ""}`);
+      const res = await fetch(`/api/expenses${query ? `?${query}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load expenses.");
       setExpenses(Array.isArray(data) ? data.map(normalizeExpense) : []);
@@ -145,7 +145,7 @@ function AdminExpenses() {
     setStatus("");
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/expenses", {
+      const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seed: true }),
@@ -290,7 +290,7 @@ function AdminExpenses() {
       : description;
 
     try {
-      const res = await fetch("/.netlify/functions/expenses", {
+      const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -263,7 +263,7 @@ function AdminRentals() {
     try {
       const inventoryPromise = force
         ? (async () => {
-            const items = await fetchJson("/.netlify/functions/inventory");
+            const items = await fetchJson("/api/inventory");
             const safeItems = Array.isArray(items) ? items : [];
             writeInventoryCache(safeItems);
             return safeItems;
@@ -272,9 +272,9 @@ function AdminRentals() {
 
       const [inventoryPayload, bookingsPayload, maintenancePayload, documentsPayload] = await Promise.all([
         inventoryPromise,
-        fetchJson("/.netlify/functions/bookings"),
-        fetchJson("/.netlify/functions/maintenance"),
-        fetchJson("/.netlify/functions/invoice-documents"),
+        fetchJson("/api/bookings"),
+        fetchJson("/api/maintenance"),
+        fetchJson("/api/invoice-documents"),
       ]);
 
       setInventoryItems(Array.isArray(inventoryPayload) ? inventoryPayload : []);
@@ -652,7 +652,7 @@ function AdminRentals() {
     setDetailError("");
 
     try {
-      const payload = await fetchJson("/.netlify/functions/inventory", {
+      const payload = await fetchJson("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -714,7 +714,7 @@ function AdminRentals() {
     setSaving(true);
     setDetailError("");
     try {
-      await fetchJson("/.netlify/functions/inventory", {
+      await fetchJson("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -753,7 +753,7 @@ function AdminRentals() {
     setMaintenanceSaving(true);
     setDetailError("");
     try {
-      await fetchJson("/.netlify/functions/maintenance", {
+      await fetchJson("/api/maintenance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -781,7 +781,7 @@ function AdminRentals() {
     setMaintenanceSaving(true);
     setDetailError("");
     try {
-      await fetchJson("/.netlify/functions/maintenance", {
+      await fetchJson("/api/maintenance", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

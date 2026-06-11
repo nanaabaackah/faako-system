@@ -8,8 +8,7 @@
     "dev:frontend": "vite --mode dev --host 0.0.0.0 --port 5175",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint .",
-    "netlify": "APP_ENV=development pnpm exec netlify dev"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@faako/ui": "workspace:*",

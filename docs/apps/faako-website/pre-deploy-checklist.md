@@ -7,7 +7,7 @@
 ## Environment affected
 
 - Identify local, preview, staging, or production.
-- Confirm Netlify site, domain, API target, and function ownership model.
+- Confirm static host, domain, and API target.
 
 ## Auth and roles
 
@@ -16,13 +16,13 @@
 
 ## API permissions
 
-- Confirm signup calls the intended API origin or mirrored `/api/*` function.
+- Confirm signup calls the intended API origin.
 - Verify API errors are handled without leaking server details.
 
 ## Database/data loss risk
 
 - The website should not directly change database schema.
-- If mirrored functions are active, review Faako API migration/data risks before deploy.
+- Review Faako API migration/data risks before deploy when signup behavior changes.
 
 ## Customer/user data
 
@@ -41,17 +41,15 @@
 
 - Compare required values against `apps/faako-website/.env.example`.
 - Confirm `VITE_*` values are browser-safe.
-- Keep backend secrets on the website only when the website owns the server-side function deployment.
+- Keep backend secrets on the Faako API service.
 
-## Netlify/Railway deployment
+## Static Deployment
 
-- Confirm Netlify build command, publish directory, config file, headers, redirects, and function routing.
-- Railway is not the primary deployment target for this public website.
-- Run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/faako-website`.
+- Confirm build command, publish directory, static headers/redirects, and API base URL.
 
 ## Rollback plan
 
-- Identify previous known-good Netlify deploy.
+- Identify previous known-good static deploy.
 - Confirm whether rollback also requires reverting a Faako API deploy.
 - Preserve signup leads submitted during any incident window.
 
@@ -64,4 +62,4 @@
 
 - Confirm the deployed site loads from the public domain.
 - Confirm signup succeeds or fails gracefully.
-- Check Netlify Function and API logs for unexpected errors.
+- Check API logs for unexpected errors.

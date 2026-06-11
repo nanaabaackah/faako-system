@@ -3,20 +3,44 @@ import useSEOMeta from "../hooks/useSEOMeta";
 import { portalUrl } from "../config/appSurface";
 import "../styles/pages/AdminPortal.css";
 
-type AdminPortalPlaceholderArea = "products" | "reports" | "settings";
+type AdminPortalPlaceholderArea =
+  | "inventory"
+  | "suppliers"
+  | "products"
+  | "operations"
+  | "reports"
+  | "settings";
 
 const AREA_COPY: Record<AdminPortalPlaceholderArea, { title: string; description: string }> = {
+  inventory: {
+    title: "Inventory",
+    description:
+      "This module has been cleared for a fresh rebuild. Dashboard product and stock signals remain available.",
+  },
+  suppliers: {
+    title: "Suppliers",
+    description:
+      "This module has been cleared for a fresh rebuild. Supplier signals remain dashboard-only for now.",
+  },
   products: {
     title: "Products",
-    description: "Catalogue operations will live here. Product setup remains data-driven for now.",
+    description:
+      "This module has been cleared for a fresh rebuild. Product fetches remain available to the dashboard and storefront.",
+  },
+  operations: {
+    title: "Operations",
+    description:
+      "This module has been cleared for a fresh rebuild. Order operations are intentionally out of the portal shell.",
   },
   reports: {
     title: "Reports",
-    description: "Operational reporting is prepared as a portal namespace without adding analytics scope yet.",
+    description:
+      "This module has been cleared for a fresh rebuild. Reporting scope will be reintroduced after the dashboard settles.",
   },
   settings: {
     title: "Settings",
-    description: "Portal settings are intentionally limited until operational requirements are confirmed.",
+    description:
+      "This module has been cleared for a fresh rebuild. Portal settings will return when the new module shape is defined.",
   },
 };
 

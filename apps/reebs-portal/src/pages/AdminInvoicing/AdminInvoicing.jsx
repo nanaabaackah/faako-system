@@ -2317,7 +2317,7 @@ function AdminInvoicing() {
     setOrdersLoading(true);
     setOrdersError("");
     try {
-      const response = await fetch("/.netlify/functions/orders?compact=1");
+      const response = await fetch("/api/orders?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load orders.");
@@ -2335,7 +2335,7 @@ function AdminInvoicing() {
     setBookingsLoading(true);
     setBookingsError("");
     try {
-      const response = await fetch("/.netlify/functions/bookings?compact=1");
+      const response = await fetch("/api/bookings?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load bookings.");
@@ -2353,7 +2353,7 @@ function AdminInvoicing() {
     setDocumentsLoading(true);
     setDocumentsError("");
     try {
-      const response = await fetch("/.netlify/functions/invoice-documents?compact=1");
+      const response = await fetch("/api/invoice-documents?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load invoice documents.");
@@ -2375,7 +2375,7 @@ function AdminInvoicing() {
   const fetchCustomers = useCallback(async () => {
     setCustomerError("");
     try {
-      const response = await fetch("/.netlify/functions/customers?compact=1");
+      const response = await fetch("/api/customers?compact=1");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load customers.");
@@ -2677,7 +2677,7 @@ function AdminInvoicing() {
       }
 
       try {
-        const response = await fetch("/.netlify/functions/invoice-documents", {
+        const response = await fetch("/api/invoice-documents", {
           method: documentToPersist.id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: payloadString,
@@ -3378,7 +3378,7 @@ function AdminInvoicing() {
     setSaveStatus("");
     try {
       const draft = buildEmptyDocument(documentType, defaultTaxRate);
-      const response = await fetch("/.netlify/functions/invoice-documents", {
+      const response = await fetch("/api/invoice-documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildStoredPayload(draft)),
@@ -3883,7 +3883,7 @@ function AdminInvoicing() {
       }
 
       const fileLabel = getDocumentFileLabel(activeDocument);
-      const response = await fetch("/.netlify/functions/documents", {
+      const response = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3930,7 +3930,7 @@ function AdminInvoicing() {
         sentAt,
         sentToEmail,
       }, activeDocument);
-      const response = await fetch("/.netlify/functions/invoice-document-email", {
+      const response = await fetch("/api/invoice-document-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3975,7 +3975,7 @@ function AdminInvoicing() {
     setSaveError("");
     setSaveStatus("");
     try {
-      const response = await fetch("/.netlify/functions/invoice-documents", {
+      const response = await fetch("/api/invoice-documents", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

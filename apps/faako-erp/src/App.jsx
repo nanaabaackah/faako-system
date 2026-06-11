@@ -4,6 +4,7 @@ import {
   AppBottomBar,
   AnimatedLoadingState,
   ErpBottomNav,
+  GoogleAnalyticsRouteTracker,
   ErpNavSidebar,
   ErpPageContent,
   ErpShellFrame,
@@ -36,6 +37,10 @@ const Notifications = lazy(() => import("./pages/Notifications.jsx"));
 const Modules = lazy(() => import("./pages/Modules.jsx"));
 const Settings = lazy(() => import("./pages/Settings.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+
+const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
+const GOOGLE_ANALYTICS_ENABLED =
+  import.meta.env.PROD || import.meta.env.VITE_ENABLE_GA_IN_DEV === "true";
 
 const iconStrokeProps = {
   stroke: "currentColor",
@@ -286,7 +291,12 @@ function AppLayout() {
     activePageTitles[location.pathname] || toTitleCase(location.pathname.replace(/^\/+/, "")) || "Dashboard";
 
   return (
-    <ErpShellFrame
+    <>
+      <GoogleAnalyticsRouteTracker
+        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <ErpShellFrame
       brand={scenario.brand}
       layout="split"
       contentClassName="faako-erp-shell-content"
@@ -379,7 +389,8 @@ function AppLayout() {
         </div>
         <DemoAccessGate />
       </div>
-    </ErpShellFrame>
+      </ErpShellFrame>
+    </>
   );
 }
 

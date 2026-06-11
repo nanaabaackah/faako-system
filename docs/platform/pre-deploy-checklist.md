@@ -14,7 +14,7 @@ REEBS Portal and Dev ERP are both live systems with real data. Any change affect
 ## Environment affected
 
 - Identify local, development, demo, preview, staging, private beta, production, or client production.
-- Confirm every target frontend, backend, database, Netlify site, Railway service, and domain.
+- Confirm every target frontend, backend, database, hosted service, Railway service, and domain.
 
 ## Auth and roles
 
@@ -51,7 +51,7 @@ REEBS Portal and Dev ERP are both live systems with real data. Any change affect
 - Keep secrets server-only.
 - Treat `VITE_*` values as public browser-visible configuration.
 
-## Netlify/Railway deployment
+## Cloudflare/Railway deployment
 
 - Confirm build commands, publish directories, function directories, redirects, headers, and service start commands.
 - Confirm frontend/backend URL pairing, DNS, and CORS.

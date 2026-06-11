@@ -13,6 +13,7 @@ export * from "./ErpShellFrame";
 export * from "./ErpShellSidebarSlot";
 export * from "./ErpShellTopbar";
 export * from "./ErpStatusBadge";
+export * from "./GoogleAnalyticsRouteTracker";
 export * from "./SidebarEdgeToggle";
 export * from "./components/AppBottomBar";
 export * from "./components/SystemProvider";

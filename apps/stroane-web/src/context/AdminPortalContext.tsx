@@ -1,11 +1,11 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
-  adminOrderApi,
+  adminSessionApi,
   clearAdminSession,
   getStoredAdminSession,
   storeAdminSession,
   type AdminSession,
-} from "../api/adminOrders";
+} from "../api/adminSession";
 
 interface AdminPortalContextValue {
   session: AdminSession | null;
@@ -25,7 +25,7 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [session, setSession] = useState<AdminSession | null>(() => getStoredAdminSession());
 
   const signIn = useCallback(async (username: string, password: string) => {
-    const nextSession = await adminOrderApi.login(username, password);
+    const nextSession = await adminSessionApi.login(username, password);
     storeAdminSession(nextSession);
     setSession(nextSession);
   }, []);

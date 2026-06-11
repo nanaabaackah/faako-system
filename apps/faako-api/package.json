@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run dev:backend",
-    "dev:backend": "node ../../scripts/run-with-env-file.mjs .env.dev -- pnpm exec netlify functions:serve --offline --functions netlify/functions --port 8889",
-    "netlify": "node ../../scripts/run-with-env-file.mjs .env.dev -- pnpm exec netlify dev",
-    "server": "pnpm run netlify",
+    "dev:backend": "node ../../scripts/run-with-env-file.mjs .env.dev -- node src/server.js",
+    "server": "node src/server.js",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -17,6 +16,7 @@
     "prisma:migrate:status": "prisma migrate status"
   },
   "dependencies": {
+    "@faako/security": "workspace:*",
     "@prisma/client": "^7.3.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -35,7 +35,6 @@
     "xtend": "^4.0.2"
   },
   "devDependencies": {
-    "netlify-cli": "^23.15.1",
     "prisma": "^7.3.0"
   }
 }

@@ -72,7 +72,7 @@ export type SecurityProfileId =
   | "public-static"
   | "public-interactive"
   | "authenticated-workspace"
-  | "api-serverless";
+  | "api-service";
 
 export interface UiThemePreset {
   id: string;

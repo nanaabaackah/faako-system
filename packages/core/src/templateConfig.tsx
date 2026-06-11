@@ -30,7 +30,7 @@ interface TemplateConfigContextValue {
 
 const STORAGE_KEY = "reebs_template_config";
 const PREVIEW_KEY = `${STORAGE_KEY}_preview`;
-const TEMPLATE_CONTENT_URL = "/.netlify/functions/websiteContent?section=template&key=config";
+const TEMPLATE_CONTENT_URL = "/api/websiteContent?section=template&key=config";
 const TEMPLATE_CONTENT_SECTION = "template";
 const TEMPLATE_CONTENT_KEY = "config";
 
@@ -84,7 +84,7 @@ const fetchTemplateConfig = async (): Promise<TemplateConfig | null> => {
 };
 
 const saveTemplateConfig = async (config: TemplateConfig) => {
-  const response = await fetch("/.netlify/functions/websiteContent", {
+  const response = await fetch("/api/websiteContent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

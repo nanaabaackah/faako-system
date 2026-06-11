@@ -60,7 +60,7 @@ function AdminTimesheets() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/timesheets");
+      const res = await fetch("/api/timesheets");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load timesheets.");
       setActiveShift(data.activeShift || null);
@@ -130,7 +130,7 @@ function AdminTimesheets() {
     }
 
     try {
-      const res = await fetch("/.netlify/functions/timesheets", {
+      const res = await fetch("/api/timesheets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(coords),

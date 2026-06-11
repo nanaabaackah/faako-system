@@ -2,7 +2,7 @@ export const SECURITY_PROFILE_IDS = [
   "public-static",
   "public-interactive",
   "authenticated-workspace",
-  "api-serverless",
+  "api-service",
 ];
 
 export const AUTH_MODES = ["none", "cookie", "bearer"];
@@ -30,7 +30,7 @@ export const SECURITY_PROFILE_MATRIX = {
     requiresOriginAllowlist: true,
     allowsBrowserAuthStorage: true,
   },
-  "api-serverless": {
+  "api-service": {
     requiresHeaders: true,
     requiresOriginAllowlist: true,
     allowsBrowserAuthStorage: false,
@@ -75,7 +75,7 @@ export const normalizeSecurityProfileId = (value, fallback = "public-static") =>
 };
 
 const buildProfileContentSecurityPolicy = (profileId) => {
-  if (profileId === "api-serverless") {
+  if (profileId === "api-service") {
     return "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'";
   }
 
@@ -94,7 +94,7 @@ export const buildSecurityHeaders = ({
     ...extraHeaders,
   };
 
-  if (normalizedProfileId === "api-serverless") {
+  if (normalizedProfileId === "api-service") {
     headers["Cross-Origin-Opener-Policy"] = "same-origin";
     headers["Origin-Agent-Cluster"] = "?1";
   }
@@ -130,7 +130,7 @@ export const buildCorsHeaders = ({
 };
 
 export const buildApiSecurityHeaders = ({
-  profileId = "api-serverless",
+  profileId = "api-service",
   origin,
   allowedOrigins = [],
   methods = "GET,POST,OPTIONS",
@@ -146,7 +146,7 @@ export const buildApiSecurityHeaders = ({
 });
 
 export const createExpressSecurityHeadersMiddleware =
-  ({ profileId = "api-serverless", allowedOrigins = [], extraHeaders = {} } = {}) =>
+  ({ profileId = "api-service", allowedOrigins = [], extraHeaders = {} } = {}) =>
   (req, res, next) => {
     const origin = req?.headers?.origin;
     const forwardedProto = String(req?.headers?.["x-forwarded-proto"] || "").toLowerCase();

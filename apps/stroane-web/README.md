@@ -132,7 +132,7 @@ Stroane now keeps its browser surfaces intentionally separate:
 
 - Public storefront: `https://stroanesolutions.com` serves `/`, `/catalogue`, `/shop`, `/products`, `/products/:slug`, and informational pages with the public website layout.
 - Future customer account area: `/account`, `/orders`, and `/quotes` are safe placeholders. They do not render the operations shell and do not expose backend order data yet.
-- Internal operations portal: `https://portal.stroanesolutions.com` serves `/login`, `/admin`, `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/reports`, and `/admin/settings`. Protected routes render inside the shared `@faako/ui` ERP shell after private staff authentication.
+- Internal operations portal: `https://portal.stroanesolutions.com` serves `/login` and `/admin`. Protected routes render inside the shared `@faako/ui` ERP shell after private staff authentication. Module routes such as `/admin/products`, `/admin/inventory`, `/admin/suppliers`, `/admin/operations`, `/admin/reports`, and `/admin/settings` are reset placeholders for the next rebuild.
 
 Public sign-in actions and the legacy storefront `/signin` route redirect to `https://portal.stroanesolutions.com/login`. `/signup` remains a public placeholder. Staff login uses backend `SiteUser` auth. The old portal `/admin/signin` path redirects to `/login` for bookmark compatibility.
 
@@ -143,25 +143,13 @@ Cloudflare Pages should build two surfaces from this workspace:
 
 Storefront browsers do not fetch the lazy portal modules. Localhost keeps a combined compatibility mode when `VITE_APP_SURFACE` is blank so local development and Playwright can cover both surfaces.
 
-Private order management remains available through `/admin/operations`; the previous `/admin/orders` route is retained as a compatibility alias. It uses backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
-
-Admin order capabilities are intentionally small:
-
-- `ADMIN` and `VIEWER` accounts can view order lists/details.
-- `ADMIN` accounts can update fulfillment status, delivery method, expected delivery date, delivery notes, and internal notes.
-- Payment status cannot be changed manually. Paystack webhook verification remains the source of truth for paid status.
-- Fulfillment actions such as processing, ready, out for delivery, and completed are blocked until payment is confirmed.
-- Paystack references are masked in admin responses; raw payment metadata, provider payloads, secrets, card details, and MoMo details are not shown.
-
-The admin order fields are additive on `CommerceOrder`: `fulfillmentStatus`, `deliveryMethod`, `expectedDeliveryDate`, `adminDeliveryNotes`, `internalNotes`, `statusUpdatedAt`, and `statusUpdatedById`. This is not a delivery logistics system, CRM, stock deduction workflow, or full ERP.
+Private order management has been cleared from the portal shell for the module rebuild. `/admin/operations` and `/admin/orders` now render reset placeholders behind backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
 
 ## Internal Product And Media Operations
 
-Authenticated staff can open `/admin/products` inside the operations shell. The page reuses shared `@faako/ui` tables, fields, selects, actions, badges, and drawer patterns for searchable product review and edit-light catalogue operations.
+Authenticated staff can see product, inventory, supplier, and alert signals on the `/admin` dashboard. The dedicated `/admin/products` and `/admin/inventory` module pages are reset placeholders while the new module shape is rebuilt.
 
-`ADMIN` accounts can edit product copy, slug, SKU, price, compare-at price, currency, category, tags, thumbnail path, gallery paths, featured state, publishing state, and the preferred supplier link. `VIEWER` accounts can inspect the same operational product surface without save actions. Supplier notes remain private.
-
-Publishing uses three explicit states: `draft`, `active`, and `archived`. Public catalogue APIs return only active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
+Public catalogue APIs still return active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
 
 The checked-in browser fallback is a public outage snapshot, not a live publishing source. If an existing fallback product is archived or should no longer appear publicly, update the snapshot and redeploy Cloudflare Pages as part of that publishing change.
 
@@ -308,7 +296,7 @@ Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and m
 
 Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
 
-Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test storefront `/shop`, product detail, `/checkout`, and `/checkout/return`, plus portal `/login`, `/admin/inventory`, and `/admin/operations`, on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
+Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test storefront `/shop`, product detail, `/checkout`, and `/checkout/return`, plus portal `/login`, `/admin`, and reset module placeholders, on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
 
 ## Build And Deploy
 
@@ -322,9 +310,9 @@ pnpm --filter @faako/stroane-web start:api
 
 ## Cloudflare Pages, Railway API, And Cloudflare DNS
 
-Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/backend service, Railway Postgres for the database, and Cloudflare for DNS/domain routing. Do not rely on Netlify for the current Stroane deployment.
+Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/backend service, Railway Postgres for the database, and Cloudflare for DNS/domain routing.
 
-Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the Railway API origin without relying on a Netlify config artifact.
+Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the Railway API origin through the checked-in static header policy.
 
 Cloudflare Pages frontend settings:
 
@@ -332,17 +320,19 @@ Cloudflare Pages frontend settings:
 - Output directory: `apps/stroane-web/dist`
 - Environment variable: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 
-Railway API service command from the monorepo root:
+Railway API service command from the monorepo root with `RAILWAY_WORKSPACE=@faako/stroane-web`:
 
-- Build command: `pnpm --filter @faako/stroane-web exec prisma generate`
-- Start command: `pnpm --filter @faako/stroane-web start:api`
-- Fallback command: `pnpm --filter @faako/stroane-web server:prod`
+- Root build command: `node ./scripts/railway-service.mjs build`
+- Root start command: `node ./scripts/railway-service.mjs start`
+- Workspace build script: `pnpm --filter @faako/stroane-web exec prisma generate`
+- Workspace start script: `pnpm --filter @faako/stroane-web start:api`
+- Workspace fallback script: `pnpm --filter @faako/stroane-web server:prod`
 
 Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and `APP_ENV=production`. Do not place `DATABASE_URL` or other server-only secrets on the Cloudflare Pages frontend project. Do not place `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it.
 
 Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The API currently uses `https://stroane-api-production.up.railway.app`; `api.stroanesolutions.com` is optional future cleanup, not a requirement for this phase.
 
-Stroane no longer includes a Netlify config artifact. Cloudflare Pages uses `public/_headers`, the Railway API URL comes from `VITE_API_BASE_URL`, and local development uses the Vite proxy.
+Cloudflare Pages uses `public/_headers`, the Railway API URL comes from `VITE_API_BASE_URL`, and local development uses the Vite proxy.
 
 If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.
 

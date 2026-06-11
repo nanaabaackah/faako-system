@@ -7,10 +7,12 @@ import "@faako/ui/compat.css";
 import App from "./App.jsx";
 import appSystem from "../appSystem.js";
 import { patchOrganizationFetch } from "./utils/organization.js";
+import { initializeReebsGoogleAnalytics } from "./utils/analytics.js";
 import { syncMobileBrowserChrome } from "../../../packages/utils/src/mobileBrowserChrome";
 
 patchOrganizationFetch();
 syncMobileBrowserChrome({ fallbackColor: "#f6f7f9" });
+initializeReebsGoogleAnalytics();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

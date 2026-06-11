@@ -13,20 +13,20 @@ Main directories:
 
 - `apps/`: deployable frontends, APIs, and full-stack app shells
 - `packages/`: shared UI, theme, config, utils, types, core, security, logger, and email helpers
-- `scripts/`: stack runners, selective deploy helpers, database refresh tools, and security checks
+- `scripts/`: stack runners, workspace graph helpers, database refresh tools, and security checks
 - `docs/`: platform notes, local database refresh guidance, monorepo notes, and security reports
 
 ## Apps
 
 | Workspace package | Path | Purpose | Primary local command |
 | --- | --- | --- | --- |
-| `@faako/faako-api` | `apps/faako-api` | Faako Netlify Functions API for signup and health flows | `pnpm --filter @faako/faako-api run dev:backend` |
+| `@faako/faako-api` | `apps/faako-api` | Faako Express API for signup and health flows | `pnpm --filter @faako/faako-api run dev:backend` |
 | `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` |
 | `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
 | `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:frontend` |
 | `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
 | `@faako/dev-erp` | `apps/dev-erp` | Fully live operational ERP with real operational data | `pnpm --filter @faako/dev-erp run dev:with-backend` |
-| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and serverless contact flows | `pnpm --filter @faako/bynana-portfolio run dev` |
+| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and contact entry points | `pnpm --filter @faako/bynana-portfolio run dev` |
 | `@faako/stroane-web` | `apps/stroane-web` | Full-stack Stroane commerce app | `pnpm --filter @faako/stroane-web run dev:with-backend` |
 | `@faako/system-starter` | `apps/system-starter` | Minimal starter app for the current shared shell system | `pnpm --filter @faako/system-starter run dev` |
 | `@faako/ui-workbench` | `apps/ui-workbench` | Local playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` |
@@ -40,7 +40,7 @@ Main directories:
 | `@faako/core` | Shared auth, organization, and template-config helpers |
 | `@faako/email-kit` | Shared email rendering and theme helpers |
 | `@faako/finance` | Shared payment and receipt constants, pure helpers, and presentation utilities |
-| `@faako/logger` | Structured application logging for Node.js and serverless runtimes |
+| `@faako/logger` | Structured application logging for Node.js API services and app runtimes |
 | `@faako/layout` | Shared ERP shell layout contracts, region names, and responsive layout helpers |
 | `@faako/notifications` | Shared notification constants, customer-safe templates, and user-triggered share helpers |
 | `@faako/offline-sync` | Shared offline queue constants, local draft storage helpers, status hooks, review/recovery helpers, and passive sync UI |
@@ -99,8 +99,8 @@ pnpm build
 pnpm lint
 pnpm test
 pnpm run monitoring:check
+pnpm run hosting:check
 pnpm affected:apps -- --files <path>
-pnpm deploy:check -- <workspace-package> --files <path>
 pnpm db:refresh:local
 pnpm db:refresh:local:dry
 pnpm db:refresh:local:biweekly
@@ -117,11 +117,12 @@ pnpm security:all
 
 ## Deployment
 
-- `dev-erp` backend/server deploys through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml).
-- REEBS Portal and REEBS Website deploy as Cloudflare Pages frontends and call the REEBS API wrapper at `https://api.reebspartythemes.com`.
-- Remaining Netlify-hosted apps own their own `netlify.toml` where applicable.
-- `faako-website` mirrors `faako-api` functions during build when it serves signup endpoints itself.
-- Selective deploy checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs) and [scripts/netlify-ignore.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/netlify-ignore.mjs).
+- Static frontends deploy through Cloudflare Pages. Every Vite/static app keeps `public/_headers` and `public/_redirects` checked in for security headers and SPA fallback routing.
+- API/backend services deploy through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml), which delegates to [scripts/railway-service.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/railway-service.mjs).
+- Set `RAILWAY_WORKSPACE` on each Railway service to the workspace package, app key, or `apps/<app>` path it should run, for example `@faako/dev-erp`, `@faako/reebs-portal`, `@faako/stroane-web`, or `@faako/faako-api`.
+- Use `pnpm run hosting:check` after adding or moving apps to confirm static apps have Cloudflare files, API apps have Railway start paths, and legacy hosting artifacts are absent.
+- `faako-website` calls the dedicated Faako API through `VITE_API_BASE_URL` or the local Vite `/api` proxy during development.
+- Workspace impact checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs).
 
 ## Docs
 

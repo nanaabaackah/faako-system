@@ -55,13 +55,12 @@
 ## Cloudflare Pages/Railway deployment
 
 - Confirm Cloudflare Pages frontend build and `apps/dev-erp/dist` publish directory.
-- Do not rely on `apps/dev-erp/netlify.toml` redirects in Cloudflare Pages. Configure frontend `VITE_API_BASE` explicitly.
+- Configure frontend `VITE_API_BASE` explicitly for Cloudflare Pages.
 - For a same-site custom API hostname, confirm DNS resolves to the Railway custom-domain target and that `/healthz` returns the Railway API response before deploying the frontend value.
 - Confirm Dev ERP API monitoring uses the deployed Railway/custom API host (`DEV_ERP_API_BASE_URL` or default `https://api.dev.nanaabaackah.com`) and that `/healthz` plus `/api/public/trust-stats` return non-HTML API responses.
 - If Faako API monitoring should be active, set `FAAKO_API_BASE_URL` or `FAAKO_API_URL` to an API deployment that returns JSON from `/health`; do not use the Faako marketing website host for this API surface.
 - Confirm `RAILWAY_WEBHOOK_SECRET` is set on the Railway API service and the Railway project webhook posts to `/api/webhooks/railway` using the matching bearer token, accepted secret header, or `?secret=<secret>`.
 - Confirm Railway backend start command and repo-root `nixpacks.toml` behavior when deploying backend.
-- If the legacy Netlify frontend deploy is used, run the app-specific selective deploy check when needed: `node ./scripts/netlify-ignore.mjs @faako/dev-erp`.
 
 ## Rollback plan
 

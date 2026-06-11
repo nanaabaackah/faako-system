@@ -24,6 +24,7 @@ import {
   ErpPageContent,
   ErpShellTopbar,
   ErpStatusBadge,
+  GoogleAnalyticsRouteTracker,
   useSidebarCollapsedState,
 } from "@faako/ui";
 import {
@@ -75,6 +76,9 @@ const ErrorPage = lazy(() => import("./pages/ErrorPage/ErrorPage"));
 const NAV_SWIPE_CLOSE_THRESHOLD = 72;
 const NAV_SWIPE_VERTICAL_TOLERANCE = 72;
 const NAV_SWIPE_MIN_HORIZONTAL_DELTA = 12;
+const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
+const GOOGLE_ANALYTICS_ENABLED =
+  import.meta.env.PROD || import.meta.env.VITE_ENABLE_GA_IN_DEV === "true";
 
 const RouteFallback = () => (
   <AnimatedLoadingState
@@ -546,6 +550,10 @@ function App() {
 
   return (
     <Router>
+      <GoogleAnalyticsRouteTracker
+        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
       <TitleManager />
       <ScrollAnimationManager />
       <Suspense fallback={<RouteFallback />}>

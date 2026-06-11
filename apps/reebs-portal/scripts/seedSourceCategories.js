@@ -5,7 +5,7 @@ import {
   DEFAULT_SOURCE_CATEGORIES,
   ensureInventoryVariantSchema,
   seedDefaultSourceCategories,
-} from "../netlify/functions/_shared/inventoryExtensions.js";
+} from "../backend/functions/_shared/inventoryExtensions.js";
 
 const client = new Client({
   connectionString: DATABASE_URL,

@@ -9,7 +9,7 @@ export default {
     presetId: "faako-api",
   },
   security: {
-    profileId: "api-serverless",
+    profileId: "api-service",
     authMode: "none",
     allowedOrigins: [
       "http://localhost:5173",

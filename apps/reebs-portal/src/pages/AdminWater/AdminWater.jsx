@@ -508,7 +508,7 @@ function AdminWater() {
   }, []);
 
   const loadWater = async () => {
-    const response = await fetch("/.netlify/functions/water");
+    const response = await fetch("/api/water");
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load the water module.");
@@ -519,7 +519,7 @@ function AdminWater() {
   const loadVendors = async () => {
     setVendorError("");
     try {
-      const response = await fetch("/.netlify/functions/vendors");
+      const response = await fetch("/api/vendors");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load vendors.");
@@ -535,7 +535,7 @@ function AdminWater() {
   const loadCustomers = async () => {
     setCustomerError("");
     try {
-      const response = await fetch("/.netlify/functions/customers");
+      const response = await fetch("/api/customers");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load customers.");
@@ -570,7 +570,7 @@ function AdminWater() {
     setError("");
     setStatus("");
     try {
-      const response = await fetch("/.netlify/functions/water", {
+      const response = await fetch("/api/water", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...payload }),

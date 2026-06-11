@@ -23,7 +23,7 @@ The intake must not collect Paystack secret keys, Resend API keys, WhatsApp/SMS 
 
 ## PDF Summary
 
-The `signup` Netlify Function generates a lightweight PDF attachment server-side from sanitized intake sections. The PDF includes Faako branding, submission date/reference, the submitted business sections, a setup checklist, and a security note. It intentionally excludes integration secrets and internal-only credentials.
+The `signup` API endpoint generates a lightweight PDF attachment server-side from sanitized intake sections. The PDF includes Faako branding, submission date/reference, the submitted business sections, a setup checklist, and a security note. It intentionally excludes integration secrets and internal-only credentials.
 
 ## Email Copy Behavior
 
@@ -36,7 +36,7 @@ Non-production forwarding still honors `EMAIL_FORCE_TO` and existing preview/sta
 
 ## Submission Reliability Notes
 
-The website submits onboarding data as `application/x-www-form-urlencoded` to avoid unnecessary local cross-port CORS preflight failures while testing the Netlify Function. The backend parses structured `intake` and `setupChecklist` fields from JSON strings before validation, PDF generation, persistence, and email sending.
+The website submits onboarding data as `application/x-www-form-urlencoded` to avoid unnecessary local cross-port CORS preflight failures while testing the API endpoint. The backend parses structured `intake` and `setupChecklist` fields from JSON strings before validation, PDF generation, persistence, and email sending.
 
 The wizard also stores a local browser draft so a refresh before submission does not clear entered onboarding details. Draft data is cleared after a successful submission.
 

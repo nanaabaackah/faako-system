@@ -58,7 +58,7 @@ export default function ReceiptViewer({ receipts = [] }) {
       setLoading(true);
       setNotice(null);
       try {
-        const response = await fetch(`/.netlify/functions/orderReceipts?id=${encodeURIComponent(selectedId)}`, {
+        const response = await fetch(`/api/orderReceipts?id=${encodeURIComponent(selectedId)}`, {
           signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));

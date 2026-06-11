@@ -23,7 +23,7 @@ export default function FulfillmentPanel({ order, onUpdated }) {
     setNotice(null);
     const controller = new AbortController();
     try {
-      const response = await fetch("/.netlify/functions/orders", {
+      const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: order.id, fulfillmentStatus: status }),

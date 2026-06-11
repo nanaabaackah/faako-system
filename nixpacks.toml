@@ -9,7 +9,7 @@ cmds = [
 ]
 
 [phases.build]
-cmds = ["pnpm --filter @faako/dev-erp run db:generate"]
+cmds = ["node ./scripts/railway-service.mjs build"]
 
 [start]
-cmd = "pnpm --filter @faako/dev-erp run server:with-migrate"
+cmd = "node ./scripts/railway-service.mjs start"

@@ -6,6 +6,14 @@ import {
 } from "../data/demoScenarios.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEMO_ACCESS_MODE = String(
+  import.meta.env.VITE_FAAKO_ERP_DEMO_ACCESS_MODE || "local",
+).trim().toLowerCase();
+const DEMO_ACCESS_ENDPOINT = String(
+  import.meta.env.VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT || "/api/demo-access",
+).trim();
+const CHALLENGE_TTL_MS = 15 * 60 * 1000;
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const getApiError = (fallback) => {
   if (fallback instanceof Error && fallback.message) {
@@ -32,20 +40,82 @@ const parseApiResponse = async (response) => {
       throw new Error(payload.error);
     }
 
-    if (response.status === 404) {
-      throw new Error(
-        "The demo access API is not available in this environment yet. Use the deployed app or Netlify functions to test the email gate.",
-      );
-    }
-
     throw new Error("Unable to complete the demo access request right now.");
   }
 
   return payload;
 };
 
+const createPreviewCode = () => {
+  const randomValues = new Uint32Array(1);
+  window.crypto?.getRandomValues?.(randomValues);
+  const randomNumber = randomValues[0] || Math.floor(Math.random() * 1_000_000);
+  return String(randomNumber % 1_000_000).padStart(6, "0");
+};
+
+const encodeLocalChallenge = (payload) => window.btoa(JSON.stringify(payload));
+
+const decodeLocalChallenge = (token) => {
+  try {
+    return JSON.parse(window.atob(token));
+  } catch {
+    return null;
+  }
+};
+
+const resolveLocalDemoAccess = (payload) => {
+  const email = normalizeEmail(payload?.email);
+
+  if (!EMAIL_PATTERN.test(email)) {
+    throw new Error("Enter a valid email address to receive the access code.");
+  }
+
+  if (payload?.action === "request") {
+    const code = createPreviewCode();
+    const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS).toISOString();
+
+    return {
+      ok: true,
+      challengeToken: encodeLocalChallenge({ email, code, expiresAt }),
+      previewCode: code,
+      deliveryMode: "preview",
+      message: `Preview access code generated for ${email}.`,
+    };
+  }
+
+  if (payload?.action === "verify") {
+    const challenge = decodeLocalChallenge(String(payload?.challengeToken || ""));
+    const submittedCode = String(payload?.code || "").trim();
+
+    if (
+      !challenge ||
+      challenge.email !== email ||
+      challenge.code !== submittedCode ||
+      Date.parse(challenge.expiresAt) <= Date.now()
+    ) {
+      throw new Error("The access code is invalid or expired. Request a fresh code and try again.");
+    }
+
+    return {
+      ok: true,
+      session: {
+        email,
+        accessToken: encodeLocalChallenge({ email, grantedAt: Date.now() }),
+        grantedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
+      },
+    };
+  }
+
+  throw new Error("Unsupported demo access action.");
+};
+
 const postDemoAccess = async (payload) => {
-  const response = await fetch("/api/demo-access", {
+  if (DEMO_ACCESS_MODE === "local") {
+    return resolveLocalDemoAccess(payload);
+  }
+
+  const response = await fetch(DEMO_ACCESS_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

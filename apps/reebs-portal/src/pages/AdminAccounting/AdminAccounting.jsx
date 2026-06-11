@@ -307,7 +307,7 @@ function AdminAccounting() {
     (async () => {
       setAccountingConfigError("");
       try {
-        const result = await fetchJson("/.netlify/functions/accounting-config");
+        const result = await fetchJson("/api/accounting-config");
         if (cancelled) return;
         if (result?.balanceInputs && !balanceInputsEditedRef.current) {
           setBalanceInputs((prev) => ({ ...prev, ...result.balanceInputs }));
@@ -339,7 +339,7 @@ function AdminAccounting() {
     (async () => {
       setLegacyHistoricalError("");
       try {
-        const result = await fetchJson("/.netlify/functions/accounting-history");
+        const result = await fetchJson("/api/accounting-history");
         if (cancelled) return;
         const nextRecords = createEmptyHistoricalSalesRecordMap();
         const rows = Array.isArray(result?.years) ? result.years : [];
@@ -390,7 +390,7 @@ function AdminAccounting() {
     setError("");
     clearNotice();
     try {
-      const result = await fetchJson(`/.netlify/functions/financials?window=${key}`);
+      const result = await fetchJson(`/api/financials?window=${key}`);
       setData(result);
     } catch (err) {
       console.error("Financials failed", err);
@@ -424,10 +424,10 @@ function AdminAccounting() {
     setListError("");
     try {
       const [ordersRes, bookingsRes, documentsRes, expensesRes] = await Promise.all([
-        fetchJson("/.netlify/functions/orders?compact=1"),
-        fetchJson("/.netlify/functions/bookings?compact=1"),
-        fetchJson("/.netlify/functions/invoice-documents?compact=1"),
-        fetchJson("/.netlify/functions/expenses"),
+        fetchJson("/api/orders?compact=1"),
+        fetchJson("/api/bookings?compact=1"),
+        fetchJson("/api/invoice-documents?compact=1"),
+        fetchJson("/api/expenses"),
       ]);
       setOrders(Array.isArray(ordersRes) ? ordersRes : []);
       setBookings(Array.isArray(bookingsRes) ? bookingsRes : []);
@@ -1203,7 +1203,7 @@ function AdminAccounting() {
     setAccountingConfigError("");
 
     try {
-      const result = await fetchJson("/.netlify/functions/accounting-config", {
+      const result = await fetchJson("/api/accounting-config", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1249,7 +1249,7 @@ function AdminAccounting() {
     setCoaLoading(true);
     setCoaError("");
     try {
-      const result = await fetchJson("/.netlify/functions/accounting-coa");
+      const result = await fetchJson("/api/accounting-coa");
       setCoaAccounts(Array.isArray(result) ? result : []);
       setCoaLoaded(true);
     } catch (err) {
@@ -1265,7 +1265,7 @@ function AdminAccounting() {
     setCoaFormError("");
     setCoaFormSaving(true);
     try {
-      await fetchJson("/.netlify/functions/accounting-coa", {
+      await fetchJson("/api/accounting-coa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(coaNewForm),
@@ -1283,7 +1283,7 @@ function AdminAccounting() {
   const toggleCoaActive = async (acct) => {
     setCoaError("");
     try {
-      await fetchJson("/.netlify/functions/accounting-coa", {
+      await fetchJson("/api/accounting-coa", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: acct.id, isActive: !acct.isActive }),
@@ -1298,7 +1298,7 @@ function AdminAccounting() {
     setJournalsLoading(true);
     setJournalsError("");
     try {
-      const result = await fetchJson("/.netlify/functions/accounting-journals?limit=200");
+      const result = await fetchJson("/api/accounting-journals?limit=200");
       setJournals(Array.isArray(result) ? result : []);
       setJournalsLoaded(true);
     } catch (err) {
@@ -1313,7 +1313,7 @@ function AdminAccounting() {
     setExpandedJournalId(journalId);
     if (journalDetailCache[journalId]) return;
     try {
-      const result = await fetchJson(`/.netlify/functions/accounting-journals?id=${journalId}`);
+      const result = await fetchJson(`/api/accounting-journals?id=${journalId}`);
       setJournalDetailCache((prev) => ({ ...prev, [journalId]: result?.lines || [] }));
     } catch { /* fail silently */ }
   };
@@ -1322,7 +1322,7 @@ function AdminAccounting() {
     setJournalPosting(journalId);
     setJournalsError("");
     try {
-      await fetchJson("/.netlify/functions/accounting-journals", {
+      await fetchJson("/api/accounting-journals", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: journalId, action: "post" }),
@@ -1340,7 +1340,7 @@ function AdminAccounting() {
     setImportLoading(true);
     setImportError("");
     try {
-      const result = await fetchJson("/.netlify/functions/accounting-import");
+      const result = await fetchJson("/api/accounting-import");
       setImportBatches(Array.isArray(result) ? result : []);
     } catch (err) {
       setImportBatches([]);
@@ -1388,7 +1388,7 @@ function AdminAccounting() {
 
     setImportFormSaving(true);
     try {
-      await fetchJson("/.netlify/functions/accounting-import", {
+      await fetchJson("/api/accounting-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1417,7 +1417,7 @@ function AdminAccounting() {
     setImportPostingId(batchId);
     setImportError("");
     try {
-      await fetchJson("/.netlify/functions/accounting-import", {
+      await fetchJson("/api/accounting-import", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: batchId, action: "post" }),
@@ -1436,7 +1436,7 @@ function AdminAccounting() {
     setImportDeletingId(batchId);
     setImportError("");
     try {
-      await fetchJson("/.netlify/functions/accounting-import", {
+      await fetchJson("/api/accounting-import", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: batchId, action: "delete" }),
@@ -1454,7 +1454,7 @@ function AdminAccounting() {
     setTbLoading(true);
     setTbError("");
     try {
-      const result = await fetchJson(`/.netlify/functions/accounting-trial-balance?asOf=${asOf}&summary=true`);
+      const result = await fetchJson(`/api/accounting-trial-balance?asOf=${asOf}&summary=true`);
       setTrialBalance(result);
     } catch (err) {
       setTbError(err.message || "Unable to load trial balance.");

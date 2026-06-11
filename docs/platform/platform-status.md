@@ -14,7 +14,7 @@ REEBS Portal and Dev ERP are both live systems with real data. Any change affect
 
 ### REEBS Portal
 
-- Purpose: Authenticated REEBS admin and operations portal with Netlify Functions and Prisma backend.
+- Purpose: Authenticated REEBS admin and operations portal with Express API handlers and Prisma backend.
 - Status: Live/private beta.
 - Sensitivity: High because real authenticated users and operational data may be affected.
 
@@ -44,7 +44,7 @@ REEBS Portal and Dev ERP are both live systems with real data. Any change affect
 
 ### Faako API
 
-- Purpose: Netlify Functions backend for Faako signup and health checks.
+- Purpose: Express backend for Faako signup and health checks.
 - Status: Focused backend service for signup flow.
 - Sensitivity: High for signup data, database targeting, and website compatibility.
 
@@ -54,7 +54,7 @@ REEBS Portal and Dev ERP are both live systems with real data. Any change affect
 - Database migrations, data imports, seed scripts, and production data targeting.
 - Public signup, purchasing, payments, receipts, invoices, accounting, inventory, bookings, orders, rent, reports, email workflows, AI/productivity endpoints, and operational records.
 - Environment variables, especially secrets and browser-visible `VITE_*` values.
-- Netlify/Railway deployment configuration and frontend/backend URL pairing.
+- Cloudflare/Railway/API deployment configuration and frontend/backend URL pairing.
 - Shared ERP shell/layout foundations now live across `@faako/layout`, `@faako/ui`, `@faako/theme`, `@faako/types`, and `@faako/config`. REEBS Portal, Dev ERP, and Faako ERP use shared shell wrappers where low-risk while keeping business pages, routes, workflows, auth, and app-specific navigation behavior in each app.
 - Shared ERP form/table foundations now live in `@faako/ui` as presentation-only wrappers for low-risk form layout, field display, validation/notice messaging, action areas, read-only tables, table toolbars, pagination, loading/empty states, and status badges. Dev ERP has low-risk adoption in Settings and System Health; REEBS runtime adoption remains pending manual visual/workflow review for production-sensitive POS, payments, bookings, inventory, receipts, and offline queue surfaces.
 - Shared ERP modal/action foundations now live in `@faako/ui` as presentation-only wrappers for modal shells, drawers, confirmation dialogs, action bars, button groups, primary/secondary/danger actions, icon actions, loading states, disabled states, and Escape-key close behavior. Dev ERP Settings uses the shared action wrappers only; workflow-heavy modals remain app-owned until separate review.

@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { BrowserRouter as Router, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { GoogleAnalyticsRouteTracker } from "@faako/ui";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
 import { TemplateConfigProvider } from "./context/TemplateConfigContext";
@@ -13,6 +14,11 @@ import { faArrowRight } from "./icons/iconSet";
 import useScrollReveal from "./hooks/useScrollReveal";
 import { applySeo } from "./utils/seo";
 import { buildPortalUrl } from "./utils/portal";
+import {
+  GOOGLE_ANALYTICS_ENABLED,
+  GOOGLE_ANALYTICS_MEASUREMENT_ID,
+  hasReebsAnalyticsConsent,
+} from "./utils/analytics";
 
 const Home = lazy(() => import("./pages/Home/Home"));
 const Footer = lazy(() => import("./components/Footer/Footer"));
@@ -124,6 +130,13 @@ function App() {
       <Suspense fallback={<RouteFallback />}>
         <AppRoutes />
       </Suspense>
+    );
+    const analyticsTracker = (
+      <GoogleAnalyticsRouteTracker
+        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+        shouldTrack={hasReebsAnalyticsConsent}
+      />
     );
 
     useScrollReveal(pathname, publicScrollRef);
@@ -252,46 +265,54 @@ function App() {
     }, [isHomeRoute, isPortalRoute, location.pathname]);
 
     if (isPortalRoute) {
-      return routes;
+      return (
+        <>
+          {analyticsTracker}
+          {routes}
+        </>
+      );
     }
 
     return (
-      <div className="site-shell">
-        <div className={`main ${showShellCta ? "has-shell-cta" : ""}`} ref={publicScrollRef}>
-          <PartyConfetti className="site-shell-confetti party-confetti-rentals" />
-          <Navbar scrollContainerRef={publicScrollRef} />
-          {routes}
-          <Suspense fallback={null}>
-            <Footer />
-          </Suspense>
-          <BackToTop scrollContainerRef={publicScrollRef} />
-          <CartOverlay />
-        </div>
-        {isHomeRoute && (
-          <div className={`shell-bottom-cta ${showShellCta ? "is-visible" : ""}`} aria-hidden={!showShellCta}>
-            <div className="shell-bottom-cta-corner shell-bottom-cta-corner-left" aria-hidden="true">
-              <svg viewBox="0 0 44 44" focusable="false" role="presentation">
-                <path d="M0 0H44V44C44 19.7 40 0 0 0Z" />
-              </svg>
-            </div>
-            <div className="shell-bottom-cta-corner shell-bottom-cta-corner-right" aria-hidden="true">
-              <svg viewBox="0 0 44 44" focusable="false" role="presentation">
-                <path d="M0 0H44V44C44 19.7 40 0 0 0Z" />
-              </svg>
-            </div>
-            <Link to="/rentals" className="shell-bottom-cta-btn shell-bottom-cta-btn-book">
-              <span>Book your party</span>
-              <AppIcon icon={faArrowRight} />
-            </Link>
-            <Link to="/shop"
-              className="shell-bottom-cta-btn shell-bottom-cta-btn-dark"
-            >
-              <span>Explore our shop</span>
-              <AppIcon icon={faArrowRight} />
-            </Link>
+      <>
+        {analyticsTracker}
+        <div className="site-shell">
+          <div className={`main ${showShellCta ? "has-shell-cta" : ""}`} ref={publicScrollRef}>
+            <PartyConfetti className="site-shell-confetti party-confetti-rentals" />
+            <Navbar scrollContainerRef={publicScrollRef} />
+            {routes}
+            <Suspense fallback={null}>
+              <Footer />
+            </Suspense>
+            <BackToTop scrollContainerRef={publicScrollRef} />
+            <CartOverlay />
           </div>
-        )}
-      </div>
+          {isHomeRoute && (
+            <div className={`shell-bottom-cta ${showShellCta ? "is-visible" : ""}`} aria-hidden={!showShellCta}>
+              <div className="shell-bottom-cta-corner shell-bottom-cta-corner-left" aria-hidden="true">
+                <svg viewBox="0 0 44 44" focusable="false" role="presentation">
+                  <path d="M0 0H44V44C44 19.7 40 0 0 0Z" />
+                </svg>
+              </div>
+              <div className="shell-bottom-cta-corner shell-bottom-cta-corner-right" aria-hidden="true">
+                <svg viewBox="0 0 44 44" focusable="false" role="presentation">
+                  <path d="M0 0H44V44C44 19.7 40 0 0 0Z" />
+                </svg>
+              </div>
+              <Link to="/rentals" className="shell-bottom-cta-btn shell-bottom-cta-btn-book">
+                <span>Book your party</span>
+                <AppIcon icon={faArrowRight} />
+              </Link>
+              <Link to="/shop"
+                className="shell-bottom-cta-btn shell-bottom-cta-btn-dark"
+              >
+                <span>Explore our shop</span>
+                <AppIcon icon={faArrowRight} />
+              </Link>
+            </div>
+          )}
+        </div>
+      </>
     );
   }
 

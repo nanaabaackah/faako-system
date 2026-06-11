@@ -21,8 +21,12 @@ const TEXT_FILE_EXTENSIONS = new Set([
   ".yml",
   ".yaml",
 ]);
+const TEXT_FILE_BASENAMES = new Set([
+  "README",
+  "_headers",
+  "_redirects",
+]);
 const SKIP_DIRECTORIES = new Set([
-  ".netlify",
   ".turbo",
   "dist",
   "node_modules",
@@ -47,6 +51,14 @@ const SENSITIVE_BASENAMES = new Set([
 ]);
 const APP_DIR_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const WORKSPACE_PACKAGE_NAME_PATTERN = /^@[a-z0-9-]+\/[a-z0-9][a-z0-9-]*$/;
+const DEFAULT_CLOUDFLARE_HEADERS = `/*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: http://localhost:* ws: wss:; manifest-src 'self'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+`;
+const DEFAULT_CLOUDFLARE_REDIRECTS = "/* /index.html 200\n";
 const TITLE_WORD_OVERRIDES = new Map([
   ["api", "API"],
   ["crm", "CRM"],
@@ -174,7 +186,8 @@ const walkFiles = (directory) => {
 
 const replaceInTextFile = (filePath, replacements) => {
   const extension = path.extname(filePath).toLowerCase();
-  if (!TEXT_FILE_EXTENSIONS.has(extension) && path.basename(filePath) !== "README") {
+  const basename = path.basename(filePath);
+  if (!TEXT_FILE_EXTENSIONS.has(extension) && !TEXT_FILE_BASENAMES.has(basename)) {
     return;
   }
 
@@ -286,10 +299,53 @@ const inferTechStack = (targetDir, targetManifest) => {
   if (dependencies["@prisma/client"] || fs.existsSync(path.join(targetDir, "prisma"))) {
     stack.add("Prisma");
   }
+  if (dependencies.vite) stack.add("Cloudflare Pages-ready");
+  if (dependencies.express || fs.existsSync(path.join(targetDir, "backend", "server.js"))) {
+    stack.add("Railway-ready");
+  }
   if (dependencies["@faako/ui"]) stack.add("@faako/ui");
   if (dependencies["@faako/config"]) stack.add("@faako/config");
 
   return [...stack];
+};
+
+const isStaticCloudflareApp = (targetDir, targetManifest) => {
+  const dependencies = {
+    ...(targetManifest.dependencies || {}),
+    ...(targetManifest.devDependencies || {}),
+  };
+  const scripts = targetManifest.scripts || {};
+
+  return Boolean(
+    dependencies.vite ||
+    /vite build/.test(String(scripts.build || "")) ||
+    ["vite.config.js", "vite.config.mjs", "vite.config.ts"].some((fileName) =>
+      fs.existsSync(path.join(targetDir, fileName))
+    )
+  );
+};
+
+const ensureCloudflarePagesFiles = ({ targetDir, targetManifest }) => {
+  if (!isStaticCloudflareApp(targetDir, targetManifest)) return false;
+
+  const publicDir = path.join(targetDir, "public");
+  fs.mkdirSync(publicDir, { recursive: true });
+
+  const headersPath = path.join(publicDir, "_headers");
+  const redirectsPath = path.join(publicDir, "_redirects");
+  let changed = false;
+
+  if (!fs.existsSync(headersPath)) {
+    fs.writeFileSync(headersPath, DEFAULT_CLOUDFLARE_HEADERS);
+    changed = true;
+  }
+
+  if (!fs.existsSync(redirectsPath)) {
+    fs.writeFileSync(redirectsPath, DEFAULT_CLOUDFLARE_REDIRECTS);
+    changed = true;
+  }
+
+  return changed;
 };
 
 const formatMonorepoAppRegistryEntry = ({
@@ -465,7 +521,7 @@ const ensureProjectDocsScaffold = ({ rootDir, sourceApp, targetApp, title }) => 
 
   fs.writeFileSync(
     readmePath,
-    `# ${title}\n\nAuto-created project notes for apps/${targetApp}.\n\n- Source app: apps/${sourceApp}\n- Review branding, copy, routes, deployment URLs, screenshots, and portfolio visibility before publishing.\n- Keep client-sensitive details private until approved.\n`,
+    `# ${title}\n\nAuto-created project notes for apps/${targetApp}.\n\n- Source app: apps/${sourceApp}\n- Cloudflare Pages: keep static frontend builds pointed at the app build command and publish directory.\n- Railway: for API services, set \`RAILWAY_WORKSPACE=${targetApp}\` or \`RAILWAY_WORKSPACE=<workspace-package>\` so the root Nixpacks config starts the right app.\n- Review branding, copy, routes, deployment URLs, screenshots, and portfolio visibility before publishing.\n- Keep client-sensitive details private until approved.\n`,
   );
   return true;
 };
@@ -526,6 +582,10 @@ try {
   walkFiles(targetDir).forEach((filePath) => {
     replaceInTextFile(filePath, replacements);
   });
+  const cloudflareFilesCreated = ensureCloudflarePagesFiles({
+    targetDir,
+    targetManifest,
+  });
 
   const title = toDisplayTitle(targetApp);
   const monitoringRegistered = ensureMonorepoRegistryEntry({
@@ -566,11 +626,17 @@ try {
       ? `Created docs/apps/${targetApp}/README.md.`
       : `Skipped docs scaffold because docs/apps/${targetApp}/README.md already exists.`,
   );
+  console.log(
+    cloudflareFilesCreated
+      ? `Added Cloudflare Pages _headers/_redirects defaults to apps/${targetApp}.`
+      : `Cloudflare Pages files already present or not needed for apps/${targetApp}.`,
+  );
   console.log("Manual follow-up:");
   console.log("- Update company branding, copy, logos, and env values inside the new app.");
   console.log("- Search the new app for source-company wording and replace it intentionally.");
   console.log("- Review monitoring URLs, project description, screenshots, and portfolio visibility before publishing.");
-  console.log("- If this app mirrors another app at build time, add that relationship to workspace-links.json.");
+  console.log("- For Cloudflare Pages, set the app build command and publish directory; for Railway APIs, set RAILWAY_WORKSPACE.");
+  console.log("- If this app depends on another app at build time, add that relationship to workspace-links.json.");
   console.log("- Keep secrets only in local or hosted env settings; the clone intentionally skips env and key material.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

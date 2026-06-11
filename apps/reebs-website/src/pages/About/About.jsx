@@ -63,7 +63,7 @@ function About() {
                 if (err?.name === "AbortError") return;
                 console.error("Error loading counts:", err);
                 try {
-                    const productsRes = await fetch("/.netlify/functions/inventoryCounts", {
+                    const productsRes = await fetch("/api/inventoryCounts", {
                         signal: controller.signal,
                     });
                     if (!productsRes.ok) {

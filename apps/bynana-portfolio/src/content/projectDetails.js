@@ -150,7 +150,7 @@ export const projectDetails = [
         value:
           'Dashboard, rent, accounting, invoicing, appointments, organizations, user control, reports, audit logs, settings, system health, alerts',
       },
-      { label: 'Tools', value: 'React/Vite, Express route slices, Prisma schema + migrations, PostgreSQL, Netlify frontend proxy' },
+      { label: 'Tools', value: 'React/Vite, Express route slices, Prisma schema + migrations, PostgreSQL, Cloudflare API routing' },
     ],
     stats: [
       { value: '12', label: 'Core app modules in main navigation' },
@@ -518,20 +518,20 @@ export const projectDetails = [
     seo: {
       title: 'Projects | Kids Party Shop + Rental Portal ERP | By Nana',
       description:
-        'Case study: split kids party shop and rental business public website, admin portal, and Netlify Functions backend for bookings, inventory, accounting, delivery, HR, and operations.',
+        'Case study: split kids party shop and rental business public website, admin portal, and Express API handlers backend for bookings, inventory, accounting, delivery, HR, and operations.',
       path: '/projects/kids-party-shop-rental',
     },
     eyebrow: 'Flagship case study',
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'A live React/Vite public website for a kids party shop and rental business, paired with a dedicated admin portal and portal-owned Netlify Functions backend across POS orders, bookings, inventory, delivery, documents, accounting, maintenance, marketing, HR, and workforce management.',
+      'A live React/Vite public website for a kids party shop and rental business, paired with a dedicated admin portal and portal-owned Express API handlers backend across POS orders, bookings, inventory, delivery, documents, accounting, maintenance, marketing, HR, and workforce management.',
     heroImage: '/imgs/mockups/reebs/REEBS_2.png',
     supportingImages: ['/imgs/mockups/reebs/REEBS_3.png', '/imgs/mockups/reebs/REEBS_7.png'],
     discoveryImage: '/imgs/mockups/reebs/REEBS_5.png',
-    pills: ['Live website', 'Portal ERP', 'Netlify Functions', 'Inventory + Finance', 'Ops + HR'],
+    pills: ['Live website', 'Portal ERP', 'Express API handlers', 'Inventory + Finance', 'Ops + HR'],
     heroFacts: [
       { label: 'Deliverables', value: 'Public Website + Admin Portal ERP' },
-      { label: 'Stack', value: 'React/Vite, Netlify Functions, PostgreSQL, Prisma, Shared Workspace Packages' },
+      { label: 'Stack', value: 'React/Vite, Express API handlers, PostgreSQL, Prisma, Shared Workspace Packages' },
       { label: 'Role', value: 'Full-Stack Product Engineer' },
       { label: 'Service', value: 'Architecture + Product Delivery' },
     ],
@@ -543,7 +543,7 @@ export const projectDetails = [
         value:
           'Website pages, shop, rentals, cart, checkout, POS/order builder, bookings, orders, stock movement, invoicing, expenses, delivery, documents, maintenance, timesheets, roles, marketing, operations workflows',
       },
-      { label: 'Stack', value: 'React + Vite, Netlify Functions, PostgreSQL (Railway), Prisma schema and migrations, shared shell/runtime packages' },
+      { label: 'Stack', value: 'React + Vite, Express API handlers, PostgreSQL (Railway), Prisma schema and migrations, shared shell/runtime packages' },
     ],
     stats: [
       { value: '2 deploy targets', label: 'Public website and portal/backend split' },
@@ -562,7 +562,7 @@ export const projectDetails = [
         'THE PUBLIC WEBSITE NOW HANDS OPERATIONAL WORK TO A DEDICATED PORTAL BACKEND.',
       paragraphs: [
         'Customers move through shopping, rentals, booking, checkout, and support pages in the public website while staff and managers work from the portal admin workspace and POS/order builder.',
-        'Portal-owned Netlify Functions write to shared order, booking, inventory, delivery, document, accounting, HR, and operations services, while shared organization utilities keep requests aligned across the split apps.',
+        'Portal-owned Express API handlers write to shared order, booking, inventory, delivery, document, accounting, HR, and operations services, while shared organization utilities keep requests aligned across the split apps.',
       ],
       image: '/imgs/mockups/reebs/REEBS_1.png',
     },
@@ -573,7 +573,7 @@ export const projectDetails = [
         title: 'Architecture Diagram',
         caption: 'Public website, admin portal, portal-owned functions, data layer, shared packages, and external integrations.',
         ariaLabel:
-          'System architecture showing a kids party shop and rental business public website, admin portal, POS order builder, shared workspace packages, portal Netlify functions, PostgreSQL, WhatsApp and push notifications, and geocoding services.',
+          'System architecture showing a kids party shop and rental business public website, admin portal, POS order builder, shared workspace packages, portal API handlers, PostgreSQL, WhatsApp and push notifications, and geocoding services.',
         nodes: [
           { id: 'website', label: 'Public Website', detail: 'Shop, rentals, book, cart', x: 13, y: 18, tone: 'accent' },
           { id: 'checkout', label: 'Checkout Flow', detail: 'Customer orders', x: 43, y: 5, tone: 'light' },
@@ -880,7 +880,7 @@ export const projectDetails = [
         title: 'Platform Infrastructure and Integrations',
         image: '/imgs/mockups/reebs/REEBS_13.png',
         summary:
-          'The backend is built as portal-owned Netlify serverless functions with organization-level scoping, shared workspace utilities, and optional third-party integrations.',
+          'The backend is built as portal-owned Express API handlers with organization-level scoping, shared workspace utilities, and optional third-party integrations.',
         list: [
           'Functions layer covers auth, inventory, bookings, orders, delivery, documents, HR, marketing, maintenance, and financial services.',
           'Organization scoping supports multi-tenant-ready behavior and data isolation.',
@@ -921,7 +921,7 @@ export const projectDetails = [
       { label: 'Product', value: 'Professional portfolio and thought-leadership website' },
       { label: 'Users', value: 'Potential clients, hiring teams, and collaborators' },
       { label: 'Goal', value: 'Showcase capability through detailed case studies and clear conversion paths' },
-      { label: 'Tools', value: 'React, Vite, React Router, Custom CSS, Netlify deployment workflow' },
+      { label: 'Tools', value: 'React, Vite, React Router, Custom CSS, static deployment workflow' },
     ],
     stats: [
       { value: '5+', label: 'Featured project case studies' },

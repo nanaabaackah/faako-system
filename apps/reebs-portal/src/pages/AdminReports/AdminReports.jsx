@@ -60,7 +60,7 @@ function AdminReports() {
 
     try {
       const query = new URLSearchParams({ range });
-      const response = await fetch(`/.netlify/functions/reports?${query.toString()}`);
+      const response = await fetch(`/api/reports?${query.toString()}`);
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load reports.");

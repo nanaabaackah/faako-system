@@ -9,11 +9,8 @@ import { AdminPortalProvider } from "./context/AdminPortalContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { STOREFRONT_BASE_URL, storefrontUrl } from "./config/appSurface";
-import AdminOrders from "./pages/AdminOrders";
-import AdminInventory from "./pages/AdminInventory";
 import AdminPortalHome from "./pages/AdminPortalHome";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
-import AdminProducts from "./pages/AdminProducts";
 import AdminPortalSignIn from "./pages/AdminPortalSignIn";
 
 const StorefrontExternalRedirect: React.FC = () => {
@@ -41,11 +38,11 @@ const PortalApp: React.FC = () => (
         <Route element={<RequirePortalAccess />}>
           <Route path="/admin" element={<AdminPortalLayout />}>
             <Route index element={<AdminPortalHome />} />
-            <Route path="inventory" element={<AdminInventory initialTab="inventory" />} />
-            <Route path="suppliers" element={<AdminInventory initialTab="suppliers" />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="operations" element={<AdminOrders />} />
-            <Route path="orders" element={<AdminOrders />} />
+            <Route path="inventory" element={<AdminPortalPlaceholder area="inventory" />} />
+            <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />
+            <Route path="products" element={<AdminPortalPlaceholder area="products" />} />
+            <Route path="operations" element={<AdminPortalPlaceholder area="operations" />} />
+            <Route path="orders" element={<AdminPortalPlaceholder area="operations" />} />
             <Route path="reports" element={<AdminPortalPlaceholder area="reports" />} />
             <Route path="settings" element={<AdminPortalPlaceholder area="settings" />} />
           </Route>

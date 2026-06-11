@@ -138,7 +138,6 @@ const mockData = async (page: Page) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
   };
 
-  await page.route('**/.netlify/functions/**', fulfillApiFixture);
   await page.route('**/api/**', fulfillApiFixture);
   await page.route('**/v6.exchangerate-api.com/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stubRates) })

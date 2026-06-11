@@ -211,17 +211,17 @@ export const blogPostDetails = [
     seo: {
       title: 'Kids Party Shop + Rental Launch Recap | By Nana',
       description:
-        'Launch recap for a kids party shop and rental business public website, admin portal, and Netlify Functions ERP backend spanning commerce, bookings, finance, and operations.',
+        'Launch recap for a kids party shop and rental business public website, admin portal, and Express API handlers ERP backend spanning commerce, bookings, finance, and operations.',
       path: '/blog/kids-party-shop-rental',
     },
     eyebrow: 'Launch recap',
     title: 'Kids party shop and rental business: live website + portal ERP',
     summary:
-      'A live React/Vite storefront now works with a dedicated portal and Netlify Functions backend for inventory, bookings, delivery, accounting, and operations.',
+      'A live React/Vite storefront now works with a dedicated portal and Express API handlers backend for inventory, bookings, delivery, accounting, and operations.',
     tags: ['Full-stack', 'E-commerce', 'ERP'],
     quickFacts: [
       { label: 'Format', value: 'Launch recap' },
-      { label: 'Stack', value: 'React/Vite, Netlify Functions, PostgreSQL' },
+      { label: 'Stack', value: 'React/Vite, Express API handlers, PostgreSQL' },
       { label: 'Outcome', value: 'Live website + portal ERP' },
     ],
     sections: [
@@ -231,7 +231,7 @@ export const blogPostDetails = [
         list: [
           'Public website stays focused on shopping, rentals, booking, checkout, and policy content.',
           'POS/order builder gives staff a faster path for in-store sales while staying tied to inventory and order records.',
-          'Portal app owns admin workflows, Netlify Functions, Prisma migrations, and operational data.',
+          'Portal app owns admin workflows, Express API handlers, Prisma migrations, and operational data.',
           'Shared organization/auth helpers keep website and portal requests aligned without collapsing app ownership.',
           'Future camera scanning is planned for quicker item lookup at the point of sale.',
         ],

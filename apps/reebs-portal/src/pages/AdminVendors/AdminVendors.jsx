@@ -105,7 +105,7 @@ function AdminVendors() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/vendors");
+      const res = await fetch("/api/vendors");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load vendors.");
       setVendors(Array.isArray(data) ? data : []);
@@ -227,7 +227,7 @@ function AdminVendors() {
     }
 
     try {
-      const res = await fetch("/.netlify/functions/vendors", {
+      const res = await fetch("/api/vendors", {
         method: activeVendor ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -250,7 +250,7 @@ function AdminVendors() {
     setError("");
     setStatus("");
     try {
-      const res = await fetch("/.netlify/functions/vendors", {
+      const res = await fetch("/api/vendors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

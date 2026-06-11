@@ -16,7 +16,7 @@ A remaining architectural risk is that several Reebs frontend features read `VIT
 - Evidence: tracked `.env` files contained a live `DATABASE_URL`, and `apps/faako-api/.env` also contained a live `RESEND_API_KEY`
 - Impact: anyone with repo access could reuse the database credential and mail API key; if these files were pushed remotely, the secrets should be treated as compromised
 - Fix: real `.env` files are now ignored, sanitized examples were added, and the tracked `.env` files should be removed from version control
-- Mitigation: rotate the exposed database password and Resend API key immediately; review Netlify and database audit logs
+- Mitigation: rotate the exposed database password and Resend API key immediately; review hosted API and database audit logs
 - False positive notes: none; these were concrete credential values, not placeholders
 
 ## Medium Findings
@@ -28,7 +28,7 @@ A remaining architectural risk is that several Reebs frontend features read `VIT
 - Location: [apps/reebs-portal/src/components/CartContext/CartContext.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-portal/src/components/CartContext/CartContext.jsx):40, [apps/reebs-portal/src/components/CurrencyContext/CurrencyContext.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-portal/src/components/CurrencyContext/CurrencyContext.jsx):31, [apps/reebs-portal/src/components/Map/Map.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-portal/src/components/Map/Map.jsx):60, [apps/reebs-portal/src/pages/AdminScheduler/AdminScheduler.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-portal/src/pages/AdminScheduler/AdminScheduler.jsx):237, [apps/reebs-website/src/components/CartContext/CartContext.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-website/src/components/CartContext/CartContext.jsx):40, [apps/reebs-website/src/components/CurrencyContext/CurrencyContext.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-website/src/components/CurrencyContext/CurrencyContext.jsx):31, [apps/reebs-website/src/components/Map/Map.jsx](/Users/Nana/Desktop/Developer/faako-new/apps/reebs-website/src/components/Map/Map.jsx):60
 - Evidence: browser code reads `import.meta.env.VITE_CURRENCY_API_KEY`, `VITE_EXCHANGE_API_KEY`, and `VITE_GOOGLE_MAPS_KEY`
 - Impact: any real value assigned to those variables is exposed to end users in the built frontend; unrestricted third-party API keys can be abused
-- Fix: move sensitive third-party calls behind Netlify/server functions, or use provider-issued publishable keys with strict domain and API restrictions
+- Fix: move sensitive third-party calls behind server-side API handlers, or use provider-issued publishable keys with strict domain and API restrictions
 - Mitigation: verify Google Maps keys are HTTP-referrer restricted; verify exchange-rate keys are intended for public-browser use or replace them with server-side proxies
 - False positive notes: no live key values were committed in this repo for these variables
 

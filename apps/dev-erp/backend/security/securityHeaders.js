@@ -2,7 +2,7 @@ import { createExpressSecurityHeadersMiddleware as createSharedSecurityHeadersMi
 
 export const createSecurityHeadersMiddleware = () =>
   createSharedSecurityHeadersMiddleware({
-    profileId: "api-serverless",
+    profileId: "api-service",
     extraHeaders: {
       "Referrer-Policy": "no-referrer",
       "X-DNS-Prefetch-Control": "off",

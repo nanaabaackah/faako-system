@@ -91,7 +91,7 @@ function AdminAuditLogs() {
 
     try {
       const query = buildQuery(filters);
-      const response = await fetch(`/.netlify/functions/auditLogs${query ? `?${query}` : ""}`);
+      const response = await fetch(`/api/auditLogs${query ? `?${query}` : ""}`);
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load audit logs.");

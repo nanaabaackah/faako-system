@@ -734,7 +734,7 @@ function AdminBookings() {
     runSupportLoader(
       "products",
       async () => {
-        const response = await fetch("/.netlify/functions/inventory");
+        const response = await fetch("/api/inventory");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch products (${response.status}).`);
@@ -755,7 +755,7 @@ function AdminBookings() {
     runSupportLoader(
       "customers",
       async () => {
-        const response = await fetch("/.netlify/functions/customers?compact=1");
+        const response = await fetch("/api/customers?compact=1");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch customers (${response.status}).`);
@@ -769,7 +769,7 @@ function AdminBookings() {
     runSupportLoader(
       "bouncyCastles",
       async () => {
-        const response = await fetch("/.netlify/functions/bouncy_castles");
+        const response = await fetch("/api/bouncy_castles");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch bouncy castles (${response.status}).`);
@@ -783,7 +783,7 @@ function AdminBookings() {
     runSupportLoader(
       "deliveries",
       async () => {
-        const response = await fetch("/.netlify/functions/deliveries");
+        const response = await fetch("/api/deliveries");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch deliveries (${response.status}).`);
@@ -797,7 +797,7 @@ function AdminBookings() {
     runSupportLoader(
       "expenses",
       async () => {
-        const response = await fetch("/.netlify/functions/expenses");
+        const response = await fetch("/api/expenses");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch expenses (${response.status}).`);
@@ -815,7 +815,7 @@ function AdminBookings() {
     requestCancelRef.current = createAbortController();
     
     try {
-      const response = await fetch(`/.netlify/functions/bookings?id=${bookingId}`, {
+      const response = await fetch(`/api/bookings?id=${bookingId}`, {
         signal: requestCancelRef.current?.signal,
       });
       const payload = await parseJsonResponse(response);
@@ -865,10 +865,10 @@ function AdminBookings() {
     setLoading(true);
     setError("");
     try {
-      const requests = [fetch("/.netlify/functions/bookings?compact=1")];
+      const requests = [fetch("/api/bookings?compact=1")];
       if (canManageBookings) {
-        requests.push(fetch("/.netlify/functions/users"));
-        requests.push(fetch("/.netlify/functions/invoice-documents?compact=1"));
+        requests.push(fetch("/api/users"));
+        requests.push(fetch("/api/invoice-documents?compact=1"));
       }
       const responses = await Promise.all(requests);
       const payloads = await Promise.all(responses.map((response) => parseJsonResponse(response)));
@@ -1404,7 +1404,7 @@ function AdminBookings() {
     setDetailExpenseError("");
 
     try {
-      const response = await fetch("/.netlify/functions/expenses", {
+      const response = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1561,7 +1561,7 @@ function AdminBookings() {
     try {
       const queuedPayload = queueItem.payload || {};
       const endpoint = queuedPayload.endpoint || {};
-      const response = await fetch(endpoint.path || "/.netlify/functions/bookings", {
+      const response = await fetch(endpoint.path || "/api/bookings", {
         method: endpoint.method || "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1766,7 +1766,7 @@ function AdminBookings() {
     setCustomerCreating(true);
     setSaveError("");
     try {
-      const response = await fetch("/.netlify/functions/customers", {
+      const response = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: customerName }),
@@ -2027,7 +2027,7 @@ function AdminBookings() {
         customerId,
         isEdit,
       });
-      const response = await fetch("/.netlify/functions/bookings", {
+      const response = await fetch("/api/bookings", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingPayload),
@@ -2116,7 +2116,7 @@ function AdminBookings() {
     setDetailBooking((prev) => (prev && prev.id === booking.id ? { ...prev, status: nextStatus } : prev));
     
     try {
-      const response = await fetch("/.netlify/functions/bookings", {
+      const response = await fetch("/api/bookings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

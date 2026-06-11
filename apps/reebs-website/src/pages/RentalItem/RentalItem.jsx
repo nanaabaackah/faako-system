@@ -196,7 +196,7 @@ function RentalItem() {
   }, []);
 
   useEffect(() => {
-    fetch("/.netlify/functions/bouncy_castles")
+    fetch("/api/bouncy_castles")
       .then((res) => res.json())
       .then((data) => {
         setBouncyTypes(Array.isArray(data) ? data : []);

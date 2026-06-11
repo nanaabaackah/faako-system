@@ -6,7 +6,7 @@ Reebs is a hybrid ERP + ecommerce site built with React and Vite. The frontend i
 - Checkout + booking flows (Cart, Checkout, Book)
 - Admin console (inventory, orders, bookings, accounting, HR, etc.)
 
-The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythemes.com`. Legacy `/.netlify/functions/*` browser calls are translated by `patchOrganizationFetch()` during the Cloudflare/API migration.
+The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythemes.com`. Legacy `/api/*` browser calls are translated by `patchOrganizationFetch()` during the Cloudflare/API migration.
 
 ## Stack
 - React 19 + Vite
@@ -77,7 +77,7 @@ Protected routes use `RequireAuth` in `src/App.jsx`. Some admin routes are block
 ### AuthContext
 Location: `src/components/AuthContext.jsx`
 - Stores the logged-in user and token in localStorage or sessionStorage.
-- `login(email, password, remember)` calls `/.netlify/functions/login` and stores token.
+- `login(email, password, remember)` calls `/api/login` and stores token.
 - `logout()` clears stored user and token.
 - `updateUser()` merges profile updates and keeps token.
 
@@ -94,7 +94,7 @@ Location: `src/components/CurrencyContext.jsx`
 
 ## API Integration
 All API calls should resolve through `/api/*` on the configured API base.
-- `patchOrganizationFetch()` automatically maps legacy `/.netlify/functions/*` paths to `/api/*`, includes credentials, and adds `x-organization-id` and `Authorization` headers if present.
+- `patchOrganizationFetch()` automatically maps legacy `/api/*` paths to `/api/*`, includes credentials, and adds `x-organization-id` and `Authorization` headers if present.
 - Auth token is stored in `window.__reebsAuthToken` and local/session storage.
 - Set `VITE_API_BASE_URL` to override the API host (production: `https://api.reebspartythemes.com`). `VITE_BACKEND_BASE_URL` is a legacy fallback.
 
@@ -105,7 +105,7 @@ Caching:
 ## Key User Flows
 ### Shop
 Location: `src/pages/Shop.jsx`
-- Fetches inventory from `/.netlify/functions/inventory`.
+- Fetches inventory from `/api/inventory`.
 - Filters out rental items by inventory product code.
 - Supports search, category filters, in-stock toggle, pagination, and a featured carousel.
 - Requires auth state to be ready and authenticated before it loads inventory.
@@ -116,8 +116,8 @@ Location: `src/pages/Shop.jsx`
 
 ### Checkout
 Location: `src/pages/Checkout.jsx`
-- Creates or finds customer via `/.netlify/functions/customers`.
-- Submits order to `/.netlify/functions/createOrder` (manual payment flow).
+- Creates or finds customer via `/api/customers`.
+- Submits order to `/api/createOrder` (manual payment flow).
 - Persists checkout draft in localStorage.
 - Does not process payments; it records intent and order details.
 
@@ -126,8 +126,8 @@ Sequence diagram (checkout):
 sequenceDiagram
   participant User
   participant UI as Checkout Page
-  participant CustomersAPI as /.netlify/functions/customers
-  participant OrdersAPI as /.netlify/functions/createOrder
+  participant CustomersAPI as /api/customers
+  participant OrdersAPI as /api/createOrder
   participant DB as Postgres
   participant Notify as WhatsApp/Push
 
@@ -146,8 +146,8 @@ sequenceDiagram
 
 ### Rentals Booking
 Location: `src/pages/Book.jsx`
-- Loads rentals from `/.netlify/functions/inventory` and bouncy castle metadata from `/.netlify/functions/bouncy_castles`.
-- Validates booking form, adds bundle discounts, and posts to `/.netlify/functions/bookings`.
+- Loads rentals from `/api/inventory` and bouncy castle metadata from `/api/bouncy_castles`.
+- Validates booking form, adds bundle discounts, and posts to `/api/bookings`.
 - Uses localStorage to save draft bookings.
 
 Sequence diagram (booking):
@@ -155,8 +155,8 @@ Sequence diagram (booking):
 sequenceDiagram
   participant User
   participant UI as Booking Page
-  participant CustomersAPI as /.netlify/functions/customers
-  participant BookingsAPI as /.netlify/functions/bookings
+  participant CustomersAPI as /api/customers
+  participant BookingsAPI as /api/bookings
   participant DB as Postgres
   participant Notify as WhatsApp/Push
 
@@ -179,20 +179,20 @@ Location: `src/pages/Login.jsx`
 
 ## Admin Console Modules
 Each admin page consumes a focused API endpoint:
-- Inventory: `/.netlify/functions/inventory`, `/.netlify/functions/stock`, `/.netlify/functions/stockActivity`
-- Orders: `/.netlify/functions/orders`, `/.netlify/functions/createOrder`
-- Bookings: `/.netlify/functions/bookings`, `/.netlify/functions/customers`
-- Scheduler: `/.netlify/functions/bookings` + inventory and customer lookups
-- Accounting/Financials: `/.netlify/functions/financials`, `/.netlify/functions/orders`, `/.netlify/functions/bookings`
-- Expenses: `/.netlify/functions/expenses`
-- HR: `/.netlify/functions/hr`
-- Documents + Invoicing: `/.netlify/functions/documents`, `/.netlify/functions/generateInvoice`, `/.netlify/functions/getInvoiceDetails`
-- Timesheets: `/.netlify/functions/timesheets`
-- Vendors: `/.netlify/functions/vendors`
-- Maintenance: `/.netlify/functions/maintenance`
-- Delivery: `/.netlify/functions/deliveries`
-- Marketing/Discounts: `/.netlify/functions/marketing`
-- Dashboard KPIs: `/.netlify/functions/orderStats`, `/.netlify/functions/userStats`
+- Inventory: `/api/inventory`, `/api/stock`, `/api/stockActivity`
+- Orders: `/api/orders`, `/api/createOrder`
+- Bookings: `/api/bookings`, `/api/customers`
+- Scheduler: `/api/bookings` + inventory and customer lookups
+- Accounting/Financials: `/api/financials`, `/api/orders`, `/api/bookings`
+- Expenses: `/api/expenses`
+- HR: `/api/hr`
+- Documents + Invoicing: `/api/documents`, `/api/generateInvoice`, `/api/getInvoiceDetails`
+- Timesheets: `/api/timesheets`
+- Vendors: `/api/vendors`
+- Maintenance: `/api/maintenance`
+- Delivery: `/api/deliveries`
+- Marketing/Discounts: `/api/marketing`
+- Dashboard KPIs: `/api/orderStats`, `/api/userStats`
 
 ## UI and Styling
 - Global styles: `src/index.css`, `src/styles/reset.css`.
@@ -206,7 +206,7 @@ Each admin page consumes a focused API endpoint:
 
 ## Local Development
 - Frontend only: `npm run dev`
-- Full stack with Netlify functions: `npm run netlify`
+- Full stack with API handlers: `pnpm run dev:reebs`
 
 ## Environment Variables (Frontend)
 - `VITE_CURRENCY_API_KEY` for CartContext exchange rates.

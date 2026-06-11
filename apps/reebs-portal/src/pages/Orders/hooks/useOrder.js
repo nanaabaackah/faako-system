@@ -17,7 +17,7 @@ export default function useOrder(orderId) {
     const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
-    return fetch(`/.netlify/functions/orders?id=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
+    return fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {

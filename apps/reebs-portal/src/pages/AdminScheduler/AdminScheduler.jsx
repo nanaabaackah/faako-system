@@ -263,7 +263,7 @@ function AdminScheduler() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/.netlify/functions/bookings");
+      const response = await fetch("/api/bookings");
       const text = await response.text();
       const payload = (() => {
         try {
@@ -343,8 +343,8 @@ function AdminScheduler() {
 
   const fetchSupportData = async () => {
     const [customersRes, inventoryRes] = await Promise.all([
-      fetch("/.netlify/functions/customers"),
-      fetch("/.netlify/functions/inventory"),
+      fetch("/api/customers"),
+      fetch("/api/inventory"),
     ]);
 
     const customersText = await customersRes.text();
@@ -520,7 +520,7 @@ function AdminScheduler() {
 
     setBookingSaving(true);
     try {
-      const response = await fetch("/.netlify/functions/bookings", {
+      const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -684,7 +684,7 @@ function AdminScheduler() {
       return { ok: true, address: cleaned, coords: cachedValue, cached: true };
     }
 
-    const response = await fetch("/.netlify/functions/geocode", {
+    const response = await fetch("/api/geocode", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: cleaned }),

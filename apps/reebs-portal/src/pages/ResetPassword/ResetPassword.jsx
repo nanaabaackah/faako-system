@@ -47,7 +47,7 @@ function ResetPassword() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/.netlify/functions/resetPassword", {
+      const response = await fetch("/api/resetPassword", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -7,16 +7,16 @@
 ## Environment affected
 
 - Identify local, preview, staging, or production.
-- Confirm Netlify API site, database URL source, and whether Faako Website will mirror these functions.
+- Confirm API host, database URL source, and whether Faako Website points at the intended API origin.
 
 ## Auth and roles
 
-- Confirm public API functions expose only intended behavior.
-- Verify any future protected functions have explicit server-side auth.
+- Confirm public API endpoints expose only intended behavior.
+- Verify any future protected endpoints have explicit server-side auth.
 
 ## API permissions
 
-- Verify function routing, allowed methods, validation, and response shape.
+- Verify endpoint routing, allowed methods, validation, and response shape.
 - Confirm error responses do not leak secrets, stack traces, or database details.
 
 ## Database/data loss risk
@@ -45,16 +45,15 @@
 - Keep `EXPOSE_DEBUG_ERRORS=false` outside local debugging.
 - Do not use `VITE_*` values in this backend-only package.
 
-## Netlify/Railway deployment
+## API Deployment
 
-- Confirm Netlify config, function directory, static publish folder, and Prisma deploy command.
-- Railway is not the primary deployment target for this API unless a future hosting change is introduced.
+- Confirm Node/Express start command, API host, migration command, and Prisma deploy command.
 
 ## Rollback plan
 
-- Identify previous known-good Netlify API deploy.
+- Identify previous known-good API deploy.
 - Document whether migrations require rollback, restore, or forward-fix.
-- Coordinate with Faako Website if mirrored functions or API behavior changed.
+- Coordinate with Faako Website if API behavior changed.
 
 ## Manual testing
 
@@ -66,4 +65,4 @@
 
 - Confirm deployed `health` responds.
 - Confirm signup flow works through the intended website/API path.
-- Check function logs for validation, database, or unexpected runtime errors.
+- Check API logs for validation, database, or unexpected runtime errors.

@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppBottomBar, ErpPageContent, ErpShellFrame } from "@faako/ui";
+import { AppBottomBar, ErpPageContent, ErpShellFrame, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
@@ -30,6 +30,11 @@ import {
   normalizeAdminRole,
   roleMatchesAllowedRoles,
 } from "./utils/adminAccess";
+import {
+  GOOGLE_ANALYTICS_ENABLED,
+  GOOGLE_ANALYTICS_MEASUREMENT_ID,
+  hasReebsAnalyticsConsent,
+} from "./utils/analytics";
 
 const PortalSidebar = lazy(() => import("./components/PortalSidebar/PortalSidebar"));
 const AdminBottomNav = lazy(() => import("./components/AdminBottomNav/AdminBottomNav"));
@@ -579,11 +584,19 @@ function AppLayout() {
       <AppRoutes />
     </Suspense>
   );
+  const analyticsTracker = (
+    <GoogleAnalyticsRouteTracker
+      measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+      enabled={GOOGLE_ANALYTICS_ENABLED}
+      shouldTrack={hasReebsAnalyticsConsent}
+    />
+  );
 
   if (isAdminRoute) {
     if (!authReady) {
       return (
         <>
+          {analyticsTracker}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -595,6 +608,7 @@ function AppLayout() {
     if (!user) {
       return (
         <>
+          {analyticsTracker}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -606,6 +620,7 @@ function AppLayout() {
     if (isStoreModeRoute) {
       return (
         <>
+          {analyticsTracker}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -623,6 +638,7 @@ function AppLayout() {
 
     return (
       <>
+        {analyticsTracker}
         <Helmet>
           <title>{pageTitle}</title>
         </Helmet>
@@ -655,6 +671,7 @@ function AppLayout() {
 
   return (
     <>
+      {analyticsTracker}
       <Helmet>
         <title>{pageTitle}</title>
       </Helmet>

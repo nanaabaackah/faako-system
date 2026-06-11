@@ -16,7 +16,7 @@ The strongest cleanup opportunities are:
 - Legacy or candidate-unused components that should be verified with static analysis before removal.
 - Module overlap already documented in consolidation plans, especially Finance, Customers/CRM, Bookings/Rentals/Schedule, Settings/Admin/Advanced, and Team/User/HR areas.
 
-Generated/runtime folders such as `.netlify`, `dist`, `node_modules`, and generated Prisma clients should stay out of cleanup line-count decisions. They appeared in broad scans and were excluded from source-focused findings.
+Generated/runtime folders such as `dist`, `node_modules`, and generated Prisma clients should stay out of cleanup line-count decisions. They appeared in broad scans and were excluded from source-focused findings.
 
 ## Files Reviewed
 
@@ -47,7 +47,7 @@ The audit reviewed source and documentation structure across:
 
 Reference scans included:
 
-- Source line-count scan for `*.js`, `*.jsx`, `*.ts`, `*.tsx`, and `*.css`, excluding `node_modules`, `dist`, `.netlify`, `.turbo`, and generated Prisma clients.
+- Source line-count scan for `*.js`, `*.jsx`, `*.ts`, `*.tsx`, and `*.css`, excluding `node_modules`, `dist`, `.turbo`, and generated Prisma clients.
 - CSS selector scans for repeated `panel`, `card`, `glass-card`, `button`, `btn`, `status-pill`, `data-table`, `table-row`, `admin-modal`, `modal`, `input`, `page-header`, and `section-header` patterns.
 - Helper scans for `formatCurrency`, `Intl.NumberFormat`, `toLocaleDateString`, `toLocaleString`, date/status labels, payment method labels, receipt formatting, `mailto:`, WhatsApp links, clipboard usage, and API/fetch helpers.
 - Shared package usage scans for `@faako/ui`, `@faako/config`, `@faako/finance`, `@faako/offline-sync`, `@faako/notifications`, `@faako/core`, `@faako/security`, `@faako/logger`, `@faako/email-kit`, `@faako/types`, and `@faako/utils`.
@@ -90,7 +90,7 @@ Safe cleanup candidates:
 
 High-risk cleanup candidates:
 
-- POS order creation, order payment recording, receipt generation, booking creation/status changes, stock adjustments, inventory reservation/deduction, auth/session handling, role checks, Netlify Functions, Prisma migrations, and offline sync processing.
+- POS order creation, order payment recording, receipt generation, booking creation/status changes, stock adjustments, inventory reservation/deduction, auth/session handling, role checks, API handlers, Prisma migrations, and offline sync processing.
 
 ### Dev ERP
 
@@ -147,7 +147,7 @@ Findings:
 
 - `Home.css`, `global.css`, `Solutions.css`, `Pricing.css`, `ModuleConfig.css`, `CaseStudies.css`, and `Auth.css` repeat button, card, section-header, CTA, form, and responsive layout patterns.
 - `Home.jsx`, `Signup.jsx`, `Pricing.jsx`, `ModuleConfig.jsx`, and related page CSS are candidates for future page-section extraction.
-- Signup behavior is coupled to either dedicated Faako API deployment or mirrored Netlify functions. Cleanup must preserve that deployment topology.
+- Signup behavior is coupled to the dedicated Faako API deployment. Cleanup must preserve that deployment topology.
 - Public pricing/copy UI cleanup should include content review, not only code movement.
 
 Safe cleanup candidates:
@@ -177,7 +177,7 @@ Safe cleanup candidates:
 
 High-risk cleanup candidates:
 
-- Database targeting, signup persistence, runtime config, production database guards, and Netlify deployment behavior.
+- Database targeting, signup persistence, runtime config, production database guards, and hosted API deployment behavior.
 
 ### Faako ERP, System Starter, UI Workbench
 
@@ -201,7 +201,7 @@ Risk level: Medium for public commerce/booking UI, High for any shared backend o
 Findings:
 
 - REEBS Website duplicates many components and styles with REEBS Portal: `admin.css`, `public.css`, `global.css`, Navbar, Footer, CartOverlay, PortalSidebar, booking/shop/checkout UI, and cart/SEO utilities.
-- Some `.netlify/functions-serve` scan results are runtime/generated copies and should not be treated as source refactor candidates.
+- Runtime/generated scan results should not be treated as source refactor candidates.
 - Public booking/checkout/rental flows overlap with REEBS Portal data concepts but should not be merged without a customer-facing workflow review.
 
 Safe cleanup candidates:
@@ -270,7 +270,7 @@ These are candidates only. Do not delete without a static analysis pass, build v
 
 - `apps/*/dist`
 - `apps/*/node_modules`
-- `apps/*/.netlify`
+- generated runtime folders
 - `apps/reebs-portal/prisma/generated`
 
 If any of these are tracked, fix ignore/tracking policy in a separate safe cleanup task. Do not delete local runtime folders as part of feature cleanup.
@@ -371,7 +371,7 @@ Recommended cleanup:
 
 Risk: Medium to High.
 
-Dev ERP has a shared API client for authenticated routes. REEBS Portal still uses many direct Netlify Function `fetch` calls. Stroane has product/auth/user fetch paths. Faako Website has signup fetch behavior.
+Dev ERP has a shared API client for authenticated routes. REEBS Portal still uses many direct API handler `fetch` calls. Stroane has product/auth/user fetch paths. Faako Website has signup fetch behavior.
 
 Recommended cleanup:
 
@@ -483,7 +483,7 @@ Avoid for now:
 
 - Add cleanup conventions and route/module ownership notes to docs.
 - Add or update README sections for existing shared package boundaries.
-- Create an endpoint map for REEBS Netlify Functions and Dev ERP Express routes.
+- Create an endpoint map for REEBS API handlers and Dev ERP Express routes.
 - Confirm candidate-unused files with static analysis and imports search.
 - Add visual snapshot checklist before CSS cleanup.
 - Consolidate display-only currency/date/status helpers behind app-level wrappers.
@@ -560,7 +560,7 @@ Completed low-risk cleanup:
 - REEBS Portal: removed confirmed unused icon imports in sidebar/navigation code.
 - REEBS Portal: removed obsolete `no-unused-vars` eslint-disable comments from Orders List and Store Mode.
 - REEBS Portal: replaced a catalog media control-character regex with an equivalent helper to avoid source lint errors while preserving URL safety intent.
-- REEBS Portal: excluded `.netlify` and generated Prisma output from ESLint scans so generated/runtime files do not dominate cleanup signals.
+- REEBS Portal: excluded generated Prisma output from ESLint scans so generated/runtime files do not dominate cleanup signals.
 - Dev ERP: removed an unused Dashboard catch binding.
 - Dev ERP: stabilized the Settings Sync Review refresh callback dependency used by local retry/cancel/resolve controls.
 

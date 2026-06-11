@@ -114,7 +114,7 @@ function Login({ mode = "staff" }) {
 
     setForgotSubmitting(true);
     try {
-      const response = await fetch("/.netlify/functions/forgotPassword", {
+      const response = await fetch("/api/forgotPassword", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

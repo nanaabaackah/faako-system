@@ -141,7 +141,7 @@ Backend/API enforcement is still required later. These components do not block w
 
 ## Documentation Gaps
 
-- API-level maintenance/read-only enforcement needs a future runbook for `faako-api`, Dev ERP backend, REEBS Netlify Functions, and Stroane backend if deployed.
+- API-level maintenance/read-only enforcement needs a future runbook for `faako-api`, Dev ERP backend, REEBS API handlers, and Stroane backend if deployed.
 - Each app still needs an acceptance checklist for how maintenance/read-only/degraded mode should appear in its own brand and routes.
 - Dev ERP monitoring would benefit from a health-check registry that validates URLs and expected status endpoints before deployment.
 

@@ -40,7 +40,7 @@ const experience = [
 const projectHighlights = [
   {
     name: 'Kids Party Shop + Rental Portal ERP',
-    stack: 'React/Vite · Netlify Functions · PostgreSQL · Prisma',
+    stack: 'React/Vite · Express API · PostgreSQL · Prisma',
     summary: 'Split public storefront and admin portal/backend for POS orders, bookings, inventory, finance, fulfillment, and staff operations.',
     image: '/imgs/projects/dashboard-case.png',
     href: '/projects/kids-party-shop-rental',

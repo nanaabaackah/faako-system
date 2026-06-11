@@ -5,11 +5,10 @@ import express from "express";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildResponseHeaders } from "../netlify/functions/_shared/http.js";
+import { buildResponseHeaders } from "./functions/_shared/http.js";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
-const appRoot = path.resolve(backendDir, "..");
-const functionsDir = path.join(appRoot, "netlify", "functions");
+const functionsDir = path.join(backendDir, "functions");
 const FUNCTION_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const PORT = Number(process.env.PORT || process.env.REEBS_API_PORT || 8888);
 
@@ -96,7 +95,7 @@ const createEvent = (req, functionName = "") => {
   return {
     httpMethod: req.method,
     headers,
-    path: `/.netlify/functions/${functionName}`,
+    path: `/api/${functionName}`,
     rawUrl: new URL(req.originalUrl || req.url || "/", getRequestBaseUrl(req)).toString(),
     body,
     isBase64Encoded: false,
@@ -173,7 +172,7 @@ export const createReebsApiServer = () => {
     sendJson(req, res, 200, {
       ok: true,
       service: "reebs-api",
-      adapter: "netlify-function-compat",
+      adapter: "api-handler-adapter",
       functions: functionFiles.size,
     })
   );
@@ -182,15 +181,14 @@ export const createReebsApiServer = () => {
     sendJson(req, res, 200, {
       ok: true,
       service: "reebs-api",
-      adapter: "netlify-function-compat",
+      adapter: "api-handler-adapter",
       health: "/health",
       api: "/api/:functionName",
-      legacyAlias: "/.netlify/functions/:functionName",
       functions: functionFiles.size,
     })
   );
 
-  app.all(["/api/:functionName", "/.netlify/functions/:functionName"], async (req, res) => {
+  app.all("/api/:functionName", async (req, res) => {
     const functionName = String(req.params.functionName || "").trim();
     const event = createEvent(req, functionName);
 

@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
+const { resolveDatabaseUrl } = require("./runtimeConfig");
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -24,12 +25,14 @@ if (!global.__faakoSignupRateLimitStore) {
 const getPool = () => {
   if (pool) return pool;
 
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is missing");
+  const connectionString = resolveDatabaseUrl();
+
+  if (!connectionString) {
+    throw new Error("Database URL is missing");
   }
 
   pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
   });
 
   global.__faakoSignupPool = pool;

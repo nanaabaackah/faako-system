@@ -89,7 +89,7 @@ export const caseStudies = [
     tools: {
       title: "Tools used",
       lead: "A reliable setup built for speed and stability.",
-      items: ["React", "Vite", "Netlify Functions", "PostgreSQL", "Prisma"],
+      items: ["React", "Vite", "Express API handlers", "PostgreSQL", "Prisma"],
     },
     features: {
       title: "Core features",
@@ -419,7 +419,7 @@ export const caseStudies = [
     tools: {
       title: "Tools used",
       lead: "A modern, lightweight setup optimized for speed and iteration.",
-      items: ["React", "Vite", "Netlify", "Figma", "Lighthouse checks"],
+      items: ["React", "Vite", "Cloudflare Pages", "Figma", "Lighthouse checks"],
     },
     features: {
       title: "What makes it feel alive",
@@ -584,7 +584,7 @@ export const caseStudies = [
     tools: {
       title: "Core tools",
       lead: "A lightweight frontend with a shared backend.",
-      items: ["React", "Vite", "Netlify redirects", "Google Calendar", "Secure sign-in"],
+      items: ["React", "Vite", "static redirects", "Google Calendar", "Secure sign-in"],
     },
     features: {
       title: "What the system supports",

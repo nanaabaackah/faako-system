@@ -293,7 +293,7 @@ function AdminSettings({ profileOnly = false }) {
       setProfileLoading(true);
       setProfileError("");
       try {
-        const response = await fetch("/.netlify/functions/staffProfile");
+        const response = await fetch("/api/staffProfile");
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data?.error || "Failed to load profile.");
@@ -367,7 +367,7 @@ function AdminSettings({ profileOnly = false }) {
     setUsersLoading(true);
     setUsersError("");
     try {
-      const res = await fetch("/.netlify/functions/users");
+      const res = await fetch("/api/users");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load users");
       setUsers(Array.isArray(data) ? data : []);
@@ -394,7 +394,7 @@ function AdminSettings({ profileOnly = false }) {
       return;
     }
     try {
-      const res = await fetch("/.netlify/functions/staffProfile", {
+      const res = await fetch("/api/staffProfile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -460,7 +460,7 @@ function AdminSettings({ profileOnly = false }) {
     setInviteStatus("");
     setUsersError("");
     try {
-      const res = await fetch("/.netlify/functions/users", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inviteForm),

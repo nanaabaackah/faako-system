@@ -10,7 +10,8 @@ import '../styles/pages/Contact.css';
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const LAST_SUBMISSION_KEY = 'bynana-contact-last-submission';
-const CONTACT_SUBMIT_ENDPOINT = '/api/contact';
+const CONTACT_SUBMIT_ENDPOINT = import.meta.env.VITE_CONTACT_SUBMIT_ENDPOINT || '';
+const CONTACT_EMAIL = 'nanaabaackah@gmail.com';
 
 const contactLinks = [
   {
@@ -62,6 +63,19 @@ const getLastSubmission = () => {
   return Number.isFinite(stored) ? stored : 0;
 };
 
+const openMailDraft = ({ name, email, subject, message }) => {
+  const body = [
+    message,
+    '',
+    `Name: ${name}`,
+    `Email: ${email}`,
+  ].join('\n');
+  const mailto = new URL(`mailto:${CONTACT_EMAIL}`);
+  mailto.searchParams.set('subject', subject);
+  mailto.searchParams.set('body', body);
+  window.location.href = mailto.toString();
+};
+
 const buildInitialFormState = (subjectTag) => ({
   name: '',
   email: '',
@@ -94,8 +108,6 @@ const ContactForm = ({
     <form
       name="contact"
       method="POST"
-      data-netlify="true"
-      data-netlify-honeypot="bot-field"
       className="contact-card contact-form ui-panel"
       aria-labelledby="contact-form-heading"
       onSubmit={onSubmit}
@@ -370,25 +382,31 @@ function Contact({ embedded = false, sectionId }) {
           ? `${subjectPrefix} ${trimmedSubject}`.trim()
           : trimmedSubject;
 
-      const response = await fetch(CONTACT_SUBMIT_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          name: formState.name,
-          email: formState.email,
-          subject: subjectLine,
-          message: formState.message,
-          subjectTag,
-          botField,
-        }),
-      });
-      const responsePayload = await response.json().catch(() => null);
+      const payload = {
+        name: formState.name,
+        email: formState.email,
+        subject: subjectLine,
+        message: formState.message,
+        subjectTag,
+        botField,
+      };
 
-      if (!response.ok) {
-        throw new Error(responsePayload?.error || 'Unable to send your message. Please try again.');
+      if (!CONTACT_SUBMIT_ENDPOINT) {
+        openMailDraft(payload);
+      } else {
+        const response = await fetch(CONTACT_SUBMIT_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        const responsePayload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(responsePayload?.error || 'Unable to send your message. Please try again.');
+        }
       }
 
       try {
@@ -399,7 +417,9 @@ function Contact({ embedded = false, sectionId }) {
 
       setFormStatus({
         state: 'success',
-        message: "Thanks! Your note is on its way. I'll reply within one business day.",
+        message: CONTACT_SUBMIT_ENDPOINT
+          ? "Thanks! Your note is on its way. I'll reply within one business day."
+          : "Your email draft is ready. Send it from your mail app and I'll reply within one business day.",
       });
       setFormState(buildInitialFormState(subjectTag));
     } catch (error) {

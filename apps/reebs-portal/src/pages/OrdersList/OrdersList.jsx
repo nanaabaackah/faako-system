@@ -219,7 +219,7 @@ function OrdersList() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/.netlify/functions/orders?compact=1&limit=500", {
+      const response = await fetch("/api/orders?compact=1&limit=500", {
         signal: fetchSignal,
       });
       if (!response.ok) {
@@ -703,7 +703,7 @@ function OrdersList() {
     });
 
     try {
-      const response = await fetch("/.netlify/functions/orderPayments", {
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -884,7 +884,7 @@ function OrdersList() {
         return;
       }
 
-      const response = await fetch("/.netlify/functions/orderPayments", {
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentPayload),

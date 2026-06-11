@@ -71,7 +71,7 @@ export const createCorsOriginValidator =
 
 export const createSecurityHeadersMiddleware = () =>
   createExpressSecurityHeadersMiddleware({
-    profileId: "api-serverless",
+    profileId: "api-service",
     extraHeaders: {
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy":

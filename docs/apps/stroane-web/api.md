@@ -17,9 +17,6 @@ Catalogue endpoints prefer persisted database rows when available and fall back 
 ## Current Private Endpoints
 
 - `POST /api/auth/login`
-- `GET /api/admin/orders`
-- `GET /api/admin/orders/:orderId`
-- `PATCH /api/admin/orders/:orderId/status`
 - `GET /api/admin/suppliers`
 - `GET /api/admin/suppliers/:id`
 - `POST /api/admin/suppliers`
@@ -39,7 +36,7 @@ Catalogue endpoints prefer persisted database rows when available and fall back 
 - `GET /api/admin/inventory/alerts`
 - `POST /api/admin/inventory/alerts/check`
 
-Private endpoints require backend `SiteUser` bearer auth. `ADMIN` and `VIEWER` can read admin order/inventory data; write/update routes require `ADMIN`. Public customer sign-in/sign-up is not a backend security boundary.
+Private endpoints require backend `SiteUser` bearer auth. `ADMIN` and `VIEWER` can read protected product, supplier, inventory, movement, and alert data for the `/admin` dashboard; write/update routes require `ADMIN`. The dedicated portal module pages are reset placeholders, so these APIs should be treated as backend foundations until the modules are rebuilt. Public customer sign-in/sign-up is not a backend security boundary.
 
 ## Inventory Owner Alerts
 
@@ -81,28 +78,30 @@ WhatsApp Cloud API, Twilio, or another provider.
 - Public customer placeholders live at `/account`, `/orders`, and `/quotes`.
 - Staff authenticate at `https://portal.stroanesolutions.com/login`.
 - Protected operations routes render inside the shared ERP shell under `/admin/*`.
-- `/admin/operations` is the primary order-operations route. `/admin/orders` remains a compatibility alias.
+- `/admin` is the only active portal dashboard.
+- `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/orders`, `/admin/reports`, and `/admin/settings` render reset placeholders for the next rebuild.
 
 Frontend route guards are navigation boundaries only. Protected `/api/admin/*` endpoints continue to enforce backend `SiteUser` bearer authorization.
 
 ## Railway Deployment Contract
 
 - Health endpoint: `GET /health`, independent of database availability.
-- Railway API build command: `pnpm --filter @faako/stroane-web exec prisma generate`
+- Railway workspace env: `RAILWAY_WORKSPACE=@faako/stroane-web`
+- Railway API build command: `node ./scripts/railway-service.mjs build`
 - Railway API pre-deploy migration command: `pnpm --filter @faako/stroane-web run db:deploy:prod`
-- Railway API start command: `pnpm --filter @faako/stroane-web start:api`
+- Railway API start command: `node ./scripts/railway-service.mjs start`
 - Cloudflare Pages public API base: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
 - Browser CORS origins: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, approved local development origins, and Cloudflare Pages preview domains ending in `.pages.dev`.
 
-Cloudflare Pages is the frontend host. Railway hosts the API and Postgres database. Netlify configuration is not required.
+Cloudflare Pages is the frontend host. Railway hosts the API and Postgres database.
 
-## Internal Inventory Operations UI
+## Internal Dashboard Data Reads
 
-- Frontend routes: `/admin/inventory` and `/admin/suppliers`
+- Frontend route: `/admin`
 - Existing staff sessions from backend `POST /api/auth/login` are reused.
-- `ADMIN` can review inventory, suppliers, movement history, and submit audited inventory movements.
-- `VIEWER` can review the same operational data without write actions.
-- The first dashboard layer records movement entries only for existing inventory items. Initial stock-item setup, supplier creation/editing, and product-supplier linking remain protected API/admin setup tasks until a focused setup editor is approved.
+- `ADMIN` and `VIEWER` can review dashboard product, supplier, inventory, movement, and alert signals.
+- The dedicated inventory, supplier, product, operations, reports, and settings routes are reset placeholders.
+- Initial stock-item setup, supplier creation/editing, product-supplier linking, product editing, and movement entry remain backend foundations until focused module editors are rebuilt.
 - The public storefront does not read supplier notes, purchase notes, or internal movement history.
 
 ## Admin Inventory/Supplier Endpoints
@@ -144,9 +143,9 @@ These routes are internal API foundations only. Do not expose supplier notes, co
   - Admin-only. Updates storefront-facing `CatalogueProduct` stock fields and syncs/creates an `InventoryItem` unless `syncInventoryItem=false`.
   - `:id` may be a catalogue product id or slug.
 
-## Admin Product And Media Operations
+## Admin Product Data Foundation
 
-The internal product editor lives at `/admin/products`. These routes are bearer-protected and return private operational fields only to staff sessions:
+There is no active `/admin/products` editor UI after the portal reset. Product list reads remain wired to the `/admin` dashboard so product fetches continue to work. These routes are bearer-protected and return private operational fields only to staff sessions:
 
 - `GET /api/admin/products?search=&publishingStatus=&categorySlug=&tag=&limit=`
   - Returns product rows, publishing status, stock summary, private preferred-supplier summary, and active category options.
@@ -165,7 +164,7 @@ Product updates append lightweight `InventoryAuditEntry` records. Public catalog
 
 The checked-in browser fallback remains a deliberately public outage snapshot. It cannot observe a Railway database publishing change while the API is unavailable. If an active fallback product is archived or becomes unsuitable for public display, update the checked-in public catalogue snapshot and redeploy the Cloudflare Pages frontend as part of the publishing operation.
 
-Direct media upload, external media hosting, product creation, category editing, bulk product editing, automated stock reservation, and order-to-inventory allocation are intentionally deferred.
+Direct module UI, media upload, external media hosting, product creation, category editing, bulk product editing, automated stock reservation, and order-to-inventory allocation are intentionally deferred.
 
 ## Inventory Rules To Preserve
 

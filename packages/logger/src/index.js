@@ -2,8 +2,8 @@ import pino from "pino";
 
 /**
  * Creates a named logger. Uses Pino in Node.js server environments and
- * falls back to structured console in serverless/Netlify functions where
- * Pino's transport layer is unavailable.
+ * can fall back to structured console logging for lightweight API service
+ * runtimes where Pino's transport layer is unavailable.
  *
  * Usage:
  *   import { createLogger } from "@faako/logger";
@@ -12,12 +12,12 @@ import pino from "pino";
  *   logger.error({ err }, "Login failed");
  */
 
-const isNetlify = Boolean(
+const shouldUseConsoleLogger = Boolean(
   typeof process !== "undefined" &&
-    (process.env.NETLIFY === "true" || process.env.NETLIFY_LOCAL === "true")
+    process.env.FAAKO_LOGGER_MODE === "console"
 );
 
-const createNetlifyLogger = (name) => {
+const createConsoleLogger = (name) => {
   const prefix = `[${name}]`;
   const serialize = (obj, msg) => {
     if (obj && typeof obj === "object") {
@@ -33,12 +33,12 @@ const createNetlifyLogger = (name) => {
     warn: (obj, msg) => console.warn(JSON.stringify(serialize(obj, msg ?? obj))),
     error: (obj, msg) => console.error(JSON.stringify(serialize(obj, msg ?? obj))),
     debug: (obj, msg) => console.debug(JSON.stringify(serialize(obj, msg ?? obj))),
-    child: (bindings) => createNetlifyLogger(`${name}:${JSON.stringify(bindings)}`),
+    child: (bindings) => createConsoleLogger(`${name}:${JSON.stringify(bindings)}`),
     silent: () => {},
   };
 };
 
-const rootLogger = !isNetlify
+const rootLogger = !shouldUseConsoleLogger
   ? pino({
       level: process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug"),
       base: { pid: process.pid },
@@ -47,8 +47,8 @@ const rootLogger = !isNetlify
   : null;
 
 export const createLogger = (name) => {
-  if (isNetlify || !rootLogger) {
-    return createNetlifyLogger(name);
+  if (shouldUseConsoleLogger || !rootLogger) {
+    return createConsoleLogger(name);
   }
   return rootLogger.child({ name });
 };

@@ -83,7 +83,7 @@ export const articles = [
         takeaways: [
             'Public website routes shoppers and rental customers through discovery, cart, checkout, and booking flows.',
             'POS/order builder supports staff-created sales with product search, SKU/barcode lookup, and stock-aware cart lines.',
-            'Portal-owned Netlify Functions centralize orders, bookings, inventory, accounting, documents, and delivery.',
+            'Portal-owned Express API handlers centralize orders, bookings, inventory, accounting, documents, and delivery.',
             'Future camera scanning is scoped as the next step for faster in-store item capture.'
         ],
         tags: ['Full-stack', 'ERP', 'E-commerce'],

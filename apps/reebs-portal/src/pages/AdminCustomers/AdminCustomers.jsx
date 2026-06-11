@@ -81,7 +81,7 @@ export default function AdminCustomers() {
     setError("");
 
     try {
-      const response = await fetch("/.netlify/functions/customers");
+      const response = await fetch("/api/customers");
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customers."));
       }
@@ -271,7 +271,7 @@ export default function AdminCustomers() {
     );
 
     try {
-      const response = await fetch("/.netlify/functions/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -402,7 +402,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await fetch("/.netlify/functions/customers", {
+      const response = await fetch("/api/customers", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: customerId }),
@@ -456,7 +456,7 @@ export default function AdminCustomers() {
     });
 
     try {
-      const response = await fetch(`/.netlify/functions/customers?id=${customer.id}`);
+      const response = await fetch(`/api/customers?id=${customer.id}`);
       if (detailRequestRef.current !== requestId) return;
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customer."));
@@ -521,7 +521,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await fetch("/.netlify/functions/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -565,7 +565,7 @@ export default function AdminCustomers() {
     setCreateError("");
 
     try {
-      const response = await fetch("/.netlify/functions/customers", {
+      const response = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

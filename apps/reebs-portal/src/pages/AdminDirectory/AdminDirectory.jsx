@@ -131,11 +131,11 @@ function AdminDirectory() {
     setError("");
     try {
       const requests = isDriverUser
-        ? [fetch("/.netlify/functions/customers")]
+        ? [fetch("/api/customers")]
         : [
-            fetch("/.netlify/functions/users"),
-            fetch("/.netlify/functions/customers"),
-            fetch("/.netlify/functions/vendors"),
+            fetch("/api/users"),
+            fetch("/api/customers"),
+            fetch("/api/vendors"),
           ];
       const responses = await Promise.all(requests);
       const payloads = await Promise.all(responses.map((response) => response.json().catch(() => null)));
@@ -321,7 +321,7 @@ function AdminDirectory() {
     if (activeTab === "customers") {
       setDetailLoading(true);
       try {
-        const res = await fetch(`/.netlify/functions/customers?id=${row.id}`);
+        const res = await fetch(`/api/customers?id=${row.id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load customer details.");
         setDetailRecord(data);
@@ -369,7 +369,7 @@ function AdminDirectory() {
         }
 
         const isEdit = Boolean(editing?.id);
-        const response = await fetch("/.netlify/functions/customers", {
+        const response = await fetch("/api/customers", {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -408,7 +408,7 @@ function AdminDirectory() {
           requestBody.password = trimmedPassword;
         }
 
-        const response = await fetch("/.netlify/functions/users", {
+        const response = await fetch("/api/users", {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),

@@ -81,7 +81,7 @@ function AdminDelivery() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/deliveries");
+      const res = await fetch("/api/deliveries");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load deliveries.");
       setDeliveries(Array.isArray(data) ? data : []);
@@ -100,7 +100,7 @@ function AdminDelivery() {
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const res = await fetch("/.netlify/functions/users?role=driver");
+        const res = await fetch("/api/users?role=driver");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load users.");
         const driverList = (Array.isArray(data) ? data : [])
@@ -256,7 +256,7 @@ function AdminDelivery() {
     setStatus("");
     setError("");
     try {
-      const res = await fetch("/.netlify/functions/deliveries", {
+      const res = await fetch("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

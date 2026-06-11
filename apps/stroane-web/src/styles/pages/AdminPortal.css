@@ -8,6 +8,10 @@
   background: var(--color-bg);
 }
 
+.erp-shell-frame__content--split {
+  padding: 0;
+}
+
 .stroane-admin-portal .erp-nav-sidebar {
   --ui-sidebar-toggle-bg: var(--color-surface);
   --ui-sidebar-toggle-bg-hover: var(--color-primary-tint);

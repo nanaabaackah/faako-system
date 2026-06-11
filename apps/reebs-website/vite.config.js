@@ -34,10 +34,6 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
         },
-        "/.netlify/functions": {
-          target: apiProxyTarget,
-          changeOrigin: true,
-        },
       },
     },
     build: {

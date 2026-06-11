@@ -215,7 +215,7 @@ export const MONOREPO_APP_REGISTRY = [
     packageName: "@faako/faako-api",
     path: "apps/faako-api",
     title: "Faako API",
-    purpose: "Shared API/function surface for Faako platform apps.",
+    purpose: "Shared Railway Express API surface for Faako platform apps.",
     category: "api",
     productionSensitive: true,
     monitoringEnabled: true,

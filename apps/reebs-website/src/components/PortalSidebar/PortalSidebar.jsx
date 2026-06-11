@@ -310,8 +310,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setNotificationsError("");
       try {
         const [ordersRes, bookingsRes] = await Promise.all([
-          fetch("/.netlify/functions/orders"),
-          fetch("/.netlify/functions/bookings"),
+          fetch("/api/orders"),
+          fetch("/api/bookings"),
         ]);
         const [ordersData, bookingsData] = await Promise.all([
           ordersRes.json().catch(() => null),
