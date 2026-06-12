@@ -6,6 +6,9 @@ import '@faako/ui/compat.css'
 import './index.css'
 import App from './App.tsx'
 import appSystem from '../appSystem.js'
+import { registerStroaneServiceWorker } from './registerServiceWorker'
+
+registerStroaneServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -30,7 +30,7 @@ const SCRIPT_ID_PREFIX = "faako-google-analytics";
 
 const getAnalyticsWindow = () => {
   if (typeof window === "undefined") return null;
-  return window as GoogleAnalyticsWindow;
+  return window as unknown as GoogleAnalyticsWindow;
 };
 
 const getAnalyticsDocument = () => {

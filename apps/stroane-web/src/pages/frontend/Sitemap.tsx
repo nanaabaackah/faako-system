@@ -1,10 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import { products, categoryOptions } from "../data/products";
-import "../styles/pages/Sitemap.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import { products, categoryOptions } from "../../data/products";
+import "../../styles/pages/Sitemap.css";
 
 interface SiteLink {
   label: string;

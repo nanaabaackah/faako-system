@@ -68,6 +68,13 @@ export const normalizeStockStatus = (value = "") => {
   return "unavailable";
 };
 
+const resolveStockStatus = (value, availableQuantity) => {
+  const stockStatus = normalizeStockStatus(value);
+  if (stockStatus === "preorder") return stockStatus;
+  if (availableQuantity != null && availableQuantity <= 0) return "out_of_stock";
+  return stockStatus;
+};
+
 const toNullableInteger = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const numberValue = Number(value);
@@ -106,6 +113,10 @@ const toPublicProduct = (product) => {
       : stockQuantity == null
         ? null
         : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
+  const stockStatus = resolveStockStatus(
+    product.stockStatus || localProduct.stockStatus,
+    availableQuantity
+  );
 
   return {
     id: productId,
@@ -130,8 +141,8 @@ const toPublicProduct = (product) => {
     galleryImages: asArray(localProduct.galleryImages).length ? localProduct.galleryImages : images,
     media: asArray(localProduct.media),
     tag: product.tag || localProduct.tag || undefined,
-    stock: normalizeStockLabel(product.stockStatus || localProduct.stockStatus),
-    stockStatus: normalizeStockStatus(product.stockStatus || localProduct.stockStatus),
+    stock: normalizeStockLabel(stockStatus),
+    stockStatus,
     stockQuantity,
     availableQuantity,
     reservedQuantity,

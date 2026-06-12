@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import LegalLayout, { type LegalSection } from "../components/LegalLayout";
-import useSEOMeta from "../hooks/useSEOMeta";
+import LegalLayout, { type LegalSection } from "../../components/LegalLayout";
+import useSEOMeta from "../../hooks/useSEOMeta";
 
 const SECTIONS: LegalSection[] = [
   {

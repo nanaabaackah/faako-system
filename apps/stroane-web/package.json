@@ -38,6 +38,7 @@
   "dependencies": {
     "@faako/core": "workspace:*",
     "@faako/notifications": "workspace:*",
+    "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/theme": "workspace:*",
     "@faako/types": "workspace:*",

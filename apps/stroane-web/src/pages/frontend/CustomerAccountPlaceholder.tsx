@@ -1,10 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import Layout from "../components/Layout";
-import { useAuth } from "../context/AuthContext";
-import { PORTAL_LOGIN_URL } from "../config/appSurface";
-import useSEOMeta from "../hooks/useSEOMeta";
-import "../styles/pages/AccountPlaceholder.css";
+import Layout from "../../components/Layout";
+import { useAuth } from "../../context/AuthContext";
+import { PORTAL_LOGIN_URL } from "../../config/appSurface";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import "../../styles/pages/AccountPlaceholder.css";
 
 type CustomerArea = "account" | "orders" | "quotes";
 

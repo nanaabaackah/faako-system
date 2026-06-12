@@ -2,11 +2,11 @@ import React, { useState, type FormEvent } from "react";
 import { HiMail, HiPhone, HiLocationMarker, HiClock } from "react-icons/hi";
 import { FaWhatsapp } from "react-icons/fa";
 import { SelectField } from "@faako/ui";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import StructuredData from "../components/StructuredData";
-import { productApi } from "../api/products";
-import "../styles/pages/Contact.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import StructuredData from "../../components/StructuredData";
+import { productApi } from "../../api/products";
+import "../../styles/pages/Contact.css";
 
 const CONTACT_SCHEMA = {
   "@context": "https://schema.org",

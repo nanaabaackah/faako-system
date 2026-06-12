@@ -1,25 +1,35 @@
 import React, { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import { useAuth } from "../context/AuthContext";
-import { PORTAL_LOGIN_URL } from "../config/appSurface";
-import "../styles/pages/Auth.css";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import { useAuth } from "../../context/AuthContext";
+import "../../styles/pages/Auth.css";
 
-const SignUp: React.FC = () => {
-  const { signUp } = useAuth();
+const CUSTOMER_ACCOUNT_PATHS = ["/account", "/orders", "/quotes"];
+
+const getCustomerRedirect = (state: unknown) => {
+  const from = (state as { from?: unknown } | null)?.from;
+  if (typeof from !== "string") return "/account";
+  return CUSTOMER_ACCOUNT_PATHS.some((path) => from === path || from.startsWith(`${path}/`))
+    ? from
+    : "/account";
+};
+
+const SignIn: React.FC = () => {
+  const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = getCustomerRedirect(location.state);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
-    title: "Create Account | Stroane",
-    description: "Create a Stroane account.",
-    canonical: "https://stroanesolutions.com/signup",
+    title: "Sign In | Stroane",
+    description: "Sign in to your Stroane account.",
+    canonical: "https://stroanesolutions.com/signin",
     noIndex: true,
   });
 
@@ -28,10 +38,11 @@ const SignUp: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      await signUp(name, email, password);
-      navigate("/account", { replace: true });
+      await signIn(identifier, password);
+      navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create account.");
+      setError(err instanceof Error ? err.message : "Could not sign in.");
+    } finally {
       setLoading(false);
     }
   };
@@ -59,34 +70,20 @@ const SignUp: React.FC = () => {
 
         <div className="auth-form-col">
           <div className="auth-card">
-            <span className="auth-card__kicker">Get started</span>
-          <h1 className="auth-card__title">Create your account</h1>
+            <span className="auth-card__kicker">Welcome back</span>
+          <h1 className="auth-card__title">Sign in</h1>
           <p className="auth-card__sub">
-            Create a customer profile placeholder while account services are prepared.
+            Customer account access is being prepared separately from staff operations.
           </p>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <label className="auth-field">
-              <span>Full name</span>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setError("");
-                }}
-                autoComplete="name"
-                required
-              />
-            </label>
-
-            <label className="auth-field">
               <span>Email</span>
               <input
-                type="email"
-                value={email}
+                type="text"
+                value={identifier}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  setIdentifier(e.target.value);
                   setError("");
                 }}
                 autoComplete="email"
@@ -103,12 +100,9 @@ const SignUp: React.FC = () => {
                   setPassword(e.target.value);
                   setError("");
                 }}
-                autoComplete="new-password"
+                autoComplete="current-password"
                 required
               />
-              <small className="auth-field__hint">
-                At least 8 characters.
-              </small>
             </label>
 
             {error ? (
@@ -120,14 +114,14 @@ const SignUp: React.FC = () => {
             <button
               type="submit"
               className="auth-form__submit"
-              disabled={loading || !name || !email || !password}
+              disabled={loading || !identifier || !password}
             >
-              {loading ? "Creating…" : "Create account"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
             <p className="auth-card__alt">
-              Already have an account? <a href={PORTAL_LOGIN_URL}>Sign in</a>
+              New to Stroane? <Link to="/signup">Create an account</Link>
             </p>
           </div>
         </div>
@@ -136,4 +130,4 @@ const SignUp: React.FC = () => {
   );
 };
 
-export default SignUp;
+export default SignIn;

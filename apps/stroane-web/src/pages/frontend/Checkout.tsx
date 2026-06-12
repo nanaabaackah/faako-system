@@ -1,10 +1,10 @@
 import React, { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { HiArrowRight, HiCheckCircle } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import useCatalogueData from "../hooks/useCatalogueData";
-import { orderApi, type CheckoutOrderResponse } from "../api/orders";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import useCatalogueData from "../../hooks/useCatalogueData";
+import { orderApi, type CheckoutOrderResponse } from "../../api/orders";
 import {
   formatCurrency,
   getAvailabilityLabel,
@@ -13,10 +13,10 @@ import {
   isCheckoutEligibleProduct,
   isPricedProduct,
   type Product,
-} from "../data/products";
-import { useCart } from "../context/CartContext";
-import { useAuth } from "../context/AuthContext";
-import "../styles/pages/Checkout.css";
+} from "../../data/products";
+import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import "../../styles/pages/Checkout.css";
 
 const isLikelyEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 

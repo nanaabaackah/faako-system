@@ -32,6 +32,8 @@ const productSummarySelect = {
   stockQuantity: true,
   availableQuantity: true,
   reservedQuantity: true,
+  lowStockThreshold: true,
+  reorderThreshold: true,
   isPurchasable: true,
   allowBackorder: true,
 };
@@ -43,38 +45,49 @@ export const calculateAvailableQuantity = (quantityOnHand, reservedQuantity = 0)
   return Math.max(0, quantity - reserved);
 };
 
+export const resolveAvailableQuantity = ({
+  quantityOnHand,
+  reservedQuantity,
+  availableQuantity,
+} = {}) => {
+  const calculatedAvailableQuantity = calculateAvailableQuantity(quantityOnHand, reservedQuantity);
+  if (calculatedAvailableQuantity !== null) return calculatedAvailableQuantity;
+
+  const storedAvailableQuantity = toNumber(availableQuantity);
+  return storedAvailableQuantity === null ? null : Math.max(0, storedAvailableQuantity);
+};
+
 export const evaluateStockStatus = ({
   quantityOnHand,
   reservedQuantity,
   lowStockThreshold,
   stockStatus,
+  availableQuantity,
 } = {}) => {
   const explicitStatus = sanitizeText(stockStatus, 80).toLowerCase().replace(/[\s-]+/g, "_");
   if (explicitStatus === "preorder" || explicitStatus === "manual_review") return explicitStatus;
 
-  const availableQuantity = calculateAvailableQuantity(quantityOnHand, reservedQuantity);
-  if (availableQuantity === null) return "unavailable";
-  if (availableQuantity <= 0) return "out_of_stock";
+  const resolvedAvailableQuantity = resolveAvailableQuantity({
+    quantityOnHand,
+    reservedQuantity,
+    availableQuantity,
+  });
+  if (resolvedAvailableQuantity === null) return "unavailable";
+  if (resolvedAvailableQuantity <= 0) return "out_of_stock";
 
   const threshold = toNumber(lowStockThreshold);
-  if (threshold !== null && availableQuantity <= threshold) return "low_stock";
+  if (threshold !== null && resolvedAvailableQuantity <= threshold) return "low_stock";
   return "in_stock";
 };
 
 export const isLowStock = (item = {}) => {
-  const availableQuantity = calculateAvailableQuantity(
-    item.quantityOnHand,
-    item.reservedQuantity
-  );
+  const availableQuantity = resolveAvailableQuantity(item);
   const threshold = toNumber(item.lowStockThreshold);
   return availableQuantity !== null && threshold !== null && availableQuantity <= threshold;
 };
 
 export const needsReorder = (item = {}) => {
-  const availableQuantity = calculateAvailableQuantity(
-    item.quantityOnHand,
-    item.reservedQuantity
-  );
+  const availableQuantity = resolveAvailableQuantity(item);
   const threshold = toNumber(item.reorderThreshold);
   return availableQuantity !== null && threshold !== null && availableQuantity <= threshold;
 };
@@ -93,6 +106,8 @@ const toProductSummary = (product) =>
         stockQuantity: product.stockQuantity,
         availableQuantity: product.availableQuantity,
         reservedQuantity: product.reservedQuantity,
+        lowStockThreshold: product.lowStockThreshold,
+        reorderThreshold: product.reorderThreshold,
         isPurchasable: Boolean(product.isPurchasable),
         allowBackorder: Boolean(product.allowBackorder),
       }
@@ -150,11 +165,43 @@ const toSupplierDetail = (supplier) => ({
   })),
 });
 
-const toInventoryItem = (item) => {
-  const availableQuantity = calculateAvailableQuantity(
-    item.quantityOnHand,
-    item.reservedQuantity
+const hydrateInventoryItemProducts = async (prisma, items = []) => {
+  const missingProductSlugs = [
+    ...new Set(
+      items
+        .filter((item) => !item.product && item.productSlug)
+        .map((item) => item.productSlug)
+    ),
+  ];
+
+  if (!missingProductSlugs.length) return items;
+
+  const products = await prisma.catalogueProduct.findMany({
+    where: { slug: { in: missingProductSlugs } },
+    select: productSummarySelect,
+  });
+  const productBySlug = new Map(products.map((product) => [product.slug, product]));
+
+  return items.map((item) =>
+    item.product || !productBySlug.has(item.productSlug)
+      ? item
+      : { ...item, product: productBySlug.get(item.productSlug) }
   );
+};
+
+const buildInventoryStockBasis = (item = {}) => ({
+  ...item,
+  quantityOnHand: item.quantityOnHand ?? item.product?.stockQuantity,
+  reservedQuantity: item.reservedQuantity ?? item.product?.reservedQuantity,
+  availableQuantity: item.availableQuantity ?? item.product?.availableQuantity,
+  lowStockThreshold: item.lowStockThreshold ?? item.product?.lowStockThreshold,
+  reorderThreshold: item.reorderThreshold ?? item.product?.reorderThreshold,
+  stockStatus: item.stockStatus || item.product?.stockStatus,
+});
+
+const toInventoryItem = (item) => {
+  const stockBasis = buildInventoryStockBasis(item);
+  const availableQuantity = resolveAvailableQuantity(stockBasis);
 
   return {
     id: item.id,
@@ -170,12 +217,12 @@ const toInventoryItem = (item) => {
     reorderThreshold: item.reorderThreshold,
     lowStockThreshold: item.lowStockThreshold,
     stockStatus: item.stockStatus || "unavailable",
-    computedStockStatus: evaluateStockStatus(item),
+    computedStockStatus: evaluateStockStatus(stockBasis),
     inventoryTrackingEnabled: item.inventoryTrackingEnabled !== false,
     allowBackorder: item.allowBackorder,
     isPurchasable: item.isPurchasable,
-    isLowStock: isLowStock(item),
-    needsReorder: needsReorder(item),
+    isLowStock: isLowStock(stockBasis),
+    needsReorder: needsReorder(stockBasis),
     lastCountedAt: toIso(item.lastCountedAt),
     lastRestockedAt: toIso(item.lastRestockedAt),
     notes: item.notes || null,
@@ -416,7 +463,7 @@ export const listInventoryItems = async (prisma, query) => {
     take: query.limit,
   });
 
-  return items.map(toInventoryItem);
+  return (await hydrateInventoryItemProducts(prisma, items)).map(toInventoryItem);
 };
 
 export const getInventoryItem = async (prisma, id) => {
@@ -429,7 +476,8 @@ export const getInventoryItem = async (prisma, id) => {
   });
 
   if (!item) throw createHttpError("Inventory item not found.", 404);
-  return toInventoryItem(item);
+  const [hydratedItem] = await hydrateInventoryItemProducts(prisma, [item]);
+  return toInventoryItem(hydratedItem);
 };
 
 const buildInventoryUpdateData = (existing, patch) => {

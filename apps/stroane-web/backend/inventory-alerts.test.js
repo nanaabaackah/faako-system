@@ -52,6 +52,21 @@ test("detects out-of-stock inventory alerts before low-stock alerts", () => {
   assert.equal(alert.availableQuantity, 0);
 });
 
+test("detects out-of-stock alerts from stored zero available quantity", () => {
+  const alert = detectInventoryAlert({
+    inventoryTrackingEnabled: true,
+    product: activeProduct,
+    quantityOnHand: null,
+    reservedQuantity: 0,
+    availableQuantity: 0,
+    lowStockThreshold: 5,
+    reorderThreshold: 5,
+  });
+
+  assert.equal(alert.alertType, INVENTORY_ALERT_TYPES.OUT_OF_STOCK);
+  assert.equal(alert.availableQuantity, 0);
+});
+
 test("excludes unpublished and tracking-disabled products from alerts", () => {
   assert.equal(
     isInventoryAlertEligible({

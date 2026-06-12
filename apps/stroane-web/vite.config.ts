@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       "@faako/config": fileURLToPath(new URL("../../packages/config/src", import.meta.url)),
       "@faako/core": fileURLToPath(new URL("../../packages/core/src", import.meta.url)),
+      "@faako/offline-sync": fileURLToPath(new URL("../../packages/offline-sync/src", import.meta.url)),
       "@faako/theme": fileURLToPath(new URL("../../packages/theme/src", import.meta.url)),
       "@faako/types": fileURLToPath(new URL("../../packages/types/src", import.meta.url)),
       "@faako/ui": fileURLToPath(new URL("../../packages/ui/src", import.meta.url)),

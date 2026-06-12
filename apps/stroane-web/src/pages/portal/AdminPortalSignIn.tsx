@@ -1,10 +1,10 @@
 import React, { useState, type FormEvent } from "react";
 import { HiOutlineLockClosed } from "react-icons/hi";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAdminPortal } from "../context/AdminPortalContext";
-import { STOREFRONT_BASE_URL, portalUrl } from "../config/appSurface";
-import useSEOMeta from "../hooks/useSEOMeta";
-import "../styles/pages/AdminPortal.css";
+import { useAdminPortal } from "../../context/AdminPortalContext";
+import { STOREFRONT_BASE_URL, portalUrl } from "../../config/appSurface";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import "../../styles/pages/AdminPortal.css";
 
 const getAdminRedirect = (state: unknown) => {
   const from = (state as { from?: unknown } | null)?.from;

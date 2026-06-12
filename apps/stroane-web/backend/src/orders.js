@@ -91,6 +91,9 @@ const getPurchaseBlocker = (product, quantity) => {
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
   const availableQuantity = getAvailableQuantity(product);
 
+  if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
+    return `${product.name} is out of stock.`;
+  }
   if (!product.isPurchasable) {
     return `${product.name} is not enabled for online purchase until stock is confirmed.`;
   }

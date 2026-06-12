@@ -1,16 +1,19 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   adminSessionApi,
   clearAdminSession,
   getStoredAdminSession,
   storeAdminSession,
   type AdminSession,
+  type AdminProfileUpdatePayload,
 } from "../api/adminSession";
 
 interface AdminPortalContextValue {
   session: AdminSession | null;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => void;
+  refreshProfile: () => Promise<AdminSession | null>;
+  updateProfile: (payload: AdminProfileUpdatePayload) => Promise<AdminSession>;
 }
 
 const AdminPortalContext = createContext<AdminPortalContextValue | null>(null);
@@ -35,7 +38,52 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setSession(null);
   }, []);
 
-  const value = useMemo(() => ({ session, signIn, signOut }), [session, signIn, signOut]);
+  const refreshProfile = useCallback(async () => {
+    const currentSession = getStoredAdminSession();
+    if (!currentSession) {
+      setSession(null);
+      return null;
+    }
+    const refreshedSession = await adminSessionApi.getCurrent(currentSession);
+    storeAdminSession(refreshedSession);
+    setSession(refreshedSession);
+    return refreshedSession;
+  }, []);
+
+  const updateProfile = useCallback(async (payload: AdminProfileUpdatePayload) => {
+    const currentSession = getStoredAdminSession();
+    if (!currentSession) throw new Error("Sign in again to update your profile.");
+    const nextSession = await adminSessionApi.updateProfile(currentSession, payload);
+    storeAdminSession(nextSession);
+    setSession(nextSession);
+    return nextSession;
+  }, []);
+
+  useEffect(() => {
+    if (!session?.token) return;
+    let cancelled = false;
+    const currentSession = getStoredAdminSession();
+    if (!currentSession) return;
+
+    adminSessionApi.getCurrent(currentSession)
+      .then((refreshedSession) => {
+        if (cancelled) return;
+        storeAdminSession(refreshedSession);
+        setSession(refreshedSession);
+      })
+      .catch(() => {
+        // Keep the stored session usable if the profile endpoint is temporarily unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
+
+  const value = useMemo(
+    () => ({ session, signIn, signOut, refreshProfile, updateProfile }),
+    [refreshProfile, session, signIn, signOut, updateProfile]
+  );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;
 };

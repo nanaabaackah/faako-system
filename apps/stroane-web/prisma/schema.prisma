@@ -415,14 +415,25 @@ enum SiteRole {
 }
 
 model SiteUser {
-  id           String     @id @default(cuid())
-  username     String     @unique
-  passwordHash String
-  role         SiteRole   @default(VIEWER)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  createdById  String?
-  createdBy    SiteUser?  @relation("CreatedBy", fields: [createdById], references: [id])
-  createdUsers SiteUser[] @relation("CreatedBy")
+  id                   String     @id @default(cuid())
+  username             String     @unique
+  passwordHash         String
+  role                 SiteRole   @default(VIEWER)
+  isActive             Boolean    @default(true)
+  firstName            String?
+  lastName             String?
+  personalEmail        String?
+  phone                String?
+  jobTitle             String?
+  department           String?
+  bio                  String?
+  avatarUrl            String?
+  appearancePreference String     @default("system")
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  createdById          String?
+  createdBy            SiteUser?  @relation("CreatedBy", fields: [createdById], references: [id])
+  createdUsers         SiteUser[] @relation("CreatedBy")
+
+  @@index([personalEmail])
 }

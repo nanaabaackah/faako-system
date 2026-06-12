@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { HiArrowRight, HiCheckCircle, HiExclamationCircle } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import { orderApi, type PaystackVerifyResponse } from "../api/orders";
-import { formatCurrency } from "../data/products";
-import "../styles/pages/Checkout.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import { orderApi, type PaystackVerifyResponse } from "../../api/orders";
+import { formatCurrency } from "../../data/products";
+import "../../styles/pages/Checkout.css";
 
 type VerifyState = "verifying" | "paid" | "failed" | "pending" | "unavailable";
 

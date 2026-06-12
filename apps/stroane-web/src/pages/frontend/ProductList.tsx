@@ -1,11 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Card, EmptyState, InlineNotice, PageHeader, PageShell } from "@faako/ui";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import useCatalogueData from "../hooks/useCatalogueData";
-import { formatProductPrice, getAvailabilityLabel, getStockDetailLabel } from "../data/products";
-import "../styles/pages/ProductList.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import useCatalogueData from "../../hooks/useCatalogueData";
+import { formatProductPrice, getAvailabilityLabel, getStockDetailLabel } from "../../data/products";
+import "../../styles/pages/ProductList.css";
 
 const ProductList: React.FC = () => {
   const { products, loading, notice } = useCatalogueData();

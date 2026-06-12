@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi";
 import { Card, EmptyState, InlineNotice, StatusPill, SelectField } from "@faako/ui";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import useCatalogueData from "../hooks/useCatalogueData";
-import StructuredData from "../components/StructuredData";
-import QuantityControls from "../components/QuantityControls";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import useCatalogueData from "../../hooks/useCatalogueData";
+import StructuredData from "../../components/StructuredData";
+import QuantityControls from "../../components/QuantityControls";
 import {
   formatCurrency,
   formatProductPrice,
@@ -22,9 +22,9 @@ import {
   shouldShowInquiryOption,
   type Category,
   type Product,
-} from "../data/products";
-import { useCart } from "../context/CartContext";
-import "../styles/pages/Shop.css";
+} from "../../data/products";
+import { useCart } from "../../context/CartContext";
+import "../../styles/pages/Shop.css";
 
 const buildShopSchema = (catalogueProducts: Product[]) => ({
   "@context": "https://schema.org",

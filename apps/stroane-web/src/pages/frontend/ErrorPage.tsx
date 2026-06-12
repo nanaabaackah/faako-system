@@ -1,9 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import "../styles/pages/ErrorPage.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import "../../styles/pages/ErrorPage.css";
 
 type ErrorPageProps = {
   statusCode?: "404" | "500";

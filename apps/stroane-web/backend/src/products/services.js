@@ -1,5 +1,5 @@
 import { createHttpError } from "../apiResponse.js";
-import { calculateAvailableQuantity, evaluateStockStatus } from "../inventory/services.js";
+import { evaluateStockStatus, resolveAvailableQuantity } from "../inventory/services.js";
 import { PRODUCT_PUBLISHING_STATUSES } from "./validation.js";
 
 const toNumber = (value) => {
@@ -52,11 +52,20 @@ const toStockSummary = (product) => {
     ? inventory.reservedQuantity ?? 0
     : product.reservedQuantity ?? 0;
   const availableQuantity = inventory
-    ? calculateAvailableQuantity(quantityOnHand, reservedQuantity)
-    : product.availableQuantity ?? calculateAvailableQuantity(quantityOnHand, reservedQuantity);
+    ? resolveAvailableQuantity({
+        quantityOnHand,
+        reservedQuantity,
+        availableQuantity: inventory.availableQuantity,
+      })
+    : resolveAvailableQuantity({
+        quantityOnHand,
+        reservedQuantity,
+        availableQuantity: product.availableQuantity,
+      });
   const stockStatus = evaluateStockStatus({
     quantityOnHand,
     reservedQuantity,
+    availableQuantity,
     lowStockThreshold: inventory?.lowStockThreshold ?? product.lowStockThreshold,
     stockStatus: inventory?.stockStatus ?? product.stockStatus,
   });

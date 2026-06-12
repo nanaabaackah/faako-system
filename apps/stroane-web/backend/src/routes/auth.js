@@ -3,7 +3,36 @@ import { hashPassword, signToken, verifyToken, safeVerifyPassword } from "../aut
 
 const MAX_USERNAME_LEN = 50;
 const MAX_PASSWORD_LEN = 100;
+const MAX_AVATAR_URL_LEN = 350000;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const APPEARANCE_PREFERENCES = new Set(["system", "light", "dark"]);
+const PROFILE_FIELD_LIMITS = {
+  firstName: 80,
+  lastName: 80,
+  personalEmail: 180,
+  phone: 40,
+  jobTitle: 120,
+  department: 120,
+  bio: 600,
+};
+
+const PROFILE_SELECT = {
+  id: true,
+  username: true,
+  role: true,
+  isActive: true,
+  firstName: true,
+  lastName: true,
+  personalEmail: true,
+  phone: true,
+  jobTitle: true,
+  department: true,
+  bio: true,
+  avatarUrl: true,
+  appearancePreference: true,
+  createdAt: true,
+  updatedAt: true,
+};
 
 const toSafeAuthErrorLog = (error) => ({
   message: String(error?.message || "Unknown auth error")
@@ -20,6 +49,98 @@ const normalizeUsername = (value) => {
   return trimmed;
 };
 
+const normalizeOptionalText = (value, maxLength) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") throw new Error("Invalid profile field");
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > maxLength) throw new Error(`Must be ${maxLength} characters or fewer`);
+  return trimmed;
+};
+
+const normalizeOptionalEmail = (value) => {
+  const normalized = normalizeOptionalText(value, PROFILE_FIELD_LIMITS.personalEmail);
+  if (normalized === undefined || normalized === null) return normalized;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error("Personal email must be a valid email address");
+  }
+  return normalized.toLowerCase();
+};
+
+const normalizeAppearancePreference = (value) => {
+  if (value === undefined) return undefined;
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!APPEARANCE_PREFERENCES.has(normalized)) {
+    throw new Error("Appearance must be system, light, or dark");
+  }
+  return normalized;
+};
+
+const normalizeAvatarUrl = (value) => {
+  const normalized = normalizeOptionalText(value, MAX_AVATAR_URL_LEN);
+  if (normalized === undefined || normalized === null) return normalized;
+  const isRemoteImage = /^https?:\/\/[^\s]+$/i.test(normalized);
+  const isDataImage = /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(normalized);
+  if (!isRemoteImage && !isDataImage) {
+    throw new Error("Avatar must be an image URL or small uploaded image");
+  }
+  return normalized;
+};
+
+const normalizeProfileUpdatePayload = (body = {}) => {
+  const updates = {};
+
+  if ("username" in body) {
+    const username = normalizeUsername(body.username);
+    if (!username) {
+      throw new Error("Username must be 1-50 characters using letters, numbers, . _ - only");
+    }
+    updates.username = username;
+  }
+
+  for (const [field, maxLength] of Object.entries(PROFILE_FIELD_LIMITS)) {
+    if (!(field in body)) continue;
+    updates[field] =
+      field === "personalEmail"
+        ? normalizeOptionalEmail(body[field])
+        : normalizeOptionalText(body[field], maxLength);
+  }
+
+  if ("avatarUrl" in body) updates.avatarUrl = normalizeAvatarUrl(body.avatarUrl);
+  if ("appearancePreference" in body) {
+    updates.appearancePreference = normalizeAppearancePreference(body.appearancePreference);
+  }
+
+  return updates;
+};
+
+const getDisplayName = (user) => {
+  const fullName = [user?.firstName, user?.lastName]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return fullName || user?.username || "";
+};
+
+const toSessionUser = (user) => ({
+  id: user.id,
+  username: user.username,
+  role: user.role,
+  firstName: user.firstName || "",
+  lastName: user.lastName || "",
+  displayName: getDisplayName(user),
+  personalEmail: user.personalEmail || "",
+  phone: user.phone || "",
+  jobTitle: user.jobTitle || "",
+  department: user.department || "",
+  bio: user.bio || "",
+  avatarUrl: user.avatarUrl || "",
+  appearancePreference: user.appearancePreference || "system",
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+});
+
 const requireAdmin = (req, res, next) => {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
@@ -34,8 +155,31 @@ const requireAdmin = (req, res, next) => {
   return next();
 };
 
+const requireCurrentUser = (prisma) => async (req, res, next) => {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+  const payload = verifyToken(token);
+  if (!payload?.id) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const user = await prisma.siteUser.findUnique({
+      where: { id: String(payload.id) },
+      select: PROFILE_SELECT,
+    });
+    if (!user?.isActive) return res.status(401).json({ error: "Unauthorized" });
+    req.authUser = user;
+    return next();
+  } catch (error) {
+    console.error("Current user lookup failed:", toSafeAuthErrorLog(error));
+    return res.status(503).json({ error: "User profile is unavailable" });
+  }
+};
+
 export const createAuthRouter = (prisma) => {
   const router = Router();
+  const requireSelf = requireCurrentUser(prisma);
 
   // POST /api/auth/login
   router.post("/login", async (req, res) => {
@@ -53,7 +197,7 @@ export const createAuthRouter = (prisma) => {
     try {
       user = await prisma.siteUser.findUnique({
         where: { username: normalizedUsername },
-        select: { id: true, username: true, role: true, passwordHash: true, isActive: true },
+        select: { ...PROFILE_SELECT, passwordHash: true },
       });
     } catch (error) {
       console.error("Login DB error:", toSafeAuthErrorLog(error));
@@ -77,7 +221,46 @@ export const createAuthRouter = (prisma) => {
       return res.status(503).json({ error: "Admin authentication is not configured" });
     }
 
-    return res.json({ ok: true, token, username: user.username, role: user.role });
+    return res.json({ ok: true, token, ...toSessionUser(user) });
+  });
+
+  // GET /api/auth/me — current user's profile and preferences
+  router.get("/me", requireSelf, async (req, res) => {
+    return res.json({ ok: true, user: toSessionUser(req.authUser) });
+  });
+
+  // PATCH /api/auth/me — current user updates their profile and preferences
+  router.patch("/me", requireSelf, async (req, res) => {
+    let updates;
+    try {
+      updates = normalizeProfileUpdatePayload(req.body || {});
+    } catch (error) {
+      return res.status(400).json({ error: error.message || "Invalid profile details" });
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No profile fields to update" });
+    }
+
+    try {
+      const updatedUser = await prisma.siteUser.update({
+        where: { id: req.authUser.id },
+        data: updates,
+        select: PROFILE_SELECT,
+      });
+      const token = signToken({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        role: updatedUser.role,
+      });
+      return res.json({ ok: true, token, ...toSessionUser(updatedUser) });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(409).json({ error: "That username is already taken" });
+      }
+      console.error("Update profile error:", toSafeAuthErrorLog(error));
+      return res.status(500).json({ error: "Failed to update profile" });
+    }
   });
 
   // POST /api/auth/users — admin creates a new user

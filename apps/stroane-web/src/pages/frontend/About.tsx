@@ -1,8 +1,8 @@
 import React from "react";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import StructuredData from "../components/StructuredData";
-import "../styles/pages/About.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import StructuredData from "../../components/StructuredData";
+import "../../styles/pages/About.css";
 
 const ABOUT_SCHEMA = {
   "@context": "https://schema.org",

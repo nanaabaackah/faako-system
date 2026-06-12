@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { HiArrowRight, HiChevronDown } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import StructuredData from "../components/StructuredData";
-import "../styles/pages/Resources.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import StructuredData from "../../components/StructuredData";
+import "../../styles/pages/Resources.css";
 
 const guides = [
   {

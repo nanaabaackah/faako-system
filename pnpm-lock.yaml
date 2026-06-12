@@ -814,6 +814,9 @@ importers:
       '@faako/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@faako/offline-sync':
+        specifier: workspace:*
+        version: link:../../packages/offline-sync
       '@faako/security':
         specifier: workspace:*
         version: link:../../packages/security

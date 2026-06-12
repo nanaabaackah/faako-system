@@ -9,9 +9,10 @@ import { AdminPortalProvider } from "./context/AdminPortalContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { STOREFRONT_BASE_URL, storefrontUrl } from "./config/appSurface";
-import AdminPortalHome from "./pages/AdminPortalHome";
-import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
-import AdminPortalSignIn from "./pages/AdminPortalSignIn";
+import AdminPortalHome from "./pages/portal/AdminPortalHome";
+import AdminPortalPlaceholder from "./pages/portal/AdminPortalPlaceholder";
+import AdminPortalProfile from "./pages/portal/AdminPortalProfile";
+import AdminPortalSignIn from "./pages/portal/AdminPortalSignIn";
 
 const StorefrontExternalRedirect: React.FC = () => {
   const location = useLocation();
@@ -38,6 +39,7 @@ const PortalApp: React.FC = () => (
         <Route element={<RequirePortalAccess />}>
           <Route path="/admin" element={<AdminPortalLayout />}>
             <Route index element={<AdminPortalHome />} />
+            <Route path="profile" element={<AdminPortalProfile />} />
             <Route path="inventory" element={<AdminPortalPlaceholder area="inventory" />} />
             <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />
             <Route path="products" element={<AdminPortalPlaceholder area="products" />} />

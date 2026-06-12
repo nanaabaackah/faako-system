@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { EmptyState } from "@faako/ui";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import { categories, products } from "../data/products";
-import "../styles/pages/Search.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import { categories, products } from "../../data/products";
+import "../../styles/pages/Search.css";
 
 const SEARCH_INDEX = [
   {

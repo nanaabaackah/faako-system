@@ -73,6 +73,12 @@ export interface InventoryItem {
     slug: string;
     name: string;
     sku?: string | null;
+    stockStatus?: string | null;
+    stockQuantity?: number | null;
+    availableQuantity?: number | null;
+    reservedQuantity?: number | null;
+    lowStockThreshold?: number | null;
+    reorderThreshold?: number | null;
   } | null;
   supplier?: SupplierSummary | null;
 }

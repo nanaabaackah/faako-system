@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
-  calculateAvailableQuantity,
   isLowStock,
   needsReorder,
+  resolveAvailableQuantity,
 } from "../inventory/services.js";
 import {
   INVENTORY_ALERT_CHANNELS,
@@ -65,10 +65,7 @@ export const isInventoryAlertEligible = (item = {}) =>
 export const detectInventoryAlert = (item = {}) => {
   if (!isInventoryAlertEligible(item)) return null;
 
-  const availableQuantity = calculateAvailableQuantity(
-    item.quantityOnHand,
-    item.reservedQuantity
-  );
+  const availableQuantity = resolveAvailableQuantity(item);
   if (availableQuantity === null) return null;
 
   const base = {
@@ -341,10 +338,7 @@ export const runInventoryAlertCheck = async (
           {
             alertType: INVENTORY_ALERT_TYPES.RESTOCKED,
             reason: "inventory_recovered_above_threshold",
-            availableQuantity: calculateAvailableQuantity(
-              item.quantityOnHand,
-              item.reservedQuantity
-            ),
+            availableQuantity: resolveAvailableQuantity(item),
             reservedQuantity: item.reservedQuantity ?? 0,
             reorderThreshold: item.reorderThreshold ?? item.lowStockThreshold ?? null,
           },
@@ -418,4 +412,3 @@ export const listInventoryAlertSummary = async (prisma) => {
     },
   };
 };
-

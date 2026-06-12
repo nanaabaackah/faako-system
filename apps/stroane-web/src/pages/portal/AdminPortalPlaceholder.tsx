@@ -1,7 +1,7 @@
 import React from "react";
-import useSEOMeta from "../hooks/useSEOMeta";
-import { portalUrl } from "../config/appSurface";
-import "../styles/pages/AdminPortal.css";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import { portalUrl } from "../../config/appSurface";
+import "../../styles/pages/AdminPortal.css";
 
 type AdminPortalPlaceholderArea =
   | "inventory"

@@ -4,6 +4,7 @@ import {
   applyInventoryMovementState,
   calculateAvailableQuantity,
   evaluateStockStatus,
+  listInventoryItems,
 } from "./src/inventory/services.js";
 import { validateMovementPayload } from "./src/inventory/validation.js";
 
@@ -22,7 +23,63 @@ test("evaluates low and unavailable stock statuses", () => {
     }),
     "low_stock"
   );
+  assert.equal(evaluateStockStatus({ quantityOnHand: 0, reservedQuantity: 0 }), "out_of_stock");
+  assert.equal(evaluateStockStatus({ quantityOnHand: null, availableQuantity: 0 }), "out_of_stock");
   assert.equal(evaluateStockStatus({ quantityOnHand: null }), "unavailable");
+});
+
+test("hydrates legacy inventory rows from product slug stock data", async () => {
+  const items = await listInventoryItems(
+    {
+      inventoryItem: {
+        findMany: async () => [
+          {
+            id: "inventory-legacy-zero",
+            productId: null,
+            productSlug: "legacy-zero-stock",
+            variantId: null,
+            sku: null,
+            supplierId: null,
+            quantityOnHand: null,
+            reservedQuantity: 0,
+            availableQuantity: null,
+            reorderThreshold: null,
+            lowStockThreshold: null,
+            stockStatus: "unavailable",
+            inventoryTrackingEnabled: true,
+            allowBackorder: false,
+            isPurchasable: false,
+            product: null,
+            supplier: null,
+          },
+        ],
+      },
+      catalogueProduct: {
+        findMany: async (query) => {
+          assert.deepEqual(query.where, { slug: { in: ["legacy-zero-stock"] } });
+          return [
+            {
+              id: "product-legacy-zero",
+              slug: "legacy-zero-stock",
+              name: "Legacy zero stock",
+              sku: "LEG-0",
+              stockStatus: "out_of_stock",
+              stockQuantity: null,
+              availableQuantity: 0,
+              reservedQuantity: 0,
+              isPurchasable: false,
+              allowBackorder: false,
+            },
+          ];
+        },
+      },
+    },
+    { limit: 10 }
+  );
+
+  assert.equal(items[0].availableQuantity, 0);
+  assert.equal(items[0].computedStockStatus, "out_of_stock");
+  assert.equal(items[0].product?.availableQuantity, 0);
 });
 
 test("applies restock and reserved movement state safely", () => {

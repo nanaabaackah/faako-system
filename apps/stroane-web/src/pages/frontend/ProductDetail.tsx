@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { HiChevronLeft } from "react-icons/hi";
 import { StatusPill } from "@faako/ui";
-import Layout from "../components/Layout";
-import QuantityControls from "../components/QuantityControls";
-import StructuredData from "../components/StructuredData";
-import ProductInquiryForm from "../components/ProductInquiryForm";
-import useSEOMeta from "../hooks/useSEOMeta";
+import Layout from "../../components/Layout";
+import QuantityControls from "../../components/QuantityControls";
+import StructuredData from "../../components/StructuredData";
+import ProductInquiryForm from "../../components/ProductInquiryForm";
+import useSEOMeta from "../../hooks/useSEOMeta";
 import {
   canPurchaseProduct,
   getAvailableStockQuantity,
@@ -30,10 +30,10 @@ import {
   shouldShowInquiryOption,
   type Product,
   type ProductVariant,
-} from "../data/products";
-import { productApi } from "../api/products";
-import { useCart } from "../context/CartContext";
-import "../styles/pages/ProductDetail.css";
+} from "../../data/products";
+import { productApi } from "../../api/products";
+import { useCart } from "../../context/CartContext";
+import "../../styles/pages/ProductDetail.css";
 
 const formatSpecificationLabel = (label: string) =>
   label

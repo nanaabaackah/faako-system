@@ -10,10 +10,10 @@ import {
   HiCube,
   HiGlobe,
 } from "react-icons/hi";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import StructuredData from "../components/StructuredData";
-import "../styles/pages/Services.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import StructuredData from "../../components/StructuredData";
+import "../../styles/pages/Services.css";
 
 const SERVICES_SCHEMA = {
   "@context": "https://schema.org",

@@ -197,6 +197,16 @@ export const getAvailableStockQuantity = (product: Product) => {
   return Math.max(0, stockQuantity - reservedQuantity);
 };
 
+const resolveStockStatus = (
+  value: string | ProductStockStatus | ProductStock | null | undefined,
+  availableQuantity: number | null
+): ProductStockStatus => {
+  const stockStatus = normalizeStockStatus(value);
+  if (stockStatus === "preorder") return stockStatus;
+  if (availableQuantity != null && availableQuantity <= 0) return "out_of_stock";
+  return stockStatus;
+};
+
 const getNormalizedLowStockThreshold = (product: Product) =>
   toNullableInteger(product.lowStockThreshold) ?? 5;
 
@@ -289,30 +299,42 @@ const normalizeVariants = (
 ): ProductVariant[] =>
   (Array.isArray(variants) ? variants : [])
     .filter((variant) => variant?.id && variant?.name)
-    .map((variant) => ({
-      ...variant,
-      currency: variant.currency || "GHS",
-      price: variant.price == null ? null : Number(variant.price),
-      stockStatus: normalizeStockStatus(variant.stockStatus),
-      stockQuantity: toNullableInteger(variant.stockQuantity),
-      availableQuantity: toNullableInteger(variant.availableQuantity),
-      reservedQuantity: toNullableInteger(variant.reservedQuantity),
-      reorderThreshold: toNullableInteger(variant.reorderThreshold),
-      allowBackorder: Boolean(variant.allowBackorder),
-      isPurchasable: Boolean(variant.isPurchasable),
-      imageAlt: variant.imageAlt || `${productName} - ${variant.name}`,
-      media: Array.isArray(variant.media)
-        ? variant.media
-            .filter((item) => item?.url)
-            .map((item, index) => ({
-              ...item,
-              alt: item.alt || variant.imageAlt || `${productName} - ${variant.name}`,
-              type: item.type || "variant",
-              sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index + 1,
-              variantId: item.variantId || variant.id,
-            }))
-        : undefined,
-    }));
+    .map((variant) => {
+      const stockQuantity = toNullableInteger(variant.stockQuantity);
+      const reservedQuantity = toNullableInteger(variant.reservedQuantity);
+      const availableQuantity =
+        variant.availableQuantity !== undefined
+          ? toNullableInteger(variant.availableQuantity)
+          : stockQuantity == null
+            ? null
+            : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
+      const stockStatus = resolveStockStatus(variant.stockStatus, availableQuantity);
+
+      return {
+        ...variant,
+        currency: variant.currency || "GHS",
+        price: variant.price == null ? null : Number(variant.price),
+        stockStatus,
+        stockQuantity,
+        availableQuantity,
+        reservedQuantity,
+        reorderThreshold: toNullableInteger(variant.reorderThreshold),
+        allowBackorder: Boolean(variant.allowBackorder),
+        isPurchasable: Boolean(variant.isPurchasable),
+        imageAlt: variant.imageAlt || `${productName} - ${variant.name}`,
+        media: Array.isArray(variant.media)
+          ? variant.media
+              .filter((item) => item?.url)
+              .map((item, index) => ({
+                ...item,
+                alt: item.alt || variant.imageAlt || `${productName} - ${variant.name}`,
+                type: item.type || "variant",
+                sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : index + 1,
+                variantId: item.variantId || variant.id,
+              }))
+          : undefined,
+      };
+    });
 
 export const businessProfile = catalogue.businessProfile;
 
@@ -342,9 +364,8 @@ export const normalizeProduct = (product: Product): Product => {
     localProduct?.image
   );
   const galleryImages = media.map((item) => item.url);
-  const stockStatus = normalizeStockStatus(
-    product.stockStatus || product.stock || localProduct?.stockStatus || localProduct?.stock
-  );
+  const stockStatusValue =
+    product.stockStatus || product.stock || localProduct?.stockStatus || localProduct?.stock;
   const stockQuantity =
     product.stockQuantity !== undefined
       ? toNullableInteger(product.stockQuantity)
@@ -363,6 +384,7 @@ export const normalizeProduct = (product: Product): Product => {
       : stockQuantity == null
         ? null
         : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
+  const stockStatus = resolveStockStatus(stockStatusValue, availableQuantity);
 
   return {
     ...product,
@@ -453,6 +475,10 @@ export const getAvailabilityLabel = (product: Product) => {
   const availableQuantity = getAvailableStockQuantity(product);
   const lowStockThreshold = getNormalizedLowStockThreshold(product);
 
+  if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
+    return "Out of stock";
+  }
+
   if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity != null) {
     if (availableQuantity <= 0) return "Out of stock";
     return availableQuantity <= lowStockThreshold ? "Few left" : "In stock";
@@ -487,6 +513,9 @@ export const getPurchaseBlocker = (product: Product, quantity = 1) => {
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
   const availableQuantity = getAvailableStockQuantity(product);
 
+  if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
+    return "Out of stock.";
+  }
   if (!product.isPurchasable) return "Purchasing is disabled until stock is confirmed.";
   if (stockStatus === "out_of_stock") return "Out of stock.";
   if (stockStatus === "unavailable") return "Unavailable for online purchase.";

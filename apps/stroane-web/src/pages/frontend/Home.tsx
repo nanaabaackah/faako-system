@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import Layout from "../components/Layout";
-import useSEOMeta from "../hooks/useSEOMeta";
-import StructuredData from "../components/StructuredData";
-import FloatingHeader from "../components/FloatingHeader";
-import { formatProductPrice, products } from "../data/products";
-import "../styles/pages/Home.css";
+import Layout from "../../components/Layout";
+import useSEOMeta from "../../hooks/useSEOMeta";
+import StructuredData from "../../components/StructuredData";
+import FloatingHeader from "../../components/FloatingHeader";
+import { formatProductPrice, products } from "../../data/products";
+import "../../styles/pages/Home.css";
 
 const HOME_SCHEMA = {
   "@context": "https://schema.org",

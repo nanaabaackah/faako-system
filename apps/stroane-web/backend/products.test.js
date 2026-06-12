@@ -169,6 +169,34 @@ test("seed fallback catalogue responses omit internal review metadata", () => {
   assert.equal("reviewNotes" in product, false);
 });
 
+test("public catalogue maps explicit zero stock to out of stock", async () => {
+  const prisma = {
+    catalogueProduct: {
+      findMany: async () => [
+        {
+          id: "zero-stock-product",
+          slug: "zero-stock-product",
+          name: "Zero stock product",
+          categorySlug: "thermometers",
+          category: { slug: "thermometers", name: "Thermometers" },
+          currency: "GHS",
+          price: "25.00",
+          compareAtPrice: null,
+          stockQuantity: null,
+          availableQuantity: 0,
+          reservedQuantity: 0,
+          stockStatus: "unavailable",
+        },
+      ],
+    },
+  };
+
+  const [product] = await listPersistedCatalogueProducts(prisma);
+  assert.equal(product.availableQuantity, 0);
+  assert.equal(product.stockStatus, "out_of_stock");
+  assert.equal(product.stock, "Out of stock");
+});
+
 test("admin products preserve unknown operational stock instead of inheriting catalogue zeroes", () => {
   const product = toAdminProduct({
     id: "product-unknown-stock",
@@ -194,4 +222,32 @@ test("admin products preserve unknown operational stock instead of inheriting ca
   assert.equal(product.stock.quantityOnHand, null);
   assert.equal(product.stock.availableQuantity, null);
   assert.equal(product.stock.stockStatus, "unavailable");
+});
+
+test("admin products treat explicit stored zero inventory as out of stock", () => {
+  const product = toAdminProduct({
+    id: "product-zero-stock",
+    slug: "zero-stock",
+    name: "Zero stock",
+    stockQuantity: null,
+    availableQuantity: 0,
+    reservedQuantity: 0,
+    stockStatus: "unavailable",
+    inventoryItems: [
+      {
+        id: "inventory-zero-stock",
+        variantId: null,
+        quantityOnHand: null,
+        reservedQuantity: 0,
+        availableQuantity: 0,
+        stockStatus: "unavailable",
+      },
+    ],
+    supplierLinks: [],
+  });
+
+  assert.equal(product.stock.quantityOnHand, null);
+  assert.equal(product.stock.availableQuantity, 0);
+  assert.equal(product.stock.stockStatus, "out_of_stock");
+  assert.equal(product.stock.isOutOfStock, true);
 });
