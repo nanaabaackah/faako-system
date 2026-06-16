@@ -14,6 +14,7 @@ Live/private beta and used by authenticated users. Treat changes as production-s
 - Core operations modules such as orders, inventory, CRM, users, employees, directory, maintenance, timesheets, and rentals.
 - Admin modules for bookings, schedule, accounting, expenses, vendors, delivery, documents, settings, HR, roles, invoicing, marketing, advanced tools, and website templates.
 - Express API wrapper at `api.reebspartythemes.com` adapting the existing backend handlers, plus Prisma-managed database workflows.
+- Shared `AppUpdateNotice` in the portal/public/store-mode shell paths prompts for a user-controlled refresh when a newer deployed frontend bundle exists without forcing active operational work to reload.
 
 ## In-progress modules/features
 

@@ -81,6 +81,72 @@ const toNullableInteger = (value) => {
   return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
 };
 
+const toNullableMoney = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? Number(numberValue.toFixed(2)) : null;
+};
+
+const priceRequestLabelPattern =
+  /(?:request\s+(?:a\s+)?price|price\s+on\s+request|request\s+quote|quote\s+required|price\s+required)/i;
+
+const resolvePriceLabel = (label, price) => {
+  const normalized = String(label || "").trim();
+  if (!normalized) return undefined;
+  return price != null && priceRequestLabelPattern.test(normalized) ? undefined : normalized;
+};
+
+const getBaseInventoryItem = (product) =>
+  asArray(product.inventoryItems).find((item) => !item.variantId) || null;
+
+const mapPublicVariants = (localProduct, inventoryItems) => {
+  const inventoryByVariantId = new Map(
+    asArray(inventoryItems)
+      .filter((item) => item?.variantId)
+      .map((item) => [item.variantId, item])
+  );
+
+  return asArray(localProduct.variants).map((variant) => {
+    const inventory = inventoryByVariantId.get(variant.id);
+    const stockQuantity = toNullableInteger(inventory?.quantityOnHand ?? variant.stockQuantity);
+    const reservedQuantity = toNullableInteger(
+      inventory?.reservedQuantity ?? variant.reservedQuantity
+    );
+    const explicitAvailableQuantity = toNullableInteger(
+      inventory?.availableQuantity ?? variant.availableQuantity
+    );
+    const availableQuantity =
+      explicitAvailableQuantity != null
+        ? explicitAvailableQuantity
+        : stockQuantity == null
+          ? null
+          : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
+    const stockStatus = resolveStockStatus(
+      inventory?.stockStatus || variant.stockStatus,
+      availableQuantity
+    );
+    const price = toNullableMoney(variant.price);
+
+    return {
+      ...variant,
+      sku: inventory?.sku || variant.sku,
+      price,
+      priceLabel: resolvePriceLabel(variant.priceLabel, price),
+      currency: variant.currency || "GHS",
+      stockQuantity,
+      reservedQuantity,
+      availableQuantity,
+      stockStatus,
+      lowStockThreshold: toNullableInteger(
+        inventory?.lowStockThreshold ?? variant.lowStockThreshold
+      ),
+      reorderThreshold: toNullableInteger(inventory?.reorderThreshold ?? variant.reorderThreshold),
+      allowBackorder: Boolean(inventory?.allowBackorder ?? variant.allowBackorder),
+      isPurchasable: Boolean(inventory?.isPurchasable ?? variant.isPurchasable),
+    };
+  });
+};
+
 const toPublicCategory = (category) => {
   const categoryId = category.slug || category.id;
   const localCategory = localCategoryById.get(categoryId) || {};
@@ -99,13 +165,19 @@ const toPublicCategory = (category) => {
 const toPublicProduct = (product) => {
   const productId = product.slug || product.id;
   const localProduct = localProductById.get(productId) || {};
+  const inventoryItems = asArray(product.inventoryItems);
+  const baseInventoryItem = getBaseInventoryItem(product);
   const images = asArray(product.images).length ? asArray(product.images) : asArray(localProduct.images);
   const specifications =
     product.specifications !== undefined ? product.specifications : localProduct.specifications;
-  const stockQuantity = toNullableInteger(product.stockQuantity ?? localProduct.stockQuantity);
-  const reservedQuantity = toNullableInteger(product.reservedQuantity ?? localProduct.reservedQuantity);
+  const stockQuantity = toNullableInteger(
+    baseInventoryItem?.quantityOnHand ?? product.stockQuantity ?? localProduct.stockQuantity
+  );
+  const reservedQuantity = toNullableInteger(
+    baseInventoryItem?.reservedQuantity ?? product.reservedQuantity ?? localProduct.reservedQuantity
+  );
   const explicitAvailableQuantity = toNullableInteger(
-    product.availableQuantity ?? localProduct.availableQuantity
+    baseInventoryItem?.availableQuantity ?? product.availableQuantity ?? localProduct.availableQuantity
   );
   const availableQuantity =
     explicitAvailableQuantity != null
@@ -114,8 +186,14 @@ const toPublicProduct = (product) => {
         ? null
         : Math.max(0, stockQuantity - (reservedQuantity ?? 0));
   const stockStatus = resolveStockStatus(
-    product.stockStatus || localProduct.stockStatus,
+    baseInventoryItem?.stockStatus || product.stockStatus || localProduct.stockStatus,
     availableQuantity
+  );
+  const price = toNullableMoney(product.price ?? localProduct.price);
+  const compareAtPrice = toNullableMoney(product.compareAtPrice ?? localProduct.compareAtPrice);
+  const priceLabel = resolvePriceLabel(
+    product.priceLabel ?? (price == null ? localProduct.priceLabel : undefined),
+    price
   );
 
   return {
@@ -129,9 +207,9 @@ const toPublicProduct = (product) => {
     sku: product.sku || localProduct.sku || productId,
     description: product.shortDescription || localProduct.description || "",
     longDescription: product.longDescription || localProduct.longDescription || undefined,
-    price: product.price == null ? null : Number(product.price),
-    compareAtPrice: product.compareAtPrice == null ? null : Number(product.compareAtPrice),
-    priceLabel: product.priceLabel || localProduct.priceLabel || undefined,
+    price,
+    compareAtPrice,
+    priceLabel,
     currency: product.currency || localProduct.currency || "GHS",
     unit: product.unit || localProduct.unit || "each",
     image: product.image || localProduct.image || undefined,
@@ -146,13 +224,21 @@ const toPublicProduct = (product) => {
     stockQuantity,
     availableQuantity,
     reservedQuantity,
-    lowStockThreshold: toNullableInteger(product.lowStockThreshold ?? localProduct.lowStockThreshold),
-    allowBackorder: Boolean(product.allowBackorder ?? localProduct.allowBackorder),
-    isPurchasable: Boolean(product.isPurchasable ?? localProduct.isPurchasable),
+    lowStockThreshold: toNullableInteger(
+      baseInventoryItem?.lowStockThreshold ?? product.lowStockThreshold ?? localProduct.lowStockThreshold
+    ),
+    allowBackorder: Boolean(
+      baseInventoryItem?.allowBackorder ?? product.allowBackorder ?? localProduct.allowBackorder
+    ),
+    isPurchasable: Boolean(
+      baseInventoryItem?.isPurchasable ?? product.isPurchasable ?? localProduct.isPurchasable
+    ),
     availability: product.availability || localProduct.availability || undefined,
-    quoteOnly: Boolean(product.quoteOnly || product.price == null),
-    reorderThreshold: toNullableInteger(product.reorderThreshold ?? localProduct.reorderThreshold),
-    variants: asArray(localProduct.variants),
+    quoteOnly: price == null,
+    reorderThreshold: toNullableInteger(
+      baseInventoryItem?.reorderThreshold ?? product.reorderThreshold ?? localProduct.reorderThreshold
+    ),
+    variants: mapPublicVariants(localProduct, inventoryItems),
     features: asArray(product.features).length ? asArray(product.features) : asArray(localProduct.features),
     specifications: Array.isArray(specifications) ? specifications : asObject(specifications),
     tags: asArray(product.tags).length ? asArray(product.tags) : asArray(localProduct.tags),
@@ -239,7 +325,7 @@ export const listPersistedCatalogueProducts = async (
 
   const products = await prisma.catalogueProduct.findMany({
     where: { isPublished: true, publishingStatus: "active" },
-    include: { category: true },
+    include: { category: true, inventoryItems: true },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
   });
 
@@ -269,7 +355,7 @@ export const getPersistedCatalogueProductBySlug = async (prisma, slug = "") => {
       publishingStatus: "active",
       OR: [{ slug }, { sku: slug }],
     },
-    include: { category: true },
+    include: { category: true, inventoryItems: true },
   });
 
   return product ? toPublicProduct(product) : null;

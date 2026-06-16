@@ -31,6 +31,8 @@ pnpm --filter @faako/bynana-portfolio run lint
 
 The static frontend should only receive browser-safe `VITE_*` values. The contact form opens a mail draft by default; configure `VITE_CONTACT_SUBMIT_ENDPOINT` only when a dedicated browser-callable contact API exists.
 
+`AppUpdateNotice` from `@faako/ui` is mounted in the app shell. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh when a newer deployed bundle is available and never reloads automatically.
+
 ## Project Metadata Registry
 
 Shared project metadata for future portfolio/case-study consumption lives in `@faako/config` under `packages/config/src/projectRegistry/projectRegistry.js`. Stroane Web is registered there as a public client website/product-catalogue project, but `caseStudyEnabled` remains `false`; this app should not auto-publish Stroane or any future client case study without an explicit UI/content pass and client-safe review. New apps created with `pnpm create:app` are automatically added as private draft project metadata so the portfolio pipeline has a placeholder without publishing the project.

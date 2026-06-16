@@ -11,6 +11,7 @@
  */
 
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import prismaPkg from "@prisma/client";
@@ -19,6 +20,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
+const cataloguePath = path.join(appRoot, "src/data/stroaneCatalogue.json");
+const catalogue = JSON.parse(readFileSync(cataloguePath, "utf8"));
+const localProductBySlug = new Map(
+  catalogue.products.flatMap((product) => [
+    [product.id, product],
+    [product.slug || product.id, product],
+  ])
+);
 dotenv.config({ path: path.join(appRoot, ".env") });
 
 const envName = String(process.env.APP_ENV || process.env.NODE_ENV || "development")
@@ -40,6 +49,58 @@ const applyChanges =
 const calculateAvailableQuantity = (quantityOnHand, reservedQuantity) => {
   if (quantityOnHand == null) return null;
   return Math.max(0, quantityOnHand - (reservedQuantity ?? 0));
+};
+
+const toNullableInteger = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const makeInventoryKey = (productSlug, variantId = null) =>
+  `${productSlug}:${variantId || "__base__"}`;
+
+const getInventoryPlanData = (product, variant = null) => {
+  const quantityOnHand = variant
+    ? toNullableInteger(variant.stockQuantity)
+    : toNullableInteger(product.stockQuantity);
+  const reservedQuantity = variant
+    ? toNullableInteger(variant.reservedQuantity) ?? 0
+    : toNullableInteger(product.reservedQuantity) ?? 0;
+  const storedAvailableQuantity = variant
+    ? toNullableInteger(variant.availableQuantity)
+    : toNullableInteger(product.availableQuantity);
+  const availableQuantity =
+    storedAvailableQuantity ?? calculateAvailableQuantity(quantityOnHand, reservedQuantity);
+
+  return {
+    productId: product.id,
+    productSlug: product.slug,
+    variantId: variant?.id || null,
+    sku: variant?.sku || product.sku,
+    quantityOnHand,
+    reservedQuantity,
+    availableQuantity,
+    reorderThreshold: variant
+      ? toNullableInteger(variant.reorderThreshold) ?? toNullableInteger(product.reorderThreshold)
+      : toNullableInteger(product.reorderThreshold),
+    lowStockThreshold: variant
+      ? toNullableInteger(variant.lowStockThreshold) ?? toNullableInteger(product.lowStockThreshold)
+      : toNullableInteger(product.lowStockThreshold),
+    stockStatus: variant?.stockStatus || product.stockStatus || "unavailable",
+    inventoryTrackingEnabled: true,
+    allowBackorder: variant
+      ? Boolean(variant.allowBackorder ?? product.allowBackorder)
+      : product.allowBackorder,
+    isPurchasable: variant
+      ? Boolean(variant.isPurchasable ?? product.isPurchasable)
+      : product.isPurchasable,
+    notes: variant
+      ? "Initial variant inventory setup. Confirm physical stock before enabling online purchasing."
+      : "Initial catalogue inventory setup. Confirm physical stock before enabling online purchasing.",
+  };
 };
 
 const { PrismaClient } = prismaPkg;
@@ -77,17 +138,34 @@ const run = async () => {
   const existingItems = products.length
     ? await prisma.inventoryItem.findMany({
         where: {
-          productId: { in: products.map((product) => product.id) },
-          variantId: null,
+          OR: [
+            { productId: { in: products.map((product) => product.id) } },
+            { productSlug: { in: products.map((product) => product.slug) } },
+          ],
         },
-        select: { productId: true },
+        select: { productSlug: true, variantId: true },
       })
     : [];
-  const existingProductIds = new Set(existingItems.map((item) => item.productId));
-  const missingProducts = products.filter((product) => !existingProductIds.has(product.id));
+  const existingInventoryKeys = new Set(
+    existingItems.map((item) => makeInventoryKey(item.productSlug, item.variantId))
+  );
+  const inventoryPlans = products.flatMap((product) => {
+    const localProduct = localProductBySlug.get(product.slug) || {};
+    const variants = asArray(localProduct.variants).filter((variant) => variant?.id);
+
+    return [
+      { product, variant: null },
+      ...variants.map((variant) => ({ product, variant })),
+    ];
+  });
+  const missingInventoryPlans = inventoryPlans.filter(
+    ({ product, variant }) => !existingInventoryKeys.has(makeInventoryKey(product.slug, variant?.id))
+  );
+  const missingVariantCount = missingInventoryPlans.filter((plan) => plan.variant).length;
+  const missingBaseCount = missingInventoryPlans.length - missingVariantCount;
 
   console.log(
-    `Inventory bootstrap plan: ${products.length} active catalogue product(s), ${existingItems.length} existing inventory row(s), ${missingProducts.length} missing inventory row(s).`
+    `Inventory bootstrap plan: ${products.length} active catalogue product(s), ${existingItems.length} existing inventory row(s), ${missingBaseCount} missing base row(s), ${missingVariantCount} missing variant row(s).`
   );
 
   if (!applyChanges) {
@@ -96,36 +174,17 @@ const run = async () => {
   }
 
   let createdCount = 0;
-  for (const product of missingProducts) {
+  for (const { product, variant } of missingInventoryPlans) {
     const created = await prisma.$transaction(async (transaction) => {
       const existing = await transaction.inventoryItem.findFirst({
-        where: { productId: product.id, variantId: null },
+        where: { productSlug: product.slug, variantId: variant?.id || null },
         select: { id: true },
       });
       if (existing) return false;
 
-      const reservedQuantity = product.reservedQuantity ?? 0;
-      const availableQuantity =
-        product.availableQuantity ??
-        calculateAvailableQuantity(product.stockQuantity, reservedQuantity);
+      const inventoryData = getInventoryPlanData(product, variant);
       const inventoryItem = await transaction.inventoryItem.create({
-        data: {
-          productId: product.id,
-          productSlug: product.slug,
-          variantId: null,
-          sku: product.sku,
-          quantityOnHand: product.stockQuantity,
-          reservedQuantity,
-          availableQuantity,
-          reorderThreshold: product.reorderThreshold,
-          lowStockThreshold: product.lowStockThreshold,
-          stockStatus: product.stockStatus || "unavailable",
-          inventoryTrackingEnabled: true,
-          allowBackorder: product.allowBackorder,
-          isPurchasable: product.isPurchasable,
-          notes:
-            "Initial catalogue inventory setup. Confirm physical stock before enabling online purchasing.",
-        },
+        data: inventoryData,
       });
 
       await transaction.inventoryAuditEntry.create({
@@ -135,7 +194,9 @@ const run = async () => {
           entityType: "inventory_item",
           entityId: inventoryItem.id,
           productSlug: product.slug,
+          variantId: variant?.id || null,
           afterState: {
+            variantId: inventoryItem.variantId,
             stockStatus: inventoryItem.stockStatus,
             quantityOnHand: inventoryItem.quantityOnHand,
             reservedQuantity: inventoryItem.reservedQuantity,

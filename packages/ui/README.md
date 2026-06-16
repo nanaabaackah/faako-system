@@ -4,7 +4,7 @@ Shared React UI foundations for Faako apps.
 
 ## What changed
 
-Expanded the ERP shell and low-risk presentation foundation with reusable wrappers for topbars, page content, page headers, mobile bottom navigation frames, sidebar slots, module group rendering, status badges, ERP panels, section headers, stack groups, form groups, shared ERP table presentation, shared ERP form presentation, shared ERP modal/action presentation, shared ERP in-app notification/alert UI, and shared ERP operational activity feed.
+Expanded the ERP shell and low-risk presentation foundation with reusable wrappers for topbars, page content, page headers, mobile bottom navigation frames, sidebar slots, module group rendering, status badges, ERP panels, section headers, stack groups, form groups, shared ERP table presentation, shared ERP form presentation, shared ERP modal/action presentation, shared ERP in-app notification/alert UI, shared ERP operational activity feed, and a shared app update notice for non-interruptive deployed-bundle refresh prompts.
 
 ## Where it lives
 
@@ -25,6 +25,7 @@ Expanded the ERP shell and low-risk presentation foundation with reusable wrappe
 - `src/components/ERPNotifications.tsx`: shared in-app notification/alert foundation — `ERPNotice`, `ERPAlert`, `ERPBanner`, `ERPSyncAlert`, `ERPOfflineNotice`, `ERPToastStack`, `useERPToastStack`, plus `ERPToastProvider`/`useERPToast` re-exports.
 - `src/components/ERPActivityFeed.tsx`: shared operational activity feed — `ERPActivityFeed`, `ERPActivityFeedItem`, `ERPActivityItemTone`. Timeline-style list with tone dots, relative timestamps, status badges, actor/entity metadata lines, detail lines, loading/empty/error states, and compact mode.
 - `src/components/Feedback.tsx`: shared feedback states, including the shimmer-based `AnimatedLoadingState` skeleton for compact operational fetches, full-page lazy-loading transitions, and fixed route-transition overlays. The skeleton respects reduced-motion preferences and uses each app's shared theme tokens.
+- `src/components/AppUpdateNotice.tsx`: shared production update prompt. It polls the current HTML for changed hashed script/stylesheet/modulepreload assets, prompts the user to refresh, and never reloads automatically so active carts, forms, admin edits, checkout, and offline queues are not interrupted.
 - `src/ui.css`: shared primitive styles, including section-header defaults.
 
 ## How to use it
@@ -57,6 +58,7 @@ import {
   ERPToastProvider,
   useERPToast,
   ERPActivityFeed,
+  AppUpdateNotice,
   FormGroup,
   StackGroup,
 } from "@faako/ui";
@@ -76,6 +78,8 @@ The ERP notification/alert components are presentation-only. `ERPNotice` renders
 
 `ERPActivityFeed` renders a timeline-style operational activity list. Pass `items` as `ERPActivityFeedItem[]` — each item needs an `id`, `actionLabel`, and optional `statusLabel`, `tone`, `actorLabel`, `entityLabel`, `detail`, and `timestamp`. Tones: `success`, `error`, `warning`, `info`, `neutral`. Use `compact` for sidebar/widget contexts. Apps own the data mapping; the component never fetches, writes, or transmits. Do not surface tokens, secrets, passwords, payment details, customer PII, or raw stack traces in any feed item field. Start adoption with settings/admin surfaces backed by already-loaded local data; keep live operational feeds (POS, payments, bookings, orders, inventory adjustments, auth events) app-owned until separately reviewed.
 
+`AppUpdateNotice` renders a fixed, token-themed update prompt when a deployed app's current HTML references a different build asset signature than the one the user loaded. Mount it once near the app shell and enable it in production, optionally allowing local testing with `VITE_ENABLE_APP_UPDATE_NOTICE=true`. It accepts `appName`, `checkIntervalMs`, `checkUrl`, `dismissStorageKey`, `className`, and `enabled`. The component uses `fetch` with `cache: "no-store"`, stores "Later" dismissals in `localStorage` by signature when available, and only reloads when the user chooses `Refresh now`.
+
 The component accepts optional `className` and `style` props so apps can apply app-specific theming, spacing, or layout overrides without forking. Prefer `className` for theme and spacing concerns; reserve inline `style` for truly dynamic values. CSS uses `--sys-*` theme tokens throughout (text, muted, border, success, danger, warning, accent) with `color-mix` softening, so the feed inherits each app's theme automatically — no app branding is hardcoded into shared styles. Tone modifiers cascade through the item: dot, badge, and detail-text colors all reflect the item's `tone` (default muted; `error` → danger; `warning` → warning).
 
 ## Browser And Mobile Rendering
@@ -86,7 +90,7 @@ Shared ERP field wrappers associate visible labels with their inputs, selects, a
 
 ## Environment variables
 
-None.
+`AppUpdateNotice` does not require env values. Apps commonly gate it with `import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"` so development polling is opt-in.
 
 ## Setup or migration steps
 
@@ -96,9 +100,13 @@ None. These are frontend shell primitives and do not require migrations.
 
 Presentation-only standardization. No auth behavior, route behavior, API permissions, billing, database schema, payment/receipt logic, booking/order/inventory workflows, form submission behavior, form validation behavior, modal open/close state ownership, confirm/delete/save behavior, table data fetching, table filtering, row mutations, or data access changed.
 
+The update notice performs same-origin HTML checks only by default and does not send customer, admin, cart, payment, form, queue, or auth data. It never auto-refreshes the page.
+
 ## Known limitations
 
 The placeholder slots are visual/structural only. Backend-backed module toggles, org branding, offline sync, notifications, and multi-tenant controls remain future work.
+
+The update notice detects changed static asset signatures, not schema compatibility, server maintenance windows, API deploy progress, migration status, or service worker cache state. Use backend maintenance/read-only controls for risky data changes.
 
 The new panel/form/table/modal/action wrappers are intentionally small. The form foundation does not replace app validation libraries, server validation, submit handlers, workflow-specific drafts, or mutation logic. The modal/action foundation does not replace confirmation rules, destructive-action policies, or workflow-specific state machines. Deeper mobile POS layout, workflow table, editable table, bulk action, and ERP page-template systems still require app-specific review before extraction.
 

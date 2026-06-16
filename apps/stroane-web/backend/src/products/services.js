@@ -8,6 +8,26 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const priceRequestLabelPattern =
+  /(?:request\s+(?:a\s+)?price|price\s+on\s+request|request\s+quote|quote\s+required|price\s+required)/i;
+
+const buildProductUpdateData = (product, patch) => {
+  if (!Object.prototype.hasOwnProperty.call(patch, "price")) return patch;
+
+  const data = { ...patch };
+  if (patch.price === null) {
+    data.quoteOnly = true;
+    return data;
+  }
+
+  data.quoteOnly = false;
+  if (priceRequestLabelPattern.test(String(product.priceLabel || ""))) {
+    data.priceLabel = null;
+  }
+
+  return data;
+};
+
 const toIso = (value) => (value instanceof Date ? value.toISOString() : value || null);
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
@@ -214,9 +234,10 @@ export const updateAdminProduct = async (prisma, id, patch, authUser) => {
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
+      const productUpdateData = buildProductUpdateData(product, patch);
       const next = await tx.catalogueProduct.update({
         where: { id },
-        data: patch,
+        data: productUpdateData,
         include: productInclude,
       });
 
@@ -238,7 +259,7 @@ export const updateAdminProduct = async (prisma, id, patch, authUser) => {
         categorySlug: product.categorySlug,
         price: toNumber(product.price),
       }, {
-        ...patch,
+        ...productUpdateData,
         price: patch.price === undefined ? undefined : toNumber(patch.price),
         compareAtPrice:
           patch.compareAtPrice === undefined ? undefined : toNumber(patch.compareAtPrice),

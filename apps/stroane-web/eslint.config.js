@@ -44,7 +44,12 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/context/**/*.{ts,tsx}', 'src/hooks/**/*.{ts,tsx}'],
+    files: [
+      'src/context/**/*.{ts,tsx}',
+      'src/hooks/**/*.{ts,tsx}',
+      'src/portal/context/**/*.{ts,tsx}',
+      'src/portal/hooks/**/*.{ts,tsx}',
+    ],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

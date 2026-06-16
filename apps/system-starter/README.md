@@ -30,6 +30,7 @@ Typical local URL:
 
 - mirrors the shared sidebar, topbar, and field foundations used across the ERP apps
 - good for validating shared shell changes before copying product-specific flows into a new app
+- includes the shared `AppUpdateNotice` pattern so new app shells inherit the non-interruptive deployed-bundle refresh prompt
 
 ## Common Commands
 

@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Shared app update notice shell adoption
+
+Date: 2026-06-15
+Feature/change name: Shared app update notice shell adoption
+Apps affected: Dev ERP, shared UI package
+What changed: Mounted `AppUpdateNotice` from `@faako/ui` in the Dev ERP app shell. The notice is enabled in production, can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`, and prompts users to refresh when a newer deployed frontend bundle exists without auto-reloading active operational work.
+Why it changed: Dev ERP is live with real data, so Git deploys should not interrupt in-progress admin edits, reports, invoices, rent/payment work, proposals, or sync review tasks.
+Files changed: apps/dev-erp/src/App.jsx, apps/dev-erp/README.md, packages/ui/src/components/AppUpdateNotice.tsx, packages/ui/src/ui.css, packages/ui/README.md, docs/apps/dev-erp/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None.
+Security impact: Same-origin frontend shell check only. No auth, CSRF, cookie, permission, database, payment, report, customer, or operational record behavior changed.
+Testing done: `git diff --check` passed at repo level. Shared update-notice validation is covered by the platform entry; full cross-app builds were not run in this pass.
+Rollback notes: Remove the `AppUpdateNotice` import/render from Dev ERP and revert shared UI/docs changes. No data rollback required.
+Next step: After deployment, leave an edit form open during a frontend redeploy and confirm the prompt appears without forced navigation.
+
 ### API monitoring and terminal log streams
 
 Date: 2026-06-08

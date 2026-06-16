@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import {
   AppBottomBar,
+  AppUpdateNotice,
   AnimatedLoadingState,
   ErpBottomNav,
   GoogleAnalyticsRouteTracker,
@@ -295,6 +296,10 @@ function AppLayout() {
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <AppUpdateNotice
+        appName={scenario.brand.name || "Faako ERP"}
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <ErpShellFrame
       brand={scenario.brand}

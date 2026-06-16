@@ -20,6 +20,7 @@ Fully live system with real operational data. Treat all changes as production-se
 - GHS display currency normalization for financial figures, with optional backend currency API hydration through `CURRENCY_API_URL`/`CURRENCY_API_KEY` and non-secret fallback rates through `CAD_TO_GHS_RATE`/`VITE_CAD_TO_GHS_RATE`. Persisted source currencies remain unchanged.
 - Registry-complete site/API monitoring with bounded concurrent fetches. API surfaces, including the Dev ERP Railway/custom API host, render in System Status only; website and portal page health excludes API/internal surfaces. Optional internal apps remain visible as `Not configured` until hosted URLs exist.
 - Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, CSV export, Railway webhook diagnostics, terminal-style live log streams, and the legacy `/api/reports/summary` compatibility alias capability.
+- Shared `AppUpdateNotice` in the app shell prompts for a user-controlled refresh when a newer deployed frontend bundle exists. It must not replace backend maintenance/read-only controls for migrations or risky live-data work.
 
 ## In-progress modules/features
 

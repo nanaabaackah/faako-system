@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
-import { AnimatedLoadingState, GoogleAnalyticsRouteTracker } from "@faako/ui";
+import { AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { useFrontFacingScrollReveal } from "@faako/ui/useFrontFacingScrollReveal";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
@@ -184,6 +184,10 @@ export default function App() {
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <AppUpdateNotice
+        appName="Faako"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <a className="skip-link" href="#main-content">
         Skip to content

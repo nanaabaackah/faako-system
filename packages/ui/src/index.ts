@@ -16,6 +16,7 @@ export * from "./ErpStatusBadge";
 export * from "./GoogleAnalyticsRouteTracker";
 export * from "./SidebarEdgeToggle";
 export * from "./components/AppBottomBar";
+export * from "./components/AppUpdateNotice";
 export * from "./components/SystemProvider";
 export * from "./components/Primitives";
 export * from "./components/Fields";

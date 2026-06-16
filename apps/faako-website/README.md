@@ -31,6 +31,7 @@ pnpm run dev:faako
 - local development proxies `/api/*` to the Faako API server through Vite
 - the signup page is a client onboarding intake wizard and should not collect API keys, passwords, tokens, private email credentials, or bank login details
 - onboarding PDF generation and email sending happen server-side in the Faako API, not in the browser
+- the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh without interrupting an in-progress onboarding form
 
 ## Common Commands
 

@@ -40,6 +40,7 @@ Typical local ports:
 
 - rental listings and rental detail pages now resolve through the same shared rental catalog rules so storefront links and detail slugs stay in sync
 - this app should stay frontend-focused in production and point at `https://api.reebspartythemes.com` for data and auth-adjacent flows
+- the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for a user-controlled refresh when a newer deployed bundle exists
 
 ## Configuration
 

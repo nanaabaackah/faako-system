@@ -137,6 +137,9 @@ test("public catalogue queries active products and omit private supplier and cos
             currency: "GHS",
             price: "25.00",
             compareAtPrice: null,
+            priceLabel: "Request price",
+            quoteOnly: true,
+            isPurchasable: false,
             stockStatus: "unavailable",
             supplier: "Internal supplier",
             costPrice: "10.00",
@@ -150,6 +153,9 @@ test("public catalogue queries active products and omit private supplier and cos
   const [product] = await listPersistedCatalogueProducts(prisma);
   assert.equal(product.id, "private-supplier-test");
   assert.equal(product.price, 25);
+  assert.equal(product.priceLabel, undefined);
+  assert.equal(product.quoteOnly, false);
+  assert.equal(product.isPurchasable, false);
   assert.equal("supplier" in product, false);
   assert.equal("costPrice" in product, false);
   assert.equal("sellingPrice" in product, false);
@@ -195,6 +201,70 @@ test("public catalogue maps explicit zero stock to out of stock", async () => {
   assert.equal(product.availableQuantity, 0);
   assert.equal(product.stockStatus, "out_of_stock");
   assert.equal(product.stock, "Out of stock");
+});
+
+test("public catalogue applies persisted inventory to product variants", async () => {
+  const prisma = {
+    catalogueProduct: {
+      findMany: async () => [
+        {
+          id: "chef-waterproof-apron-db-id",
+          slug: "chef-waterproof-apron",
+          name: "Chef Waterproof Apron",
+          categorySlug: "aprons",
+          category: { slug: "aprons", name: "Aprons" },
+          currency: "GHS",
+          price: null,
+          compareAtPrice: null,
+          stockQuantity: null,
+          availableQuantity: null,
+          reservedQuantity: 0,
+          stockStatus: "unavailable",
+          inventoryItems: [
+            {
+              variantId: null,
+              quantityOnHand: 10,
+              reservedQuantity: 2,
+              availableQuantity: 8,
+              stockStatus: "in_stock",
+              lowStockThreshold: 5,
+              reorderThreshold: null,
+              allowBackorder: false,
+              isPurchasable: true,
+            },
+            {
+              variantId: "chef-waterproof-apron-black",
+              sku: "APR-BLK-STOCK",
+              quantityOnHand: 4,
+              reservedQuantity: 1,
+              availableQuantity: 3,
+              stockStatus: "low_stock",
+              lowStockThreshold: 5,
+              reorderThreshold: 2,
+              allowBackorder: false,
+              isPurchasable: true,
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  const [product] = await listPersistedCatalogueProducts(prisma);
+  const blackVariant = product.variants.find(
+    (variant) => variant.id === "chef-waterproof-apron-black"
+  );
+
+  assert.ok(blackVariant);
+  assert.equal(product.stockQuantity, 10);
+  assert.equal(product.availableQuantity, 8);
+  assert.equal(product.stockStatus, "in_stock");
+  assert.equal(product.isPurchasable, true);
+  assert.equal(blackVariant.sku, "APR-BLK-STOCK");
+  assert.equal(blackVariant.stockQuantity, 4);
+  assert.equal(blackVariant.availableQuantity, 3);
+  assert.equal(blackVariant.stockStatus, "low_stock");
+  assert.equal(blackVariant.isPurchasable, true);
 });
 
 test("admin products preserve unknown operational stock instead of inheriting catalogue zeroes", () => {

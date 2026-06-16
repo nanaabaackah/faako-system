@@ -21,6 +21,13 @@ const NAV_LINKS = [
   { label: "Resources", to: "/resources" },
 ];
 
+const SEARCH_SUGGESTIONS = [
+  "Food safety audits",
+  "HACCP",
+  "Ghana FDA compliance",
+  "Thermometers",
+];
+
 // Routes with an image hero — header sits on top of dark imagery, so it stays transparent (white text) until scrolled.
 // Every other route gets the dark variant from the start so the white text isn't invisible.
 const HERO_ROUTES = new Set<string>([
@@ -89,18 +96,21 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
     };
   }, [menuOpen, searchOpen]);
 
-  const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
+  const submitSearch = (value = query) => {
+    const q = value.trim();
     setSearchOpen(false);
     setQuery("");
-    const searchPath = `/search?q=${encodeURIComponent(q)}`;
+    const searchPath = q ? `/search?q=${encodeURIComponent(q)}` : "/search";
     if (externalNavigationBaseUrl) {
       window.location.assign(toSiteUrl(externalNavigationBaseUrl, searchPath));
       return;
     }
     navigate(searchPath);
+  };
+
+  const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    submitSearch();
   };
 
   return (
@@ -151,23 +161,9 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
 
           {/* Actions — far right */}
           <div className="page-header__actions">
-            {externalNavigationBaseUrl ? (
-              <a
-                href={toSiteUrl(externalNavigationBaseUrl, "/contact")}
-                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
-              >
-                Book a consultation
-              </a>
-            ) : (
-              <Link
-                to="/contact"
-                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
-              >
-                Book a consultation
-              </Link>
-            )}
             <button
               className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
+              type="button"
               onClick={() => {
                 setMenuOpen(false);
                 setSearchOpen(true);
@@ -212,6 +208,21 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
               >
                 <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
               </a>
+            )}
+            {externalNavigationBaseUrl ? (
+              <a
+                href={toSiteUrl(externalNavigationBaseUrl, "/contact")}
+                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
+              >
+                Contact Stroane
+              </a>
+            ) : (
+              <Link
+                to="/contact"
+                className={`page-header__cta${isDark ? " page-header__cta--dark" : ""}`}
+              >
+                Contact Stroane
+              </Link>
             )}
             <button
               className={`page-header__menu-btn${isDark ? " page-header__menu-btn--dark" : ""}`}
@@ -357,7 +368,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     className="mobile-nav-sheet__cta"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <span>Book a consultation</span>
+                    <span>Contact Stroane</span>
                     <HiArrowRight size={16} aria-hidden="true" />
                   </a>
                 ) : (
@@ -366,7 +377,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     className="mobile-nav-sheet__cta"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <span>Book a consultation</span>
+                    <span>Contact Stroane</span>
                     <HiArrowRight size={16} aria-hidden="true" />
                   </Link>
                 )}
@@ -378,22 +389,53 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
 
       {/* Search overlay */}
       {searchOpen && (
-        <div className="search-overlay" onClick={() => setSearchOpen(false)}>
+        <div
+          className="search-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search Stroane"
+          onClick={() => setSearchOpen(false)}
+        >
           <div className="search-overlay__box" onClick={(e) => e.stopPropagation()}>
-            <span className="search-overlay__icon">
-              <HiOutlineSearch size={18} aria-hidden="true" />
-            </span>
-            <form onSubmit={handleSearch} className="search-overlay__form">
-              <input
-                autoFocus
-                type="search"
-                className="search-overlay__input"
-                placeholder="Search services, resources, products…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </form>
-            <kbd className="search-overlay__esc" onClick={() => setSearchOpen(false)}>esc</kbd>
+            <div className="search-overlay__row">
+              <span className="search-overlay__icon">
+                <HiOutlineSearch size={18} aria-hidden="true" />
+              </span>
+              <form onSubmit={handleSearch} className="search-overlay__form">
+                <input
+                  autoFocus
+                  type="search"
+                  className="search-overlay__input"
+                  placeholder="Search services, resources, products..."
+                  aria-label="Search services, resources, products, and pages"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <button type="submit" className="search-overlay__submit">
+                  Search
+                </button>
+              </form>
+              <button
+                type="button"
+                className="search-overlay__esc"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Close search"
+              >
+                esc
+              </button>
+            </div>
+            <div className="search-overlay__suggestions" aria-label="Suggested searches">
+              {SEARCH_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  className="search-overlay__suggestion"
+                  onClick={() => submitSearch(suggestion)}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -19,6 +19,7 @@ import useScrollAnimations from "./hooks/useScrollAnimations";
 import { apiGet, apiPost } from "./api/client";
 import {
   AppBottomBar,
+  AppUpdateNotice,
   AnimatedLoadingState,
   ErpMobileBottomNavFrame,
   ErpPageContent,
@@ -553,6 +554,10 @@ function App() {
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <AppUpdateNotice
+        appName="Dev ERP"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <TitleManager />
       <ScrollAnimationManager />

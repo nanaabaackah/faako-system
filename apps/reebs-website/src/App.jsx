@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { BrowserRouter as Router, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { GoogleAnalyticsRouteTracker } from "@faako/ui";
+import { AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
 import { TemplateConfigProvider } from "./context/TemplateConfigContext";
@@ -138,6 +138,12 @@ function App() {
         shouldTrack={hasReebsAnalyticsConsent}
       />
     );
+    const updateNotice = (
+      <AppUpdateNotice
+        appName="REEBS"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
+      />
+    );
 
     useScrollReveal(pathname, publicScrollRef);
 
@@ -268,6 +274,7 @@ function App() {
       return (
         <>
           {analyticsTracker}
+          {updateNotice}
           {routes}
         </>
       );
@@ -276,6 +283,7 @@ function App() {
     return (
       <>
         {analyticsTracker}
+        {updateNotice}
         <div className="site-shell">
           <div className={`main ${showShellCta ? "has-shell-cta" : ""}`} ref={publicScrollRef}>
             <PartyConfetti className="site-shell-confetti party-confetti-rentals" />

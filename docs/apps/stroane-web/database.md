@@ -107,9 +107,10 @@ APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory
 APP_ENV=production pnpm --filter @faako/stroane-web run db:sync:inventory:apply
 ```
 
-New inventory rows keep unknown quantities as `null`, remain non-purchasable,
-and include an `INVENTORY_ITEM_BOOTSTRAPPED` audit entry. Staff must record a
-physical count or restock movement before enabling online purchasing.
+New inventory rows keep unknown quantities as `null` and include an
+`INVENTORY_ITEM_BOOTSTRAPPED` audit entry. The current storefront allows priced
+products with unknown quantities, so staff should record a physical count or
+restock movement before broad public purchasing promotion.
 
 Private `SiteUser` seeding is environment-specific:
 

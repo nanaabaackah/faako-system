@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppBottomBar, ErpPageContent, ErpShellFrame, GoogleAnalyticsRouteTracker } from "@faako/ui";
+import { AppBottomBar, AppUpdateNotice, ErpPageContent, ErpShellFrame, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
@@ -591,12 +591,19 @@ function AppLayout() {
       shouldTrack={hasReebsAnalyticsConsent}
     />
   );
+  const updateNotice = (
+    <AppUpdateNotice
+      appName="REEBS Portal"
+      enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
+    />
+  );
 
   if (isAdminRoute) {
     if (!authReady) {
       return (
         <>
           {analyticsTracker}
+          {updateNotice}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -609,6 +616,7 @@ function AppLayout() {
       return (
         <>
           {analyticsTracker}
+          {updateNotice}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -621,6 +629,7 @@ function AppLayout() {
       return (
         <>
           {analyticsTracker}
+          {updateNotice}
           <Helmet>
             <title>{pageTitle}</title>
           </Helmet>
@@ -639,6 +648,7 @@ function AppLayout() {
     return (
       <>
         {analyticsTracker}
+        {updateNotice}
         <Helmet>
           <title>{pageTitle}</title>
         </Helmet>
@@ -672,6 +682,7 @@ function AppLayout() {
   return (
     <>
       {analyticsTracker}
+      {updateNotice}
       <Helmet>
         <title>{pageTitle}</title>
       </Helmet>

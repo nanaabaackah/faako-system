@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   AppBottomBar,
+  AppUpdateNotice,
   AnimatedLoadingState,
   Button,
   Card,
@@ -113,6 +114,10 @@ function StarterScreen() {
 export default function App() {
   return (
     <UiSystemProvider appSystem={appSystem}>
+      <AppUpdateNotice
+        appName="System Starter"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
+      />
       <StarterScreen />
     </UiSystemProvider>
   );

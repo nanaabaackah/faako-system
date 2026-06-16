@@ -14,6 +14,7 @@ Public-facing marketing and signup surface. Treat brand presentation, signup ava
 - Static deployment configuration.
 - Signup routing through `VITE_API_BASE_URL` or the local Vite `/api` proxy.
 - Client onboarding intake wizard UI with review/submit flow.
+- Shared `AppUpdateNotice` in the app shell prompts for a user-controlled refresh when a newer deployed frontend bundle exists, without forcing an in-progress onboarding form to reload.
 
 ## In-progress modules/features
 

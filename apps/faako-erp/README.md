@@ -42,6 +42,7 @@ pnpm run dev:faako
 - The registry uses shared helpers from `@faako/config`; it has no required environment variables, setup steps, migrations, database impact, billing behavior, SaaS plan gating, or access-control enforcement changes.
 - Known limitation: grouped module metadata, status labels, and state badges are available, but the shared shell still renders the existing flat navigation until grouped UI is reviewed separately. Database-backed module toggles, org-level module config, permissions integration, and SaaS plan gating remain future work.
 - Known limitation: shell placeholder support for offline/sync/notifications/org switching is structural only; demo access and scenario switching remain app-owned.
+- `AppUpdateNotice` from `@faako/ui` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh when a newer deployed bundle exists without forcing the demo/reference workflow to reload.
 - Testing notes: verify the generated sidebar and bottom-nav items still match the existing `/`, `/orders`, `/inventory`, `/bookings`, `/vendors`, `/expenses`, `/finance`, `/reports`, `/people`, `/customers`, `/notifications`, `/modules`, and `/settings` routes, including topbar layout, hidden-module filtering, and disabled-module visual state.
 
 ## Common Commands

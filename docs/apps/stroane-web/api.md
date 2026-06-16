@@ -172,7 +172,7 @@ Direct module UI, media upload, external media hosting, product creation, catego
 - Backend checkout/payment initialization must validate availability server-side.
 - Orders should not reserve or deduct stock until a separate order-inventory workflow is designed.
 - Low stock is computed from confirmed available quantity and thresholds.
-- Unknown stock should remain non-purchasable.
+- Unknown stock is allowed for priced products in the current storefront test/purchasing pass. Explicit zero quantity, `out_of_stock`, preorder without backorder, and known insufficient quantity must still block checkout server-side.
 - Supplier cost and restock notes should stay private.
 - Inventory admin routes are not a public source of supplier cost, restock notes, or internal adjustment history.
 

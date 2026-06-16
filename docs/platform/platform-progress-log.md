@@ -24,6 +24,20 @@ Next step:
 
 ## Entries
 
+### Cross-app non-interruptive update notice and docs skill
+
+Date: 2026-06-15
+Change name: Cross-app non-interruptive update notice and docs skill
+Apps/packages affected: `@faako/ui`, By Nana Portfolio, Dev ERP, Faako ERP, Faako Website, REEBS Portal, REEBS Website, Stroane Web, System Starter, UI Workbench, platform documentation
+What changed: Added shared `AppUpdateNotice` support in `@faako/ui` and mounted it across the browser app shells. The notice checks the current HTML for changed hashed assets, prompts users to refresh when a newer deployed bundle exists, supports opt-in local testing through `VITE_ENABLE_APP_UPDATE_NOTICE=true`, and never auto-reloads the page. Added a repo-local `skills/update-project-docs` skill plus documentation updates so future code changes carry their README, app-doc, package-doc, and platform-doc trail with them.
+Why it changed: Git deploys can replace app bundles while users are editing forms, managing inventory, checking out, or working in live portals. The shared prompt lets users finish their current work before refreshing, and the docs skill reduces drift after future changes.
+Files changed: packages/ui/src/components/AppUpdateNotice.tsx, packages/ui/src/index.ts, packages/ui/src/ui.css, packages/ui/README.md, browser app `App` files, app README files, docs/platform/platform-progress-log.md, docs/platform/platform-status.md, skills/update-project-docs/*.
+Data impact: None. No schema, migration, seed, operational record, cart, order, payment, inventory, customer, report, offline queue, or auth data changed.
+Security impact: Low-risk frontend shell addition. The notice performs same-origin HTML checks by default, sends no customer/admin/form/cart/payment/auth data, and reloads only when the user clicks the refresh action.
+Testing done: `git diff --check` passed. `apps/stroane-web/src/data/stroaneCatalogue.json` parsed successfully. Direct backend tests for Stroane priced checkout and Paystack helper behavior passed with 7 tests. A fallback skill metadata/frontmatter check passed; the official skill validator could not run because this Python environment is missing PyYAML. Stroane TypeScript, lint, and narrow component TypeScript checks were attempted but did not complete in this shell and were interrupted.
+Rollback notes: Remove `AppUpdateNotice` imports/usages from app shells, remove the shared component export/styles, and revert the docs/skill additions. No data rollback is required.
+Next step: Smoke-test one public website and one authenticated portal after deployment, leaving a form or cart open while a newer bundle is available, to confirm the prompt does not interrupt in-progress work.
+
 ### Automatic app registry onboarding
 
 Date: 2026-06-03

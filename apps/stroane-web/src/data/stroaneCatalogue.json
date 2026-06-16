@@ -153,10 +153,14 @@
       "thumbnailUrl": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-01-transparent.webp",
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-02-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp"
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-transparent.webp",
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-01-transparent.webp",
+        "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-02-transparent.webp"
       ],
       "media": [
         {
@@ -165,6 +169,20 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/alpha-grillers-digital-food-thermometer"
+        },
+        {
+          "url": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-01-transparent.webp",
+          "alt": "Alpha Grillers digital food thermometer feature view",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-01"
+        },
+        {
+          "url": "/imgs/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-02-transparent.webp",
+          "alt": "Alpha Grillers digital food thermometer cooking guide close-up",
+          "type": "gallery",
+          "sortOrder": 3,
+          "publicId": "stroane/products/thermometers/alpha-grillers-digital-food-thermometer-gallery-02"
         }
       ],
       "imageAlt": "Alpha Grillers digital food thermometer with packaging and guide cards",
@@ -388,10 +406,12 @@
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-gallery-01-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-gallery-01-transparent.webp"
       ],
       "media": [
         {
@@ -400,6 +420,13 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/kitchencraft-stainless-steel-food-thermometer"
+        },
+        {
+          "url": "/imgs/products/thermometers/kitchencraft-stainless-steel-food-thermometer-gallery-01-transparent.webp",
+          "alt": "KitchenCraft stainless steel food thermometer and storage tube",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/kitchencraft-stainless-steel-food-thermometer-gallery-01"
         }
       ],
       "imageAlt": "KitchenCraft stainless steel food thermometer with meat temperature guide",
@@ -539,10 +566,12 @@
       "thumbnailUrl": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"
+        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
+        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-gallery-01-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp"
+        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-transparent.webp",
+        "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-gallery-01-transparent.webp"
       ],
       "media": [
         {
@@ -551,6 +580,13 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/etekcity-infrared-thermometer-gun"
+        },
+        {
+          "url": "/imgs/products/thermometers/etekcity-infrared-thermometer-gun-gallery-01-transparent.webp",
+          "alt": "Etekcity infrared thermometer feature view",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/etekcity-infrared-thermometer-gun-gallery-01"
         }
       ],
       "imageAlt": "Etekcity infrared thermometer gun with batteries",
@@ -776,10 +812,12 @@
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-gallery-01-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-gallery-01-transparent.webp"
       ],
       "media": [
         {
@@ -788,6 +826,13 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer"
+        },
+        {
+          "url": "/imgs/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-gallery-01-transparent.webp",
+          "alt": "KitchenCraft fridge freezer bar thermometer retail pack",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/kitchencraft-fridge-freezer-bar-thermometer-gallery-01"
         }
       ],
       "imageAlt": "KitchenCraft horizontal fridge freezer bar thermometer",
@@ -850,10 +895,12 @@
       "thumbnailUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-gallery-01-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp"
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-transparent.webp",
+        "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-gallery-01-transparent.webp"
       ],
       "media": [
         {
@@ -862,6 +909,13 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer"
+        },
+        {
+          "url": "/imgs/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-gallery-01-transparent.webp",
+          "alt": "KitchenCraft fridge freezer dial thermometer feature card",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/kitchencraft-fridge-freezer-dial-thermometer-gallery-01"
         }
       ],
       "imageAlt": "KitchenCraft dial fridge freezer thermometer",
@@ -996,10 +1050,20 @@
       "thumbnailUrl": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
       "imageUrl": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
       "images": [
-        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-01-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-02-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-03-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-04-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-05-transparent.webp"
       ],
       "galleryImages": [
-        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp"
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-01-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-02-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-03-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-04-transparent.webp",
+        "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-05-transparent.webp"
       ],
       "media": [
         {
@@ -1008,6 +1072,41 @@
           "type": "primary",
           "sortOrder": 1,
           "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer"
+        },
+        {
+          "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-01-transparent.webp",
+          "alt": "Taylor Pro fridge freezer thermometer retail pack",
+          "type": "gallery",
+          "sortOrder": 2,
+          "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-01"
+        },
+        {
+          "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-02-transparent.webp",
+          "alt": "Taylor Pro fridge freezer thermometer horizontal view",
+          "type": "gallery",
+          "sortOrder": 3,
+          "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-02"
+        },
+        {
+          "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-03-transparent.webp",
+          "alt": "Taylor Pro fridge freezer thermometer standing view",
+          "type": "gallery",
+          "sortOrder": 4,
+          "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-03"
+        },
+        {
+          "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-04-transparent.webp",
+          "alt": "Taylor Pro fridge freezer thermometer angled view",
+          "type": "gallery",
+          "sortOrder": 5,
+          "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-04"
+        },
+        {
+          "url": "/imgs/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-05-transparent.webp",
+          "alt": "Taylor Pro fridge freezer thermometer suction cup view",
+          "type": "gallery",
+          "sortOrder": 6,
+          "publicId": "stroane/products/thermometers/taylor-pro-fridge-freezer-thermometer-gallery-05"
         }
       ],
       "imageAlt": "Taylor Pro fridge freezer thermometer with suction cups",

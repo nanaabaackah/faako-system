@@ -78,6 +78,8 @@ export default {
       "http://localhost:4173",
       "http://localhost:8888",
       "https://dev.nanaabaackah.com",
+      "https://nanaabaackah.com",
+      "https://www.nanaabaackah.com",
       "https://faako.nanaabaackah.com",
     ],
   },

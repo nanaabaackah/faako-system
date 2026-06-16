@@ -5,6 +5,7 @@ import {
   calculateAvailableQuantity,
   evaluateStockStatus,
   listInventoryItems,
+  updateProductInventory,
 } from "./src/inventory/services.js";
 import { validateMovementPayload } from "./src/inventory/validation.js";
 
@@ -80,6 +81,95 @@ test("hydrates legacy inventory rows from product slug stock data", async () => 
   assert.equal(items[0].availableQuantity, 0);
   assert.equal(items[0].computedStockStatus, "out_of_stock");
   assert.equal(items[0].product?.availableQuantity, 0);
+});
+
+test("variant inventory updates do not overwrite parent product stock", async () => {
+  const product = {
+    id: "product-apron",
+    slug: "chef-waterproof-apron",
+    name: "Chef Waterproof Apron",
+    sku: "APR-PARENT",
+    stockQuantity: 20,
+    reservedQuantity: 0,
+    availableQuantity: 20,
+    lowStockThreshold: 5,
+    reorderThreshold: 2,
+    stockStatus: "in_stock",
+    allowBackorder: false,
+    isPurchasable: true,
+  };
+  const existingItem = {
+    id: "inventory-apron-black",
+    productId: product.id,
+    productSlug: product.slug,
+    variantId: "chef-waterproof-apron-black",
+    sku: "APR-BLK",
+    supplierId: null,
+    quantityOnHand: 1,
+    reservedQuantity: 0,
+    availableQuantity: 1,
+    reorderThreshold: null,
+    lowStockThreshold: 5,
+    stockStatus: "low_stock",
+    inventoryTrackingEnabled: true,
+    allowBackorder: false,
+    isPurchasable: true,
+    product,
+    supplier: null,
+  };
+  let catalogueProductUpdateCalled = false;
+  let inventoryUpdateData = null;
+  let auditData = null;
+
+  const prisma = {
+    catalogueProduct: {
+      findFirst: async () => product,
+    },
+    $transaction: async (callback) =>
+      callback({
+        catalogueProduct: {
+          update: async () => {
+            catalogueProductUpdateCalled = true;
+            return product;
+          },
+        },
+        inventoryItem: {
+          findFirst: async () => existingItem,
+          update: async ({ data }) => {
+            inventoryUpdateData = data;
+            return { ...existingItem, ...data };
+          },
+        },
+        inventoryAuditEntry: {
+          create: async ({ data }) => {
+            auditData = data;
+            return data;
+          },
+        },
+      }),
+  };
+
+  const result = await updateProductInventory(
+    prisma,
+    product.slug,
+    {
+      variantId: "chef-waterproof-apron-black",
+      quantityOnHand: 4,
+      reservedQuantity: 1,
+      stockStatus: "low_stock",
+    },
+    { username: "tester" }
+  );
+
+  assert.equal(catalogueProductUpdateCalled, false);
+  assert.equal(inventoryUpdateData.quantityOnHand, 4);
+  assert.equal(inventoryUpdateData.reservedQuantity, 1);
+  assert.equal(inventoryUpdateData.availableQuantity, 3);
+  assert.equal(inventoryUpdateData.variantId, "chef-waterproof-apron-black");
+  assert.equal(auditData.entityType, "inventory_item");
+  assert.equal(auditData.entityId, "inventory-apron-black");
+  assert.equal(result.inventoryItem.variantId, "chef-waterproof-apron-black");
+  assert.equal(result.inventoryItem.availableQuantity, 3);
 });
 
 test("applies restock and reserved movement state safely", () => {

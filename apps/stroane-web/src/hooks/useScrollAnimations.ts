@@ -10,6 +10,7 @@ const SELECTORS = [
   ".footer__cta",
   ".footer__emblem-row",
   ".footer__body",
+  "[data-scroll-reveal]",
   "section:not(.hero-section)",
 ].join(", ");
 
@@ -47,6 +48,14 @@ export function useScrollAnimations() {
 
     const elements = Array.from(document.querySelectorAll<Element>(SELECTORS));
     const initiallyVisible = new Set<Element>();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduceMotion) {
+      elements.forEach((el) => {
+        el.classList.add("scroll-anim", "in-view");
+      });
+      return;
+    }
 
     elements.forEach((el) => {
       el.classList.add("scroll-anim");

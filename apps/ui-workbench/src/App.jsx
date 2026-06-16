@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { SYSTEM_THEME_PRESETS } from "@faako/theme";
 import {
   AppBottomBar,
+  AppUpdateNotice,
   AnimatedLoadingState,
   Button,
   Card,
@@ -222,6 +223,10 @@ export default function App() {
 
   return (
     <UiSystemProvider appSystem={runtimeAppSystem}>
+      <AppUpdateNotice
+        appName="UI Workbench"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
+      />
       <WorkbenchScreen presetId={presetId} setPresetId={setPresetId} />
     </UiSystemProvider>
   );

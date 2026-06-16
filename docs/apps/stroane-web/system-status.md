@@ -29,7 +29,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Inquiry endpoint: `POST /api/inquiries` validates and persists minimal product/contact requests when the database migration is deployed, without email sending, orders, payments, inventory updates, or CRM automation.
 - Product detail and Contact inquiry forms submit to the validated inquiry endpoint when available, include minimal honeypot fields, and keep direct email fallback options.
 - Lightweight commerce foundation: cart state persists product IDs/quantities locally, public header/mobile nav shows cart count, checkout collects customer/contact/delivery details, and `POST /api/orders` can create server-priced `PAYMENT_PENDING` order records when the commerce migration is deployed.
-- Storefront stock availability foundation: catalogue products support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`. Product cards/details show availability, cart controls block unavailable additions, and checkout/order creation reject unavailable, quote-only, or unconfirmed-stock items before Paystack initialization.
+- Storefront stock availability foundation: catalogue products support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`. Product cards/details show availability. The current storefront commerce surface is price-led: priced products can be added to cart unless an explicit zero-quantity, `out_of_stock`, preorder-without-backorder, or known-insufficient-quantity blocker exists.
 - Operational inventory foundation: catalogue products now support optional `availableQuantity`, `reservedQuantity`, and `reorderThreshold`, with additive Prisma models for suppliers, supplier contacts, product-supplier links, inventory items, stock movements, adjustment/restock notes, and inventory audit entries.
 - Production-safe catalogue reconciliation and inventory bootstrap commands are available. They archive stale catalogue rows without deleting them and create missing operational inventory records without inventing stock quantities or overwriting existing counts.
 - Additive commerce order persistence foundation for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`.
@@ -58,7 +58,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 ## In-progress modules/features
 
 - Product browsing, inquiry conversion, pending-order checkout, and Paystack test-mode checkout refinement; product pages now support backend-backed catalogue reads, seed fallback, mapped imagery, product-specific inquiry forms, and checkout can prepare pending orders plus initialize/verify Paystack payments.
-- Real stock count entry for online purchasing. Current PDF-imported catalogue products default to non-purchasable until Stroane confirms quantities, thresholds, and backorder policy.
+- Real stock count entry for accurate online purchasing. Current storefront testing allows priced products with unknown quantities, but Stroane still needs confirmed quantities, thresholds, and backorder policy before broad public promotion.
 - Inventory, supplier, product, order, report, and settings module pages are reset placeholders. The `/admin` dashboard still reads protected product, supplier, inventory, movement, and alert APIs for overview signals. The one-time inventory bootstrap remains an explicit CLI operation; module editing workflows will be rebuilt from a clean portal surface.
 - Inventory owner alerts now run after committed stock mutations and through protected manual or scheduler triggers. Railway still needs intentional `STROANE_ALERT_*` configuration and a cron/scheduler call before recurring production scans are active.
 - Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
@@ -86,8 +86,8 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Purchasing, checkout, order capture, payment-adjacent, and customer-facing flows.
 - Product pricing accuracy, especially quote-only poster/apron items and any PDF content not fully extracted.
-- Product stock accuracy. Online purchasing should stay disabled for products with unknown stock; backend validation must remain in place while confirmed counts are entered through the protected inventory setup API and audited movement screen.
-- Product variant stock accuracy. Apron colour/style variants now have variant-level stock placeholders, but checkout remains product-level and non-purchasable until a safe variant checkout/admin stock workflow is approved.
+- Product stock accuracy. Unknown quantities no longer block checkout by themselves for priced products, so backend validation for explicit stock blockers and known quantity limits must remain in place while confirmed counts are entered through the protected inventory setup API and audited movement screen.
+- Product variant stock accuracy. Apron colour/style variants now have variant-level stock placeholders, but checkout remains product-level until a safe variant checkout/admin stock workflow is approved.
 - Inquiry handling because it persists customer contact details once the migration is deployed.
 - Front-end-only account/session state in localStorage; it must not protect sensitive workflows without backend validation.
 - In-memory API rate limiting; configure Railway/provider-level rate controls before public high-volume checkout.

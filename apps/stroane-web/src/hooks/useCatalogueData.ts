@@ -4,7 +4,6 @@ import {
   categories as localCategories,
   products as localProducts,
   normalizeProducts,
-  shouldUseLocalCatalogueFallback,
   type CatalogueCategory,
   type Product,
 } from "../data/products";
@@ -36,14 +35,6 @@ export const useCatalogueData = (): CatalogueDataState => {
         ]);
 
         if (cancelled) return;
-
-        if (shouldUseLocalCatalogueFallback(apiProducts)) {
-          setProducts(localProducts);
-          setCategories(localCategories);
-          setSource("local");
-          setNotice("Showing the local catalogue because the backend catalogue is out of date.");
-          return;
-        }
 
         setProducts(apiProducts.length ? normalizeProducts(apiProducts) : localProducts);
         setCategories(apiCategories.length ? apiCategories : localCategories);

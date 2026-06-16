@@ -1,11 +1,11 @@
 import "./styles/globals.css";
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
-import { AnimatedLoadingState, GoogleAnalyticsRouteTracker } from "@faako/ui";
+import { AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { resolveAppSurface } from "./config/appSurface";
 
-const PortalApp = lazy(() => import("./PortalApp"));
-const StorefrontApp = lazy(() => import("./StorefrontApp"));
+const PortalApp = lazy(() => import("./portal/PortalApp"));
+const StorefrontApp = lazy(() => import("./frontend/StorefrontApp"));
 
 const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
 const GOOGLE_ANALYTICS_ENABLED =
@@ -28,6 +28,10 @@ const App: React.FC = () => {
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <AppUpdateNotice
+        appName="Stroane"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <Suspense
         fallback={

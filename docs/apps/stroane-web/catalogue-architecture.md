@@ -89,7 +89,7 @@ Catalogue products and variants may include:
 - `costPrice`
 - `sellingPrice`
 
-Unknown inventory must not be treated as sellable. New PDF/image-imported products default to `stockQuantity: null`, `stockStatus: "unavailable"`, and `isPurchasable: false` until Stroane enters real stock counts and approved pricing.
+Unknown inventory is currently allowed for priced storefront products while the price-fill and inventory-backfill pass is in progress. New PDF/image-imported products should still stay unpriced or quote-only until pricing is confirmed. Once a numeric price is set, explicit zero quantity, `stockStatus: "out_of_stock"`, preorder without backorder, or known insufficient quantity must block checkout server-side.
 
 The operational inventory foundation adds dedicated tables for suppliers, supplier contacts, product-supplier links, inventory items, stock movement entries, adjustment/restock notes, and inventory audit entries. These tables are additive and are not yet wired to checkout deduction or reservation behavior.
 

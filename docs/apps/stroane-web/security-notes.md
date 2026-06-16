@@ -45,7 +45,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Stock And Purchasability
 
 - Product records support `stockQuantity`, `stockStatus`, `lowStockThreshold`, `allowBackorder`, and `isPurchasable`.
-- Current PDF-imported products default to unknown stock and non-purchasable until real stock counts are entered.
+- Current storefront purchasing is price-led: priced products may be added to cart with unknown quantities, while explicit zero/out-of-stock/preorder-without-backorder blockers still stop checkout. Real counts should be entered before broad public promotion.
 - Frontend availability messaging is advisory. Backend order and payment preparation validation remains the enforcement point.
 - This is storefront stock gating plus a protected manual operations foundation. Inventory movement audit entries exist for staff adjustments, but automatic order deduction and warehouse reservation are intentionally not wired.
 

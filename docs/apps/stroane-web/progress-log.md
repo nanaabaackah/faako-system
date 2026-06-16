@@ -23,6 +23,25 @@ Next step:
 
 ## Entries
 
+### Storefront priced-commerce recovery, galleries, and update notice
+
+Date: 2026-06-15
+Feature/change name: Storefront priced-commerce recovery, galleries, and update notice
+What changed:
+- Restored the storefront shopping path around priced products: `/shop`, product detail, checkout, search/listing helpers, and cart summary now focus on products with numeric prices while preserving inquiry paths for quote-only/unpriced catalogue items.
+- Reinstated add-to-cart and clear-basket affordances in the storefront, including the floating/header cart count path and designed clear-basket button.
+- Updated frontend/backend purchase gating so explicit zero quantity, `out_of_stock`, preorder without backorder, and known insufficient quantity block checkout, while unknown quantity no longer blocks priced products during the current price-fill and inventory-backfill pass.
+- Added/recorded transparent thermometer gallery assets from the supplied PDFs and kept primary images intact while appending gallery media in `src/data/stroaneCatalogue.json`.
+- Confirmed Paystack development setup expectations: test secret/public keys can initialize a test transaction; `PAYSTACK_WEBHOOK_SECRET` can be blank in development because the backend falls back to `PAYSTACK_SECRET_KEY`, and `PAYSTACK_CALLBACK_URL` defaults to local `/checkout/return` unless supplied.
+- Mounted the shared `AppUpdateNotice` so storefront/portal users are prompted, not forced, to refresh when a newer deployed bundle exists.
+Why it changed: Stroane’s product pages and shop had drifted back toward inquiry-only behavior. The current client test path needs a simple priced-product checkout flow, usable product galleries, Paystack test readiness, and non-interruptive deploy prompts.
+Files changed: apps/stroane-web/src/frontend/pages/Shop.tsx, apps/stroane-web/src/frontend/pages/ProductDetail.tsx, apps/stroane-web/src/frontend/pages/Checkout.tsx, apps/stroane-web/src/frontend/pages/Search.tsx, apps/stroane-web/src/frontend/pages/ProductList.tsx, apps/stroane-web/src/frontend/pages/Sitemap.tsx, apps/stroane-web/src/frontend/pages/Home.tsx, apps/stroane-web/src/context/CartContext.tsx, apps/stroane-web/src/data/products.ts, apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/backend/src/orders.js, apps/stroane-web/backend/paystack.test.js, apps/stroane-web/backend/orders.test.js, apps/stroane-web/public/imgs/products/thermometers/*gallery*transparent.webp, apps/stroane-web/src/App.tsx, packages/ui/src/components/AppUpdateNotice.tsx, packages/ui/src/ui.css, apps/stroane-web/README.md, docs/apps/stroane-web/*, docs/platform/platform-progress-log.md.
+Data impact: Source catalogue JSON and static product media changed. No database writes, migrations, seed/reconcile runs, order data, payment records, inventory movements, or customer data changed in this pass.
+Security impact: Paystack secrets remain server-side. Storefront totals remain display-only; backend order creation and Paystack initialization still recalculate prices and enforce explicit stock blockers server-side. The update notice performs same-origin HTML checks and never sends cart/customer/payment data.
+Testing notes: `git diff --check` passed. `apps/stroane-web/src/data/stroaneCatalogue.json` parsed successfully. Direct backend tests for priced checkout and Paystack helper behavior passed with 7 tests. Stroane TypeScript, lint, and narrow component TypeScript checks were attempted but did not complete in this shell and were interrupted.
+Rollback notes: Revert the storefront/cart/product-detail/checkout changes, catalogue media additions, Paystack test additions, shared update notice wiring, and documentation updates. No data rollback is required unless the catalogue JSON has already been seeded into a database.
+Next step: Enter confirmed physical counts for priced products, then smoke-test two updated product detail galleries plus the Paystack test checkout path on desktop and mobile Safari/Chrome.
+
 ### Stroane mobile inventory operations repair
 
 Date: 2026-06-02

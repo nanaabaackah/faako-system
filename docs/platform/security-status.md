@@ -42,7 +42,7 @@ For Postgres-backed commerce or operational apps:
 
 ## Payment Integrity Direction
 
-- Server must own order totals, currency, stock/purchasability validation, payment reference creation, and payment verification.
+- Server must own order totals, currency, explicit stock blocker/quantity validation, payment reference creation, and payment verification.
 - Browser return/callback pages are customer messaging only.
 - Signed provider webhooks plus server-side transaction/reference verification should be the trusted paid-status path where supported.
 - Store safe provider metadata only; do not store card/MoMo wallet details, secrets, authorization payloads, or raw provider payload dumps.

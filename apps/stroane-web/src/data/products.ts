@@ -114,6 +114,7 @@ export interface ProductVariant {
   availableQuantity?: number | null;
   reservedQuantity?: number | null;
   stockStatus?: ProductStockStatus;
+  lowStockThreshold?: number | null;
   reorderThreshold?: number | null;
   allowBackorder?: boolean;
   isPurchasable?: boolean;
@@ -181,6 +182,21 @@ const toNullableInteger = (value: unknown) => {
   if (value === null || value === undefined || value === "") return null;
   const numberValue = Number(value);
   return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
+};
+
+const toNullablePrice = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? Number(numberValue.toFixed(2)) : null;
+};
+
+const priceRequestLabelPattern =
+  /(?:request\s+(?:a\s+)?price|price\s+on\s+request|request\s+quote|quote\s+required|price\s+required)/i;
+
+const normalizePriceLabel = (value: unknown, price: number | null) => {
+  const label = String(value || "").trim();
+  if (!label) return undefined;
+  return price != null && priceRequestLabelPattern.test(label) ? undefined : label;
 };
 
 const getNormalizedStockQuantity = (product: Product) =>
@@ -300,6 +316,7 @@ const normalizeVariants = (
   (Array.isArray(variants) ? variants : [])
     .filter((variant) => variant?.id && variant?.name)
     .map((variant) => {
+      const price = toNullablePrice(variant.price);
       const stockQuantity = toNullableInteger(variant.stockQuantity);
       const reservedQuantity = toNullableInteger(variant.reservedQuantity);
       const availableQuantity =
@@ -313,11 +330,13 @@ const normalizeVariants = (
       return {
         ...variant,
         currency: variant.currency || "GHS",
-        price: variant.price == null ? null : Number(variant.price),
+        price,
+        priceLabel: normalizePriceLabel(variant.priceLabel, price),
         stockStatus,
         stockQuantity,
         availableQuantity,
         reservedQuantity,
+        lowStockThreshold: toNullableInteger(variant.lowStockThreshold),
         reorderThreshold: toNullableInteger(variant.reorderThreshold),
         allowBackorder: Boolean(variant.allowBackorder),
         isPurchasable: Boolean(variant.isPurchasable),
@@ -340,11 +359,10 @@ export const businessProfile = catalogue.businessProfile;
 
 export const categories: CatalogueCategory[] = catalogue.categories;
 
-export const isKnownCatalogueProduct = (product: Pick<Product, "id">) =>
-  localProductById.has(product.id);
-
 export const normalizeProduct = (product: Product): Product => {
   const localProduct = localProductById.get(product.id);
+  const price = toNullablePrice(product.price ?? localProduct?.price);
+  const priceLabel = normalizePriceLabel(product.priceLabel ?? localProduct?.priceLabel, price);
   const media = normalizeMediaItems(product, localProduct);
   const primaryMedia = media.find((item) => item.type === "primary") || media[0];
   const image = pickImage(
@@ -395,6 +413,9 @@ export const normalizeProduct = (product: Product): Product => {
     galleryImages,
     media,
     imageAlt: product.imageAlt || localProduct?.imageAlt || product.name,
+    price,
+    priceLabel,
+    quoteOnly: price == null,
     stock: PRODUCT_STOCK_LABELS[stockStatus],
     stockStatus,
     stockQuantity,
@@ -417,13 +438,6 @@ export const normalizeProducts = (productList: Product[]) =>
 
 export const products: Product[] = catalogue.products.map((product) => normalizeProduct(product));
 
-/*
- * API-backed catalogue records may lag behind static image extraction. Keep the
- * UI data-driven while preferring current local image metadata for known SKUs.
- */
-export const shouldUseLocalCatalogueFallback = (productList: Product[]) =>
-  productList.length > 0 && !productList.some((product) => isKnownCatalogueProduct(product));
-
 export const categoryOptions: Array<Category | "All"> = [
   "All",
   ...categories.filter((category) => !category.isGroup).map((category) => category.name),
@@ -443,30 +457,33 @@ export const isPricedProduct = (product: Product): product is Product & { price:
   typeof product.price === "number" && !product.quoteOnly;
 
 export const canPurchaseProduct = (product: Product, quantity = 1) => {
-  if (!isPricedProduct(product) || !product.isPurchasable) return false;
+  if (!isPricedProduct(product)) return false;
 
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
   const availableQuantity = getAvailableStockQuantity(product);
   const requestedQuantity = Math.max(1, Math.floor(quantity));
 
-  if (stockStatus === "out_of_stock" || stockStatus === "unavailable") return false;
+  if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
+    return false;
+  }
+  if (stockStatus === "out_of_stock") return false;
 
   if (stockStatus === "preorder") {
     return Boolean(product.allowBackorder);
   }
 
-  if (availableQuantity == null) return false;
+  if (availableQuantity == null) return true;
   return availableQuantity >= requestedQuantity;
 };
 
 export const shouldShowInquiryOption = (product: Product) => {
   const stockStatus = normalizeStockStatus(product.stockStatus || product.stock);
+  const availableQuantity = getAvailableStockQuantity(product);
   return (
     product.quoteOnly ||
     typeof product.price !== "number" ||
-    !product.isPurchasable ||
     stockStatus === "out_of_stock" ||
-    stockStatus === "unavailable"
+    (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder")
   );
 };
 
@@ -516,14 +533,9 @@ export const getPurchaseBlocker = (product: Product, quantity = 1) => {
   if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
     return "Out of stock.";
   }
-  if (!product.isPurchasable) return "Purchasing is disabled until stock is confirmed.";
   if (stockStatus === "out_of_stock") return "Out of stock.";
-  if (stockStatus === "unavailable") return "Unavailable for online purchase.";
   if (stockStatus === "preorder" && !product.allowBackorder) {
     return "Preorder is not enabled for this product.";
-  }
-  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity == null) {
-    return "Stock quantity must be confirmed before checkout.";
   }
   if (availableQuantity != null && availableQuantity < quantity && !product.allowBackorder) {
     return `Only ${availableQuantity} available.`;
@@ -539,11 +551,16 @@ export const isCheckoutEligibleProduct = (
   isPricedProduct(product) && canPurchaseProduct(product, quantity);
 
 export const formatProductPrice = (product: Product) =>
-  product.priceLabel || formatCurrency(product.price);
+  typeof product.price === "number"
+    ? formatCurrency(product.price)
+    : product.priceLabel || "Request price";
 
 export const formatVariantPrice = (product: Product, variant?: ProductVariant | null) => {
   if (!variant) return formatProductPrice(product);
-  return variant.priceLabel || formatCurrency(variant.price ?? product.price);
+  const price = variant.price ?? product.price;
+  return typeof price === "number"
+    ? formatCurrency(price)
+    : variant.priceLabel || product.priceLabel || "Request price";
 };
 
 export const getProductMedia = (product: Product, variant?: ProductVariant | null) => {

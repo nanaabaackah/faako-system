@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { FaWhatsapp, FaFacebook, FaInstagram } from "react-icons/fa";
 import { AppBottomBar } from "@faako/ui";
+import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/components/Footer.css";
 
 const NAV_COLUMNS = [
@@ -12,6 +13,7 @@ const NAV_COLUMNS = [
       { label: "Services",  to: "/services" },
       { label: "Resources", to: "/resources" },
       { label: "Contact",   to: "/contact" },
+      { label: "Admin portal", href: PORTAL_LOGIN_URL },
     ],
   },
   {
@@ -83,7 +85,9 @@ const Footer: React.FC<{ externalNavigationBaseUrl?: string }> = ({
               <ul className="footer__col-links">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    {externalNavigationBaseUrl ? (
+                    {"href" in link ? (
+                      <a href={link.href}>{link.label}</a>
+                    ) : externalNavigationBaseUrl ? (
                       <a href={toSiteUrl(externalNavigationBaseUrl, link.to)}>{link.label}</a>
                     ) : (
                       <Link to={link.to}>{link.label}</Link>

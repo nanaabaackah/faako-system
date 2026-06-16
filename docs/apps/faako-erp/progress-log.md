@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Shared app update notice shell adoption
+
+Date: 2026-06-15
+Feature/change name: Shared app update notice shell adoption
+What changed: Mounted `AppUpdateNotice` from `@faako/ui` in the Faako ERP shell so demo/reference users receive a user-controlled refresh prompt when a newer deployed frontend bundle exists.
+Why it changed: Keep the ERP reference app aligned with the shared shell convention without forcing reloads during demo workflows.
+Files changed: apps/faako-erp/src/App.jsx, apps/faako-erp/README.md, packages/ui/src/components/AppUpdateNotice.tsx, packages/ui/src/ui.css, docs/apps/faako-erp/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None.
+Security impact: Frontend presentation/shell-only change. No demo access, routing, permissions, API, or database behavior changed.
+Testing done: `git diff --check` passed at repo level. Shared update-notice validation is covered by the platform entry; full cross-app builds were not run in this pass.
+Rollback notes: Remove the `AppUpdateNotice` import/render and revert the shared UI/docs changes.
+Next step: Smoke-test the deployed demo shell after the next frontend build.
+
 ### Faako ERP shared shell wrapper foundation added
 
 Date: 2026-05-10

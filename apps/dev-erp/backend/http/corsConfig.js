@@ -11,15 +11,19 @@ export const normalizeOrigin = (origin) => String(origin || "").replace(/\/$/, "
 export const createAllowedOriginPolicy = ({
   isProduction,
   corsOriginsEnv = "",
+  defaultAllowedOrigins = [],
 } = {}) => {
   const configuredOrigins = String(corsOriginsEnv)
     .split(",")
     .map((origin) => normalizeOrigin(origin.trim()))
     .filter(Boolean);
+  const defaultOrigins = Array.isArray(defaultAllowedOrigins)
+    ? defaultAllowedOrigins.map((origin) => normalizeOrigin(origin)).filter(Boolean)
+    : [];
 
   const defaultDevOrigins =
     !isProduction && configuredOrigins.length === 0 ? DEFAULT_DEV_CORS_ORIGINS : [];
-  const allowedOriginSet = new Set([...configuredOrigins, ...defaultDevOrigins]);
+  const allowedOriginSet = new Set([...defaultOrigins, ...configuredOrigins, ...defaultDevOrigins]);
 
   return {
     allowedOriginSet,

@@ -511,7 +511,7 @@ const buildInventoryUpdateData = (existing, patch) => {
 };
 
 const syncProductStockFromInventory = async (tx, item, updates) => {
-  if (!item.productSlug) return;
+  if (!item.productSlug || item.variantId) return;
 
   const data = {
     stockQuantity: updates.quantityOnHand,
@@ -528,7 +528,6 @@ const syncProductStockFromInventory = async (tx, item, updates) => {
 
   if (typeof updates.isPurchasable === "boolean") {
     data.isPurchasable = updates.isPurchasable;
-    data.quoteOnly = !updates.isPurchasable;
   }
 
   await tx.catalogueProduct.updateMany({
@@ -821,7 +820,6 @@ const buildProductInventoryData = (product, patch) => {
     stockStatus,
     allowBackorder,
     isPurchasable,
-    quoteOnly: !isPurchasable,
   };
 };
 
@@ -830,18 +828,22 @@ export const updateProductInventory = async (prisma, id, patch, authUser) => {
   if (!product) throw createHttpError("Catalogue product not found.", 404);
 
   const variantId = patch.variantId || null;
+  const isVariantInventory = Boolean(variantId);
   const productInventoryData = buildProductInventoryData(product, patch);
   const shouldSyncInventoryItem = patch.syncInventoryItem !== false;
 
   const result = await prisma.$transaction(async (tx) => {
-    const updatedProduct = await tx.catalogueProduct.update({
-      where: { id: product.id },
-      data: productInventoryData,
-    });
+    const updatedProduct = isVariantInventory
+      ? product
+      : await tx.catalogueProduct.update({
+          where: { id: product.id },
+          data: productInventoryData,
+        });
 
     let inventoryItem = null;
+    let existingItem = null;
     if (shouldSyncInventoryItem) {
-      const existingItem = await tx.inventoryItem.findFirst({
+      existingItem = await tx.inventoryItem.findFirst({
         where: {
           productSlug: product.slug,
           variantId,
@@ -889,17 +891,26 @@ export const updateProductInventory = async (prisma, id, patch, authUser) => {
         inventoryItemId: inventoryItem?.id || null,
         supplierId: patch.supplierId,
         action: "PRODUCT_INVENTORY_UPDATED",
-        entityType: "catalogue_product",
-        entityId: product.id,
+        entityType: isVariantInventory ? "inventory_item" : "catalogue_product",
+        entityId: inventoryItem?.id || product.id,
         productSlug: product.slug,
         variantId,
-        beforeState: {
-          stockQuantity: product.stockQuantity,
-          reservedQuantity: product.reservedQuantity,
-          availableQuantity: product.availableQuantity,
-          stockStatus: product.stockStatus,
-          isPurchasable: product.isPurchasable,
-        },
+        beforeState:
+          isVariantInventory && existingItem
+            ? {
+                quantityOnHand: existingItem.quantityOnHand,
+                reservedQuantity: existingItem.reservedQuantity,
+                availableQuantity: existingItem.availableQuantity,
+                stockStatus: existingItem.stockStatus,
+                isPurchasable: existingItem.isPurchasable,
+              }
+            : {
+                stockQuantity: product.stockQuantity,
+                reservedQuantity: product.reservedQuantity,
+                availableQuantity: product.availableQuantity,
+                stockStatus: product.stockStatus,
+                isPurchasable: product.isPurchasable,
+              },
         afterState: productInventoryData,
         note: "Product inventory updated through Stroane admin API.",
         createdById: authUser?.id || null,

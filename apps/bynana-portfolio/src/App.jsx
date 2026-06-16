@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
-import { GoogleAnalyticsRouteTracker } from '@faako/ui';
+import { AppUpdateNotice, GoogleAnalyticsRouteTracker } from '@faako/ui';
 import { HiXMark } from 'react-icons/hi2';
 
 import Navbar from './components/Navbar';
@@ -117,6 +117,10 @@ function AppLayout() {
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
+      />
+      <AppUpdateNotice
+        appName="By Nana"
+        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === 'true'}
       />
       <BackgroundFX />
       <GradualBlur

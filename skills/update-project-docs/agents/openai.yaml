@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Project Docs"
+  short_description: "Keep Faako docs aligned with code changes"
+  default_prompt: "Use $update-project-docs to update the Faako documentation trail after this change."

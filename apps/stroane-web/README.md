@@ -6,7 +6,7 @@ Stroane Web is a full-stack commerce app. It pairs a React 19 + TypeScript front
 
 ## What Lives Here
 
-- `src/`: React frontend, pages, components, API client, and types
+- `src/`: React browser source split into `frontend/` for the public storefront, `portal/` for private operations, and shared browser components/data/API helpers
 - `backend/`: Express API server, route handlers, and middleware
 - `prisma/`: Prisma schema and migrations
 - `vite.config.ts`: Vite dev server and build config
@@ -56,7 +56,7 @@ Storefront availability is also data-driven. Catalogue products support:
 - `allowBackorder`: whether preorder/backorder is allowed
 - `isPurchasable`: whether the storefront may add the item to cart/checkout
 
-Unknown stock should default to `stockQuantity: null` and `isPurchasable: false`. PDF-imported products should not be enabled for online purchasing until Stroane confirms real stock counts and backorder policy.
+Current storefront purchase visibility is price-led: products with a numeric price are shown in the storefront commerce grid and can be added to cart unless an explicit blocker exists. Explicit zero available quantity, `out_of_stock`, or preorder without backorder support blocks purchase. Unknown quantities do not block add-to-cart by themselves during the current price-fill and inventory-backfill pass, but staff should still enter real counts and thresholds before broad public promotion.
 
 The current backend foundation exposes:
 
@@ -99,12 +99,12 @@ Stroane now has a lightweight commerce foundation, not a full ERP or Shopify-sty
 - Checkout collects customer contact and delivery details, then asks the customer to review before submitting.
 - `POST /api/orders` creates a `PAYMENT_PENDING` order request when the commerce migration has been deployed.
 - The backend recalculates product prices from catalogue data; frontend totals are display-only.
-- Custom-order, price-unavailable, unavailable, out-of-stock, unconfirmed-stock, and non-purchasable products are blocked from checkout and should use the product inquiry flow.
+- Custom-order and price-unavailable products are hidden from the commerce grid and should use the product inquiry flow. Explicit out-of-stock, zero-available, and preorder-without-backorder products remain blocked from checkout. Unknown stock quantities are allowed for priced products in this interim storefront pass so Paystack/cart testing can continue while physical counts are entered.
 - Product cards/details show availability before purchase. Inquiry/notify CTAs are fallback paths for out-of-stock, enquiry-only, price-unavailable, or custom-order products.
 
 The commerce order foundation is additive and uses Prisma/Postgres models for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`. It does not deduct inventory, manage warehouses, create fulfillment tasks, or run CRM automation. Automated customer messaging is currently limited to verified payment-confirmed email when the backend email provider is configured.
 
-The checkout backend validates stock/purchasability before order preparation and payment initialization. The inventory foundation now has additive supplier, inventory item, stock movement, adjustment/restock note, and audit-entry tables. This is still not a full warehouse system: checkout/order integration, automatic stock deduction, and stock reservation are future work.
+The checkout backend validates server-side price, currency, explicit stock blockers, preorder policy, and quantity before order preparation and payment initialization. The inventory foundation now has additive supplier, inventory item, stock movement, adjustment/restock note, and audit-entry tables. This is still not a full warehouse system: checkout/order integration, automatic stock deduction, and stock reservation are future work.
 
 Paystack is the first payment provider for checkout. The checkout flow creates a pending order, asks the backend to initialize a Paystack transaction, redirects the customer to Paystack, then returns to `/checkout/return` where the frontend asks the backend for a customer-facing status check. The signed Paystack webhook is the trusted source for marking an order paid.
 
@@ -143,6 +143,8 @@ Cloudflare Pages should build two surfaces from this workspace:
 
 Storefront browsers do not fetch the lazy portal modules. Localhost keeps a combined compatibility mode when `VITE_APP_SURFACE` is blank so local development and Playwright can cover both surfaces.
 
+Both storefront and portal shells mount `AppUpdateNotice` from `@faako/ui`. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts users to refresh when a newer deployed bundle exists and never auto-reloads an active cart, checkout form, inquiry, or portal edit.
+
 Private order management has been cleared from the portal shell for the module rebuild. `/admin/operations` and `/admin/orders` now render reset placeholders behind backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
 
 ## Internal Product And Media Operations
@@ -177,7 +179,7 @@ These rate limits are in-memory and per Node process. Railway is the chosen prod
 Checkout/payment integrity rules:
 
 - Frontend prices, totals, stock state, and cart state are display/convenience only.
-- The backend validates catalogue price, currency, stock status, purchasability, and quantity at order creation and again before Paystack initialization.
+- The backend validates catalogue price, currency, explicit stock blockers, preorder policy, and quantity at order creation and again before Paystack initialization.
 - Paystack metadata sent to the provider is minimized to order number/source. Internal raw order IDs and customer phone are not sent as Paystack custom metadata.
 - Browser callback verification is not final payment truth; the signed webhook path marks orders paid only after server-side Paystack transaction verification confirms the reference, amount, and currency.
 - Railway-level rate limiting, Railway Postgres least-privilege access, payment event logging, and notification log idempotency are still required before fulfillment automation or broader order operations.
@@ -225,7 +227,7 @@ Manual review still needed:
 
 - Full PDF text extraction/OCR for catalogue copy beyond the visual product-image extraction
 - Apron variants, sizes, images, and pricing
-- Real stock counts, low-stock thresholds, and purchasability/backorder decisions for each product before public online checkout
+- Real stock counts, low-stock thresholds, and backorder decisions for each priced product before broad public online checkout promotion
 - Final product photography to replace any catalogue-derived crops where better assets are supplied
 - Whether inquiries should also send staff email notifications or route into a future lightweight admin view
 

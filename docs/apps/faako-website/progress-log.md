@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Shared app update notice shell adoption
+
+Date: 2026-06-15
+Feature/change name: Shared app update notice shell adoption
+What changed: Mounted `AppUpdateNotice` from `@faako/ui` in the Faako Website app shell so visitors are prompted to refresh when a newer deployed frontend bundle is available.
+Why it changed: The onboarding wizard can contain in-progress form data, so routine deploys should not force a reload while someone is completing the intake.
+Files changed: apps/faako-website/src/App.jsx, apps/faako-website/README.md, packages/ui/src/components/AppUpdateNotice.tsx, packages/ui/src/ui.css, docs/apps/faako-website/progress-log.md, docs/platform/platform-progress-log.md.
+Data impact: None.
+Security impact: Frontend shell-only change. No signup payload, server function, email, PDF generation, or secret handling behavior changed.
+Testing done: `git diff --check` passed at repo level. Shared update-notice validation is covered by the platform entry; full cross-app builds were not run in this pass.
+Rollback notes: Remove the `AppUpdateNotice` import/render and revert shared UI/docs changes.
+Next step: Smoke-test the signup wizard during a deployed frontend update.
+
 ### Client onboarding intake wizard with PDF and email copy
 
 Date: 2026-05-21

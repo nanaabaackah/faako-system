@@ -312,20 +312,28 @@ export const SelectField = forwardRef<
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
-  const selectedValues = useMemo(() => {
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item));
-    }
-    if (value === undefined || value === null || value === "") {
-      return [];
-    }
-    return [String(value)];
-  }, [value]);
-  const selectedValue = selectedValues[0] || "";
   const resolvedOptions = useMemo(
     () => (options.length ? options : buildOptionsFromChildren(children)),
     [children, options],
   );
+  const hasEmptyValueOption = useMemo(
+    () => resolvedOptions.some((option) => String(option.value) === ""),
+    [resolvedOptions],
+  );
+  const selectedValues = useMemo(() => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item));
+    }
+    if (value === undefined || value === null) {
+      return [];
+    }
+    const normalizedValue = String(value);
+    if (normalizedValue === "" && !hasEmptyValueOption) {
+      return [];
+    }
+    return [normalizedValue];
+  }, [hasEmptyValueOption, value]);
+  const selectedValue = selectedValues[0] || "";
   const selectedOptions = useMemo(
     () => resolvedOptions.filter((option) => selectedValues.includes(String(option.value))),
     [resolvedOptions, selectedValues],
@@ -504,6 +512,7 @@ export const SelectField = forwardRef<
                     <button
                       key={option.value}
                       type="button"
+                      role="option"
                       className={joinClasses(
                         "ui-dropdown-field__option",
                         isSelected && "is-selected",

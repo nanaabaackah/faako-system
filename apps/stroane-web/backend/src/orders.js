@@ -94,16 +94,9 @@ const getPurchaseBlocker = (product, quantity) => {
   if (availableQuantity != null && availableQuantity <= 0 && stockStatus !== "preorder") {
     return `${product.name} is out of stock.`;
   }
-  if (!product.isPurchasable) {
-    return `${product.name} is not enabled for online purchase until stock is confirmed.`;
-  }
   if (stockStatus === "out_of_stock") return `${product.name} is out of stock.`;
-  if (stockStatus === "unavailable") return `${product.name} is unavailable for online purchase.`;
   if (stockStatus === "preorder" && !product.allowBackorder) {
     return `${product.name} is not available for preorder.`;
-  }
-  if ((stockStatus === "in_stock" || stockStatus === "low_stock") && availableQuantity == null) {
-    return `${product.name} needs a confirmed stock quantity before checkout.`;
   }
   if (availableQuantity != null && availableQuantity < quantity && !product.allowBackorder) {
     return `${product.name} only has ${availableQuantity} available.`;

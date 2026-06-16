@@ -79,6 +79,7 @@ import { registerUserRoutes } from "./users/users.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
 import { buildForgotPasswordEmailContent } from "./forgotPasswordEmailTemplate.js";
 import { getMonorepoMonitoringSites } from "@faako/config";
+import appSystem from "../appSystem.js";
 import {
   buildSiteStatus as buildConfiguredSiteStatus,
   buildSiteStatusFallback as buildConfiguredSiteStatusFallback,
@@ -389,6 +390,7 @@ const ALLOW_START_WITHOUT_DATABASE = parseEnvBoolean(
 const { allowedOriginSet, allowAllOrigins } = createAllowedOriginPolicy({
   isProduction,
   corsOriginsEnv: process.env.CORS_ORIGINS || "",
+  defaultAllowedOrigins: appSystem?.security?.allowedOrigins || [],
 });
 const API_RATE_LIMIT_WINDOW_MS = parsePositiveInt(
   process.env.API_RATE_LIMIT_WINDOW_MS ?? process.env.RATE_LIMIT_WINDOW_MS,
