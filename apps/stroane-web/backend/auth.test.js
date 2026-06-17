@@ -6,6 +6,8 @@ import { createAuthRouter } from "./src/routes/auth.js";
 const createResponse = (resolve) => ({
   statusCode: 200,
   body: null,
+  cookies: [],
+  clearedCookies: [],
   status(code) {
     this.statusCode = code;
     return this;
@@ -20,6 +22,14 @@ const createResponse = (resolve) => ({
   },
   getHeader() {
     return undefined;
+  },
+  cookie(name, value, options) {
+    this.cookies.push({ name, value, options });
+    return this;
+  },
+  clearCookie(name, options) {
+    this.clearedCookies.push({ name, options });
+    return this;
   },
   end() {
     return this;
@@ -102,5 +112,8 @@ test("current user can update profile details and appearance preference", async 
   assert.equal(response.body.personalEmail, "nana@example.com");
   assert.equal(response.body.avatarUrl, "");
   assert.equal(response.body.appearancePreference, "dark");
-  assert.equal(typeof response.body.token, "string");
+  assert.equal(response.body.token, undefined);
+  assert.equal(response.cookies.length, 1);
+  assert.equal(response.cookies[0].name, "stroane_admin_session");
+  assert.equal(response.cookies[0].options.httpOnly, true);
 });

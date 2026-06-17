@@ -32,12 +32,47 @@ const DEFAULT_FROM_EMAIL = "Stroane Solutions <orders@stroanesolutions.com>";
 const DEFAULT_REPLY_TO = "info@stroanesolutions.com";
 const SUPPORT_PHONE = "+233 24 279 4356";
 const SUPPORT_EMAIL = "info@stroanesolutions.com";
+const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const safeText = (value, maxLength = 240) =>
   String(value || "")
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, maxLength);
+
+const normalizeEmailRecipient = (value) => {
+  const email = safeText(value, 180);
+  return EMAIL_PATTERN.test(email) ? email : "";
+};
+
+const isProductionRuntime = () => {
+  const appEnv = safeText(process.env.APP_ENV || process.env.NODE_ENV, 40).toLowerCase();
+  return appEnv === "production" || appEnv === "prod";
+};
+
+const getLocalEmailRecipient = () =>
+  normalizeEmailRecipient(process.env.EMAIL_FORCE_TO) || LOCAL_EMAIL_FALLBACK;
+
+const resolveEmailDeliveryTarget = (recipient) => {
+  const intendedRecipient = safeText(recipient, 180);
+  if (isProductionRuntime()) {
+    return {
+      intendedRecipient,
+      deliveryRecipient: intendedRecipient,
+      wasRerouted: false,
+    };
+  }
+
+  const deliveryRecipient = getLocalEmailRecipient();
+  return {
+    intendedRecipient,
+    deliveryRecipient,
+    wasRerouted:
+      Boolean(intendedRecipient) &&
+      deliveryRecipient.toLowerCase() !== intendedRecipient.toLowerCase(),
+  };
+};
 
 const toMoneyNumber = (value) => {
   const amount = Number(value);
@@ -343,9 +378,9 @@ export const sendCustomerOrderEmail = async ({
   const apiKey = safeText(process.env.RESEND_API_KEY, 500);
   const from = safeText(process.env.ORDER_NOTIFICATION_FROM, 260) || DEFAULT_FROM_EMAIL;
   const replyTo = safeText(process.env.ORDER_NOTIFICATION_REPLY_TO, 260) || DEFAULT_REPLY_TO;
-  const recipient = safeText(order?.customerEmail, 180);
+  const delivery = resolveEmailDeliveryTarget(order?.customerEmail);
 
-  if (!recipient) {
+  if (!delivery.intendedRecipient) {
     return {
       status: ORDER_NOTIFICATION_STATUSES.SKIPPED,
       reason: "missing_customer_email",
@@ -362,6 +397,25 @@ export const sendCustomerOrderEmail = async ({
   }
 
   const { subject, text, html } = buildOrderNotificationContent(order, type);
+  const redirectText = delivery.wasRerouted
+    ? [
+        "Local email redirect active",
+        `Original recipient: ${delivery.intendedRecipient || "none"}`,
+        `Delivered to: ${delivery.deliveryRecipient}`,
+        "",
+      ].join("\n")
+    : "";
+  const redirectHtml = delivery.wasRerouted
+    ? renderNotice({
+        theme: EMAIL_THEMES.faako,
+        title: "Local email redirect active",
+        tone: "warning",
+        lines: [
+          `Original recipient: ${delivery.intendedRecipient || "none"}`,
+          `Delivered to: ${delivery.deliveryRecipient}`,
+        ],
+      })
+    : "";
   const response = await fetch(RESEND_EMAIL_URL, {
     method: "POST",
     headers: {
@@ -371,10 +425,10 @@ export const sendCustomerOrderEmail = async ({
     body: JSON.stringify(
       compactObject({
         from,
-        to: [recipient],
-        subject,
-        text,
-        html,
+        to: [delivery.deliveryRecipient],
+        subject: delivery.wasRerouted ? `[Local test] ${subject}` : subject,
+        text: `${redirectText}${text}`.trim(),
+        html: `${redirectHtml}${html}`.trim(),
         reply_to: replyTo,
       })
     ),

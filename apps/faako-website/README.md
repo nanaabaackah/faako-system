@@ -27,9 +27,10 @@ pnpm run dev:faako
 
 ## Current System Notes
 
-- the signup flow calls `VITE_API_BASE_URL` when configured
+- the signup flow calls `VITE_API_BASE_URL` when configured; production should use `https://api.faako.nanaabaackah.com`, while local dev can use the `/api` Vite proxy
 - local development proxies `/api/*` to the Faako API server through Vite
-- the signup page is a client onboarding intake wizard and should not collect API keys, passwords, tokens, private email credentials, or bank login details
+- the signup page is a client onboarding intake wizard, and `/client-setup` is a lighter client setup wizard with product-specific follow-up questions
+- public intake forms should not collect API keys, passwords, tokens, private email credentials, or bank login details
 - onboarding PDF generation and email sending happen server-side in the Faako API, not in the browser
 - the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh without interrupting an in-progress onboarding form
 

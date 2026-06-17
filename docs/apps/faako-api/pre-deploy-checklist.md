@@ -13,6 +13,7 @@
 
 - Confirm public API endpoints expose only intended behavior.
 - Verify any future protected endpoints have explicit server-side auth.
+- If Faako ERP demo access is enabled, verify `FAAKO_ERP_DEMO_ACCESS_SECRET` is server-only, at least 32 characters, and Resend sender env values are configured.
 
 ## API permissions
 
@@ -22,6 +23,7 @@
 ## Database/data loss risk
 
 - Review Prisma migrations before deploy.
+- Run `pnpm --filter @faako/faako-api run predeploy:local` before deployment when signup persistence or Prisma migrations changed.
 - Confirm local commands cannot target production unless explicitly allowed.
 - Confirm backups or recovery plan before production schema/data changes.
 
@@ -42,12 +44,15 @@
 
 - Compare required values against `apps/faako-api/.env.example`.
 - Use `DATABASE_URL_DEVELOPMENT` or `DATABASE_URL_LOCAL` for local work.
+- Keep local/non-production `EMAIL_FORCE_TO=dev@nanaabaackah.com` so test signup and demo-access emails do not go to input addresses.
 - Keep `EXPOSE_DEBUG_ERRORS=false` outside local debugging.
 - Do not use `VITE_*` values in this backend-only package.
 
 ## API Deployment
 
 - Confirm Node/Express start command, API host, migration command, and Prisma deploy command.
+- Root shortcut: `pnpm run predeploy:faako-api`.
+- All local app migrations shortcut: `pnpm run predeploy:local`.
 
 ## Rollback plan
 

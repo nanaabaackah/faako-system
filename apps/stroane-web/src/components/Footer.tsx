@@ -20,9 +20,9 @@ const NAV_COLUMNS = [
     heading: "Store",
     links: [
       { label: "Shop All Products",  to: "/shop" },
-      { label: "Thermometers",       to: "/shop" },
-      { label: "Safety Equipment",   to: "/shop" },
-      { label: "Testing Kits",       to: "/shop" },
+      { label: "Digital Thermometers", to: "/shop?category=Digital%20Probe%20Thermometers" },
+      { label: "Fridge Thermometers", to: "/shop?category=Fridge%20Thermometers" },
+      { label: "Food Safety Signage", to: "/shop?category=Food%20Safety%20Posters%20%26%20Signage" },
     ],
   },
   {
@@ -100,7 +100,7 @@ const Footer: React.FC<{ externalNavigationBaseUrl?: string }> = ({
         </nav>
 
         <div className="footer__social">
-          <a href="https://wa.me/233000000000" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="footer__social-btn">
+          <a href="https://wa.me/233555744000" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="footer__social-btn">
             <FaWhatsapp size={20} />
           </a>
           <a href="https://facebook.com/stroane" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="footer__social-btn">

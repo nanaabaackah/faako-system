@@ -34,6 +34,7 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const signOut = useCallback(() => {
+    void adminSessionApi.logout();
     clearAdminSession();
     setSession(null);
   }, []);
@@ -60,7 +61,7 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   useEffect(() => {
-    if (!session?.token) return;
+    if (!session?.username) return;
     let cancelled = false;
     const currentSession = getStoredAdminSession();
     if (!currentSession) return;
@@ -78,7 +79,7 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => {
       cancelled = true;
     };
-  }, [session?.token]);
+  }, [session?.username]);
 
   const value = useMemo(
     () => ({ session, signIn, signOut, refreshProfile, updateProfile }),

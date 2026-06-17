@@ -23,6 +23,7 @@ type GoogleAnalyticsWindow = Window & Record<string, unknown> & {
   dataLayer?: unknown[][];
   gtag?: (...args: unknown[]) => void;
   __faakoGoogleAnalyticsBootstrapped?: boolean;
+  __faakoGoogleAnalyticsConsentDefaulted?: boolean;
   __faakoGoogleAnalyticsInitializedIds?: string[];
 };
 
@@ -91,6 +92,27 @@ const ensureGtag = (analyticsWindow: GoogleAnalyticsWindow) => {
   return analyticsWindow.gtag;
 };
 
+const hasGoogleAnalyticsScript = (
+  analyticsDocument: Document,
+  scriptId: string,
+  measurementId: string,
+) => {
+  if (analyticsDocument.getElementById(scriptId)) return true;
+
+  const scripts = Array.from(
+    analyticsDocument.querySelectorAll<HTMLScriptElement>('script[src*="googletagmanager.com/gtag/js"]'),
+  );
+
+  return scripts.some((script) => {
+    try {
+      const url = new URL(script.src);
+      return url.searchParams.get("id") === measurementId;
+    } catch {
+      return script.src.includes(`id=${encodeURIComponent(measurementId)}`);
+    }
+  });
+};
+
 export const resolveGoogleAnalyticsMeasurementId = (...values: unknown[]) => {
   const measurementId = values
     .map((value) => String(value || "").trim())
@@ -155,12 +177,13 @@ export const initializeGoogleAnalytics = ({
   const scriptId = `${SCRIPT_ID_PREFIX}-${resolvedMeasurementId.replace(/[^a-z0-9_-]/gi, "-")}`;
 
   if (!analyticsWindow.__faakoGoogleAnalyticsBootstrapped) {
-    gtag("consent", "default", getConsentPayload(consent));
+    const consentCommand = analyticsWindow.__faakoGoogleAnalyticsConsentDefaulted ? "update" : "default";
+    gtag("consent", consentCommand, getConsentPayload(consent));
     gtag("js", new Date());
     analyticsWindow.__faakoGoogleAnalyticsBootstrapped = true;
   }
 
-  if (!analyticsDocument.getElementById(scriptId)) {
+  if (!hasGoogleAnalyticsScript(analyticsDocument, scriptId, resolvedMeasurementId)) {
     const script = analyticsDocument.createElement("script");
     script.id = scriptId;
     script.async = true;

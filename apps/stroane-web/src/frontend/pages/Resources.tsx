@@ -7,40 +7,76 @@ import "../styles/Resources.css";
 
 const guides = [
   {
+    slug: "guide-safer-food-keys",
     title: "The 5 Keys to Safer Food",
     description:
       "A simple guide to the food safety habits every food handler should know: keep clean, separate raw and cooked food, cook thoroughly, keep food at safe temperatures, and use safe water.",
     audience: "Food handlers, business owners, kitchen teams.",
+    takeaways: [
+      "Keep hands, utensils, and prep surfaces clean before food is handled.",
+      "Separate raw and cooked foods from storage through service.",
+      "Use temperature checks to prove food is cooked, chilled, and held safely.",
+    ],
   },
   {
+    slug: "guide-haccp-basics",
     title: "What Is HACCP and Do You Need It?",
     description:
       "A plain-language explanation of HACCP, why it matters, and how food businesses can use it to prevent food safety risks.",
     audience: "Food producers, processors, caterers, exporters.",
+    takeaways: [
+      "Identify hazards before they reach the customer.",
+      "Set critical controls where risk is highest.",
+      "Keep simple records that show the controls are being followed.",
+    ],
   },
   {
+    slug: "guide-ghana-fda-registration",
     title: "How to Register a Food Product with Ghana FDA",
     description:
       "A step-by-step overview of the product registration process, including documents, labels, timelines, and common reasons applications get delayed.",
     audience: "Food and beverage manufacturers, importers.",
+    takeaways: [
+      "Prepare product details, labels, certificates, and facility information early.",
+      "Check label claims, ingredients, and declarations before submission.",
+      "Respond quickly to corrections so the application does not stall.",
+    ],
   },
   {
+    slug: "guide-safe-food-temperatures",
     title: "Safe Food Temperatures in Ghana",
     description:
       "A practical guide to fridge, freezer, cooking, holding, and delivery temperatures — especially important in Ghana's hot climate.",
     audience: "Restaurants, caterers, supermarkets, hospitals.",
+    takeaways: [
+      "Keep commercial fridges at 5°C or colder and freezers at -18°C or colder.",
+      "Record checks often enough to catch equipment problems early.",
+      "Use clean, calibrated thermometers instead of guessing by touch.",
+    ],
   },
   {
+    slug: "guide-kitchen-contamination",
     title: "How Germs Spread in Ghanaian Kitchens",
     description:
       "Common ways contamination happens in local food environments, from shared boards to poor storage, and how to prevent it.",
     audience: "Restaurant kitchens, chop bars, catering teams.",
+    takeaways: [
+      "Separate boards, knives, and containers for raw and ready-to-eat food.",
+      "Control handwashing, cloths, pests, and waste areas.",
+      "Store food off the floor and away from chemicals or cleaning tools.",
+    ],
   },
   {
+    slug: "guide-food-allergens",
     title: "Food Allergens: What You Need to Declare",
     description:
       "A guide to the major allergens food businesses should identify clearly on labels, menus, and customer-facing materials.",
     audience: "Packaged food producers, bakeries, caterers.",
+    takeaways: [
+      "Know which ingredients commonly trigger allergic reactions.",
+      "Declare allergens clearly on labels, menus, and customer-facing notes.",
+      "Avoid cross-contact during storage, prep, packaging, and service.",
+    ],
   },
 ];
 
@@ -160,7 +196,7 @@ const Resources: React.FC = () => {
                 <p className="guides-feature__audience">
                   For {featured.audience}
                 </p>
-                <a href="#" className="guides-feature__cta">
+                <a href={`#${featured.slug}`} className="guides-feature__cta">
                   Read guide
                   <HiArrowRight size={16} aria-hidden="true" />
                 </a>
@@ -170,7 +206,7 @@ const Resources: React.FC = () => {
             <ol className="guides-list" aria-label="More guides">
               {rest.map((guide, i) => (
                 <li key={guide.title}>
-                  <a href="#" className="guides-list__item">
+                  <a href={`#${guide.slug}`} className="guides-list__item">
                     <span className="guides-list__num">
                       {String(i + 2).padStart(2, "0")}
                     </span>
@@ -186,9 +222,34 @@ const Resources: React.FC = () => {
               ))}
             </ol>
           </div>
+
+          <div className="guides-detail-grid" aria-label="Guide summaries">
+            {guides.map((guide, i) => (
+              <article
+                key={guide.slug}
+                id={guide.slug}
+                className="guide-detail-card"
+                data-scroll-reveal=""
+              >
+                <span className="guide-detail-card__num">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3>{guide.title}</h3>
+                  <p>{guide.description}</p>
+                  <small>For {guide.audience}</small>
+                </div>
+                <ul>
+                  {guide.takeaways.map((takeaway) => (
+                    <li key={takeaway}>{takeaway}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
         </section>
 
-        <div className="resources-standards">
+        <div id="resources-standards" className="resources-standards">
           <div>
             <span className="resources-kicker">Standards We Reference</span>
             <h2 className="section__heading">
@@ -203,7 +264,7 @@ const Resources: React.FC = () => {
           </div>
         </div>
 
-        <section className="resources-faq">
+        <section id="resources-faq" className="resources-faq">
           <div className="resources-faq__intro">
             <span className="resources-kicker">FAQs</span>
             <h2 className="section__heading">

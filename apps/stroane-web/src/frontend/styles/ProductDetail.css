@@ -599,10 +599,12 @@
 .product-detail__related-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: start;
   gap: 1rem;
 }
 
 .product-detail__related-card {
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -679,6 +681,13 @@
   color: var(--color-text-muted);
   margin: 0 0 2rem;
   line-height: 1.6;
+}
+
+.product-detail__missing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
 }
 
 /* ─── Responsive ─── */

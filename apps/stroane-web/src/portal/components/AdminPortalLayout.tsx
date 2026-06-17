@@ -8,6 +8,7 @@ import {
   HiOutlineHome,
   HiOutlineLogout,
   HiOutlineMoon,
+  HiOutlineShoppingBag,
   HiOutlineSun,
   HiOutlineUserCircle,
 } from "react-icons/hi";
@@ -46,6 +47,7 @@ const PORTAL_BRAND: ErpBranding = {
 
 const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
+  { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
 ];
@@ -59,13 +61,14 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/suppliers": "Module reset",
   "/admin/products": "Module reset",
   "/admin/operations": "Module reset",
-  "/admin/orders": "Module reset",
+  "/admin/orders": "Orders",
   "/admin/reports": "Module reset",
   "/admin/settings": "Module reset",
 };
 
 const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "home") return <HiOutlineHome />;
+  if (iconKey === "orders") return <HiOutlineShoppingBag />;
   if (iconKey === "inventory") return <HiOutlineCube />;
   if (iconKey === "profile") return <HiOutlineUserCircle />;
   return <HiOutlineCog />;

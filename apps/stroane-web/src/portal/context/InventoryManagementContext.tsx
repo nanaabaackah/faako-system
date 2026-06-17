@@ -116,7 +116,8 @@ interface InventoryManagementContextValue {
   refreshInventory: () => Promise<void>;
   saveInventoryItem: (
     item: InventoryItem,
-    patch: InventoryItemPatchPayload
+    patch: InventoryItemPatchPayload,
+    options?: { silent?: boolean }
   ) => Promise<void>;
   recordInventoryMovement: (
     item: InventoryItem,
@@ -125,7 +126,8 @@ interface InventoryManagementContextValue {
   saveProductDetails: (
     productId: string,
     detailsPatch: AdminProductPatchPayload,
-    publishingPatch?: AdminProductPublishingPayload
+    publishingPatch?: AdminProductPublishingPayload,
+    options?: { silent?: boolean }
   ) => Promise<void>;
   retryQueueItem: (item: InventoryQueueItem) => Promise<void>;
   cancelQueueItem: (item: InventoryQueueItem) => Promise<void>;
@@ -528,7 +530,11 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
   );
 
   const saveInventoryItem = useCallback(
-    async (item: InventoryItem, patch: InventoryItemPatchPayload) => {
+    async (
+      item: InventoryItem,
+      patch: InventoryItemPatchPayload,
+      options: { silent?: boolean } = {}
+    ) => {
       if (!session) return;
       if (!canManageInventory) {
         setError("Only portal admins can update inventory.");
@@ -537,7 +543,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
 
       setSavingInventoryItem(true);
       setError("");
-      setNotice("");
+      if (!options.silent) setNotice("");
 
       try {
         if (!isOnline) {
@@ -563,13 +569,15 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
           });
           notifyStroanePortalQueueChanged();
           await refreshQueue();
-          setNotice("Inventory update queued. The local stock view has been updated.");
+          if (!options.silent) {
+            setNotice("Inventory update queued. The local stock view has been updated.");
+          }
           return;
         }
 
         const updatedItem = await adminInventoryApi.updateInventoryItem(session, item.id, patch);
         applyInventoryItem(updatedItem);
-        setNotice("Inventory item saved.");
+        if (!options.silent) setNotice("Inventory item saved.");
       } catch (saveError) {
         setError(getErrorMessage(saveError));
       } finally {
@@ -655,7 +663,8 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     async (
       productId: string,
       detailsPatch: AdminProductPatchPayload,
-      publishingPatch: AdminProductPublishingPayload = {}
+      publishingPatch: AdminProductPublishingPayload = {},
+      options: { silent?: boolean } = {}
     ) => {
       if (!session || !productId) return;
       if (!canManageInventory) {
@@ -665,7 +674,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
 
       setSavingProduct(true);
       setError("");
-      setNotice("");
+      if (!options.silent) setNotice("");
 
       try {
         if (!isOnline) {
@@ -692,7 +701,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
           });
           notifyStroanePortalQueueChanged();
           await refreshQueue();
-          setNotice("Product update queued and reflected locally.");
+          if (!options.silent) setNotice("Product update queued and reflected locally.");
           return;
         }
 
@@ -713,7 +722,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
           );
           await fetchInventoryFromServer();
         }
-        setNotice("Product details saved.");
+        if (!options.silent) setNotice("Product details saved.");
       } catch (productError) {
         setError(getErrorMessage(productError));
       } finally {

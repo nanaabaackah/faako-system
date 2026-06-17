@@ -166,7 +166,8 @@ input[type="date"] {
   min-height: 44px;
 }
 
-section:not(:where([class*="hero"], .trust-section)) {
+.section--full-height,
+[data-full-height-section] {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;

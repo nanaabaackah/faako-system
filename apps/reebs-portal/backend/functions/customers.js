@@ -53,11 +53,7 @@ export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-      },
+      headers: publicLookupHeaders(event),
       body: "",
     };
   }
@@ -85,7 +81,7 @@ export async function handler(event) {
       } catch (err) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Invalid JSON body." }),
         };
       }
@@ -112,21 +108,21 @@ export async function handler(event) {
       if (event.httpMethod === "PUT") {
         return {
           statusCode: 401,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Unauthorized" }),
         };
       }
       if (event.httpMethod === "DELETE") {
         return {
           statusCode: 401,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Unauthorized" }),
         };
       }
       if (event.httpMethod === "GET" && (hasId || !hasLookup)) {
         return {
           statusCode: 401,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Unauthorized" }),
         };
       }
@@ -143,7 +139,7 @@ export async function handler(event) {
       if (!name) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Name is required." }),
         };
       }
@@ -164,7 +160,7 @@ export async function handler(event) {
 
       const respondWith = (row) => ({
         statusCode: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: publicLookupHeaders(event),
         body: JSON.stringify(row),
       });
 
@@ -260,7 +256,7 @@ export async function handler(event) {
       if (!Number.isFinite(id)) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Customer id is required." }),
         };
       }
@@ -300,7 +296,7 @@ export async function handler(event) {
           if (typeof data.segmentOverride !== "string") {
             return {
               statusCode: 400,
-              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+              headers: publicLookupHeaders(event),
               body: JSON.stringify({ error: "Invalid customer segment." }),
             };
           }
@@ -309,7 +305,7 @@ export async function handler(event) {
           if (!CUSTOMER_SEGMENTS.has(segmentOverride)) {
             return {
               statusCode: 400,
-              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+              headers: publicLookupHeaders(event),
               body: JSON.stringify({ error: "Invalid customer segment." }),
             };
           }
@@ -322,7 +318,7 @@ export async function handler(event) {
       if (!updates.length) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "No customer updates provided." }),
         };
       }
@@ -343,21 +339,21 @@ export async function handler(event) {
         if (result.rowCount === 0) {
           return {
             statusCode: 404,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            headers: publicLookupHeaders(event),
             body: JSON.stringify({ error: "Customer not found." }),
           };
         }
 
         return {
           statusCode: 200,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify(result.rows[0]),
         };
       } catch (err) {
         if (err?.code === "23505") {
           return {
             statusCode: 409,
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            headers: publicLookupHeaders(event),
             body: JSON.stringify({ error: "Duplicate email." }),
           };
         }
@@ -370,7 +366,7 @@ export async function handler(event) {
       if (!Number.isFinite(id)) {
         return {
           statusCode: 400,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Customer id is required." }),
         };
       }
@@ -390,14 +386,14 @@ export async function handler(event) {
       if (result.rowCount === 0) {
         return {
           statusCode: 404,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Customer not found." }),
         };
       }
 
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: publicLookupHeaders(event),
         body: JSON.stringify(result.rows[0]),
       };
     }
@@ -405,11 +401,7 @@ export async function handler(event) {
     if (event.httpMethod !== "GET") {
       return {
         statusCode: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        },
+        headers: publicLookupHeaders(event),
         body: JSON.stringify({ error: "Method Not Allowed" }),
       };
     }
@@ -424,7 +416,7 @@ export async function handler(event) {
       if (customerRes.rowCount === 0) {
         return {
           statusCode: 404,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+          headers: publicLookupHeaders(event),
           body: JSON.stringify({ error: "Customer not found." }),
         };
       }
@@ -469,7 +461,7 @@ export async function handler(event) {
 
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: publicLookupHeaders(event),
         body: JSON.stringify({
           customer: customerRes.rows[0],
           orders: ordersWithDelivery,
@@ -572,9 +564,7 @@ export async function handler(event) {
 
       return {
         statusCode: 200,
-        headers: authUser
-          ? { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-          : publicLookupHeaders(event),
+        headers: publicLookupHeaders(event),
         body: JSON.stringify(publicCustomer),
       };
     }
@@ -590,7 +580,7 @@ export async function handler(event) {
       );
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: publicLookupHeaders(event),
         body: JSON.stringify(compactResult.rows),
       };
     }
@@ -646,7 +636,7 @@ export async function handler(event) {
     );
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: publicLookupHeaders(event),
       body: JSON.stringify(result.rows),
     };
 
@@ -654,7 +644,7 @@ export async function handler(event) {
     console.error("❌ Database error:", err);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: publicLookupHeaders(event),
       body: JSON.stringify({ error: err.message || "Database error" }),
     };
   } finally {

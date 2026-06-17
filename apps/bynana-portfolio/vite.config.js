@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
+import { createGoogleAnalyticsHtmlPlugin } from '../../scripts/vite/googleAnalyticsHtml.mjs'
 import { createManualChunks } from '../../scripts/vite/manualChunks.mjs'
 
 // https://vite.dev/config/
@@ -11,7 +12,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: '/',
-    plugins: [react()],
+    plugins: [
+      react(),
+      createGoogleAnalyticsHtmlPlugin({
+        measurementId: env.VITE_GA_MEASUREMENT_ID,
+        fallbackMeasurementId: env.VITE_GA_ID,
+        enableInDevelopment: env.VITE_ENABLE_GA_IN_DEV,
+        mode,
+      }),
+    ],
     resolve: {
       dedupe: ['react', 'react-dom'],
     },

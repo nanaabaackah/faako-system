@@ -14,6 +14,8 @@ const {
 const RESEND_EMAIL_URL = "https://api.resend.com/emails";
 const DEFAULT_FROM_EMAIL = "Stroane Operations <alerts@stroanesolutions.com>";
 const DEFAULT_REPLY_TO = "info@stroanesolutions.com";
+const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const INVENTORY_ALERT_CHANNELS = Object.freeze({
   EMAIL: "EMAIL",
@@ -36,6 +38,38 @@ const parseRecipients = (value, maxRecipients = 20) =>
     .map((recipient) => safeText(recipient, 180))
     .filter(Boolean)
     .slice(0, maxRecipients);
+
+const normalizeEmailRecipient = (value) => {
+  const email = safeText(value, 180);
+  return EMAIL_PATTERN.test(email) ? email : "";
+};
+
+const isProductionRuntime = () => {
+  const appEnv = safeText(process.env.APP_ENV || process.env.NODE_ENV, 40).toLowerCase();
+  return appEnv === "production" || appEnv === "prod";
+};
+
+const getLocalEmailRecipient = () =>
+  normalizeEmailRecipient(process.env.EMAIL_FORCE_TO) || LOCAL_EMAIL_FALLBACK;
+
+const resolveEmailRecipients = (recipients) => {
+  if (isProductionRuntime() || !recipients.length) {
+    return {
+      intendedRecipients: recipients,
+      deliveryRecipients: recipients,
+      wasRerouted: false,
+    };
+  }
+
+  const deliveryRecipient = getLocalEmailRecipient();
+  return {
+    intendedRecipients: recipients,
+    deliveryRecipients: [deliveryRecipient],
+    wasRerouted:
+      recipients.length !== 1 ||
+      recipients.some((recipient) => recipient.toLowerCase() !== deliveryRecipient.toLowerCase()),
+  };
+};
 
 const formatLabel = (value = "") =>
   safeText(value, 80)
@@ -173,6 +207,7 @@ const compactObject = (value = {}) =>
 export const sendInventoryAlertEmail = async ({ alerts } = {}) => {
   const recipients = parseRecipients(process.env.STROANE_ALERT_EMAILS);
   const apiKey = safeText(process.env.RESEND_API_KEY, 500);
+  const delivery = resolveEmailRecipients(recipients);
 
   if (!recipients.length) {
     return {
@@ -193,6 +228,25 @@ export const sendInventoryAlertEmail = async ({ alerts } = {}) => {
   }
 
   const { subject, text, html } = buildInventoryAlertEmailContent(alerts);
+  const redirectText = delivery.wasRerouted
+    ? [
+        "Local email redirect active",
+        `Original recipient(s): ${delivery.intendedRecipients.join(", ") || "none"}`,
+        `Delivered to: ${delivery.deliveryRecipients.join(", ")}`,
+        "",
+      ].join("\n")
+    : "";
+  const redirectHtml = delivery.wasRerouted
+    ? renderNotice({
+        title: "Local email redirect active",
+        lines: [
+          `Original recipient(s): ${delivery.intendedRecipients.join(", ") || "none"}`,
+          `Delivered to: ${delivery.deliveryRecipients.join(", ")}`,
+        ],
+        tone: "warning",
+        theme: EMAIL_THEMES.faako,
+      })
+    : "";
   const response = await fetch(RESEND_EMAIL_URL, {
     method: "POST",
     headers: {
@@ -202,10 +256,10 @@ export const sendInventoryAlertEmail = async ({ alerts } = {}) => {
     body: JSON.stringify(
       compactObject({
         from: safeText(process.env.STROANE_ALERT_FROM, 260) || DEFAULT_FROM_EMAIL,
-        to: recipients,
-        subject,
-        text,
-        html,
+        to: delivery.deliveryRecipients,
+        subject: delivery.wasRerouted ? `[Local test] ${subject}` : subject,
+        text: `${redirectText}${text}`.trim(),
+        html: `${redirectHtml}${html}`.trim(),
         reply_to: safeText(process.env.STROANE_ALERT_REPLY_TO, 260) || DEFAULT_REPLY_TO,
       })
     ),
@@ -215,7 +269,9 @@ export const sendInventoryAlertEmail = async ({ alerts } = {}) => {
   return {
     channel: INVENTORY_ALERT_CHANNELS.EMAIL,
     status: INVENTORY_ALERT_DISPATCH_STATUSES.SENT,
-    recipientCount: recipients.length,
+    recipientCount: delivery.deliveryRecipients.length,
+    requestedRecipientCount: delivery.intendedRecipients.length,
+    redirected: delivery.wasRerouted,
     providerId: safeText(body.id || body?.data?.id, 120) || null,
   };
 };

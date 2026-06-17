@@ -1,8 +1,17 @@
-import React, { useEffect, useMemo, useState, type FormEvent } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   HiOutlineArchive,
   HiOutlineChartBar,
   HiOutlineChartPie,
+  HiOutlineChevronLeft,
+  HiOutlineChevronRight,
   HiOutlineCheckCircle,
   HiOutlineClipboardList,
   HiOutlineCube,
@@ -15,19 +24,20 @@ import {
   HiOutlineTag,
   HiOutlineTrendingUp,
   HiOutlineTruck,
+  HiOutlineX,
 } from "react-icons/hi";
+import { useSearchParams } from "react-router-dom";
 import {
   ERPFormNotice,
   ERPDangerAction,
+  ERPModal,
   ERPPrimaryAction,
   ERPSecondaryAction,
   ERPStatusBadge,
-  ERPTable,
   ERPTableSearch,
   ERPTextareaField,
   ERPTextField,
   SelectField,
-  type ERPTableColumn,
 } from "@faako/ui";
 import {
   SYNC_STATES,
@@ -40,6 +50,7 @@ import {
   InventoryManagementProvider,
   useInventoryManagement,
 } from "../context/InventoryManagementContext";
+import InventoryStockTable from "../components/inventory/InventoryStockTable";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import {
   buildInventoryEditDraft,
@@ -85,9 +96,26 @@ const STATUS_FILTERS: Array<{ value: InventoryManagementFilters["status"]; label
   { value: "unavailable", label: "Unavailable" },
 ];
 
+const INVENTORY_TABLE_PAGE_SIZE = 12;
+
 const getSelectValue = (value: string | string[]) => (Array.isArray(value) ? value[0] || "" : value);
 
 type InventoryAnalyticsTone = "success" | "warning" | "danger" | "neutral" | "info";
+
+type InventoryDrilldownEntry = {
+  id: string;
+  label: string;
+  detail: string;
+  value?: string | number;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+  onSelect?: () => void;
+};
+
+type InventoryDrilldown = {
+  title: string;
+  description: string;
+  entries: InventoryDrilldownEntry[];
+};
 
 const CHART_TONE_COLORS: Record<InventoryAnalyticsTone, string> = {
   success: "var(--sys-success)",
@@ -116,8 +144,63 @@ const getPercent = (value: number, total: number) =>
 
 const formatInventoryNumber = (value: number) => Math.round(value).toLocaleString("en-GB");
 
+const formatInventoryMoney = (value: number, currency = "GHS") =>
+  new Intl.NumberFormat("en-GH", {
+    style: "currency",
+    currency: currency || "GHS",
+    maximumFractionDigits: value >= 1000 ? 0 : 2,
+  }).format(Number.isFinite(value) ? value : 0);
+
 const getPluralLabel = (count: number, singular: string, plural = `${singular}s`) =>
   `${formatInventoryNumber(count)} ${count === 1 ? singular : plural}`;
+
+const toMoneyNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getInventoryItemPrice = (item: InventoryItem) => toMoneyNumber(item.product?.price);
+
+const getInventoryItemCurrency = (item: InventoryItem) =>
+  item.product?.currency?.trim().toUpperCase() || "GHS";
+
+const getInventoryItemStockValue = (item: InventoryItem) => {
+  const price = getInventoryItemPrice(item);
+  const available = resolveInventoryAvailableQuantity(item);
+  if (price === null || available === null) return null;
+  return price * available;
+};
+
+const getProductDraftKey = (draft: InventoryProductDraft) =>
+  JSON.stringify({
+    name: draft.name.trim(),
+    sku: draft.sku.trim(),
+    price: draft.price.trim(),
+    currency: draft.currency.trim().toUpperCase(),
+    categorySlug: draft.categorySlug,
+    publishingStatus: draft.publishingStatus,
+    isFeatured: draft.isFeatured,
+    shortDescription: draft.shortDescription.trim(),
+  });
+
+const getStockDraftKey = (draft: InventoryEditDraft | null) =>
+  draft
+    ? JSON.stringify({
+        quantityOnHand: draft.quantityOnHand,
+        reservedQuantity: draft.reservedQuantity,
+        lowStockThreshold: draft.lowStockThreshold,
+        reorderThreshold: draft.reorderThreshold,
+        stockStatus: draft.stockStatus,
+        supplierId: draft.supplierId,
+        sku: draft.sku.trim(),
+        notes: draft.notes.trim(),
+        inventoryTrackingEnabled: draft.inventoryTrackingEnabled,
+        allowBackorder: draft.allowBackorder,
+        isPurchasable: draft.isPurchasable,
+        lastCountedAt: draft.lastCountedAt,
+      })
+    : "";
 
 const getChartStyle = (percent: number, color: string) =>
   ({
@@ -176,6 +259,7 @@ const getQueueBadgeTone = (status = "") => {
 };
 
 const InventoryManagementContent: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const inventoryState = useInventoryManagement();
   const {
     alerts,
@@ -225,6 +309,18 @@ const InventoryManagementContent: React.FC = () => {
     buildProductDraft(null, null)
   );
   const [formError, setFormError] = useState("");
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [inventoryPage, setInventoryPage] = useState(0);
+  const [openActionsId, setOpenActionsId] = useState("");
+  const [drilldown, setDrilldown] = useState<InventoryDrilldown | null>(null);
+  const [productAutosaveStatus, setProductAutosaveStatus] = useState<
+    "idle" | "pending" | "saving" | "saved" | "error"
+  >("idle");
+  const [stockAutosaveStatus, setStockAutosaveStatus] = useState<
+    "idle" | "pending" | "saving" | "saved" | "error"
+  >("idle");
+  const productDraftSaveKeyRef = useRef(getProductDraftKey(productDraft));
+  const stockDraftSaveKeyRef = useRef(getStockDraftKey(stockDraft));
 
   useSEOMeta({
     title: "Inventory management | Stroane operations",
@@ -236,70 +332,25 @@ const InventoryManagementContent: React.FC = () => {
   useEffect(() => {
     if (!selectedItem) {
       setStockDraft(null);
-      setProductDraft(buildProductDraft(null, null));
+      const nextProductDraft = buildProductDraft(null, null);
+      setProductDraft(nextProductDraft);
+      productDraftSaveKeyRef.current = getProductDraftKey(nextProductDraft);
+      stockDraftSaveKeyRef.current = "";
+      setProductAutosaveStatus("idle");
+      setStockAutosaveStatus("idle");
       return;
     }
-    setStockDraft(buildInventoryEditDraft(selectedItem));
+    const nextStockDraft = buildInventoryEditDraft(selectedItem);
+    const nextProductDraft = buildProductDraft(selectedProduct, selectedItem);
+    setStockDraft(nextStockDraft);
     setMovementDraft(EMPTY_MOVEMENT_DRAFT);
-    setProductDraft(buildProductDraft(selectedProduct, selectedItem));
+    setProductDraft(nextProductDraft);
+    stockDraftSaveKeyRef.current = getStockDraftKey(nextStockDraft);
+    productDraftSaveKeyRef.current = getProductDraftKey(nextProductDraft);
+    setProductAutosaveStatus("idle");
+    setStockAutosaveStatus("idle");
     setFormError("");
   }, [selectedItem, selectedProduct]);
-
-  const columns = useMemo<Array<ERPTableColumn<InventoryItem>>>(
-    () => [
-      {
-        id: "product",
-        header: "Product",
-        width: "32%",
-        mobileLabel: "Product",
-        render: (item) => (
-          <span className="stroane-inventory__product-cell">
-            <strong>{getInventoryProductName(item)}</strong>
-            {item.variantId ? <small>Variant: {getInventoryVariantLabel(item)}</small> : null}
-          </span>
-        ),
-      },
-      {
-        id: "status",
-        header: "Status",
-        mobileLabel: "Status",
-        render: (item) => {
-          const status = getInventoryComputedStatus(item);
-          return (
-            <ERPStatusBadge tone={getInventoryStatusTone(status)}>
-              {formatInventoryStatusLabel(status)}
-            </ERPStatusBadge>
-          );
-        },
-      },
-      {
-        id: "quantities",
-        header: "Stock",
-        mobileLabel: "Stock",
-        render: (item) => {
-          const available = resolveInventoryAvailableQuantity(item);
-          return (
-            <span className="stroane-inventory__quantity-cell">
-              <strong>{available === null ? "Not set" : `${available}`}</strong>
-            </span>
-          );
-        },
-      },
-      {
-        id: "supplier",
-        header: "Supplier",
-        mobileLabel: "Supplier",
-        render: (item) => item.supplier?.name || "Unassigned",
-      },
-      {
-        id: "updated",
-        header: "Updated",
-        mobileLabel: "Updated",
-        render: (item) => formatInventoryDateTime(item.updatedAt),
-      },
-    ],
-    []
-  );
 
   const selectedStatus = selectedItem ? getInventoryComputedStatus(selectedItem) : "unavailable";
   const selectedAvailable = selectedItem ? resolveInventoryAvailableQuantity(selectedItem) : null;
@@ -318,6 +369,35 @@ const InventoryManagementContent: React.FC = () => {
           )
         : [],
     [movements, selectedItem]
+  );
+  const categoryNameBySlug = useMemo(
+    () => new Map(categories.map((category) => [category.slug, category.name])),
+    [categories]
+  );
+  const productsById = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products]
+  );
+  const productsBySlug = useMemo(
+    () => new Map(products.map((product) => [product.slug, product])),
+    [products]
+  );
+  const resolveItemProduct = useCallback(
+    (item: InventoryItem) =>
+      (item.productId ? productsById.get(item.productId) : undefined) ||
+      productsBySlug.get(item.productSlug) ||
+      null,
+    [productsById, productsBySlug]
+  );
+  const getItemCategoryLabel = useCallback(
+    (item: InventoryItem) => {
+      const product = resolveItemProduct(item);
+      const categorySlug = item.product?.categorySlug || product?.categorySlug || "";
+      return categorySlug
+        ? categoryNameBySlug.get(categorySlug) || formatInventoryLabel(categorySlug)
+        : "Uncategorised";
+    },
+    [categoryNameBySlug, resolveItemProduct]
   );
 
   const analytics = useMemo(() => {
@@ -339,6 +419,9 @@ const InventoryManagementContent: React.FC = () => {
 
     let reorderUnits = 0;
     let topAvailableUnits = 0;
+    let totalStockValue = 0;
+    let pricedStockRecords = 0;
+    let pricedStockUnits = 0;
 
     const stockRows = inventoryItems.map((item) => {
       const status = getInventoryComputedStatus(item);
@@ -348,6 +431,8 @@ const InventoryManagementContent: React.FC = () => {
       const product =
         (item.productId ? productsById.get(item.productId) : undefined) ||
         productsBySlug.get(item.productSlug);
+      const price = toMoneyNumber(item.product?.price ?? product?.price);
+      const stockValue = price === null || available === null ? null : price * availableUnits;
       const categorySlug = item.product?.categorySlug || product?.categorySlug || "";
       const categoryLabel = categorySlug
         ? categoryNameBySlug.get(categorySlug) || formatInventoryLabel(categorySlug)
@@ -364,6 +449,12 @@ const InventoryManagementContent: React.FC = () => {
 
       if (available !== null && reorderThreshold !== null && availableUnits < reorderThreshold) {
         reorderUnits += reorderThreshold - availableUnits;
+      }
+
+      if (stockValue !== null) {
+        totalStockValue += stockValue;
+        pricedStockRecords += 1;
+        pricedStockUnits += availableUnits;
       }
 
       const categoryTotal = categoryTotals.get(categorySlug || "uncategorised") || {
@@ -399,6 +490,7 @@ const InventoryManagementContent: React.FC = () => {
         status,
         statusLabel: formatInventoryStatusLabel(status),
         tone: getInventoryStatusTone(status),
+        stockValue,
         units: availableUnits,
       };
     });
@@ -491,8 +583,11 @@ const InventoryManagementContent: React.FC = () => {
       categoryRows,
       countedItems,
       movementRows,
+      pricedStockRecords,
+      pricedStockUnits,
       reorderUnits,
       statusRows,
+      totalStockValue,
       supplierRows,
       topStockRows,
       coverageMetrics: [
@@ -541,32 +636,49 @@ const InventoryManagementContent: React.FC = () => {
     };
   }, [categories, inventoryItems, movements, products, summary]);
 
+  const saveStockDraft = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!selectedItem || !stockDraft) return;
+
+      clearMessages();
+      setFormError("");
+      const numberFields = [
+        ["Quantity on hand", stockDraft.quantityOnHand],
+        ["Reserved quantity", stockDraft.reservedQuantity],
+        ["Low stock threshold", stockDraft.lowStockThreshold],
+        ["Reorder threshold", stockDraft.reorderThreshold],
+      ] as const;
+      const invalidField = numberFields.find(([, value]) => !isWholeNumberDraft(value));
+      if (invalidField) {
+        setFormError(`${invalidField[0]} must be a whole number.`);
+        setStockAutosaveStatus(options.silent ? "error" : "idle");
+        return;
+      }
+
+      const quantityOnHand =
+        stockDraft.quantityOnHand === "" ? null : Number(stockDraft.quantityOnHand);
+      const reservedQuantity =
+        stockDraft.reservedQuantity === "" ? 0 : Number(stockDraft.reservedQuantity);
+      if (quantityOnHand !== null && reservedQuantity > quantityOnHand) {
+        setFormError("Reserved quantity cannot exceed quantity on hand.");
+        setStockAutosaveStatus(options.silent ? "error" : "idle");
+        return;
+      }
+
+      await saveInventoryItem(
+        selectedItem,
+        buildInventoryPatchFromDraft(stockDraft),
+        options
+      );
+      stockDraftSaveKeyRef.current = getStockDraftKey(stockDraft);
+      setStockAutosaveStatus(options.silent ? "saved" : "idle");
+    },
+    [clearMessages, saveInventoryItem, selectedItem, stockDraft]
+  );
+
   const handleStockSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedItem || !stockDraft) return;
-
-    clearMessages();
-    setFormError("");
-    const numberFields = [
-      ["Quantity on hand", stockDraft.quantityOnHand],
-      ["Reserved quantity", stockDraft.reservedQuantity],
-      ["Low stock threshold", stockDraft.lowStockThreshold],
-      ["Reorder threshold", stockDraft.reorderThreshold],
-    ] as const;
-    const invalidField = numberFields.find(([, value]) => !isWholeNumberDraft(value));
-    if (invalidField) {
-      setFormError(`${invalidField[0]} must be a whole number.`);
-      return;
-    }
-
-    const quantityOnHand = stockDraft.quantityOnHand === "" ? null : Number(stockDraft.quantityOnHand);
-    const reservedQuantity = stockDraft.reservedQuantity === "" ? 0 : Number(stockDraft.reservedQuantity);
-    if (quantityOnHand !== null && reservedQuantity > quantityOnHand) {
-      setFormError("Reserved quantity cannot exceed quantity on hand.");
-      return;
-    }
-
-    await saveInventoryItem(selectedItem, buildInventoryPatchFromDraft(stockDraft));
+    await saveStockDraft();
   };
 
   const handleMovementSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -586,46 +698,396 @@ const InventoryManagementContent: React.FC = () => {
     }
   };
 
+  const saveProductDraft = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      const productId = selectedProduct?.id || selectedItem?.product?.id || selectedItem?.productId || "";
+      if (!productId) return;
+
+      clearMessages();
+      setFormError("");
+      if (!productDraft.name.trim()) {
+        setFormError("Product name is required.");
+        setProductAutosaveStatus(options.silent ? "error" : "idle");
+        return;
+      }
+      if (productDraft.price && Number.isNaN(Number(productDraft.price))) {
+        setFormError("Product price must be a valid number.");
+        setProductAutosaveStatus(options.silent ? "error" : "idle");
+        return;
+      }
+
+      await saveProductDetails(
+        productId,
+        {
+          name: productDraft.name.trim(),
+          sku: productDraft.sku.trim() || null,
+          price: productDraft.price === "" ? null : productDraft.price,
+          currency: productDraft.currency.trim().toUpperCase() || "GHS",
+          categorySlug: productDraft.categorySlug || null,
+          shortDescription: productDraft.shortDescription.trim() || null,
+        },
+        {
+          publishingStatus: productDraft.publishingStatus,
+          isFeatured: productDraft.isFeatured,
+        },
+        options
+      );
+      productDraftSaveKeyRef.current = getProductDraftKey(productDraft);
+      setProductAutosaveStatus(options.silent ? "saved" : "idle");
+    },
+    [clearMessages, productDraft, saveProductDetails, selectedItem, selectedProduct]
+  );
+
   const handleProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const productId = selectedProduct?.id || selectedItem?.product?.id || "";
-    if (!productId) return;
-
-    clearMessages();
-    setFormError("");
-    if (!productDraft.name.trim()) {
-      setFormError("Product name is required.");
-      return;
-    }
-    if (productDraft.price && Number.isNaN(Number(productDraft.price))) {
-      setFormError("Product price must be a valid number.");
-      return;
-    }
-
-    await saveProductDetails(
-      productId,
-      {
-        name: productDraft.name.trim(),
-        sku: productDraft.sku.trim() || null,
-        price: productDraft.price === "" ? null : productDraft.price,
-        currency: productDraft.currency.trim().toUpperCase() || "GHS",
-        categorySlug: productDraft.categorySlug || null,
-        shortDescription: productDraft.shortDescription.trim() || null,
-      },
-      {
-        publishingStatus: productDraft.publishingStatus,
-        isFeatured: productDraft.isFeatured,
-      }
-    );
+    await saveProductDraft();
   };
 
-  const tableState = loading
-    ? "loading"
-    : error && !filteredInventory.length
-      ? "error"
+  const inventoryPageCount = Math.max(
+    1,
+    Math.ceil(filteredInventory.length / INVENTORY_TABLE_PAGE_SIZE)
+  );
+  const clampedInventoryPage = Math.min(inventoryPage, inventoryPageCount - 1);
+  const paginatedInventory = useMemo(
+    () =>
+      filteredInventory.slice(
+        clampedInventoryPage * INVENTORY_TABLE_PAGE_SIZE,
+        clampedInventoryPage * INVENTORY_TABLE_PAGE_SIZE + INVENTORY_TABLE_PAGE_SIZE
+      ),
+    [clampedInventoryPage, filteredInventory]
+  );
+  const selectedFilteredIndex = useMemo(
+    () => filteredInventory.findIndex((item) => item.id === selectedItemId),
+    [filteredInventory, selectedItemId]
+  );
+  const selectedPositionLabel =
+    selectedFilteredIndex >= 0
+      ? `${selectedFilteredIndex + 1} of ${filteredInventory.length}`
       : filteredInventory.length
-        ? "ready"
-        : "empty";
+        ? `1 of ${filteredInventory.length}`
+        : "0 of 0";
+  const pageStart = filteredInventory.length
+    ? clampedInventoryPage * INVENTORY_TABLE_PAGE_SIZE + 1
+    : 0;
+  const pageEnd = Math.min(
+    filteredInventory.length,
+    (clampedInventoryPage + 1) * INVENTORY_TABLE_PAGE_SIZE
+  );
+  const paginatedStockValue = paginatedInventory.reduce(
+    (total, item) => total + (getInventoryItemStockValue(item) ?? 0),
+    0
+  );
+  const selectedStockValue = selectedItem ? getInventoryItemStockValue(selectedItem) : null;
+  const selectedCurrency = selectedItem ? getInventoryItemCurrency(selectedItem) : "GHS";
+  const selectedProductId =
+    selectedProduct?.id || selectedItem?.product?.id || selectedItem?.productId || "";
+  const modalAutosaveLabel =
+    productAutosaveStatus === "saving" || stockAutosaveStatus === "saving"
+      ? "Saving"
+      : productAutosaveStatus === "pending" || stockAutosaveStatus === "pending"
+        ? "Autosave pending"
+        : productAutosaveStatus === "error" || stockAutosaveStatus === "error"
+          ? "Review needed"
+          : productAutosaveStatus === "saved" || stockAutosaveStatus === "saved"
+            ? "Saved"
+            : "Ready";
+
+  const openItemDetail = useCallback(
+    (itemId: string) => {
+      selectItem(itemId);
+      setDetailModalOpen(true);
+      setDrilldown(null);
+      setOpenActionsId("");
+    },
+    [selectItem]
+  );
+
+  const closeItemDetail = useCallback(() => {
+    setDetailModalOpen(false);
+    setOpenActionsId("");
+  }, []);
+
+  const navigateSelectedItem = useCallback(
+    (direction: 1 | -1) => {
+      if (!filteredInventory.length) return;
+      const currentIndex =
+        selectedFilteredIndex >= 0 ? selectedFilteredIndex : 0;
+      const nextIndex =
+        (currentIndex + direction + filteredInventory.length) % filteredInventory.length;
+      selectItem(filteredInventory[nextIndex].id);
+    },
+    [filteredInventory, selectItem, selectedFilteredIndex]
+  );
+
+  useEffect(() => {
+    const itemId = searchParams.get("item");
+    if (!itemId || !inventoryItems.length) return;
+    const matchingItem = inventoryItems.find((item) => item.id === itemId);
+    if (!matchingItem) return;
+
+    openItemDetail(matchingItem.id);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("item");
+    setSearchParams(nextParams, { replace: true });
+  }, [inventoryItems, openItemDetail, searchParams, setSearchParams]);
+
+  const createInventoryEntries = useCallback(
+    (items: InventoryItem[]): InventoryDrilldownEntry[] =>
+      items.map((item) => {
+        const status = getInventoryComputedStatus(item);
+        const available = resolveInventoryAvailableQuantity(item);
+        return {
+          id: item.id,
+          label: getInventoryProductName(item),
+          detail: [
+            getInventoryProductSku(item),
+            getItemCategoryLabel(item),
+            formatInventoryStatusLabel(status),
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          value: available === null ? "Unset" : available,
+          tone: getInventoryStatusTone(status),
+          onSelect: () => openItemDetail(item.id),
+        };
+      }),
+    [getItemCategoryLabel, openItemDetail]
+  );
+
+  const createProductEntries = useCallback(
+    (items: AdminProduct[]): InventoryDrilldownEntry[] =>
+      items.map((product) => {
+        const linkedInventory = inventoryItems.find(
+          (item) =>
+            item.productId === product.id ||
+            item.productSlug === product.slug ||
+            item.productSlug === product.id
+        );
+        return {
+          id: product.id,
+          label: product.name,
+          detail: [
+            product.sku || product.slug,
+            product.category?.name || product.categorySlug || "Uncategorised",
+            product.price == null ? "Price not set" : formatInventoryMoney(Number(product.price), product.currency),
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          value: formatInventoryLabel(product.publishingStatus),
+          tone:
+            product.publishingStatus === "active"
+              ? "success"
+              : product.publishingStatus === "archived"
+                ? "danger"
+                : "neutral",
+          onSelect: linkedInventory ? () => openItemDetail(linkedInventory.id) : undefined,
+        };
+      }),
+    [inventoryItems, openItemDetail]
+  );
+
+  const openInventoryDrilldown = useCallback(
+    (title: string, description: string, entries: InventoryDrilldownEntry[]) => {
+      setDrilldown({ title, description, entries });
+    },
+    []
+  );
+
+  const inventoryDrilldowns = useMemo(() => {
+    const pricedItems = inventoryItems.filter((item) => getInventoryItemStockValue(item) !== null);
+    const availableItems = inventoryItems.filter(
+      (item) => resolveInventoryAvailableQuantity(item) !== null
+    );
+    const outOfStockItems = inventoryItems.filter(
+      (item) => getInventoryComputedStatus(item) === "out_of_stock"
+    );
+    const attentionItems = inventoryItems.filter((item) => {
+      const status = getInventoryComputedStatus(item);
+      return (
+        status === "out_of_stock" ||
+        status === "low_stock" ||
+        status === "manual_review" ||
+        item.isLowStock ||
+        item.needsReorder
+      );
+    });
+    const reorderItems = inventoryItems.filter((item) => {
+      const available = resolveInventoryAvailableQuantity(item);
+      const threshold = resolveReorderThreshold(item);
+      return available !== null && threshold !== null && available < threshold;
+    });
+    const countedItems = inventoryItems.filter(
+      (item) =>
+        item.inventoryTrackingEnabled && resolveInventoryAvailableQuantity(item) !== null
+    );
+    const uncountedItems = inventoryItems.filter(
+      (item) =>
+        item.inventoryTrackingEnabled && resolveInventoryAvailableQuantity(item) === null
+    );
+    const queueEntries = ((queueReviewItems || []) as Array<{
+      id: string;
+      status?: string;
+      createdAt?: string;
+    }>).map((item) => {
+      const meta = getQueueItemDisplayMeta(item) as {
+        title?: string;
+        targetType?: string;
+        targetId?: string;
+        lastError?: string;
+      };
+      return {
+        id: item.id,
+        label: formatInventoryLabel(getQueueActionLabel(item)),
+        detail: meta.lastError || meta.title || meta.targetType || "Queued portal work",
+        value: getQueueStatusLabel(item.status),
+        tone:
+          item.status === SYNC_STATES.FAILED || item.status === SYNC_STATES.CONFLICT
+            ? "danger"
+            : "warning",
+      } satisfies InventoryDrilldownEntry;
+    });
+
+    return {
+      pricedStock: createInventoryEntries(pricedItems),
+      products: createProductEntries(products),
+      available: createInventoryEntries(availableItems),
+      outOfStock: createInventoryEntries(outOfStockItems),
+      queue: queueEntries,
+      attention: createInventoryEntries(attentionItems),
+      reorder: createInventoryEntries(reorderItems),
+      counted: createInventoryEntries(countedItems),
+      uncounted: createInventoryEntries(uncountedItems),
+    };
+  }, [createInventoryEntries, createProductEntries, inventoryItems, products, queueReviewItems]);
+
+  const savePublishingStatus = useCallback(
+    async (
+      item: InventoryItem,
+      publishingStatus: InventoryProductDraft["publishingStatus"],
+      options: { confirm?: boolean; label?: string } = {}
+    ) => {
+      const product = resolveItemProduct(item);
+      const productId = product?.id || item.product?.id || item.productId || "";
+      if (!productId) {
+        setFormError("This inventory row is not linked to a catalogue product.");
+        return;
+      }
+      if (
+        options.confirm &&
+        typeof window !== "undefined" &&
+        !window.confirm(`${options.label || "Update"} ${getInventoryProductName(item)}?`)
+      ) {
+        return;
+      }
+
+      clearMessages();
+      setFormError("");
+      setOpenActionsId("");
+      await saveProductDetails(
+        productId,
+        {},
+        {
+          publishingStatus,
+          isFeatured: publishingStatus === "archived" ? false : product?.isFeatured,
+        }
+      );
+    },
+    [clearMessages, resolveItemProduct, saveProductDetails]
+  );
+
+  useEffect(() => {
+    setInventoryPage(0);
+  }, [filters.search, filters.status, filters.supplierId]);
+
+  useEffect(() => {
+    if (inventoryPage > inventoryPageCount - 1) {
+      setInventoryPage(inventoryPageCount - 1);
+    }
+  }, [inventoryPage, inventoryPageCount]);
+
+  useEffect(() => {
+    if (!detailModalOpen) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeItemDetail();
+      if (event.key === "ArrowLeft") navigateSelectedItem(-1);
+      if (event.key === "ArrowRight") navigateSelectedItem(1);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeItemDetail, detailModalOpen, navigateSelectedItem]);
+
+  useEffect(() => {
+    if (!detailModalOpen || !canManageInventory || savingProduct) return undefined;
+    const productId = selectedProduct?.id || selectedItem?.product?.id || selectedItem?.productId || "";
+    if (!productId) return undefined;
+    const draftKey = getProductDraftKey(productDraft);
+    if (draftKey === productDraftSaveKeyRef.current) {
+      return undefined;
+    }
+    if (!productDraft.name.trim() || (productDraft.price && Number.isNaN(Number(productDraft.price)))) {
+      setProductAutosaveStatus("error");
+      return undefined;
+    }
+
+    setProductAutosaveStatus("pending");
+    const timeoutId = window.setTimeout(() => {
+      setProductAutosaveStatus("saving");
+      void saveProductDraft({ silent: true });
+    }, 950);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    canManageInventory,
+    detailModalOpen,
+    productDraft,
+    saveProductDraft,
+    savingProduct,
+    selectedItem,
+    selectedProduct,
+  ]);
+
+  useEffect(() => {
+    if (!detailModalOpen || !canManageInventory || savingInventoryItem || !selectedItem || !stockDraft) {
+      return undefined;
+    }
+    const draftKey = getStockDraftKey(stockDraft);
+    if (draftKey === stockDraftSaveKeyRef.current) {
+      return undefined;
+    }
+    const numberFields = [
+      stockDraft.quantityOnHand,
+      stockDraft.reservedQuantity,
+      stockDraft.lowStockThreshold,
+      stockDraft.reorderThreshold,
+    ];
+    if (numberFields.some((value) => !isWholeNumberDraft(value))) {
+      setStockAutosaveStatus("error");
+      return undefined;
+    }
+    const quantityOnHand =
+      stockDraft.quantityOnHand === "" ? null : Number(stockDraft.quantityOnHand);
+    const reservedQuantity =
+      stockDraft.reservedQuantity === "" ? 0 : Number(stockDraft.reservedQuantity);
+    if (quantityOnHand !== null && reservedQuantity > quantityOnHand) {
+      setStockAutosaveStatus("error");
+      return undefined;
+    }
+
+    setStockAutosaveStatus("pending");
+    const timeoutId = window.setTimeout(() => {
+      setStockAutosaveStatus("saving");
+      void saveStockDraft({ silent: true });
+    }, 950);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    canManageInventory,
+    detailModalOpen,
+    saveStockDraft,
+    savingInventoryItem,
+    selectedItem,
+    stockDraft,
+  ]);
 
   return (
     <section className="stroane-inventory" aria-labelledby="stroane-inventory-title">
@@ -671,54 +1133,144 @@ const InventoryManagementContent: React.FC = () => {
       ) : null}
 
       <section className="stroane-inventory__kpis" aria-label="Inventory summary">
-        <article className="bubble-card" data-tone="info">
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone="info"
+          onClick={() =>
+            openInventoryDrilldown(
+              "Priced stock records",
+              "Inventory rows currently contributing to stock value.",
+              inventoryDrilldowns.pricedStock
+            )
+          }
+        >
+          <HiOutlineChartBar aria-hidden="true" />
+          <span>Stock value</span>
+          <strong>{formatInventoryMoney(analytics.totalStockValue)}</strong>
+          <small>{analytics.pricedStockRecords} priced records · {analytics.pricedStockUnits} units</small>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone="info"
+          onClick={() =>
+            openInventoryDrilldown(
+              "Catalogue products",
+              "Products connected to the inventory management workspace.",
+              inventoryDrilldowns.products
+            )
+          }
+        >
           <HiOutlineShoppingBag aria-hidden="true" />
           <span>Products</span>
           <strong>{products.length}</strong>
           <small>{summary.activeProducts} active · {summary.draftProducts} draft</small>
-        </article>
-        <article className="bubble-card" data-tone="success">
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone="success"
+          onClick={() =>
+            openInventoryDrilldown(
+              "Available stock",
+              "Inventory rows with a confirmed available quantity.",
+              inventoryDrilldowns.available
+            )
+          }
+        >
           <HiOutlineCheckCircle aria-hidden="true" />
           <span>Available units</span>
           <strong>{summary.availableUnits}</strong>
           <small>{summary.reservedUnits} reserved</small>
-        </article>
-        <article className="bubble-card" data-tone={summary.outOfStockItems ? "danger" : "success"}>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone={summary.outOfStockItems ? "danger" : "success"}
+          onClick={() =>
+            openInventoryDrilldown(
+              "Out of stock",
+              "Products that need restock before they can sell normally.",
+              inventoryDrilldowns.outOfStock
+            )
+          }
+        >
           <HiOutlineArchive aria-hidden="true" />
           <span>Out of stock</span>
           <strong>{summary.outOfStockItems}</strong>
           <small>{summary.lowStockItems} low stock</small>
-        </article>
-        <article className="bubble-card" data-tone={queueCounts.reviewable ? "warning" : "success"}>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone={queueCounts.reviewable ? "warning" : "success"}
+          onClick={() =>
+            openInventoryDrilldown(
+              "Sync queue",
+              "Offline or pending inventory work on this device.",
+              inventoryDrilldowns.queue
+            )
+          }
+        >
           <HiOutlineSwitchHorizontal aria-hidden="true" />
           <span>Sync queue</span>
           <strong>{queueCounts.reviewable}</strong>
           <small>{isOnline ? "Online" : "Offline"}{cachedAt ? ` · since ${formatInventoryDateTime(cachedAt)}` : ""}</small>
-        </article>
-        <article className="bubble-card" data-tone={analytics.attentionItems ? "warning" : "success"}>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone={analytics.attentionItems ? "warning" : "success"}
+          onClick={() =>
+            openInventoryDrilldown(
+              "Attention items",
+              "Inventory records that need counting, restocking, or review.",
+              inventoryDrilldowns.attention
+            )
+          }
+        >
           <HiOutlineExclamationCircle aria-hidden="true" />
           <span>Attention items</span>
           <strong>{analytics.attentionItems}</strong>
           <small>{analytics.attentionPercent}% of stock records</small>
-        </article>
-        <article className="bubble-card" data-tone={analytics.reorderUnits ? "warning" : "success"}>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone={analytics.reorderUnits ? "warning" : "success"}
+          onClick={() =>
+            openInventoryDrilldown(
+              "Reorder gap",
+              "Products sitting below their reorder threshold.",
+              inventoryDrilldowns.reorder
+            )
+          }
+        >
           <HiOutlineTrendingUp aria-hidden="true" />
           <span>Reorder gap</span>
           <strong>{analytics.reorderUnits}</strong>
           <small>Units below reorder level</small>
-        </article>
-        <article className="bubble-card" data-tone={summary.countedPercent >= 85 ? "success" : "warning"}>
+        </button>
+        <button
+          type="button"
+          className="bubble-card stroane-inventory__kpi-card"
+          data-tone={summary.countedPercent >= 85 ? "success" : "warning"}
+          onClick={() =>
+            openInventoryDrilldown(
+              summary.countedPercent >= 85 ? "Counted stock" : "Stock counts needed",
+              "Tracked inventory records and their count status.",
+              summary.countedPercent >= 85
+                ? inventoryDrilldowns.counted
+                : inventoryDrilldowns.uncounted
+            )
+          }
+        >
           <HiOutlineDatabase aria-hidden="true" />
           <span>Counted stock</span>
           <strong>{summary.countedPercent}%</strong>
           <small>{analytics.countedItems} of {summary.trackedItems} tracked</small>
-        </article>
-        <article className="bubble-card" data-tone={summary.supplierCoveragePercent >= 85 ? "success" : "info"}>
-          <HiOutlineTruck aria-hidden="true" />
-          <span>Supplier cover</span>
-          <strong>{summary.supplierCoveragePercent}%</strong>
-          <small>{summary.supplierLinkedItems} linked items</small>
-        </article>
+        </button>
       </section>
 
       <section className="stroane-inventory__analytics" aria-label="Stock analytics">
@@ -882,7 +1434,7 @@ const InventoryManagementContent: React.FC = () => {
           )}
         </article>
 
-        <article className="glass-card stroane-inventory__analytics-card">
+        <article className="glass-card stroane-inventory__analytics-card stroane-inventory__analytics-card--stock-depth">
           <div className="stroane-inventory__analytics-head">
             <span>
               <HiOutlineCube aria-hidden="true" />
@@ -897,7 +1449,7 @@ const InventoryManagementContent: React.FC = () => {
                   className="stroane-inventory__stock-rank"
                   key={row.id}
                   type="button"
-                  onClick={() => selectItem(row.id)}
+                  onClick={() => openItemDetail(row.id)}
                 >
                   <span>
                     <strong>{row.label}</strong>
@@ -964,40 +1516,88 @@ const InventoryManagementContent: React.FC = () => {
             </div>
           </div>
 
-          <ERPTable
-            className="stroane-inventory__table"
-            columns={columns}
-            rows={filteredInventory}
-            rowKey="id"
-            state={tableState}
-            loadingMessage="Loading inventory..."
-            emptyTitle="No inventory records"
-            emptyMessage="No products match the current filters."
-            errorMessage={error || "Unable to load inventory."}
-            dense
-            mobileMode="cards"
-            rowClassName={(item) => (item.id === selectedItemId ? "is-selected" : "")}
-            getRowProps={(item) => ({
-              onClick: () => selectItem(item.id),
-              tabIndex: 0,
-              onKeyDown: (event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  selectItem(item.id);
-                }
-              },
-            })}
+          <InventoryStockTable
+            loading={loading}
+            error={error}
+            filteredInventory={filteredInventory}
+            paginatedInventory={paginatedInventory}
+            selectedItemId={selectedItemId}
+            openActionsId={openActionsId}
+            canManageInventory={canManageInventory}
+            savingProduct={savingProduct}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            pageIndex={clampedInventoryPage}
+            pageCount={inventoryPageCount}
+            paginatedStockValue={paginatedStockValue}
+            resolveItemProduct={resolveItemProduct}
+            getItemCategoryLabel={getItemCategoryLabel}
+            getItemStockValue={getInventoryItemStockValue}
+            formatMoney={formatInventoryMoney}
+            toMoneyNumber={toMoneyNumber}
+            onOpenItemDetail={openItemDetail}
+            onToggleActions={(itemId) =>
+              setOpenActionsId((current) => (current === itemId ? "" : itemId))
+            }
+            onSavePublishingStatus={savePublishingStatus}
+            onPreviousPage={() => setInventoryPage((page) => Math.max(0, page - 1))}
+            onNextPage={() =>
+              setInventoryPage((page) => Math.min(inventoryPageCount - 1, page + 1))
+            }
           />
         </div>
 
-        <aside className="stroane-inventory__side">
+        <aside
+          className={`stroane-inventory__side ${
+            detailModalOpen && selectedItem ? "is-open" : ""
+          }`}
+          aria-hidden={!(detailModalOpen && selectedItem)}
+        >
+          <button
+            type="button"
+            className="stroane-inventory__lightbox-backdrop"
+            aria-label="Close product management"
+            onClick={closeItemDetail}
+            tabIndex={detailModalOpen && selectedItem ? 0 : -1}
+          />
+          <div
+            className="stroane-inventory__lightbox-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stroane-inventory-modal-title"
+          >
+            <div className="stroane-inventory__modal-bar">
+              <button
+                type="button"
+                onClick={() => navigateSelectedItem(-1)}
+                disabled={filteredInventory.length < 2}
+                aria-label="Previous product"
+              >
+                <HiOutlineChevronLeft aria-hidden="true" />
+              </button>
+              <span>{selectedPositionLabel}</span>
+              <button
+                type="button"
+                onClick={() => navigateSelectedItem(1)}
+                disabled={filteredInventory.length < 2}
+                aria-label="Next product"
+              >
+                <HiOutlineChevronRight aria-hidden="true" />
+              </button>
+              <strong>{modalAutosaveLabel}</strong>
+              <button type="button" onClick={closeItemDetail} aria-label="Close">
+                <HiOutlineX aria-hidden="true" />
+              </button>
+            </div>
           <div className="glass-card stroane-inventory__detail">
             {selectedItem ? (
               <>
                 <div className="stroane-inventory__detail-head">
                   <div>
                     <span>Selected product</span>
-                    <h2>{getInventoryProductName(selectedItem)}</h2>
+                    <h2 id="stroane-inventory-modal-title">
+                      {getInventoryProductName(selectedItem)}
+                    </h2>
                     <small>
                       {[
                         getInventoryProductSku(selectedItem),
@@ -1026,6 +1626,14 @@ const InventoryManagementContent: React.FC = () => {
                   <span>
                     <strong>{selectedReserved}</strong>
                     <small>Reserved</small>
+                  </span>
+                  <span>
+                    <strong>
+                      {selectedStockValue === null
+                        ? "Not set"
+                        : formatInventoryMoney(selectedStockValue, selectedCurrency)}
+                    </strong>
+                    <small>Stock value</small>
                   </span>
                 </div>
 
@@ -1219,6 +1827,133 @@ const InventoryManagementContent: React.FC = () => {
           </div>
 
           {selectedItem ? (
+            <div className="glass-card stroane-inventory__detail stroane-inventory__catalogue-detail">
+              <form className="stroane-inventory__form" onSubmit={handleProductSubmit}>
+                <div className="stroane-inventory__form-head">
+                  <span>Product management</span>
+                  <h3>Catalogue details</h3>
+                </div>
+                <div className="stroane-inventory__field-grid">
+                  <ERPTextField
+                    label="Name"
+                    value={productDraft.name}
+                    onChange={(event) =>
+                      setProductDraft((current) => ({ ...current, name: event.target.value }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                    required
+                  />
+                  <ERPTextField
+                    label="Product SKU"
+                    value={productDraft.sku}
+                    onChange={(event) =>
+                      setProductDraft((current) => ({ ...current, sku: event.target.value }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                  />
+                  <ERPTextField
+                    label="Price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={productDraft.price}
+                    onChange={(event) =>
+                      setProductDraft((current) => ({ ...current, price: event.target.value }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                  />
+                  <ERPTextField
+                    label="Currency"
+                    value={productDraft.currency}
+                    maxLength={3}
+                    onChange={(event) =>
+                      setProductDraft((current) => ({
+                        ...current,
+                        currency: event.target.value.toUpperCase(),
+                      }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                  />
+                  <SelectField
+                    label="Category"
+                    value={productDraft.categorySlug}
+                    onChangeValue={(value) =>
+                      setProductDraft((current) => ({
+                        ...current,
+                        categorySlug: getSelectValue(value),
+                      }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                    options={[
+                      { value: "", label: "Unassigned" },
+                      ...categories.map((category) => ({
+                        value: category.slug,
+                        label: category.name,
+                      })),
+                    ]}
+                  />
+                  <SelectField
+                    label="Publishing"
+                    value={productDraft.publishingStatus}
+                    onChangeValue={(value) =>
+                      setProductDraft((current) => ({
+                        ...current,
+                        publishingStatus: getSelectValue(
+                          value
+                        ) as InventoryProductDraft["publishingStatus"],
+                      }))
+                    }
+                    disabled={!canManageInventory || !selectedProductId}
+                    options={[
+                      { value: "draft", label: "Draft" },
+                      { value: "active", label: "Active" },
+                      { value: "archived", label: "Archived" },
+                    ]}
+                  />
+                </div>
+                <div className="stroane-inventory__toggles">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={productDraft.isFeatured}
+                      onChange={(event) =>
+                        setProductDraft((current) => ({
+                          ...current,
+                          isFeatured: event.target.checked,
+                        }))
+                      }
+                      disabled={!canManageInventory || !selectedProductId}
+                    />
+                    <span>Featured product</span>
+                  </label>
+                </div>
+                <ERPTextareaField
+                  className="stroane-inventory__wide-field"
+                  label="Short description"
+                  value={productDraft.shortDescription}
+                  onChange={(event) =>
+                    setProductDraft((current) => ({
+                      ...current,
+                      shortDescription: event.target.value,
+                    }))
+                  }
+                  disabled={!canManageInventory || !selectedProductId}
+                />
+                <div className="stroane-inventory__form-actions">
+                  <ERPPrimaryAction
+                    type="submit"
+                    icon={<HiOutlineSave />}
+                    loading={savingProduct}
+                    disabled={!canManageInventory || !selectedProductId}
+                  >
+                    Save product
+                  </ERPPrimaryAction>
+                </div>
+              </form>
+            </div>
+          ) : null}
+
+          {selectedItem ? (
             <div className="glass-card stroane-inventory__detail">
               <form className="stroane-inventory__form" onSubmit={handleMovementSubmit}>
                 <div className="stroane-inventory__form-head">
@@ -1292,11 +2027,12 @@ const InventoryManagementContent: React.FC = () => {
               </form>
             </div>
           ) : null}
+          </div>
         </aside>
       </section>
 
       <section className="stroane-inventory__lower-grid">
-        <div className="glass-card stroane-inventory__detail">
+        <div className="glass-card stroane-inventory__detail stroane-inventory__legacy-product-detail">
           <form className="stroane-inventory__form" onSubmit={handleProductSubmit}>
             <div className="stroane-inventory__form-head">
               <span>Product management</span>
@@ -1516,6 +2252,41 @@ const InventoryManagementContent: React.FC = () => {
           )}
         </div>
       </section>
+
+      <ERPModal
+        open={Boolean(drilldown)}
+        title={drilldown?.title || "Inventory details"}
+        description={drilldown?.description}
+        onClose={() => setDrilldown(null)}
+        closeOnBackdrop
+        size="lg"
+        className="stroane-inventory__drilldown-modal"
+      >
+        {drilldown?.entries.length ? (
+          <div className="stroane-inventory__drilldown-list">
+            {drilldown.entries.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className="stroane-inventory__drilldown-item"
+                data-tone={entry.tone || "neutral"}
+                onClick={entry.onSelect}
+                disabled={!entry.onSelect}
+              >
+                <span>
+                  <strong>{entry.label}</strong>
+                  <small>{entry.detail}</small>
+                </span>
+                {entry.value !== undefined ? (
+                  <ERPStatusBadge tone={entry.tone || "neutral"}>{entry.value}</ERPStatusBadge>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="stroane-inventory__empty-text">No matching records right now.</p>
+        )}
+      </ERPModal>
     </section>
   );
 };

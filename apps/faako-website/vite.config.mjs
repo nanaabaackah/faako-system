@@ -1,14 +1,24 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
+import { createGoogleAnalyticsHtmlPlugin } from "../../scripts/vite/googleAnalyticsHtml.mjs";
 import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, fileURLToPath(new URL(".", import.meta.url)), "");
+  const appRoot = fileURLToPath(new URL(".", import.meta.url));
+  const env = loadEnv(mode, appRoot, "");
   const apiProxyTarget = env.FAAKO_API_PROXY_TARGET || "http://127.0.0.1:8889";
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      createGoogleAnalyticsHtmlPlugin({
+        measurementId: env.VITE_GA_MEASUREMENT_ID,
+        fallbackMeasurementId: env.VITE_GA_ID,
+        enableInDevelopment: env.VITE_ENABLE_GA_IN_DEV,
+        mode,
+      }),
+    ],
     resolve: {
       alias: [
         {

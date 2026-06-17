@@ -21,6 +21,7 @@ export const MOVEMENT_TYPES = new Set([
 ]);
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9][0-9\s().-]{6,24}$/;
 
 export const sanitizeText = (value, maxLength = 240) =>
   String(value || "")
@@ -97,6 +98,16 @@ const parseEmail = (value, fieldName) => {
   return email;
 };
 
+const parsePhone = (value, fieldName) => {
+  const phone = sanitizeNullableText(value, 80);
+  if (!phone) return phone;
+  const digits = phone.replace(/\D/g, "");
+  if (!PHONE_PATTERN.test(phone) || !/^\d{7,15}$/.test(digits)) {
+    throw createHttpError(`${fieldName} must be a valid phone number.`);
+  }
+  return phone;
+};
+
 const normalizeStatus = (value, allowedStatuses, fieldName) => {
   if (value === undefined) return undefined;
   const normalized = sanitizeText(value, 80).toLowerCase().replace(/[\s-]+/g, "_");
@@ -134,7 +145,7 @@ export const validateSupplierPayload = (body = {}, { partial = false } = {}) => 
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "phone")) {
-    data.phone = sanitizeNullableText(body.phone, 80);
+    data.phone = parsePhone(body.phone, "Supplier phone");
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "website")) {
@@ -161,7 +172,7 @@ export const validateSupplierPayload = (body = {}, { partial = false } = {}) => 
         name,
         role: sanitizeNullableText(contact?.role, 120),
         email: parseEmail(contact?.email, `Supplier contact ${index + 1} email`),
-        phone: sanitizeNullableText(contact?.phone, 80),
+        phone: parsePhone(contact?.phone, `Supplier contact ${index + 1} phone`),
         whatsapp: sanitizeNullableText(contact?.whatsapp, 80),
         isPrimary: Boolean(contact?.isPrimary),
         notes: sanitizeNullableText(contact?.notes, 600),

@@ -7,3 +7,8 @@
 body {
   margin: 0;
 }
+
+.scroll-anim.in-view {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}

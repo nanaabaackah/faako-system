@@ -7,11 +7,16 @@ const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS_PER_IP = 20;
 const RATE_LIMIT_MAX_REQUESTS_PER_EMAIL = 5;
+const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || "Faako <faako@nanaabaackah.com>";
-const INTAKE_ADMIN_EMAIL = process.env.INTAKE_ADMIN_EMAIL;
+  process.env.RESEND_FROM_EMAIL ||
+  (process.env.FAAKO_ONBOARDING_FROM_EMAIL
+    ? `${process.env.FAAKO_ONBOARDING_FROM_NAME || "Faako"} <${process.env.FAAKO_ONBOARDING_FROM_EMAIL}>`
+    : "Faako <faako@nanaabaackah.com>");
+const INTAKE_ADMIN_EMAIL =
+  process.env.INTAKE_ADMIN_EMAIL || process.env.FAAKO_ONBOARDING_ADMIN_EMAIL;
 
 const DEFAULT_ALLOWED_ORIGIN = "https://faako.nanaabaackah.com";
 
@@ -48,6 +53,34 @@ const normalizeText = (value, maxLength = 2000) => {
 const normalizeEmail = (value) => {
   const email = normalizeText(value, 254)?.toLowerCase();
   return email && EMAIL_PATTERN.test(email) ? email : null;
+};
+
+const isProductionRuntime = () => {
+  const appEnv = String(process.env.APP_ENV || process.env.NODE_ENV || "").trim().toLowerCase();
+  return appEnv === "production" || appEnv === "prod";
+};
+
+const getLocalEmailRecipient = () =>
+  normalizeEmail(process.env.EMAIL_FORCE_TO) || LOCAL_EMAIL_FALLBACK;
+
+const resolveEmailDeliveryTarget = (to) => {
+  const intendedRecipient = normalizeEmail(to);
+  if (isProductionRuntime()) {
+    return {
+      intendedRecipient,
+      deliveryRecipient: intendedRecipient,
+      wasRerouted: false,
+    };
+  }
+
+  const deliveryRecipient = getLocalEmailRecipient();
+  return {
+    intendedRecipient,
+    deliveryRecipient,
+    wasRerouted:
+      Boolean(intendedRecipient) &&
+      deliveryRecipient.toLowerCase() !== intendedRecipient.toLowerCase(),
+  };
 };
 
 const normalizeStringArray = (value, maxItems = 40, maxLength = 160) => {
@@ -248,6 +281,15 @@ const formatValue = (value) => {
   return String(value);
 };
 
+const hasMeaningfulValue = (value) => {
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "boolean") return true;
+  if (value && typeof value === "object") {
+    return Object.values(value).some((item) => hasMeaningfulValue(item));
+  }
+  return value !== null && value !== undefined && String(value).trim() !== "";
+};
+
 const buildSetupChecklist = (payload, intake, requestedModules) =>
   [
     payload?.payments?.acceptsOnlinePayments !== "No" ||
@@ -282,11 +324,39 @@ const WIZARD_FIELD_SCHEMA = {
     logoStatus: "Logo",
   },
   contact: {
+    businessName: "Business name",
     name: "Contact name",
     roleTitle: "Role/title",
     email: "Email",
     phoneWhatsapp: "Phone/WhatsApp",
     preferredContactMethod: "Preferred contact method",
+  },
+  service: {
+    primaryProduct: "Main service needed",
+    extraProducts: "Related services",
+    selectedServices: "Selected services",
+    selectedServiceLabels: "Selected service labels",
+    projectReason: "Why the service is needed now",
+    desiredOutcome: "Successful outcome",
+  },
+  business: {
+    industry: "Business type / industry",
+    currentWebsite: "Current website or social page",
+    customerType: "Customers served",
+    teamSize: "Team size",
+    toolsUsedLabels: "Tools currently used",
+    currentTools: "Other current tools",
+    currentProcess: "Current process",
+    painPoints: "Pain points",
+  },
+  brand: {
+    sharedContentLink: "Google Drive or shared folder link",
+    colourScheme: "Colour scheme or brand colours",
+    brandFeeling: "Design feeling",
+    logoStatus: "Logo status",
+    contentOwner: "Content owner",
+    mustAvoid: "Design/content should avoid",
+    contentNotes: "Content notes",
   },
   operations: {
     offerings: "What the business sells/provides",
@@ -349,11 +419,73 @@ const WIZARD_FIELD_SCHEMA = {
     privacyConcerns: "Data/privacy concerns",
     consent: "Setup review consent",
   },
+  website: {
+    websiteType: "Website work type",
+    websiteGoal: "What the website should explain",
+    targetAudience: "Main website audience",
+    pagesNeededLabels: "Pages needed",
+    featuresNeededLabels: "Website features needed",
+    mainAction: "What visitors should do",
+    mustHaveInfo: "Must-have website information",
+    contentReady: "Content and images ready",
+    updateFrequency: "Website update frequency",
+    exampleSites: "Example websites",
+  },
+  portal: {
+    audience: "Portal users",
+    portalPurpose: "Portal purpose",
+    informationShown: "Information users should see",
+    actionsNeeded: "User actions needed",
+    needsDifferentAccess: "Different access needed",
+  },
+  shop: {
+    sellWhat: "What will be sold or paid for",
+    itemCount: "Product/service count",
+    paymentMethods: "Payment methods",
+    deliveryMethod: "Delivery or pickup method",
+    trackInventory: "Track stock or availability",
+  },
+  dashboard: {
+    numbersToTrack: "Numbers or updates to track",
+    dataSources: "Current data sources",
+    reportFrequency: "Report frequency",
+    viewers: "Dashboard viewers",
+    needsExports: "Exports or scheduled summaries needed",
+  },
+  operationsSystem: {
+    workflowsToManage: "Workflows to manage",
+    workflowSteps: "Current workflow steps",
+    peopleAndLocations: "People and locations",
+    recordsToImport: "Records to import",
+    needsRoles: "Different staff access needed",
+  },
+  automation: {
+    repetitiveTasks: "Repeated task to reduce",
+    toolsToConnect: "Tools to connect",
+    alertChannels: "Alert/update channels",
+    taskFrequency: "Task frequency",
+    exceptionHandling: "What should happen when something goes wrong",
+  },
+  integrations: {
+    selectedIntegrationLabels: "Selected integrations",
+    existingAccounts: "Existing accounts or tools",
+    integrationNotes: "Integration notes",
+  },
+  launch: {
+    timeline: "Preferred start timeline",
+    budgetComfort: "Budget comfort",
+    hasDecisionMaker: "Decision maker available",
+    filesReady: "Brand files/photos/content ready",
+    bestTimeToContact: "Best time to contact",
+    extraNotes: "Extra notes",
+    consent: "Contact consent",
+  },
 };
 
 const buildSubmissionRows = (submission, { includeAllFields = false } = {}) => {
   const rows = [
     ["Request ID", submission.requestId],
+    ["Form", submission.formLabel || "Client onboarding intake"],
     ["Company", submission.companyName],
     ["Contact", submission.contactName],
     ["Email", submission.email],
@@ -373,10 +505,13 @@ const buildSubmissionRows = (submission, { includeAllFields = false } = {}) => {
   if (!includeAllFields) return rows;
 
   Object.entries(WIZARD_FIELD_SCHEMA).forEach(([sectionKey, fields]) => {
+    const sectionValue = intake?.[sectionKey];
+    if (!hasMeaningfulValue(sectionValue)) return;
+
     rows.push([`--- ${sectionKey.toUpperCase()} ---`, ""]);
 
     Object.entries(fields).forEach(([fieldKey, label]) => {
-      rows.push([label, intake?.[sectionKey]?.[fieldKey] ?? "N/A"]);
+      rows.push([label, sectionValue?.[fieldKey] ?? "N/A"]);
     });
   });
 
@@ -401,12 +536,12 @@ const buildRowsHtml = (rows) =>
     )
     .join("");
 
-const buildEmailLayout = ({ title, intro, rows }) => `
+const buildEmailLayout = ({ title, intro, rows, kicker = "Client onboarding intake" }) => `
   <div style="font-family:Arial,sans-serif;background:#f6f7f9;padding:24px;">
     <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e5e7eb;">
       <div style="background:#0f3d35;color:#ffffff;padding:24px;">
         <h1 style="margin:0;font-size:24px;">Faako</h1>
-        <p style="margin:6px 0 0;color:#d1fae5;">Client onboarding intake</p>
+        <p style="margin:6px 0 0;color:#d1fae5;">${escapeHtml(kicker)}</p>
       </div>
       <div style="padding:24px;">
         <h2 style="margin:0 0 12px;color:#111827;">${escapeHtml(title)}</h2>
@@ -439,8 +574,9 @@ const escapePdfText = (value) =>
 
 const createPdfBuffer = (submission) => {
   const rows = buildSubmissionRows(submission);
+  const formLabel = submission.formLabel || "Client onboarding intake";
   const lines = [
-    "Faako Client Onboarding Intake",
+    `Faako ${formLabel}`,
     `Reference: ${submission.requestId}`,
     `Submitted: ${submission.submittedAt}`,
     "",
@@ -457,7 +593,7 @@ const createPdfBuffer = (submission) => {
 
   commands.push("0.06 0.19 0.15 rg 0 738 612 54 re f");
   commands.push(`BT /F2 18 Tf 1 1 1 rg ${margin} 760 Td (Faako) Tj ET`);
-  commands.push(`BT /F1 9 Tf 0.86 0.95 0.91 rg ${margin} 744 Td (Client onboarding intake summary) Tj ET`);
+  commands.push(`BT /F1 9 Tf 0.86 0.95 0.91 rg ${margin} 744 Td (${escapePdfText(`${formLabel} summary`)}) Tj ET`);
 
   const drawLine = (text, size = 10, font = "F1") => {
     if (y < 52) return;
@@ -505,12 +641,24 @@ const createPdfBuffer = (submission) => {
 };
 
 const createPdfAttachment = (submission) => ({
-  filename: `${slugify(submission.companyName) || "faako"}-onboarding-summary.pdf`,
+  filename: `${slugify(submission.companyName) || "faako"}-${slugify(submission.formLabel) || "client-intake"}-summary.pdf`,
   content: createPdfBuffer(submission).toString("base64"),
 });
 
 const sendEmail = async ({ to, subject, html, attachments = [] }) => {
-  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL || !to) return null;
+  const delivery = resolveEmailDeliveryTarget(to);
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL || !delivery.deliveryRecipient) return null;
+
+  const finalSubject = delivery.wasRerouted ? `[Local test] ${subject}` : subject;
+  const redirectNotice = delivery.wasRerouted
+    ? `
+      <div style="margin:0 0 16px;padding:12px;border:1px solid #f59e0b;background:#fffbeb;color:#92400e;border-radius:12px;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;">
+        <strong>Local email redirect active.</strong><br />
+        Original recipient: ${escapeHtml(delivery.intendedRecipient || "none")}<br />
+        Delivered to: ${escapeHtml(delivery.deliveryRecipient)}
+      </div>
+    `
+    : "";
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -520,9 +668,9 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
     },
     body: JSON.stringify({
       from: RESEND_FROM_EMAIL,
-      to,
-      subject,
-      html,
+      to: delivery.deliveryRecipient,
+      subject: finalSubject,
+      html: `${redirectNotice}${html || ""}`.trim(),
       attachments,
     }),
   });
@@ -660,6 +808,14 @@ exports.handler = async (event) => {
   };
 
   const intake = payload.intake && typeof payload.intake === "object" ? payload.intake : null;
+  const formType =
+    normalizeText(payload.formType, 80) ||
+    normalizeText(intake?.meta?.formType, 80) ||
+    "client-onboarding";
+  const formLabel =
+    normalizeText(payload.formLabel, 120) ||
+    normalizeText(intake?.meta?.formLabel, 120) ||
+    "Client onboarding intake";
 
   const companyName =
     normalizeText(payload.companyName, 180) ||
@@ -729,6 +885,8 @@ exports.handler = async (event) => {
   const submission = {
     requestId,
     submittedAt: new Date().toISOString(),
+    formType,
+    formLabel,
     companyName,
     email,
     contactName,
@@ -885,11 +1043,12 @@ exports.handler = async (event) => {
     if (INTAKE_ADMIN_EMAIL) {
       await sendEmail({
         to: INTAKE_ADMIN_EMAIL,
-        subject: `[Faako] New onboarding intake - ${companyName}`,
+        subject: `[Faako] New ${submission.formLabel} - ${companyName}`,
         html: buildEmailLayout({
-          title: "New client onboarding intake",
-          intro: "A new onboarding form was submitted and saved to the Faako database.",
+          title: `New ${submission.formLabel}`,
+          intro: `A new ${submission.formLabel.toLowerCase()} was submitted and saved to the Faako database.`,
           rows: [["Request ID", requestId], ...rows],
+          kicker: submission.formLabel,
         }),
         attachments: [pdfAttachment],
       });
@@ -897,12 +1056,13 @@ exports.handler = async (event) => {
 
     await sendEmail({
       to: email,
-      subject: "Faako onboarding intake received",
+      subject: `Faako ${submission.formLabel.toLowerCase()} received`,
       html: buildEmailLayout({
-        title: "We received your onboarding intake",
+        title: `We received your ${submission.formLabel.toLowerCase()}`,
         intro:
           "Thanks for submitting your business details. Faako will review your setup requirements and follow up with next steps.",
         rows: [["Request ID", requestId], ...rows],
+        kicker: submission.formLabel,
       }),
       attachments: [pdfAttachment],
     });

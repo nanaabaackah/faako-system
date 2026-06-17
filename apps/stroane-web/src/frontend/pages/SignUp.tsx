@@ -12,7 +12,6 @@ const SignUp: React.FC = () => {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +27,7 @@ const SignUp: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      await signUp(name, email, password);
+      await signUp(name, email);
       navigate("/account", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account.");
@@ -60,9 +59,10 @@ const SignUp: React.FC = () => {
         <div className="auth-form-col">
           <div className="auth-card">
             <span className="auth-card__kicker">Get started</span>
-          <h1 className="auth-card__title">Create your account</h1>
+          <h1 className="auth-card__title">Create your customer profile</h1>
           <p className="auth-card__sub">
-            Create a customer profile placeholder while account services are prepared.
+            Save a temporary profile for the account area while customer account
+            services are prepared.
           </p>
 
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
@@ -94,23 +94,6 @@ const SignUp: React.FC = () => {
               />
             </label>
 
-            <label className="auth-field">
-              <span>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setError("");
-                }}
-                autoComplete="new-password"
-                required
-              />
-              <small className="auth-field__hint">
-                At least 8 characters.
-              </small>
-            </label>
-
             {error ? (
               <p className="auth-form__error" role="alert">
                 {error}
@@ -120,14 +103,14 @@ const SignUp: React.FC = () => {
             <button
               type="submit"
               className="auth-form__submit"
-              disabled={loading || !name || !email || !password}
+              disabled={loading || !name || !email}
             >
-              {loading ? "Creating…" : "Create account"}
+              {loading ? "Saving..." : "Save profile"}
             </button>
           </form>
 
             <p className="auth-card__alt">
-              Already have an account? <a href={PORTAL_LOGIN_URL}>Sign in</a>
+              Staff member? <a href={PORTAL_LOGIN_URL}>Open admin portal</a>
             </p>
           </div>
         </div>

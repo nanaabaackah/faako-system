@@ -6,6 +6,9 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { createReadStream } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import prismaPkg from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -7140,6 +7143,18 @@ const PROPOSAL_CLIENT_VISIBLE_STATUSES = new Set(["shared", "approved", "changes
 const PROPOSAL_CLIENT_ACTIONABLE_STATUSES = new Set(["shared"]);
 const PROPOSAL_TYPES = new Set(["erp", "website", "onboarding", "travel"]);
 const PROPOSAL_JSON_MAX_BYTES = 300 * 1024;
+const PROPOSAL_PDF_MAX_BYTES = parsePositiveInt(
+  process.env.PROPOSAL_PDF_MAX_BYTES,
+  12 * 1024 * 1024,
+  {
+    min: 256 * 1024,
+    max: 24 * 1024 * 1024,
+  }
+);
+const PROPOSAL_UPLOAD_STORAGE_ROOT = path.resolve(
+  process.env.PROPOSAL_UPLOAD_STORAGE_ROOT ||
+    path.join(process.cwd(), "storage", "proposal-uploads")
+);
 const PROPOSAL_SHARE_TOKEN_TTL_MS = parsePositiveInt(
   process.env.PROPOSAL_SHARE_TOKEN_TTL_MS,
   14 * 24 * 60 * 60 * 1000,
@@ -7152,6 +7167,7 @@ const PROPOSAL_SAFE_METADATA_KEY_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const PROPOSAL_SENSITIVE_METADATA_KEY_PATTERN =
   /(secret|password|token|api[_-]?key|webhook|cookie|authorization|credential)/i;
 const PROPOSAL_SHARE_TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
+const PROPOSAL_PDF_STORAGE_KEY_PATTERN = /^[a-zA-Z0-9/_-]+\.pdf$/;
 const PROPOSAL_REVIEW_CHECK_KEYS = [
   "scopeReviewed",
   "pricingReviewed",
@@ -7185,6 +7201,86 @@ const normalizeProposalText = (value, { maxLength = 240, nullable = false } = {}
   const normalized = String(value).trim();
   if (!normalized) return nullable ? null : "";
   return normalized.slice(0, maxLength);
+};
+
+const sanitizeProposalPdfFileName = (value) => {
+  const baseName = path.basename(String(value || "proposal.pdf"));
+  const withoutExtension = baseName.replace(/\.pdf$/i, "");
+  const sanitized =
+    withoutExtension
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "proposal";
+  return `${sanitized}.pdf`;
+};
+
+const getProposalPdfStorageKey = ({ organizationId, proposalId, fileName }) => {
+  const safeOrganizationId = String(organizationId || "org").replace(/[^a-zA-Z0-9_-]/g, "");
+  const safeProposalId = String(proposalId || "proposal").replace(/[^a-zA-Z0-9_-]/g, "");
+  const unique = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
+  return `${safeOrganizationId}/${safeProposalId}/${unique}-${sanitizeProposalPdfFileName(fileName)}`;
+};
+
+const resolveProposalPdfStoragePath = (storageKey) => {
+  const normalizedKey = String(storageKey || "").replace(/\\/g, "/");
+  if (!PROPOSAL_PDF_STORAGE_KEY_PATTERN.test(normalizedKey) || normalizedKey.includes("..")) {
+    return null;
+  }
+  const resolvedPath = path.resolve(PROPOSAL_UPLOAD_STORAGE_ROOT, normalizedKey);
+  const rootWithSeparator = `${PROPOSAL_UPLOAD_STORAGE_ROOT}${path.sep}`;
+  if (resolvedPath !== PROPOSAL_UPLOAD_STORAGE_ROOT && !resolvedPath.startsWith(rootWithSeparator)) {
+    return null;
+  }
+  return resolvedPath;
+};
+
+const getProposalUploadedPdf = (proposal) => {
+  const uploadedPdf = proposal?.content?.uploadedPdf;
+  if (!uploadedPdf || typeof uploadedPdf !== "object" || Array.isArray(uploadedPdf)) return null;
+  const storageKey = String(uploadedPdf.storageKey || "").trim();
+  if (!storageKey || !resolveProposalPdfStoragePath(storageKey)) return null;
+  return uploadedPdf;
+};
+
+const removeStoredProposalPdf = async (uploadedPdf) => {
+  const filePath = resolveProposalPdfStoragePath(uploadedPdf?.storageKey);
+  if (!filePath) return;
+  await fs.unlink(filePath).catch((error) => {
+    if (error?.code !== "ENOENT") {
+      console.warn("Unable to remove replaced proposal PDF:", error?.message || error);
+    }
+  });
+};
+
+const sendStoredProposalPdf = async (res, uploadedPdf, { inline = true } = {}) => {
+  const filePath = resolveProposalPdfStoragePath(uploadedPdf?.storageKey);
+  if (!filePath) {
+    return res.status(404).json({ error: "Uploaded proposal PDF is unavailable." });
+  }
+
+  try {
+    await fs.access(filePath);
+  } catch {
+    return res.status(404).json({ error: "Uploaded proposal PDF is unavailable." });
+  }
+
+  const fileName = sanitizeProposalPdfFileName(uploadedPdf.fileName || "proposal.pdf");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader(
+    "Content-Disposition",
+    `${inline ? "inline" : "attachment"}; filename="${fileName}"`
+  );
+  const stream = createReadStream(filePath);
+  stream.on("error", (error) => {
+    if (!res.headersSent) {
+      res.status(404).json({ error: "Uploaded proposal PDF is unavailable." });
+      return;
+    }
+    res.destroy(error);
+  });
+  return stream.pipe(res);
 };
 
 const cloneProposalJson = (value, { fallback = null, maxBytes = PROPOSAL_JSON_MAX_BYTES } = {}) => {
@@ -7700,6 +7796,28 @@ app.get("/api/proposals/view/:token", async (req, res) => {
   });
 });
 
+app.get("/api/proposals/view/:token/pdf", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+
+  const result = await findProposalByShareToken(token);
+  if (result.error) {
+    return res.status(result.status).json({
+      code: result.code,
+      expired: Boolean(result.expired),
+      error: result.error,
+    });
+  }
+
+  const uploadedPdf = getProposalUploadedPdf(result.proposal);
+  if (!uploadedPdf) {
+    return res.status(404).json({ error: "No uploaded PDF is available for this proposal." });
+  }
+
+  return sendStoredProposalPdf(res, uploadedPdf);
+});
+
 app.post("/api/proposals/view/:token/approve", async (req, res) => {
   const token = String(req.params.token || "").trim();
   res.set("Cache-Control", "private, no-store");
@@ -7844,6 +7962,127 @@ app.get("/api/proposals/:id", authMiddleware, requireAdmin, async (req, res) => 
   if (error) return res.status(status).json({ error });
   return res.json({ proposal: serializeProposal(proposal, { includeShareLink: true }) });
 });
+
+app.get("/api/proposals/:id/pdf", authMiddleware, requireAdmin, async (req, res) => {
+  const { proposal, error, status } = await findScopedProposal(req.params.id, req.user);
+  if (error) return res.status(status).json({ error });
+
+  const uploadedPdf = getProposalUploadedPdf(proposal);
+  if (!uploadedPdf) {
+    return res.status(404).json({ error: "No uploaded PDF is available for this proposal." });
+  }
+
+  return sendStoredProposalPdf(res, uploadedPdf);
+});
+
+app.post(
+  "/api/proposals/:id/pdf",
+  express.raw({
+    type: ["application/pdf", "application/octet-stream"],
+    limit: PROPOSAL_PDF_MAX_BYTES,
+  }),
+  authMiddleware,
+  requireAdmin,
+  async (req, res) => {
+    const scoped = await findScopedProposal(req.params.id, req.user);
+    if (scoped.error) return res.status(scoped.status).json({ error: scoped.error });
+    if (scoped.proposal.status === "archived") {
+      return res.status(409).json({ error: "Archived proposals cannot receive PDF uploads." });
+    }
+
+    const pdfBuffer = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      return res.status(400).json({ error: "Upload a PDF file." });
+    }
+    if (pdfBuffer.length > PROPOSAL_PDF_MAX_BYTES) {
+      return res.status(413).json({ error: "Proposal PDF is too large." });
+    }
+    if (pdfBuffer.slice(0, 5).toString("utf8") !== "%PDF-") {
+      return res.status(400).json({ error: "Uploaded file must be a valid PDF." });
+    }
+
+    const originalFileName = normalizeProposalText(
+      req.headers["x-proposal-filename"] || req.query?.filename || "proposal.pdf",
+      { maxLength: 180 }
+    ) || "proposal.pdf";
+    const storageKey = getProposalPdfStorageKey({
+      organizationId: scoped.proposal.organizationId,
+      proposalId: scoped.proposal.id,
+      fileName: originalFileName,
+    });
+    const filePath = resolveProposalPdfStoragePath(storageKey);
+    if (!filePath) {
+      return res.status(400).json({ error: "Could not prepare proposal PDF storage." });
+    }
+
+    const contentResult = cloneProposalJson(scoped.proposal.content || {}, { fallback: {} });
+    if (contentResult.error) return res.status(400).json({ error: contentResult.error });
+    const content =
+      contentResult.value && typeof contentResult.value === "object" && !Array.isArray(contentResult.value)
+        ? contentResult.value
+        : {};
+    const previousPdf = getProposalUploadedPdf(scoped.proposal);
+    const uploadedPdf = {
+      storageKey,
+      fileName: sanitizeProposalPdfFileName(originalFileName),
+      originalFileName,
+      contentType: "application/pdf",
+      sizeBytes: pdfBuffer.length,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: req.user?.fullName || req.user?.email || null,
+      downloadPath: `/api/proposals/${scoped.proposal.id}/pdf`,
+    };
+    content.uploadedPdf = uploadedPdf;
+    content.workflow = normalizeProposalWorkflow(content.workflow, {
+      status: scoped.proposal.status,
+      previousStatus: scoped.proposal.status,
+      existingWorkflow: scoped.proposal.content?.workflow || null,
+      user: req.user,
+    });
+    const nextContentResult = cloneProposalJson(content, { fallback: {} });
+    if (nextContentResult.error) return res.status(400).json({ error: nextContentResult.error });
+
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, pdfBuffer, { flag: "wx" });
+    } catch (error) {
+      console.error("Unable to store proposal PDF:", error?.message || error);
+      return res.status(500).json({ error: "Unable to store proposal PDF." });
+    }
+
+    try {
+      const proposal = await prisma.proposal.update({
+        where: { id: scoped.proposal.id },
+        data: {
+          content: nextContentResult.value,
+          version: { increment: 1 },
+          lastEditedByUserId: req.user.userId,
+        },
+        include: proposalInclude,
+      });
+      await recordProposalAudit(req, {
+        action: "PROPOSAL_PDF_UPLOADED",
+        proposal,
+        summary: `Uploaded PDF proposal for ${proposal.title}.`,
+        metadata: {
+          fileName: uploadedPdf.fileName,
+          sizeBytes: uploadedPdf.sizeBytes,
+          replacedExistingPdf: Boolean(previousPdf),
+        },
+      });
+      if (previousPdf?.storageKey && previousPdf.storageKey !== uploadedPdf.storageKey) {
+        await removeStoredProposalPdf(previousPdf);
+      }
+      return res.json({
+        proposal: serializeProposal(proposal, { includeShareLink: true }),
+      });
+    } catch (error) {
+      await fs.unlink(filePath).catch(() => {});
+      console.error("Unable to attach proposal PDF:", error?.message || error);
+      return res.status(500).json({ error: "Unable to attach proposal PDF to the proposal." });
+    }
+  }
+);
 
 app.post("/api/proposals", authMiddleware, requireAdmin, async (req, res) => {
   const organizationScope = await resolveOrganizationWriteScope({

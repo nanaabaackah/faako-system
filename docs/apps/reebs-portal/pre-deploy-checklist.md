@@ -22,11 +22,15 @@
 ## Database/data loss risk
 
 - Review Prisma migrations, seed scripts, imports, relinks, and destructive update paths.
+- Run `pnpm --filter @faako/reebs-portal run predeploy:local` before deployment when Prisma migrations changed.
+- Root shortcut: `pnpm run predeploy:reebs-portal`.
 - Confirm backup or rollback strategy for any production data change.
 
 ## Customer/user data
 
 - Confirm customer, employee, HR, audit log, personal email, and user directory data remains protected.
+- Confirm customer API responses use configured origin allowlists, not wildcard CORS.
+- Confirm water MoMo webhook providers send `X-Water-Webhook-Secret`; do not use query-string or body secrets.
 - Avoid exposing secrets or personal data through frontend bundles, logs, or exported files.
 
 ## Payments/receipts if relevant
@@ -41,6 +45,7 @@
 
 - Confirm secrets are server-only.
 - Confirm `VITE_*` values are safe to expose in the browser.
+- Keep local/non-production `EMAIL_FORCE_TO=dev@nanaabaackah.com` so test emails do not go to customer or input addresses.
 - Compare required env vars against `apps/reebs-portal/.env.example`.
 
 ## Cloudflare/API deployment

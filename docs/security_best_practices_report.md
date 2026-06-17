@@ -56,3 +56,11 @@ A remaining architectural risk is that several Reebs frontend features read `VIT
 1. Rotate the exposed `DATABASE_URL` credential and `RESEND_API_KEY`.
 2. Remove the real `.env` files from git history if this repo has ever been pushed to a shared remote.
 3. Decide whether Reebs browser-side API calls should be proxied through server functions instead of using `VITE_*` keys.
+
+## 2026-06-16 Addendum
+
+- Faako ERP demo access no longer generates or displays access codes in the browser. Faako API now owns the email-code route, stores only challenge hashes, rate-limits attempts, and fails closed without a production signing secret.
+- Stroane Web admin auth now uses an HttpOnly cookie with legacy bearer fallback. The portal stores profile metadata only, and the storefront no longer stores customer password hashes or local account records.
+- REEBS customer responses now use allowlisted security headers instead of wildcard CORS, and the water MoMo webhook requires `X-Water-Webhook-Secret` rather than query/body secrets.
+- `pnpm run security:gate` now checks sensitive `VITE_*` usage in source and browser-visible demo access-code patterns in addition to the prior config/header/CORS/storage checks.
+- Postgres RLS remains a staged per-app rollout item. Do not enable blanket RLS until each app has trusted per-request tenant context, table policies, tests, and rollback plans.

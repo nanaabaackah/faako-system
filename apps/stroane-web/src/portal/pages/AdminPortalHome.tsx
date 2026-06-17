@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   HiOutlineArchive,
   HiOutlineBell,
+  HiOutlineCash,
+  HiOutlineChartBar,
   HiOutlineCheckCircle,
   HiOutlineClipboardList,
   HiOutlineCube,
@@ -15,6 +17,7 @@ import {
 import { Link } from "react-router-dom";
 import {
   ERPFormNotice,
+  ERPModal,
   ERPSecondaryAction,
   ERPStatusBadge,
 } from "@faako/ui";
@@ -36,6 +39,11 @@ import {
   type InventoryMovement,
   type SupplierSummary,
 } from "../api/adminInventory";
+import {
+  adminOrdersApi,
+  type AdminOrder,
+  type AdminOrderSummary,
+} from "../api/adminOrders";
 import { adminProductsApi, type AdminProduct } from "../api/adminProducts";
 import { getAdminSalutationName } from "../api/adminSession";
 import { portalUrl } from "../../config/appSurface";
@@ -55,6 +63,7 @@ import {
   processQueuedPortalOverviewRefresh,
   queuePortalOverviewRefresh,
 } from "../offline/portalOfflineQueue";
+import BusinessAnalyticsSection from "../components/dashboard/BusinessAnalyticsSection";
 import "../styles/AdminPortal.css";
 
 const EMPTY_ALERT_SUMMARY: InventoryAlertSummary = {
@@ -65,6 +74,17 @@ const EMPTY_ALERT_SUMMARY: InventoryAlertSummary = {
     outOfStock: 0,
     total: 0,
   },
+};
+
+const EMPTY_ORDER_SUMMARY: AdminOrderSummary = {
+  totalOrders: 0,
+  totalValue: 0,
+  paidValue: 0,
+  outstandingValue: 0,
+  paidOrders: 0,
+  pendingPaymentOrders: 0,
+  failedPaymentOrders: 0,
+  completedOrders: 0,
 };
 
 const formatLabel = (value = "") =>
@@ -154,6 +174,19 @@ const isAttentionItem = (item: InventoryItem) =>
 const calculatePercentage = (value: number, total: number) =>
   total ? Math.round((value / total) * 100) : 0;
 
+const toMoneyNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatMoney = (value: number, currency = "GHS") =>
+  new Intl.NumberFormat("en-GH", {
+    style: "currency",
+    currency: currency || "GHS",
+    maximumFractionDigits: value >= 1000 ? 0 : 2,
+  }).format(Number.isFinite(value) ? value : 0);
+
 type StockAttentionFilter = "all" | "out_of_stock" | "low_stock" | "unconfirmed";
 
 const matchesStockAttentionFilter = (item: InventoryItem, filter: StockAttentionFilter) => {
@@ -218,6 +251,21 @@ type DashboardLinkItem = {
   href?: string;
 };
 
+type DashboardDrilldownItem = {
+  id: string;
+  label: string;
+  detail: string;
+  value?: string | number;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+  to?: string;
+};
+
+type DashboardDrilldown = {
+  title: string;
+  description: string;
+  items: DashboardDrilldownItem[];
+};
+
 const getPortalQueueStatusLabel = (status = "") =>
   SYNC_STATE_LABELS[status] || formatLabel(status || "queued");
 
@@ -263,10 +311,13 @@ const AdminPortalHome: React.FC = () => {
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [orderSummary, setOrderSummary] = useState<AdminOrderSummary>(EMPTY_ORDER_SUMMARY);
   const [alerts, setAlerts] = useState<InventoryAlertSummary>(EMPTY_ALERT_SUMMARY);
   const [loading, setLoading] = useState(false);
   const [loadWarning, setLoadWarning] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
+  const [drilldown, setDrilldown] = useState<DashboardDrilldown | null>(null);
   const [retryingQueueItemId, setRetryingQueueItemId] = useState("");
   const [cancellingQueueItemId, setCancellingQueueItemId] = useState("");
   const [resolvingQueueItemId, setResolvingQueueItemId] = useState("");
@@ -292,13 +343,21 @@ const AdminPortalHome: React.FC = () => {
     if (!session) return;
     setLoadWarning("");
 
-    const [inventoryResult, supplierResult, movementResult, alertResult, productResult] =
+    const [
+      inventoryResult,
+      supplierResult,
+      movementResult,
+      alertResult,
+      productResult,
+      orderResult,
+    ] =
       await Promise.allSettled([
         adminInventoryApi.listInventory(session, { limit: 100 }),
         adminInventoryApi.listSuppliers(session),
         adminInventoryApi.listMovements(session, { limit: 8 }),
         adminInventoryApi.getAlertSummary(session),
         adminProductsApi.listProducts(session, { limit: 200 }),
+        adminOrdersApi.listOrders(session, { limit: 100 }),
       ]);
 
     const failedLoads = [
@@ -307,11 +366,12 @@ const AdminPortalHome: React.FC = () => {
       movementResult,
       alertResult,
       productResult,
+      orderResult,
     ].filter((result) => result.status === "rejected").length;
 
     if (failedLoads && options.throwOnPartial) {
       throw new Error(
-        failedLoads === 5
+        failedLoads === 6
           ? "Operational data is temporarily unavailable."
           : "Some operational data could not be refreshed."
       );
@@ -322,10 +382,14 @@ const AdminPortalHome: React.FC = () => {
     if (movementResult.status === "fulfilled") setMovements(movementResult.value);
     if (alertResult.status === "fulfilled") setAlerts(alertResult.value);
     if (productResult.status === "fulfilled") setProducts(productResult.value.products);
+    if (orderResult.status === "fulfilled") {
+      setOrders(orderResult.value.orders);
+      setOrderSummary(orderResult.value.summary);
+    }
 
     if (failedLoads) {
       setLoadWarning(
-        failedLoads === 5
+        failedLoads === 6
           ? "Operational data is temporarily unavailable. Check the API connection and try again."
           : "Some operational data could not be refreshed. Available portal data is shown below."
       );
@@ -337,7 +401,8 @@ const AdminPortalHome: React.FC = () => {
       supplierResult.status !== "fulfilled" ||
       movementResult.status !== "fulfilled" ||
       alertResult.status !== "fulfilled" ||
-      productResult.status !== "fulfilled"
+      productResult.status !== "fulfilled" ||
+      orderResult.status !== "fulfilled"
     ) {
       return;
     }
@@ -535,9 +600,14 @@ const AdminPortalHome: React.FC = () => {
       const draftProducts = products.filter(
         (product) => product.publishingStatus === "draft"
       ).length;
+      const pricedProducts = products.filter(
+        (product) => toMoneyNumber(product.price) !== null
+      ).length;
       const linkedProducts = products.filter(
         (product) => product.preferredSupplier || product.supplierLinks.length
       ).length;
+      const productsById = new Map(products.map((product) => [product.id, product]));
+      const productsBySlug = new Map(products.map((product) => [product.slug, product]));
       const activeSuppliers = suppliers.filter((supplier) => supplier.status === "active").length;
       const lowStockItems = inventory.filter(
         (item) =>
@@ -550,6 +620,38 @@ const AdminPortalHome: React.FC = () => {
       const unconfirmedStockItems = inventory.filter((item) =>
         matchesStockAttentionFilter(item, "unconfirmed")
       ).length;
+      let stockRetailValue = 0;
+      let activeStockRetailValue = 0;
+      let atRiskStockRetailValue = 0;
+      let pricedStockItems = 0;
+      let revenueReadyUnits = 0;
+
+      inventory.forEach((item) => {
+        const product =
+          (item.productId ? productsById.get(item.productId) : undefined) ||
+          productsBySlug.get(item.productSlug);
+        const price = toMoneyNumber(item.product?.price ?? product?.price);
+        const availableQuantity = getInventoryAvailableQuantity(item);
+        if (price === null || availableQuantity === null) return;
+
+        pricedStockItems += 1;
+        stockRetailValue += price * availableQuantity;
+        if (isAttentionItem(item)) {
+          atRiskStockRetailValue += price * availableQuantity;
+        }
+        if (product?.publishingStatus === "active") {
+          activeStockRetailValue += price * availableQuantity;
+          revenueReadyUnits += availableQuantity;
+        }
+      });
+
+      const averageOrderValue = orderSummary.totalOrders
+        ? orderSummary.totalValue / orderSummary.totalOrders
+        : 0;
+      const paymentCollectionRate = orderSummary.totalValue
+        ? calculatePercentage(orderSummary.paidValue, orderSummary.totalValue)
+        : 0;
+      const pricingCoverage = calculatePercentage(pricedProducts, products.length);
 
       return {
         trackedItems,
@@ -559,16 +661,150 @@ const AdminPortalHome: React.FC = () => {
         products: products.length,
         activeProducts,
         draftProducts,
+        pricedProducts,
         linkedProducts,
         activeSuppliers,
         suppliers: suppliers.length,
+        pricedStockItems,
+        revenueReadyUnits,
+        stockRetailValue,
+        activeStockRetailValue,
+        atRiskStockRetailValue,
+        orderCount: orderSummary.totalOrders,
+        paidOrders: orderSummary.paidOrders,
+        pendingPaymentOrders: orderSummary.pendingPaymentOrders,
+        failedPaymentOrders: orderSummary.failedPaymentOrders,
+        completedOrders: orderSummary.completedOrders,
+        paidRevenue: orderSummary.paidValue,
+        outstandingRevenue: orderSummary.outstandingValue,
+        averageOrderValue,
+        paymentCollectionRate,
+        pricingCoverage,
         lowStockItems: Math.max(alerts.counts.lowStock, lowStockItems),
         outOfStockItems: Math.max(alerts.counts.outOfStock, outOfStockItems),
         unconfirmedStockItems,
       };
     },
-    [alerts.counts.lowStock, alerts.counts.outOfStock, inventory, products, suppliers]
+    [alerts.counts.lowStock, alerts.counts.outOfStock, inventory, orderSummary, products, suppliers]
   );
+
+  const drilldownLists = useMemo(() => {
+    const inventoryItems = (items: InventoryItem[]): DashboardDrilldownItem[] =>
+      items.map((item) => {
+        const stockStatus = getInventoryStockStatus(item);
+        const availableQuantity = getInventoryAvailableQuantity(item);
+        return {
+          id: item.id,
+          label: getProductName(item),
+          detail: [
+            item.sku || item.productSlug,
+            formatStockStatusLabel(stockStatus),
+            availableQuantity === null ? "Quantity not set" : `${availableQuantity} available`,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          value: availableQuantity ?? "Unset",
+          tone: getStockTone(item),
+          to: `/admin/inventory?item=${encodeURIComponent(item.id)}`,
+        };
+      });
+
+    const productItems = (items: AdminProduct[]): DashboardDrilldownItem[] =>
+      items.map((product) => ({
+        id: product.id,
+        label: product.name,
+        detail: [
+          product.sku || product.slug,
+          product.category?.name || product.categorySlug || "Uncategorised",
+          product.price == null ? "No storefront price" : formatMoney(Number(product.price), product.currency),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        value: formatLabel(product.publishingStatus),
+        tone:
+          product.publishingStatus === "active"
+            ? "success"
+            : product.publishingStatus === "archived"
+              ? "danger"
+              : "neutral",
+        to: "/admin/products",
+      }));
+
+    const orderItems = (items: AdminOrder[]): DashboardDrilldownItem[] =>
+      items.map((order) => ({
+        id: order.id,
+        label: order.orderNumber,
+        detail: `${order.customer.name} · ${formatLabel(order.paymentStatus || "not_started")}`,
+        value: formatMoney(order.total, order.currency),
+        tone:
+          order.paymentStatus === "paid"
+            ? "success"
+            : order.paymentStatus === "failed" || order.paymentStatus === "abandoned"
+              ? "danger"
+              : "warning",
+        to: "/admin/orders",
+      }));
+
+    const activeProducts = products.filter((product) => product.publishingStatus === "active");
+    const draftProducts = products.filter((product) => product.publishingStatus === "draft");
+    const unpricedProducts = products.filter((product) => toMoneyNumber(product.price) === null);
+    const supplierGapProducts = products.filter(
+      (product) => !product.preferredSupplier && !product.supplierLinks.length
+    );
+    const countedInventory = inventory.filter((item) => getInventoryAvailableQuantity(item) !== null);
+    const reservedInventory = inventory.filter((item) => (item.reservedQuantity || 0) > 0);
+    const lowStockInventory = inventory.filter(
+      (item) =>
+        getInventoryStockStatus(item) !== "out_of_stock" &&
+        (item.isLowStock || item.needsReorder || getInventoryStockStatus(item) === "low_stock")
+    );
+    const outOfStockInventory = inventory.filter(
+      (item) => getInventoryStockStatus(item) === "out_of_stock"
+    );
+    const unconfirmedInventory = inventory.filter((item) =>
+      matchesStockAttentionFilter(item, "unconfirmed")
+    );
+    const valuedInventory = inventory.filter((item) => {
+      const product = products.find(
+        (productItem) =>
+          productItem.id === item.productId ||
+          productItem.slug === item.productSlug ||
+          productItem.id === item.productSlug
+      );
+      const price = toMoneyNumber(item.product?.price ?? product?.price);
+      return price !== null && getInventoryAvailableQuantity(item) !== null;
+    });
+
+    return {
+      activeProducts: productItems(activeProducts),
+      allProducts: productItems(products),
+      draftProducts: productItems(draftProducts),
+      unpricedProducts: productItems(unpricedProducts),
+      supplierGapProducts: productItems(supplierGapProducts),
+      countedInventory: inventoryItems(countedInventory),
+      reservedInventory: inventoryItems(reservedInventory),
+      lowStockInventory: inventoryItems(lowStockInventory),
+      outOfStockInventory: inventoryItems(outOfStockInventory),
+      unconfirmedInventory: inventoryItems(unconfirmedInventory),
+      valuedInventory: inventoryItems(valuedInventory),
+      orders: orderItems(orders),
+      pendingOrders: orderItems(
+        orders.filter((order) =>
+          ["payment_pending", "not_started", ""].includes(order.paymentStatus || "")
+        )
+      ),
+      paidOrders: orderItems(orders.filter((order) => order.paymentStatus === "paid")),
+      failedOrders: orderItems(
+        orders.filter((order) => ["failed", "abandoned"].includes(order.paymentStatus || ""))
+      ),
+      completedOrders: orderItems(
+        orders.filter(
+          (order) =>
+            order.status === "completed" || order.fulfillmentStatus === "delivered"
+        )
+      ),
+    };
+  }, [inventory, orders, products]);
 
   const dashboardKpis = useMemo(
     () => [
@@ -579,6 +815,24 @@ const AdminPortalHome: React.FC = () => {
         to: "/admin/products",
         tone: "accent",
         icon: <HiOutlineShoppingBag aria-hidden="true" />,
+        drilldown: {
+          title: "Catalogue products",
+          description: "Products currently known to the portal.",
+          items: drilldownLists.allProducts,
+        },
+      },
+      {
+        label: "Orders",
+        value: summary.orderCount,
+        detail: `${formatMoney(summary.paidRevenue)} captured`,
+        to: "/admin/orders",
+        tone: "accent",
+        icon: <HiOutlineClipboardList aria-hidden="true" />,
+        drilldown: {
+          title: "Recent orders",
+          description: "Storefront and manually created commerce orders.",
+          items: drilldownLists.orders,
+        },
       },
       {
         label: "Available units",
@@ -591,6 +845,11 @@ const AdminPortalHome: React.FC = () => {
         to: "/admin/inventory",
         tone: "success",
         icon: <HiOutlineCheckCircle aria-hidden="true" />,
+        drilldown: {
+          title: "Available stock records",
+          description: "Inventory rows with confirmed quantities.",
+          items: drilldownLists.countedInventory,
+        },
       },
       {
         label: "Reserved units",
@@ -599,6 +858,11 @@ const AdminPortalHome: React.FC = () => {
         to: "/admin/inventory",
         tone: "neutral",
         icon: <HiOutlineLockClosed aria-hidden="true" />,
+        drilldown: {
+          title: "Reserved stock",
+          description: "Inventory rows holding reserved units.",
+          items: drilldownLists.reservedInventory,
+        },
       },
       {
         label: "Low stock",
@@ -607,6 +871,11 @@ const AdminPortalHome: React.FC = () => {
         to: "/admin/inventory",
         tone: summary.lowStockItems ? "warning" : "success",
         icon: <HiOutlineExclamation aria-hidden="true" />,
+        drilldown: {
+          title: "Low stock",
+          description: "Products that need reorder planning before they block sales.",
+          items: drilldownLists.lowStockInventory,
+        },
       },
       {
         label: "Out of stock",
@@ -615,17 +884,128 @@ const AdminPortalHome: React.FC = () => {
         to: "/admin/inventory",
         tone: summary.outOfStockItems ? "danger" : "success",
         icon: <HiOutlineXCircle aria-hidden="true" />,
-      },
-      {
-        label: "Draft products",
-        value: summary.draftProducts,
-        detail: "Awaiting publication",
-        to: "/admin/products",
-        tone: "neutral",
-        icon: <HiOutlineArchive aria-hidden="true" />,
+        drilldown: {
+          title: "Out of stock",
+          description: "Products currently blocked by unavailable stock.",
+          items: drilldownLists.outOfStockInventory,
+        },
       },
     ],
-    [summary]
+    [drilldownLists, summary]
+  );
+
+  const businessAnalytics = useMemo(
+    () => [
+      {
+        label: "Paid revenue",
+        value: formatMoney(summary.paidRevenue),
+        detail: `${summary.paidOrders} paid order${summary.paidOrders === 1 ? "" : "s"}`,
+        to: "/admin/orders",
+        tone: "success",
+        icon: <HiOutlineCash aria-hidden="true" />,
+        drilldown: {
+          title: "Paid orders",
+          description: "Orders that have been verified as paid.",
+          items: drilldownLists.paidOrders,
+        },
+      },
+      {
+        label: "Receivables",
+        value: formatMoney(summary.outstandingRevenue),
+        detail: `${summary.pendingPaymentOrders} payment pending`,
+        to: "/admin/orders",
+        tone: summary.outstandingRevenue ? "warning" : "success",
+        icon: <HiOutlineClipboardList aria-hidden="true" />,
+        drilldown: {
+          title: "Outstanding orders",
+          description: "Orders still waiting for payment confirmation.",
+          items: drilldownLists.pendingOrders,
+        },
+      },
+      {
+        label: "Collection rate",
+        value: `${summary.paymentCollectionRate}%`,
+        detail: `${formatMoney(summary.averageOrderValue)} average order value`,
+        to: "/admin/orders",
+        tone: summary.paymentCollectionRate >= 80 ? "success" : "warning",
+        icon: <HiOutlineChartBar aria-hidden="true" />,
+        drilldown: {
+          title: "Payment issues",
+          description: "Orders with failed or abandoned payment states.",
+          items: drilldownLists.failedOrders,
+        },
+      },
+      {
+        label: "Stock retail value",
+        value: formatMoney(summary.stockRetailValue),
+        detail: `${summary.pricedStockItems} priced stock record${
+          summary.pricedStockItems === 1 ? "" : "s"
+        }`,
+        to: "/admin/inventory",
+        tone: "accent",
+        icon: <HiOutlineCash aria-hidden="true" />,
+        drilldown: {
+          title: "Priced stock records",
+          description: "Inventory rows that can contribute to stock value.",
+          items: drilldownLists.valuedInventory,
+        },
+      },
+      {
+        label: "Revenue-ready stock",
+        value: formatMoney(summary.activeStockRetailValue),
+        detail: `${summary.revenueReadyUnits} active priced unit${
+          summary.revenueReadyUnits === 1 ? "" : "s"
+        }`,
+        to: "/admin/inventory",
+        tone: "success",
+        icon: <HiOutlineChartBar aria-hidden="true" />,
+        drilldown: {
+          title: "Revenue-ready stock",
+          description: "Active priced inventory that can support storefront sales.",
+          items: drilldownLists.valuedInventory,
+        },
+      },
+      {
+        label: "Stock risk value",
+        value: formatMoney(summary.atRiskStockRetailValue),
+        detail: "Priced value tied to attention items",
+        to: "/admin/inventory",
+        tone: summary.atRiskStockRetailValue ? "warning" : "success",
+        icon: <HiOutlineExclamation aria-hidden="true" />,
+        drilldown: {
+          title: "Stock value at risk",
+          description: "Attention stock records with priced available units.",
+          items: [...drilldownLists.lowStockInventory, ...drilldownLists.outOfStockInventory],
+        },
+      },
+      {
+        label: "Priced catalogue",
+        value: `${summary.pricingCoverage}%`,
+        detail: "Products with a storefront price",
+        to: "/admin/products",
+        tone: summary.pricedProducts === summary.products ? "success" : "warning",
+        icon: <HiOutlineShoppingBag aria-hidden="true" />,
+        drilldown: {
+          title: "Products missing prices",
+          description: "Products that will stay hidden from purchase flow until priced.",
+          items: drilldownLists.unpricedProducts,
+        },
+      },
+      {
+        label: "Supplier cover",
+        value: `${calculatePercentage(summary.linkedProducts, summary.products)}%`,
+        detail: `${summary.linkedProducts} of ${summary.products} products linked`,
+        to: "/admin/suppliers",
+        tone: summary.linkedProducts === summary.products ? "success" : "neutral",
+        icon: <HiOutlineOfficeBuilding aria-hidden="true" />,
+        drilldown: {
+          title: "Supplier coverage gaps",
+          description: "Products without a preferred or linked supplier.",
+          items: drilldownLists.supplierGapProducts,
+        },
+      },
+    ],
+    [drilldownLists, summary]
   );
 
   const readiness = useMemo(
@@ -777,20 +1157,52 @@ const AdminPortalHome: React.FC = () => {
         </ERPFormNotice>
       ) : null}
 
-      <section className="stroane-portal-overview__kpis" aria-label="Operations key performance indicators">
-        {dashboardKpis.map((kpi) => (
-          <Link
-            key={kpi.label}
-            to={kpi.to}
-            className="bubble-card stroane-portal-overview__kpi-card"
-            data-tone={kpi.tone}
-          >
-            <span>{kpi.icon}</span>
-            <small>{kpi.label}</small>
-            <strong>{kpi.value}</strong>
-            <em>{kpi.detail}</em>
-          </Link>
-        ))}
+      <BusinessAnalyticsSection
+        items={businessAnalytics}
+        onSelect={(item) => {
+          if (item.drilldown) setDrilldown(item.drilldown as DashboardDrilldown);
+        }}
+      />
+
+      <section className="glass-card stroane-portal-overview__business" aria-label="Operations key performance indicators">
+        
+          <header>
+            <span>Business analytics</span>
+            <h2 id="stroane-business-title">Revenue and catalogue health</h2>
+          </header>
+          <div className="stroane-portal-overview__kpis">
+          {dashboardKpis.map((kpi) => {
+            const content = (
+              <>
+                <span>{kpi.icon}</span>
+                <small>{kpi.label}</small>
+                <strong>{kpi.value}</strong>
+                <em>{kpi.detail}</em>
+              </>
+            );
+
+            return kpi.drilldown ? (
+              <button
+                key={kpi.label}
+                type="button"
+                className="bubble-card stroane-portal-overview__kpi-card"
+                data-tone={kpi.tone}
+                onClick={() => setDrilldown(kpi.drilldown)}
+              >
+                {content}
+              </button>
+            ) : (
+              <Link
+                key={kpi.label}
+                to={kpi.to}
+                className="bubble-card stroane-portal-overview__kpi-card"
+                data-tone={kpi.tone}
+              >
+                {content}
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <section
@@ -1103,6 +1515,10 @@ const AdminPortalHome: React.FC = () => {
             <HiOutlineCube aria-hidden="true" />
             <span><strong>Inventory</strong><small>Review stock counts and movements</small></span>
           </Link>
+          <Link to="/admin/orders" className="bubble-card">
+            <HiOutlineClipboardList aria-hidden="true" />
+            <span><strong>Orders</strong><small>Manage storefront and manual orders</small></span>
+          </Link>
           <Link to="/admin/suppliers" className="bubble-card">
             <HiOutlineOfficeBuilding aria-hidden="true" />
             <span><strong>Suppliers</strong><small>Manage supplier coverage and reorder routes</small></span>
@@ -1117,6 +1533,56 @@ const AdminPortalHome: React.FC = () => {
           </Link>
         </div>
       </section>
+
+      <ERPModal
+        open={Boolean(drilldown)}
+        title={drilldown?.title || "Details"}
+        description={drilldown?.description}
+        onClose={() => setDrilldown(null)}
+        closeOnBackdrop
+        size="lg"
+        className="stroane-portal-overview__drilldown-modal"
+      >
+        {drilldown?.items.length ? (
+          <div className="stroane-portal-overview__drilldown-list">
+            {drilldown.items.map((item) => {
+              const content = (
+                <>
+                  <span>
+                    <strong>{item.label}</strong>
+                    <small>{item.detail}</small>
+                  </span>
+                  {item.value !== undefined ? (
+                    <ERPStatusBadge tone={item.tone || "neutral"}>{item.value}</ERPStatusBadge>
+                  ) : null}
+                </>
+              );
+
+              return item.to ? (
+                <Link
+                  key={item.id}
+                  to={item.to}
+                  className="stroane-portal-overview__drilldown-item"
+                  data-tone={item.tone || "neutral"}
+                  onClick={() => setDrilldown(null)}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div
+                  key={item.id}
+                  className="stroane-portal-overview__drilldown-item"
+                  data-tone={item.tone || "neutral"}
+                >
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="stroane-portal-overview__empty">No matching records right now.</p>
+        )}
+      </ERPModal>
     </section>
   );
 };

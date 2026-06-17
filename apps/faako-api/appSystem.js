@@ -25,6 +25,7 @@ export default {
       "http://localhost:8889",
       "http://127.0.0.1:8889",
       "https://faako.nanaabaackah.com",
+      "https://faako-erp.nanaabaackah.com",
     ],
   },
 };

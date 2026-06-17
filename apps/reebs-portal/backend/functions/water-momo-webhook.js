@@ -1,15 +1,81 @@
 /* eslint-disable no-undef */
+import crypto from "crypto";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { buildResponseHeaders } from "./_shared/http.js";
 
-const json = (statusCode, body) => ({
+const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
+const WEBHOOK_RATE_LIMIT_MAX = 120;
+
+const webhookRateLimitBuckets =
+  globalThis.__reebsWaterMomoWebhookRateLimitBuckets || new Map();
+
+if (!globalThis.__reebsWaterMomoWebhookRateLimitBuckets) {
+  globalThis.__reebsWaterMomoWebhookRateLimitBuckets = webhookRateLimitBuckets;
+}
+
+const webhookHeaders = (event) => ({
+  "Content-Type": "application/json",
+  ...buildResponseHeaders(event, {
+    methods: "POST,PUT,OPTIONS",
+    allowHeaders: "Content-Type, X-Water-Webhook-Secret, X-Reference-Id",
+  }),
+});
+
+const json = (event, statusCode, body) => ({
   statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  },
+  headers: webhookHeaders(event),
   body: JSON.stringify(body),
 });
+
+const getHeaderValue = (event, key) => {
+  const headers = event?.headers;
+  if (!headers || typeof headers !== "object") return "";
+  return String(
+    headers[key]
+    || headers[key.toLowerCase()]
+    || headers[key.toUpperCase()]
+    || ""
+  ).trim();
+};
+
+const getClientAddress = (event) => {
+  const forwardedFor = getHeaderValue(event, "x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
+  return (
+    getHeaderValue(event, "x-nf-client-connection-ip")
+    || getHeaderValue(event, "client-ip")
+    || "unknown"
+  );
+};
+
+const isWebhookRateLimited = (key) => {
+  const now = Date.now();
+  for (const [bucketKey, bucket] of webhookRateLimitBuckets.entries()) {
+    if (!bucket || bucket.resetAt <= now) {
+      webhookRateLimitBuckets.delete(bucketKey);
+    }
+  }
+
+  const existing = webhookRateLimitBuckets.get(key);
+  if (!existing || existing.resetAt <= now) {
+    webhookRateLimitBuckets.set(key, {
+      count: 1,
+      resetAt: now + WEBHOOK_RATE_LIMIT_WINDOW_MS,
+    });
+    return false;
+  }
+
+  existing.count += 1;
+  return existing.count > WEBHOOK_RATE_LIMIT_MAX;
+};
+
+const timingSafeTextEqual = (left, right) => {
+  const leftBuffer = Buffer.from(String(left || ""), "utf8");
+  const rightBuffer = Buffer.from(String(right || ""), "utf8");
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
 
 const saleTableStatements = [
   `CREATE TABLE IF NOT EXISTS "waterSale" (
@@ -180,25 +246,26 @@ export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, X-Water-Webhook-Secret",
-        "Access-Control-Allow-Methods": "POST,PUT,OPTIONS",
-      },
+      headers: webhookHeaders(event),
       body: "",
     };
   }
 
   const method = (event.httpMethod || "POST").toUpperCase();
   if (method !== "POST" && method !== "PUT") {
-    return json(405, { error: "Method Not Allowed" });
+    return json(event, 405, { error: "Method Not Allowed" });
+  }
+
+  const clientAddress = getClientAddress(event);
+  if (isWebhookRateLimited(`water-momo:${clientAddress}`)) {
+    return json(event, 429, { error: "Too many webhook requests." });
   }
 
   let payload = {};
   try {
     payload = JSON.parse(event.body || "{}");
   } catch {
-    return json(400, { error: "Invalid JSON body." });
+    return json(event, 400, { error: "Invalid JSON body." });
   }
 
   if (payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
@@ -209,18 +276,23 @@ export async function handler(event = {}) {
   }
 
   const configuredSecret = cleanText(process.env.WATER_MOMO_WEBHOOK_SECRET);
-  const providedSecret =
-    cleanText(event.headers?.["x-water-webhook-secret"]) ||
-    cleanText(event.headers?.["X-Water-Webhook-Secret"]) ||
+  const providedSecret = getHeaderValue(event, "x-water-webhook-secret");
+  const legacySecret =
     cleanText(event.queryStringParameters?.secret) ||
     cleanText(payload.secret);
 
   if (!configuredSecret) {
-    return json(503, { error: "WATER_MOMO_WEBHOOK_SECRET is not configured." });
+    return json(event, 503, { error: "WATER_MOMO_WEBHOOK_SECRET is not configured." });
   }
 
-  if (configuredSecret && providedSecret !== configuredSecret) {
-    return json(401, { error: "Invalid webhook secret." });
+  if (!providedSecret && legacySecret) {
+    return json(event, 400, {
+      error: "Webhook secret must be sent in the X-Water-Webhook-Secret header.",
+    });
+  }
+
+  if (!providedSecret || !timingSafeTextEqual(providedSecret, configuredSecret)) {
+    return json(event, 401, { error: "Invalid webhook secret." });
   }
 
   const explicitSaleId = Number(payload.saleId ?? event.queryStringParameters?.saleId);
@@ -248,7 +320,7 @@ export async function handler(event = {}) {
         : null;
 
   if (!saleId && !incomingReference) {
-    return json(400, { error: "A sale id or payment reference is required." });
+    return json(event, 400, { error: "A sale id or payment reference is required." });
   }
 
   const client = new Client({
@@ -302,14 +374,14 @@ export async function handler(event = {}) {
     }
 
     if (!saleRes || saleRes.rowCount === 0) {
-      return json(404, { error: "Water sale not found for this notification." });
+      return json(event, 404, { error: "Water sale not found for this notification." });
     }
 
     const sale = saleRes.rows[0];
     const expectedAmount = Number(sale.totalAmount || 0);
     const notifiedAmount = parseWebhookAmount(payload);
     if (notifiedAmount && expectedAmount > 0 && notifiedAmount !== expectedAmount) {
-      return json(409, {
+      return json(event, 409, {
         error: "Payment amount does not match the recorded sale total.",
         expectedAmount,
         notifiedAmount,
@@ -371,13 +443,13 @@ export async function handler(event = {}) {
       ]
     );
 
-    return json(200, {
+    return json(event, 200, {
       ok: true,
       sale: updateRes.rows?.[0] || null,
     });
   } catch (err) {
     console.error("Water MoMo webhook error", err);
-    return json(500, { error: "Failed to process the MoMo notification." });
+    return json(event, 500, { error: "Failed to process the MoMo notification." });
   } finally {
     await client.end().catch(() => {});
   }

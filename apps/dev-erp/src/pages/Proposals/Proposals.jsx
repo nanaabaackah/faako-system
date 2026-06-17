@@ -10,7 +10,8 @@ import {
   SelectField,
   StackGroup,
 } from "@faako/ui";
-import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { buildApiUrl } from "../../api-url";
+import { apiGet, apiPatch, apiPost, apiRequest } from "../../api/client";
 import {
   PROPOSAL_BLOCK_TYPES,
   PROPOSAL_STATUSES,
@@ -101,6 +102,29 @@ const getProposalTemplateById = (templateId) =>
 const getTemplateCardLabel = (template) =>
   template.isBlank ? "Blank proposal" : getProposalTypeLabel(template.proposalType);
 
+const MAX_UPLOAD_PDF_BYTES = 12 * 1024 * 1024;
+
+const getSafePdfUploadName = (name = "proposal.pdf") => {
+  const normalized = String(name || "proposal.pdf").trim() || "proposal.pdf";
+  const baseName = normalized.split(/[/\\]/).pop() || "proposal.pdf";
+  const withoutExtension = baseName.replace(/\.pdf$/i, "");
+  const safeName =
+    withoutExtension
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "proposal";
+  return `${safeName}.pdf`;
+};
+
+const formatProposalFileSize = (value) => {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "Unknown size";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+};
+
 const formatProposalTimestamp = (value) => {
   if (!value) return "Not saved yet";
   try {
@@ -146,6 +170,10 @@ const mapProposalRecordToDraft = (record) => {
       ...fallback.branding,
       ...(content.branding || {}),
     },
+    uploadedPdf:
+      content.uploadedPdf && typeof content.uploadedPdf === "object"
+        ? content.uploadedPdf
+        : null,
     personalNotes: {
       ...fallback.personalNotes,
       ...(content.personalNotes || {}),
@@ -448,6 +476,7 @@ function ProposalDocumentEditor({
   return (
     <article
       className={`proposal-document-editor proposal-preview--theme-${proposal.branding.theme}`}
+      style={{ "--proposal-accent": proposal.branding.accentColor || undefined }}
       aria-label="Editable proposal document"
     >
       <header className="proposal-document-editor__masthead">
@@ -534,6 +563,7 @@ function ProposalSetupPanel({
   selectedTemplateId,
   enabledBlockCount,
   isSaving,
+  isUploadingPdf,
   isPreparingShareLink,
   isSharingProposal,
   isCreatingInvoice,
@@ -542,6 +572,7 @@ function ProposalSetupPanel({
   onProposalChange,
   onBrandingChange,
   onSave,
+  onUploadPdf,
   onPrepareShareLink,
   onShareProposal,
   onCopyShareLink,
@@ -552,6 +583,7 @@ function ProposalSetupPanel({
 }) {
   const invoiceNumber = proposal.metadata?.invoiceNumber || proposal.metadata?.invoiceDraftNumber || "";
   const hasInvoiceDraft = Boolean(proposal.metadata?.invoiceId || invoiceNumber);
+  const uploadedPdf = proposal.uploadedPdf || null;
   const canShare =
     proposal.savedId &&
     !hasUnsavedChanges &&
@@ -646,6 +678,24 @@ function ProposalSetupPanel({
                 <option value={option.value} key={option.value}>{option.label}</option>
               ))}
           </SelectField>
+          <FormGroup label="Client accent color">
+            <div className="proposal-color-control">
+              <input
+                className="proposal-color-swatch"
+                type="color"
+                value={proposal.branding.accentColor || "#2f2f2f"}
+                onChange={(event) => onBrandingChange({ accentColor: event.target.value })}
+                aria-label="Client accent color"
+              />
+              <input
+                className="input"
+                value={proposal.branding.accentColor || "#2f2f2f"}
+                onChange={(event) => onBrandingChange({ accentColor: event.target.value })}
+                placeholder="#2f2f2f"
+                aria-label="Client accent color hex"
+              />
+            </div>
+          </FormGroup>
         </div>
         <FormGroup label="Proposal brand label">
           <input
@@ -654,6 +704,45 @@ function ProposalSetupPanel({
             onChange={(event) => onBrandingChange({ businessName: event.target.value })}
           />
         </FormGroup>
+        <div className="proposal-upload-panel" role="note">
+          <div className="proposal-upload-panel__copy">
+            <strong>Uploaded PDF proposal</strong>
+            <span>
+              Upload a finished PDF when you want the client share link to show
+              your designed proposal instead of the generated preview.
+            </span>
+            {uploadedPdf ? (
+              <small>
+                {uploadedPdf.originalFileName || uploadedPdf.fileName} ·{" "}
+                {formatProposalFileSize(uploadedPdf.sizeBytes)} · uploaded{" "}
+                {formatProposalTimestamp(uploadedPdf.uploadedAt)}
+              </small>
+            ) : (
+              <small>Save the draft first, then upload a PDF proposal.</small>
+            )}
+          </div>
+          <div className="proposal-upload-panel__actions">
+            <label className={`button button-ghost ${!proposal.savedId || hasUnsavedChanges || isUploadingPdf ? "is-disabled" : ""}`}>
+              {isUploadingPdf ? "Uploading..." : uploadedPdf ? "Replace PDF" : "Upload PDF"}
+              <input
+                type="file"
+                accept="application/pdf"
+                disabled={!proposal.savedId || hasUnsavedChanges || isUploadingPdf}
+                onChange={onUploadPdf}
+              />
+            </label>
+            {uploadedPdf?.downloadPath ? (
+              <a
+                className="button button-ghost"
+                href={buildApiUrl(uploadedPdf.downloadPath)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open PDF
+              </a>
+            ) : null}
+          </div>
+        </div>
         <div className="proposal-setup-actions">
           <button type="button" className="button button-ghost" onClick={onPrint}>
             Export PDF
@@ -898,6 +987,7 @@ function Proposals() {
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [isLoadingProposal, setIsLoadingProposal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [isPreparingShareLink, setIsPreparingShareLink] = useState(false);
   const [isSharingProposal, setIsSharingProposal] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
@@ -1117,6 +1207,81 @@ function Proposals() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const uploadProposalPdf = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) return;
+
+    if (!proposal.savedId) {
+      setNotice({
+        tone: "warning",
+        message: "Save the proposal draft before uploading a PDF.",
+      });
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setNotice({
+        tone: "warning",
+        message: "Save your latest changes before uploading or replacing the PDF.",
+      });
+      return;
+    }
+
+    const looksLikePdf =
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!looksLikePdf) {
+      setNotice({
+        tone: "error",
+        message: "Please upload a PDF file.",
+      });
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_PDF_BYTES) {
+      setNotice({
+        tone: "error",
+        message: `Please upload a PDF under ${formatProposalFileSize(MAX_UPLOAD_PDF_BYTES)}.`,
+      });
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    try {
+      const headers = new Headers();
+      headers.set("Content-Type", "application/pdf");
+      headers.set("x-proposal-filename", getSafePdfUploadName(file.name));
+
+      const response = await apiRequest(`/api/proposals/${proposal.savedId}/pdf`, {
+        method: "POST",
+        headers,
+        body: file,
+        fallbackMessage: "Unable to upload PDF proposal",
+      });
+      const savedRecord = response?.proposal;
+      if (savedRecord) {
+        const draft = mapProposalRecordToDraft(savedRecord);
+        setProposal(draft);
+        setSavedProposals((records) => upsertProposalRecord(records, savedRecord));
+        setHasUnsavedChanges(false);
+        setSelectedTemplateId(
+          draft.template?.key || draft.metadata?.templateKey || PROPOSAL_TEMPLATE_LIBRARY[0].id
+        );
+        setNotice({
+          tone: "success",
+          message: `${file.name} uploaded. Client links will show the PDF proposal.`,
+        });
+      }
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error?.message || "Unable to upload PDF proposal.",
+      });
+    } finally {
+      setIsUploadingPdf(false);
     }
   };
 
@@ -1443,6 +1608,7 @@ function Proposals() {
                   selectedTemplateId={selectedTemplateId}
                   enabledBlockCount={enabledBlockCount}
                   isSaving={isSaving}
+                  isUploadingPdf={isUploadingPdf}
                   isPreparingShareLink={isPreparingShareLink}
                   isSharingProposal={isSharingProposal}
                   isCreatingInvoice={isCreatingInvoice}
@@ -1451,6 +1617,7 @@ function Proposals() {
                   onProposalChange={updateProposal}
                   onBrandingChange={updateBranding}
                   onSave={saveProposal}
+                  onUploadPdf={uploadProposalPdf}
                   onPrepareShareLink={prepareShareLink}
                   onShareProposal={shareProposal}
                   onCopyShareLink={copyShareLink}

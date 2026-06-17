@@ -155,6 +155,13 @@ const resourcesColumns = [
         to: "/configure",
         icon: faBoxesStacked,
       },
+      {
+        id: "resource-client-setup",
+        title: "Client Setup Form",
+        description: "Answer simple service questions before planning starts.",
+        to: "/client-setup",
+        icon: faEnvelope,
+      },
     ],
   },
   {

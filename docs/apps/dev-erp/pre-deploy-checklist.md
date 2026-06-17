@@ -26,6 +26,8 @@
 ## Database/data loss risk
 
 - Review Prisma migrations and data scripts.
+- Run `pnpm --filter @faako/dev-erp run predeploy:local` before deployment when Prisma migrations changed.
+- Root shortcut: `pnpm run predeploy:dev-erp`.
 - Deploy the additive `20260531000000_add_invoice_paid_amount` migration before relying on invoice partial-payment fields.
 - Confirm `ENFORCE_DATABASE_ISOLATION=true` where appropriate.
 - Confirm local work cannot accidentally write to production data.
@@ -48,6 +50,7 @@
 ## Environment variables
 
 - Compare required values against `apps/dev-erp/.env.example`.
+- Keep local/non-production `EMAIL_FORCE_TO=dev@nanaabaackah.com` so test emails do not go to customer or input addresses.
 - Confirm `OAUTH_TOKEN_ENCRYPTION_KEY` when Google Calendar integration is enabled.
 - Keep only browser-safe values in `VITE_*`.
 - Confirm email workflow and AI/productivity endpoint variables point to the intended environment.

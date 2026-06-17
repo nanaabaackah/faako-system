@@ -1,14 +1,33 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import "../styles/components/ScrollToTop.css";
 
 const ScrollToTop: React.FC = () => {
   const [visible, setVisible] = useState(false);
+  const { pathname, search, hash } = useLocation();
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 300);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+
+    const targetId = decodeURIComponent(hash.slice(1));
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
+    });
+  }, [hash, pathname, search]);
 
   const handleClick = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });

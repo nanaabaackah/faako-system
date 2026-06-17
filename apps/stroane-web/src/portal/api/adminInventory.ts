@@ -16,13 +16,15 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
   return body as T;
 };
 
-const authHeaders = (session: AdminSession) => ({
-  Authorization: `Bearer ${session.token}`,
+const authRequest = (_session: AdminSession): RequestInit => ({
+  credentials: "include",
 });
 
-const jsonAuthHeaders = (session: AdminSession) => ({
-  ...authHeaders(session),
-  "Content-Type": "application/json",
+const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 const withQuery = (path: string, filters: object = {}) => {
@@ -203,7 +205,7 @@ export const adminInventoryApi = {
     filters: InventoryFilters = {}
   ): Promise<InventoryItem[]> {
     const response = await fetch(withQuery("/api/admin/inventory", filters), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ inventory: InventoryItem[] }>(
       response,
@@ -214,7 +216,7 @@ export const adminInventoryApi = {
 
   async listSuppliers(session: AdminSession): Promise<SupplierSummary[]> {
     const response = await fetch(withQuery("/api/admin/suppliers", { limit: 100 }), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ suppliers: SupplierSummary[] }>(
       response,
@@ -228,7 +230,7 @@ export const adminInventoryApi = {
     filters: InventoryMovementFilters = {}
   ): Promise<InventoryMovement[]> {
     const response = await fetch(withQuery("/api/admin/inventory/movements", filters), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ movements: InventoryMovement[] }>(
       response,
@@ -239,7 +241,7 @@ export const adminInventoryApi = {
 
   async getInventoryItem(session: AdminSession, id: string): Promise<InventoryItem> {
     const response = await fetch(apiPath(`/api/admin/inventory/${encodeURIComponent(id)}`), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ inventoryItem: InventoryItem }>(
       response,
@@ -255,7 +257,7 @@ export const adminInventoryApi = {
   ): Promise<InventoryItem> {
     const response = await fetch(apiPath(`/api/admin/inventory/${encodeURIComponent(id)}`), {
       method: "PATCH",
-      headers: jsonAuthHeaders(session),
+      ...jsonAuthRequest(session),
       body: JSON.stringify(payload),
     });
     const data = await parseJsonResponse<{ inventoryItem: InventoryItem }>(
@@ -271,7 +273,7 @@ export const adminInventoryApi = {
   ): Promise<{ inventoryItem: InventoryItem; movement: InventoryMovement }> {
     const response = await fetch(apiPath("/api/admin/inventory/movements"), {
       method: "POST",
-      headers: jsonAuthHeaders(session),
+      ...jsonAuthRequest(session),
       body: JSON.stringify(payload),
     });
     return parseJsonResponse<{ inventoryItem: InventoryItem; movement: InventoryMovement }>(
@@ -282,7 +284,7 @@ export const adminInventoryApi = {
 
   async getAlertSummary(session: AdminSession): Promise<InventoryAlertSummary> {
     const response = await fetch(apiPath("/api/admin/inventory/alerts"), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ summary: InventoryAlertSummary }>(
       response,

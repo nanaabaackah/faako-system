@@ -295,8 +295,89 @@
   transform: translateX(2px);
 }
 
+.guides-detail-grid {
+  max-width: 1180px;
+  margin: 3rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.guide-detail-card {
+  scroll-margin-top: 96px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem 1.25rem;
+  padding: 1.4rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.guide-detail-card__num {
+  color: var(--color-primary);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.guide-detail-card h3 {
+  margin: 0 0 0.5rem;
+  color: var(--color-text-primary);
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.guide-detail-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+.guide-detail-card small {
+  display: inline-flex;
+  margin-top: 0.8rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.guide-detail-card ul {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--color-border-soft);
+  list-style: none;
+}
+
+.guide-detail-card li {
+  position: relative;
+  padding-left: 1.25rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.guide-detail-card li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
 /* FAQ */
 .resources-faq {
+  scroll-margin-top: 96px;
   padding: 6rem 4rem;
   background: var(--color-surface);
 }
@@ -391,6 +472,7 @@
 
 /* Standards */
 .resources-standards {
+  scroll-margin-top: 96px;
   padding: 6rem 4rem;
   background: var(--color-primary-dark);
   display: grid;
@@ -516,6 +598,14 @@
   .guides-list__item:hover {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
+  }
+
+  .guides-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-detail-card {
+    grid-template-columns: 1fr;
   }
 
   .faq-item__trigger {

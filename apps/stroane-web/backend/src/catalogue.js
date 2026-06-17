@@ -24,6 +24,14 @@ const isValidSlug = (value = "") => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(val
 const isLikelyEmail = (value = "") =>
   !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value));
 
+const isLikelyPhone = (value = "") => {
+  if (!value) return true;
+  const normalized = String(value || "").trim();
+  if (!/^\+?[0-9][0-9\s().-]{6,24}$/.test(normalized)) return false;
+  const digits = normalized.replace(/\D/g, "");
+  return /^\d{7,15}$/.test(digits);
+};
+
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
 const asObject = (value) =>
@@ -376,6 +384,7 @@ export const createCatalogueInquiry = (payload = {}) => {
   if (!name) errors.push("Name is required.");
   if (!email && !phone) errors.push("Provide an email or phone number.");
   if (!isLikelyEmail(email)) errors.push("Email is invalid.");
+  if (!isLikelyPhone(phone)) errors.push("Phone number is invalid.");
   if (!message || message.length < 5) errors.push("Message is required.");
   if (productSlug && !isValidSlug(productSlug)) errors.push("Product reference is invalid.");
   if (honeypot) errors.push("Invalid inquiry payload.");

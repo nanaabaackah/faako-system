@@ -1,7 +1,14 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
 
-export const resolveLocalEmailRecipient = (defaultAdminEmail) => {
+const normalizeEmailCandidate = (value) => String(value || "").trim();
+
+export const resolveLocalEmailRecipient = (defaultAdminEmail, env = process.env) => {
+  const forcedRecipient = normalizeEmailCandidate(env?.EMAIL_FORCE_TO);
+  if (EMAIL_PATTERN.test(forcedRecipient)) {
+    return forcedRecipient;
+  }
+
   const normalized = String(defaultAdminEmail || "").trim();
   if (EMAIL_PATTERN.test(normalized)) {
     return normalized;
@@ -14,6 +21,7 @@ export const resolveEmailDeliveryRecipients = ({
   parseRecipients,
   isProduction,
   defaultAdminEmail,
+  env,
 }) => {
   const intendedRecipients = parseRecipients(recipients);
   if (isProduction || !intendedRecipients.length) {
@@ -24,7 +32,7 @@ export const resolveEmailDeliveryRecipients = ({
     };
   }
 
-  const deliveryRecipient = resolveLocalEmailRecipient(defaultAdminEmail);
+  const deliveryRecipient = resolveLocalEmailRecipient(defaultAdminEmail, env);
   const wasRerouted =
     intendedRecipients.length !== 1 ||
     intendedRecipients.some(
@@ -42,6 +50,7 @@ export const resolveSingleEmailDeliveryTarget = ({
   recipient,
   isProduction,
   defaultAdminEmail,
+  env,
 }) => {
   const intendedRecipient = String(recipient || "").trim();
   if (isProduction) {
@@ -52,7 +61,7 @@ export const resolveSingleEmailDeliveryTarget = ({
     };
   }
 
-  const deliveryRecipient = resolveLocalEmailRecipient(defaultAdminEmail);
+  const deliveryRecipient = resolveLocalEmailRecipient(defaultAdminEmail, env);
   return {
     intendedRecipient,
     deliveryRecipient,

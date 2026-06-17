@@ -14,7 +14,8 @@
 - Verify any customer, admin, or staff access paths affected by the change.
 - Confirm access control is enforced by the backend if protected flows exist.
 - Confirm `https://portal.stroanesolutions.com/login` signs in with a private staff account, protected routes remain portal-only, and logout returns to `/login`.
-- Confirm staff tokens remain scoped to portal-origin `sessionStorage`; do not add a parent-domain auth cookie without dedicated review.
+- Confirm staff auth still uses the HttpOnly admin cookie and the portal stores profile metadata only.
+- Do not widen the admin cookie domain or set `SameSite=None` without a dedicated CSRF/subdomain-risk review.
 
 ## API permissions
 
@@ -24,6 +25,8 @@
 ## Database/data loss risk
 
 - Review Prisma migrations and data scripts before production.
+- Run `pnpm --filter @faako/stroane-web run predeploy:local` before deployment when Prisma migrations changed.
+- Root shortcut: `pnpm run predeploy:stroane`.
 - Confirm backups or rollback options before modifying product, customer, order, or transaction-related data.
 
 ## Customer/user data
@@ -43,6 +46,7 @@
 
 - Compare required values with `apps/stroane-web/.env.example`.
 - Keep only browser-safe values under `VITE_*`.
+- Keep local/non-production `EMAIL_FORCE_TO=dev@nanaabaackah.com` so test emails do not go to customer or input addresses.
 - Confirm CORS origins and proxy settings match the deployed domain.
 
 ## Cloudflare Pages, Railway API, and Cloudflare DNS

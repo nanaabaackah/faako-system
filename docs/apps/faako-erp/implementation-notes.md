@@ -14,6 +14,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako ER
 - The app shell uses shared ERP topbar, page-content, navigation, and status-badge patterns from `@faako/ui`, but demo routes, scenario labels, page components, and demo access behavior remain app-owned.
 - Shared shell placeholders for offline/sync/notifications/org switching are available structurally only and are not connected to demo backend behavior.
 - The registry has no required environment variables, setup steps, migrations, data impact, or access-control enforcement changes.
+- Demo access is API-owned. The browser must call `VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT` and must not generate, display, or persist access codes. The browser stores only non-sensitive demo metadata such as email, scenario, and expiry; no demo bearer token is persisted.
 - `docs/platform/codebase-cleanup-audit.md` flags Faako ERP as a lower-risk reference surface for shared shell/style validation before applying cleanup patterns to live ERP apps.
 
 ## Open questions

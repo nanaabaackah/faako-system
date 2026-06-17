@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Demo access code leak removed
+
+Date: 2026-06-16
+Feature/change name: Demo access code leak removed
+What changed: Removed browser-generated demo access codes, preview-code rendering, and local challenge helpers from the Faako ERP demo gate. The frontend now defaults to the API mode, refuses local verification mode, calls `/api/demo-access`, and stores only non-sensitive demo metadata.
+Why it changed: Demo access codes must be delivered through email by the backend, not displayed in the browser.
+Files changed: apps/faako-erp/src/components/DemoAccessGate.jsx, apps/faako-erp/src/utils/demoAccessSession.js, apps/faako-erp/src/styles/global.css, apps/faako-erp/.env.example, apps/faako-erp/README.md, docs/apps/faako-erp/progress-log.md, docs/apps/faako-erp/implementation-notes.md.
+Data impact: Browser storage shape changed for demo access. Existing local demo sessions with old token fields are normalized without carrying the token forward.
+Security impact: Positive. Browser-visible codes and bearer-style demo token persistence were removed; the server-owned Faako API access-code flow is now required.
+Testing done: `node --test apps/faako-api/src/demoAccess.test.mjs apps/stroane-web/backend/auth.test.js` passed. `pnpm run security:gate` passed. `pnpm run security:scan` passed.
+Rollback notes: Revert the frontend demo gate/session changes only if the API route is unavailable, but keep local/browser preview-code generation disabled.
+Next step: Smoke-test the deployed ERP demo after Faako API env values are configured.
+
 ### Shared app update notice shell adoption
 
 Date: 2026-06-15

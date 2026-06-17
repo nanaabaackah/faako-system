@@ -235,7 +235,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "The 5 Keys to Safer Food",
     description:
       "Keep clean, separate raw and cooked food, cook thoroughly, keep food at safe temperatures, and use safe water.",
-    href: "/resources",
+    href: "/resources#guide-safer-food-keys",
     keywords: ["food handlers", "kitchen teams", "safe water", "cleaning"],
   },
   {
@@ -243,7 +243,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "What Is HACCP and Do You Need It?",
     description:
       "A plain-language explanation of HACCP, why it matters, and how food businesses prevent food safety risks.",
-    href: "/resources",
+    href: "/resources#guide-haccp-basics",
     keywords: ["hazard analysis", "critical control point", "processors", "exporters"],
   },
   {
@@ -251,7 +251,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "How to Register a Food Product with Ghana FDA",
     description:
       "Product registration documents, labels, timelines, and common reasons applications get delayed.",
-    href: "/resources",
+    href: "/resources#guide-ghana-fda-registration",
     keywords: ["ghana fda", "registration", "documents", "labels", "approval"],
   },
   {
@@ -259,7 +259,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "Safe Food Temperatures in Ghana",
     description:
       "Fridge, freezer, cooking, holding, and delivery temperatures for Ghana's hot climate.",
-    href: "/resources",
+    href: "/resources#guide-safe-food-temperatures",
     keywords: ["fridge", "freezer", "cooking", "holding", "delivery", "temperature"],
   },
   {
@@ -267,7 +267,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "How Germs Spread in Ghanaian Kitchens",
     description:
       "Common contamination risks in local food environments and how to prevent them.",
-    href: "/resources",
+    href: "/resources#guide-kitchen-contamination",
     keywords: ["germs", "contamination", "kitchens", "storage", "boards", "hygiene"],
   },
   {
@@ -275,7 +275,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "Food Allergens: What You Need to Declare",
     description:
       "Major allergens food businesses should identify clearly on labels, menus, and customer-facing materials.",
-    href: "/resources",
+    href: "/resources#guide-food-allergens",
     keywords: ["allergens", "labels", "menus", "packaged food", "bakeries"],
   },
   {
@@ -283,7 +283,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "Food Safety FAQs",
     description:
       "Answers about Ghana FDA licences, Stroane audits, annual checks, and fridge temperature records.",
-    href: "/resources",
+    href: "/resources#resources-faq",
     keywords: ["faq", "licence", "license", "audit", "fridge", "temperature", "inspection"],
   },
   {
@@ -291,7 +291,7 @@ const RESOURCES: SearchIndexItem[] = [
     title: "Standards We Reference",
     description:
       "Ghana Food and Drugs Authority, Ghana Standards Authority, Codex Alimentarius, HACCP, ISO 22000, and GMP.",
-    href: "/resources",
+    href: "/resources#resources-standards",
     keywords: ["standards", "codex", "iso 22000", "gmp", "ghana standards authority"],
   },
 ];

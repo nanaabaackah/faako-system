@@ -7,7 +7,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 ## Known technical notes
 
 - The app is backend-only and uses Express.
-- Current endpoints are `health` and `signup`.
+- Current endpoints are `health`, `signup`, and `demo-access`.
 - `src/runtimeConfig.js` and `src/db.js` centralize runtime config and database behavior.
 - Local commands load `.env.dev`.
 - Local development refuses the production database unless `ALLOW_PRODUCTION_DATABASE_IN_DEV=true`.
@@ -15,6 +15,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - `signup` accepts structured onboarding intake payloads and stores a compatibility summary in `SignupRequest.additionalNotes` without requiring a schema migration.
 - `signup` generates a lightweight PDF summary server-side and sends client/admin copies through Resend when configured.
 - `signup` rejects credential-like keys and pasted secret-looking values. Do not add public fields for API keys, passwords, tokens, private email credentials, or bank login details.
+- `/api/demo-access` owns the Faako ERP walkthrough code flow. Codes are generated server-side, stored as HMAC hashes, emailed through Resend, rate-limited per email/IP/challenge, and never returned to browser code. Production fails closed unless `FAAKO_ERP_DEMO_ACCESS_SECRET` is configured with at least 32 characters.
 - `docs/platform/codebase-cleanup-audit.md` flags Faako API cleanup as documentation-first because signup/runtime behavior and website mirroring are deployment-sensitive.
 
 ## Open questions

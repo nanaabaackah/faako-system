@@ -6,6 +6,8 @@ const { EMAIL_THEMES, renderNotice } = emailKit;
 const DEFAULT_CATCHALL_EMAIL = "info@reebspartythemes.com";
 const DEFAULT_FROM_EMAIL = `REEBS Party Themes <${DEFAULT_CATCHALL_EMAIL}>`;
 const DEFAULT_FROM_NAME = "REEBS Party Themes";
+const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 const readEnv = (key) => {
@@ -61,8 +63,19 @@ const toBrevoRecipient = (value, fallback = {}) => {
     : { email: identity.email };
 };
 
+const normalizeForcedEmailRecipient = (value) => {
+  const rawValue = String(value || "").trim();
+  const identity = parseEmailIdentity(rawValue);
+  return EMAIL_PATTERN.test(identity.email) ? rawValue : "";
+};
+
+const isProductionRuntime = () => APP_ENV === "production";
+
 const getReplyToEmail = () => readEnv("EMAIL_REPLY_TO") || getNotificationCatchallEmail();
-export const getForcedEmailRecipient = () => readEnv("EMAIL_FORCE_TO");
+export const getForcedEmailRecipient = () =>
+  isProductionRuntime()
+    ? ""
+    : normalizeForcedEmailRecipient(readEnv("EMAIL_FORCE_TO")) || LOCAL_EMAIL_FALLBACK;
 
 export const getNotificationCatchallEmail = () =>
   readEnv("EMAIL_CATCHALL_TO") || DEFAULT_CATCHALL_EMAIL;
@@ -83,8 +96,7 @@ export const sendNotificationEmail = async ({
   const apiKey = readEnv("BREVO_API_KEY");
   const from = readEnv("EMAIL_FROM") || DEFAULT_FROM_EMAIL;
   const forcedRecipient = getForcedEmailRecipient();
-  const shouldForceRecipient =
-    Boolean(forcedRecipient) && APP_ENV !== "production";
+  const shouldForceRecipient = Boolean(forcedRecipient) && !isProductionRuntime();
   const finalRecipients = shouldForceRecipient ? [forcedRecipient] : recipients;
   const redirectHeader = shouldForceRecipient
     ? [

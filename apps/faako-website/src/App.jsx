@@ -15,6 +15,7 @@ const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const ModuleConfig = lazy(() => import("./pages/ModuleConfig.jsx"));
 const ModuleDetail = lazy(() => import("./pages/ModuleDetail.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
+const ClientSetup = lazy(() => import("./pages/ClientSetup.jsx"));
 const Contact = lazy(() => import("./pages/Contact.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
@@ -51,6 +52,7 @@ const getDocumentTitle = (pathname) => {
     "/dashboard": `Dashboard | ${appTitle}`,
     "/contact": `Contact | ${appTitle}`,
     "/signup": `Client Intake | ${appTitle}`,
+    "/client-setup": `Client Setup | ${appTitle}`,
     "/login": `Log In | ${appTitle}`,
     "/forgot-password": `Reset Password | ${appTitle}`,
     "/privacy": `Privacy Policy | ${appTitle}`,
@@ -234,6 +236,7 @@ export default function App() {
             <Route path="/modules/:moduleId" element={<ModuleDetail />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/client-setup" element={<ClientSetup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/contact" element={<Contact />} />

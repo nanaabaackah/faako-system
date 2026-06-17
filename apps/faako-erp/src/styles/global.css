@@ -744,11 +744,6 @@ a {
   color: var(--danger);
 }
 
-.demo-access-feedback.is-preview {
-  background: color-mix(in srgb, var(--accent-soft) 18%, var(--surface));
-  color: var(--accent-strong);
-}
-
 .demo-access-feedback strong {
   font-size: 1.15rem;
   letter-spacing: 0.16em;

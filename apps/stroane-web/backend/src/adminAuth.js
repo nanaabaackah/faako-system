@@ -1,4 +1,4 @@
-import { verifyToken } from "./auth.js";
+import { getRequestAuthToken, verifyToken } from "./auth.js";
 
 const normalizeRole = (value) => String(value || "").trim().toUpperCase();
 
@@ -8,7 +8,7 @@ export const getBearerToken = (req) => {
 };
 
 export const requireSiteUser = (prisma, allowedRoles = ["ADMIN"]) => async (req, res, next) => {
-  const token = getBearerToken(req);
+  const token = getRequestAuthToken(req);
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   const payload = verifyToken(token);

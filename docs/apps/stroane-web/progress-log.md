@@ -23,6 +23,136 @@ Next step:
 
 ## Entries
 
+### Portal table ellipsis polish
+
+Date: 2026-06-17
+Feature/change name: Portal table ellipsis polish
+What changed:
+- Added fixed table column definitions to the inventory stock table and portal orders table.
+- Added ellipsis truncation for long table header/cell content while leaving action cells, empty states, and footer summaries unclipped.
+- Corrected inventory table empty-state column spans and aligned the stock-value footer total under the Stock value column.
+Why it changed: Long product, SKU, category, supplier, customer, source, and date content could stretch portal tables or make rows feel uneven.
+Files changed: apps/stroane-web/src/portal/components/inventory/InventoryStockTable.tsx, apps/stroane-web/src/portal/pages/OrderManagement.tsx, apps/stroane-web/src/portal/styles/inventory-management.css, apps/stroane-web/src/portal/styles/order-management.css, docs/apps/stroane-web/progress-log.md.
+Data impact: None. Styling and table markup only.
+Security impact: None.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `git diff --check` passed for touched files.
+Rollback notes: Revert the table `colgroup` additions and related CSS ellipsis rules.
+Next step: Browser-smoke inventory and orders tables with deliberately long product/customer/supplier text.
+
+### Shared field styling and contact validation cleanup
+
+Date: 2026-06-17
+Feature/change name: Shared field styling and contact validation cleanup
+What changed:
+- Replaced the remaining native storefront checkout select/date/time/datalist controls with shared `@faako/ui` `SelectField`, `DateField`, `TimeField`, `TextField`, and `TextareaField` controls.
+- Added custom storefront delivery-area suggestion buttons so checkout keeps selectable address help without using native browser datalist styling.
+- Adjusted inventory and orders portal grid alignment so KPI/analytics cards keep their natural height instead of stretching vertically to match neighboring content.
+- Added shared frontend email/phone validation helpers and applied phone/email checks to checkout, contact enquiries, manual portal orders, and portal profile saves.
+- Added matching backend phone validation to checkout/manual order preparation, catalogue/contact enquiries, profile updates, and inventory supplier/contact validation.
+Why it changed: Stroane needs consistent shared UI styling across browsers and stronger data-quality checks before customer/admin contact data reaches order, profile, supplier, or inquiry records.
+Files changed: apps/stroane-web/src/utils/contactValidation.ts, apps/stroane-web/src/frontend/components/checkout/CheckoutDetailsForm.tsx, apps/stroane-web/src/frontend/pages/Checkout.tsx, apps/stroane-web/src/frontend/pages/Contact.tsx, apps/stroane-web/src/frontend/styles/Checkout.css, apps/stroane-web/src/frontend/styles/Shop.css, apps/stroane-web/src/portal/pages/OrderManagement.tsx, apps/stroane-web/src/portal/pages/AdminPortalProfile.tsx, apps/stroane-web/src/portal/styles/inventory-management.css, apps/stroane-web/src/portal/styles/order-management.css, apps/stroane-web/backend/src/orders.js, apps/stroane-web/backend/src/catalogue.js, apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/backend/src/inventory/validation.js, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/system-status.md.
+Data impact: Existing data is not migrated. New/updated checkout, inquiry, profile, manual order, and supplier phone values must pass the stricter phone format validation.
+Security impact: Positive. The backend now rejects malformed contact details on customer-facing and staff-facing write paths instead of relying on browser validation alone.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. `node --check` passed for `backend/src/orders.js`, `backend/src/catalogue.js`, `backend/src/routes/auth.js`, and `backend/src/inventory/validation.js`. `git diff --check` passed for the touched files. Static sweep found no remaining native `select`, `date`, `time`, or `datalist` controls in Stroane storefront/portal source.
+Rollback notes: Revert the shared contact validation helper, checkout form shared-field conversion, portal card-alignment CSS edits, and backend phone validation updates. Existing persisted data is unaffected.
+Next step: Browser-smoke checkout delivery/pickup and `/admin/orders`/`/admin/inventory` on Safari and Chrome to confirm the shared dropdown/date popovers render naturally in real devices.
+
+### Portal analytics, orders module, and checkout fulfillment
+
+Date: 2026-06-17
+Feature/change name: Portal analytics, orders module, and checkout fulfillment
+What changed:
+- Added the private `/admin/orders` module with Reebs-style admin table pagination, order KPIs, manual order creation from priced catalogue products, order detail editing, fulfillment notes, and Paystack initialize/status-refresh actions.
+- Added protected admin order API routes for listing, creating manual orders, updating order/fulfillment metadata, initializing Paystack, and refreshing Paystack status.
+- Expanded the portal dashboard analytics to include order revenue/receivables, payment collection rate, average order value, stock value at risk, pricing coverage, and KPI drilldown modals.
+- Made dashboard and inventory KPI/analytics cards open focused modal lists. Inventory drilldowns can open the selected product lightbox directly, including support for `/admin/inventory?item=<id>` deep links from the dashboard.
+- Moved the profile module onto shared ERP field/action components and restored profile bio editing.
+- Updated storefront checkout so customers choose delivery or pickup. Delivery uses a searchable/selectable address input, while pickup captures a selected pickup spot plus pickup date and time.
+- Extended checkout/order preparation to store `deliveryMethod` and `expectedDeliveryDate` on commerce orders, preserving pickup/delivery metadata for the portal order workflow.
+Why it changed: Stroane needs the portal to act as a business-management hub, not only a stock-management dashboard, and checkout needs clear fulfillment details before orders reach the operations team.
+Files changed: apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/orders.js, apps/stroane-web/backend/src/ordersAdmin/routes.js, apps/stroane-web/src/api/orders.ts, apps/stroane-web/src/frontend/pages/Checkout.tsx, apps/stroane-web/src/frontend/components/checkout/CheckoutDetailsForm.tsx, apps/stroane-web/src/frontend/styles/Checkout.css, apps/stroane-web/src/portal/PortalApp.tsx, apps/stroane-web/src/portal/components/AdminPortalLayout.tsx, apps/stroane-web/src/portal/api/adminOrders.ts, apps/stroane-web/src/portal/pages/OrderManagement.tsx, apps/stroane-web/src/portal/pages/AdminPortalHome.tsx, apps/stroane-web/src/portal/pages/InventoryManagement.tsx, apps/stroane-web/src/portal/pages/AdminPortalProfile.tsx, apps/stroane-web/src/portal/components/dashboard/BusinessAnalyticsSection.tsx, apps/stroane-web/src/portal/styles/AdminPortal.css, apps/stroane-web/src/portal/styles/inventory-management.css, apps/stroane-web/src/portal/styles/order-management.css, apps/stroane-web/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/implementation-notes.md.
+Data impact: No migration was added. Existing additive `CommerceOrder` fields are now used by checkout and the admin order module. Manual order creation writes new commerce orders only when staff intentionally submit the protected form.
+Security impact: Protected order APIs require `SiteUser` auth and admin role for writes. Storefront checkout still recalculates prices server-side and uses Paystack server-side initialization; Paystack paid state remains webhook-confirmed. No secrets are exposed to `VITE_*`.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. `node --check apps/stroane-web/backend/src/orders.js`, `node --check apps/stroane-web/backend/src/ordersAdmin/routes.js`, and `node --check apps/stroane-web/backend/server.js` passed. Local Vite preview checkout smoke passed for desktop and mobile: delivery address input renders, pickup shows three pickup spots plus date/time controls, and no horizontal overflow was detected.
+Rollback notes: Revert the admin order router/client/page/styles, dashboard/inventory/profile drilldown changes, and checkout fulfillment edits. Existing orders remain intact; manually created orders should be reviewed rather than deleted automatically.
+Next step: Browser-smoke checkout delivery and pickup paths plus authenticated `/admin/orders` Paystack actions against the intended development Paystack/Railway setup.
+
+### Stroane page componentization pass
+
+Date: 2026-06-16
+Feature/change name: Stroane page componentization pass
+What changed:
+- Extracted the full-width inventory stock table and pagination into `src/portal/components/inventory/InventoryStockTable.tsx`.
+- Extracted portal dashboard business analytics cards into `src/portal/components/dashboard/BusinessAnalyticsSection.tsx`.
+- Extracted Checkout confirmation, customer details form, and order summary into `src/frontend/components/checkout/`.
+- Reduced Checkout page orchestration from 449 lines to 253 lines while preserving the Paystack/order submission flow.
+- Reduced InventoryManagement page weight by moving the large table/action-menu rendering into a dedicated component.
+Why it changed: Long page modules were becoming hard to maintain and review. The new component boundaries keep page files focused on data flow and page-level orchestration while moving bulky UI rendering into named components.
+Files changed: apps/stroane-web/src/portal/pages/InventoryManagement.tsx, apps/stroane-web/src/portal/components/inventory/InventoryStockTable.tsx, apps/stroane-web/src/portal/pages/AdminPortalHome.tsx, apps/stroane-web/src/portal/components/dashboard/BusinessAnalyticsSection.tsx, apps/stroane-web/src/frontend/pages/Checkout.tsx, apps/stroane-web/src/frontend/components/checkout/CheckoutConfirmation.tsx, apps/stroane-web/src/frontend/components/checkout/CheckoutDetailsForm.tsx, apps/stroane-web/src/frontend/components/checkout/CheckoutOrderSummary.tsx, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/implementation-notes.md.
+Data impact: None. No API, database, order, payment, catalogue, inventory, or cart storage behavior changed.
+Security impact: Neutral. Checkout still sends order/payment work through the existing backend APIs; extracted components do not store customer/payment data.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed after extraction. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning.
+Rollback notes: Inline the extracted components back into their pages or revert the component files and page imports. No data rollback is required.
+Next step: Continue extracting Search, Services, Shop, Product Detail, and the remaining inventory modal sections in later focused passes.
+
+### Portal dashboard analytics and inventory table modal
+
+Date: 2026-06-16
+Feature/change name: Portal dashboard analytics and inventory table modal
+What changed:
+- Added dashboard business analytics for stock retail value, revenue-ready stock value, priced catalogue coverage, and supplier coverage.
+- Added inventory stock-value calculations to the inventory hub KPI cards, table rows, selected-product summary, and table footer.
+- Made Stock depth span the full analytics grid and open selected products in the management lightbox.
+- Replaced the inventory workspace table with a full-width Reebs-style admin table including category, price, stock value, status, pagination, footer totals, and per-row actions.
+- Moved selected product stock controls, catalogue management, and movement recording into a lightbox modal with previous/next product navigation.
+- Added silent autosave support for inventory and catalogue edits while preserving explicit save buttons and existing offline queue behavior.
+- Added row actions for managing, archiving, reactivating archived products, and safe "delete listing" removal through archived publishing status.
+Why it changed: The portal dashboard should represent wider business management, not only stock counts, and the inventory module needed a full-width operations table with selected-product editing in a modal rather than a side panel.
+Files changed: apps/stroane-web/src/portal/pages/AdminPortalHome.tsx, apps/stroane-web/src/portal/pages/InventoryManagement.tsx, apps/stroane-web/src/portal/context/InventoryManagementContext.tsx, apps/stroane-web/src/portal/styles/AdminPortal.css, apps/stroane-web/src/portal/styles/inventory-management.css, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/implementation-notes.md.
+Data impact: None. No database writes, schema changes, inventory movements, catalogue seed updates, or order/payment data changes were made. Product "delete listing" is implemented as safe archive/unpublish behavior through the existing publishing API.
+Security impact: Neutral/positive. Portal edits remain admin-gated, reuse existing HttpOnly cookie admin APIs, and silent autosave does not expose client/customer data.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed twice. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. `git diff --check -- apps/stroane-web/src/portal/pages/AdminPortalHome.tsx apps/stroane-web/src/portal/pages/InventoryManagement.tsx apps/stroane-web/src/portal/context/InventoryManagementContext.tsx apps/stroane-web/src/portal/styles/AdminPortal.css apps/stroane-web/src/portal/styles/inventory-management.css docs/apps/stroane-web/progress-log.md docs/apps/stroane-web/implementation-notes.md` passed.
+Rollback notes: Revert the portal dashboard/inventory page/style/context changes. No data rollback is required because the actions use existing API semantics and no migration was added.
+Next step: Smoke-test the authenticated portal table/modal in-browser after lint/build, then decide whether true hard-delete should exist as a separate audited backend operation.
+
+### Storefront page flow and navigation pass
+
+Date: 2026-06-16
+Feature/change name: Storefront page flow and navigation pass
+What changed:
+- Replaced Resources placeholder guide links with real in-page guide summaries and deep-link targets for guides, FAQ, and referenced standards.
+- Updated Search resource results to deep-link to the matching Resources section and restored the Search header to `100dvh`.
+- Made route changes scroll to the top consistently while preserving hash-anchor scrolling.
+- Changed scroll reveal behavior to a one-time opacity/translate animation without blur filters, backed by a visible-state CSS fallback, to avoid Safari/filter or fast-scroll hidden-state issues.
+- Pruned stale/unpriced cart entries from the visible shop and checkout flows once catalogue data has loaded.
+- Restored the four confirmed thermometer price-list products to the public catalogue source and Prisma seed so the storefront has a working priced-product cart/checkout path while newer unpriced products remain hidden from commerce.
+- Gated direct unpriced product detail URLs behind a "not available online" state instead of showing inquiry-first product pages.
+- Clarified customer profile actions versus the admin portal in the storefront account/sign-up/header copy.
+- Cleaned footer store category links and replaced the placeholder WhatsApp link with the catalogue alternate phone number.
+Why it changed: The storefront page-by-page pass needed broken/placeholder links removed, public navigation clarified, browser animation behavior stabilized, and stale cart state kept out of priced-product purchasing.
+Files changed: apps/stroane-web/src/data/stroaneCatalogue.json, apps/stroane-web/prisma/data/stroaneCatalogueSeed.json, apps/stroane-web/src/frontend/pages/Resources.tsx, apps/stroane-web/src/frontend/pages/Search.tsx, apps/stroane-web/src/frontend/pages/Shop.tsx, apps/stroane-web/src/frontend/pages/Checkout.tsx, apps/stroane-web/src/frontend/pages/ProductDetail.tsx, apps/stroane-web/src/frontend/pages/CustomerAccountPlaceholder.tsx, apps/stroane-web/src/frontend/pages/SignUp.tsx, apps/stroane-web/src/frontend/styles/Resources.css, apps/stroane-web/src/frontend/styles/Search.css, apps/stroane-web/src/frontend/styles/Shop.css, apps/stroane-web/src/frontend/styles/ProductDetail.css, apps/stroane-web/src/components/Header.tsx, apps/stroane-web/src/components/FloatingHeader.tsx, apps/stroane-web/src/components/Footer.tsx, apps/stroane-web/src/components/ScrollToTop.tsx, apps/stroane-web/src/hooks/useScrollAnimations.ts, apps/stroane-web/src/index.css.
+Data impact: Source catalogue JSON and Prisma catalogue seed changed to restore four confirmed price-list products as priced/purchasable storefront items. No database writes, migrations, seed/reconcile runs, order, payment, inquiry, customer, or inventory data changed. Browser cart cleanup removes only stale client-side cart entries for products that are no longer priced in the loaded catalogue.
+Security impact: Positive/neutral. Admin portal links are labelled as admin portal links, temporary storefront customer profile state remains non-sensitive, and no new customer data collection was added.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. Local Playwright smoke against `vite preview` passed across desktop pages, resource anchors, header search, Search `100dvh`, shop/cart/checkout flow, priced/unpriced product detail states, mobile overflow, and broken-image checks.
+Rollback notes: Revert the page/component/style changes from this entry. No server or database rollback is required.
+Next step: Enter confirmed physical stock counts for the restored priced products, then continue page-by-page polish only where smoke testing reveals issues.
+
+### Admin cookie auth and customer placeholder hardening
+
+Date: 2026-06-16
+Feature/change name: Admin cookie auth and customer placeholder hardening
+What changed:
+- Moved Stroane portal admin authentication off JS-readable session tokens. Login and profile updates now set an HttpOnly admin cookie, logout clears it, and protected backend APIs accept the cookie with legacy bearer fallback during transition.
+- Updated the portal API client to call protected admin routes with `credentials: "include"` and to store only staff profile metadata in `sessionStorage`.
+- Removed browser-side storefront customer account/password-hash storage. The public signup page now saves only temporary name/email profile metadata for the placeholder account area.
+Why it changed: Staff auth tokens and customer password hashes should not live in browser storage.
+Files changed: apps/stroane-web/backend/src/auth.js, apps/stroane-web/backend/src/adminAuth.js, apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/backend/auth.test.js, apps/stroane-web/src/portal/api/adminSession.ts, apps/stroane-web/src/portal/api/adminInventory.ts, apps/stroane-web/src/portal/api/adminProducts.ts, apps/stroane-web/src/portal/context/AdminPortalContext.tsx, apps/stroane-web/src/context/AuthContext.tsx, apps/stroane-web/src/frontend/pages/SignUp.tsx, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/security-notes.md.
+Data impact: No schema migration and no database writes. Existing browser `sessionStorage` portal sessions are normalized without preserving old token fields.
+Security impact: Positive. Admin credentials moved to HttpOnly cookies, customer password-hash storage was removed from the storefront, and protected backend authorization remains the source of truth. Do not widen the admin cookie domain or switch to `SameSite=None` without a CSRF/subdomain-risk review.
+Testing done: `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `node --test apps/faako-api/src/demoAccess.test.mjs apps/stroane-web/backend/auth.test.js` passed. `pnpm run security:gate` passed. `pnpm run security:scan` passed.
+Rollback notes: Revert the cookie-auth helpers/client fetch wrapper changes and restore bearer-token storage only if absolutely needed for a deployment hotfix. Do not restore browser-side customer password storage.
+Next step: Add explicit CSRF tokens before broadening cookie scope or introducing same-site/cross-site staff workflows, then design real server-backed customer accounts separately.
+
 ### Storefront priced-commerce recovery, galleries, and update notice
 
 Date: 2026-06-15
@@ -759,3 +889,22 @@ Security impact: No secrets are exposed. Scripts load app-root environment files
 Testing done: `node --check` for catalogue and inventory scripts, `git diff --check`, Stroane lint, Stroane build, Prisma validate, backend test suite, Playwright portal checks, and desktop/mobile shell visual audit.
 Rollback notes: Revert the script/UI changes. If reconciliation was applied, restore archived rows intentionally from a reviewed backup or by publishing the required product rows; inventory bootstrap rows are additive audit-backed records and should be reviewed before removal.
 Next step: Enter physical stock counts through audited movements, redeploy the Cloudflare portal for UI polish, and verify the protected inventory workspace against Railway after the deploy.
+
+### Storefront and portal natural-height layout cleanup
+
+Date: 2026-06-17
+Feature/change name: Storefront and portal natural-height layout cleanup
+What changed: Removed the stretch rules that were making checkout, shop, product-list, product-detail related cards, and orders modal panels look taller or wider than their content. The broad global `section:not(...)` full-height rule was replaced with an opt-in utility so product cards and ordinary content sections are no longer forced to `100dvh`. Shop product/category grids now top-align cards, the catalogue overview no longer reserves `20dvh`, product cards no longer force `100%` height, checkout pickup choices use content-height cards, and the checkout CTA uses a natural desktop width with mobile full-width behavior.
+Why it changed: Page elements were still reading as stretched after the first cleanup because a global section selector was forcing all non-hero sections, including UI card sections rendered by shared components, to viewport height.
+Files changed:
+- apps/stroane-web/src/styles/globals.css
+- apps/stroane-web/src/frontend/styles/Checkout.css
+- apps/stroane-web/src/frontend/styles/Shop.css
+- apps/stroane-web/src/frontend/styles/ProductList.css
+- apps/stroane-web/src/frontend/styles/ProductDetail.css
+- apps/stroane-web/src/portal/styles/order-management.css
+Data impact: None.
+Security impact: None.
+Testing done: `git diff --check` passed for the touched files, `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed, and local browser smoke verified shop catalogue overview/card heights dropped from viewport-height to natural content height. Checkout smoke with a seeded cart verified the form, summary, pickup cards, field rows, and primary CTA use natural sizing.
+Rollback notes: Revert the CSS alignment and sizing changes if the team wants equal-height card rows again.
+Next step: Refresh the local browser session and continue checking any page-specific sections that still need deliberate full-height treatment.

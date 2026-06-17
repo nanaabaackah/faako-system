@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Customer CORS and water webhook hardening
+
+Date: 2026-06-16
+Feature/change name: Customer CORS and water webhook hardening
+Apps affected: REEBS Portal backend functions
+What changed: Replaced wildcard CORS response headers in the customer handler with the shared allowlisted security header builder, including authenticated customer list/detail/update branches and constrained public lookup responses. Hardened the water MoMo webhook to require `X-Water-Webhook-Secret`, reject legacy query/body secret delivery, compare secrets with `crypto.timingSafeEqual`, add a warm-instance IP rate cap, and return shared security/CORS headers.
+Why it changed: Customer/order/booking payloads should not be readable cross-origin by arbitrary sites, and webhook secrets should not be placed in URLs or request bodies where they are more likely to be logged.
+Files changed: apps/reebs-portal/backend/functions/customers.js, apps/reebs-portal/backend/functions/water-momo-webhook.js, docs/apps/reebs-portal/progress-log.md, docs/apps/reebs-portal/implementation-notes.md.
+Data impact: No schema, migration, seed, booking, order, inventory, customer, or payment data changed.
+Security impact: Positive. Customer data responses now use configured origin allowlists instead of wildcard CORS, and the MoMo webhook no longer accepts shared secrets through query/body parameters.
+Testing done: `node --check apps/reebs-portal/backend/functions/customers.js` passed. `node --check apps/reebs-portal/backend/functions/water-momo-webhook.js` passed. `pnpm run security:gate` passed. `pnpm run security:scan` passed.
+Rollback notes: Revert the two function files if a deployed provider integration requires temporary compatibility, but avoid restoring query-string webhook secrets or wildcard customer CORS as a permanent state.
+Next step: Confirm deployed `CORS_ORIGINS`/`ALLOWED_ORIGINS` include the public and portal hosts, then update any water MoMo provider config to send the secret in `X-Water-Webhook-Secret`.
+
 ### Shared app update notice shell adoption
 
 Date: 2026-06-15

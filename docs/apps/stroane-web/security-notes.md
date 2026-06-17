@@ -6,7 +6,7 @@ Track Stroane-specific security posture, hardening work, and production-readines
 
 ## Current Security Posture
 
-Date reviewed: 2026-05-30
+Date reviewed: 2026-06-16
 
 Stroane Web is now a customer-facing commerce app with product, inquiry, order, payment, and notification data. Treat checkout, product availability, customer contact details, database access, payment references, and deployment configuration as production-sensitive.
 
@@ -28,7 +28,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Product price, currency, stock status, purchasability, and quantity are validated server-side before order creation and again before Paystack payment initialization.
 - Paystack paid status is trusted only from signed webhook confirmation followed by server-side Paystack transaction verification with reference, amount, and currency checks.
 - Paystack metadata sent to the provider is minimized to order number/source; raw internal order IDs and customer phone are not sent as custom metadata.
-- Admin order routes require backend `SiteUser` bearer auth. `VIEWER` can read order list/detail, while `ADMIN` can update lightweight fulfillment/status/note fields.
+- Protected admin routes require backend `SiteUser` auth. The portal now uses an HttpOnly admin session cookie with a legacy bearer fallback for transition scripts/tests; `VIEWER` can read protected admin data where allowed, while `ADMIN` can update protected operations fields.
 - Payment references returned to admin UI are masked, and payment status is not manually editable.
 - Auth, catalogue, inquiry, order creation, Paystack initialization, Paystack callback verification, and unhandled backend error logs now use sanitized message/status output instead of dumping raw error/provider objects.
 
@@ -58,11 +58,11 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 ## Current Gaps
 
-- Current customer sign-in/sign-up pages are frontend-only `localStorage` account/session flows. They are intentionally retained for now but are not server-enforced auth and must not protect admin, order, payment, customer, or stock management workflows.
+- Public customer account pages remain placeholders. The storefront no longer stores browser-side account records or password hashes; the signup page saves only temporary name/email profile metadata in `sessionStorage` until real server-backed customer accounts are designed.
 - Staff usernames now use the dedicated backend-backed `https://portal.stroanesolutions.com/login` route. Legacy apex `/signin` and `/admin/*` entries hand off to the portal host, and staff accounts remain database-backed rather than CSV-backed at runtime.
 - Backend `SiteUser` access should remain private and seeded as one `ADMIN` and one `VIEWER` account until a proper admin surface is approved.
 - `APP_AUTH_SECRET` is required for backend `SiteUser` token signing and must remain server-side.
-- Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for bearer authorization. The current bearer token stays in portal-origin `sessionStorage`, so it is not shared with the public storefront. It remains transitional and should be reviewed before expanding staff account management. Do not add a `.stroanesolutions.com` parent-domain auth cookie without a dedicated CSRF/subdomain-risk review.
+- Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for authorization. The portal stores profile metadata in `sessionStorage`, while the auth credential lives in an HttpOnly cookie. Do not widen the cookie domain or switch to `SameSite=None` without a dedicated CSRF/subdomain-risk review.
 - Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.
@@ -92,4 +92,4 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 ## Next Recommended Step
 
-Add a payment event/notification log plus Railway/provider-level rate limiting, then design a lightweight authenticated stock/admin update flow before enabling public purchasing broadly.
+Add a payment event/notification log plus Railway/provider-level rate limiting, then design a database least-privilege/RLS rollout with explicit per-request organization/user context before enabling broader customer account or staff-management features.

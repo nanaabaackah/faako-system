@@ -69,16 +69,18 @@ The publish folder is `apps/faako-erp/dist`. Cloudflare Pages reads the static h
 
 ## Demo Access Popup
 
-The demo access gate defaults to local preview mode, so the static Cloudflare Pages deployment does not need a server function for popup access codes.
+The demo access gate must use a server-owned API. Access codes are generated, hashed, stored, and emailed by the Faako API; they must never be generated or displayed by the browser.
 
 Browser-safe configuration:
 
-- `VITE_FAAKO_ERP_DEMO_ACCESS_MODE=local`
+- `VITE_FAAKO_ERP_DEMO_ACCESS_MODE=api`
 - `VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT=/api/demo-access`
 
-Set `VITE_FAAKO_ERP_DEMO_ACCESS_MODE=api` only if a dedicated worker/API is reintroduced. That server-side API would own:
+The server-side Faako API owns:
 
 - `FAAKO_ERP_DEMO_ACCESS_SECRET`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `RESEND_FROM_NAME` (optional)
+
+The browser stores only non-sensitive demo session metadata such as email, scenario, and expiry. Do not add access tokens, preview codes, shared secrets, or email-provider credentials to browser storage or `VITE_*` variables.

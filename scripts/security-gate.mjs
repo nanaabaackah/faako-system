@@ -119,6 +119,45 @@ const scanEnvExamples = (appDir) => {
   return findings;
 };
 
+const isTestSourceFile = (filePath) => /\.(test|spec)\.[cm]?[jt]sx?$/.test(filePath);
+
+const scanSourceForSensitivePublicEnv = (appDir) => {
+  const sourceFiles = walkFiles(path.join(appDir, "src"));
+  const findings = [];
+  const viteEnvPattern = /\bVITE_[A-Z0-9_]+\b/g;
+
+  sourceFiles.forEach((filePath) => {
+    if (isTestSourceFile(filePath)) return;
+
+    const content = readIfExists(filePath);
+    const matches = content.match(viteEnvPattern) || [];
+    const sensitiveKeys = [...new Set(matches.filter((key) => isSensitivePublicEnvKey(key)))];
+
+    sensitiveKeys.forEach((key) => {
+      findings.push(`${path.relative(rootDir, filePath)} -> ${key}`);
+    });
+  });
+
+  return findings;
+};
+
+const scanSourceForBrowserVisibleAccessCodes = (appDir) => {
+  const sourceFiles = walkFiles(path.join(appDir, "src"));
+  const findings = [];
+  const browserCodeLeakPattern = /\b(previewCode|createPreviewCode|resolveLocalDemoAccess|browser-visible access code)\b/i;
+
+  sourceFiles.forEach((filePath) => {
+    if (isTestSourceFile(filePath)) return;
+
+    const content = readIfExists(filePath);
+    if (browserCodeLeakPattern.test(content)) {
+      findings.push(path.relative(rootDir, filePath));
+    }
+  });
+
+  return findings;
+};
+
 const getAppDirectories = () =>
   fs.readdirSync(appsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -171,6 +210,14 @@ for (const appDir of getAppDirectories()) {
 
   scanEnvExamples(appDir).forEach((entry) => {
     findings.push(`[env] ${appLabel}: suspicious client-visible env key ${entry}`);
+  });
+
+  scanSourceForSensitivePublicEnv(appDir).forEach((entry) => {
+    findings.push(`[env-source] ${appLabel}: sensitive client-visible env key ${entry}`);
+  });
+
+  scanSourceForBrowserVisibleAccessCodes(appDir).forEach((filePath) => {
+    findings.push(`[demo-access] ${appLabel}: browser-visible access-code logic found in ${filePath}`);
   });
 }
 

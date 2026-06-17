@@ -14,7 +14,8 @@ Faako API is the Express backend for the current Faako signup flow. It owns the 
 Current endpoints:
 
 - `GET /health` and `GET /api/health`
-- `POST /signup` and `POST /api/signup` - accepts client onboarding intake submissions, persists the existing signup compatibility records, generates a PDF summary, and sends client/admin email copies when Resend is configured
+- `POST /signup` and `POST /api/signup` - accepts client onboarding and client setup form submissions, persists the existing signup compatibility records, generates a PDF summary, and sends client/admin email copies when Resend is configured
+- `POST /api/demo-access` - server-owned Faako ERP demo access flow; generates a short-lived code, stores only its HMAC hash, emails the code through Resend, rate-limits request/verify attempts, and never returns the code to the browser
 
 ## Run It Locally
 
@@ -40,7 +41,10 @@ pnpm --filter @faako/faako-api run prisma:generate
 pnpm --filter @faako/faako-api run prisma:migrate
 pnpm --filter @faako/faako-api run prisma:migrate:deploy
 pnpm --filter @faako/faako-api run prisma:migrate:status
+pnpm --filter @faako/faako-api run predeploy:local
 ```
+
+Use `predeploy:local` before shipping changes that touch signup persistence or Prisma migrations. It loads `.env.dev`, applies pending migrations to the local/development Faako API database, then checks migration status.
 
 ## Configuration
 
@@ -54,6 +58,7 @@ Important behavior:
 - keep `EXPOSE_DEBUG_ERRORS=false` outside local debugging
 - `VITE_*` values do not belong here because this package is backend-only
 - configure `RESEND_API_KEY` plus `FAAKO_ONBOARDING_FROM_EMAIL` and `FAAKO_ONBOARDING_ADMIN_EMAIL` for onboarding PDF/email copies
+- configure `FAAKO_ERP_DEMO_ACCESS_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and optional `RESEND_FROM_NAME` for Faako ERP demo access emails
 - never add public intake fields for Paystack/Resend/WhatsApp/SMS API keys, passwords, tokens, private email credentials, or bank login details
 
 ## Relationship To Faako Website

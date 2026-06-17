@@ -1,16 +1,16 @@
 .search-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 5rem 1.5rem;
+  padding: 0 1.5rem 5rem;
 }
 
 .search-header {
-  min-height: 20dvh;
+  min-height: 100dvh;
   margin-bottom: 3rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 6rem 0 4rem;
+  padding: calc(72px + 3rem) 0 4rem;
 }
 
 .search-kicker {
@@ -157,7 +157,8 @@
   }
 
   .search-header {
-    padding: 5rem 0 3rem;
+    min-height: 100dvh;
+    padding: calc(72px + 2rem) 0 3rem;
   }
 
   .search-empty {

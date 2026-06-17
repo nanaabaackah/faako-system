@@ -5,6 +5,7 @@ import {
   createFaakoApiSecurityHeadersMiddleware,
   isFaakoApiAllowedOrigin,
 } from "./security/securityHeaders.js";
+import { createDemoAccessHandler } from "./demoAccess.js";
 
 const require = createRequire(import.meta.url);
 const { handler: signupHandler } = require("./signup.cjs");
@@ -50,6 +51,7 @@ const handleSignup = async (req, res) => {
 };
 
 app.post(["/api/signup", "/signup"], handleSignup);
+app.post("/api/demo-access", express.json({ limit: "8kb" }), createDemoAccessHandler());
 
 app.listen(port, () => {
   console.log(`Faako API listening on ${port}`);

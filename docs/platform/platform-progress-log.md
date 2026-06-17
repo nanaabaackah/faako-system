@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Cross-app local predeploy and dev email routing
+
+Date: 2026-06-16
+Change name: Cross-app local predeploy and dev email routing
+Apps/packages affected: Dev ERP, Faako API, Faako Website env template, REEBS Portal, REEBS Website local env, Stroane Web, platform scripts/docs
+What changed: Added `predeploy:local` scripts to the Prisma-backed apps and root shortcuts for Dev ERP, Faako API, REEBS Portal, Stroane Web, plus `pnpm run predeploy:local` for all local app migrations. Local/non-production email delivery now forces test sends to `dev@nanaabaackah.com` by default across Dev ERP, Faako signup/demo access, REEBS notifications, and Stroane order/inventory email senders.
+Why it changed: Local migration checks should be consistent across app databases, and local test emails must not reach customer/input addresses.
+Files changed: Root and app package scripts, app email sender helpers, local/example env defaults, focused email tests, and app pre-deploy checklists.
+Data impact: No schema or data changes in this patch. The new all-app command applies pending local/development migrations only when explicitly run.
+Security impact: Positive. Non-production email sends are less likely to leak to customer addresses, and redirected messages are visibly marked as local tests.
+Testing done: Package JSON parse checks passed. Syntax checks passed for the touched Faako, REEBS, and Stroane email modules. Focused Node tests passed with 20 tests. `git diff --check` passed.
+Rollback notes: Revert the script additions and email routing helpers/env defaults if needed. No data rollback is required unless the new predeploy migration command has been run separately.
+Next step: Run `pnpm run predeploy:local` only when ready to apply pending migrations to every configured local/development app database.
+
+### Cross-app security hardening pass
+
+Date: 2026-06-16
+Change name: Cross-app security hardening pass
+Apps/packages affected: Faako ERP, Faako API, Stroane Web, REEBS Portal, platform security tooling/docs
+What changed: Removed browser-visible Faako ERP demo codes and moved demo access to the Faako API email-code route. Moved Stroane admin auth to HttpOnly cookies with legacy bearer fallback, removed storefront browser-side customer password-hash storage, and updated portal clients to use credentialed cookie requests. Replaced REEBS customer wildcard CORS responses with allowlisted security headers and hardened the water MoMo webhook to require header-based shared-secret delivery. Expanded `security:gate` to detect sensitive `VITE_*` source usage and browser-visible demo access-code patterns.
+Why it changed: Access codes, staff auth tokens, customer password hashes, customer data CORS, and webhook secrets are high-risk surfaces that should not be exposed in browser-readable paths or arbitrary-origin responses.
+Files changed: Faako API/ERP demo access files, Stroane auth/backend/portal customer-profile files, REEBS customer/webhook functions, `scripts/security-gate.mjs`, app READMEs, app security/progress/implementation docs, and this platform log.
+Data impact: No schema migrations or database writes. Browser storage shape changed for Faako demo sessions and Stroane portal/customer placeholder sessions; old token fields are normalized away by the frontend.
+Security impact: Positive. Codes are backend-generated/emailed, admin credentials moved to HttpOnly cookies, customer password storage was removed from the storefront, customer API CORS now uses allowlists, webhook secrets no longer travel in URLs/bodies, and the security gate now catches more browser-exposure regressions. Postgres RLS was documented as a staged per-app rollout rather than enabled unsafely across the monorepo.
+Testing done: `node --test apps/faako-api/src/demoAccess.test.mjs apps/stroane-web/backend/auth.test.js` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm run security:gate` passed. `pnpm run security:scan` passed. Syntax checks passed for the touched Faako API, Stroane auth, and REEBS function files.
+Rollback notes: Revert app-specific changes if an integration needs an emergency hotfix, but do not restore browser-visible demo codes, customer password storage, wildcard customer CORS, or URL/body webhook secrets as permanent behavior.
+Next step: Add explicit CSRF tokens before widening Stroane admin cookie scope, then design staged least-privilege/RLS policies per Postgres app with request-level tenant context and tests.
+
 ### Cross-app non-interruptive update notice and docs skill
 
 Date: 2026-06-15

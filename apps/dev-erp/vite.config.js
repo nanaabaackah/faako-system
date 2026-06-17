@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
+import { createGoogleAnalyticsHtmlPlugin } from '../../scripts/vite/googleAnalyticsHtml.mjs'
 import { createManualChunks } from '../../scripts/vite/manualChunks.mjs'
 
 // https://vitejs.dev/config/
@@ -10,7 +11,15 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8080'
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      createGoogleAnalyticsHtmlPlugin({
+        measurementId: env.VITE_GA_MEASUREMENT_ID,
+        fallbackMeasurementId: env.VITE_GA_ID,
+        enableInDevelopment: env.VITE_ENABLE_GA_IN_DEV,
+        mode,
+      }),
+    ],
     resolve: {
       alias: {
         '@faako/config': fileURLToPath(new URL('../../packages/config/src', import.meta.url)),

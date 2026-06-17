@@ -7,7 +7,13 @@ import {
   HiOutlineSun,
   HiOutlineUserCircle,
 } from "react-icons/hi";
-import { ERPFormNotice } from "@faako/ui";
+import {
+  ERPFormNotice,
+  ERPPrimaryAction,
+  ERPSecondaryAction,
+  ERPTextareaField,
+  ERPTextField,
+} from "@faako/ui";
 import {
   getAdminDisplayName,
   type AdminAppearancePreference,
@@ -16,6 +22,7 @@ import {
 import { portalUrl } from "../../config/appSurface";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import useSEOMeta from "../../hooks/useSEOMeta";
+import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
 import "../styles/AdminPortal.css";
 
 const MAX_AVATAR_FILE_BYTES = 350000;
@@ -143,10 +150,19 @@ const AdminPortalProfile: React.FC = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSaving(true);
     setMessage("");
     setError("");
 
+    if (form.personalEmail.trim() && !isLikelyEmail(form.personalEmail)) {
+      setError("Add a valid personal email address.");
+      return;
+    }
+    if (form.phone.trim() && !isLikelyPhone(form.phone)) {
+      setError("Add a valid phone number.");
+      return;
+    }
+
+    setSaving(true);
     const payload: AdminProfileUpdatePayload = {
       username: form.username,
       firstName: form.firstName,
@@ -226,31 +242,25 @@ const AdminPortalProfile: React.FC = () => {
               <h2>Dashboard name</h2>
             </div>
             <div className="stroane-portal-profile__fields">
-              <label>
-                <span>First name</span>
-                <input
-                  value={form.firstName}
-                  onChange={(event) => updateField("firstName", event.target.value)}
-                  autoComplete="given-name"
-                />
-              </label>
-              <label>
-                <span>Last name</span>
-                <input
-                  value={form.lastName}
-                  onChange={(event) => updateField("lastName", event.target.value)}
-                  autoComplete="family-name"
-                />
-              </label>
-              <label>
-                <span>Username</span>
-                <input
-                  value={form.username}
-                  onChange={(event) => updateField("username", event.target.value)}
-                  autoComplete="username"
-                  required
-                />
-              </label>
+              <ERPTextField
+                label="First name"
+                value={form.firstName}
+                onChange={(event) => updateField("firstName", event.target.value)}
+                autoComplete="given-name"
+              />
+              <ERPTextField
+                label="Last name"
+                value={form.lastName}
+                onChange={(event) => updateField("lastName", event.target.value)}
+                autoComplete="family-name"
+              />
+              <ERPTextField
+                label="Username"
+                value={form.username}
+                onChange={(event) => updateField("username", event.target.value)}
+                autoComplete="username"
+                required
+              />
             </div>
           </section>
 
@@ -260,46 +270,48 @@ const AdminPortalProfile: React.FC = () => {
               <h2>Personal information</h2>
             </div>
             <div className="stroane-portal-profile__fields">
-              <label>
-                <span>Personal email</span>
-                <input
-                  type="email"
-                  value={form.personalEmail}
-                  onChange={(event) => updateField("personalEmail", event.target.value)}
-                  autoComplete="email"
-                />
-              </label>
-              <label>
-                <span>Phone</span>
-                <input
-                  value={form.phone}
-                  onChange={(event) => updateField("phone", event.target.value)}
-                  autoComplete="tel"
-                />
-              </label>
-              <label>
-                <span>Job title</span>
-                <input
-                  value={form.jobTitle}
-                  onChange={(event) => updateField("jobTitle", event.target.value)}
-                  autoComplete="organization-title"
-                />
-              </label>
-              <label>
-                <span>Department</span>
-                <input
-                  value={form.department}
-                  onChange={(event) => updateField("department", event.target.value)}
-                />
-              </label>
-              <label className="stroane-portal-profile__wide-field">
-                <span>Avatar URL</span>
-                <input
-                  value={form.avatarUrl.startsWith("data:") ? "Uploaded avatar" : form.avatarUrl}
-                  onChange={(event) => updateField("avatarUrl", event.target.value)}
-                  disabled={form.avatarUrl.startsWith("data:")}
-                />
-              </label>
+              <ERPTextField
+                label="Personal email"
+                type="email"
+                value={form.personalEmail}
+                onChange={(event) => updateField("personalEmail", event.target.value)}
+                autoComplete="email"
+              />
+              <ERPTextField
+                label="Phone"
+                type="tel"
+                value={form.phone}
+                onChange={(event) => updateField("phone", event.target.value)}
+                autoComplete="tel"
+                inputMode="tel"
+                pattern={PHONE_INPUT_PATTERN}
+                title="Use a valid phone number, for example +233 24 331 6192."
+              />
+              <ERPTextField
+                label="Job title"
+                value={form.jobTitle}
+                onChange={(event) => updateField("jobTitle", event.target.value)}
+                autoComplete="organization-title"
+              />
+              <ERPTextField
+                label="Department"
+                value={form.department}
+                onChange={(event) => updateField("department", event.target.value)}
+              />
+              <ERPTextField
+                fieldClassName="stroane-portal-profile__wide-field"
+                label="Avatar URL"
+                value={form.avatarUrl.startsWith("data:") ? "Uploaded avatar" : form.avatarUrl}
+                onChange={(event) => updateField("avatarUrl", event.target.value)}
+                disabled={form.avatarUrl.startsWith("data:")}
+              />
+              <ERPTextareaField
+                fieldClassName="stroane-portal-profile__wide-field"
+                label="Bio"
+                value={form.bio}
+                onChange={(event) => updateField("bio", event.target.value)}
+                rows={4}
+              />
             </div>
           </section>
 
@@ -327,10 +339,21 @@ const AdminPortalProfile: React.FC = () => {
           </section>
 
           <div className="stroane-portal-profile__actions">
-            <button type="submit" disabled={saving}>
-              <HiOutlineCheckCircle aria-hidden="true" />
-              <span>{saving ? "Saving profile" : "Save profile"}</span>
-            </button>
+            <ERPSecondaryAction
+              type="button"
+              onClick={() => updateField("avatarUrl", "")}
+              disabled={!form.avatarUrl || saving}
+            >
+              Clear avatar
+            </ERPSecondaryAction>
+            <ERPPrimaryAction
+              type="submit"
+              icon={<HiOutlineCheckCircle />}
+              loading={saving}
+              loadingLabel="Saving profile"
+            >
+              Save profile
+            </ERPPrimaryAction>
           </div>
         </div>
       </form>

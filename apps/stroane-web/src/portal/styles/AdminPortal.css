@@ -543,33 +543,40 @@
 
 .stroane-portal-overview__kpis {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 0.75rem;
   min-height: auto !important;
   justify-content: stretch !important;
   margin: 1rem 0;
 }
 
-.stroane-portal-overview__kpis a {
+.stroane-portal-overview__kpis a,
+.stroane-portal-overview__kpis button {
   display: grid;
   align-content: start;
   min-height: 148px;
   padding: 0.9rem;
   color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.stroane-portal-overview__kpis a:hover {
+.stroane-portal-overview__kpis a:hover,
+.stroane-portal-overview__kpis button:hover {
   border-color: var(--sys-accent);
   transform: translateY(-2px);
 }
 
-.stroane-portal-overview__kpis a:focus-visible {
+.stroane-portal-overview__kpis a:focus-visible,
+.stroane-portal-overview__kpis button:focus-visible {
   outline: 2px solid var(--sys-accent);
   outline-offset: 2px;
 }
 
-.stroane-portal-overview__kpis a > span {
+.stroane-portal-overview__kpis a > span,
+.stroane-portal-overview__kpis button > span {
   display: grid;
   width: 2rem;
   height: 2rem;
@@ -581,17 +588,20 @@
   font-size: 1rem;
 }
 
-.stroane-portal-overview__kpis a[data-tone="success"] > span {
+.stroane-portal-overview__kpis a[data-tone="success"] > span,
+.stroane-portal-overview__kpis button[data-tone="success"] > span {
   background: var(--sys-success-soft);
   color: var(--sys-success);
 }
 
-.stroane-portal-overview__kpis a[data-tone="warning"] > span {
+.stroane-portal-overview__kpis a[data-tone="warning"] > span,
+.stroane-portal-overview__kpis button[data-tone="warning"] > span {
   background: var(--sys-warning-soft);
   color: var(--sys-warning);
 }
 
-.stroane-portal-overview__kpis a[data-tone="danger"] > span {
+.stroane-portal-overview__kpis a[data-tone="danger"] > span,
+.stroane-portal-overview__kpis button[data-tone="danger"] > span {
   background: var(--sys-danger-soft);
   color: var(--sys-danger);
 }
@@ -618,6 +628,162 @@
   font-size: 0.76rem;
   font-style: normal;
   line-height: 1.35;
+}
+
+.stroane-portal-overview__business {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: auto !important;
+  justify-content: stretch !important;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.stroane-portal-overview__business header > span {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.stroane-portal-overview__business h2 {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-primary);
+  font-size: 1.02rem;
+}
+
+.stroane-portal-overview__business > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.stroane-portal-overview__business a,
+.stroane-portal-overview__business button {
+  display: grid;
+  align-content: start;
+  gap: 0.42rem;
+  min-height: 126px;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.78rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 68%, transparent);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.stroane-portal-overview__business a:hover,
+.stroane-portal-overview__business a:focus-visible,
+.stroane-portal-overview__business button:hover,
+.stroane-portal-overview__business button:focus-visible {
+  border-color: var(--sys-accent);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.stroane-portal-overview__business a > span,
+.stroane-portal-overview__business button > span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--sys-radius-sm);
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.stroane-portal-overview__business a[data-tone="success"] > span,
+.stroane-portal-overview__business button[data-tone="success"] > span {
+  background: var(--sys-success-soft);
+  color: var(--sys-success);
+}
+
+.stroane-portal-overview__business a[data-tone="warning"] > span,
+.stroane-portal-overview__business button[data-tone="warning"] > span {
+  background: var(--sys-warning-soft);
+  color: var(--sys-warning);
+}
+
+.stroane-portal-overview__business a[data-tone="danger"] > span,
+.stroane-portal-overview__business button[data-tone="danger"] > span {
+  background: var(--sys-danger-soft);
+  color: var(--sys-danger);
+}
+
+.stroane-portal-overview__business small {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-portal-overview__business strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 1.28rem;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-portal-overview__business em {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.stroane-portal-overview__drilldown-modal.ui-erp-modal {
+  width: min(100%, 58rem);
+}
+
+.stroane-portal-overview__drilldown-list {
+  display: grid;
+  gap: 0.62rem;
+}
+
+.stroane-portal-overview__drilldown-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.76rem 0.85rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 66%, transparent);
+  color: var(--color-text-primary);
+}
+
+.stroane-portal-overview__drilldown-item:hover,
+.stroane-portal-overview__drilldown-item:focus-visible {
+  border-color: color-mix(in srgb, var(--sys-accent) 42%, var(--sys-border));
+  background: color-mix(in srgb, var(--sys-accent-soft) 48%, transparent);
+  outline: none;
+}
+
+.stroane-portal-overview__drilldown-item > span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.stroane-portal-overview__drilldown-item strong,
+.stroane-portal-overview__drilldown-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-portal-overview__drilldown-item strong {
+  font-size: 0.88rem;
+}
+
+.stroane-portal-overview__drilldown-item small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
 }
 
 .stroane-portal-overview__readiness {
@@ -1334,38 +1500,9 @@
   padding: 1rem;
 }
 
-.stroane-portal-profile__fields label {
+.stroane-portal-profile__fields .ui-erp-field-group {
   display: grid;
-  gap: 0.42rem;
   min-width: 0;
-}
-
-.stroane-portal-profile__fields label > span {
-  color: var(--color-text-muted);
-  font-size: 0.76rem;
-  font-weight: 800;
-}
-
-.stroane-portal-profile__fields input,
-.stroane-portal-profile__fields textarea {
-  width: 100%;
-  border: 1px solid var(--sys-border);
-  border-radius: var(--sys-radius-sm);
-  padding: 0.72rem 0.8rem;
-  background: var(--sys-surface-strong);
-  color: var(--color-text-primary);
-  outline: none;
-}
-
-.stroane-portal-profile__fields input:focus-visible,
-.stroane-portal-profile__fields textarea:focus-visible {
-  border-color: var(--sys-accent);
-  box-shadow: 0 0 0 3px var(--sys-accent-soft);
-}
-
-.stroane-portal-profile__fields input:disabled {
-  opacity: 0.72;
-  cursor: not-allowed;
 }
 
 .stroane-portal-profile__wide-field {
@@ -1425,18 +1562,16 @@
 
 .stroane-portal-profile__actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
   justify-content: flex-end;
 }
 
-.stroane-portal-profile__actions button {
+.stroane-portal-profile__actions .ui-erp-action {
   min-height: 46px;
-  border-color: transparent;
-  padding: 0 1rem;
-  background: var(--sys-accent);
-  color: var(--sys-accent-contrast);
 }
 
-.stroane-portal-profile__actions button:disabled {
+.stroane-portal-profile__actions .ui-erp-action:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -1572,8 +1707,13 @@
     grid-template-columns: 1fr;
   }
 
+  .stroane-portal-overview__business,
   .stroane-portal-overview__readiness {
     grid-template-columns: 1fr;
+  }
+
+  .stroane-portal-overview__business > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1598,6 +1738,11 @@
 
   .stroane-portal-overview__kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stroane-portal-overview__business > div,
+  .stroane-portal-overview__readiness > div {
+    grid-template-columns: 1fr;
   }
 
   .stroane-portal-overview__action-item {

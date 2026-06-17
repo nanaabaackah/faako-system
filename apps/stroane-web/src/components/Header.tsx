@@ -204,7 +204,8 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
               <a
                 href={PORTAL_LOGIN_URL}
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
-                aria-label="Sign in"
+                aria-label="Open admin portal"
+                title="Open admin portal"
               >
                 <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
               </a>
@@ -359,7 +360,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     onClick={() => setMenuOpen(false)}
                   >
                     <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
-                    <span>Sign in</span>
+                    <span>Admin portal</span>
                   </a>
                 )}
                 {externalNavigationBaseUrl ? (

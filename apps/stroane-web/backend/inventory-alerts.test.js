@@ -9,6 +9,7 @@ import {
 import {
   buildInventoryAlertWhatsAppMessage,
   prepareInventoryAlertWhatsApp,
+  sendInventoryAlertEmail,
 } from "./src/inventoryAlerts/notifications.js";
 import {
   createAdminInventoryAlertRouter,
@@ -138,6 +139,59 @@ test("prepares provider-neutral WhatsApp alerts without exposing recipients", as
 
   if (originalRecipients === undefined) delete process.env.STROANE_ALERT_WHATSAPP_NUMBERS;
   else process.env.STROANE_ALERT_WHATSAPP_NUMBERS = originalRecipients;
+});
+
+test("reroutes local inventory alert emails to the shared dev inbox", async () => {
+  const originalEnv = {
+    APP_ENV: process.env.APP_ENV,
+    NODE_ENV: process.env.NODE_ENV,
+    EMAIL_FORCE_TO: process.env.EMAIL_FORCE_TO,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    STROANE_ALERT_EMAILS: process.env.STROANE_ALERT_EMAILS,
+  };
+  const originalFetch = globalThis.fetch;
+  let payload = null;
+
+  process.env.APP_ENV = "development";
+  process.env.NODE_ENV = "development";
+  process.env.EMAIL_FORCE_TO = "dev@nanaabaackah.com";
+  process.env.RESEND_API_KEY = "re_test_key";
+  process.env.STROANE_ALERT_EMAILS = "owner@example.com";
+  globalThis.fetch = async (_url, options = {}) => {
+    payload = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({ id: "email_test" }),
+    };
+  };
+
+  try {
+    const result = await sendInventoryAlertEmail({
+      alerts: [
+        {
+          alertType: INVENTORY_ALERT_TYPES.LOW_STOCK,
+          inventoryItem: {
+            productSlug: "digital-probe",
+            product: activeProduct,
+          },
+          availableQuantity: 2,
+          reorderThreshold: 3,
+        },
+      ],
+    });
+
+    assert.deepEqual(payload.to, ["dev@nanaabaackah.com"]);
+    assert.match(payload.subject, /^\[Local test\]/);
+    assert.match(payload.text, /Original recipient\(s\): owner@example\.com/);
+    assert.equal(result.redirected, true);
+    assert.equal(result.requestedRecipientCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test("rejects scheduled alert checks when the cron secret is absent or incorrect", () => {

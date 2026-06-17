@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Layout from "../../components/Layout";
 import { useAuth } from "../../context/AuthContext";
-import { PORTAL_LOGIN_URL } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import "../styles/AccountPlaceholder.css";
 
@@ -44,9 +43,9 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
           {user ? (
             <p className="customer-account-placeholder__status">Signed in as {user.email}.</p>
           ) : (
-            <a className="customer-account-placeholder__action" href={PORTAL_LOGIN_URL}>
-              Sign in
-            </a>
+            <Link className="customer-account-placeholder__action" to="/signup">
+              Save a profile
+            </Link>
           )}
           <Link className="customer-account-placeholder__link" to="/catalogue">
             Browse catalogue

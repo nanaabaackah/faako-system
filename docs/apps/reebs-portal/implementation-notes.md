@@ -14,6 +14,8 @@ Capture technical notes, open questions, cleanup targets, and risks for REEBS Po
 - Inventory compatibility still depends on legacy source category and specific category relationships.
 - Variant-aware order, booking, scheduling, and invoicing flows should preserve `variantId` and `variantLabel`.
 - Secrets must stay out of `VITE_*` values.
+- Customer lookup/admin customer responses now use the shared allowlisted API security headers instead of wildcard CORS. Keep customer list/detail/order/booking payloads behind authenticated user context or the constrained public lookup response.
+- `water-momo-webhook` requires `X-Water-Webhook-Secret` instead of query-string/body secrets, compares it with `crypto.timingSafeEqual`, applies a warm-instance rate cap before database work, and uses the shared response-header builder. Do not place webhook secrets in URLs, browser code, or `VITE_*` variables.
 - `src/config/adminModules.js` defines the REEBS admin module registry for home, POS, orders, bookings, inventory, customers, delivery, finance, reports, team, settings, and detailed child navigation entries.
 - `src/config/adminNavigation.js` adapts the registry into the current sidebar and bottom navigation without changing route guards, backend access, or data behavior.
 - Registry metadata includes group, status, visibility, and state fields for future grouped rendering and module exposure controls, plus child modules for current detailed routes that should not be consolidated yet.

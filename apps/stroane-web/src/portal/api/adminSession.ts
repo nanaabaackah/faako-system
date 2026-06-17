@@ -19,7 +19,6 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
 
 export interface AdminSession {
   id?: string;
-  token: string;
   username: string;
   role: "ADMIN" | "VIEWER";
   firstName?: string;
@@ -55,15 +54,17 @@ const normalizeAppearancePreference = (value: unknown): AdminAppearancePreferenc
 const normalizeAdminSession = (candidate: unknown): AdminSession | null => {
   const parsed = candidate as AdminSession | null;
   if (
-    !parsed?.token ||
     !parsed?.username ||
     !["ADMIN", "VIEWER"].includes(parsed?.role)
   ) {
     return null;
   }
 
+  const safeParsed = { ...(parsed as AdminSession & { token?: string }) };
+  delete safeParsed.token;
+
   return {
-    ...parsed,
+    ...safeParsed,
     firstName: parsed.firstName || "",
     lastName: parsed.lastName || "",
     displayName:
@@ -91,7 +92,10 @@ export const getStoredAdminSession = (): AdminSession | null => {
 };
 
 export const storeAdminSession = (session: AdminSession) => {
-  window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+  const profile = { ...(session as AdminSession & { token?: string }) };
+  delete profile.token;
+  const { username, role } = profile;
+  window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ...profile, username, role }));
 };
 
 export const clearAdminSession = () => {
@@ -102,12 +106,12 @@ export const adminSessionApi = {
   async login(username: string, password: string): Promise<AdminSession> {
     const response = await fetch(apiPath("/api/auth/login"), {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
     const data = await parseJsonResponse<{
       ok: boolean;
-      token: string;
       username: string;
       role: "ADMIN" | "VIEWER";
     }>(response, "Unable to sign in.");
@@ -118,13 +122,13 @@ export const adminSessionApi = {
 
   async getCurrent(session: AdminSession): Promise<AdminSession> {
     const response = await fetch(apiPath("/api/auth/me"), {
-      headers: { Authorization: `Bearer ${session.token}` },
+      credentials: "include",
     });
     const data = await parseJsonResponse<{ ok: boolean; user: AdminSession }>(
       response,
       "Unable to load profile."
     );
-    const nextSession = normalizeAdminSession({ ...data.user, token: session.token });
+    const nextSession = normalizeAdminSession({ ...session, ...data.user });
     if (!nextSession) throw new Error("Unable to load profile.");
     return nextSession;
   },
@@ -133,10 +137,12 @@ export const adminSessionApi = {
     session: AdminSession,
     payload: AdminProfileUpdatePayload
   ): Promise<AdminSession> {
+    if (!session?.username) throw new Error("Sign in again to update your profile.");
+
     const response = await fetch(apiPath("/api/auth/me"), {
       method: "PATCH",
+      credentials: "include",
       headers: {
-        Authorization: `Bearer ${session.token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -145,6 +151,13 @@ export const adminSessionApi = {
     const nextSession = normalizeAdminSession(data);
     if (!nextSession) throw new Error("Unable to update profile.");
     return nextSession;
+  },
+
+  async logout(): Promise<void> {
+    await fetch(apiPath("/api/auth/logout"), {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => undefined);
   },
 };
 

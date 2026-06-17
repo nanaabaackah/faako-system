@@ -12,6 +12,12 @@ import {
 const getProposalTypeLabel = (value) =>
   PROPOSAL_TYPE_OPTIONS.find((option) => option.value === value)?.label || "Proposal";
 
+const getProposalYear = (proposal) => {
+  const date = new Date(proposal.preparedDate || proposal.updatedAt || Date.now());
+  const year = date.getFullYear();
+  return Number.isFinite(year) ? String(year) : String(new Date().getFullYear());
+};
+
 function ProposalExportSection({ block, children, className = "proposal-preview-section" }) {
   const sectionConfig = getProposalExportSectionConfig(block.type);
 
@@ -122,6 +128,7 @@ function ProposalPreview({ proposal }) {
   return (
     <article
       className={`proposal-preview proposal-preview--theme-${proposal.branding.theme}`}
+      style={{ "--proposal-accent": proposal.branding.accentColor || undefined }}
       aria-label={`${proposal.title} preview`}
       data-export-target={exportMetadata.target}
       data-export-template-version="foundation"
@@ -132,9 +139,17 @@ function ProposalPreview({ proposal }) {
         <span>{getProposalTypeLabel(proposal.proposalType)}</span>
       </header>
       <div className="proposal-preview__client" data-export-region="client-summary">
-        <p className="eyebrow">Prepared for</p>
-        <h1>{proposal.clientName || "Client name"}</h1>
-        <p>{proposal.title}</p>
+        <div className="proposal-cover-date">
+          <span>{getProposalYear(proposal)}</span>
+          <strong>Prepared for {proposal.clientName || "Client name"}</strong>
+        </div>
+        <span className="proposal-cover-rule" aria-hidden="true" />
+        <h1>{proposal.title || "Proposal title"}</h1>
+        {proposal.branding.tagline ? (
+          <p className="proposal-cover-subtitle">{proposal.branding.tagline}</p>
+        ) : null}
+        <span className="proposal-cover-rule" aria-hidden="true" />
+        <p className="proposal-cover-brand">{proposal.branding.businessName}</p>
       </div>
       <ProposalPersonalNote proposal={proposal} />
       {enabledBlocks.map((block) => (

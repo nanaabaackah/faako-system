@@ -49,6 +49,7 @@ export default function Footer({ footerLogo }) {
             <Link to="/about">About</Link>
             <Link to="/case-studies">Use Cases</Link>
             <Link to="/contact">Contact</Link>
+            <Link to="/client-setup">Client Setup Form</Link>
             <Link to="/signup">Get Started</Link>
           </div>
 

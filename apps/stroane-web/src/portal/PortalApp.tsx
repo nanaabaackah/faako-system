@@ -11,6 +11,7 @@ import { CartProvider } from "../context/CartContext";
 import { STOREFRONT_BASE_URL, storefrontUrl } from "../config/appSurface";
 import AdminPortalHome from "./pages/AdminPortalHome";
 import InventoryManagement from "./pages/InventoryManagement";
+import OrderManagement from "./pages/OrderManagement";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
 import AdminPortalProfile from "./pages/AdminPortalProfile";
 import AdminPortalSignIn from "./pages/AdminPortalSignIn";
@@ -42,10 +43,10 @@ const PortalApp: React.FC = () => (
             <Route index element={<AdminPortalHome />} />
             <Route path="profile" element={<AdminPortalProfile />} />
             <Route path="inventory" element={<InventoryManagement />} />
+            <Route path="orders" element={<OrderManagement />} />
             <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />
             <Route path="products" element={<AdminPortalPlaceholder area="products" />} />
             <Route path="operations" element={<AdminPortalPlaceholder area="operations" />} />
-            <Route path="orders" element={<AdminPortalPlaceholder area="operations" />} />
             <Route path="reports" element={<AdminPortalPlaceholder area="reports" />} />
             <Route path="settings" element={<AdminPortalPlaceholder area="settings" />} />
           </Route>

@@ -81,6 +81,16 @@ const Shop: React.FC = () => {
     () => catalogueProducts.filter(isPricedProduct),
     [catalogueProducts]
   );
+
+  useEffect(() => {
+    if (loading) return;
+
+    const pricedProductIds = new Set(pricedProducts.map((product) => product.id));
+    Object.keys(cart).forEach((productId) => {
+      if (!pricedProductIds.has(productId)) remove(productId);
+    });
+  }, [cart, loading, pricedProducts, remove]);
+
   const categoryProductCounts = useMemo(() => {
     const counts = new Map<Category | "All", number>([["All", pricedProducts.length]]);
     pricedProducts.forEach((product) => {
@@ -253,6 +263,18 @@ const Shop: React.FC = () => {
                 ]}
               />
             </label>
+            <label className="shop-control shop-control--select">
+              <span>Categories</span>
+              <SelectField
+                value={selectedCategory}
+                ariaLabel="Filter by category"
+                onChangeValue={(next) => handleCategoryChange(next as Category | "All")}
+                options={categoryOptions.map((category) => ({
+                  value: category,
+                  label: category,
+                }))}
+              />
+            </label>
           </div>
         </div>
 
@@ -272,38 +294,17 @@ const Shop: React.FC = () => {
         ) : null}
 
         <section className="shop-catalogue-overview" aria-label="Catalogue summary and categories">
+
           <div className="shop-product-count">
             <span>Showing</span>
             <strong>
               {filteredProducts.length} product{filteredProducts.length === 1 ? "" : "s"}
             </strong>
-            <small>
-              {selectedCategory !== "All" ? `In ${selectedCategory}` : "All categories"}
-              {query.trim() ? ` matching "${query.trim()}"` : ""}
-            </small>
             {hasActiveFilters ? (
               <button type="button" onClick={handleClearFilters}>
                 Reset filters
               </button>
             ) : null}
-          </div>
-
-          <div className="shop-category-tabs" aria-label="Product categories">
-            {categoryOptions.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={
-                  selectedCategory === category
-                    ? "shop-category-tab is-active"
-                    : "shop-category-tab"
-                }
-                onClick={() => handleCategoryChange(category)}
-              >
-                <span>{category}</span>
-                <strong>{categoryProductCounts.get(category) || 0}</strong>
-              </button>
-            ))}
           </div>
         </section>
 
@@ -348,7 +349,7 @@ const Shop: React.FC = () => {
                       </Link>
                       {product.variants?.length ? (
                         <p className="shop-product-card__meta">
-                          {product.variants.length} option{product.variants.length === 1 ? "" : "s"} available for review
+                          {product.variants.length} option{product.variants.length === 1 ? "" : "s"} available
                         </p>
                       ) : null}
                       {stockDetail ? (

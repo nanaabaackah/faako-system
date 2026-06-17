@@ -27,7 +27,6 @@ const normalizeSession = (value) => {
 
   return {
     email,
-    accessToken: String(value.accessToken || "").trim(),
     grantedAt: String(value.grantedAt || "").trim(),
     expiresAt,
     scenarioId: normalizeDemoScenarioId(value.scenarioId || DEFAULT_DEMO_SCENARIO_ID),

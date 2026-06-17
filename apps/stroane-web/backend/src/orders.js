@@ -16,6 +16,13 @@ const sanitizeText = (value, maxLength) =>
 const isLikelyEmail = (value = "") =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ""));
 
+const isLikelyPhone = (value = "") => {
+  const normalized = String(value || "").trim();
+  if (!/^\+?[0-9][0-9\s().-]{6,24}$/.test(normalized)) return false;
+  const digits = normalized.replace(/\D/g, "");
+  return /^\d{7,15}$/.test(digits);
+};
+
 const toMoneyNumber = (value) => {
   const amount = Number(value);
   return Number.isFinite(amount) ? Number(amount.toFixed(2)) : 0;
@@ -30,6 +37,22 @@ const toPaymentStatus = (value = "payment_pending") =>
 const normalizePreferredContactMethod = (value = "email") => {
   const normalized = String(value || "email").trim().toLowerCase();
   return ["email", "phone", "whatsapp"].includes(normalized) ? normalized : "email";
+};
+
+const normalizeFulfillmentMethod = (value = "delivery") => {
+  const normalized = String(value || "delivery").trim().toLowerCase();
+  return normalized === "pickup" ? "pickup" : "delivery";
+};
+
+const parseExpectedFulfillmentDate = ({ expectedDeliveryDate, pickupDate, pickupTime } = {}) => {
+  const explicitDate = sanitizeText(expectedDeliveryDate, 40);
+  const date = explicitDate || sanitizeText(pickupDate, 20);
+  if (!date) return null;
+
+  const time = sanitizeText(pickupTime, 12) || "00:00";
+  const dateValue = explicitDate.includes("T") ? explicitDate : `${date}T${time}:00`;
+  const parsed = new Date(dateValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const compactObject = (value = {}) =>
@@ -107,6 +130,7 @@ const getPurchaseBlocker = (product, quantity) => {
 
 const validateCheckoutPayload = (payload = {}) => {
   const customer = payload.customer || {};
+  const fulfillment = payload.fulfillment || {};
   const website = sanitizeText(payload.website, 200);
   const name = sanitizeText(customer.name, 120);
   const email = sanitizeText(customer.email, 160);
@@ -115,14 +139,47 @@ const validateCheckoutPayload = (payload = {}) => {
   const businessName = sanitizeText(customer.businessName, 160);
   const deliveryAddress = sanitizeText(customer.deliveryAddress, 240);
   const deliveryNotes = sanitizeText(customer.deliveryNotes, 500);
+  const fulfillmentMethod = normalizeFulfillmentMethod(
+    payload.fulfillmentMethod ||
+      payload.deliveryMethod ||
+      fulfillment.method ||
+      customer.fulfillmentMethod
+  );
+  const pickupLocationId = sanitizeText(
+    payload.pickupLocationId || fulfillment.pickupLocationId || customer.pickupLocationId,
+    80
+  );
+  const pickupLocationName = sanitizeText(
+    payload.pickupLocationName || fulfillment.pickupLocationName || customer.pickupLocationName,
+    160
+  );
+  const pickupDate = sanitizeText(payload.pickupDate || fulfillment.pickupDate, 20);
+  const pickupTime = sanitizeText(payload.pickupTime || fulfillment.pickupTime, 12);
+  const expectedDeliveryDate = parseExpectedFulfillmentDate({
+    expectedDeliveryDate: payload.expectedDeliveryDate || fulfillment.expectedDeliveryDate,
+    pickupDate,
+    pickupTime,
+  });
   const items = Array.isArray(payload.items) ? payload.items : [];
 
   const errors = [];
   if (website) errors.push("Invalid checkout payload.");
   if (!name) errors.push("Name is required.");
   if (!email || !isLikelyEmail(email)) errors.push("A valid email is required.");
-  if (!phone) errors.push("Phone is required.");
-  if (!deliveryAddress) errors.push("Delivery address is required.");
+  if (!phone || !isLikelyPhone(phone)) errors.push("A valid phone number is required.");
+  if (!deliveryAddress) {
+    errors.push(
+      fulfillmentMethod === "pickup"
+        ? "Choose a pickup location."
+        : "Delivery address is required."
+    );
+  }
+  if (fulfillmentMethod === "pickup" && !pickupLocationName) {
+    errors.push("Choose a pickup location.");
+  }
+  if (fulfillmentMethod === "pickup" && (!pickupDate || !pickupTime || !expectedDeliveryDate)) {
+    errors.push("Choose a pickup date and time.");
+  }
   if (!items.length) errors.push("Add at least one product to checkout.");
 
   const normalizedItems = items
@@ -162,6 +219,15 @@ const validateCheckoutPayload = (payload = {}) => {
     },
     items: normalizedItems,
     source: sanitizeText(payload.source, 80) || "checkout",
+    deliveryMethod: fulfillmentMethod,
+    expectedDeliveryDate,
+    fulfillment: {
+      method: fulfillmentMethod,
+      pickupLocationId: pickupLocationId || null,
+      pickupLocationName: pickupLocationName || null,
+      pickupDate: pickupDate || null,
+      pickupTime: pickupTime || null,
+    },
   };
 };
 
@@ -213,6 +279,9 @@ export const prepareCommerceOrder = async (prisma, payload = {}) => {
     status: "PAYMENT_PENDING",
     customer: normalized.customer,
     source: normalized.source,
+    deliveryMethod: normalized.deliveryMethod,
+    expectedDeliveryDate: normalized.expectedDeliveryDate,
+    fulfillment: normalized.fulfillment,
     currency: "GHS",
     subtotal,
     total: subtotal,
@@ -271,6 +340,11 @@ export const toPublicCommerceOrder = (order) => ({
   orderNumber: order.orderNumber,
   status: toOrderStatus(order.status),
   preferredContactMethod: order.preferredContactMethod || undefined,
+  deliveryMethod: order.deliveryMethod || undefined,
+  expectedDeliveryDate:
+    order.expectedDeliveryDate instanceof Date
+      ? order.expectedDeliveryDate.toISOString()
+      : order.expectedDeliveryDate || undefined,
   currency: order.currency || "GHS",
   subtotal: toMoneyNumber(order.subtotal),
   total: toMoneyNumber(order.total),

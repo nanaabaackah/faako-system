@@ -23,6 +23,32 @@ Next step:
 
 ## Entries
 
+### Faako API local predeploy migration script
+
+Date: 2026-06-16
+Feature/change name: Faako API local predeploy migration script
+What changed: Added `predeploy:local` to `@faako/faako-api` and root shortcuts `predeploy:faako-api`/`predeploy:faako`. Updated Prisma scripts to load `.env.dev`, and aligned `prisma.config.ts` with the API runtime database precedence so local migration commands target `DATABASE_URL_DEVELOPMENT`/`DATABASE_URL_LOCAL` in development instead of silently using `DATABASE_URL`.
+Why it changed: Signup submissions failed when the API runtime pointed at a development database that had not received the `SignupRequest` migrations, while the previous Prisma command path could target a different database.
+Files changed: package.json, apps/faako-api/package.json, apps/faako-api/prisma.config.ts, apps/faako-api/README.md, docs/apps/faako-api/pre-deploy-checklist.md, docs/apps/faako-api/progress-log.md.
+Data impact: Applied existing Faako API migrations to the configured development database. No destructive migration was introduced.
+Security impact: Positive. Development migration commands now follow the same production-safety guard as the API runtime and avoid accidental production targeting unless explicitly allowed.
+Testing done: `pnpm --filter @faako/faako-api run prisma:migrate:deploy` applied all pending migrations to the configured dev database. `pnpm --filter @faako/faako-api run predeploy:local` completed with "No pending migrations to apply" and "Database schema is up to date!".
+Rollback notes: Revert script/config/docs changes if another migration workflow replaces this one. Do not roll back the already-applied development migrations unless intentionally resetting that dev database.
+Next step: Use `pnpm run predeploy:faako-api` before future Faako API deploys that touch signup persistence or Prisma migrations.
+
+### ERP demo access API hardening
+
+Date: 2026-06-16
+Feature/change name: ERP demo access API hardening
+What changed: Added the server-owned `POST /api/demo-access` flow for Faako ERP demo access. The API now generates six-digit codes server-side, stores only an HMAC hash per challenge, emails codes through Resend, verifies with timing-safe comparison, rate-limits request and verification attempts, and fails closed in production if the demo signing secret is missing.
+Why it changed: The ERP demo must not generate or display access codes in the browser. Access-code delivery and verification belongs to the backend.
+Files changed: apps/faako-api/src/demoAccess.js, apps/faako-api/src/server.js, apps/faako-api/src/demoAccess.test.mjs, apps/faako-api/appSystem.js, apps/faako-api/README.md, docs/apps/faako-api/progress-log.md, docs/apps/faako-api/implementation-notes.md.
+Data impact: No database migration or persisted data change. Demo challenges are in-memory and expire.
+Security impact: Positive. Browser-visible demo codes were removed from the architecture; code hashes, rate limits, server-side Resend delivery, and production secret enforcement were added.
+Testing done: `node --test apps/faako-api/src/demoAccess.test.mjs apps/stroane-web/backend/auth.test.js` passed. `pnpm run security:gate` passed. `pnpm run security:scan` passed. `node --check apps/faako-api/src/demoAccess.js` passed.
+Rollback notes: Revert the demo access route/handler/tests and return Faako ERP to a disabled API-only state. Do not restore browser-generated preview codes.
+Next step: Configure `FAAKO_ERP_DEMO_ACCESS_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and the deployed ERP origin before public demo sharing.
+
 ### Client onboarding intake wizard with PDF and email copy
 
 Date: 2026-05-21

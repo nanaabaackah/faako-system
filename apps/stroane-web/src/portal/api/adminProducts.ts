@@ -14,13 +14,15 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
   return body as T;
 };
 
-const authHeaders = (session: AdminSession) => ({
-  Authorization: `Bearer ${session.token}`,
+const authRequest = (_session: AdminSession): RequestInit => ({
+  credentials: "include",
 });
 
-const jsonAuthHeaders = (session: AdminSession) => ({
-  ...authHeaders(session),
-  "Content-Type": "application/json",
+const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 const withQuery = (path: string, filters: object = {}) => {
@@ -124,7 +126,7 @@ export interface AdminProductSupplierPayload {
 export const adminProductsApi = {
   async listProducts(session: AdminSession, filters: AdminProductFilters = {}) {
     const response = await fetch(withQuery("/api/admin/products", filters), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     return parseJsonResponse<{ products: AdminProduct[]; categories: AdminProductCategory[] }>(
       response,
@@ -134,7 +136,7 @@ export const adminProductsApi = {
 
   async getProduct(session: AdminSession, id: string): Promise<AdminProduct> {
     const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}`), {
-      headers: authHeaders(session),
+      ...authRequest(session),
     });
     const data = await parseJsonResponse<{ product: AdminProduct }>(
       response,
@@ -150,7 +152,7 @@ export const adminProductsApi = {
   ): Promise<AdminProduct> {
     const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}`), {
       method: "PATCH",
-      headers: jsonAuthHeaders(session),
+      ...jsonAuthRequest(session),
       body: JSON.stringify(payload),
     });
     const data = await parseJsonResponse<{ product: AdminProduct }>(
@@ -167,7 +169,7 @@ export const adminProductsApi = {
   ): Promise<AdminProduct> {
     const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}/publishing`), {
       method: "PATCH",
-      headers: jsonAuthHeaders(session),
+      ...jsonAuthRequest(session),
       body: JSON.stringify(payload),
     });
     const data = await parseJsonResponse<{ product: AdminProduct }>(
@@ -184,7 +186,7 @@ export const adminProductsApi = {
   ): Promise<AdminProduct> {
     const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}/suppliers`), {
       method: "PATCH",
-      headers: jsonAuthHeaders(session),
+      ...jsonAuthRequest(session),
       body: JSON.stringify(payload),
     });
     const data = await parseJsonResponse<{ product: AdminProduct }>(

@@ -13,11 +13,20 @@ const parseRecipients = (value) =>
     .filter(Boolean);
 
 test("resolveLocalEmailRecipient prefers DEFAULT_ADMIN_EMAIL when valid", () => {
-  assert.equal(resolveLocalEmailRecipient("admin@example.com"), "admin@example.com");
+  assert.equal(resolveLocalEmailRecipient("admin@example.com", {}), "admin@example.com");
+});
+
+test("resolveLocalEmailRecipient prefers EMAIL_FORCE_TO when valid", () => {
+  assert.equal(
+    resolveLocalEmailRecipient("admin@example.com", {
+      EMAIL_FORCE_TO: "dev@nanaabaackah.com",
+    }),
+    "dev@nanaabaackah.com"
+  );
 });
 
 test("resolveLocalEmailRecipient falls back when DEFAULT_ADMIN_EMAIL is invalid", () => {
-  assert.equal(resolveLocalEmailRecipient("not-an-email"), "dev@nanaabaackah.com");
+  assert.equal(resolveLocalEmailRecipient("not-an-email", {}), "dev@nanaabaackah.com");
 });
 
 test("resolveEmailDeliveryRecipients preserves recipients in production", () => {
@@ -41,6 +50,7 @@ test("resolveEmailDeliveryRecipients reroutes local delivery to DEFAULT_ADMIN_EM
     parseRecipients,
     isProduction: false,
     defaultAdminEmail: "admin@example.com",
+    env: {},
   });
 
   assert.deepEqual(delivery, {
@@ -56,6 +66,7 @@ test("resolveEmailDeliveryRecipients does not mark reroute when local recipient 
     parseRecipients,
     isProduction: false,
     defaultAdminEmail: "admin@example.com",
+    env: {},
   });
 
   assert.deepEqual(delivery, {
@@ -70,6 +81,7 @@ test("resolveSingleEmailDeliveryTarget reroutes local single-recipient sends", (
     recipient: "tenant@example.com",
     isProduction: false,
     defaultAdminEmail: "admin@example.com",
+    env: {},
   });
 
   assert.deepEqual(delivery, {

@@ -147,11 +147,19 @@ const ProductDetail: React.FC = () => {
       <Layout>
         <div className="product-detail-page">
           <div className="product-detail__missing">
-            <h1>Product unavailable</h1>
-            <p>This product will appear in the storefront once its price has been set.</p>
-            <Link to="/shop" className="ui-button ui-button--primary">
-              Back to shop
-            </Link>
+            <h1>Product not available online</h1>
+            <p>
+              This item is still being reviewed for storefront pricing and is not shown in
+              the public shopping flow yet.
+            </p>
+            <div className="product-detail__missing-actions">
+              <Link to="/shop" className="ui-button ui-button--primary">
+                View priced products
+              </Link>
+              <Link to="/contact" className="ui-button ui-button--secondary">
+                Contact Stroane
+              </Link>
+            </div>
           </div>
         </div>
       </Layout>

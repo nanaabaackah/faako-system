@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { hashPassword, signToken, verifyToken, safeVerifyPassword } from "../auth.js";
+import {
+  clearAdminAuthCookie,
+  getRequestAuthToken,
+  hashPassword,
+  safeVerifyPassword,
+  setAdminAuthCookie,
+  signToken,
+  verifyToken,
+} from "../auth.js";
 
 const MAX_USERNAME_LEN = 50;
 const MAX_PASSWORD_LEN = 100;
@@ -68,6 +76,19 @@ const normalizeOptionalEmail = (value) => {
   return normalized.toLowerCase();
 };
 
+const normalizeOptionalPhone = (value) => {
+  const normalized = normalizeOptionalText(value, PROFILE_FIELD_LIMITS.phone);
+  if (normalized === undefined || normalized === null) return normalized;
+  if (!/^\+?[0-9][0-9\s().-]{6,24}$/.test(normalized)) {
+    throw new Error("Phone must be a valid phone number");
+  }
+  const digits = normalized.replace(/\D/g, "");
+  if (!/^\d{7,15}$/.test(digits)) {
+    throw new Error("Phone must be a valid phone number");
+  }
+  return normalized;
+};
+
 const normalizeAppearancePreference = (value) => {
   if (value === undefined) return undefined;
   const normalized = String(value || "").trim().toLowerCase();
@@ -104,6 +125,8 @@ const normalizeProfileUpdatePayload = (body = {}) => {
     updates[field] =
       field === "personalEmail"
         ? normalizeOptionalEmail(body[field])
+        : field === "phone"
+        ? normalizeOptionalPhone(body[field])
         : normalizeOptionalText(body[field], maxLength);
   }
 
@@ -142,8 +165,7 @@ const toSessionUser = (user) => ({
 });
 
 const requireAdmin = (req, res, next) => {
-  const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  const token = getRequestAuthToken(req);
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   const payload = verifyToken(token);
@@ -156,8 +178,7 @@ const requireAdmin = (req, res, next) => {
 };
 
 const requireCurrentUser = (prisma) => async (req, res, next) => {
-  const auth = req.headers.authorization || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  const token = getRequestAuthToken(req);
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   const payload = verifyToken(token);
@@ -221,7 +242,14 @@ export const createAuthRouter = (prisma) => {
       return res.status(503).json({ error: "Admin authentication is not configured" });
     }
 
-    return res.json({ ok: true, token, ...toSessionUser(user) });
+    setAdminAuthCookie(res, token);
+
+    return res.json({ ok: true, ...toSessionUser(user) });
+  });
+
+  router.post("/logout", (_req, res) => {
+    clearAdminAuthCookie(res);
+    return res.json({ ok: true });
   });
 
   // GET /api/auth/me — current user's profile and preferences
@@ -253,7 +281,8 @@ export const createAuthRouter = (prisma) => {
         username: updatedUser.username,
         role: updatedUser.role,
       });
-      return res.json({ ok: true, token, ...toSessionUser(updatedUser) });
+      setAdminAuthCookie(res, token);
+      return res.json({ ok: true, ...toSessionUser(updatedUser) });
     } catch (error) {
       if (error.code === "P2002") {
         return res.status(409).json({ error: "That username is already taken" });

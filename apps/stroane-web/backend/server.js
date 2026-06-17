@@ -52,6 +52,7 @@ import {
   createAdminInventoryAlertRouter,
   createInternalInventoryAlertRouter,
 } from "./src/inventoryAlerts/routes.js";
+import { createAdminOrderRouter } from "./src/ordersAdmin/routes.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
@@ -322,6 +323,7 @@ app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
 
 // Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
 app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
@@ -480,6 +482,8 @@ app.post("/api/orders", checkoutRateLimit, async (req, res) => {
         businessName: preparedOrder.customer.businessName,
         deliveryAddress: preparedOrder.customer.deliveryAddress,
         deliveryNotes: preparedOrder.customer.deliveryNotes,
+        deliveryMethod: preparedOrder.deliveryMethod,
+        expectedDeliveryDate: preparedOrder.expectedDeliveryDate,
         currency: preparedOrder.currency,
         subtotal: preparedOrder.subtotal,
         total: preparedOrder.total,

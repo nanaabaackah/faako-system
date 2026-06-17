@@ -88,6 +88,10 @@ const normalizeClientProposalContent = (record) => {
       ...fallback.branding,
       ...(content.branding || {}),
     },
+    uploadedPdf:
+      content.uploadedPdf && typeof content.uploadedPdf === "object"
+        ? content.uploadedPdf
+        : null,
     personalNotes: {
       ...fallback.personalNotes,
       ...(content.personalNotes || {}),
@@ -188,8 +192,17 @@ function ProposalClientView() {
     () => (proposalRecord ? normalizeClientProposalContent(proposalRecord) : null),
     [proposalRecord]
   );
+  const uploadedPdf = previewProposal?.uploadedPdf || null;
+  const uploadedPdfUrl =
+    uploadedPdf && token
+      ? buildApiUrl(`/api/proposals/view/${encodeURIComponent(token)}/pdf`)
+      : "";
 
   const handleDownloadPdf = () => {
+    if (uploadedPdfUrl) {
+      window.open(uploadedPdfUrl, "_blank", "noopener");
+      return;
+    }
     window.print();
   };
 
@@ -273,13 +286,34 @@ function ProposalClientView() {
             </div>
             <div className="proposal-client-actions">
               <button className="button" type="button" onClick={handleDownloadPdf}>
-                Download PDF
+                {uploadedPdfUrl ? "Open PDF" : "Download PDF"}
               </button>
             </div>
           </header>
 
           <main className="proposal-client-main">
-            <ProposalPreview proposal={previewProposal} />
+            {uploadedPdfUrl ? (
+              <section
+                className="proposal-client-pdf-viewer"
+                aria-label={`${proposalRecord.title} PDF proposal`}
+              >
+                <div className="proposal-client-pdf-viewer__header">
+                  <div>
+                    <p className="eyebrow">Proposal PDF</p>
+                    <h2>{proposalRecord.title}</h2>
+                    {uploadedPdf.originalFileName || uploadedPdf.fileName ? (
+                      <span>{uploadedPdf.originalFileName || uploadedPdf.fileName}</span>
+                    ) : null}
+                  </div>
+                  <a className="button button-ghost" href={uploadedPdfUrl} target="_blank" rel="noreferrer">
+                    Open PDF
+                  </a>
+                </div>
+                <iframe src={uploadedPdfUrl} title={`${proposalRecord.title} PDF proposal`} />
+              </section>
+            ) : (
+              <ProposalPreview proposal={previewProposal} />
+            )}
             <section className="proposal-client-approval-panel" aria-labelledby="proposal-client-approval-title">
               <p className="eyebrow">Approval</p>
               <h2 id="proposal-client-approval-title">Review and approval</h2>

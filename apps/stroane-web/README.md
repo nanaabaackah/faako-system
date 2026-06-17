@@ -96,7 +96,8 @@ Stroane now has a lightweight commerce foundation, not a full ERP or Shopify-sty
 
 - Cart state persists product IDs and quantities only in browser `localStorage`.
 - The header/mobile navigation shows a cart count and links to `/checkout`.
-- Checkout collects customer contact and delivery details, then asks the customer to review before submitting.
+- Checkout collects customer contact details plus a delivery or pickup choice, then asks the customer to review before submitting.
+- Delivery checkout uses a searchable/selectable address field. Pickup checkout captures one of the configured pickup spots plus pickup date and time.
 - `POST /api/orders` creates a `PAYMENT_PENDING` order request when the commerce migration has been deployed.
 - The backend recalculates product prices from catalogue data; frontend totals are display-only.
 - Custom-order and price-unavailable products are hidden from the commerce grid and should use the product inquiry flow. Explicit out-of-stock, zero-available, and preorder-without-backorder products remain blocked from checkout. Unknown stock quantities are allowed for priced products in this interim storefront pass so Paystack/cart testing can continue while physical counts are entered.
@@ -104,7 +105,7 @@ Stroane now has a lightweight commerce foundation, not a full ERP or Shopify-sty
 
 The commerce order foundation is additive and uses Prisma/Postgres models for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`. It does not deduct inventory, manage warehouses, create fulfillment tasks, or run CRM automation. Automated customer messaging is currently limited to verified payment-confirmed email when the backend email provider is configured.
 
-The checkout backend validates server-side price, currency, explicit stock blockers, preorder policy, and quantity before order preparation and payment initialization. The inventory foundation now has additive supplier, inventory item, stock movement, adjustment/restock note, and audit-entry tables. This is still not a full warehouse system: checkout/order integration, automatic stock deduction, and stock reservation are future work.
+The checkout backend validates server-side price, currency, explicit stock blockers, preorder policy, fulfillment details, and quantity before order preparation and payment initialization. Fulfillment method is stored on `CommerceOrder.deliveryMethod`; pickup/delivery timing is stored on `CommerceOrder.expectedDeliveryDate`. The inventory foundation now has additive supplier, inventory item, stock movement, adjustment/restock note, and audit-entry tables. This is still not a full warehouse system: automatic stock deduction and stock reservation are future work.
 
 Paystack is the first payment provider for checkout. The checkout flow creates a pending order, asks the backend to initialize a Paystack transaction, redirects the customer to Paystack, then returns to `/checkout/return` where the frontend asks the backend for a customer-facing status check. The signed Paystack webhook is the trusted source for marking an order paid.
 
@@ -132,9 +133,9 @@ Stroane now keeps its browser surfaces intentionally separate:
 
 - Public storefront: `https://stroanesolutions.com` serves `/`, `/catalogue`, `/shop`, `/products`, `/products/:slug`, and informational pages with the public website layout.
 - Future customer account area: `/account`, `/orders`, and `/quotes` are safe placeholders. They do not render the operations shell and do not expose backend order data yet.
-- Internal operations portal: `https://portal.stroanesolutions.com` serves `/login` and `/admin`. Protected routes render inside the shared `@faako/ui` ERP shell after private staff authentication. Module routes such as `/admin/products`, `/admin/inventory`, `/admin/suppliers`, `/admin/operations`, `/admin/reports`, and `/admin/settings` are reset placeholders for the next rebuild.
+- Internal operations portal: `https://portal.stroanesolutions.com` serves `/login` and protected `/admin/*` routes inside the shared `@faako/ui` ERP shell after private staff authentication. Active modules are dashboard, inventory, orders, and profile. Suppliers, products, operations, reports, and settings remain placeholders until rebuilt.
 
-Public sign-in actions and the legacy storefront `/signin` route redirect to `https://portal.stroanesolutions.com/login`. `/signup` remains a public placeholder. Staff login uses backend `SiteUser` auth. The old portal `/admin/signin` path redirects to `/login` for bookmark compatibility.
+Public sign-in actions and the legacy storefront `/signin` route redirect to `https://portal.stroanesolutions.com/login`. `/signup` remains a public placeholder that stores only temporary name/email profile metadata in `sessionStorage`. Staff login uses backend `SiteUser` auth with an HttpOnly admin cookie. The old portal `/admin/signin` path redirects to `/login` for bookmark compatibility.
 
 Cloudflare Pages should build two surfaces from this workspace:
 
@@ -145,11 +146,11 @@ Storefront browsers do not fetch the lazy portal modules. Localhost keeps a comb
 
 Both storefront and portal shells mount `AppUpdateNotice` from `@faako/ui`. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts users to refresh when a newer deployed bundle exists and never auto-reloads an active cart, checkout form, inquiry, or portal edit.
 
-Private order management has been cleared from the portal shell for the module rebuild. `/admin/operations` and `/admin/orders` now render reset placeholders behind backend `SiteUser` login, not the public frontend-only customer sign-in/sign-up flow.
+The private order module at `/admin/orders` lists storefront/manual orders, creates manual orders from active priced products, edits fulfillment metadata, initializes Paystack links, and refreshes Paystack status. This module is protected by backend `SiteUser` auth; order writes and Paystack actions require admin access.
 
 ## Internal Product And Media Operations
 
-Authenticated staff can see product, inventory, supplier, and alert signals on the `/admin` dashboard. The dedicated `/admin/products` and `/admin/inventory` module pages are reset placeholders while the new module shape is rebuilt.
+Authenticated staff can see product, inventory, supplier, alert, and order signals on the `/admin` dashboard. Dashboard KPI cards open focused drilldown modals. The dedicated `/admin/inventory` module has stock value analytics, full-width table pagination, product management lightbox, movement recording, and autosave. The dedicated `/admin/orders` module handles current order operations. `/admin/products` and `/admin/suppliers` remain placeholders while their module shape is rebuilt.
 
 Public catalogue APIs still return active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
 
@@ -184,7 +185,7 @@ Checkout/payment integrity rules:
 - Browser callback verification is not final payment truth; the signed webhook path marks orders paid only after server-side Paystack transaction verification confirms the reference, amount, and currency.
 - Railway-level rate limiting, Railway Postgres least-privilege access, payment event logging, and notification log idempotency are still required before fulfillment automation or broader order operations.
 
-Customer account placeholders remain frontend-only and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. Private staff usernames go through the dedicated backend-backed `https://portal.stroanesolutions.com/login` entrypoint; staff accounts still live in the database and are not read from CSV at runtime.
+Customer account placeholders remain frontend-only and must not protect admin, order, payment, stock, customer-data, or inquiry-management workflows. They do not store passwords or browser-side account records. Private staff usernames go through the dedicated backend-backed `https://portal.stroanesolutions.com/login` entrypoint; staff accounts still live in the database and are not read from CSV at runtime.
 
 Detailed app security posture and remaining production gaps are tracked in `docs/apps/stroane-web/security-notes.md`.
 
@@ -290,13 +291,15 @@ Only browser-safe values should use the `VITE_*` prefix.
 
 Legacy `VITE_PAYSTACK_PUBLIC_KEY` usage should not be used for production settlement. Current checkout uses backend initialization, browser-return status checks, signed webhook confirmation, and server-side Paystack transaction verification before paid order finalization. Payment event logging plus notification-log idempotency remain the next hardening steps before automated fulfillment, staff alerts, or multi-channel order updates.
 
-Current customer account placeholders are not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and sign in from `https://portal.stroanesolutions.com/login` with their staff username/password, then continue into protected `/admin/*` portal routes; keep this limited to one seeded admin and one seeded viewer account for now. Staff bearer tokens remain scoped to portal-origin `sessionStorage`; no parent-domain cookie is required.
+Current customer account placeholders are not a server-enforced auth system and must not protect admin, payment, or sensitive customer workflows without backend validation. Private backend users are managed through the `SiteUser` foundation and sign in from `https://portal.stroanesolutions.com/login` with their staff username/password, then continue into protected `/admin/*` portal routes; keep this limited to approved staff accounts for now. The auth credential lives in an HttpOnly cookie and the portal stores profile metadata only. Do not widen the cookie domain or switch to `SameSite=None` without a CSRF/subdomain-risk review.
 
 Shared app-mode helpers (`normal`, `degraded`, `read_only`, `maintenance`) and maintenance/read-only/degraded UI wrappers are available in `@faako/config` and `@faako/ui`, but Stroane has not wired them into runtime behavior yet. Use them only after deciding the public-site maintenance copy, contact fallback, and any backend/API guard requirements.
 
 ## Browser QA Notes
 
-Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
+Stroane and shared UI styles normalize Safari/iOS native controls for customer and admin forms. Buttons, inputs, selects, textareas, search fields, date fields, dropdowns, and shared action controls inherit the app font, use token-based styling, and avoid unwanted native blue/rounded browser controls. Storefront checkout and portal order/profile controls should use shared `@faako/ui` fields rather than raw native selects/date/time/datalists. Keep future checkout, inquiry, product filter, and admin order controls on these shared patterns unless a browser-specific visual regression is reviewed.
+
+Customer/staff contact forms validate email and phone formats on the frontend for feedback and on the backend as the source of truth. The shared phone rule allows common Ghana/international formatting characters but requires 7-15 digits after punctuation and spacing are stripped.
 
 Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding on checkout/admin portal surfaces. Before a public purchasing push, smoke test storefront `/shop`, product detail, `/checkout`, and `/checkout/return`, plus portal `/login`, `/admin`, and reset module placeholders, on real iPhone Safari against the deployed Cloudflare Pages/Railway API pairing.
 

@@ -156,7 +156,12 @@ const FloatingHeader: React.FC = () => {
               <HiOutlineLogout size={18} aria-hidden="true" />
             </button>
           ) : (
-            <a href={PORTAL_LOGIN_URL} className="nav-search-btn" aria-label="Sign in">
+            <a
+              href={PORTAL_LOGIN_URL}
+              className="nav-search-btn"
+              aria-label="Open admin portal"
+              title="Open admin portal"
+            >
               <HiOutlineUser size={20} aria-hidden="true" />
             </a>
           )}
@@ -211,14 +216,14 @@ const FloatingHeader: React.FC = () => {
                   <HiOutlineLogout size={18} aria-hidden="true" />
                 </button>
               ) : (
-                <button
-                  type="button"
+                <a
+                  href={PORTAL_LOGIN_URL}
                   className="nav-search-btn"
-                  aria-label="Sign in"
-                  onClick={() => window.location.assign(PORTAL_LOGIN_URL)}
+                  aria-label="Open admin portal"
+                  title="Open admin portal"
                 >
                   <HiOutlineUser size={18} aria-hidden="true" />
-                </button>
+                </a>
               )}
               <Link to="/contact" className="navbar-cta">
                 Contact Stroane
@@ -275,7 +280,8 @@ const FloatingHeader: React.FC = () => {
                     <a
                       href={PORTAL_LOGIN_URL}
                       className="nav-search-btn nav-search-btn--dark"
-                      aria-label="Sign in"
+                      aria-label="Open admin portal"
+                      title="Open admin portal"
                     >
                       <HiOutlineUser size={18} aria-hidden="true" />
                     </a>
@@ -313,7 +319,8 @@ const FloatingHeader: React.FC = () => {
                 <a
                   href={PORTAL_LOGIN_URL}
                   className="nav-search-btn nav-search-btn--dark"
-                  aria-label="Sign in"
+                  aria-label="Open admin portal"
+                  title="Open admin portal"
                 >
                   <HiOutlineUser size={18} aria-hidden="true" />
                 </a>
@@ -425,7 +432,7 @@ const FloatingHeader: React.FC = () => {
                     onClick={() => setMenuOpen(false)}
                   >
                     <HiOutlineUser size={18} aria-hidden="true" />
-                    <span>Sign in</span>
+                    <span>Admin portal</span>
                   </a>
                 )}
                 <Link

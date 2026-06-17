@@ -135,6 +135,335 @@
   ],
   "products": [
     {
+      "id": "astro-ai-ir-thermometer",
+      "name": "AstroAI IR Thermometer",
+      "productType": "standalone",
+      "category": "Infrared Thermometers",
+      "categorySlug": "infrared-thermometers",
+      "subcategory": "No-contact surface thermometer",
+      "brand": "AstroAI",
+      "sku": "STR-TMP-ASTROAI-IR",
+      "description": "Contactless infrared thermometer for quick surface temperature checks.",
+      "longDescription": "A practical no-touch thermometer for checking food holding areas, storage surfaces, receiving checks, and non-contact temperature screening during daily food safety routines.",
+      "price": 900,
+      "priceLabel": "GHS 900",
+      "currency": "GHS",
+      "unit": "each",
+      "image": "/imgs/products/astro-ai-ir-thermometer.webp",
+      "thumbnailUrl": "/imgs/products/astro-ai-ir-thermometer.webp",
+      "imageUrl": "/imgs/products/astro-ai-ir-thermometer.webp",
+      "images": [
+        "/imgs/products/astro-ai-ir-thermometer.webp"
+      ],
+      "galleryImages": [
+        "/imgs/products/astro-ai-ir-thermometer.webp"
+      ],
+      "media": [
+        {
+          "url": "/imgs/products/astro-ai-ir-thermometer.webp",
+          "alt": "AstroAI infrared thermometer with battery",
+          "type": "primary",
+          "sortOrder": 1,
+          "publicId": "stroane/products/thermometers/astro-ai-ir-thermometer"
+        }
+      ],
+      "imageAlt": "AstroAI infrared thermometer with battery",
+      "tag": "Price list item",
+      "stock": "In stock",
+      "stockStatus": "in_stock",
+      "stockQuantity": null,
+      "lowStockThreshold": 5,
+      "allowBackorder": false,
+      "isPurchasable": true,
+      "availability": "Available for online checkout. Final fulfilment timing is confirmed after order submission.",
+      "quoteOnly": false,
+      "reorderThreshold": null,
+      "features": [
+        "No-contact infrared checks",
+        "Fast scan workflow",
+        "Useful for receiving and holding checks"
+      ],
+      "specifications": [
+        {
+          "label": "Source",
+          "value": "Thermometer price list",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Price Status",
+          "value": "Published reference price",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Recommended For",
+          "value": "Surface temperature checks",
+          "group": "Usage"
+        }
+      ],
+      "tags": [
+        "infrared",
+        "thermometer",
+        "temperature",
+        "surface checks"
+      ],
+      "useCases": [
+        "Food receiving checks",
+        "Hot or cold holding checks",
+        "Kitchen inspections"
+      ],
+      "inquiryCta": "Ask Stroane to confirm stock and delivery timing.",
+      "sourceRefs": [
+        "FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf"
+      ]
+    },
+    {
+      "id": "taylor-large-dial-fridge-freezer-thermometer",
+      "name": "Taylor Precision Large Dial Fridge/Freezer Thermometer",
+      "productType": "standalone",
+      "category": "Fridge Thermometers",
+      "categorySlug": "fridge-thermometers",
+      "subcategory": "Fridge/freezer thermometer",
+      "brand": "Taylor Precision",
+      "sku": "STR-TMP-TAYLOR-DIAL",
+      "description": "Large dial fridge/freezer thermometer for daily cold storage checks.",
+      "longDescription": "Designed for easy visual checks inside fridge and freezer units so staff can confirm cold storage conditions during routine food safety checks.",
+      "price": 500,
+      "priceLabel": "GHS 500",
+      "currency": "GHS",
+      "unit": "each",
+      "image": "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp",
+      "thumbnailUrl": "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp",
+      "imageUrl": "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp",
+      "images": [
+        "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp"
+      ],
+      "galleryImages": [
+        "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp"
+      ],
+      "media": [
+        {
+          "url": "/imgs/products/taylor-large-dial-fridge-freezer-thermometer.webp",
+          "alt": "Taylor Precision large dial fridge and freezer thermometer",
+          "type": "primary",
+          "sortOrder": 1,
+          "publicId": "stroane/products/thermometers/taylor-large-dial-fridge-freezer-thermometer"
+        }
+      ],
+      "imageAlt": "Taylor Precision large dial fridge and freezer thermometer",
+      "tag": "Cold storage",
+      "stock": "In stock",
+      "stockStatus": "in_stock",
+      "stockQuantity": null,
+      "lowStockThreshold": 5,
+      "allowBackorder": false,
+      "isPurchasable": true,
+      "availability": "Available for online checkout. Final fulfilment timing is confirmed after order submission.",
+      "quoteOnly": false,
+      "reorderThreshold": null,
+      "features": [
+        "Large readable dial",
+        "Fridge and freezer use",
+        "Supports daily temperature records"
+      ],
+      "specifications": [
+        {
+          "label": "Source",
+          "value": "Thermometer price list",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Price Status",
+          "value": "Published reference price",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Recommended For",
+          "value": "Cold storage monitoring",
+          "group": "Usage"
+        }
+      ],
+      "tags": [
+        "fridge",
+        "freezer",
+        "thermometer",
+        "cold chain"
+      ],
+      "useCases": [
+        "Restaurant fridges",
+        "Freezers",
+        "Cold rooms"
+      ],
+      "inquiryCta": "Request availability and bulk order support.",
+      "sourceRefs": [
+        "FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf",
+        "Food and Fridge Thermometers Catalogue (2).pdf"
+      ]
+    },
+    {
+      "id": "taylor-pro-horizontal-strip-fridge-freezer-thermometer",
+      "name": "Taylor Pro Horizontal Strip Fridge/Freezer Thermometer",
+      "productType": "standalone",
+      "category": "Fridge Thermometers",
+      "categorySlug": "fridge-thermometers",
+      "subcategory": "Fridge/freezer thermometer",
+      "brand": "Taylor Pro",
+      "sku": "STR-TMP-TAYLOR-STRIP",
+      "description": "Horizontal strip thermometer for compact fridge/freezer temperature visibility.",
+      "longDescription": "A compact cold storage thermometer option for businesses that need quick visual checks without taking up much space inside storage units.",
+      "price": 500,
+      "priceLabel": "GHS 500",
+      "currency": "GHS",
+      "unit": "each",
+      "image": "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp",
+      "thumbnailUrl": "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp",
+      "imageUrl": "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp",
+      "images": [
+        "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp"
+      ],
+      "galleryImages": [
+        "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp"
+      ],
+      "media": [
+        {
+          "url": "/imgs/products/taylor-pro-horizontal-strip-thermometer.webp",
+          "alt": "Taylor Pro horizontal strip fridge and freezer thermometer",
+          "type": "primary",
+          "sortOrder": 1,
+          "publicId": "stroane/products/thermometers/taylor-pro-horizontal-strip-fridge-freezer-thermometer"
+        }
+      ],
+      "imageAlt": "Taylor Pro horizontal strip fridge and freezer thermometer",
+      "tag": "Compact",
+      "stock": "In stock",
+      "stockStatus": "in_stock",
+      "stockQuantity": null,
+      "lowStockThreshold": 5,
+      "allowBackorder": false,
+      "isPurchasable": true,
+      "availability": "Available for online checkout. Final fulfilment timing is confirmed after order submission.",
+      "quoteOnly": false,
+      "reorderThreshold": null,
+      "features": [
+        "Horizontal strip format",
+        "Compact fridge/freezer fit",
+        "Daily check support"
+      ],
+      "specifications": [
+        {
+          "label": "Source",
+          "value": "Thermometer price list",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Price Status",
+          "value": "Published reference price",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Recommended For",
+          "value": "Compact cold storage checks",
+          "group": "Usage"
+        }
+      ],
+      "tags": [
+        "fridge",
+        "freezer",
+        "thermometer",
+        "compact"
+      ],
+      "useCases": [
+        "Small fridges",
+        "Display chillers",
+        "Back-of-house storage"
+      ],
+      "inquiryCta": "Request current availability.",
+      "sourceRefs": [
+        "FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf"
+      ]
+    },
+    {
+      "id": "taylor-suction-cup-fridge-freezer-thermometer",
+      "name": "Taylor Precision Fridge/Freezer Thermometer with Suction Cups",
+      "productType": "standalone",
+      "category": "Fridge Thermometers",
+      "categorySlug": "fridge-thermometers",
+      "subcategory": "Fridge/freezer thermometer",
+      "brand": "Taylor Precision",
+      "sku": "STR-TMP-TAYLOR-SUCTION",
+      "description": "Fridge/freezer thermometer with suction cups for flexible placement.",
+      "longDescription": "A fridge/freezer thermometer suited for fixed placement inside cold storage units where staff need a consistent reading point.",
+      "price": 400,
+      "priceLabel": "GHS 400",
+      "currency": "GHS",
+      "unit": "each",
+      "image": "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp",
+      "thumbnailUrl": "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp",
+      "imageUrl": "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp",
+      "images": [
+        "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp"
+      ],
+      "galleryImages": [
+        "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp"
+      ],
+      "media": [
+        {
+          "url": "/imgs/products/taylor-suction-cup-fridge-freezer-thermometer.webp",
+          "alt": "Taylor Precision fridge and freezer thermometer with suction cups",
+          "type": "primary",
+          "sortOrder": 1,
+          "publicId": "stroane/products/thermometers/taylor-suction-cup-fridge-freezer-thermometer"
+        }
+      ],
+      "imageAlt": "Taylor Precision fridge and freezer thermometer with suction cups",
+      "tag": "Flexible placement",
+      "stock": "In stock",
+      "stockStatus": "in_stock",
+      "stockQuantity": null,
+      "lowStockThreshold": 5,
+      "allowBackorder": false,
+      "isPurchasable": true,
+      "availability": "Available for online checkout. Final fulfilment timing is confirmed after order submission.",
+      "quoteOnly": false,
+      "reorderThreshold": null,
+      "features": [
+        "Suction-cup placement",
+        "Fridge and freezer use",
+        "Useful for repeat daily readings"
+      ],
+      "specifications": [
+        {
+          "label": "Source",
+          "value": "Thermometer price list",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Price Status",
+          "value": "Published reference price",
+          "group": "Catalogue"
+        },
+        {
+          "label": "Recommended For",
+          "value": "Fixed cold storage readings",
+          "group": "Usage"
+        }
+      ],
+      "tags": [
+        "fridge",
+        "freezer",
+        "thermometer",
+        "suction cups"
+      ],
+      "useCases": [
+        "Fridges",
+        "Freezers",
+        "Food storage checks"
+      ],
+      "inquiryCta": "Ask for current stock and delivery options.",
+      "sourceRefs": [
+        "FOOD & FRIDGE THERMOMETERS PRICE LIST.pdf"
+      ]
+    },
+    {
       "id": "alpha-grillers-digital-food-thermometer",
       "name": "Alpha Grillers Digital Food Thermometer",
       "productType": "standalone",

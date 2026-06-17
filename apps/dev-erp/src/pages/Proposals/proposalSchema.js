@@ -215,6 +215,7 @@ export const createProposalDraft = ({
     theme,
     businessName: "Dev ERP Proposals",
     tagline: "Clear scope. Calm execution. Practical next steps.",
+    accentColor: "#2f2f2f",
   },
   personalNotes: {
     introduction:

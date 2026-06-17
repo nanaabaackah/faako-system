@@ -26,6 +26,8 @@ export interface CheckoutCustomerPayload {
   deliveryNotes?: string;
 }
 
+export type CheckoutFulfillmentMethod = "delivery" | "pickup";
+
 export interface CheckoutOrderItemPayload {
   productSlug: string;
   quantity: number;
@@ -36,6 +38,13 @@ export interface CheckoutOrderPayload {
   items: CheckoutOrderItemPayload[];
   source?: "checkout";
   website?: string;
+  fulfillmentMethod?: CheckoutFulfillmentMethod;
+  deliveryMethod?: CheckoutFulfillmentMethod;
+  pickupLocationId?: string;
+  pickupLocationName?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  expectedDeliveryDate?: string;
 }
 
 export interface CheckoutOrderResponse {
@@ -44,6 +53,8 @@ export interface CheckoutOrderResponse {
     orderNumber: string;
     status: "pending" | "payment_pending" | "paid" | "processing" | "completed" | "cancelled";
     preferredContactMethod?: string;
+    deliveryMethod?: CheckoutFulfillmentMethod;
+    expectedDeliveryDate?: string;
     paymentStatus?: "payment_pending" | "paid" | "failed" | "abandoned" | "not_started";
     paymentReference?: string;
     currency: "GHS";

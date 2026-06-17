@@ -16,6 +16,8 @@
     "db:status:prod": "APP_ENV=production prisma migrate status",
     "db:deploy:dev": "APP_ENV=development prisma migrate deploy",
     "db:deploy:prod": "APP_ENV=production prisma migrate deploy",
+    "predeploy:local": "pnpm run db:generate && pnpm run db:deploy:dev && pnpm run db:status:dev",
+    "predeploy": "pnpm run predeploy:local",
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
     "server:dev:with-migrate": "pnpm run db:generate && pnpm run db:deploy:dev && pnpm run server:dev",

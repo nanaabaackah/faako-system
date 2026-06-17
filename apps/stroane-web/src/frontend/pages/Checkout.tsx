@@ -1,14 +1,15 @@
-import React, { useMemo, useState, type FormEvent } from "react";
+import React, { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { HiArrowRight, HiCheckCircle } from "react-icons/hi";
+import { HiArrowRight } from "react-icons/hi";
 import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import useCatalogueData from "../../hooks/useCatalogueData";
-import { orderApi, type CheckoutOrderResponse } from "../../api/orders";
 import {
-  formatCurrency,
-  getAvailabilityLabel,
-  getPurchaseBlocker,
+  orderApi,
+  type CheckoutFulfillmentMethod,
+  type CheckoutOrderResponse,
+} from "../../api/orders";
+import {
   getLineTotal,
   isCheckoutEligibleProduct,
   isPricedProduct,
@@ -16,12 +17,50 @@ import {
 } from "../../data/products";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
+import CheckoutConfirmation from "../components/checkout/CheckoutConfirmation";
+import CheckoutDetailsForm from "../components/checkout/CheckoutDetailsForm";
+import CheckoutOrderSummary from "../components/checkout/CheckoutOrderSummary";
+import { isLikelyEmail, isLikelyPhone } from "../../utils/contactValidation";
 import "../styles/Checkout.css";
 
-const isLikelyEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const PICKUP_SPOTS = [
+  {
+    id: "accra-central",
+    name: "Accra Central pickup",
+    address: "Stroane Solutions, Accra Central",
+    detail: "Best for central Accra and Osu routes",
+  },
+  {
+    id: "east-legon",
+    name: "East Legon pickup",
+    address: "East Legon business district",
+    detail: "Best for East Legon, Madina, and Adenta",
+  },
+  {
+    id: "tema-community-1",
+    name: "Tema Community 1 pickup",
+    address: "Tema Community 1 collection point",
+    detail: "Best for Tema, Spintex, and Ashaiman",
+  },
+];
+
+const DELIVERY_ADDRESS_SUGGESTIONS = [
+  "Accra Central",
+  "Airport Residential Area, Accra",
+  "Cantonments, Accra",
+  "East Legon, Accra",
+  "Labone, Accra",
+  "Madina, Accra",
+  "Osu, Accra",
+  "Spintex Road, Accra",
+  "Tema Community 1",
+  "Tema Community 25",
+];
+
+const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
 
 const Checkout: React.FC = () => {
-  const { products: catalogueProducts, notice } = useCatalogueData();
+  const { products: catalogueProducts, loading, notice } = useCatalogueData();
   const { cart, updateQuantity, remove, clear } = useCart();
   const { user } = useAuth();
 
@@ -32,7 +71,12 @@ const Checkout: React.FC = () => {
     "email" | "phone" | "whatsapp"
   >("email");
   const [businessName, setBusinessName] = useState("");
+  const [fulfillmentMethod, setFulfillmentMethod] =
+    useState<CheckoutFulfillmentMethod>("delivery");
   const [address, setAddress] = useState("");
+  const [pickupSpotId, setPickupSpotId] = useState(PICKUP_SPOTS[0]?.id || "");
+  const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [website, setWebsite] = useState("");
   const [error, setError] = useState("");
@@ -48,12 +92,26 @@ const Checkout: React.FC = () => {
     noIndex: true,
   });
 
+  const pricedProducts = useMemo(
+    () => catalogueProducts.filter(isPricedProduct),
+    [catalogueProducts]
+  );
+
+  useEffect(() => {
+    if (loading) return;
+
+    const pricedProductIds = new Set(pricedProducts.map((product) => product.id));
+    Object.keys(cart).forEach((productId) => {
+      if (!pricedProductIds.has(productId)) remove(productId);
+    });
+  }, [cart, loading, pricedProducts, remove]);
+
   const lines = useMemo(
     () =>
-      catalogueProducts
+      pricedProducts
         .filter((product) => (cart[product.id] ?? 0) > 0)
         .map((product) => ({ product, qty: cart[product.id] })),
-    [cart, catalogueProducts]
+    [cart, pricedProducts]
   );
 
   const unavailableLines = lines.filter(
@@ -69,6 +127,20 @@ const Checkout: React.FC = () => {
     0
   );
 
+  const selectedPickupSpot = useMemo(
+    () => PICKUP_SPOTS.find((spot) => spot.id === pickupSpotId) || PICKUP_SPOTS[0],
+    [pickupSpotId]
+  );
+  const fulfillmentAddress =
+    fulfillmentMethod === "pickup"
+      ? [selectedPickupSpot?.name, selectedPickupSpot?.address].filter(Boolean).join(" - ")
+      : address.trim();
+  const expectedDeliveryDate =
+    fulfillmentMethod === "pickup" && pickupDate && pickupTime
+      ? `${pickupDate}T${pickupTime}:00`
+      : undefined;
+  const minimumPickupDate = useMemo(getTodayInputValue, []);
+
   const validateDetails = () => {
     if (!lines.length) return "Your basket is empty.";
     if (unavailableLines.length) {
@@ -76,10 +148,20 @@ const Checkout: React.FC = () => {
     }
     if (!name.trim()) return "Add your full name.";
     if (!isLikelyEmail(email)) return "Add a valid email address.";
-    if (!phone.trim()) return "Add your phone number.";
-    if (!address.trim()) return "Add a delivery address or pickup note.";
+    if (!isLikelyPhone(phone)) return "Add a valid phone number.";
+    if (fulfillmentMethod === "delivery" && !address.trim()) return "Add a delivery address.";
+    if (fulfillmentMethod === "pickup" && !pickupSpotId) return "Choose a pickup spot.";
+    if (fulfillmentMethod === "pickup" && !pickupDate) return "Choose a pickup date.";
+    if (fulfillmentMethod === "pickup" && !pickupTime) return "Choose a pickup time.";
     if (website.trim()) return "The checkout request could not be submitted.";
     return "";
+  };
+
+  const markDetailsChanged = () => setReviewing(false);
+
+  const updateFulfillmentMethod = (method: CheckoutFulfillmentMethod) => {
+    setFulfillmentMethod(method);
+    markDetailsChanged();
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -107,7 +189,7 @@ const Checkout: React.FC = () => {
           phone,
           preferredContactMethod,
           businessName,
-          deliveryAddress: address,
+          deliveryAddress: fulfillmentAddress,
           deliveryNotes,
         },
         items: purchasableLines.map(({ product, qty }) => ({
@@ -115,6 +197,13 @@ const Checkout: React.FC = () => {
           quantity: qty,
         })),
         source: "checkout",
+        fulfillmentMethod,
+        deliveryMethod: fulfillmentMethod,
+        pickupLocationId: fulfillmentMethod === "pickup" ? pickupSpotId : undefined,
+        pickupLocationName: fulfillmentMethod === "pickup" ? selectedPickupSpot?.name : undefined,
+        pickupDate: fulfillmentMethod === "pickup" ? pickupDate : undefined,
+        pickupTime: fulfillmentMethod === "pickup" ? pickupTime : undefined,
+        expectedDeliveryDate,
         website,
       });
       clear();
@@ -143,36 +232,11 @@ const Checkout: React.FC = () => {
   if (createdOrder) {
     return (
       <Layout>
-        <div className="checkout-page">
-          <div className="checkout-confirm">
-            <span className="checkout-confirm__icon">
-              <HiCheckCircle size={56} aria-hidden="true" />
-            </span>
-            <h1>Order request received</h1>
-            <p>
-              Thank you{name ? `, ${name}` : ""}. Your order number is{" "}
-              <strong>{createdOrder.order.orderNumber}</strong>.
-            </p>
-            {paymentFallback ? (
-              <p className="checkout-confirm__notice" role="status">
-                Paystack payment could not start: {paymentFallback} Your order is still saved as
-                payment pending.
-              </p>
-            ) : (
-              <p>
-                Stroane will confirm availability, delivery, and payment instructions before
-                fulfillment.
-              </p>
-            )}
-            <p className="checkout-confirm__meta">
-              Total prepared: <strong>{formatCurrency(createdOrder.order.total)}</strong>
-            </p>
-            <Link to="/shop" className="checkout-confirm__cta">
-              Continue shopping
-              <HiArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
+        <CheckoutConfirmation
+          createdOrder={createdOrder}
+          name={name}
+          paymentFallback={paymentFallback}
+        />
       </Layout>
     );
   }
@@ -183,9 +247,9 @@ const Checkout: React.FC = () => {
         <div className="checkout-page__inner">
           <header className="checkout-head">
             <span className="checkout-kicker">Checkout</span>
-            <h1>Review your order request</h1>
+            <h1>Review your order here</h1>
             <p>
-              Submit your details, review the order, then continue to Paystack test checkout.
+              Submit your details, review the order, then continue to payment.
             </p>
           </header>
 
@@ -199,232 +263,80 @@ const Checkout: React.FC = () => {
             </div>
           ) : (
             <div className="checkout-grid">
-              <form className="checkout-form" onSubmit={handleSubmit} noValidate>
-                <h2 className="checkout-section-title">Your details</h2>
+              <CheckoutDetailsForm
+                name={name}
+                email={email}
+                phone={phone}
+                businessName={businessName}
+                address={address}
+                addressSuggestions={DELIVERY_ADDRESS_SUGGESTIONS}
+                deliveryNotes={deliveryNotes}
+                fulfillmentMethod={fulfillmentMethod}
+                pickupSpots={PICKUP_SPOTS}
+                pickupSpotId={pickupSpotId}
+                pickupDate={pickupDate}
+                pickupTime={pickupTime}
+                minimumPickupDate={minimumPickupDate}
+                website={website}
+                preferredContactMethod={preferredContactMethod}
+                notice={notice}
+                error={error}
+                reviewing={reviewing}
+                submitting={submitting}
+                hasLines={Boolean(lines.length)}
+                onSubmit={handleSubmit}
+                onEdit={() => setReviewing(false)}
+                onNameChange={(value) => {
+                  setName(value);
+                  markDetailsChanged();
+                }}
+                onEmailChange={(value) => {
+                  setEmail(value);
+                  markDetailsChanged();
+                }}
+                onPhoneChange={(value) => {
+                  setPhone(value);
+                  markDetailsChanged();
+                }}
+                onBusinessNameChange={(value) => {
+                  setBusinessName(value);
+                  markDetailsChanged();
+                }}
+                onFulfillmentMethodChange={updateFulfillmentMethod}
+                onAddressChange={(value) => {
+                  setAddress(value);
+                  markDetailsChanged();
+                }}
+                onPickupSpotChange={(value) => {
+                  setPickupSpotId(value);
+                  markDetailsChanged();
+                }}
+                onPickupDateChange={(value) => {
+                  setPickupDate(value);
+                  markDetailsChanged();
+                }}
+                onPickupTimeChange={(value) => {
+                  setPickupTime(value);
+                  markDetailsChanged();
+                }}
+                onDeliveryNotesChange={(value) => {
+                  setDeliveryNotes(value);
+                  markDetailsChanged();
+                }}
+                onWebsiteChange={setWebsite}
+                onPreferredContactMethodChange={(value) => {
+                  setPreferredContactMethod(value);
+                  markDetailsChanged();
+                }}
+              />
 
-                <div className="checkout-form__row">
-                  <label className="checkout-field">
-                    <span>Full name</span>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(event) => {
-                        setName(event.target.value);
-                        setReviewing(false);
-                      }}
-                      autoComplete="name"
-                      required
-                    />
-                  </label>
-                  <label className="checkout-field">
-                    <span>Email</span>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => {
-                        setEmail(event.target.value);
-                        setReviewing(false);
-                      }}
-                      autoComplete="email"
-                      required
-                    />
-                  </label>
-                </div>
-
-                <div className="checkout-form__row">
-                  <label className="checkout-field">
-                    <span>Phone</span>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => {
-                        setPhone(event.target.value);
-                        setReviewing(false);
-                      }}
-                      autoComplete="tel"
-                      placeholder="+233..."
-                      required
-                    />
-                  </label>
-                  <label className="checkout-field">
-                    <span>Business name</span>
-                    <input
-                      type="text"
-                      value={businessName}
-                      onChange={(event) => {
-                        setBusinessName(event.target.value);
-                        setReviewing(false);
-                      }}
-                      autoComplete="organization"
-                    />
-                  </label>
-                </div>
-
-                <label className="checkout-field checkout-field--full">
-                  <span>Preferred contact method</span>
-                  <select
-                    value={preferredContactMethod}
-                    onChange={(event) => {
-                      setPreferredContactMethod(
-                        event.target.value as "email" | "phone" | "whatsapp"
-                      );
-                      setReviewing(false);
-                    }}
-                  >
-                    <option value="email">Email</option>
-                    <option value="phone">Phone call</option>
-                    <option value="whatsapp">WhatsApp</option>
-                  </select>
-                </label>
-
-                <label className="checkout-field checkout-field--full">
-                  <span>Delivery address or pickup note</span>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(event) => {
-                      setAddress(event.target.value);
-                      setReviewing(false);
-                    }}
-                    autoComplete="street-address"
-                    required
-                  />
-                </label>
-
-                <label className="checkout-field checkout-field--full">
-                  <span>Delivery notes</span>
-                  <textarea
-                    rows={3}
-                    value={deliveryNotes}
-                    onChange={(event) => {
-                      setDeliveryNotes(event.target.value);
-                      setReviewing(false);
-                    }}
-                    placeholder="Branch location, preferred delivery time, or special handling notes"
-                  />
-                </label>
-
-                <label className="checkout-field checkout-field--trap" aria-hidden="true">
-                  <span>Website</span>
-                  <input
-                    type="text"
-                    value={website}
-                    onChange={(event) => setWebsite(event.target.value)}
-                    autoComplete="off"
-                    tabIndex={-1}
-                  />
-                </label>
-
-                {notice ? (
-                  <p className="checkout-form__notice" role="status">
-                    {notice}
-                  </p>
-                ) : null}
-
-                <p className="checkout-form__notice">
-                  Payment is initialized by the Stroane backend using Paystack. Prices are verified
-                  on the server before redirecting you.
-                </p>
-
-                {reviewing ? (
-                  <div className="checkout-review-notice" role="status">
-                    <strong>Review step</strong>
-                    <span>
-                      Confirm the details and order summary, then submit the order request.
-                    </span>
-                  </div>
-                ) : null}
-
-                {error ? (
-                  <p className="checkout-form__error" role="alert">
-                    {error}
-                  </p>
-                ) : null}
-
-                <div className="checkout-form__actions">
-                  {reviewing ? (
-                    <button
-                      type="button"
-                      className="checkout-edit-btn"
-                      onClick={() => setReviewing(false)}
-                      disabled={submitting}
-                    >
-                      Edit details
-                    </button>
-                  ) : null}
-                  <button
-                    type="submit"
-                    className="checkout-pay-btn"
-                    disabled={submitting || !lines.length}
-                  >
-                    {submitting
-                      ? "Preparing Paystack..."
-                      : reviewing
-                      ? "Continue to Paystack"
-                      : "Review order"}
-                    {!submitting ? <HiArrowRight size={18} aria-hidden="true" /> : null}
-                  </button>
-                </div>
-              </form>
-
-              <aside className="checkout-summary" aria-label="Order summary">
-                <h2 className="checkout-section-title">Order summary</h2>
-                <ul className="checkout-summary__list">
-                  {lines.map(({ product, qty }) => (
-                    <li key={product.id}>
-                      <div className="checkout-summary__line-main">
-                        <span className="checkout-summary__name">
-                          {product.name}
-                          <em> x {qty}</em>
-                        </span>
-                        <div className="checkout-summary__qty">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(product.id, qty - 1)}
-                            aria-label={`Decrease ${product.name} quantity`}
-                          >
-                            -
-                          </button>
-                          <span>{qty}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(product.id, qty + 1)}
-                            disabled={!isCheckoutEligibleProduct(product, qty + 1)}
-                            aria-label={`Increase ${product.name} quantity`}
-                          >
-                            +
-                          </button>
-                          <button type="button" onClick={() => remove(product.id)}>
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                      <strong>
-                        {isPricedProduct(product)
-                          ? formatCurrency(getLineTotal(product, qty))
-                          : "Request price"}
-                      </strong>
-                      {!isCheckoutEligibleProduct(product, qty) ? (
-                        <p className="checkout-summary__warning checkout-summary__warning--line">
-                          {getPurchaseBlocker(product, qty) || getAvailabilityLabel(product)}
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-                {unavailableLines.length ? (
-                  <p className="checkout-summary__warning">
-                    Some items cannot be checked out until price or availability is confirmed.
-                  </p>
-                ) : null}
-                <div className="checkout-summary__total">
-                  <span>Subtotal</span>
-                  <strong>{formatCurrency(total)}</strong>
-                </div>
-                <Link to="/shop" className="checkout-summary__back">
-                  Continue Shopping
-                </Link>
-              </aside>
+              <CheckoutOrderSummary
+                lines={lines}
+                unavailableLinesCount={unavailableLines.length}
+                total={total}
+                onUpdateQuantity={updateQuantity}
+                onRemove={remove}
+              />
             </div>
           )}
         </div>

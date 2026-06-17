@@ -14,7 +14,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
 - The API server listens on `process.env.PORT` with a local fallback, and `/health` returns a database-independent JSON response for Railway health checks.
 - Public storefront, future customer account, and private staff portal routes are now separate. See `docs/apps/stroane-web/portal-architecture.md`.
-- Staff authentication belongs at `https://portal.stroanesolutions.com/login`; public sign-in actions and legacy apex auth/admin entries hand off to the portal hostname. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary.
+- Staff authentication belongs at `https://portal.stroanesolutions.com/login`; public sign-in actions and legacy apex auth/admin entries hand off to the portal hostname. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary. The portal now uses an HttpOnly admin session cookie; legacy bearer headers remain accepted by the backend during transition.
 - Stroane Vite dedupes `react-router-dom` alongside React so shared `@faako/ui` ERP navigation links resolve against the app's router context.
 - `/admin/products` now reuses shared `@faako/ui` table, field, select, badge, action, and drawer primitives. Shared ERP visible labels are associated with their native controls for accessible keyboard, Safari/mobile, and browser-automation behavior.
 - Product media edits are URL/path based for now and intentionally accept local `/imgs/products/` paths only. Do not add direct upload or external media-provider credentials to the browser bundle.
@@ -28,13 +28,58 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - **`src/context/CartContext.tsx`** holds the shopping basket as `Record<string, number>` (productId -> qty) plus `totalCount`, `getQty`, `increment`, `decrement`, `remove`, and `clear`. The provider persists product IDs and quantities only in `localStorage` under `stroane_cart_v1`; do not store customer details, prices, payment references, or sensitive data locally.
 - **`src/components/QuantityControls.tsx`** is the shared add/qty/trash widget used by Shop cards (`size="sm"`) and the Product Detail page (`size="lg"`). Owns its own styles in `src/styles/components/QuantityControls.css`. Don't duplicate this in new pages — reuse the component and let `useCart()` drive props.
 - **`src/components/LegalLayout.tsx`** is the shared template for `/terms`, `/privacy`, `/cookies`. Pages pass `title`, `lastUpdated`, optional `intro`, and an array of `{ heading, body }` sections; the layout handles the breadcrumb, "on this page" TOC, numbered headings with anchors, and the footer link to Contact. Use this for any future policy or legal page rather than rebuilding the structure.
-- **`src/components/ScrollToTop.tsx`** is mounted by `Layout` so every page gets the bottom-right scroll-to-top button automatically. It hides until `window.scrollY > 300`.
+- **`src/components/ScrollToTop.tsx`** is mounted by `Layout` so every page gets the bottom-right scroll-to-top button automatically. It hides until `window.scrollY > 300`, scrolls normal route changes back to the top, and preserves hash-anchor navigation for deep links such as resource guides.
+- **`src/hooks/useScrollAnimations.ts`** applies one-time scroll reveals to common storefront sections and `[data-scroll-reveal]` nodes. It intentionally uses opacity plus `translateY`, not blur filters, so Safari does not leave sections stuck in a filtered state. It uses native Web Animations plus a `.scroll-anim.in-view` CSS fallback in `src/index.css` so fast scrolls cannot leave visible sections half-hidden.
 
 ### Header variant logic
 
 - `src/components/Header.tsx` carries a `HERO_ROUTES` set of paths that have an image hero (`/`, `/about`, `/services`, `/shop`, `/resources`, `/contact`). On those routes the header starts transparent (white text/icons) and switches to the solid `--scrolled` variant after `scrollY > 40`.
 - Every other route renders solid from page load via `isDark = scrolled || !hasHero`. An additional `page-header--static` modifier suppresses the `slideDown` keyframe so the solid header doesn't animate on every navigation.
 - When adding a new public page, decide whether it has an image hero. If yes, add the path to `HERO_ROUTES`. If no, do nothing — the dark variant kicks in automatically.
+- Header account icons on the public storefront open the private admin portal and should be labelled as admin-portal actions. Do not describe those controls as customer sign-in until a real customer auth flow exists.
+
+### Portal dashboard and inventory module notes - 2026-06-16
+
+- The portal dashboard now includes derived business analytics: stock retail value, revenue-ready active stock value, priced catalogue coverage, and supplier coverage. These are calculated from catalogue/inventory data, not from completed order/payment revenue. Do not label them as actual revenue until an orders/payment analytics source is wired.
+- Inventory stock value uses confirmed available quantity multiplied by the product price. Items without a numeric price or without a confirmed available quantity are excluded from stock-value totals.
+- The inventory table follows the Reebs admin table pattern locally: full-width table, top/bottom pagination, footer totals, compact row actions, and modal detail editing. Keep this table full width; selected product details should stay in the lightbox rather than returning to a side panel.
+- Product "Delete listing" is intentionally a safe archive/unpublish action through the existing product publishing API. Add a separate audited backend delete endpoint before exposing irreversible catalogue deletion.
+- Inventory and catalogue edits support silent autosave from the modal while preserving explicit Save buttons. Offline edits continue through the existing portal offline queue, and silent saves should not introduce customer data into local storage.
+- Large portal UI blocks should live under `src/portal/components/` once their boundaries are stable. Current extracted components are `components/inventory/InventoryStockTable.tsx` and `components/dashboard/BusinessAnalyticsSection.tsx`.
+
+### Page componentization notes - 2026-06-16
+
+- Keep page files responsible for route-level data loading, validation, SEO metadata, and orchestration. Move repeated or bulky rendering into named components under the relevant surface folder.
+- Checkout-specific UI now lives under `src/frontend/components/checkout/`: `CheckoutConfirmation`, `CheckoutDetailsForm`, and `CheckoutOrderSummary`. These components must stay presentational; order creation, Paystack initialization, and cart cleanup remain in `pages/Checkout.tsx` and backend APIs.
+- Continue future componentization in focused passes for Search, Services, Shop, Product Detail, and the remaining inventory modal sections. Avoid broad visual redesign during component extraction unless the user asks for it.
+
+### Portal orders, analytics drilldowns, and checkout fulfillment - 2026-06-17
+
+- `/admin/orders` is active again as the lightweight commerce order hub. It lists storefront/manual orders, shows summary KPIs, lets admins create manual orders from active priced products, edits fulfillment notes/status, initializes Paystack links, and refreshes Paystack status for existing payment references.
+- Protected admin order routes live in `backend/src/ordersAdmin/routes.js` under `/api/admin/orders`. Reads allow `ADMIN` and `VIEWER`; writes, manual order creation, Paystack initialize, and Paystack verify require `ADMIN`.
+- Manual order creation reuses `prepareCommerceOrder()` so server-side price, currency, purchasability, and stock-blocker validation remain the source of truth. Do not add a separate manual-order price calculator in the browser.
+- The dashboard now reads order summaries alongside product/inventory/supplier/movement/alert data. Revenue KPIs should only use stored order/payment status fields; stock value KPIs should continue to use product price multiplied by confirmed available quantity.
+- Dashboard and inventory KPI cards open drilldown modals. Inventory drilldown entries with a product mapping can open the inventory lightbox directly. Dashboard inventory links may use `/admin/inventory?item=<inventoryItemId>` and `InventoryManagement` consumes that query parameter once inventory records load.
+- Checkout fulfillment is split between `delivery` and `pickup`. Delivery requires a searchable/selectable address. Pickup requires a pickup location, pickup date, and pickup time.
+- `backend/src/orders.js` normalizes fulfillment with `deliveryMethod` and `expectedDeliveryDate`. Pickup location details are currently preserved through the customer delivery address string plus order notes; add dedicated pickup-location columns only if reporting/fulfillment needs outgrow this lightweight shape.
+- The profile module now uses shared ERP fields/actions for editable profile fields. Keep future profile controls on shared `@faako/ui` primitives unless a one-off control is clearly necessary.
+
+### Shared field styling and validation pass - 2026-06-17
+
+- Stroane storefront and portal source should not introduce raw native `select`, `input[type=date]`, `input[type=time]`, or `datalist` controls for normal product/order/profile workflows. Use shared `@faako/ui` `SelectField`, `DateField`, `TimeField`, `TextField`, `TextareaField`, or an app-specific wrapper around those primitives.
+- Checkout delivery suggestions are custom styled buttons under the shared search/text field rather than a browser datalist, so Safari/Chrome do not diverge visually.
+- Inventory and orders KPI/analytics grids should align cards to the top. Do not reintroduce stretch alignment for card grids unless a specific table/detail region needs equal-height layout.
+- `src/utils/contactValidation.ts` is the frontend source for email/phone format checks. Backend validation remains authoritative in `backend/src/orders.js`, `backend/src/catalogue.js`, `backend/src/routes/auth.js`, and `backend/src/inventory/validation.js`.
+- The shared phone policy allows common Ghana/international formatting characters but requires 7-15 digits after punctuation/spacing is stripped. Keep checkout, contact, manual order, profile, supplier, and supplier-contact forms aligned to that rule.
+
+### Storefront page-flow notes - 2026-06-16
+
+- Resources guide cards deep-link to in-page guide summary articles. Search resource results should point to those anchors (`/resources#guide-*`, `/resources#resources-faq`, `/resources#resources-standards`) rather than to the generic top of the Resources page.
+- The Search page header is intentionally `100dvh`. Keep the header viewport-sized unless the public search experience is redesigned.
+- Shop and Checkout prune stale browser cart entries once the loaded catalogue is available and the product no longer has a numeric storefront price. This keeps unpriced or removed catalogue items out of the visible purchasing flow without storing customer data or touching server records.
+- The current public commerce fallback has four restored confirmed price-list products: AstroAI IR Thermometer (GHS 900), Taylor Precision Large Dial Fridge/Freezer Thermometer (GHS 500), Taylor Pro Horizontal Strip Fridge/Freezer Thermometer (GHS 500), and Taylor Precision Fridge/Freezer Thermometer with suction cups (GHS 400). Newer PDF/image-imported products without numeric prices should stay hidden from shop/product listing/search commerce surfaces until pricing is confirmed.
+- Direct unpriced product detail URLs should render the "not available online" gate and link customers back to priced products/contact, not display quote-first product detail pages.
+- Public customer account pages are placeholder/convenience surfaces only. `/signup` stores a temporary name/email profile in `sessionStorage`; `/account`, `/orders`, and `/quotes` should not send customers to the staff portal as a "sign in" action.
 
 ### Page layout — full-width by default (2026-05-15)
 
@@ -49,7 +94,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 ### Stabilization notes - 2026-05-17
 
 - Stroane lint now depends on `typescript-eslint` and uses a flat-config-compatible `eslint.config.js` with separate browser and Node contexts. Keep `typescript-eslint` in `devDependencies` while the app contains TypeScript pages and backend JS files.
-- The current `AuthContext` is front-end-only customer auth using browser localStorage. It is not server-enforced account security and should not protect admin, payment, or sensitive customer workflows without a backend session model.
+- The current storefront `AuthContext` is a temporary customer profile placeholder. It stores only name/email profile metadata in `sessionStorage` and does not store passwords, password hashes, or durable account credentials. It is not server-enforced account security and must not protect admin, payment, order history, or sensitive customer workflows without a backend session model.
 - `src/lib/paystack.ts` is a legacy client-side Paystack Inline helper using `VITE_PAYSTACK_PUBLIC_KEY`. It is not used by the current checkout. Current Paystack checkout initializes and verifies payments through the backend so `PAYSTACK_SECRET_KEY` stays server-side.
 - Recent Stroane route additions (`/signin`, `/signup`, `/checkout`) passed lint/type/build checks, but still need a production acceptance review for privacy, data retention, and fulfillment assumptions.
 
@@ -123,7 +168,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - PDF-imported seed products still need confirmed prices before appearing in the commerce storefront. Unknown `stockQuantity` no longer blocks purchase by itself during the current price-fill pass, but real stock counts should be entered before production promotion so availability labels and checkout limits are accurate.
 - Inquiry is a fallback path for unavailable, enquiry-only, price-unavailable, or custom-order products. It should not replace visible customer-facing availability for normal purchasable products.
 - `backend/src/orders.js` validates product price, explicit stock blockers, known stock quantity limits, and backorder flags before preparing an order. This is storefront stock gating only; it does not deduct stock or create inventory ledger entries.
-- `src/frontend/pages/Checkout.tsx` is the pending-order and Paystack-start flow. Customers enter contact/delivery details, review the order summary, submit an order request, and then the frontend asks the backend to initialize Paystack for the server-priced pending order.
+- `src/frontend/pages/Checkout.tsx` is the pending-order and Paystack-start flow. Customers enter contact details, choose delivery or pickup fulfillment, review the order summary, submit an order request, and then the frontend asks the backend to initialize Paystack for the server-priced pending order.
 - `backend/src/orders.js` validates checkout payloads, rejects honeypot submissions, resolves catalogue products, rejects quote-only items, and recalculates line totals server-side. Frontend totals are display-only.
 - `POST /api/orders` persists `CommerceOrder` and `CommerceOrderItem` records only when the additive commerce migration has been deployed. The created order status is `PAYMENT_PENDING`, and the response includes Paystack preparation metadata with `status: "not_started"`.
 - `prisma/migrations/20260520000000_add_commerce_order_foundation/migration.sql` creates `CommerceOrderStatus`, `CommerceOrder`, and `CommerceOrderItem`. Deploy only after confirming the target database, then test pending order creation before enabling customer-facing checkout links in production.
@@ -157,7 +202,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `CommerceOrder` now has additive notification metadata fields: `preferredContactMethod`, `customerNotificationStatus`, `customerNotificationType`, `customerNotificationSentAt`, `customerNotificationProviderId`, and `customerNotificationError`.
 - Duplicate sends are reduced by checking `customerNotificationSentAt` before attempting another payment-confirmed email. This is not a complete idempotency/audit system; add a `NotificationLog` table before webhook-driven retries, staff dashboards, or multi-channel automation.
 - WhatsApp and SMS helpers are templates only. Do not connect WhatsApp Business API or an SMS provider until consent, opt-out, retry, delivery-cost, and audit requirements are defined.
-- Checkout now captures preferred contact method (`email`, `phone`, `whatsapp`) with email as the default. Backend validation still requires customer name, email, phone, delivery/pickup note, and server-priced items.
+- Checkout now captures preferred contact method (`email`, `phone`, `whatsapp`) with email as the default. Backend validation still requires customer name, email, phone, server-priced items, and valid fulfillment details: delivery address for delivery, or pickup spot/date/time for pickup.
 
 ### Security and production readiness pass - 2026-05-20
 
@@ -168,16 +213,16 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Paystack initialization metadata was minimized. The provider receives the order number and source only; raw internal order IDs and customer phone are no longer sent as custom metadata.
 - Obsolete browser-visible preview-auth env examples (`VITE_AUTH_USERNAME`, `VITE_AUTH_PASSWORD`) were removed from `.env.example`. Do not add secret-like auth/password/session values with a `VITE_*` prefix.
 - Privacy/legal copy now uses "pricing" instead of generic "quote" wording. Customer-facing commerce language should use "Price" and "Pricing"; reserve quote/request language for custom orders, unavailable stock, bulk/corporate inquiries, or special requests.
-- Current public sign-in/sign-up remains frontend-only localStorage auth. It is intentionally retained for now, but must not protect admin, order, stock, payment, inquiry, or customer workflows.
+- Current public sign-up remains a frontend-only customer profile placeholder. It no longer stores local account records or password hashes; it must not protect admin, order, stock, payment, inquiry, or sensitive customer workflows.
 - Backend `SiteUser` access should stay private and use one seeded `ADMIN` account and one seeded `VIEWER` account until a real admin/customer account model is approved.
 - Railway Postgres is the chosen production database. Use server-only database URLs, keep browser database access unavailable, and prefer separate Railway runtime/migration credentials or roles where available.
 - Add a dedicated payment event log and notification log before webhook replay tooling, retries, staff alerts, fulfillment automation, or multi-channel order updates.
 
 ### Lightweight admin order management - 2026-05-21
 
-- The old `/admin/operations` and `/admin/orders` module screens have been cleared for the portal module rebuild. They now render reset placeholders inside the shared ERP shell. Staff login uses backend `SiteUser` auth via `/api/auth/login`.
-- `/login` on `portal.stroanesolutions.com` is the dedicated staff entrypoint. The old `/admin/signin` route redirects there for compatibility. Staff bearer tokens remain portal-origin `sessionStorage` values and are not shared with the storefront.
-- The private order-management UI and admin order routes are not part of the active portal surface after the reset.
+- Superseded by the 2026-06-17 orders-module pass: `/admin/orders` is now an active protected module again. `/admin/operations` remains a reset placeholder.
+- `/login` on `portal.stroanesolutions.com` is the dedicated staff entrypoint. The old `/admin/signin` route redirects there for compatibility. Staff auth credentials are now delivered as HttpOnly cookies; the portal stores profile metadata only.
+- The private order-management UI and admin order routes are part of the active portal surface again. Keep order writes and Paystack actions admin-only.
 - Additive `CommerceOrder` fields support lightweight fulfillment notes only: `fulfillmentStatus`, `deliveryMethod`, `expectedDeliveryDate`, `adminDeliveryNotes`, `internalNotes`, `statusUpdatedAt`, and `statusUpdatedById`.
 - This is not a full ERP, inventory deduction system, delivery logistics module, CRM, staff notification system, or audit log. Add payment event/notification logs and stock admin separately before fulfillment automation.
 
@@ -216,7 +261,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Should the Contact form submit to a real backend endpoint instead of the current `mailto:` fallback?
 - Should `CartContext` persist to `localStorage` so the basket survives reloads, or stay in-memory for the preview build?
 - Final imagery for service 7 (Cold Storage Checks) and service 8 (Import & Export Support); featured Resources guide cover currently reuses `bg_2.png`.
-- Public sign-in/sign-up should remain in the public release as frontend-only customer convenience for now. It is not a backend auth boundary; private backend `SiteUser` access should stay limited to one seeded admin and one seeded viewer account until an admin/customer account model is approved.
+- Public customer profile placeholders should remain a non-sensitive convenience only. They are not a backend auth boundary; private backend `SiteUser` access should stay limited to approved staff accounts until an admin/customer account model is approved.
 - What acceptance checklist should be completed before the pending-order checkout is exposed broadly on the production domain?
 - Should Paystack payment links be created immediately after pending order creation, or only after Stroane manually confirms availability/delivery?
 - Should the catalogue keep quote-only products visible before final apron/poster pricing is verified?

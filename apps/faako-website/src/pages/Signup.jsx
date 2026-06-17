@@ -12,12 +12,21 @@ import "../styles/pages/Auth.css";
 const SIGNUP_DRAFT_STORAGE_KEY = "faako-onboarding-intake-draft-v1";
 const HONEYPOT_FIELD_NAME = "companyFax";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LEGACY_NETLIFY_FUNCTIONS_PATH = "/.netlify/functions";
+
+const normalizeConfiguredApiBaseUrl = (value) => {
+  const configuredBaseUrl = String(value || "").trim().replace(/\/+$/, "");
+  if (!configuredBaseUrl) return "";
+
+  return configuredBaseUrl.replace(
+    new RegExp(`${LEGACY_NETLIFY_FUNCTIONS_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+    "/api"
+  );
+};
 
 const resolveApiEndpoint = (path) => {
   const normalizedPath = String(path || "").replace(/^\/+/, "");
-  const configuredBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "")
-    .trim()
-    .replace(/\/+$/, "");
+  const configuredBaseUrl = normalizeConfiguredApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   if (!configuredBaseUrl) return `/api/${normalizedPath}`;
   if (/^https?:\/\//i.test(configuredBaseUrl)) {
@@ -672,33 +681,6 @@ export default function Signup() {
       state: "loading",
       message: "Creating your onboarding summary and sending copies...",
     });
-
-    const response = await fetch(SIGNUP_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        companyName: payload.companyName,
-        contactName: payload.contactName,
-        email: payload.email,
-        phone: payload.phone,
-        teamSize: payload.teamSize,
-        packageTier: payload.packageTier,
-        requestedModules: payload.requestedModules.join(", "),
-        currentWorkflow: payload.currentWorkflow,
-        painPoints: payload.painPoints,
-        projectDetails: payload.projectDetails,
-        launchTimeline: payload.intake?.operations?.launchTimeline,
-        preferredProvider: payload.intake?.payments?.preferredProvider,
-        communicationChannels: payload.communicationChannels.join(", "),
-        intake: payload.intake,
-        setupChecklist: payload.setupChecklist,
-      }),
-    });
-
-    const result = await response.json();
 
     try {
       const response = await fetch(SIGNUP_ENDPOINT, {

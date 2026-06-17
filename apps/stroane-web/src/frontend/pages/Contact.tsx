@@ -6,6 +6,7 @@ import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import StructuredData from "../../components/StructuredData";
 import { productApi } from "../../api/products";
+import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
 import "../styles/Contact.css";
 
 const CONTACT_SCHEMA = {
@@ -68,6 +69,16 @@ const Contact: React.FC = () => {
     if (!name.trim() || (!email.trim() && !phone.trim()) || !message.trim()) {
       setStatus("error");
       setFeedback("Add your name, an email or phone number, and a short message.");
+      return;
+    }
+    if (email.trim() && !isLikelyEmail(email)) {
+      setStatus("error");
+      setFeedback("Add a valid email address.");
+      return;
+    }
+    if (phone.trim() && !isLikelyPhone(phone)) {
+      setStatus("error");
+      setFeedback("Add a valid phone number.");
       return;
     }
 
@@ -165,6 +176,8 @@ const Contact: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     autoComplete="tel"
+                    inputMode="tel"
+                    pattern={PHONE_INPUT_PATTERN}
                     placeholder="+233…"
                   />
                 </label>
