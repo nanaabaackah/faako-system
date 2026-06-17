@@ -66,7 +66,7 @@
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
 }
 
 .auth-card__kicker {
@@ -118,8 +118,11 @@
   color: var(--color-text-secondary);
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field .ui-field__input,
+.auth-field .ui-dropdown-field__trigger {
   width: 100%;
+  min-height: 46px;
   font: inherit;
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
@@ -131,9 +134,25 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.auth-field input:focus {
+.auth-field .ui-field__control {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-field .ui-dropdown-field__trigger {
+  justify-content: space-between;
+}
+
+.auth-field input:focus,
+.auth-field .ui-field__input:focus,
+.auth-field.ui-dropdown-field.is-open .ui-dropdown-field__trigger,
+.auth-field .ui-dropdown-field__trigger:focus-visible {
   border-color: var(--color-primary-border-hover);
   box-shadow: 0 0 0 3px var(--color-primary-tint);
+  outline: none;
 }
 
 .auth-field__hint {
@@ -158,6 +177,10 @@
   font-size: var(--font-size-base);
   font-weight: 800;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 

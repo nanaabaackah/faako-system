@@ -11,6 +11,12 @@
 - `POST /api/orders/:orderId/paystack/initialize`
 - `POST /api/paystack/verify`
 - `POST /api/paystack/webhook`
+- `POST /api/customer/signup`
+- `POST /api/customer/login`
+- `POST /api/customer/logout`
+- `GET /api/customer/me`
+- `PATCH /api/customer/me`
+- `GET /api/customer/orders`
 
 Catalogue endpoints prefer persisted database rows when available and fall back to the local JSON seed when the API/database is unavailable or not yet seeded. Category and product responses remain source-coherent: persisted categories are used only when published persisted products also exist. Legacy aliases remain available at `GET /api/categories`, `GET /api/products`, and `GET /api/products/:slug` during the Railway API rollout.
 
@@ -35,8 +41,39 @@ Catalogue endpoints prefer persisted database rows when available and fall back 
 - `PATCH /api/admin/products/:id/suppliers`
 - `GET /api/admin/inventory/alerts`
 - `POST /api/admin/inventory/alerts/check`
+- `GET /api/admin/orders`
+- `GET /api/admin/orders/:id`
+- `POST /api/admin/orders`
+- `PATCH /api/admin/orders/:id`
+- `POST /api/admin/orders/:id/paystack/initialize`
+- `POST /api/admin/orders/:id/paystack/verify`
+- `GET /api/admin/customers`
+- `GET /api/admin/customers/:id`
+- `POST /api/admin/customers`
+- `PATCH /api/admin/customers/:id`
+- `POST /api/admin/customers/:id/invite`
 
-Private endpoints require backend `SiteUser` bearer auth. `ADMIN` and `VIEWER` can read protected product, supplier, inventory, movement, and alert data for the `/admin` dashboard; write/update routes require `ADMIN`. The dedicated portal module pages are reset placeholders, so these APIs should be treated as backend foundations until the modules are rebuilt. Public customer sign-in/sign-up is not a backend security boundary.
+Private endpoints require backend `SiteUser` auth via the HttpOnly staff cookie, with legacy bearer fallback during transition. `ADMIN` and `VIEWER` can read protected product, supplier, inventory, movement, alert, order, and customer directory data where allowed; write/update routes require `ADMIN`. Public customer account endpoints use a separate HttpOnly customer cookie and never grant staff portal access.
+
+## Customer Account Endpoints
+
+Customer account routes are storefront routes, not admin routes. They use a distinct customer auth cookie and customer token audience.
+
+- `POST /api/customer/signup`
+  - Creates/activates a customer account from either a valid staff-generated invite token or a Paystack/order reference whose email matches the submitted email.
+  - Stores password hashes server-side, clears invite token hashes after activation, links matching orders, and sets the customer HttpOnly cookie.
+- `POST /api/customer/login`
+  - Signs in an active customer with email/password and sets the customer HttpOnly cookie.
+- `POST /api/customer/logout`
+  - Clears the customer cookie.
+- `GET /api/customer/me`
+  - Returns only the authenticated customer's profile.
+- `PATCH /api/customer/me`
+  - Updates only the authenticated customer's editable profile fields. Email cannot be changed through this route.
+- `GET /api/customer/orders`
+  - Returns orders linked to the authenticated customer, plus verified matching-email orders that are then linked server-side.
+
+State-changing customer routes require the storefront client header and are rate-limited. Do not add customer data reads that accept arbitrary customer IDs from the browser.
 
 ## Inventory Owner Alerts
 
@@ -75,13 +112,12 @@ WhatsApp Cloud API, Twilio, or another provider.
 ## Frontend Route Boundaries
 
 - Public storefront routes, including `/catalogue` and `/products/:slug`, render outside the ERP shell.
-- Public customer placeholders live at `/account`, `/orders`, and `/quotes`.
+- Customer account surfaces live at `/account`, `/orders`, `/quotes`, `/signin`, and `/signup`.
 - Staff authenticate at `https://portal.stroanesolutions.com/login`.
 - Protected operations routes render inside the shared ERP shell under `/admin/*`.
-- `/admin` is the only active portal dashboard.
-- `/admin/inventory`, `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/orders`, `/admin/reports`, and `/admin/settings` render reset placeholders for the next rebuild.
+- Active portal modules include `/admin`, `/admin/inventory`, `/admin/orders`, `/admin/crm`, and `/admin/directory`; other placeholder module routes remain compatibility shells.
 
-Frontend route guards are navigation boundaries only. Protected `/api/admin/*` endpoints continue to enforce backend `SiteUser` bearer authorization.
+Frontend route guards are navigation boundaries only. Protected `/api/admin/*` endpoints continue to enforce backend `SiteUser` authorization, and protected `/api/customer/*` endpoints continue to enforce customer-cookie authorization.
 
 ## Railway Deployment Contract
 
@@ -90,7 +126,7 @@ Frontend route guards are navigation boundaries only. Protected `/api/admin/*` e
 - Railway API build command: `node ./scripts/railway-service.mjs build`
 - Railway API pre-deploy migration command: `pnpm --filter @faako/stroane-web run db:deploy:prod`
 - Railway API start command: `node ./scripts/railway-service.mjs start`
-- Cloudflare Pages public API base: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- Cloudflare Pages public API base: `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 - Browser CORS origins: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, approved local development origins, and Cloudflare Pages preview domains ending in `.pages.dev`.
 
 Cloudflare Pages is the frontend host. Railway hosts the API and Postgres database.
@@ -99,9 +135,9 @@ Cloudflare Pages is the frontend host. Railway hosts the API and Postgres databa
 
 - Frontend route: `/admin`
 - Existing staff sessions from backend `POST /api/auth/login` are reused.
-- `ADMIN` and `VIEWER` can review dashboard product, supplier, inventory, movement, and alert signals.
-- The dedicated inventory, supplier, product, operations, reports, and settings routes are reset placeholders.
-- Initial stock-item setup, supplier creation/editing, product-supplier linking, product editing, and movement entry remain backend foundations until focused module editors are rebuilt.
+- `ADMIN` and `VIEWER` can review dashboard product, supplier, inventory, movement, alert, order, and customer signals.
+- Active module routes include inventory, orders, and CRM/directory. Supplier, product, operations, reports, and settings routes remain reset placeholders.
+- Initial supplier creation/editing, product-supplier linking, and product editing remain backend foundations until focused module editors are rebuilt. Inventory movement entry is active through `/admin/inventory`.
 - The public storefront does not read supplier notes, purchase notes, or internal movement history.
 
 ## Admin Inventory/Supplier Endpoints
@@ -145,7 +181,7 @@ These routes are internal API foundations only. Do not expose supplier notes, co
 
 ## Admin Product Data Foundation
 
-There is no active `/admin/products` editor UI after the portal reset. Product list reads remain wired to the `/admin` dashboard so product fetches continue to work. These routes are bearer-protected and return private operational fields only to staff sessions:
+There is no active `/admin/products` editor UI after the portal reset. Product list reads remain wired to the `/admin` dashboard and inventory/product management surfaces so product fetches continue to work. These routes are staff-auth protected and return private operational fields only to staff sessions:
 
 - `GET /api/admin/products?search=&publishingStatus=&categorySlug=&tag=&limit=`
   - Returns product rows, publishing status, stock summary, private preferred-supplier summary, and active category options.
@@ -165,6 +201,23 @@ Product updates append lightweight `InventoryAuditEntry` records. Public catalog
 The checked-in browser fallback remains a deliberately public outage snapshot. It cannot observe a Railway database publishing change while the API is unavailable. If an active fallback product is archived or becomes unsuitable for public display, update the checked-in public catalogue snapshot and redeploy the Cloudflare Pages frontend as part of the publishing operation.
 
 Direct module UI, media upload, external media hosting, product creation, category editing, bulk product editing, automated stock reservation, and order-to-inventory allocation are intentionally deferred.
+
+## Admin Customer CRM Endpoints
+
+Customer directory routes are private CRM workflows and must not expose customer data on the storefront.
+
+- `GET /api/admin/customers?search=&status=&limit=`
+  - Returns customer directory rows, account status, linked-order counts, total spend, last order summary, and CRM summary KPIs.
+- `GET /api/admin/customers/:id`
+  - Returns one customer profile plus recent linked orders for staff review.
+- `POST /api/admin/customers`
+  - Admin-only. Creates or updates a customer directory record and can generate a one-time account creation invite URL. The raw invite token is returned only in this response; the database stores a token hash.
+- `PATCH /api/admin/customers/:id`
+  - Admin-only. Updates safe CRM/profile fields and account status.
+- `POST /api/admin/customers/:id/invite`
+  - Admin-only. Regenerates an invite token, stores only its hash, and returns a new account creation URL for copying/sharing.
+
+Customer CRM rows can link existing orders by normalized email. Account activation remains customer-controlled through `/api/customer/signup` with a matching invite or checkout reference.
 
 ## Inventory Rules To Preserve
 

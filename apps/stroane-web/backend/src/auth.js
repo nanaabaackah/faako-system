@@ -6,6 +6,9 @@ const TOKEN_EXPIRY_SECONDS = 8 * 60 * 60;
 export const ADMIN_AUTH_COOKIE_NAME =
   String(process.env.STROANE_ADMIN_AUTH_COOKIE_NAME || "stroane_admin_session").trim()
   || "stroane_admin_session";
+export const CUSTOMER_AUTH_COOKIE_NAME =
+  String(process.env.STROANE_CUSTOMER_AUTH_COOKIE_NAME || "stroane_customer_session").trim()
+  || "stroane_customer_session";
 
 // Dummy hash used during failed login lookups to prevent user-enumeration timing attacks.
 // Format matches the real stored format: {32-hex-salt}:{128-hex-hash}
@@ -57,23 +60,27 @@ const normalizeSameSite = (value) => {
   return "lax";
 };
 
-const shouldUseSecureCookie = () => {
-  const configured = String(process.env.STROANE_ADMIN_AUTH_COOKIE_SECURE || "").trim().toLowerCase();
+const shouldUseSecureCookie = (envName = "STROANE_ADMIN_AUTH_COOKIE_SECURE") => {
+  const configured = String(process.env[envName] || "").trim().toLowerCase();
   if (configured === "true") return true;
   if (configured === "false") return false;
   return isProductionRuntime();
 };
 
-const getAuthCookieOptions = () => {
+const getAuthCookieOptions = ({
+  secureEnvName = "STROANE_ADMIN_AUTH_COOKIE_SECURE",
+  sameSiteEnvName = "STROANE_ADMIN_AUTH_COOKIE_SAME_SITE",
+  domainEnvName = "STROANE_ADMIN_AUTH_COOKIE_DOMAIN",
+} = {}) => {
   const options = {
     httpOnly: true,
-    secure: shouldUseSecureCookie(),
-    sameSite: normalizeSameSite(process.env.STROANE_ADMIN_AUTH_COOKIE_SAME_SITE),
+    secure: shouldUseSecureCookie(secureEnvName),
+    sameSite: normalizeSameSite(process.env[sameSiteEnvName]),
     maxAge: TOKEN_EXPIRY_SECONDS * 1000,
     path: "/",
   };
 
-  const domain = String(process.env.STROANE_ADMIN_AUTH_COOKIE_DOMAIN || "").trim();
+  const domain = String(process.env[domainEnvName] || "").trim();
   if (domain) {
     options.domain = domain;
   }
@@ -107,6 +114,11 @@ export const getAdminAuthCookieToken = (req) => {
   return cookies.get(ADMIN_AUTH_COOKIE_NAME) || "";
 };
 
+export const getCustomerAuthCookieToken = (req) => {
+  const cookies = parseCookieHeader(req?.headers?.cookie || req?.headers?.Cookie || "");
+  return cookies.get(CUSTOMER_AUTH_COOKIE_NAME) || "";
+};
+
 export const getRequestAuthToken = (req) => {
   const authHeader = String(req?.headers?.authorization || "");
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -123,6 +135,30 @@ export const clearAdminAuthCookie = (res) => {
   const options = getAuthCookieOptions();
   delete options.maxAge;
   res.clearCookie(ADMIN_AUTH_COOKIE_NAME, options);
+};
+
+export const setCustomerAuthCookie = (res, token) => {
+  if (!token || typeof res?.cookie !== "function") return;
+  res.cookie(
+    CUSTOMER_AUTH_COOKIE_NAME,
+    token,
+    getAuthCookieOptions({
+      secureEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_SECURE",
+      sameSiteEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_SAME_SITE",
+      domainEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_DOMAIN",
+    })
+  );
+};
+
+export const clearCustomerAuthCookie = (res) => {
+  if (typeof res?.clearCookie !== "function") return;
+  const options = getAuthCookieOptions({
+    secureEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_SECURE",
+    sameSiteEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_SAME_SITE",
+    domainEnvName: "STROANE_CUSTOMER_AUTH_COOKIE_DOMAIN",
+  });
+  delete options.maxAge;
+  res.clearCookie(CUSTOMER_AUTH_COOKIE_NAME, options);
 };
 
 export const verifyToken = (token) => {

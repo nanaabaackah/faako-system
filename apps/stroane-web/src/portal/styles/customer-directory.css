@@ -1,0 +1,325 @@
+.stroane-crm {
+  width: min(100%, 1480px);
+  padding: 0.85rem 0 2rem;
+}
+
+.stroane-crm,
+.stroane-crm * {
+  min-width: 0;
+}
+
+.stroane-crm__head,
+.stroane-crm__head-actions,
+.stroane-crm__toolbar,
+.stroane-crm__modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stroane-crm__head {
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.stroane-crm__head span {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-crm__head h1 {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-primary);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 1.08;
+}
+
+.stroane-crm__head p {
+  max-width: 720px;
+  margin: 0.65rem 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.stroane-crm__head-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.stroane-crm__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.stroane-crm__kpis article {
+  align-self: start;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-height: 110px;
+  padding: 0.92rem;
+}
+
+.stroane-crm__kpis svg {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--sys-radius-sm);
+  padding: 0.42rem;
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.stroane-crm__kpis article[data-tone="success"] svg {
+  background: var(--sys-success-soft);
+  color: var(--sys-success);
+}
+
+.stroane-crm__kpis article[data-tone="warning"] svg {
+  background: var(--sys-warning-soft);
+  color: var(--sys-warning);
+}
+
+.stroane-crm__kpis article[data-tone="info"] svg {
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.stroane-crm__kpis span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-crm__kpis strong {
+  color: var(--color-text-primary);
+  font-size: 1.58rem;
+  line-height: 1;
+}
+
+.stroane-crm__table-panel {
+  overflow: visible;
+  margin-top: 1rem;
+}
+
+.stroane-crm__toolbar {
+  align-items: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid var(--sys-border);
+}
+
+.stroane-crm__toolbar .ui-erp-table-search {
+  flex: 1 1 20rem;
+}
+
+.stroane-crm__filter {
+  flex: 0 1 13rem;
+}
+
+.stroane-crm__admin-table {
+  overflow: visible;
+}
+
+.stroane-crm__admin-table table {
+  min-width: 1040px;
+}
+
+.stroane-crm__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+}
+
+.stroane-crm__col-customer {
+  width: 27%;
+}
+
+.stroane-crm__col-status {
+  width: 14%;
+}
+
+.stroane-crm__col-contact {
+  width: 16%;
+}
+
+.stroane-crm__col-orders {
+  width: 15%;
+}
+
+.stroane-crm__col-last {
+  width: 19%;
+}
+
+.stroane-crm__col-actions {
+  width: 6rem;
+}
+
+.stroane-crm__table th,
+.stroane-crm__table td {
+  border-bottom: 1px solid var(--sys-border);
+  padding: 0.82rem 0.9rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.stroane-crm__table th,
+.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty) {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty) > * {
+  max-width: 100%;
+}
+
+.stroane-crm__table .ui-erp-status-badge,
+.stroane-crm__table .erp-status-badge {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-crm__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--sys-surface-strong) 94%, transparent);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-crm__customer-cell {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.stroane-crm__customer-cell strong,
+.stroane-crm__customer-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-crm__customer-cell strong {
+  color: var(--color-text-primary);
+}
+
+.stroane-crm__customer-cell small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.stroane-crm__actions-cell {
+  overflow: visible;
+  text-align: right !important;
+}
+
+.stroane-crm__icon-button {
+  display: inline-grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  background: color-mix(in srgb, var(--sys-surface-strong) 78%, transparent);
+  color: var(--sys-accent);
+  cursor: pointer;
+}
+
+.stroane-crm__icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.stroane-crm__table-empty {
+  height: 6rem;
+  color: var(--color-text-muted);
+  text-align: center !important;
+}
+
+.stroane-crm__pagination {
+  border-top: 1px solid var(--sys-border);
+  padding: 0.86rem 1rem;
+}
+
+.stroane-crm__modal.ui-erp-modal {
+  width: min(100%, 48rem);
+}
+
+.stroane-crm__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.stroane-crm__checkbox {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.stroane-crm__checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--sys-accent);
+}
+
+.stroane-crm__modal-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1180px) {
+  .stroane-crm__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .stroane-crm__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stroane-crm__head-actions {
+    justify-content: flex-start;
+  }
+
+  .stroane-crm__kpis,
+  .stroane-crm__form {
+    grid-template-columns: 1fr;
+  }
+
+  .stroane-crm__toolbar {
+    flex-direction: column;
+  }
+
+  .stroane-crm__toolbar .ui-erp-table-search,
+  .stroane-crm__filter {
+    width: 100%;
+    flex-basis: auto;
+  }
+}

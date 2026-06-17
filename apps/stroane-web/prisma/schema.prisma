@@ -327,10 +327,45 @@ enum CommerceOrderStatus {
   CANCELLED
 }
 
+enum CustomerAccountStatus {
+  INVITED
+  ACTIVE
+  LOCKED
+}
+
+model CustomerAccount {
+  id                     String                @id @default(cuid())
+  email                  String                @unique
+  passwordHash           String?
+  status                 CustomerAccountStatus @default(INVITED)
+  name                   String
+  phone                  String?
+  businessName           String?
+  preferredContactMethod String?
+  defaultDeliveryAddress String?
+  deliveryNotes          String?
+  inviteTokenHash        String?               @unique
+  inviteExpiresAt        DateTime?
+  invitedAt              DateTime?
+  activatedAt            DateTime?
+  lastLoginAt            DateTime?
+  createdById            String?
+  createdBy              SiteUser?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  orders                 CommerceOrder[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([inviteExpiresAt])
+}
+
 model CommerceOrder {
   id               String              @id @default(cuid())
   orderNumber      String              @unique
   status           CommerceOrderStatus @default(PAYMENT_PENDING)
+  customerId        String?
+  customerAccount   CustomerAccount?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName     String
   customerEmail    String
   customerPhone    String
@@ -374,6 +409,7 @@ model CommerceOrder {
   customerNotificationError String?
 
   @@index([status, createdAt])
+  @@index([customerId])
   @@index([customerEmail])
   @@index([paymentReference])
   @@index([paymentWebhookReference])
@@ -434,6 +470,7 @@ model SiteUser {
   createdById          String?
   createdBy            SiteUser?  @relation("CreatedBy", fields: [createdById], references: [id])
   createdUsers         SiteUser[] @relation("CreatedBy")
+  createdCustomers     CustomerAccount[] @relation("CustomerCreatedBy")
 
   @@index([personalEmail])
 }

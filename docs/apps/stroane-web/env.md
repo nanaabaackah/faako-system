@@ -34,14 +34,14 @@ Private user seeding follows the same separation:
 
 Production Cloudflare Pages storefront:
 
-- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 - `VITE_APP_SURFACE=storefront`
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
 Production Cloudflare Pages operational portal:
 
-- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 - `VITE_APP_SURFACE=portal`
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
@@ -59,6 +59,15 @@ Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service
 - `CORS_ORIGINS`: comma-separated allowed browser origins.
 - `TRUST_PROXY_HOPS`: trusted proxy hop count, usually `1` on Railway after verification.
 - `APP_AUTH_SECRET`: backend-only signing secret for private admin/viewer sessions.
+- `STROANE_ADMIN_AUTH_COOKIE_NAME`: optional staff cookie name override. Defaults to `stroane_admin_session`.
+- `STROANE_ADMIN_AUTH_COOKIE_SECURE`: set `true` in HTTPS production.
+- `STROANE_ADMIN_AUTH_COOKIE_SAME_SITE`: usually `Lax`.
+- `STROANE_ADMIN_AUTH_COOKIE_DOMAIN`: leave blank for host-only cookies unless a reviewed cross-subdomain workflow requires otherwise.
+- `STROANE_CUSTOMER_AUTH_COOKIE_NAME`: optional customer cookie name override. Defaults to `stroane_customer_session`.
+- `STROANE_CUSTOMER_AUTH_COOKIE_SECURE`: set `true` in HTTPS production.
+- `STROANE_CUSTOMER_AUTH_COOKIE_SAME_SITE`: usually `Lax`.
+- `STROANE_CUSTOMER_AUTH_COOKIE_DOMAIN`: leave blank for host-only cookies unless a reviewed cross-subdomain workflow requires otherwise.
+- `STROANE_STOREFRONT_BASE_URL`: public storefront origin used to generate customer invite signup URLs.
 
 Production Railway API service:
 
@@ -68,15 +77,20 @@ Production Railway API service:
 - `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com`
 - `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
 - `APP_AUTH_SECRET=<rotated backend-only signing secret>`
+- `STROANE_ADMIN_AUTH_COOKIE_SECURE=true`
+- `STROANE_CUSTOMER_AUTH_COOKIE_SECURE=true`
+- `STROANE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
 
 Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
 
-Current staff authentication stores a short-lived bearer token in
-portal-origin `sessionStorage`. There is no Stroane parent-domain auth cookie to
-configure. If cookie sessions are introduced later, prefer secure, HTTP-only,
-host-only cookies and complete a CSRF/subdomain-risk review first.
+Current staff authentication stores only staff profile metadata in portal-origin
+`sessionStorage`; the credential is an HttpOnly staff cookie. Current customer
+authentication stores only a non-secret profile shell in storefront
+`sessionStorage`; the credential is an HttpOnly customer cookie. Keep both
+cookies host-only by leaving the domain variables blank unless a specific
+cross-subdomain workflow has gone through CSRF/subdomain-risk review.
 
 Use `APP_AUTH_SECRET` for new Railway deployments. `STROANE_AUTH_SECRET` remains a compatibility fallback in the current backend only; rotate any secret that has been pasted into chat, screenshots, tickets, or logs.
 

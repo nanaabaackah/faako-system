@@ -62,7 +62,7 @@
 - Confirm Cloudflare routes `stroanesolutions.com` and `www.stroanesolutions.com` to the storefront Pages project.
 - Confirm Cloudflare routes `portal.stroanesolutions.com` to the operational portal Pages project.
 - Confirm Railway `CORS_ORIGINS` includes the apex, `www`, and portal origins.
-- Confirm the API uses `https://stroane-api-production.up.railway.app` unless a future `api.stroanesolutions.com` cleanup is explicitly approved.
+- Confirm the browser-facing API uses `https://api.stroanesolutions.com` and that Railway remains the backend host behind that custom domain.
 
 ## Rollback plan
 

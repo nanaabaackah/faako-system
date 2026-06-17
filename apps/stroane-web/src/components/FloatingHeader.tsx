@@ -6,12 +6,10 @@ import {
   HiX,
   HiArrowRight,
   HiOutlineUser,
-  HiOutlineLogout,
   HiOutlineShoppingCart,
 } from "react-icons/hi";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -35,7 +33,7 @@ const FloatingHeader: React.FC = () => {
   const [query, setQuery]             = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { totalCount } = useCart();
 
   useEffect(() => {
@@ -105,6 +103,17 @@ const FloatingHeader: React.FC = () => {
     </Link>
   );
 
+  const renderAccountButton = (dark = false) => (
+    <Link
+      to="/account"
+      className={`nav-search-btn${dark ? " nav-search-btn--dark" : ""}`}
+      aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
+      title={user ? `Customer account — ${user.name}` : "Customer account"}
+    >
+      <HiOutlineUser size={18} aria-hidden="true" />
+    </Link>
+  );
+
   return (
     <>
       {/* ── In-hero header (fades out on scroll) ── */}
@@ -145,26 +154,7 @@ const FloatingHeader: React.FC = () => {
             <HiOutlineSearch size={18} aria-hidden="true" />
           </button>
           {renderCartButton()}
-          {user ? (
-            <button
-              className="nav-search-btn"
-              type="button"
-              onClick={signOut}
-              aria-label={`Sign out (${user.name})`}
-              title={`Sign out — ${user.name}`}
-            >
-              <HiOutlineLogout size={18} aria-hidden="true" />
-            </button>
-          ) : (
-            <a
-              href={PORTAL_LOGIN_URL}
-              className="nav-search-btn"
-              aria-label="Open admin portal"
-              title="Open admin portal"
-            >
-              <HiOutlineUser size={20} aria-hidden="true" />
-            </a>
-          )}
+          {renderAccountButton()}
           <Link to="/contact" className="page-header__cta">
             Contact Stroane
           </Link>
@@ -205,26 +195,7 @@ const FloatingHeader: React.FC = () => {
                 <HiOutlineSearch size={18} aria-hidden="true" />
               </button>
               {renderCartButton()}
-              {user ? (
-                <button
-                  className="nav-search-btn"
-                  type="button"
-                  onClick={signOut}
-                  aria-label={`Sign out (${user.name})`}
-                  title={`Sign out — ${user.name}`}
-                >
-                  <HiOutlineLogout size={18} aria-hidden="true" />
-                </button>
-              ) : (
-                <a
-                  href={PORTAL_LOGIN_URL}
-                  className="nav-search-btn"
-                  aria-label="Open admin portal"
-                  title="Open admin portal"
-                >
-                  <HiOutlineUser size={18} aria-hidden="true" />
-                </a>
-              )}
+              {renderAccountButton()}
               <Link to="/contact" className="navbar-cta">
                 Contact Stroane
               </Link>
@@ -266,26 +237,7 @@ const FloatingHeader: React.FC = () => {
                     <HiOutlineSearch size={18} aria-hidden="true" />
                   </button>
                   {renderCartButton(true)}
-                  {user ? (
-                    <button
-                      className="nav-search-btn nav-search-btn--dark"
-                      type="button"
-                      onClick={signOut}
-                      aria-label={`Sign out (${user.name})`}
-                      title={`Sign out — ${user.name}`}
-                    >
-                      <HiOutlineLogout size={18} aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <a
-                      href={PORTAL_LOGIN_URL}
-                      className="nav-search-btn nav-search-btn--dark"
-                      aria-label="Open admin portal"
-                      title="Open admin portal"
-                    >
-                      <HiOutlineUser size={18} aria-hidden="true" />
-                    </a>
-                  )}
+                  {renderAccountButton(true)}
                   <Link to="/contact" className="navbar-cta navbar-cta--dark">
                     Contact Stroane
                   </Link>
@@ -305,26 +257,7 @@ const FloatingHeader: React.FC = () => {
                 <HiOutlineSearch size={18} aria-hidden="true" />
               </button>
               {renderCartButton(true)}
-              {user ? (
-                <button
-                  className="nav-search-btn nav-search-btn--dark"
-                  type="button"
-                  onClick={signOut}
-                  aria-label={`Sign out (${user.name})`}
-                  title={`Sign out — ${user.name}`}
-                >
-                  <HiOutlineLogout size={18} aria-hidden="true" />
-                </button>
-              ) : (
-                <a
-                  href={PORTAL_LOGIN_URL}
-                  className="nav-search-btn nav-search-btn--dark"
-                  aria-label="Open admin portal"
-                  title="Open admin portal"
-                >
-                  <HiOutlineUser size={18} aria-hidden="true" />
-                </a>
-              )}
+              {renderAccountButton(true)}
               <Link
                 to="/contact"
                 className="page-header__cta page-header__cta--dark"
@@ -413,28 +346,14 @@ const FloatingHeader: React.FC = () => {
                   <HiOutlineShoppingCart size={18} aria-hidden="true" />
                   <span>{totalCount ? `Cart (${totalCount})` : "Cart"}</span>
                 </Link>
-                {user ? (
-                  <button
-                    type="button"
-                    className="mobile-nav-sheet__search"
-                    onClick={() => {
-                      signOut();
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <HiOutlineLogout size={18} aria-hidden="true" />
-                    <span>Sign out ({user.name})</span>
-                  </button>
-                ) : (
-                  <a
-                    href={PORTAL_LOGIN_URL}
-                    className="mobile-nav-sheet__search"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <HiOutlineUser size={18} aria-hidden="true" />
-                    <span>Admin portal</span>
-                  </a>
-                )}
+                <Link
+                  to="/account"
+                  className="mobile-nav-sheet__search"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <HiOutlineUser size={18} aria-hidden="true" />
+                  <span>{user ? "Customer account" : "Sign in"}</span>
+                </Link>
                 <Link
                   to="/contact"
                   className="mobile-nav-sheet__cta"

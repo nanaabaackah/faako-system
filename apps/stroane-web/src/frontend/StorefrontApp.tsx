@@ -19,6 +19,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import CustomerAccountPlaceholder from "./pages/CustomerAccountPlaceholder";
+import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Search from "./pages/Search";
 import ErrorPage from "./pages/ErrorPage";
@@ -47,7 +48,7 @@ const StorefrontApp: React.FC = () => (
         <Route path="/account" element={<CustomerAccountPlaceholder area="account" />} />
         <Route path="/orders" element={<CustomerAccountPlaceholder area="orders" />} />
         <Route path="/quotes" element={<CustomerAccountPlaceholder area="quotes" />} />
-        <Route path="/signin" element={<ExternalRedirect to={portalUrl("/login")} />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />

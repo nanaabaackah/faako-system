@@ -6,26 +6,23 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import {
+  customerAccountApi,
+  type CustomerProfile,
+  type CustomerProfileUpdatePayload,
+  type CustomerSignupPayload,
+} from "../api/customerAccount";
 
-/**
- * Temporary customer profile state for the storefront account placeholder.
- * Do not store passwords or durable customer credentials in the browser.
- * Server-backed customer accounts should replace this when that product area
- * is ready.
- */
-
-const SESSION_KEY = "stroane_guest_profile";
-
-export interface Account {
-  name: string;
-  email: string;
-}
+const CUSTOMER_PROFILE_KEY = "stroane_customer_profile_v1";
 
 interface AuthContextValue {
-  user: Account | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string) => Promise<void>;
-  signOut: () => void;
+  user: CustomerProfile | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<CustomerProfile>;
+  signUp: (payload: CustomerSignupPayload) => Promise<CustomerProfile>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<CustomerProfile | null>;
+  updateProfile: (payload: CustomerProfileUpdatePayload) => Promise<CustomerProfile>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -36,53 +33,98 @@ export const useAuth = (): AuthContextValue => {
   return ctx;
 };
 
-const loadSession = (): Account | null => {
-  if (typeof window === "undefined") return null;
+const normalizeStoredProfile = (value: unknown): CustomerProfile | null => {
+  const candidate = value as CustomerProfile | null;
+  if (!candidate?.id || !candidate.email || !candidate.name) return null;
+  return {
+    ...candidate,
+    status: candidate.status || "active",
+    preferredContactMethod: candidate.preferredContactMethod || "email",
+  };
+};
 
+const loadStoredProfile = (): CustomerProfile | null => {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Account;
-    if (!parsed.email || !parsed.name) return null;
-    return parsed;
+    return normalizeStoredProfile(
+      JSON.parse(window.sessionStorage.getItem(CUSTOMER_PROFILE_KEY) || "null")
+    );
   } catch {
     return null;
   }
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [user, setUser] = useState<Account | null>(loadSession);
+const storeProfile = (profile: CustomerProfile | null) => {
+  if (typeof window === "undefined") return;
+  if (!profile) {
+    window.sessionStorage.removeItem(CUSTOMER_PROFILE_KEY);
+    return;
+  }
+  window.sessionStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(profile));
+};
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<CustomerProfile | null>(loadStoredProfile);
+  const [loading, setLoading] = useState(false);
 
-    if (user) window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    else window.sessionStorage.removeItem(SESSION_KEY);
-  }, [user]);
-
-  const signUp = useCallback(
-    async (name: string, email: string) => {
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanName = name.trim();
-      if (!cleanName || !cleanEmail) {
-        throw new Error("Name and email are required.");
-      }
-      setUser({ name: cleanName, email: cleanEmail });
-    },
-    []
-  );
-
-  const signIn = useCallback(async () => {
-    throw new Error("Customer sign-in is not enabled yet. Use the portal for staff access.");
+  const applyProfile = useCallback((profile: CustomerProfile | null) => {
+    storeProfile(profile);
+    setUser(profile);
+    return profile;
   }, []);
 
-  const signOut = useCallback(() => setUser(null), []);
+  const refreshProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const profile = await customerAccountApi.getCurrent();
+      return applyProfile(profile);
+    } catch {
+      return applyProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+    void refreshProfile();
+    // Refresh once after startup when a profile shell exists. Avoid putting the
+    // full user object in deps so profile edits do not create a refresh loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const profile = await customerAccountApi.login({ email, password });
+      return applyProfile(profile);
+    },
+    [applyProfile]
+  );
+
+  const signUp = useCallback(
+    async (payload: CustomerSignupPayload) => {
+      const profile = await customerAccountApi.signup(payload);
+      return applyProfile(profile);
+    },
+    [applyProfile]
+  );
+
+  const signOut = useCallback(async () => {
+    await customerAccountApi.logout();
+    applyProfile(null);
+  }, [applyProfile]);
+
+  const updateProfile = useCallback(
+    async (payload: CustomerProfileUpdatePayload) => {
+      const profile = await customerAccountApi.updateProfile(payload);
+      return applyProfile(profile);
+    },
+    [applyProfile]
+  );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, signIn, signUp, signOut }),
-    [user, signIn, signUp, signOut]
+    () => ({ user, loading, signIn, signUp, signOut, refreshProfile, updateProfile }),
+    [loading, refreshProfile, signIn, signOut, signUp, updateProfile, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -6,12 +6,10 @@ import {
   HiX,
   HiArrowRight,
   HiOutlineUser,
-  HiOutlineLogout,
   HiOutlineShoppingCart,
 } from "react-icons/hi";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { PORTAL_LOGIN_URL } from "../config/appSurface";
 import "../styles/components/Header.css";
 
 const NAV_LINKS = [
@@ -51,7 +49,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
   const [query, setQuery]           = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { totalCount } = useCart();
   const hasHero = HERO_ROUTES.has(location.pathname);
   const isDark = scrolled || !hasHero;
@@ -191,24 +189,24 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                 {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
               </Link>
             )}
-            {user ? (
-              <button
-                className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
-                onClick={signOut}
-                aria-label={`Sign out (${user.name})`}
-                title={`Sign out — ${user.name}`}
-              >
-                <HiOutlineLogout size={18} aria-hidden="true" />
-              </button>
-            ) : (
+            {externalNavigationBaseUrl ? (
               <a
-                href={PORTAL_LOGIN_URL}
+                href={toSiteUrl(externalNavigationBaseUrl, "/account")}
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
-                aria-label="Open admin portal"
-                title="Open admin portal"
+                aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
+                title={user ? `Customer account — ${user.name}` : "Customer account"}
               >
                 <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
               </a>
+            ) : (
+              <Link
+                to="/account"
+                className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
+                aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
+                title={user ? `Customer account — ${user.name}` : "Customer account"}
+              >
+                <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
+              </Link>
             )}
             {externalNavigationBaseUrl ? (
               <a
@@ -341,27 +339,24 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
                   </Link>
                 )}
-                {user ? (
-                  <button
-                    type="button"
-                    className="mobile-nav-sheet__search"
-                    onClick={() => {
-                      signOut();
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <HiOutlineLogout size={18} aria-hidden="true" />
-                    <span>Sign out ({user.name})</span>
-                  </button>
-                ) : (
+                {externalNavigationBaseUrl ? (
                   <a
-                    href={PORTAL_LOGIN_URL}
+                    href={toSiteUrl(externalNavigationBaseUrl, "/account")}
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
                     <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
-                    <span>Admin portal</span>
+                    <span>{user ? "Customer account" : "Sign in"}</span>
                   </a>
+                ) : (
+                  <Link
+                    to="/account"
+                    className="mobile-nav-sheet__search"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
+                    <span>{user ? "Customer account" : "Sign in"}</span>
+                  </Link>
                 )}
                 {externalNavigationBaseUrl ? (
                   <a

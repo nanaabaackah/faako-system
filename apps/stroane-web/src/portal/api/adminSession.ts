@@ -2,6 +2,19 @@ import { apiPath } from "../../api/config";
 
 const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
 
+export class AdminApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "AdminApiError";
+    this.status = status;
+  }
+}
+
+export const isAdminUnauthorizedError = (error: unknown) =>
+  error instanceof AdminApiError && error.status === 401;
+
 const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
   const body = await response.json().catch(() => null);
 
@@ -10,7 +23,7 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
       body && typeof body === "object" && "error" in body && typeof body.error === "string"
         ? body.error
         : fallbackMessage;
-    throw new Error(message);
+    throw new AdminApiError(message, response.status);
   }
 
   if (!body) throw new Error(fallbackMessage);

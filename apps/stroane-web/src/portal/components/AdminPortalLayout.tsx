@@ -10,6 +10,7 @@ import {
   HiOutlineMoon,
   HiOutlineShoppingBag,
   HiOutlineSun,
+  HiOutlineUserGroup,
   HiOutlineUserCircle,
 } from "react-icons/hi";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -48,6 +49,7 @@ const PORTAL_BRAND: ErpBranding = {
 const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
   { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
+  { id: "crm", label: "CRM", path: "/admin/crm", iconKey: "crm" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
 ];
@@ -58,6 +60,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/profile": "Profile",
   "/admin/inventory": "Inventory",
+  "/admin/crm": "CRM",
+  "/admin/directory": "Directory",
   "/admin/suppliers": "Module reset",
   "/admin/products": "Module reset",
   "/admin/operations": "Module reset",
@@ -69,6 +73,7 @@ const PAGE_TITLES: Record<string, string> = {
 const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "home") return <HiOutlineHome />;
   if (iconKey === "orders") return <HiOutlineShoppingBag />;
+  if (iconKey === "crm") return <HiOutlineUserGroup />;
   if (iconKey === "inventory") return <HiOutlineCube />;
   if (iconKey === "profile") return <HiOutlineUserCircle />;
   return <HiOutlineCog />;

@@ -1,8 +1,11 @@
 import React, { useState, type FormEvent } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { HiArrowRight } from "react-icons/hi";
+import { TextField } from "@faako/ui";
 import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import { useAuth } from "../../context/AuthContext";
+import { isLikelyEmail } from "../../utils/contactValidation";
 import "../styles/Auth.css";
 
 const CUSTOMER_ACCOUNT_PATHS = ["/account", "/orders", "/quotes"];
@@ -35,8 +38,16 @@ const SignIn: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    if (!isLikelyEmail(identifier)) {
+      setError("Add a valid email address.");
+      return;
+    }
+    if (!password) {
+      setError("Add your password.");
+      return;
+    }
+    setLoading(true);
     try {
       await signIn(identifier, password);
       navigate(redirectTo, { replace: true });
@@ -71,16 +82,16 @@ const SignIn: React.FC = () => {
         <div className="auth-form-col">
           <div className="auth-card">
             <span className="auth-card__kicker">Welcome back</span>
-          <h1 className="auth-card__title">Sign in</h1>
-          <p className="auth-card__sub">
-            Customer account access is being prepared separately from staff operations.
-          </p>
+            <h1 className="auth-card__title">Customer sign in</h1>
+            <p className="auth-card__sub">
+              View your Stroane profile, delivery details, and order history.
+            </p>
 
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <label className="auth-field">
-              <span>Email</span>
-              <input
-                type="text"
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              <TextField
+                fieldClassName="auth-field"
+                label="Email"
+                type="email"
                 value={identifier}
                 onChange={(e) => {
                   setIdentifier(e.target.value);
@@ -89,11 +100,10 @@ const SignIn: React.FC = () => {
                 autoComplete="email"
                 required
               />
-            </label>
 
-            <label className="auth-field">
-              <span>Password</span>
-              <input
+              <TextField
+                fieldClassName="auth-field"
+                label="Password"
                 type="password"
                 value={password}
                 onChange={(e) => {
@@ -103,25 +113,25 @@ const SignIn: React.FC = () => {
                 autoComplete="current-password"
                 required
               />
-            </label>
 
-            {error ? (
-              <p className="auth-form__error" role="alert">
-                {error}
-              </p>
-            ) : null}
+              {error ? (
+                <p className="auth-form__error" role="alert">
+                  {error}
+                </p>
+              ) : null}
 
-            <button
-              type="submit"
-              className="auth-form__submit"
-              disabled={loading || !identifier || !password}
-            >
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="auth-form__submit"
+                disabled={loading || !identifier || !password}
+              >
+                {loading ? "Signing in..." : "Sign in"}
+                {!loading ? <HiArrowRight size={17} aria-hidden="true" /> : null}
+              </button>
+            </form>
 
             <p className="auth-card__alt">
-              New to Stroane? <Link to="/signup">Create an account</Link>
+              New to Stroane? Create your profile from checkout or a Stroane invitation.
             </p>
           </div>
         </div>

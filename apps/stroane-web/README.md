@@ -144,7 +144,7 @@ Cloudflare Pages should build two surfaces from this workspace:
 
 Storefront browsers do not fetch the lazy portal modules. Localhost keeps a combined compatibility mode when `VITE_APP_SURFACE` is blank so local development and Playwright can cover both surfaces.
 
-Both storefront and portal shells mount `AppUpdateNotice` from `@faako/ui`. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts users to refresh when a newer deployed bundle exists and never auto-reloads an active cart, checkout form, inquiry, or portal edit.
+Both storefront and portal shells mount `AppUpdateNotice` from `@faako/ui`. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it polls the root app shell for changed same-origin build assets, prompts users to refresh when a newer deployed bundle exists, and never auto-reloads an active cart, checkout form, inquiry, or portal edit.
 
 The private order module at `/admin/orders` lists storefront/manual orders, creates manual orders from active priced products, edits fulfillment metadata, initializes Paystack links, and refreshes Paystack status. This module is protected by backend `SiteUser` auth; order writes and Paystack actions require admin access.
 
@@ -317,13 +317,13 @@ pnpm --filter @faako/stroane-web start:api
 
 Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/backend service, Railway Postgres for the database, and Cloudflare for DNS/domain routing.
 
-Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the Railway API origin through the checked-in static header policy.
+Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the public API origin through the checked-in static header policy.
 
 Cloudflare Pages frontend settings:
 
 - Build command: `pnpm --filter @faako/stroane-web build`
 - Output directory: `apps/stroane-web/dist`
-- Environment variable: `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- Environment variable: `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 
 Railway API service command from the monorepo root with `RAILWAY_WORKSPACE=@faako/stroane-web`:
 
@@ -335,18 +335,18 @@ Railway API service command from the monorepo root with `RAILWAY_WORKSPACE=@faak
 
 Railway API service env must include `DATABASE_URL`, `NODE_ENV=production`, and `APP_ENV=production`. Do not place `DATABASE_URL` or other server-only secrets on the Cloudflare Pages frontend project. Do not place `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it.
 
-Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The API currently uses `https://stroane-api-production.up.railway.app`; `api.stroanesolutions.com` is optional future cleanup, not a requirement for this phase.
+Cloudflare DNS should route `stroanesolutions.com` and `www.stroanesolutions.com` to the Cloudflare Pages frontend. The browser-facing API origin is `https://api.stroanesolutions.com`, backed by the Railway API service.
 
-Cloudflare Pages uses `public/_headers`, the Railway API URL comes from `VITE_API_BASE_URL`, and local development uses the Vite proxy.
+Cloudflare Pages uses `public/_headers`, the public API URL comes from `VITE_API_BASE_URL`, and local development uses the Vite proxy.
 
 If the backend runs behind a trusted reverse proxy, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops, usually `1`, so Express resolves client IPs safely for rate limiting without trusting arbitrary forwarded headers.
 
 Smoke test these API routes after deploy:
 
-- `https://stroane-api-production.up.railway.app/health`
-- `https://stroane-api-production.up.railway.app/api/catalogue/products`
-- `https://stroane-api-production.up.railway.app/api/catalogue/categories`
-- `https://stroane-api-production.up.railway.app/api/catalogue/products/<slug>`
-- Legacy aliases: `https://stroane-api-production.up.railway.app/api/products` and `https://stroane-api-production.up.railway.app/api/categories`
+- `https://api.stroanesolutions.com/health`
+- `https://api.stroanesolutions.com/api/catalogue/products`
+- `https://api.stroanesolutions.com/api/catalogue/categories`
+- `https://api.stroanesolutions.com/api/catalogue/products/<slug>`
+- Legacy aliases: `https://api.stroanesolutions.com/api/products` and `https://api.stroanesolutions.com/api/categories`
 
 For Dev ERP monitoring, keep app-specific URL overrides in private operations configuration once the backend is deployed. This enables the optional API checks for `/health`, `/api/catalogue/products`, and `/api/catalogue/categories` without publishing client-specific env names in the public example file.

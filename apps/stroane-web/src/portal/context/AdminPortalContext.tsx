@@ -3,6 +3,7 @@ import {
   adminSessionApi,
   clearAdminSession,
   getStoredAdminSession,
+  isAdminUnauthorizedError,
   storeAdminSession,
   type AdminSession,
   type AdminProfileUpdatePayload,
@@ -10,6 +11,7 @@ import {
 
 interface AdminPortalContextValue {
   session: AdminSession | null;
+  authChecking: boolean;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => void;
   refreshProfile: () => Promise<AdminSession | null>;
@@ -26,29 +28,44 @@ export const useAdminPortal = (): AdminPortalContextValue => {
 
 export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<AdminSession | null>(() => getStoredAdminSession());
+  const [authChecking, setAuthChecking] = useState(() => Boolean(getStoredAdminSession()));
 
   const signIn = useCallback(async (username: string, password: string) => {
     const nextSession = await adminSessionApi.login(username, password);
     storeAdminSession(nextSession);
     setSession(nextSession);
+    setAuthChecking(false);
   }, []);
 
   const signOut = useCallback(() => {
     void adminSessionApi.logout();
     clearAdminSession();
     setSession(null);
+    setAuthChecking(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
     const currentSession = getStoredAdminSession();
     if (!currentSession) {
       setSession(null);
+      setAuthChecking(false);
       return null;
     }
-    const refreshedSession = await adminSessionApi.getCurrent(currentSession);
-    storeAdminSession(refreshedSession);
-    setSession(refreshedSession);
-    return refreshedSession;
+    setAuthChecking(true);
+    try {
+      const refreshedSession = await adminSessionApi.getCurrent(currentSession);
+      storeAdminSession(refreshedSession);
+      setSession(refreshedSession);
+      return refreshedSession;
+    } catch (error) {
+      if (isAdminUnauthorizedError(error)) {
+        clearAdminSession();
+        setSession(null);
+      }
+      throw error;
+    } finally {
+      setAuthChecking(false);
+    }
   }, []);
 
   const updateProfile = useCallback(async (payload: AdminProfileUpdatePayload) => {
@@ -61,19 +78,36 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   useEffect(() => {
-    if (!session?.username) return;
+    if (!session?.username) {
+      setAuthChecking(false);
+      return;
+    }
     let cancelled = false;
     const currentSession = getStoredAdminSession();
-    if (!currentSession) return;
+    if (!currentSession) {
+      clearAdminSession();
+      setSession(null);
+      setAuthChecking(false);
+      return;
+    }
 
+    setAuthChecking(true);
     adminSessionApi.getCurrent(currentSession)
       .then((refreshedSession) => {
         if (cancelled) return;
         storeAdminSession(refreshedSession);
         setSession(refreshedSession);
       })
-      .catch(() => {
-        // Keep the stored session usable if the profile endpoint is temporarily unavailable.
+      .catch((error) => {
+        if (cancelled) return;
+        if (isAdminUnauthorizedError(error)) {
+          clearAdminSession();
+          setSession(null);
+        }
+        // Non-auth failures can be temporary API/network issues; keep the profile shell.
+      })
+      .finally(() => {
+        if (!cancelled) setAuthChecking(false);
       });
 
     return () => {
@@ -82,8 +116,8 @@ export const AdminPortalProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [session?.username]);
 
   const value = useMemo(
-    () => ({ session, signIn, signOut, refreshProfile, updateProfile }),
-    [refreshProfile, session, signIn, signOut, updateProfile]
+    () => ({ session, authChecking, signIn, signOut, refreshProfile, updateProfile }),
+    [authChecking, refreshProfile, session, signIn, signOut, updateProfile]
   );
 
   return <AdminPortalContext.Provider value={value}>{children}</AdminPortalContext.Provider>;

@@ -13,8 +13,9 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `TRUST_PROXY_HOPS` should match trusted reverse proxy topology when rate limiting relies on client IPs.
 - Railway API build command should be `pnpm --filter @faako/stroane-web exec prisma generate`; start command should be `pnpm --filter @faako/stroane-web start:api`.
 - The API server listens on `process.env.PORT` with a local fallback, and `/health` returns a database-independent JSON response for Railway health checks.
-- Public storefront, future customer account, and private staff portal routes are now separate. See `docs/apps/stroane-web/portal-architecture.md`.
+- Public storefront, customer account, and private staff portal routes are now separate. See `docs/apps/stroane-web/portal-architecture.md`.
 - Staff authentication belongs at `https://portal.stroanesolutions.com/login`; public sign-in actions and legacy apex auth/admin entries hand off to the portal hostname. Frontend portal guards improve navigation, while protected backend APIs remain the authorization boundary. The portal now uses an HttpOnly admin session cookie; legacy bearer headers remain accepted by the backend during transition.
+- Customer authentication belongs on the storefront account surfaces (`/signin`, `/signup`, `/account`, `/orders`, `/quotes`) and uses a separate HttpOnly customer cookie. The storefront may cache only a non-secret profile shell in `sessionStorage`; do not store customer session tokens, password hashes, invite hashes, payment references as credentials, or cross-customer data in browser storage.
 - Stroane Vite dedupes `react-router-dom` alongside React so shared `@faako/ui` ERP navigation links resolve against the app's router context.
 - `/admin/products` now reuses shared `@faako/ui` table, field, select, badge, action, and drawer primitives. Shared ERP visible labels are associated with their native controls for accessible keyboard, Safari/mobile, and browser-automation behavior.
 - Product media edits are URL/path based for now and intentionally accept local `/imgs/products/` paths only. Do not add direct upload or external media-provider credentials to the browser bundle.
@@ -36,7 +37,19 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `src/components/Header.tsx` carries a `HERO_ROUTES` set of paths that have an image hero (`/`, `/about`, `/services`, `/shop`, `/resources`, `/contact`). On those routes the header starts transparent (white text/icons) and switches to the solid `--scrolled` variant after `scrollY > 40`.
 - Every other route renders solid from page load via `isDark = scrolled || !hasHero`. An additional `page-header--static` modifier suppresses the `slideDown` keyframe so the solid header doesn't animate on every navigation.
 - When adding a new public page, decide whether it has an image hero. If yes, add the path to `HERO_ROUTES`. If no, do nothing — the dark variant kicks in automatically.
-- Header account icons on the public storefront open the private admin portal and should be labelled as admin-portal actions. Do not describe those controls as customer sign-in until a real customer auth flow exists.
+- Header account icons on the public storefront open the customer account surface. Staff/admin portal access remains a labelled footer/portal link or direct portal-host navigation, not the public customer account button.
+
+### Customer accounts and CRM directory - 2026-06-17
+
+- `CustomerAccount` is the server-side customer profile/auth model. It stores unique email, password hash, account status, profile details, invite token hash/expiry, activation/login timestamps, and optional staff creator reference.
+- Customer sessions use `STROANE_CUSTOMER_AUTH_COOKIE_*` cookie settings and the `stroane_customer` token audience. Keep customer and staff cookie names/settings separate.
+- Customer signup must have proof of context: either a valid staff-generated invite token or a Paystack/order reference whose stored checkout email matches the submitted email. Do not add open public signup without email verification and abuse controls.
+- `backend/src/customerAccounts/routes.js` owns both `/api/customer/*` account routes and `/api/admin/customers*` CRM routes. Customer routes read/write only the authenticated customer's profile/order history. Admin CRM reads allow `ADMIN`/`VIEWER`; CRM writes and invite generation require `ADMIN`.
+- Invite tokens are generated as random base64url strings and stored only as SHA-256 hashes. The raw signup URL is returned once when the invite is created/regenerated so staff can copy/share it.
+- Checkout return links to `/signup?reference=<paystack-reference>` after Paystack return. The backend still requires the submitted email to match the stored order email before account activation.
+- The portal CRM directory lives at `/admin/crm` and `/admin/directory`. It should stay on shared ERP table, field, badge, modal, pagination, and action primitives. Table cells should use fixed layout and ellipsis for long customer/business/order text.
+- Customer order linking is email-assisted but server-controlled: new orders try to attach to an existing customer by normalized email, and authenticated customers can link their own matching-email orders when viewing order history.
+- Future customer-detail modals should continue to avoid exposing password hashes, invite token hashes, raw payment provider payloads, or other customers' order data.
 
 ### Portal dashboard and inventory module notes - 2026-06-16
 
@@ -79,7 +92,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Shop and Checkout prune stale browser cart entries once the loaded catalogue is available and the product no longer has a numeric storefront price. This keeps unpriced or removed catalogue items out of the visible purchasing flow without storing customer data or touching server records.
 - The current public commerce fallback has four restored confirmed price-list products: AstroAI IR Thermometer (GHS 900), Taylor Precision Large Dial Fridge/Freezer Thermometer (GHS 500), Taylor Pro Horizontal Strip Fridge/Freezer Thermometer (GHS 500), and Taylor Precision Fridge/Freezer Thermometer with suction cups (GHS 400). Newer PDF/image-imported products without numeric prices should stay hidden from shop/product listing/search commerce surfaces until pricing is confirmed.
 - Direct unpriced product detail URLs should render the "not available online" gate and link customers back to priced products/contact, not display quote-first product detail pages.
-- Public customer account pages are placeholder/convenience surfaces only. `/signup` stores a temporary name/email profile in `sessionStorage`; `/account`, `/orders`, and `/quotes` should not send customers to the staff portal as a "sign in" action.
+- Customer account pages are server-backed convenience surfaces for profile and order history. `/signup` must keep requiring a checkout reference or staff invite, while `/account`, `/orders`, and `/quotes` must continue using customer-cookie APIs rather than sending customers to the staff portal.
 
 ### Page layout — full-width by default (2026-05-15)
 
@@ -94,7 +107,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 ### Stabilization notes - 2026-05-17
 
 - Stroane lint now depends on `typescript-eslint` and uses a flat-config-compatible `eslint.config.js` with separate browser and Node contexts. Keep `typescript-eslint` in `devDependencies` while the app contains TypeScript pages and backend JS files.
-- The current storefront `AuthContext` is a temporary customer profile placeholder. It stores only name/email profile metadata in `sessionStorage` and does not store passwords, password hashes, or durable account credentials. It is not server-enforced account security and must not protect admin, payment, order history, or sensitive customer workflows without a backend session model.
+- The storefront `AuthContext` is server-backed by `/api/customer/*`. It stores only a non-secret customer profile shell in `sessionStorage`; the session credential is the HttpOnly customer cookie. It must not be used for staff/admin access.
 - `src/lib/paystack.ts` is a legacy client-side Paystack Inline helper using `VITE_PAYSTACK_PUBLIC_KEY`. It is not used by the current checkout. Current Paystack checkout initializes and verifies payments through the backend so `PAYSTACK_SECRET_KEY` stays server-side.
 - Recent Stroane route additions (`/signin`, `/signup`, `/checkout`) passed lint/type/build checks, but still need a production acceptance review for privacy, data retention, and fulfillment assumptions.
 
@@ -213,7 +226,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Paystack initialization metadata was minimized. The provider receives the order number and source only; raw internal order IDs and customer phone are no longer sent as custom metadata.
 - Obsolete browser-visible preview-auth env examples (`VITE_AUTH_USERNAME`, `VITE_AUTH_PASSWORD`) were removed from `.env.example`. Do not add secret-like auth/password/session values with a `VITE_*` prefix.
 - Privacy/legal copy now uses "pricing" instead of generic "quote" wording. Customer-facing commerce language should use "Price" and "Pricing"; reserve quote/request language for custom orders, unavailable stock, bulk/corporate inquiries, or special requests.
-- Current public sign-up remains a frontend-only customer profile placeholder. It no longer stores local account records or password hashes; it must not protect admin, order, stock, payment, inquiry, or sensitive customer workflows.
+- Customer sign-up is now backend-gated by checkout reference or staff invite. Keep password hashing, invite validation, and order linking server-side.
 - Backend `SiteUser` access should stay private and use one seeded `ADMIN` account and one seeded `VIEWER` account until a real admin/customer account model is approved.
 - Railway Postgres is the chosen production database. Use server-only database URLs, keep browser database access unavailable, and prefer separate Railway runtime/migration credentials or roles where available.
 - Add a dedicated payment event log and notification log before webhook replay tooling, retries, staff alerts, fulfillment automation, or multi-channel order updates.
@@ -261,7 +274,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Should the Contact form submit to a real backend endpoint instead of the current `mailto:` fallback?
 - Should `CartContext` persist to `localStorage` so the basket survives reloads, or stay in-memory for the preview build?
 - Final imagery for service 7 (Cold Storage Checks) and service 8 (Import & Export Support); featured Resources guide cover currently reuses `bg_2.png`.
-- Public customer profile placeholders should remain a non-sensitive convenience only. They are not a backend auth boundary; private backend `SiteUser` access should stay limited to approved staff accounts until an admin/customer account model is approved.
+- Customer account/profile workflows are now backend-backed. Private backend `SiteUser` access should stay limited to approved staff accounts until broader staff-management workflows are approved.
 - What acceptance checklist should be completed before the pending-order checkout is exposed broadly on the production domain?
 - Should Paystack payment links be created immediately after pending order creation, or only after Stroane manually confirms availability/delivery?
 - Should the catalogue keep quote-only products visible before final apron/poster pricing is verified?

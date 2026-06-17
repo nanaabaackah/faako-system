@@ -14,6 +14,7 @@ export interface AppUpdateNoticeProps {
 const normalizeAssetPath = (value: string) => {
   try {
     const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return "";
     return `${url.pathname}${url.search}`;
   } catch {
     return value;
@@ -37,12 +38,13 @@ const getDocumentBuildSignature = (doc: Document) => {
   return assets
     .filter(Boolean)
     .map(normalizeAssetPath)
+    .filter(Boolean)
     .sort()
     .join("|");
 };
 
 const getCheckUrl = (explicitUrl?: string) => {
-  const url = new URL(explicitUrl || window.location.href, window.location.href);
+  const url = new URL(explicitUrl || "/", window.location.origin);
   url.hash = "";
   url.searchParams.set("__faako_update_check", String(Date.now()));
   return url.toString();
@@ -77,6 +79,7 @@ export const AppUpdateNotice = ({
       try {
         const response = await fetch(getCheckUrl(checkUrl), {
           cache: "no-store",
+          credentials: "same-origin",
           headers: { Accept: "text/html" },
         });
         const contentType = response.headers.get("content-type") || "";

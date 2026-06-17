@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { asyncRoute } from "../apiResponse.js";
 import { requireAdminRole, requireSiteUser } from "../adminAuth.js";
+import { tryLinkCustomerForOrder } from "../customerAccounts/routes.js";
 import {
   prepareCommerceOrder,
   toPublicCommerceOrder,
@@ -177,11 +178,13 @@ export const createAdminOrderRouter = (prisma) => {
         ...req.body,
         source: sanitizeText(req.body?.source, 80) || "portal_manual",
       });
+      const linkedCustomer = await tryLinkCustomerForOrder(prisma, preparedOrder.customer.email);
 
       const savedOrder = await prisma.commerceOrder.create({
         data: {
           orderNumber: preparedOrder.orderNumber,
           status: preparedOrder.status,
+          customerId: linkedCustomer?.id || null,
           customerName: preparedOrder.customer.name,
           customerEmail: preparedOrder.customer.email,
           customerPhone: preparedOrder.customer.phone,

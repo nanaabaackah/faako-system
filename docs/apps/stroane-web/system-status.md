@@ -34,10 +34,12 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Operational inventory foundation: catalogue products now support optional `availableQuantity`, `reservedQuantity`, and `reorderThreshold`, with additive Prisma models for suppliers, supplier contacts, product-supplier links, inventory items, stock movements, adjustment/restock notes, and inventory audit entries.
 - Production-safe catalogue reconciliation and inventory bootstrap commands are available. They archive stale catalogue rows without deleting them and create missing operational inventory records without inventing stock quantities or overwriting existing counts.
 - Additive commerce order persistence foundation for `CommerceOrder`, `CommerceOrderItem`, and `CommerceOrderStatus`.
+- Additive customer account/CRM foundation for `CustomerAccount`, customer account status, and optional `CommerceOrder.customerId` links.
 - Paystack checkout MVP: `POST /api/orders/:orderId/paystack/initialize` initializes Paystack server-side for validated orders, `/checkout/return` displays customer payment status, and `POST /api/paystack/verify` acts as a browser-return status check without finalizing successful payments.
 - Paystack webhook confirmation: `POST /api/paystack/webhook` verifies `x-paystack-signature`, validates charge events, checks reference/amount/currency against the stored order, and is the trusted path for marking an order paid.
+- Server-backed customer accounts: `/signin`, `/signup`, `/account`, `/orders`, and `/quotes` use customer-cookie APIs for customer login, profile editing, and customer-scoped order history. Account creation requires a matching checkout reference or staff-generated invite.
 - Lightweight internal operations portal: `https://portal.stroanesolutions.com` is the dedicated Cloudflare Pages operational surface. Staff authenticate at `/login` with backend `SiteUser` credentials and an HttpOnly admin cookie, then protected portal routes render inside the shared `@faako/ui` ERP shell.
-- Active portal modules: `/admin` dashboard, `/admin/inventory`, `/admin/orders`, and `/admin/profile`. The dashboard includes order/stock business analytics and drilldown modals. Inventory includes stock value, KPI drilldowns, full-width admin table pagination, product lightbox editing, and autosave. Orders includes storefront/manual order review, manual order creation, fulfillment notes, and Paystack initialize/status-refresh actions. Profile uses shared ERP fields/actions for personal details and appearance preference.
+- Active portal modules: `/admin` dashboard, `/admin/inventory`, `/admin/orders`, `/admin/crm`, `/admin/directory`, and `/admin/profile`. The dashboard includes order/stock business analytics and drilldown modals. Inventory includes stock value, KPI drilldowns, full-width admin table pagination, product lightbox editing, and autosave. Orders includes storefront/manual order review, manual order creation, fulfillment notes, and Paystack initialize/status-refresh actions. CRM/directory includes customer KPIs, search/status filters, customer creation, account status, and one-time invite link creation. Profile uses shared ERP fields/actions for personal details and appearance preference.
 - Placeholder portal modules: `/admin/suppliers`, `/admin/products`, `/admin/operations`, `/admin/reports`, and `/admin/settings` remain reset placeholders until rebuilt.
 - Protected product, supplier, inventory, movement, and alert API reads remain available to the `/admin` dashboard so product fetches and stock signals continue to work. Public catalogue APIs return active rows only and omit supplier, cost, and import-review internals, including during server-side seed fallback.
 - Operational inventory owner alerts: backend scans detect low-stock, out-of-stock, reorder-threshold, and restocked states for published tracked products only. Durable cooldown claims prevent duplicate sends; grouped Resend email summaries are supported when configured; WhatsApp summaries are prepared through a provider-neutral abstraction without automated sending. The protected inventory portal shows active owner-alert counts and restock recommendations.
@@ -57,7 +59,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 
 - Preview-access auth gate (`AuthContext`, `AuthProvider`, `AuthGate`).
 - Admin user-management page (`/users`, `UserManagement.tsx`).
-- Provider-specific `/api/*` proxy entries. The frontend should use `VITE_API_BASE_URL` for the Railway API service; Cloudflare Pages is the current frontend host. `VITE_BACKEND_BASE_URL` is only a legacy fallback.
+- Provider-specific `/api/*` proxy entries. The frontend should use `VITE_API_BASE_URL` for the browser-facing API origin (`https://api.stroanesolutions.com` in production); Cloudflare Pages is the current frontend host. `VITE_BACKEND_BASE_URL` is only a legacy fallback.
 
 ## In-progress modules/features
 
@@ -66,15 +68,15 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Supplier, product, operations, report, and settings module pages are reset placeholders. The `/admin` dashboard reads protected product, supplier, inventory, movement, alert, and order APIs for overview signals. The one-time inventory bootstrap remains an explicit CLI operation.
 - Inventory owner alerts now run after committed stock mutations and through protected manual or scheduler triggers. Railway still needs intentional `STROANE_ALERT_*` configuration and a cron/scheduler call before recurring production scans are active.
 - Full catalogue import/manual review from PDF/image sources. Current seed covers normalized thermometer products, poster/signage products, and apron variant parents with manual-review flags where prices, exact models, sizes, supplier details, and stock counts need confirmation.
-- Inquiry routing decision. The current API can persist minimal inquiry records, but should not be treated as a CRM or lead-management system yet.
+- Inquiry routing decision. The current API can persist minimal inquiry records, but inquiries are not yet linked into the CRM/directory workflow.
 - Production backend/database deployment on Railway with Railway Postgres.
 - Cloudflare Pages environment changes require a redeploy because `VITE_*` values are baked into the built frontend bundle.
 - Client deployment readiness and operational polish.
 - Final guide / service hero imagery — placeholders reuse existing images for services 7 and 8 and for the featured guide.
 - Contact/product inquiry delivery — the frontend can submit through `/api/inquiries` when the backend/database is available and falls back to direct email if unavailable.
 - Order/payment operations after pending order creation. Checkout can prepare a pending order, initialize Paystack, process signed Paystack webhooks, verify Paystack transactions server-side before final paid status, verify Paystack return references for customer messaging only, and send payment-confirmed customer email when Resend is configured. The private order module can list orders, create manual orders, update fulfillment metadata, initialize Paystack, and refresh Paystack payment status.
-- Front-end-only customer account placeholders are not server-enforced customer account flows yet. Public signup stores only temporary name/email profile metadata in `sessionStorage`; no browser-side customer password hashes or local account records are retained.
-- Public sign-in actions hand off to `https://portal.stroanesolutions.com/login`. Private backend `SiteUser` staff credentials route valid staff users into protected `/admin/*` operations through an HttpOnly admin cookie. Private backend access should remain limited to approved staff accounts until a broader admin/customer account model is approved.
+- Customer account flow needs development-database migration and browser smoke: Paystack return profile creation, staff invite creation/copying, customer login/profile save, and customer order-history scoping should be verified before broad public promotion.
+- Public customer sign-in actions stay on the storefront customer-account surfaces. Private backend `SiteUser` staff credentials route valid staff users into protected `/admin/*` operations through an HttpOnly admin cookie. Private backend access should remain limited to approved staff accounts until broader staff-management workflows are approved.
 
 ## Experimental modules/features
 
@@ -93,7 +95,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - Product stock accuracy. Unknown quantities no longer block checkout by themselves for priced products, so backend validation for explicit stock blockers and known quantity limits must remain in place while confirmed counts are entered through the protected inventory setup API and audited movement screen.
 - Product variant stock accuracy. Apron colour/style variants now have variant-level stock placeholders, but checkout remains product-level until a safe variant checkout/admin stock workflow is approved.
 - Inquiry handling because it persists customer contact details once the migration is deployed.
-- Front-end-only customer profile state in `sessionStorage`; it must not protect sensitive workflows without backend validation.
+- Customer profile/order privacy. Storefront `sessionStorage` may contain only a non-secret customer profile shell; private customer reads must remain backend-filtered by customer cookie context.
 - In-memory API rate limiting; configure Railway/provider-level rate controls before public high-volume checkout.
 - Railway Postgres least-privilege database policy is not implemented in app code yet. Orders, order items, inquiries, users, payment/event logs, notification logs, and future admin data require strict production access controls.
 - Payment-adjacent order status changes; Paystack webhook processing must verify signatures and Paystack transactions server-side before any automated fulfillment or confirmation email.

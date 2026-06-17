@@ -1,33 +1,82 @@
-import React, { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { HiArrowRight } from "react-icons/hi";
+import { SelectField, TextField } from "@faako/ui";
 import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import { useAuth } from "../../context/AuthContext";
-import { PORTAL_LOGIN_URL } from "../../config/appSurface";
+import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
 import "../styles/Auth.css";
+
+type ContactMethod = "email" | "phone" | "whatsapp";
+
+const getSelectValue = (value: string | string[]) =>
+  Array.isArray(value) ? value[0] || "" : value;
 
 const SignUp: React.FC = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = useMemo(() => searchParams.get("invite") || "", [searchParams]);
+  const paymentReference = useMemo(
+    () => searchParams.get("reference") || searchParams.get("trxref") || "",
+    [searchParams]
+  );
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [preferredContactMethod, setPreferredContactMethod] = useState<ContactMethod>("email");
+  const [defaultDeliveryAddress, setDefaultDeliveryAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
     title: "Create Account | Stroane",
-    description: "Create a Stroane account.",
+    description: "Create your secure Stroane customer account.",
     canonical: "https://stroanesolutions.com/signup",
     noIndex: true,
   });
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const hasCreationContext = Boolean(inviteToken || paymentReference);
+
+  const validate = () => {
+    if (!hasCreationContext) {
+      return "Create your profile from a checkout return link or a Stroane invitation.";
+    }
+    if (!name.trim()) return "Add your full name.";
+    if (!isLikelyEmail(email)) return "Add a valid email address.";
+    if (phone.trim() && !isLikelyPhone(phone)) return "Add a valid phone number.";
+    if (password.length < 8) return "Password must be at least 8 characters.";
+    if (password !== confirmPassword) return "Passwords do not match.";
+    return "";
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     setError("");
+    const validationMessage = validate();
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
+
+    setLoading(true);
     try {
-      await signUp(name, email);
+      await signUp({
+        name,
+        email,
+        phone,
+        businessName,
+        preferredContactMethod,
+        defaultDeliveryAddress,
+        password,
+        inviteToken,
+        paymentReference,
+      });
       navigate("/account", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account.");
@@ -58,59 +107,128 @@ const SignUp: React.FC = () => {
 
         <div className="auth-form-col">
           <div className="auth-card">
-            <span className="auth-card__kicker">Get started</span>
-          <h1 className="auth-card__title">Create your customer profile</h1>
-          <p className="auth-card__sub">
-            Save a temporary profile for the account area while customer account
-            services are prepared.
-          </p>
+            <span className="auth-card__kicker">Customer profile</span>
+            <h1 className="auth-card__title">Create your account</h1>
+            <p className="auth-card__sub">
+              Use the same email from checkout or the email attached to your Stroane invitation.
+            </p>
 
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <label className="auth-field">
-              <span>Full name</span>
-              <input
+            {!hasCreationContext ? (
+              <p className="auth-form__error" role="alert">
+                Account creation links are issued after checkout or by Stroane staff.
+              </p>
+            ) : null}
+
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              <TextField
+                fieldClassName="auth-field"
+                label="Full name"
                 type="text"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
+                onChange={(event) => {
+                  setName(event.target.value);
                   setError("");
                 }}
                 autoComplete="name"
                 required
               />
-            </label>
-
-            <label className="auth-field">
-              <span>Email</span>
-              <input
+              <TextField
+                fieldClassName="auth-field"
+                label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
+                onChange={(event) => {
+                  setEmail(event.target.value);
                   setError("");
                 }}
                 autoComplete="email"
                 required
               />
-            </label>
+              <TextField
+                fieldClassName="auth-field"
+                label="Phone"
+                type="tel"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  setError("");
+                }}
+                inputMode="tel"
+                pattern={PHONE_INPUT_PATTERN}
+                autoComplete="tel"
+              />
+              <TextField
+                fieldClassName="auth-field"
+                label="Business name"
+                type="text"
+                value={businessName}
+                onChange={(event) => setBusinessName(event.target.value)}
+                autoComplete="organization"
+              />
+              <SelectField
+                fieldClassName="auth-field"
+                label="Preferred contact"
+                value={preferredContactMethod}
+                onChangeValue={(value) =>
+                  setPreferredContactMethod(getSelectValue(value) as ContactMethod)
+                }
+                options={[
+                  { value: "email", label: "Email" },
+                  { value: "phone", label: "Phone call" },
+                  { value: "whatsapp", label: "WhatsApp" },
+                ]}
+              />
+              <TextField
+                fieldClassName="auth-field"
+                label="Default delivery address"
+                type="text"
+                value={defaultDeliveryAddress}
+                onChange={(event) => setDefaultDeliveryAddress(event.target.value)}
+                autoComplete="street-address"
+              />
+              <TextField
+                fieldClassName="auth-field"
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setError("");
+                }}
+                autoComplete="new-password"
+                required
+              />
+              <TextField
+                fieldClassName="auth-field"
+                label="Confirm password"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                  setError("");
+                }}
+                autoComplete="new-password"
+                required
+              />
 
-            {error ? (
-              <p className="auth-form__error" role="alert">
-                {error}
-              </p>
-            ) : null}
+              {error ? (
+                <p className="auth-form__error" role="alert">
+                  {error}
+                </p>
+              ) : null}
 
-            <button
-              type="submit"
-              className="auth-form__submit"
-              disabled={loading || !name || !email}
-            >
-              {loading ? "Saving..." : "Save profile"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="auth-form__submit"
+                disabled={loading || !hasCreationContext}
+              >
+                {loading ? "Creating account..." : "Create account"}
+                {!loading ? <HiArrowRight size={17} aria-hidden="true" /> : null}
+              </button>
+            </form>
 
             <p className="auth-card__alt">
-              Staff member? <a href={PORTAL_LOGIN_URL}>Open admin portal</a>
+              Already have an account? <Link to="/account">Sign in</Link>
             </p>
           </div>
         </div>

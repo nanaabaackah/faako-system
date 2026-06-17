@@ -15,6 +15,7 @@ Existing foundations:
 - `CommerceOrder`
 - `CommerceOrderItem`
 - `SiteUser`
+- `CustomerAccount`
 
 Inventory/supplier foundation added on 2026-05-29:
 
@@ -51,6 +52,16 @@ cooldown timestamps. `InventoryAlertDispatch` stores safe channel audit rows
 without persisting recipient addresses or WhatsApp numbers. Draft, archived,
 unpublished, and explicitly tracking-disabled products are excluded from scans.
 
+Customer account and CRM fields added on 2026-06-17:
+
+- `CustomerAccountStatus`
+- `CustomerAccount`
+- `CommerceOrder.customerId`
+
+Migration: `20260617000000_add_customer_accounts_and_crm`
+
+This migration is additive. Existing orders keep `customerId=null` until a matching customer account is created or staff/customer actions link them by verified email. `CustomerAccount` stores server-side profile details, password hashes, account status, invite token hashes, invite expiry metadata, activation/login timestamps, and an optional `createdById` staff reference. Invite raw tokens are not stored.
+
 ## Admin Inventory API Mapping
 
 The protected admin inventory API now uses the existing inventory/supplier foundation without adding a new migration:
@@ -65,6 +76,7 @@ The protected admin inventory API now uses the existing inventory/supplier found
 - `InventoryMovement` stores stock movement history for `RESTOCK`, `ADJUSTMENT`, `DAMAGE`, `MANUAL_CORRECTION`, `RESERVED`, and `RELEASED`.
 - `InventoryAuditEntry` stores lightweight audit trail records for supplier changes, inventory item updates, product inventory updates, and movement entries.
 - Product/media operations also append `InventoryAuditEntry` records for copy, media, publishing, and preferred-supplier edits.
+- `CustomerAccount` stores CRM/customer profile records and links to `CommerceOrder` through `CommerceOrder.customerId`.
 
 The API computes available stock as `quantityOnHand - reservedQuantity`, clamps customer-facing availability at zero, and syncs storefront `CatalogueProduct` stock fields when an admin updates a product/inventory item or records a movement. It does not reserve or deduct stock from orders yet.
 
@@ -131,8 +143,10 @@ and should be followed by removal of the plaintext CSV from local disk.
 - Keep `isPurchasable=false` when stock is unknown.
 - Do not deduct inventory from orders until reservation/deduction rules are implemented and tested.
 - Keep supplier cost notes and purchase/restock notes admin-only.
-- Supplier/inventory admin API routes require backend `SiteUser` bearer auth. Reads allow `ADMIN` and `VIEWER`; writes require `ADMIN`.
+- Supplier/inventory admin API routes require backend `SiteUser` auth through the staff cookie, with legacy bearer fallback during transition. Reads allow `ADMIN` and `VIEWER`; writes require `ADMIN`.
+- Customer account/profile/order-history routes require the customer HttpOnly cookie and must filter by authenticated customer. Customer directory routes require staff `SiteUser` auth; reads allow `ADMIN` and `VIEWER`, writes/invites require `ADMIN`.
 - No destructive schema change is required for the protected admin API foundation.
 - Run `20260530000000_add_catalogue_product_publishing_fields` before deploying the product operations API and `/admin/products` UI.
 - Run `20260531000000_add_inventory_alert_foundation` before enabling inventory alert scans or the owner-alert summary in `/admin/inventory`.
 - Direct file upload and external media-provider metadata remain deferred. Current product media fields store validated local `/imgs/products/` paths.
+- Customer emails are unique in `CustomerAccount`. Use the invite-token hash plus checkout-reference matching flow for account activation rather than allowing open public account creation by arbitrary email.

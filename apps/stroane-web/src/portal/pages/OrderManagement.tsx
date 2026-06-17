@@ -6,7 +6,6 @@ import React, {
   type FormEvent,
 } from "react";
 import {
-  HiEye,
   HiOutlineCash,
   HiOutlineCheckCircle,
   HiOutlineClipboardList,
@@ -16,7 +15,6 @@ import {
   HiOutlineRefresh,
   HiOutlineSave,
   HiOutlineShoppingBag,
-  HiOutlineTicket,
   HiOutlineTrash,
   HiOutlineTruck,
   HiOutlineXCircle,

@@ -52,6 +52,11 @@ import {
   createAdminInventoryAlertRouter,
   createInternalInventoryAlertRouter,
 } from "./src/inventoryAlerts/routes.js";
+import {
+  createAdminCustomerRouter,
+  createCustomerAccountRouter,
+  tryLinkCustomerForOrder,
+} from "./src/customerAccounts/routes.js";
 import { createAdminOrderRouter } from "./src/ordersAdmin/routes.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
@@ -98,6 +103,11 @@ const trustProxySetting = resolveTrustProxySetting(process.env);
 const PAYSTACK_WEBHOOK_PATH = "/api/paystack/webhook";
 const authRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "auth",
+  limit: 20,
+  windowMs: 10 * 60_000,
+});
+const customerAuthRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "customer-auth",
   limit: 20,
   windowMs: 10 * 60_000,
 });
@@ -323,6 +333,8 @@ app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
 
 // Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
 app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
+app.use("/api/customer", customerAuthRateLimit, createCustomerAccountRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminCustomerRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
@@ -464,6 +476,7 @@ app.post("/api/inquiries", inquiryRateLimit, async (req, res) => {
 app.post("/api/orders", checkoutRateLimit, async (req, res) => {
   try {
     const preparedOrder = await prepareCommerceOrder(prisma, req.body);
+    const linkedCustomer = await tryLinkCustomerForOrder(prisma, preparedOrder.customer.email);
 
     if (!prisma.commerceOrder?.create) {
       return res.status(503).json({
@@ -475,6 +488,7 @@ app.post("/api/orders", checkoutRateLimit, async (req, res) => {
       data: {
         orderNumber: preparedOrder.orderNumber,
         status: preparedOrder.status,
+        customerId: linkedCustomer?.id || null,
         customerName: preparedOrder.customer.name,
         customerEmail: preparedOrder.customer.email,
         customerPhone: preparedOrder.customer.phone,

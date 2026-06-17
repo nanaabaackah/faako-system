@@ -112,6 +112,15 @@ const CheckoutReturn: React.FC = () => {
           ) : null}
 
           <div className="checkout-return__actions">
+            {reference ? (
+              <Link
+                to={`/signup?reference=${encodeURIComponent(reference)}`}
+                className="checkout-confirm__cta"
+              >
+                Create customer profile
+                <HiArrowRight size={16} aria-hidden="true" />
+              </Link>
+            ) : null}
             <Link to="/shop" className="checkout-confirm__cta">
               Continue shopping
               <HiArrowRight size={16} aria-hidden="true" />

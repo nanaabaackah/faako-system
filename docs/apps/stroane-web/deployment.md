@@ -21,14 +21,14 @@ monorepo root for both projects.
 
 Public storefront project environment variables:
 
-- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 - `VITE_APP_SURFACE=storefront`
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
 Operational portal project environment variables:
 
-- `VITE_API_BASE_URL=https://stroane-api-production.up.railway.app`
+- `VITE_API_BASE_URL=https://api.stroanesolutions.com`
 - `VITE_APP_SURFACE=portal`
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
@@ -63,6 +63,9 @@ API environment variables:
 - `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com`
 - `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
 - `APP_AUTH_SECRET=<server-only secret>`
+- `STROANE_ADMIN_AUTH_COOKIE_SECURE=true`
+- `STROANE_CUSTOMER_AUTH_COOKIE_SECURE=true`
+- `STROANE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 
 Payment/email provider variables, when enabled, belong on the Railway API service only.
 
@@ -82,10 +85,12 @@ Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backen
 
 The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
 
-Current staff auth uses a portal-origin `sessionStorage` bearer token. It does
-not need a shared `.stroanesolutions.com` cookie. If a future phase replaces
-bearer auth with cookies, prefer secure, HTTP-only, host-only cookies and review
-CSRF/subdomain risks before adding any parent-domain cookie.
+Current staff auth stores only staff profile metadata in portal-origin
+`sessionStorage`; the credential is an HttpOnly staff cookie. Current customer
+auth stores only a non-secret profile shell in storefront `sessionStorage`; the
+credential is an HttpOnly customer cookie. Leave cookie domain overrides blank
+for host-only cookies unless a reviewed cross-subdomain workflow requires a
+parent-domain cookie and CSRF protection has been added.
 
 Run the production migration command as a separate Railway pre-deploy/release step. Do not combine schema migration with the long-running start command. The existing migration set is forward-only and additive; verify the target Railway Postgres database before running it.
 
@@ -107,32 +112,34 @@ Current recommended DNS setup:
 - `www.stroanesolutions.com` -> Cloudflare Pages frontend
 - `portal.stroanesolutions.com` -> Cloudflare Pages operational portal project
 
-The API currently uses the Railway public URL:
+The public browser-facing API origin is:
 
-- `https://stroane-api-production.up.railway.app`
+- `https://api.stroanesolutions.com`
 
-An `api.stroanesolutions.com` record can be considered later as a cleanup step, but it is not required for this phase.
+Railway remains the backend/API host behind that custom domain.
 
 ## API Smoke Tests
 
 After the API service deploys, test:
 
-- `https://stroane-api-production.up.railway.app/health`
-- `https://stroane-api-production.up.railway.app/api/catalogue/products`
-- `https://stroane-api-production.up.railway.app/api/catalogue/categories`
-- `https://stroane-api-production.up.railway.app/api/catalogue/products/<slug>`
+- `https://api.stroanesolutions.com/health`
+- `https://api.stroanesolutions.com/api/catalogue/products`
+- `https://api.stroanesolutions.com/api/catalogue/categories`
+- `https://api.stroanesolutions.com/api/catalogue/products/<slug>`
 
-Protected dashboard data routes should be tested with a backend `SiteUser` bearer token, never from the public storefront bundle. The portal module pages are reset placeholders, but `/admin` still reads these APIs for product, supplier, inventory, movement, and alert signals:
+Protected dashboard data routes should be tested after authenticating with a backend `SiteUser` account, never from the public storefront bundle. Active portal modules read protected APIs for product, supplier, inventory, movement, alert, order, and customer signals:
 
-- `GET https://stroane-api-production.up.railway.app/api/admin/suppliers`
-- `GET https://stroane-api-production.up.railway.app/api/admin/inventory`
-- `GET https://stroane-api-production.up.railway.app/api/admin/inventory/movements`
-- `GET https://stroane-api-production.up.railway.app/api/admin/products`
-- `GET https://stroane-api-production.up.railway.app/api/admin/inventory/alerts`
+- `GET https://api.stroanesolutions.com/api/admin/suppliers`
+- `GET https://api.stroanesolutions.com/api/admin/inventory`
+- `GET https://api.stroanesolutions.com/api/admin/inventory/movements`
+- `GET https://api.stroanesolutions.com/api/admin/products`
+- `GET https://api.stroanesolutions.com/api/admin/inventory/alerts`
+- `GET https://api.stroanesolutions.com/api/admin/orders`
+- `GET https://api.stroanesolutions.com/api/admin/customers`
 
 After configuring a Railway cron/scheduler with the private bearer secret, test:
 
-- `POST https://stroane-api-production.up.railway.app/api/internal/inventory/alerts/check`
+- `POST https://api.stroanesolutions.com/api/internal/inventory/alerts/check`
 
 The scheduler route is intentionally server-to-server only. Store the bearer
 secret in Railway scheduler configuration and rotate it if it is ever pasted
@@ -143,17 +150,19 @@ After the API routes pass, authenticate with a private backend `SiteUser` accoun
 - `https://portal.stroanesolutions.com/login`
 - `https://portal.stroanesolutions.com/admin`
 - `https://portal.stroanesolutions.com/admin/inventory`
+- `https://portal.stroanesolutions.com/admin/orders`
+- `https://portal.stroanesolutions.com/admin/crm`
 - `https://portal.stroanesolutions.com/admin/products`
 - `https://portal.stroanesolutions.com/admin/operations`
 
-Confirm `/admin` loads dashboard product and stock signals. Confirm module routes such as `/admin/inventory`, `/admin/products`, and `/admin/operations` render the reset placeholder rather than the old module workflows.
+Confirm `/admin` loads dashboard product/order/stock signals. Confirm `/admin/inventory`, `/admin/orders`, and `/admin/crm` render active modules. Confirm placeholder routes such as `/admin/products` and `/admin/operations` remain reset placeholders rather than old module workflows.
 
 Legacy read-only aliases should also remain available during rollout:
 
-- `https://stroane-api-production.up.railway.app/api/products`
-- `https://stroane-api-production.up.railway.app/api/categories`
+- `https://api.stroanesolutions.com/api/products`
+- `https://api.stroanesolutions.com/api/categories`
 
-If the storefront shows "Catalogue fallback active", open the browser console and confirm the logged public API base URL. A configured production build should call `https://stroane-api-production.up.railway.app/api/catalogue/products` and `https://stroane-api-production.up.railway.app/api/catalogue/categories`.
+If the storefront shows "Catalogue fallback active", open the browser console and confirm the logged public API base URL. A configured production build should call `https://api.stroanesolutions.com/api/catalogue/products` and `https://api.stroanesolutions.com/api/catalogue/categories`.
 
 The catalogue endpoint now keeps category and product sources coherent during rollout: persisted categories are returned only when persisted published products also exist. If Railway Postgres is only partially seeded, both public reads fall back to the normalized JSON seed until the production catalogue seed is intentionally run.
 
@@ -164,8 +173,8 @@ The catalogue endpoint now keeps category and product sources coherent during ro
 3. Run `pnpm --filter @faako/stroane-web run db:deploy:prod`.
 4. Start or redeploy the Railway API with `node ./scripts/railway-service.mjs start`.
 5. Confirm `/health`, catalogue endpoints, and unauthenticated rejection on `/api/admin/inventory` and `/api/admin/products`.
-6. Deploy the storefront Cloudflare Pages project with `VITE_APP_SURFACE=storefront`, bind `stroanesolutions.com` and `www.stroanesolutions.com`, and confirm the public sign-in link targets the portal host.
-7. Deploy the portal Cloudflare Pages project with `VITE_APP_SURFACE=portal`, bind `portal.stroanesolutions.com`, then confirm `/login`, authenticated `/admin`, reset placeholders for module routes, and logout back to `/login`.
+6. Deploy the storefront Cloudflare Pages project with `VITE_APP_SURFACE=storefront`, bind `stroanesolutions.com` and `www.stroanesolutions.com`, and confirm customer sign-in/profile routes stay on the storefront account surface.
+7. Deploy the portal Cloudflare Pages project with `VITE_APP_SURFACE=portal`, bind `portal.stroanesolutions.com`, then confirm `/login`, authenticated `/admin`, active inventory/orders/CRM modules, placeholder routes, and logout back to `/login`.
 8. Run one authenticated manual alert check, verify cooldown deduplication on an immediate repeat, and confirm the scheduler route rejects missing or incorrect bearer secrets.
 
 If persisted catalogue rows should replace seed fallback, run the catalogue seed only after reviewing the target database:
@@ -190,7 +199,7 @@ Before promoting a deploy:
 - Run `pnpm --filter @faako/stroane-web run build`.
 - Run `pnpm --filter @faako/stroane-web exec prisma validate`.
 - Confirm product images resolve under `/imgs/products/`.
-- Confirm the `/admin` dashboard can fetch product rows from `/api/admin/products` and that dedicated module routes remain reset placeholders.
+- Confirm the `/admin` dashboard can fetch product rows from `/api/admin/products`, order rows from `/api/admin/orders`, and customer rows from `/api/admin/customers`.
 - Confirm draft/archived rows do not appear in public catalogue responses.
 - Confirm `/shop` and `/products/:id` still render from local fallback if the API URL is unavailable.
 - Treat the checked-in browser fallback as a public outage snapshot: when an existing fallback product is archived or should no longer be public, update that snapshot and redeploy Cloudflare Pages as part of the publishing change.

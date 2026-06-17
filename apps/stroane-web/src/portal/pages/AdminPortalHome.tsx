@@ -1167,8 +1167,8 @@ const AdminPortalHome: React.FC = () => {
       <section className="glass-card stroane-portal-overview__business" aria-label="Operations key performance indicators">
         
           <header>
-            <span>Business analytics</span>
-            <h2 id="stroane-business-title">Revenue and catalogue health</h2>
+            <span>Inventory analytics</span>
+            <h2 id="stroane-business-title">Product and stock health</h2>
           </header>
           <div className="stroane-portal-overview__kpis">
           {dashboardKpis.map((kpi) => {

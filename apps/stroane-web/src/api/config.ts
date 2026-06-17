@@ -9,7 +9,9 @@ export const normalizeApiBaseUrl = (value: string) => {
 };
 
 export const API_BASE_URL = normalizeApiBaseUrl(
-  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_BASE_URL || ""
+  import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BACKEND_BASE_URL ||
+    (import.meta.env.PROD ? "https://api.stroanesolutions.com" : "")
 );
 
 export const apiPath = (path: string) => {

@@ -31,6 +31,7 @@ const App: React.FC = () => {
       />
       <AppUpdateNotice
         appName="Stroane"
+        checkUrl="/"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <Suspense

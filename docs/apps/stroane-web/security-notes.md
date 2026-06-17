@@ -6,7 +6,7 @@ Track Stroane-specific security posture, hardening work, and production-readines
 
 ## Current Security Posture
 
-Date reviewed: 2026-06-16
+Date reviewed: 2026-06-17
 
 Stroane Web is now a customer-facing commerce app with product, inquiry, order, payment, and notification data. Treat checkout, product availability, customer contact details, database access, payment references, and deployment configuration as production-sensitive.
 
@@ -29,6 +29,9 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Paystack paid status is trusted only from signed webhook confirmation followed by server-side Paystack transaction verification with reference, amount, and currency checks.
 - Paystack metadata sent to the provider is minimized to order number/source; raw internal order IDs and customer phone are not sent as custom metadata.
 - Protected admin routes require backend `SiteUser` auth. The portal now uses an HttpOnly admin session cookie with a legacy bearer fallback for transition scripts/tests; `VIEWER` can read protected admin data where allowed, while `ADMIN` can update protected operations fields.
+- Customer account routes use a separate HttpOnly customer auth cookie and token audience from staff auth. Customer profile and order-history reads are always filtered by the authenticated customer context.
+- Customer signup requires either a Paystack/order reference with a matching checkout email or a staff-generated customer invite. Invite tokens are stored as SHA-256 hashes and the raw token is returned only when the invite is generated.
+- Customer auth routes are rate-limited and state-changing customer requests require the storefront client header in addition to SameSite cookies. Do not broaden customer cookie scope or change to `SameSite=None` without adding a dedicated CSRF token flow.
 - Payment references returned to admin UI are masked, and payment status is not manually editable.
 - Auth, catalogue, inquiry, order creation, Paystack initialization, Paystack callback verification, and unhandled backend error logs now use sanitized message/status output instead of dumping raw error/provider objects.
 
@@ -54,11 +57,12 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Stroane currently uses Prisma/Postgres from the backend. The browser does not connect directly to the database.
 - Railway Postgres is the chosen production database direction.
 - Tables that require strict protection: `CommerceOrder`, `CommerceOrderItem`, `CatalogueInquiry`, `SiteUser`, future payment/event logs, future notification logs, and any future admin data.
+- `CustomerAccount` now stores customer profile details, invite hashes, and account status. Customer records must remain server-side only; the browser may cache a non-secret profile shell for UX, but not session tokens, password hashes, invite token hashes, payment secrets, or cross-customer data.
 - Recommended Railway Postgres direction: keep all direct database access server-side, use separate migration and runtime credentials/roles where available, prevent browser database access, and keep payment/order/inquiry/user writes backend-only.
 
 ## Current Gaps
 
-- Public customer account pages remain placeholders. The storefront no longer stores browser-side account records or password hashes; the signup page saves only temporary name/email profile metadata in `sessionStorage` until real server-backed customer accounts are designed.
+- Customer accounts are now server-backed for signup, login, profile editing, and order history. The portal CRM can create customer directory records and invite links, but deeper customer detail editing/audit history is still a future workflow.
 - Staff usernames now use the dedicated backend-backed `https://portal.stroanesolutions.com/login` route. Legacy apex `/signin` and `/admin/*` entries hand off to the portal host, and staff accounts remain database-backed rather than CSV-backed at runtime.
 - Backend `SiteUser` access should remain private and seeded as one `ADMIN` and one `VIEWER` account until a proper admin surface is approved.
 - `APP_AUTH_SECRET` is required for backend `SiteUser` token signing and must remain server-side.
@@ -66,7 +70,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.
-- Private order module UI has been cleared from the portal reset. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
+- The private order module is active for order review, manual order creation, fulfillment metadata, Paystack initialization, and Paystack status refresh. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
 - Railway Postgres least-privilege runtime/migration roles are documented but not implemented in app code.
 - Centralized redacted logging is still future work. Route-level auth/payment/catalogue/order errors are now sanitized, but future logging should still avoid request bodies, provider payloads, secrets, card/MoMo details, or full customer records.
 - Backend maintenance/read-only enforcement remains future work.
@@ -75,6 +79,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 - Keep Cloudflare Pages for frontend hosting, Railway for backend/rate-limit layer, and Railway Postgres for the production database. Cloudflare manages DNS/domain routing; keep registrar/email services separate from application database duties.
 - Cloudflare Pages static responses use `apps/stroane-web/public/_headers`.
+- The frontend CSP allows the intended browser API origin `https://api.stroanesolutions.com`, Paystack, Google Analytics, and Cloudflare Insights. `script-src-attr 'none'` remains set so inline event-handler attributes stay blocked; `script-src-elem` allows trusted inline script elements required by static structured data and deployed analytics hosting.
 - Keep `VITE_*` values browser-safe only. `VITE_API_BASE_URL` is acceptable; secrets, database URLs, provider keys, session keys, and webhook secrets are not. `VITE_BACKEND_BASE_URL` should be treated as a legacy fallback only.
 - Set `CORS_ORIGINS` to the exact deployed frontend origin.
 - Set `PAYSTACK_CALLBACK_URL` to the public `/checkout/return` URL for the deployed frontend.
@@ -92,4 +97,4 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 ## Next Recommended Step
 
-Add a payment event/notification log plus Railway/provider-level rate limiting, then design a database least-privilege/RLS rollout with explicit per-request organization/user context before enabling broader customer account or staff-management features.
+Add a payment event/notification log plus Railway/provider-level rate limiting, then design a database least-privilege/RLS rollout with explicit per-request staff/customer context before enabling broader customer CRM automation or staff-management features.

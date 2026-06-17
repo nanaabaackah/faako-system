@@ -23,6 +23,43 @@ Next step:
 
 ## Entries
 
+### Production API, CSP, update notice, and portal auth refresh
+
+Date: 2026-06-17
+Feature/change name: Production API, CSP, update notice, and portal auth refresh
+What changed:
+- Updated the browser-facing Stroane API origin to `https://api.stroanesolutions.com` in runtime fallback logic and deployment documentation while keeping Railway as the backend host behind the custom domain.
+- Updated Cloudflare Pages CSP headers to allow `api.stroanesolutions.com`, Cloudflare Insights script/connect hosts, and trusted inline script elements while keeping inline script attributes blocked.
+- Tightened `AppUpdateNotice` so it polls the root app shell by default, compares only same-origin app build assets, and ignores cross-origin analytics/provider scripts in update signatures.
+- Wired Stroane's mounted update notice to check `/` explicitly.
+- Added portal auth bootstrapping so stored staff profile metadata is validated against the HttpOnly staff cookie before protected modules mount. A 401 from `/api/auth/me` now clears stale portal session metadata instead of letting dashboard/inventory/order requests fan out into repeated 401s.
+Why it changed: Production was using the custom API domain, Cloudflare Insights was blocked by CSP, update prompts were not reliably detecting new deployed bundles, and expired/missing staff cookies could leave stale session shells that triggered repeated protected API 401s.
+Files changed: apps/stroane-web/public/_headers, apps/stroane-web/src/api/config.ts, apps/stroane-web/src/App.tsx, packages/ui/src/components/AppUpdateNotice.tsx, apps/stroane-web/src/portal/api/adminSession.ts, apps/stroane-web/src/portal/context/AdminPortalContext.tsx, apps/stroane-web/src/portal/components/RequireAdminAuth.tsx, apps/stroane-web/src/portal/components/RequirePortalAccess.tsx, apps/stroane-web/README.md, packages/ui/README.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/api.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/portal-architecture.md, docs/apps/stroane-web/pre-deploy-checklist.md.
+Data impact: None. No schema, seed, customer, order, inventory, payment, or portal data changes.
+Security impact: Positive/neutral. API calls now target the intended custom API origin. CSP allows Cloudflare Insights and trusted script elements needed by deployed hosting/structured data while continuing to block inline script attributes. Stale staff profile shells are cleared on authenticated 401s rather than being treated as valid portal access.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. Generated `dist/_headers` includes the updated CSP.
+Rollback notes: Revert the CSP/API/update-notice/auth-bootstrap changes. If reverting only the API domain change, ensure Cloudflare Pages `VITE_API_BASE_URL` and `_headers` agree with the chosen API origin.
+Next step: Redeploy Cloudflare Pages so `_headers` and the new bundle are live, then confirm `/login` no longer shows CSP errors and that an expired portal session redirects cleanly to login.
+
+### Customer accounts and CRM directory
+
+Date: 2026-06-17
+Feature/change name: Customer accounts and CRM directory
+What changed:
+- Added the server-backed Stroane customer account foundation with `CustomerAccount`, invite/account status, customer-to-order linking, and a nullable `CommerceOrder.customerId`.
+- Added customer signup/login/logout/profile/order APIs under `/api/customer` using a separate HttpOnly customer auth cookie and server-side customer scoping.
+- Added checkout-return profile creation CTA so customers can create a profile from the Paystack return reference after checkout.
+- Replaced the old storefront account placeholder flow with real customer sign-in/profile/order-history pages and a dedicated `/signin` customer login page.
+- Added the portal CRM/directory module at `/admin/crm` and `/admin/directory`, including customer KPIs, search/status filters, paginated table, customer creation, and one-time account invite link copy/regeneration.
+- Wired order creation/manual-order creation to link orders to existing customer records by verified email when available.
+Why it changed: Stroane needs secure customer self-service plus a private staff CRM hub for managing client records, account status, and profile-creation links without exposing customer data across accounts.
+Files changed: apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260617000000_add_customer_accounts_and_crm/migration.sql, apps/stroane-web/backend/server.js, apps/stroane-web/backend/src/auth.js, apps/stroane-web/backend/src/customerAccounts/routes.js, apps/stroane-web/backend/src/ordersAdmin/routes.js, apps/stroane-web/src/api/customerAccount.ts, apps/stroane-web/src/context/AuthContext.tsx, apps/stroane-web/src/frontend/StorefrontApp.tsx, apps/stroane-web/src/frontend/pages/CheckoutReturn.tsx, apps/stroane-web/src/frontend/pages/CustomerAccountPlaceholder.tsx, apps/stroane-web/src/frontend/pages/SignIn.tsx, apps/stroane-web/src/frontend/pages/SignUp.tsx, apps/stroane-web/src/frontend/styles/AccountPlaceholder.css, apps/stroane-web/src/frontend/styles/Auth.css, apps/stroane-web/src/components/Header.tsx, apps/stroane-web/src/components/FloatingHeader.tsx, apps/stroane-web/src/portal/PortalApp.tsx, apps/stroane-web/src/portal/components/AdminPortalLayout.tsx, apps/stroane-web/src/portal/api/adminCustomers.ts, apps/stroane-web/src/portal/pages/CustomerDirectory.tsx, apps/stroane-web/src/portal/styles/customer-directory.css, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/api.md, docs/apps/stroane-web/database.md, docs/apps/stroane-web/portal-architecture.md, docs/apps/stroane-web/implementation-notes.md.
+Data impact: Adds an additive migration for customer accounts and optional order links. Existing orders remain valid with `customerId=null` until a matching customer profile is created or linked.
+Security impact: Positive. Customer sessions use a distinct HttpOnly cookie and customer-token audience, customer profile/order endpoints read only the authenticated customer context, signup requires a Paystack/order reference with matching email or a staff-generated invite token, invite tokens are stored only as SHA-256 hashes, and customer auth endpoints are rate-limited. Staff CRM reads require `ADMIN`/`VIEWER`; CRM writes/invite generation require `ADMIN`.
+Testing done: `node --check apps/stroane-web/backend/src/customerAccounts/routes.js`, `node --check apps/stroane-web/backend/server.js`, and `node --check apps/stroane-web/backend/src/ordersAdmin/routes.js` passed. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with the existing Vite `NODE_ENV=production` env warning. `git diff --check` passed.
+Rollback notes: Revert the customer account migration/schema, backend customer/admin customer routers, storefront auth/account pages, portal CRM module, and docs. If the migration has already been applied, rollback requires a database migration that drops `CustomerAccount`, the enum, and the nullable order relation only after confirming no customer data must be retained.
+Next step: Run the additive migration in the intended development database, smoke-test Paystack return profile creation and authenticated `/account` order history, then add a staff-facing customer detail/edit lightbox if CRM workflows need deeper editing.
+
 ### Portal table ellipsis polish
 
 Date: 2026-06-17
