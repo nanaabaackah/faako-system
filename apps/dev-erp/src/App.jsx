@@ -558,6 +558,7 @@ function App() {
       />
       <AppUpdateNotice
         appName="Dev ERP"
+        mode="prompt"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <TitleManager />

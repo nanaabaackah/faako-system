@@ -59,6 +59,7 @@ import {
   tryLinkCustomerForOrder,
 } from "./src/customerAccounts/routes.js";
 import { createAdminOrderRouter } from "./src/ordersAdmin/routes.js";
+import { createAdminReceiptRouter } from "./src/receipts/routes.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
@@ -424,6 +425,7 @@ app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
 app.use("/api/customer", customerAuthRateLimit, createCustomerAccountRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminCustomerRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminReceiptRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));

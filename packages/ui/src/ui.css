@@ -353,6 +353,13 @@
   box-shadow: var(--sys-shadow-sm);
 }
 
+.ui-button--primary,
+.ui-button--primary:hover,
+.ui-button--primary:focus-visible,
+.ui-button--primary * {
+  color: var(--sys-accent-contrast, var(--color-text-inverse));
+}
+
 .ui-button--secondary {
   background: var(--sys-surface-strong);
   border-color: var(--sys-border);
@@ -463,6 +470,20 @@
   box-shadow: var(--sys-shadow-sm);
 }
 
+.ui-erp-action--primary:hover,
+.ui-erp-action--primary:focus-visible {
+  color: var(--sys-accent-contrast);
+}
+
+.ui-erp-action--primary,
+.ui-erp-action--primary:hover,
+.ui-erp-action--primary:focus-visible,
+.ui-erp-action--primary .ui-erp-action__label,
+.ui-erp-action--primary .ui-erp-action__icon,
+.ui-erp-action--primary .ui-erp-action__icon svg {
+  color: var(--sys-accent-contrast, var(--color-text-inverse));
+}
+
 .ui-erp-action--secondary {
   border-color: var(--sys-border);
   background: var(--sys-surface-strong);
@@ -489,6 +510,12 @@
 .ui-erp-icon-action svg {
   width: 100%;
   height: 100%;
+}
+
+.ui-erp-action__label,
+.ui-erp-action__icon,
+.ui-erp-action__icon svg {
+  color: inherit;
 }
 
 .ui-erp-action__spinner {
@@ -1260,6 +1287,7 @@
 .ui-dropdown-field__option {
   -webkit-appearance: none;
   appearance: none;
+  box-shadow: none;
   width: 100%;
   min-height: 2.6rem;
   padding: 0.65rem 0.85rem;

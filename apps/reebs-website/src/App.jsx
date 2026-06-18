@@ -141,6 +141,7 @@ function App() {
     const updateNotice = (
       <AppUpdateNotice
         appName="REEBS"
+        mode={isPortalRoute ? "prompt" : "auto"}
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
     );

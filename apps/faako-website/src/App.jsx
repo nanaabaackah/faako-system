@@ -189,6 +189,7 @@ export default function App() {
       />
       <AppUpdateNotice
         appName="Faako"
+        mode="auto"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <a className="skip-link" href="#main-content">

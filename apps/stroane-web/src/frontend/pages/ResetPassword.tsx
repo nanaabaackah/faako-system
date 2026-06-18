@@ -139,6 +139,12 @@ const ResetPassword: React.FC = () => {
             <p className="auth-card__alt">
               Need a new link? <Link to="/forgot-password">Request reset</Link>
             </p>
+            <p className="auth-card__alt">
+              Already updated it? <Link to="/sign">Sign in</Link>
+            </p>
+            <p className="auth-card__alt">
+              New to Stroane? <Link to="/signup">Create an account</Link>
+            </p>
           </div>
         </div>
       </div>

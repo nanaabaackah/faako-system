@@ -109,7 +109,10 @@ const ForgotPassword: React.FC = () => {
             </form>
 
             <p className="auth-card__alt">
-              Remembered it? <Link to="/signin">Sign in</Link>
+              Remembered it? <Link to="/sign">Sign in</Link>
+            </p>
+            <p className="auth-card__alt">
+              New to Stroane? <Link to="/signup">Create an account</Link>
             </p>
           </div>
         </div>

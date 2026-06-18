@@ -51,6 +51,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
   const location = useLocation();
   const { user } = useAuth();
   const { totalCount } = useCart();
+  const accountPath = user ? "/account" : "/sign";
   const hasHero = HERO_ROUTES.has(location.pathname);
   const isDark = scrolled || !hasHero;
 
@@ -191,7 +192,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
             )}
             {externalNavigationBaseUrl ? (
               <a
-                href={toSiteUrl(externalNavigationBaseUrl, "/account")}
+                href={toSiteUrl(externalNavigationBaseUrl, accountPath)}
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
                 title={user ? `Customer account — ${user.name}` : "Customer account"}
@@ -200,7 +201,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
               </a>
             ) : (
               <Link
-                to="/account"
+                to={accountPath}
                 className={`nav-search-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
                 title={user ? `Customer account — ${user.name}` : "Customer account"}
@@ -341,7 +342,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                 )}
                 {externalNavigationBaseUrl ? (
                   <a
-                    href={toSiteUrl(externalNavigationBaseUrl, "/account")}
+                    href={toSiteUrl(externalNavigationBaseUrl, accountPath)}
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -350,7 +351,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                   </a>
                 ) : (
                   <Link
-                    to="/account"
+                    to={accountPath}
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >

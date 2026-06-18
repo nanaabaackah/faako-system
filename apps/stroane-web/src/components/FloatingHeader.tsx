@@ -35,6 +35,7 @@ const FloatingHeader: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { totalCount } = useCart();
+  const accountPath = user ? "/account" : "/sign";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -105,7 +106,7 @@ const FloatingHeader: React.FC = () => {
 
   const renderAccountButton = (dark = false) => (
     <Link
-      to="/account"
+      to={accountPath}
       className={`nav-search-btn${dark ? " nav-search-btn--dark" : ""}`}
       aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
       title={user ? `Customer account — ${user.name}` : "Customer account"}
@@ -347,7 +348,7 @@ const FloatingHeader: React.FC = () => {
                   <span>{totalCount ? `Cart (${totalCount})` : "Cart"}</span>
                 </Link>
                 <Link
-                  to="/account"
+                  to={accountPath}
                   className="mobile-nav-sheet__search"
                   onClick={() => setMenuOpen(false)}
                 >

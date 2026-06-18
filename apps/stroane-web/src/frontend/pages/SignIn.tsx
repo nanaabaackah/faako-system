@@ -32,7 +32,7 @@ const SignIn: React.FC = () => {
   useSEOMeta({
     title: "Sign In | Stroane",
     description: "Sign in to your Stroane account.",
-    canonical: "https://stroanesolutions.com/signin",
+    canonical: "https://stroanesolutions.com/sign",
     noIndex: true,
   });
 

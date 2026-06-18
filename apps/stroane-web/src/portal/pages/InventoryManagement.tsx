@@ -1279,15 +1279,28 @@ const InventoryManagementContent: React.FC = () => {
           <h1 id="stroane-inventory-title">Inventory management</h1>
           <p>Product stock, availability, supplier coverage, and movement history.</p>
         </div>
-        <ERPSecondaryAction
-          icon={<HiOutlineRefresh />}
-          onClick={refreshInventory}
-          disabled={refreshing}
-          loading={refreshing}
-          loadingLabel="Refreshing"
-        >
-          Refresh
-        </ERPSecondaryAction>
+        <div className="stroane-inventory__actions">
+          <ERPPrimaryAction
+            icon={<HiOutlineRefresh />}
+            onClick={refreshInventory}
+            disabled={refreshing}
+            loading={refreshing}
+            loadingLabel="Refreshing"
+          >
+          </ERPPrimaryAction>
+          <ERPSecondaryAction
+          type="button"
+            icon={<HiOutlinePlus />}
+            onClick={() => {
+              setCreateDraft(EMPTY_PRODUCT_CREATE_DRAFT);
+              setCreateProductOpen(true);
+              setFormError("");
+            }}
+            disabled={!canManageInventory}
+          >
+            New product
+          </ERPSecondaryAction>
+        </div>
       </header>
 
       {!canManageInventory ? (
@@ -1656,18 +1669,6 @@ const InventoryManagementContent: React.FC = () => {
         <div className="stroane-inventory__table-panel">
           <div className="stroane-inventory__table-head">
             <h2>Stock Table</h2>
-            <ERPPrimaryAction
-              type="button"
-              icon={<HiOutlinePlus />}
-              onClick={() => {
-                setCreateDraft(EMPTY_PRODUCT_CREATE_DRAFT);
-                setCreateProductOpen(true);
-                setFormError("");
-              }}
-              disabled={!canManageInventory}
-            >
-              New product
-            </ERPPrimaryAction>
           </div>
           <div className="stroane-inventory__toolbar">
             <div className="stroane-inventory__filters">
@@ -1741,7 +1742,7 @@ const InventoryManagementContent: React.FC = () => {
                 onClick={() => void runBulkProductAction("delete_listing", "Delete listings", true)}
                 disabled={!canManageInventory || savingProduct || !selectedBulkProductIds.length}
               >
-                Delete listings
+                Delete
               </ERPDangerAction>
               <ERPSecondaryAction
                 size="sm"

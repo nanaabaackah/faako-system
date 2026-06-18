@@ -4,9 +4,11 @@ import {
   HiOutlineCog,
   HiOutlineCube,
   HiOutlineDesktopComputer,
+  HiOutlineDocumentText,
   HiOutlineExternalLink,
   HiOutlineHome,
   HiOutlineLogout,
+  HiOutlineMenuAlt2,
   HiOutlineMoon,
   HiOutlineShoppingBag,
   HiOutlineSun,
@@ -49,6 +51,7 @@ const PORTAL_BRAND: ErpBranding = {
 const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
   { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
+  { id: "receipts", label: "Receipts", path: "/admin/receipts", iconKey: "receipts" },
   { id: "crm", label: "CRM", path: "/admin/crm", iconKey: "crm" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
@@ -66,6 +69,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/products": "Module reset",
   "/admin/operations": "Module reset",
   "/admin/orders": "Orders",
+  "/admin/receipts": "Receipts",
   "/admin/reports": "Module reset",
   "/admin/settings": "Module reset",
 };
@@ -73,6 +77,7 @@ const PAGE_TITLES: Record<string, string> = {
 const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "home") return <HiOutlineHome />;
   if (iconKey === "orders") return <HiOutlineShoppingBag />;
+  if (iconKey === "receipts") return <HiOutlineDocumentText />;
   if (iconKey === "crm") return <HiOutlineUserGroup />;
   if (iconKey === "inventory") return <HiOutlineCube />;
   if (iconKey === "profile") return <HiOutlineUserCircle />;
@@ -101,6 +106,7 @@ const AdminPortalLayout: React.FC = () => {
   const isOnline = useOnlineStatus();
   const [savingAppearance, setSavingAppearance] = useState<AdminAppearancePreference | "">("");
   const [sidebarMenuOpen, setSidebarMenuOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const sidebarMenuRef = useRef<HTMLDivElement | null>(null);
   const { counts: queueCounts, refresh: refreshQueue } = useSyncQueueSummary({
     sourceApp: STROANE_PORTAL_QUEUE_SOURCE_APP,
@@ -172,6 +178,21 @@ const AdminPortalLayout: React.FC = () => {
   }, [sidebarMenuOpen]);
 
   useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileSidebarOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileSidebarOpen]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleQueueChanged = () => {
       void refreshQueue();
@@ -210,7 +231,7 @@ const AdminPortalLayout: React.FC = () => {
       items={PORTAL_ITEMS}
       currentPath={location.pathname}
       renderIcon={renderPortalIcon}
-      collapsed={sidebarCollapsed}
+      collapsed={mobileSidebarOpen ? false : sidebarCollapsed}
       onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
       searchPlaceholder="Search dashboard..."
       footer={
@@ -291,6 +312,17 @@ const AdminPortalLayout: React.FC = () => {
   const topbar = (
     <ErpShellTopbar
       title={PAGE_TITLES[location.pathname] || "Operations portal"}
+      leading={
+        <button
+          type="button"
+          className="erp-shell-topbar__mobile-nav-trigger"
+          aria-label="Open navigation"
+          aria-expanded={mobileSidebarOpen}
+          onClick={() => setMobileSidebarOpen((current) => !current)}
+        >
+          <HiOutlineMenuAlt2 aria-hidden="true" />
+        </button>
+      }
       actions={
         <span
           className="stroane-admin-portal__status"
@@ -311,6 +343,8 @@ const AdminPortalLayout: React.FC = () => {
       layout="split"
       className="stroane-admin-portal"
       sidebarCollapsed={sidebarCollapsed}
+      mobileNavOpen={mobileSidebarOpen}
+      onMobileNavClose={() => setMobileSidebarOpen(false)}
       sidebar={sidebar}
       topbar={topbar}
       bottomNav={

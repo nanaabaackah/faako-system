@@ -29,6 +29,10 @@
   padding: 2rem 2rem var(--erp-bottom-clearance);
 }
 
+.erp-shell-frame__mobile-nav-backdrop {
+  display: none;
+}
+
 .erp-nav-sidebar {
   position: sticky;
   top: 0;
@@ -589,6 +593,35 @@
   gap: 0.75rem;
 }
 
+.erp-shell-topbar__mobile-nav-trigger {
+  display: none;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex: 0 0 2.55rem;
+  place-items: center;
+  border: 1px solid var(--erp-border);
+  border-radius: 0.85rem;
+  background: var(--erp-panel-strong, var(--erp-panel));
+  color: var(--erp-ink);
+  cursor: pointer;
+  box-shadow: var(--sys-shadow-sm);
+}
+
+.erp-shell-topbar__mobile-nav-trigger:hover {
+  border-color: var(--erp-accent);
+  color: var(--erp-accent);
+}
+
+.erp-shell-topbar__mobile-nav-trigger:focus-visible {
+  outline: 2px solid var(--erp-accent);
+  outline-offset: 2px;
+}
+
+.erp-shell-topbar__mobile-nav-trigger svg {
+  width: 1.22rem;
+  height: 1.22rem;
+}
+
 .erp-shell-topbar__title-copy {
   min-width: 0;
   display: grid;
@@ -743,7 +776,39 @@
     padding: 1rem 1rem var(--erp-bottom-clearance);
   }
 
+  .erp-shell-frame__mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1280;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: var(--sys-overlay, rgb(0 0 0 / 0.58));
+    cursor: pointer;
+  }
+
   .erp-nav-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1300;
+    width: min(22rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    display: block;
+    transform: translateX(calc(-100% - 1rem));
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      transform 0.22s ease,
+      opacity 0.18s ease;
+  }
+
+  .erp-shell-frame.is-mobile-nav-open .erp-nav-sidebar {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .erp-nav-sidebar .ui-sidebar-edge-toggle {
     display: none;
   }
 
@@ -756,13 +821,31 @@
     margin-bottom: 1rem;
   }
 
-  .erp-shell-topbar,
+  .erp-shell-topbar {
+    align-items: center;
+    flex-direction: row;
+    min-height: 64px;
+    padding: 0 1rem;
+  }
+
+  .erp-shell-topbar__mobile-nav-trigger {
+    display: inline-grid;
+  }
+
+  .erp-shell-topbar__title {
+    flex: 1 1 auto;
+  }
+
+  .erp-shell-topbar__actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+
   .erp-page-header {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .erp-shell-topbar__actions,
   .erp-page-header__actions {
     justify-content: flex-start;
   }

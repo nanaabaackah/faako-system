@@ -211,7 +211,10 @@ const SignUp: React.FC = () => {
             </form>
 
             <p className="auth-card__alt">
-              Already have an account? <Link to="/signin">Sign in</Link>
+              Already have an account? <Link to="/sign">Sign in</Link>
+            </p>
+            <p className="auth-card__alt">
+              Need help getting in? <Link to="/forgot-password">Reset your password</Link>
             </p>
           </div>
         </div>

@@ -8,6 +8,7 @@ interface ErpShellFrameProps {
   contentClassName?: string;
   sidebarCollapsed?: boolean;
   mobileNavOpen?: boolean;
+  onMobileNavClose?: () => void;
   offline?: boolean;
   syncing?: boolean;
   sidebar?: ReactNode;
@@ -38,6 +39,7 @@ export function ErpShellFrame({
   contentClassName,
   sidebarCollapsed = false,
   mobileNavOpen = false,
+  onMobileNavClose,
   offline = false,
   syncing = false,
   sidebar,
@@ -77,6 +79,14 @@ export function ErpShellFrame({
       style={toInlineShellVars(brand?.shellVars)}
     >
       {sidebar}
+      {mobileNavOpen && onMobileNavClose ? (
+        <button
+          type="button"
+          className="erp-shell-frame__mobile-nav-backdrop"
+          aria-label="Close navigation"
+          onClick={onMobileNavClose}
+        />
+      ) : null}
       <div className={shellContentClassName} data-erp-shell-region="content">
         {topbar}
         {organizationSwitcher || offlineIndicator || syncStatus || notificationArea ? (

@@ -299,6 +299,7 @@ function AppLayout() {
       />
       <AppUpdateNotice
         appName={scenario.brand.name || "Faako ERP"}
+        mode="prompt"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <ErpShellFrame

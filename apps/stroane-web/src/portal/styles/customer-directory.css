@@ -281,6 +281,15 @@
   text-align: center !important;
 }
 
+.stroane-crm__table tbody tr {
+  cursor: pointer;
+}
+
+.stroane-crm__table tbody tr:focus-visible {
+  outline: 2px solid var(--sys-accent);
+  outline-offset: -2px;
+}
+
 .stroane-crm__pagination {
   border-top: 1px solid var(--sys-border);
   padding: 0.86rem 1rem;
@@ -319,6 +328,67 @@
   flex-wrap: wrap;
 }
 
+.stroane-crm__detail {
+  display: grid;
+  gap: 1rem;
+}
+
+.stroane-crm__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.stroane-crm__detail-card {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 72%, transparent);
+}
+
+.stroane-crm__detail-card h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.92rem;
+}
+
+.stroane-crm__detail-list {
+  display: grid;
+  gap: 0.52rem;
+  margin: 0;
+}
+
+.stroane-crm__detail-list div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.stroane-crm__detail-list dt {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-crm__detail-list dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.stroane-crm__detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 1180px) {
   .stroane-crm__kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -336,7 +406,8 @@
   }
 
   .stroane-crm__kpis,
-  .stroane-crm__form {
+  .stroane-crm__form,
+  .stroane-crm__detail-grid {
     grid-template-columns: 1fr;
   }
 

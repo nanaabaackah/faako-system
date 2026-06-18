@@ -9,6 +9,7 @@ export interface AppUpdateNoticeProps {
   className?: string;
   dismissStorageKey?: string;
   enabled?: boolean;
+  mode?: "prompt" | "auto";
 }
 
 const normalizeAssetPath = (value: string) => {
@@ -57,20 +58,30 @@ export const AppUpdateNotice = ({
   className = "",
   dismissStorageKey,
   enabled = true,
+  mode = "prompt",
 }: AppUpdateNoticeProps) => {
   const [latestSignature, setLatestSignature] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const initialSignatureRef = useRef("");
   const parserRef = useRef<DOMParser | null>(null);
   const storageKey = useMemo(
     () => dismissStorageKey || `faako:update-dismissed:${appName}`,
     [appName, dismissStorageKey]
   );
+  const autoRefreshStorageKey = useMemo(() => `${storageKey}:auto-refreshing`, [storageKey]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || typeof document === "undefined") return;
 
     initialSignatureRef.current = getDocumentBuildSignature(document);
     if (!initialSignatureRef.current) return;
+    try {
+      if (window.sessionStorage.getItem(autoRefreshStorageKey) === initialSignatureRef.current) {
+        window.sessionStorage.removeItem(autoRefreshStorageKey);
+      }
+    } catch {
+      // Ignore storage failures; update checks can still run.
+    }
 
     parserRef.current = new DOMParser();
     let cancelled = false;
@@ -102,6 +113,16 @@ export const AppUpdateNotice = ({
           nextSignature !== initialSignatureRef.current &&
           nextSignature !== dismissedSignature
         ) {
+          if (mode === "auto") {
+            try {
+              if (window.sessionStorage.getItem(autoRefreshStorageKey) === nextSignature) return;
+              window.sessionStorage.setItem(autoRefreshStorageKey, nextSignature);
+            } catch {
+              // If storage is unavailable, a single reload is still the least surprising behavior.
+            }
+            window.location.reload();
+            return;
+          }
           setLatestSignature(nextSignature);
         }
       } catch {
@@ -122,11 +143,16 @@ export const AppUpdateNotice = ({
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", visibilityHandler);
     };
-  }, [checkIntervalMs, checkUrl, enabled, storageKey]);
+  }, [autoRefreshStorageKey, checkIntervalMs, checkUrl, enabled, mode, storageKey]);
 
   if (!enabled || !latestSignature) return null;
 
   const rootClassName = ["ui-app-update-notice", className].filter(Boolean).join(" ");
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setLatestSignature("");
+    window.setTimeout(() => window.location.reload(), 0);
+  };
 
   return (
     <aside className={rootClassName} aria-live="polite" aria-label="App update available">
@@ -138,13 +164,15 @@ export const AppUpdateNotice = ({
         <button
           type="button"
           className="ui-app-update-notice__button ui-app-update-notice__button--primary"
-          onClick={() => window.location.reload()}
+          onClick={handleRefresh}
+          disabled={refreshing}
         >
-          Refresh now
+          {refreshing ? "Refreshing..." : "Refresh now"}
         </button>
         <button
           type="button"
           className="ui-app-update-notice__button"
+          disabled={refreshing}
           onClick={() => {
             try {
               window.localStorage.setItem(storageKey, latestSignature);

@@ -10,7 +10,6 @@ import {
 } from "react-icons/hi";
 import { ERPStatusBadge } from "@faako/ui";
 import {
-  formatInventoryDateTime,
   formatInventoryStatusLabel,
   getInventoryComputedStatus,
   getInventoryProductName,
@@ -168,7 +167,6 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
         <col className="stroane-inventory__col-stock" />
         <col className="stroane-inventory__col-value" />
         <col className="stroane-inventory__col-supplier" />
-        <col className="stroane-inventory__col-updated" />
         <col className="stroane-inventory__col-status" />
         <col className="stroane-inventory__col-actions" />
       </colgroup>
@@ -196,7 +194,6 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
           <th>Quantity</th>
           <th>Stock value</th>
           <th>Supplier</th>
-          <th>Updated</th>
           <th>Status</th>
           <th aria-label="Actions" />
         </tr>
@@ -204,21 +201,21 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
       <tbody>
         {loading ? (
           <tr>
-            <td colSpan={13} className="stroane-inventory__table-empty">
+            <td colSpan={12} className="stroane-inventory__table-empty">
               Loading inventory...
             </td>
           </tr>
         ) : null}
         {!loading && error && !filteredInventory.length ? (
           <tr>
-            <td colSpan={13} className="stroane-inventory__table-empty is-error">
+            <td colSpan={12} className="stroane-inventory__table-empty is-error">
               {error || "Unable to load inventory."}
             </td>
           </tr>
         ) : null}
         {!loading && !error && !filteredInventory.length ? (
           <tr>
-            <td colSpan={13} className="stroane-inventory__table-empty">
+            <td colSpan={12} className="stroane-inventory__table-empty">
               No products match the current filters.
             </td>
           </tr>
@@ -289,7 +286,6 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
                     {stockValue === null ? "Not set" : formatMoney(stockValue, currency)}
                   </td>
                   <td data-label="Supplier">{item.supplier?.name || "Unassigned"}</td>
-                  <td data-label="Updated">{formatInventoryDateTime(item.updatedAt)}</td>
                   <td data-label="Status">
                     <ERPStatusBadge tone={getInventoryStatusTone(status)}>
                       {formatInventoryStatusLabel(status)}
@@ -376,7 +372,6 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
                 {formatMoney(paginatedStockValue)}
               </span>
             </td>
-            <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />

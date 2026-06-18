@@ -116,6 +116,7 @@ export default function App() {
     <UiSystemProvider appSystem={appSystem}>
       <AppUpdateNotice
         appName="System Starter"
+        mode="prompt"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <StarterScreen />

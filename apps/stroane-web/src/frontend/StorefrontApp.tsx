@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ExternalRedirect from "../components/ExternalRedirect";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -50,7 +50,8 @@ const StorefrontApp: React.FC = () => (
         <Route path="/account" element={<CustomerAccountPlaceholder area="account" />} />
         <Route path="/orders" element={<CustomerAccountPlaceholder area="orders" />} />
         <Route path="/quotes" element={<CustomerAccountPlaceholder area="quotes" />} />
-        <Route path="/signin" element={<SignIn />} />
+        <Route path="/sign" element={<SignIn />} />
+        <Route path="/signin" element={<Navigate to="/sign" replace />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

@@ -10,16 +10,33 @@ const StorefrontApp = lazy(() => import("./frontend/StorefrontApp"));
 const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
 const GOOGLE_ANALYTICS_ENABLED =
   import.meta.env.PROD || import.meta.env.VITE_ENABLE_GA_IN_DEV === "true";
+const APP_UPDATE_NOTICE_ENABLED =
+  import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true";
+
+const isPortalPath = (pathname: string) => pathname === "/login" || pathname.startsWith("/admin");
 
 const SurfaceApp: React.FC = () => {
   const location = useLocation();
   const surface = resolveAppSurface();
-  const isLocalPortalPath =
-    surface === "combined" &&
-    (location.pathname === "/login" || location.pathname.startsWith("/admin"));
+  const isLocalPortalPath = surface === "combined" && isPortalPath(location.pathname);
 
   if (surface === "portal" || isLocalPortalPath) return <PortalApp />;
   return <StorefrontApp />;
+};
+
+const StroaneUpdateNotice: React.FC = () => {
+  const location = useLocation();
+  const surface = resolveAppSurface();
+  const isPortalSurface = surface === "portal" || (surface === "combined" && isPortalPath(location.pathname));
+
+  return (
+    <AppUpdateNotice
+      appName="Stroane"
+      checkUrl="/"
+      mode={isPortalSurface ? "prompt" : "auto"}
+      enabled={APP_UPDATE_NOTICE_ENABLED}
+    />
+  );
 };
 
 const App: React.FC = () => {
@@ -29,11 +46,7 @@ const App: React.FC = () => {
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
         enabled={GOOGLE_ANALYTICS_ENABLED}
       />
-      <AppUpdateNotice
-        appName="Stroane"
-        checkUrl="/"
-        enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
-      />
+      <StroaneUpdateNotice />
       <Suspense
         fallback={
           <AnimatedLoadingState

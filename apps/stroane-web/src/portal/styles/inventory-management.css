@@ -19,6 +19,13 @@
   gap: 1rem;
 }
 
+.stroane-inventory__actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
 .stroane-inventory__head {
   margin-bottom: 1rem;
 }
@@ -492,19 +499,19 @@
 }
 
 .stroane-inventory__col-select {
-  width: 2.7rem;
+  width: 3%;
 }
 
 .stroane-inventory__col-number {
-  width: 3.2rem;
+  width: 3%;
 }
 
 .stroane-inventory__col-product {
-  width: 14%;
+  width: 15%;
 }
 
 .stroane-inventory__col-sku {
-  width: 12%;
+  width: 13%;
 }
 
 .stroane-inventory__col-variant,
@@ -515,11 +522,11 @@
 
 .stroane-inventory__col-price,
 .stroane-inventory__col-stock {
-  width: 8%;
+  width: 10%;
 }
 
 .stroane-inventory__col-value {
-  width: 9%;
+  width: 12%;
 }
 
 .stroane-inventory__col-updated {
@@ -531,7 +538,7 @@
 }
 
 .stroane-inventory__col-actions {
-  width: 4.75rem;
+  width: 5%;
 }
 
 .stroane-inventory__table th,

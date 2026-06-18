@@ -1,0 +1,452 @@
+.stroane-receipts {
+  width: min(100%, 1480px);
+  padding: 0.85rem 0 2rem;
+}
+
+.stroane-receipts,
+.stroane-receipts * {
+  min-width: 0;
+}
+
+.stroane-receipts__head,
+.stroane-receipts__head-actions,
+.stroane-receipts__toolbar,
+.stroane-receipts__modal-actions,
+.stroane-receipts__detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stroane-receipts__head {
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.stroane-receipts__head span {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-receipts__head h1 {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-primary);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 1.08;
+}
+
+.stroane-receipts__head p {
+  max-width: 720px;
+  margin: 0.65rem 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.stroane-receipts__head-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.stroane-receipts__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.stroane-receipts__kpis article {
+  align-self: start;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-height: 110px;
+  padding: 0.92rem;
+}
+
+.stroane-receipts__kpis svg {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--sys-radius-sm);
+  padding: 0.42rem;
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.stroane-receipts__kpis article[data-tone="success"] svg {
+  background: var(--sys-success-soft);
+  color: var(--sys-success);
+}
+
+.stroane-receipts__kpis article[data-tone="warning"] svg {
+  background: var(--sys-warning-soft);
+  color: var(--sys-warning);
+}
+
+.stroane-receipts__kpis article[data-tone="info"] svg {
+  background: var(--sys-info-soft);
+  color: var(--sys-info);
+}
+
+.stroane-receipts__kpis span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-receipts__kpis strong {
+  color: var(--color-text-primary);
+  font-size: 1.58rem;
+  line-height: 1;
+}
+
+.stroane-receipts__table-panel {
+  overflow: visible;
+  margin-top: 1rem;
+}
+
+.stroane-receipts__toolbar {
+  align-items: flex-start;
+  padding: 1rem 0;
+}
+
+.stroane-receipts__toolbar .ui-erp-table-search {
+  flex: 1 1 20rem;
+}
+
+.stroane-receipts__filter {
+  flex: 0 1 13rem;
+}
+
+.stroane-receipts__admin-table {
+  overflow: visible;
+}
+
+.stroane-receipts__admin-table table {
+  min-width: 1180px;
+}
+
+.stroane-receipts__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+}
+
+.stroane-receipts__col-select {
+  width: 2.7rem;
+}
+
+.stroane-receipts__col-number {
+  width: 3%;
+}
+
+.stroane-receipts__col-receipt,
+.stroane-receipts__col-customer {
+  width: 18%;
+}
+
+.stroane-receipts__col-order {
+  width: 12%;
+}
+
+.stroane-receipts__col-payment,
+.stroane-receipts__col-issued,
+.stroane-receipts__col-total,
+.stroane-receipts__col-status {
+  width: 13%;
+}
+
+.stroane-receipts__col-actions {
+  width: 6.5rem;
+}
+
+.stroane-receipts__table th,
+.stroane-receipts__table td {
+  border-bottom: 1px solid var(--sys-border);
+  padding: 0.82rem 0.9rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.stroane-receipts__table th,
+.stroane-receipts__table td:not(.stroane-receipts__actions-cell):not(.stroane-receipts__table-empty):not(.portal-table-select-cell):not(.portal-table-number-cell) {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-receipts__table td:not(.stroane-receipts__actions-cell):not(.stroane-receipts__table-empty):not(.portal-table-select-cell):not(.portal-table-number-cell) > * {
+  max-width: 100%;
+}
+
+.stroane-receipts__table .ui-erp-status-badge,
+.stroane-receipts__table .erp-status-badge {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-receipts__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--sys-surface-strong) 94%, transparent);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-receipts__table tbody tr {
+  cursor: pointer;
+}
+
+.stroane-receipts__table tbody tr:focus-visible {
+  outline: 2px solid var(--sys-accent);
+  outline-offset: -2px;
+}
+
+.stroane-receipts__receipt-cell,
+.stroane-receipts__customer-cell {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.stroane-receipts__receipt-cell strong,
+.stroane-receipts__receipt-cell small,
+.stroane-receipts__customer-cell strong,
+.stroane-receipts__customer-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-receipts__receipt-cell strong,
+.stroane-receipts__customer-cell strong {
+  color: var(--color-text-primary);
+}
+
+.stroane-receipts__receipt-cell small,
+.stroane-receipts__customer-cell small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.stroane-receipts__actions-cell {
+  overflow: visible;
+  text-align: right !important;
+}
+
+.stroane-receipts__row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.stroane-receipts__table-empty {
+  height: 6rem;
+  color: var(--color-text-muted);
+  text-align: center !important;
+}
+
+.stroane-receipts__pagination {
+  border-top: 1px solid var(--sys-border);
+  padding: 0.86rem 1rem;
+}
+
+.stroane-receipts__bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.65rem;
+  background: color-mix(in srgb, var(--sys-accent-soft) 42%, transparent);
+}
+
+.stroane-receipts__bulk-bar > span {
+  margin-right: auto;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.stroane-receipts__modal.ui-erp-modal {
+  width: min(100%, 54rem);
+}
+
+.stroane-receipts__form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.stroane-receipts__modal-actions,
+.stroane-receipts__detail-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.stroane-receipts__detail {
+  display: grid;
+  gap: 1rem;
+}
+
+.stroane-receipts__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.stroane-receipts__detail-card {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 72%, transparent);
+}
+
+.stroane-receipts__detail-card h3,
+.stroane-receipts__items h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.94rem;
+}
+
+.stroane-receipts__detail-card dl {
+  display: grid;
+  gap: 0.52rem;
+  margin: 0;
+}
+
+.stroane-receipts__detail-card dl div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.stroane-receipts__detail-card dt {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-receipts__detail-card dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.stroane-receipts__items {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.stroane-receipts__items-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+}
+
+.stroane-receipts__item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4rem 8rem;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.78rem 0.9rem;
+  border-bottom: 1px solid var(--sys-border);
+}
+
+.stroane-receipts__item-row:last-child {
+  border-bottom: 0;
+}
+
+.stroane-receipts__item-row > span:first-child {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.stroane-receipts__item-row strong {
+  color: var(--color-text-primary);
+}
+
+.stroane-receipts__item-row small,
+.stroane-receipts__empty {
+  color: var(--color-text-muted);
+}
+
+.stroane-receipts__item-row > span:nth-child(2),
+.stroane-receipts__item-row > span:nth-child(3) {
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-weight: 800;
+}
+
+.stroane-receipts__empty {
+  margin: 0;
+  padding: 1rem;
+}
+
+@media (max-width: 1180px) {
+  .stroane-receipts__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stroane-receipts__detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .stroane-receipts__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stroane-receipts__head-actions {
+    justify-content: flex-start;
+  }
+
+  .stroane-receipts__toolbar {
+    flex-direction: column;
+  }
+
+  .stroane-receipts__toolbar .ui-erp-table-search,
+  .stroane-receipts__filter {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .stroane-receipts__item-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stroane-receipts__item-row > span:nth-child(2),
+  .stroane-receipts__item-row > span:nth-child(3) {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .stroane-receipts__kpis {
+    grid-template-columns: 1fr;
+  }
+}

@@ -398,6 +398,7 @@ model CommerceOrder {
   source           String?
   userAgent        String?
   items            CommerceOrderItem[]
+  receipts         CommerceReceipt[]
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   paymentInitializedAt DateTime?
@@ -445,6 +446,37 @@ model CommerceOrderItem {
 
   @@index([orderId])
   @@index([productSlug])
+}
+
+model CommerceReceipt {
+  id               String        @id @default(cuid())
+  receiptNumber    String        @unique
+  orderId          String
+  order            CommerceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status           String        @default("issued")
+  customerName     String
+  customerEmail    String
+  currency         String        @default("GHS")
+  subtotal         Decimal       @db.Decimal(12, 2)
+  total            Decimal       @db.Decimal(12, 2)
+  paymentReference String?
+  paymentStatus    String?
+  issuedAt         DateTime      @default(now())
+  sentAt           DateTime?
+  downloadedAt     DateTime?
+  resendStatus     String?
+  resendProviderId String?
+  resendError      String?
+  notes            String?
+  createdById      String?
+  createdByName    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([customerEmail])
+  @@index([status, issuedAt])
+  @@index([issuedAt])
 }
 
 model BusinessProfileContent {

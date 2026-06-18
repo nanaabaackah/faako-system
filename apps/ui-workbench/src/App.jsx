@@ -225,6 +225,7 @@ export default function App() {
     <UiSystemProvider appSystem={runtimeAppSystem}>
       <AppUpdateNotice
         appName="UI Workbench"
+        mode="prompt"
         enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
       />
       <WorkbenchScreen presetId={presetId} setPresetId={setPresetId} />

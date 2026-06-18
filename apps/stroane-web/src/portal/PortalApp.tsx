@@ -12,6 +12,7 @@ import { STOREFRONT_BASE_URL, storefrontUrl } from "../config/appSurface";
 import AdminPortalHome from "./pages/AdminPortalHome";
 import InventoryManagement from "./pages/InventoryManagement";
 import OrderManagement from "./pages/OrderManagement";
+import ReceiptManagement from "./pages/ReceiptManagement";
 import CustomerDirectory from "./pages/CustomerDirectory";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
 import AdminPortalProfile from "./pages/AdminPortalProfile";
@@ -45,6 +46,7 @@ const PortalApp: React.FC = () => (
             <Route path="profile" element={<AdminPortalProfile />} />
             <Route path="inventory" element={<InventoryManagement />} />
             <Route path="orders" element={<OrderManagement />} />
+            <Route path="receipts" element={<ReceiptManagement />} />
             <Route path="crm" element={<CustomerDirectory />} />
             <Route path="directory" element={<CustomerDirectory />} />
             <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />

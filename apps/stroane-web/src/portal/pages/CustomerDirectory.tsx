@@ -109,6 +109,7 @@ const CustomerDirectory: React.FC = () => {
   const [inviteAction, setInviteAction] = useState("");
   const [draft, setDraft] = useState<AdminCustomerPayload>(EMPTY_DRAFT);
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -129,6 +130,10 @@ const CustomerDirectory: React.FC = () => {
         clampedPageIndex * CUSTOMER_PAGE_SIZE + CUSTOMER_PAGE_SIZE
       ),
     [clampedPageIndex, customers]
+  );
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === selectedCustomerId) || null,
+    [customers, selectedCustomerId]
   );
   const toggleCustomerSelection = useCallback((customerId: string) => {
     setSelectedCustomerIds((current) => {
@@ -184,7 +189,8 @@ const CustomerDirectory: React.FC = () => {
       const next = new Set(Array.from(current).filter((customerId) => customerIds.has(customerId)));
       return next.size === current.size ? current : next;
     });
-  }, [customers]);
+    if (selectedCustomerId && !customerIds.has(selectedCustomerId)) setSelectedCustomerId("");
+  }, [customers, selectedCustomerId]);
 
   const copyInviteLink = async (url: string) => {
     await navigator.clipboard?.writeText(url);
@@ -375,7 +381,20 @@ const CustomerDirectory: React.FC = () => {
                 paginatedCustomers.map((customer, index) => (
                   <tr
                     key={customer.id}
-                    className={selectedCustomerIds.has(customer.id) ? "is-bulk-selected" : ""}
+                    className={[
+                      selectedCustomerIds.has(customer.id) ? "is-bulk-selected" : "",
+                      selectedCustomerId === customer.id ? "is-selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => setSelectedCustomerId(customer.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedCustomerId(customer.id);
+                      }
+                    }}
+                    tabIndex={0}
                   >
                     <td
                       className="portal-table-select-cell"
@@ -390,30 +409,35 @@ const CustomerDirectory: React.FC = () => {
                         aria-label={`Select ${customer.name}`}
                       />
                     </td>
-                    <td className="portal-table-number-cell">
+                    <td className="portal-table-number-cell" data-label="#">
                       {clampedPageIndex * CUSTOMER_PAGE_SIZE + index + 1}
                     </td>
-                    <td>
+                    <td data-label="Customer">
                       <span className="stroane-crm__customer-cell">
                         <strong>{customer.name}</strong>
                       </span>
                     </td>
-                    <td>{customer.email}</td>
-                    <td>
+                    <td data-label="Email">{customer.email}</td>
+                    <td data-label="Status">
                       <ERPStatusBadge tone={getStatusTone(customer.status)}>
                         {customer.hasAccount ? "Account active" : customer.status}
                       </ERPStatusBadge>
                     </td>
-                    <td>{customer.phone || customer.preferredContactMethod || "Not recorded"}</td>
-                    <td>
+                    <td data-label="Phone">{customer.phone || customer.preferredContactMethod || "Not recorded"}</td>
+                    <td data-label="Orders">
                       {customer.orderCount} · {formatMoney(customer.totalSpend)}
                     </td>
-                    <td>
+                    <td data-label="Last order">
                       {customer.lastOrder
                         ? `${customer.lastOrder.orderNumber} · ${formatDate(customer.lastOrder.createdAt)}`
                         : "No orders"}
                     </td>
-                    <td className="stroane-crm__actions-cell">
+                    <td
+                      className="stroane-crm__actions-cell"
+                      data-label="Actions"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
                       <button
                         type="button"
                         className="stroane-crm__icon-button"
@@ -446,6 +470,124 @@ const CustomerDirectory: React.FC = () => {
           />
         </div>
       </section>
+
+      <ERPModal
+        open={Boolean(selectedCustomer)}
+        onClose={() => setSelectedCustomerId("")}
+        title={selectedCustomer?.name || "Customer"}
+        description={
+          selectedCustomer
+            ? `${selectedCustomer.email} · ${
+                selectedCustomer.hasAccount ? "Account active" : "Account not active"
+              }`
+            : undefined
+        }
+        className="stroane-crm__modal stroane-crm__detail-modal"
+        closeOnBackdrop
+      >
+        {selectedCustomer ? (
+          <div className="stroane-crm__detail">
+            <div className="stroane-crm__detail-grid">
+              <section className="stroane-crm__detail-card">
+                <h3>Customer</h3>
+                <dl className="stroane-crm__detail-list">
+                  <div>
+                    <dt>Email</dt>
+                    <dd>{selectedCustomer.email}</dd>
+                  </div>
+                  <div>
+                    <dt>Phone</dt>
+                    <dd>{selectedCustomer.phone || "Not recorded"}</dd>
+                  </div>
+                  <div>
+                    <dt>Business</dt>
+                    <dd>{selectedCustomer.businessName || "Not recorded"}</dd>
+                  </div>
+                  <div>
+                    <dt>Preferred contact</dt>
+                    <dd>{selectedCustomer.preferredContactMethod || "Email"}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section className="stroane-crm__detail-card">
+                <h3>Account</h3>
+                <dl className="stroane-crm__detail-list">
+                  <div>
+                    <dt>Status</dt>
+                    <dd>
+                      <ERPStatusBadge tone={getStatusTone(selectedCustomer.status)}>
+                        {selectedCustomer.hasAccount ? "Account active" : selectedCustomer.status}
+                      </ERPStatusBadge>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Invited</dt>
+                    <dd>{formatDate(selectedCustomer.invitedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>Activated</dt>
+                    <dd>{formatDate(selectedCustomer.activatedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>Last login</dt>
+                    <dd>{formatDate(selectedCustomer.lastLoginAt)}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section className="stroane-crm__detail-card">
+                <h3>Orders</h3>
+                <dl className="stroane-crm__detail-list">
+                  <div>
+                    <dt>Linked orders</dt>
+                    <dd>{selectedCustomer.orderCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Total spend</dt>
+                    <dd>{formatMoney(selectedCustomer.totalSpend)}</dd>
+                  </div>
+                  <div>
+                    <dt>Last order</dt>
+                    <dd>
+                      {selectedCustomer.lastOrder
+                        ? `${selectedCustomer.lastOrder.orderNumber} · ${formatDate(
+                            selectedCustomer.lastOrder.createdAt
+                          )}`
+                        : "No orders"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+              <section className="stroane-crm__detail-card">
+                <h3>Delivery</h3>
+                <dl className="stroane-crm__detail-list">
+                  <div>
+                    <dt>Address</dt>
+                    <dd>{selectedCustomer.defaultDeliveryAddress || "Not recorded"}</dd>
+                  </div>
+                  <div>
+                    <dt>Notes</dt>
+                    <dd>{selectedCustomer.deliveryNotes || "Not recorded"}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+            <div className="stroane-crm__detail-actions">
+              <ERPSecondaryAction type="button" onClick={() => setSelectedCustomerId("")}>
+                Close
+              </ERPSecondaryAction>
+              <ERPPrimaryAction
+                type="button"
+                icon={<HiOutlineClipboardCopy />}
+                onClick={() => void handleInvite(selectedCustomer)}
+                loading={inviteAction === selectedCustomer.id}
+                disabled={!canManageCustomers || inviteAction === selectedCustomer.id}
+              >
+                Copy account link
+              </ERPPrimaryAction>
+            </div>
+          </div>
+        ) : null}
+      </ERPModal>
 
       <ERPModal
         open={createOpen}

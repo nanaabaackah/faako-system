@@ -594,6 +594,7 @@ function AppLayout() {
   const updateNotice = (
     <AppUpdateNotice
       appName="REEBS Portal"
+      mode="prompt"
       enabled={import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true"}
     />
   );

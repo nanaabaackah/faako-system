@@ -11,7 +11,7 @@ import Layout from "../../components/Layout";
 import { customerAccountApi, type CustomerOrder } from "../../api/customerAccount";
 import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../data/products";
-import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
+import { isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import "../styles/AccountPlaceholder.css";
 
@@ -36,10 +36,8 @@ const formatStatus = (value = "") =>
   value.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Pending";
 
 const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) => {
-  const { user, loading, signIn, signOut, updateProfile, refreshProfile } = useAuth();
+  const { user, loading, signOut, updateProfile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -69,6 +67,11 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
     setDeliveryNotes(user.deliveryNotes || "");
   }, [user]);
 
+  useEffect(() => {
+    if (loading || user) return;
+    navigate("/sign", { replace: true, state: { from: `/${area}` } });
+  }, [area, loading, navigate, user]);
+
   const loadOrders = async () => {
     if (!user) return;
     setOrdersLoading(true);
@@ -92,30 +95,6 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
     () => orders.reduce((total, order) => total + Number(order.total || 0), 0),
     [orders]
   );
-
-  const handleLogin = async (event: FormEvent) => {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-    if (!isLikelyEmail(loginEmail)) {
-      setError("Add a valid email address.");
-      return;
-    }
-    if (!loginPassword) {
-      setError("Add your password.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await signIn(loginEmail, loginPassword);
-      setLoginPassword("");
-      setNotice("Signed in securely.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleProfileSave = async (event: FormEvent) => {
     event.preventDefault();
@@ -158,7 +137,7 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
         <div className="customer-account-page__inner">
           <header className="customer-account-page__head">
             <span>Customer account</span>
-            <h1>{user ? `Welcome, ${user.name.split(" ")[0] || "there"}` : "Sign in to your account"}</h1>
+            <h1>{user ? `Welcome, ${user.name.split(" ")[0] || "there"}` : "Opening secure sign in"}</h1>
             <p>
               Customer profiles are private. Sign in to view only your own profile and Stroane
               order history.
@@ -167,46 +146,16 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
 
           {!user ? (
             <div className="customer-account-page__login">
-              <form className="customer-account-card" onSubmit={handleLogin} noValidate>
-                <h2>Customer login</h2>
-                <TextField
-                  fieldClassName="customer-account-field"
-                  label="Email"
-                  type="email"
-                  value={loginEmail}
-                  onChange={(event) => {
-                    setLoginEmail(event.target.value);
-                    setError("");
-                  }}
-                  autoComplete="email"
-                  required
-                />
-                <TextField
-                  fieldClassName="customer-account-field"
-                  label="Password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(event) => {
-                    setLoginPassword(event.target.value);
-                    setError("");
-                  }}
-                  autoComplete="current-password"
-                  required
-                />
-                {error ? (
-                  <p className="customer-account-message is-error" role="alert">
-                    {error}
-                  </p>
-                ) : null}
-                <button className="customer-account-action" type="submit" disabled={saving || loading}>
-                  {saving ? "Signing in..." : "Sign in"}
-                  {!saving ? <HiArrowRight size={17} aria-hidden="true" /> : null}
-                </button>
+              <div className="customer-account-card">
+                <h2>Customer sign in</h2>
                 <p className="customer-account-page__helper">
-                  New customer? Create your profile from your Paystack return page or a Stroane
-                  invitation link.
+                  Use the secure Stroane sign-in page to view your private profile and orders.
                 </p>
-              </form>
+                <Link className="customer-account-link" to="/sign" state={{ from: `/${area}` }}>
+                  Continue to sign in
+                  <HiArrowRight size={16} aria-hidden="true" />
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="customer-account-grid">
