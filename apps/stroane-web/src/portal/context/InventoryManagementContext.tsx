@@ -23,6 +23,8 @@ import {
 } from "../api/adminInventory";
 import {
   adminProductsApi,
+  type AdminProductBulkPayload,
+  type AdminProductCreatePayload,
   type AdminProductPatchPayload,
   type AdminProductPublishingPayload,
 } from "../api/adminProducts";
@@ -129,6 +131,8 @@ interface InventoryManagementContextValue {
     publishingPatch?: AdminProductPublishingPayload,
     options?: { silent?: boolean }
   ) => Promise<void>;
+  createProduct: (payload: AdminProductCreatePayload) => Promise<AdminProduct | null>;
+  bulkUpdateProducts: (payload: AdminProductBulkPayload) => Promise<AdminProduct[]>;
   retryQueueItem: (item: InventoryQueueItem) => Promise<void>;
   cancelQueueItem: (item: InventoryQueueItem) => Promise<void>;
   resolveQueueItem: (item: InventoryQueueItem) => Promise<void>;
@@ -741,6 +745,74 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     ]
   );
 
+  const createProduct = useCallback(
+    async (payload: AdminProductCreatePayload) => {
+      if (!session) return null;
+      if (!canManageInventory) {
+        setError("Only portal admins can create products.");
+        return null;
+      }
+      if (!isOnline) {
+        setError("Product creation requires an online connection.");
+        return null;
+      }
+
+      setSavingProduct(true);
+      setError("");
+      setNotice("");
+      try {
+        const product = await adminProductsApi.createProduct(session, payload);
+        setProducts((current) => [
+          product,
+          ...current.filter((candidate) => candidate.id !== product.id),
+        ]);
+        await fetchInventoryFromServer();
+        setNotice(`${product.name} created.`);
+        return product;
+      } catch (createError) {
+        setError(getErrorMessage(createError));
+        return null;
+      } finally {
+        setSavingProduct(false);
+      }
+    },
+    [canManageInventory, fetchInventoryFromServer, isOnline, session]
+  );
+
+  const bulkUpdateProducts = useCallback(
+    async (payload: AdminProductBulkPayload) => {
+      if (!session) return [];
+      if (!canManageInventory) {
+        setError("Only portal admins can update products.");
+        return [];
+      }
+      if (!isOnline) {
+        setError("Bulk product actions require an online connection.");
+        return [];
+      }
+
+      setSavingProduct(true);
+      setError("");
+      setNotice("");
+      try {
+        const result = await adminProductsApi.bulkUpdateProducts(session, payload);
+        const updatedById = new Map(result.products.map((product) => [product.id, product]));
+        setProducts((current) =>
+          current.map((product) => updatedById.get(product.id) || product)
+        );
+        await fetchInventoryFromServer();
+        setNotice(`${result.count} product${result.count === 1 ? "" : "s"} updated.`);
+        return result.products;
+      } catch (bulkError) {
+        setError(getErrorMessage(bulkError));
+        return [];
+      } finally {
+        setSavingProduct(false);
+      }
+    },
+    [canManageInventory, fetchInventoryFromServer, isOnline, session]
+  );
+
   const retryQueueItem = useCallback(
     async (item: InventoryQueueItem) => {
       setSyncingQueueItemId(item.id);
@@ -967,6 +1039,8 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
       saveInventoryItem,
       recordInventoryMovement,
       saveProductDetails,
+      createProduct,
+      bulkUpdateProducts,
       retryQueueItem,
       cancelQueueItem,
       resolveQueueItem,
@@ -975,10 +1049,12 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     [
       alerts,
       cachedAt,
+      bulkUpdateProducts,
       canManageInventory,
       cancelQueueItem,
       categories,
       clearMessages,
+      createProduct,
       error,
       filteredInventory,
       filters,

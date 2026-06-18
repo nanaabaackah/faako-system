@@ -113,6 +113,8 @@ test("admin product router applies bearer auth before product routes", async () 
     router.stack.filter((layer) => layer.route).map((layer) => layer.route.path),
     [
       "/products",
+      "/products",
+      "/products/bulk",
       "/products/:id",
       "/products/:id",
       "/products/:id/media",

@@ -137,7 +137,7 @@
 }
 
 .stroane-orders__admin-table table {
-  min-width: 1060px;
+  min-width: 1220px;
 }
 
 .stroane-orders__table {
@@ -149,8 +149,16 @@
   table-layout: fixed;
 }
 
+.stroane-orders__col-select {
+  width: 2.7rem;
+}
+
+.stroane-orders__col-number {
+  width: 3.2rem;
+}
+
 .stroane-orders__col-order {
-  width: 20%;
+  width: 17%;
 }
 
 .stroane-orders__col-customer {
@@ -161,9 +169,12 @@
   width: 10%;
 }
 
-.stroane-orders__col-payment,
-.stroane-orders__col-fulfillment {
+.stroane-orders__col-payment {
   width: 10%;
+}
+
+.stroane-orders__col-fulfillment {
+  width: 13%;
 }
 
 .stroane-orders__col-total {
@@ -171,11 +182,11 @@
 }
 
 .stroane-orders__col-created {
-  width: 15%;
+  width: 12%;
 }
 
 .stroane-orders__col-actions {
-  width: 3%;
+  width: 3.4rem;
 }
 
 .stroane-orders__table th,
@@ -187,14 +198,14 @@
 }
 
 .stroane-orders__table th,
-.stroane-orders__table td::not(.stroane-orders__table-empty):not(.admin-table-summary-cell) {
+.stroane-orders__table td:not(.stroane-orders__actions-cell):not(.stroane-orders__table-empty):not(.admin-table-summary-cell):not(.portal-table-select-cell):not(.portal-table-number-cell) {
   max-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stroane-orders__table td:not(.stroane-orders__table-empty):not(.admin-table-summary-cell) > * {
+.stroane-orders__table td:not(.stroane-orders__actions-cell):not(.stroane-orders__table-empty):not(.admin-table-summary-cell):not(.portal-table-select-cell):not(.portal-table-number-cell) > * {
   max-width: 100%;
 }
 
@@ -218,6 +229,25 @@
   text-transform: uppercase;
 }
 
+.stroane-orders__bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.65rem;
+  background: color-mix(in srgb, var(--sys-accent-soft) 42%, transparent);
+}
+
+.stroane-orders__bulk-bar > span {
+  margin-right: auto;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .stroane-orders__table tbody tr {
   cursor: pointer;
   transition: background 0.16s ease, box-shadow 0.16s ease;
@@ -236,14 +266,16 @@
 }
 
 .stroane-orders__order-cell,
-.stroane-orders__customer-cell {
+.stroane-orders__customer-cell,
+.stroane-orders__fulfillment-cell {
   display: grid;
   gap: 0.18rem;
   min-width: 0;
 }
 
 .stroane-orders__order-cell strong,
-.stroane-orders__customer-cell strong {
+.stroane-orders__customer-cell strong,
+.stroane-orders__fulfillment-cell strong {
   overflow: hidden;
   color: var(--color-text-primary);
   text-overflow: ellipsis;
@@ -259,11 +291,40 @@
   white-space: nowrap;
 }
 
+.stroane-orders__fulfillment-cell .ui-erp-status-badge,
+.stroane-orders__fulfillment-cell .erp-status-badge {
+  justify-self: start;
+  max-width: 100%;
+}
+
 .stroane-orders__actions-cell {
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
+  position: relative;
   overflow: visible;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.stroane-orders__row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 1.75rem;
+}
+
+.stroane-orders__row-actions .ui-erp-icon-action {
+  flex: 0 0 auto;
+  border-radius: var(--sys-radius-sm);
+}
+
+.stroane-orders__paystack-sync.ui-erp-icon-action {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.stroane-orders__paystack-sync.ui-erp-icon-action svg {
+  width: 0.82rem;
+  height: 0.82rem;
 }
 
 .stroane-orders__pagination {
@@ -286,6 +347,22 @@
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: start;
   gap: 1rem;
+}
+
+.stroane-orders__modal-nav {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--sys-border);
+  padding-bottom: 0.8rem;
+}
+
+.stroane-orders__modal-nav span {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 .stroane-orders__detail-panel,
@@ -352,6 +429,56 @@
   line-height: 1.45;
 }
 
+.stroane-orders__delivery-map {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.8rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 62%, transparent);
+}
+
+.stroane-orders__delivery-map > div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.stroane-orders__delivery-map span,
+.stroane-orders__delivery-map small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-orders__delivery-map strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-orders__delivery-map iframe {
+  width: 100%;
+  min-height: 14rem;
+  border: 0;
+  border-radius: var(--sys-radius-sm);
+  background: var(--sys-surface);
+}
+
+.stroane-orders__map-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 0.42rem;
+  color: var(--sys-accent);
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .stroane-orders__line-list > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -376,6 +503,38 @@
 .stroane-orders__reference {
   color: var(--color-text-muted);
   font-size: 0.76rem;
+}
+
+.stroane-orders__payment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.stroane-orders__payment-summary span {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.35rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.72rem;
+  background: color-mix(in srgb, var(--sys-surface-strong) 62%, transparent);
+}
+
+.stroane-orders__payment-summary small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-orders__payment-summary strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stroane-orders__payment-actions {
@@ -410,8 +569,28 @@
 }
 
 .stroane-orders__modal-actions {
+  align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.stroane-orders__autosave {
+  margin-right: auto;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.stroane-orders__autosave.is-saving {
+  color: var(--sys-warning);
+}
+
+.stroane-orders__autosave.is-saved {
+  color: var(--sys-success);
+}
+
+.stroane-orders__autosave.is-error {
+  color: var(--sys-danger);
 }
 
 .stroane-orders__manual-lines {
@@ -480,6 +659,10 @@
   .stroane-orders__detail-grid {
     grid-template-columns: 1fr;
   }
+
+  .stroane-orders__modal-nav {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 860px) {
@@ -502,6 +685,7 @@
   .stroane-orders__kpis,
   .stroane-orders__form-grid,
   .stroane-orders__mini-stats,
+  .stroane-orders__payment-summary,
   .stroane-orders__manual-line {
     grid-template-columns: 1fr;
   }

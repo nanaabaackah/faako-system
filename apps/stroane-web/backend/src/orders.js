@@ -4,6 +4,7 @@ import {
   listPersistedCatalogueProducts,
   normalizeStockStatus,
 } from "./catalogue.js";
+import { normalizeDeliveryLocation, toPublicDeliveryLocation } from "./locationSearch.js";
 
 const MAX_ORDER_QUANTITY = 99;
 
@@ -160,6 +161,10 @@ const validateCheckoutPayload = (payload = {}) => {
     pickupDate,
     pickupTime,
   });
+  const deliveryLocation = normalizeDeliveryLocation(
+    payload.deliveryLocation || fulfillment.deliveryLocation || customer.deliveryLocation
+  );
+  const source = sanitizeText(payload.source, 80) || "checkout";
   const items = Array.isArray(payload.items) ? payload.items : [];
 
   const errors = [];
@@ -173,6 +178,9 @@ const validateCheckoutPayload = (payload = {}) => {
         ? "Choose a pickup location."
         : "Delivery address is required."
     );
+  }
+  if (fulfillmentMethod === "delivery" && source === "checkout" && !deliveryLocation) {
+    errors.push("Select a delivery address from the location search results.");
   }
   if (fulfillmentMethod === "pickup" && !pickupLocationName) {
     errors.push("Choose a pickup location.");
@@ -218,8 +226,9 @@ const validateCheckoutPayload = (payload = {}) => {
       deliveryNotes: deliveryNotes || null,
     },
     items: normalizedItems,
-    source: sanitizeText(payload.source, 80) || "checkout",
+    source,
     deliveryMethod: fulfillmentMethod,
+    deliveryLocation,
     expectedDeliveryDate,
     fulfillment: {
       method: fulfillmentMethod,
@@ -280,6 +289,7 @@ export const prepareCommerceOrder = async (prisma, payload = {}) => {
     customer: normalized.customer,
     source: normalized.source,
     deliveryMethod: normalized.deliveryMethod,
+    deliveryLocation: normalized.deliveryLocation,
     expectedDeliveryDate: normalized.expectedDeliveryDate,
     fulfillment: normalized.fulfillment,
     currency: "GHS",
@@ -341,6 +351,7 @@ export const toPublicCommerceOrder = (order) => ({
   status: toOrderStatus(order.status),
   preferredContactMethod: order.preferredContactMethod || undefined,
   deliveryMethod: order.deliveryMethod || undefined,
+  deliveryLocation: toPublicDeliveryLocation(order) || undefined,
   expectedDeliveryDate:
     order.expectedDeliveryDate instanceof Date
       ? order.expectedDeliveryDate.toISOString()

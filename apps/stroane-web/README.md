@@ -117,6 +117,7 @@ Current payment boundaries:
 - Amount and currency are checked from the Paystack-verified transaction against the server-side order total.
 - Card/MoMo sensitive details are not stored.
 - Webhook processing is implemented as the payment confirmation source; callback polling is customer messaging only.
+- Optional Dev ERP activity forwarding is backend-only. Set `DEV_ERP_ACTIVITY_WEBHOOK_URL` to Dev ERP's `/api/webhooks/app-activity` endpoint and `DEV_ERP_ACTIVITY_WEBHOOK_SECRET` to the matching Dev ERP `APP_ACTIVITY_WEBHOOK_SECRET` to emit minimal order-created, payment-initialized, and Paystack-webhook activity events. These events omit customer contact details, raw Paystack payloads, card/MoMo data, and provider secrets.
 
 After a successful verified payment, the backend can send a customer-safe payment-confirmed order email through Resend when email env values are configured. The email includes order number, items summary, total, payment status, and customer contact details only. It does not include internal notes, audit metadata, raw database IDs, secrets, Paystack authorization payloads, or card/MoMo details.
 
@@ -200,6 +201,8 @@ Start with Paystack test keys in development/staging. Expected server-side env v
 - `RESEND_API_KEY`
 - `ORDER_NOTIFICATION_FROM`
 - `ORDER_NOTIFICATION_REPLY_TO`
+- `CUSTOMER_ACCOUNT_EMAIL_FROM`
+- `CUSTOMER_ACCOUNT_EMAIL_REPLY_TO`
 
 Keep Paystack and email-provider secrets server-side only. Paystack webhook signatures use the backend Paystack signing secret; if `PAYSTACK_WEBHOOK_SECRET` is blank, the backend falls back to `PAYSTACK_SECRET_KEY`. The backend blocks `sk_live_*` keys unless `PAYSTACK_ALLOW_LIVE=true` is explicitly set. A payment event/notification log should be added before relying on webhook replay handling for automated fulfillment, retries, staff alerts, WhatsApp, or SMS updates.
 
@@ -213,7 +216,7 @@ The database foundation is additive and uses Prisma/Postgres models for `Catalog
 - `DATABASE_URL_DEVELOPMENT`: optional development database URL
 - `DATABASE_URL_PRODUCTION`: optional production database URL
 - `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `PAYSTACK_CALLBACK_URL`, `PAYSTACK_CURRENCY`, `PAYSTACK_ALLOW_LIVE`: server-side Paystack setup values. `PAYSTACK_SECRET_KEY` must never be exposed through `VITE_*`.
-- `RESEND_API_KEY`, `ORDER_NOTIFICATION_FROM`, `ORDER_NOTIFICATION_REPLY_TO`: server-side customer order email setup values. `RESEND_API_KEY` must never be exposed through `VITE_*`.
+- `RESEND_API_KEY`, `ORDER_NOTIFICATION_FROM`, `ORDER_NOTIFICATION_REPLY_TO`, `CUSTOMER_ACCOUNT_EMAIL_FROM`, `CUSTOMER_ACCOUNT_EMAIL_REPLY_TO`: server-side customer order and account email setup values. `RESEND_API_KEY` must never be exposed through `VITE_*`.
 
 Catalogue import is prepared through:
 
@@ -246,12 +249,20 @@ Start both frontend and backend together:
 pnpm --filter @faako/stroane-web run dev:with-backend
 ```
 
+This dev command now runs `predeploy:local` first, which generates the Prisma
+client, applies pending development migrations with `prisma migrate deploy`, and
+checks the development migration status before the frontend/API processes start.
+The root shortcut `pnpm run dev:stroane` uses the same guarded startup path.
+
 Or run each side separately:
 
 ```bash
 pnpm --filter @faako/stroane-web run dev:frontend
 pnpm --filter @faako/stroane-web run server:dev
 ```
+
+Use `dev:frontend` only when you intentionally want to skip the database/API
+predeploy step for a frontend-only styling pass.
 
 Typical local ports:
 
@@ -285,7 +296,8 @@ through `/api/auth/login`; the CSV is only an import source.
 Use `apps/stroane-web/.env.example` only as a public reference. Local development
 runtime values belong in the ignored `apps/stroane-web/.env.development` file.
 `pnpm run dev:stroane` starts the Stroane frontend and API in development mode,
-so both prefer `.env.development`. Never place real secrets in `.env.example`.
+after running the local Prisma predeploy migration check, so both prefer
+`.env.development`. Never place real secrets in `.env.example`.
 
 Only browser-safe values should use the `VITE_*` prefix.
 
@@ -349,4 +361,4 @@ Smoke test these API routes after deploy:
 - `https://api.stroanesolutions.com/api/catalogue/products/<slug>`
 - Legacy aliases: `https://api.stroanesolutions.com/api/products` and `https://api.stroanesolutions.com/api/categories`
 
-For Dev ERP monitoring, keep app-specific URL overrides in private operations configuration once the backend is deployed. This enables the optional API checks for `/health`, `/api/catalogue/products`, and `/api/catalogue/categories` without publishing client-specific env names in the public example file.
+For Dev ERP monitoring, keep app-specific URL overrides and activity webhook env values in private operations configuration once the backend is deployed. This enables the optional API checks for `/health`, `/api/catalogue/products`, and `/api/catalogue/categories`, plus backend-only order/payment activity forwarding, without publishing client-specific env names or webhook secrets in the public example file.

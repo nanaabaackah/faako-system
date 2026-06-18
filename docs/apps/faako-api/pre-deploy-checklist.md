@@ -23,7 +23,9 @@
 ## Database/data loss risk
 
 - Review Prisma migrations before deploy.
-- Run `pnpm --filter @faako/faako-api run predeploy:local` before deployment when signup persistence or Prisma migrations changed.
+- `pnpm --filter @faako/faako-api run dev` and `pnpm run dev:faako` run local Prisma predeploy automatically before starting.
+- Run `pnpm --filter @faako/faako-api run predeploy:local` manually before deployment when signup persistence or Prisma migrations changed and you are not starting dev.
+- Deploy the additive signup management migration before relying on Dev ERP status, owner, internal notes, activity timeline, email delivery, or PDF metadata management fields.
 - Confirm local commands cannot target production unless explicitly allowed.
 - Confirm backups or recovery plan before production schema/data changes.
 

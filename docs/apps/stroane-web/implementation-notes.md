@@ -41,11 +41,11 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 
 ### Customer accounts and CRM directory - 2026-06-17
 
-- `CustomerAccount` is the server-side customer profile/auth model. It stores unique email, password hash, account status, profile details, invite token hash/expiry, activation/login timestamps, and optional staff creator reference.
+- `CustomerAccount` is the server-side customer profile/auth model. It stores unique email, password hash, account status, profile details, invite token hash/expiry, password-reset token hash/expiry, activation/login timestamps, and optional staff creator reference.
 - Customer sessions use `STROANE_CUSTOMER_AUTH_COOKIE_*` cookie settings and the `stroane_customer` token audience. Keep customer and staff cookie names/settings separate.
-- Customer signup must have proof of context: either a valid staff-generated invite token or a Paystack/order reference whose stored checkout email matches the submitted email. Do not add open public signup without email verification and abuse controls.
+- Customer signup is open for storefront customers. Staff invite tokens and checkout/order references are optional linking context only; when present, the submitted email must still match the stored invite/order email.
 - `backend/src/customerAccounts/routes.js` owns both `/api/customer/*` account routes and `/api/admin/customers*` CRM routes. Customer routes read/write only the authenticated customer's profile/order history. Admin CRM reads allow `ADMIN`/`VIEWER`; CRM writes and invite generation require `ADMIN`.
-- Invite tokens are generated as random base64url strings and stored only as SHA-256 hashes. The raw signup URL is returned once when the invite is created/regenerated so staff can copy/share it.
+- Invite and password-reset tokens are generated as random base64url strings and stored only as SHA-256 hashes. The raw signup URL is returned once when the invite is created/regenerated so staff can copy/share it; reset links are emailed server-side and are not displayed by the storefront.
 - Checkout return links to `/signup?reference=<paystack-reference>` after Paystack return. The backend still requires the submitted email to match the stored order email before account activation.
 - The portal CRM directory lives at `/admin/crm` and `/admin/directory`. It should stay on shared ERP table, field, badge, modal, pagination, and action primitives. Table cells should use fixed layout and ellipsis for long customer/business/order text.
 - Customer order linking is email-assisted but server-controlled: new orders try to attach to an existing customer by normalized email, and authenticated customers can link their own matching-email orders when viewing order history.
@@ -92,7 +92,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Shop and Checkout prune stale browser cart entries once the loaded catalogue is available and the product no longer has a numeric storefront price. This keeps unpriced or removed catalogue items out of the visible purchasing flow without storing customer data or touching server records.
 - The current public commerce fallback has four restored confirmed price-list products: AstroAI IR Thermometer (GHS 900), Taylor Precision Large Dial Fridge/Freezer Thermometer (GHS 500), Taylor Pro Horizontal Strip Fridge/Freezer Thermometer (GHS 500), and Taylor Precision Fridge/Freezer Thermometer with suction cups (GHS 400). Newer PDF/image-imported products without numeric prices should stay hidden from shop/product listing/search commerce surfaces until pricing is confirmed.
 - Direct unpriced product detail URLs should render the "not available online" gate and link customers back to priced products/contact, not display quote-first product detail pages.
-- Customer account pages are server-backed convenience surfaces for profile and order history. `/signup` must keep requiring a checkout reference or staff invite, while `/account`, `/orders`, and `/quotes` must continue using customer-cookie APIs rather than sending customers to the staff portal.
+- Customer account pages are server-backed convenience surfaces for profile, password recovery, and order history. `/signup` is open to customers, while optional checkout references/staff invites link existing context. `/account`, `/orders`, and `/quotes` must continue using customer-cookie APIs rather than sending customers to the staff portal.
 
 ### Page layout — full-width by default (2026-05-15)
 
@@ -226,7 +226,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Paystack initialization metadata was minimized. The provider receives the order number and source only; raw internal order IDs and customer phone are no longer sent as custom metadata.
 - Obsolete browser-visible preview-auth env examples (`VITE_AUTH_USERNAME`, `VITE_AUTH_PASSWORD`) were removed from `.env.example`. Do not add secret-like auth/password/session values with a `VITE_*` prefix.
 - Privacy/legal copy now uses "pricing" instead of generic "quote" wording. Customer-facing commerce language should use "Price" and "Pricing"; reserve quote/request language for custom orders, unavailable stock, bulk/corporate inquiries, or special requests.
-- Customer sign-up is now backend-gated by checkout reference or staff invite. Keep password hashing, invite validation, and order linking server-side.
+- Customer sign-up is open, while checkout references and staff invites remain optional server-side linking context. Keep password hashing, reset-token hashing, invite validation, and order linking server-side.
 - Backend `SiteUser` access should stay private and use one seeded `ADMIN` account and one seeded `VIEWER` account until a real admin/customer account model is approved.
 - Railway Postgres is the chosen production database. Use server-only database URLs, keep browser database access unavailable, and prefer separate Railway runtime/migration credentials or roles where available.
 - Add a dedicated payment event log and notification log before webhook replay tooling, retries, staff alerts, fulfillment automation, or multi-channel order updates.

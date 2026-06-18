@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Signup management metadata for Dev ERP
+
+Date: 2026-06-18
+Feature/change name: Signup management metadata for Dev ERP
+What changed: Added a safe, additive Prisma migration for `SignupRequest` management fields: internal notes, assigned owner, activity timeline, email delivery metadata, PDF summary metadata, management update tracking, and new internal status values. Updated the signup handler to preserve the existing submission/email/PDF flow while recording delivery and PDF metadata when those columns exist.
+Why it changed: Dev ERP needs to manage Faako Website onboarding and client setup submissions internally without disrupting the public form path.
+Files changed: apps/faako-api/prisma/schema.prisma, apps/faako-api/prisma/migrations/20260618000000_add_signup_management_fields/migration.sql, apps/faako-api/src/signup.cjs, apps/faako-api/README.md, docs/apps/faako-api/*.
+Data impact: Forward-only additive migration. Existing signup rows remain valid. Public signup still works against older databases because metadata writes check for column availability first.
+Security impact: Internal notes, owner assignments, and management status metadata are not exposed through public Faako Website flows. Existing credential-like intake rejection remains in place.
+Testing done: `node --check apps/faako-api/src/signup.cjs` passed. `node --check apps/faako-api/src/server.js` passed. `pnpm --filter @faako/faako-api exec prisma validate` passed. `node --test apps/faako-api/src/demoAccess.test.mjs` passed with 3 tests. `pnpm --filter @faako/faako-api run lint` could not run because the workspace does not install/configure `eslint`.
+Rollback notes: Revert signup metadata writes and Dev ERP management usage. If the migration has deployed, retain the additive fields or remove them only through a separately reviewed forward migration.
+Next step: Apply the migration to the intended Faako API database before enabling Dev ERP management updates in production.
+
 ### Faako API local predeploy migration script
 
 Date: 2026-06-16

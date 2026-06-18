@@ -300,6 +300,31 @@ img {
   max-width: 100%;
 }
 
+.portal-table-checkbox {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--sys-accent, var(--color-primary));
+  cursor: pointer;
+}
+
+.portal-table-select-cell,
+.portal-table-number-cell {
+  max-width: none !important;
+  overflow: visible !important;
+  text-align: center !important;
+}
+
+.portal-table-number-cell {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+tr.is-bulk-selected {
+  background: color-mix(in srgb, var(--sys-accent-soft) 62%, transparent);
+}
+
 @media (max-width: 768px) {
   .section__heading {
     font-size: clamp(2rem, 9vw, 2rem);

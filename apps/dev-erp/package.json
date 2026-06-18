@@ -6,11 +6,14 @@
   "type": "module",
   "scripts": {
     "start": "pnpm run server:with-migrate",
-    "dev": "vite",
-    "dev:with-backend": "node ../../scripts/dev-dev-erp.mjs",
+    "dev": "pnpm run predeploy:local && pnpm run dev:frontend",
+    "dev:frontend": "vite",
+    "dev:with-backend": "pnpm run predeploy:local && node ../../scripts/dev-dev-erp.mjs",
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
     "test": "node --test",
+    "test:e2e": "playwright test -c playwright.config.js",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
@@ -25,7 +28,7 @@
     "migrate:status": "prisma migrate status",
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
-    "server:dev:with-migrate": "pnpm run db:generate && pnpm run db:deploy:dev && pnpm run server:dev",
+    "server:dev:with-migrate": "pnpm run predeploy:local && pnpm run server:dev",
     "server:prod:with-migrate": "pnpm run db:generate && pnpm run db:deploy:prod && pnpm run server:prod",
     "server:with-migrate": "pnpm run db:generate && pnpm run migrate:deploy && node backend/server.js",
     "server": "pnpm run server:with-migrate",
@@ -73,6 +76,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@playwright/test": "^1.58.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
@@ -82,6 +86,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "prisma": "^7.2.0",
+    "typescript": "^6.0.2",
     "vite": "^6.3.5"
   }
 }

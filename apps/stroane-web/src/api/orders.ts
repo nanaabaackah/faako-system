@@ -28,6 +28,17 @@ export interface CheckoutCustomerPayload {
 
 export type CheckoutFulfillmentMethod = "delivery" | "pickup";
 
+export interface DeliveryLocation {
+  id?: string;
+  placeId?: string;
+  label: string;
+  address: string;
+  provider?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  mapUrl?: string;
+}
+
 export interface CheckoutOrderItemPayload {
   productSlug: string;
   quantity: number;
@@ -45,6 +56,7 @@ export interface CheckoutOrderPayload {
   pickupDate?: string;
   pickupTime?: string;
   expectedDeliveryDate?: string;
+  deliveryLocation?: DeliveryLocation | null;
 }
 
 export interface CheckoutOrderResponse {
@@ -54,6 +66,7 @@ export interface CheckoutOrderResponse {
     status: "pending" | "payment_pending" | "paid" | "processing" | "completed" | "cancelled";
     preferredContactMethod?: string;
     deliveryMethod?: CheckoutFulfillmentMethod;
+    deliveryLocation?: DeliveryLocation;
     expectedDeliveryDate?: string;
     paymentStatus?: "payment_pending" | "paid" | "failed" | "abandoned" | "not_started";
     paymentReference?: string;
@@ -101,6 +114,22 @@ export interface PaystackVerifyResponse {
 }
 
 export const orderApi = {
+  async searchDeliveryLocations(
+    query: string,
+    options: { signal?: AbortSignal; limit?: number } = {}
+  ): Promise<DeliveryLocation[]> {
+    const params = new URLSearchParams({ q: query });
+    if (options.limit) params.set("limit", String(options.limit));
+    const response = await fetch(apiPath(`/api/location/search?${params.toString()}`), {
+      signal: options.signal,
+    });
+    const body = await parseJsonResponse<{ locations: DeliveryLocation[] }>(
+      response,
+      "Unable to search delivery locations."
+    );
+    return Array.isArray(body.locations) ? body.locations : [];
+  },
+
   async createOrder(payload: CheckoutOrderPayload): Promise<CheckoutOrderResponse> {
     const response = await fetch(apiPath("/api/orders"), {
       method: "POST",

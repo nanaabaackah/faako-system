@@ -10,6 +10,8 @@ export const createAdminProductRouter = (prisma) => {
   router.use(requireSiteUser(prisma, ["ADMIN", "VIEWER"]));
 
   router.get("/products", asyncRoute(controller.listProducts));
+  router.post("/products", requireAdminRole(prisma), asyncRoute(controller.createProduct));
+  router.patch("/products/bulk", requireAdminRole(prisma), asyncRoute(controller.bulkUpdateProducts));
   router.get("/products/:id", asyncRoute(controller.getProduct));
   router.patch("/products/:id", requireAdminRole(prisma), asyncRoute(controller.updateProduct));
   router.patch(

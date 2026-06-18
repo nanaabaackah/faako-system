@@ -111,9 +111,30 @@ export interface AdminProductPatchPayload {
   tags?: string[];
 }
 
+export interface AdminProductCreatePayload extends AdminProductPatchPayload {
+  name: string;
+  publishingStatus?: "draft" | "active" | "archived";
+  isFeatured?: boolean;
+  quantityOnHand?: number | null;
+  reservedQuantity?: number | null;
+  lowStockThreshold?: number | null;
+  reorderThreshold?: number | null;
+  stockStatus?: string;
+  supplierId?: string | null;
+  inventoryTrackingEnabled?: boolean;
+  allowBackorder?: boolean;
+  isPurchasable?: boolean;
+  notes?: string | null;
+}
+
 export interface AdminProductPublishingPayload {
   publishingStatus?: "draft" | "active" | "archived";
   isFeatured?: boolean;
+}
+
+export interface AdminProductBulkPayload {
+  productIds: string[];
+  action: "archive" | "delete" | "delete_listing" | "restore" | "activate" | "draft";
 }
 
 export interface AdminProductSupplierPayload {
@@ -143,6 +164,38 @@ export const adminProductsApi = {
       "Unable to load product."
     );
     return data.product;
+  },
+
+  async createProduct(
+    session: AdminSession,
+    payload: AdminProductCreatePayload
+  ): Promise<AdminProduct> {
+    const response = await fetch(apiPath("/api/admin/products"), {
+      method: "POST",
+      ...jsonAuthRequest(session),
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonResponse<{ product: AdminProduct }>(
+      response,
+      "Unable to create product."
+    );
+    return data.product;
+  },
+
+  async bulkUpdateProducts(
+    session: AdminSession,
+    payload: AdminProductBulkPayload
+  ): Promise<{ products: AdminProduct[]; count: number; action: AdminProductBulkPayload["action"] }> {
+    const response = await fetch(apiPath("/api/admin/products/bulk"), {
+      method: "PATCH",
+      ...jsonAuthRequest(session),
+      body: JSON.stringify(payload),
+    });
+    return parseJsonResponse<{
+      products: AdminProduct[];
+      count: number;
+      action: AdminProductBulkPayload["action"];
+    }>(response, "Unable to update selected products.");
   },
 
   async updateProduct(

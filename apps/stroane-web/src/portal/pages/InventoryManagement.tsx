@@ -17,6 +17,7 @@ import {
   HiOutlineCube,
   HiOutlineDatabase,
   HiOutlineExclamationCircle,
+  HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineSave,
   HiOutlineShoppingBag,
@@ -223,6 +224,40 @@ const EMPTY_MOVEMENT_DRAFT: InventoryMovementDraft = {
   purchaseNote: "",
 };
 
+type ProductCreateDraft = InventoryProductDraft & {
+  quantityOnHand: string;
+  reservedQuantity: string;
+  lowStockThreshold: string;
+  reorderThreshold: string;
+  stockStatus: InventoryEditDraft["stockStatus"];
+  supplierId: string;
+  inventoryTrackingEnabled: boolean;
+  allowBackorder: boolean;
+  isPurchasable: boolean;
+  notes: string;
+};
+
+const EMPTY_PRODUCT_CREATE_DRAFT: ProductCreateDraft = {
+  name: "",
+  sku: "",
+  price: "",
+  currency: "GHS",
+  categorySlug: "",
+  publishingStatus: "draft",
+  isFeatured: false,
+  shortDescription: "",
+  quantityOnHand: "",
+  reservedQuantity: "0",
+  lowStockThreshold: "",
+  reorderThreshold: "",
+  stockStatus: "unavailable",
+  supplierId: "",
+  inventoryTrackingEnabled: true,
+  allowBackorder: false,
+  isPurchasable: false,
+  notes: "",
+};
+
 const buildProductDraft = (
   product: AdminProduct | null,
   item: InventoryItem | null
@@ -299,7 +334,9 @@ const InventoryManagementContent: React.FC = () => {
     recordInventoryMovement,
     retryQueueItem,
     cancelQueueItem,
+    bulkUpdateProducts,
     resolveQueueItem,
+    createProduct,
     syncingQueueItemId,
   } = inventoryState;
 
@@ -310,8 +347,11 @@ const InventoryManagementContent: React.FC = () => {
   );
   const [formError, setFormError] = useState("");
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [createProductOpen, setCreateProductOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState<ProductCreateDraft>(EMPTY_PRODUCT_CREATE_DRAFT);
   const [inventoryPage, setInventoryPage] = useState(0);
   const [openActionsId, setOpenActionsId] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
   const [drilldown, setDrilldown] = useState<InventoryDrilldown | null>(null);
   const [productAutosaveStatus, setProductAutosaveStatus] = useState<
     "idle" | "pending" | "saving" | "saved" | "error"
@@ -743,6 +783,80 @@ const InventoryManagementContent: React.FC = () => {
     await saveProductDraft();
   };
 
+  const handleCreateProductSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    clearMessages();
+    setFormError("");
+
+    if (!createDraft.name.trim()) {
+      setFormError("Product name is required.");
+      return;
+    }
+    if (createDraft.price && Number.isNaN(Number(createDraft.price))) {
+      setFormError("Product price must be a valid number.");
+      return;
+    }
+    const numberFields = [
+      ["Quantity on hand", createDraft.quantityOnHand],
+      ["Reserved quantity", createDraft.reservedQuantity],
+      ["Low stock threshold", createDraft.lowStockThreshold],
+      ["Reorder threshold", createDraft.reorderThreshold],
+    ] as const;
+    const invalidField = numberFields.find(([, value]) => !isWholeNumberDraft(value));
+    if (invalidField) {
+      setFormError(`${invalidField[0]} must be a whole number.`);
+      return;
+    }
+
+    const quantityOnHand =
+      createDraft.quantityOnHand === "" ? null : Number(createDraft.quantityOnHand);
+    const reservedQuantity =
+      createDraft.reservedQuantity === "" ? 0 : Number(createDraft.reservedQuantity);
+    if (quantityOnHand !== null && reservedQuantity > quantityOnHand) {
+      setFormError("Reserved quantity cannot exceed quantity on hand.");
+      return;
+    }
+
+    const createdProduct = await createProduct({
+      name: createDraft.name.trim(),
+      sku: createDraft.sku.trim() || null,
+      price: createDraft.price === "" ? null : createDraft.price,
+      currency: createDraft.currency.trim().toUpperCase() || "GHS",
+      categorySlug: createDraft.categorySlug || null,
+      shortDescription: createDraft.shortDescription.trim() || null,
+      publishingStatus: createDraft.publishingStatus,
+      isFeatured: createDraft.isFeatured,
+      quantityOnHand,
+      reservedQuantity,
+      lowStockThreshold:
+        createDraft.lowStockThreshold === "" ? null : Number(createDraft.lowStockThreshold),
+      reorderThreshold:
+        createDraft.reorderThreshold === "" ? null : Number(createDraft.reorderThreshold),
+      stockStatus: createDraft.stockStatus,
+      supplierId: createDraft.supplierId || null,
+      inventoryTrackingEnabled: createDraft.inventoryTrackingEnabled,
+      allowBackorder: createDraft.allowBackorder,
+      isPurchasable: createDraft.isPurchasable,
+      notes: createDraft.notes.trim() || null,
+    });
+
+    if (!createdProduct) return;
+    setCreateDraft(EMPTY_PRODUCT_CREATE_DRAFT);
+    setCreateProductOpen(false);
+  };
+
+  const toggleSelectedItem = useCallback((itemId: string) => {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  }, []);
+
   const inventoryPageCount = Math.max(
     1,
     Math.ceil(filteredInventory.length / INVENTORY_TABLE_PAGE_SIZE)
@@ -776,6 +890,66 @@ const InventoryManagementContent: React.FC = () => {
   const paginatedStockValue = paginatedInventory.reduce(
     (total, item) => total + (getInventoryItemStockValue(item) ?? 0),
     0
+  );
+  const selectedBulkProductIds = useMemo(
+    () => [
+      ...new Set(
+        Array.from(selectedItemIds)
+          .map((itemId) => inventoryItems.find((item) => item.id === itemId))
+          .map((item) => {
+            if (!item) return "";
+            const product = resolveItemProduct(item);
+            return product?.id || item.product?.id || item.productId || "";
+          })
+          .filter(Boolean)
+      ),
+    ],
+    [inventoryItems, resolveItemProduct, selectedItemIds]
+  );
+  const togglePageSelected = useCallback(() => {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+      const allPageSelected =
+        paginatedInventory.length > 0 && paginatedInventory.every((item) => next.has(item.id));
+      paginatedInventory.forEach((item) => {
+        if (allPageSelected) {
+          next.delete(item.id);
+        } else {
+          next.add(item.id);
+        }
+      });
+      return next;
+    });
+  }, [paginatedInventory]);
+  const runBulkProductAction = useCallback(
+    async (
+      action: "archive" | "delete_listing" | "activate" | "draft",
+      label: string,
+      confirm = false
+    ) => {
+      if (!selectedBulkProductIds.length) {
+        setFormError("Select at least one linked catalogue product.");
+        return;
+      }
+      if (
+        confirm &&
+        typeof window !== "undefined" &&
+        !window.confirm(`${label} ${selectedBulkProductIds.length} selected product listing(s)?`)
+      ) {
+        return;
+      }
+      clearMessages();
+      setFormError("");
+      const updatedProducts = await bulkUpdateProducts({
+        productIds: selectedBulkProductIds,
+        action,
+      });
+      if (updatedProducts.length) {
+        setSelectedItemIds(new Set());
+        setOpenActionsId("");
+      }
+    },
+    [bulkUpdateProducts, clearMessages, selectedBulkProductIds]
   );
   const selectedStockValue = selectedItem ? getInventoryItemStockValue(selectedItem) : null;
   const selectedCurrency = selectedItem ? getInventoryItemCurrency(selectedItem) : "GHS";
@@ -998,6 +1172,14 @@ const InventoryManagementContent: React.FC = () => {
   useEffect(() => {
     setInventoryPage(0);
   }, [filters.search, filters.status, filters.supplierId]);
+
+  useEffect(() => {
+    const visibleIds = new Set(inventoryItems.map((item) => item.id));
+    setSelectedItemIds((current) => {
+      const next = new Set(Array.from(current).filter((itemId) => visibleIds.has(itemId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [inventoryItems]);
 
   useEffect(() => {
     if (inventoryPage > inventoryPageCount - 1) {
@@ -1474,6 +1656,18 @@ const InventoryManagementContent: React.FC = () => {
         <div className="stroane-inventory__table-panel">
           <div className="stroane-inventory__table-head">
             <h2>Stock Table</h2>
+            <ERPPrimaryAction
+              type="button"
+              icon={<HiOutlinePlus />}
+              onClick={() => {
+                setCreateDraft(EMPTY_PRODUCT_CREATE_DRAFT);
+                setCreateProductOpen(true);
+                setFormError("");
+              }}
+              disabled={!canManageInventory}
+            >
+              New product
+            </ERPPrimaryAction>
           </div>
           <div className="stroane-inventory__toolbar">
             <div className="stroane-inventory__filters">
@@ -1516,12 +1710,56 @@ const InventoryManagementContent: React.FC = () => {
             </div>
           </div>
 
+          {selectedItemIds.size ? (
+            <div className="stroane-inventory__bulk-bar" role="region" aria-label="Bulk actions">
+              <span>
+                <strong>{selectedItemIds.size}</strong> selected
+              </span>
+              <ERPSecondaryAction
+                size="sm"
+                onClick={() => void runBulkProductAction("activate", "Activate")}
+                disabled={!canManageInventory || savingProduct || !selectedBulkProductIds.length}
+              >
+                Make active
+              </ERPSecondaryAction>
+              <ERPSecondaryAction
+                size="sm"
+                onClick={() => void runBulkProductAction("draft", "Move to draft")}
+                disabled={!canManageInventory || savingProduct || !selectedBulkProductIds.length}
+              >
+                Draft
+              </ERPSecondaryAction>
+              <ERPSecondaryAction
+                size="sm"
+                onClick={() => void runBulkProductAction("archive", "Archive", true)}
+                disabled={!canManageInventory || savingProduct || !selectedBulkProductIds.length}
+              >
+                Archive
+              </ERPSecondaryAction>
+              <ERPDangerAction
+                size="sm"
+                onClick={() => void runBulkProductAction("delete_listing", "Delete listings", true)}
+                disabled={!canManageInventory || savingProduct || !selectedBulkProductIds.length}
+              >
+                Delete listings
+              </ERPDangerAction>
+              <ERPSecondaryAction
+                size="sm"
+                onClick={() => setSelectedItemIds(new Set())}
+                disabled={savingProduct}
+              >
+                Clear selection
+              </ERPSecondaryAction>
+            </div>
+          ) : null}
+
           <InventoryStockTable
             loading={loading}
             error={error}
             filteredInventory={filteredInventory}
             paginatedInventory={paginatedInventory}
             selectedItemId={selectedItemId}
+            selectedItemIds={selectedItemIds}
             openActionsId={openActionsId}
             canManageInventory={canManageInventory}
             savingProduct={savingProduct}
@@ -1536,6 +1774,8 @@ const InventoryManagementContent: React.FC = () => {
             formatMoney={formatInventoryMoney}
             toMoneyNumber={toMoneyNumber}
             onOpenItemDetail={openItemDetail}
+            onToggleSelected={toggleSelectedItem}
+            onTogglePageSelected={togglePageSelected}
             onToggleActions={(itemId) =>
               setOpenActionsId((current) => (current === itemId ? "" : itemId))
             }
@@ -2030,6 +2270,285 @@ const InventoryManagementContent: React.FC = () => {
           </div>
         </aside>
       </section>
+
+      <ERPModal
+        open={createProductOpen}
+        title="New product"
+        description="Create a catalogue product and its base inventory record."
+        onClose={() => setCreateProductOpen(false)}
+        closeOnBackdrop
+        size="xl"
+        className="stroane-inventory__create-modal"
+      >
+        <form className="stroane-inventory__form" onSubmit={handleCreateProductSubmit}>
+          <div className="stroane-inventory__form-head">
+            <span>Catalogue setup</span>
+            <h3>Product details</h3>
+          </div>
+          <div className="stroane-inventory__field-grid">
+            <ERPTextField
+              label="Name"
+              value={createDraft.name}
+              onChange={(event) =>
+                setCreateDraft((current) => ({ ...current, name: event.target.value }))
+              }
+              disabled={!canManageInventory || savingProduct}
+              required
+            />
+            <ERPTextField
+              label="Product SKU"
+              value={createDraft.sku}
+              onChange={(event) =>
+                setCreateDraft((current) => ({ ...current, sku: event.target.value }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <ERPTextField
+              label="Price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={createDraft.price}
+              onChange={(event) =>
+                setCreateDraft((current) => ({ ...current, price: event.target.value }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <ERPTextField
+              label="Currency"
+              value={createDraft.currency}
+              maxLength={3}
+              onChange={(event) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  currency: event.target.value.toUpperCase(),
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <SelectField
+              label="Category"
+              value={createDraft.categorySlug}
+              onChangeValue={(value) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  categorySlug: getSelectValue(value),
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+              options={[
+                { value: "", label: "Unassigned" },
+                ...categories.map((category) => ({
+                  value: category.slug,
+                  label: category.name,
+                })),
+              ]}
+            />
+            <SelectField
+              label="Publishing"
+              value={createDraft.publishingStatus}
+              onChangeValue={(value) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  publishingStatus: getSelectValue(value) as InventoryProductDraft["publishingStatus"],
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+              options={[
+                { value: "draft", label: "Draft" },
+                { value: "active", label: "Active" },
+                { value: "archived", label: "Archived" },
+              ]}
+            />
+          </div>
+          <ERPTextareaField
+            className="stroane-inventory__wide-field"
+            label="Short description"
+            value={createDraft.shortDescription}
+            onChange={(event) =>
+              setCreateDraft((current) => ({
+                ...current,
+                shortDescription: event.target.value,
+              }))
+            }
+            disabled={!canManageInventory || savingProduct}
+          />
+
+          <div className="stroane-inventory__form-head">
+            <span>Initial stock</span>
+            <h3>Availability</h3>
+          </div>
+          <div className="stroane-inventory__field-grid">
+            <ERPTextField
+              label="Quantity on hand"
+              type="number"
+              min="0"
+              step="1"
+              value={createDraft.quantityOnHand}
+              onChange={(event) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  quantityOnHand: event.target.value,
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <ERPTextField
+              label="Reserved"
+              type="number"
+              min="0"
+              step="1"
+              value={createDraft.reservedQuantity}
+              onChange={(event) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  reservedQuantity: event.target.value,
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <ERPTextField
+              label="Low threshold"
+              type="number"
+              min="0"
+              step="1"
+              value={createDraft.lowStockThreshold}
+              onChange={(event) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  lowStockThreshold: event.target.value,
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <ERPTextField
+              label="Reorder threshold"
+              type="number"
+              min="0"
+              step="1"
+              value={createDraft.reorderThreshold}
+              onChange={(event) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  reorderThreshold: event.target.value,
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+            />
+            <SelectField
+              label="Stock status"
+              value={createDraft.stockStatus}
+              onChangeValue={(value) =>
+                setCreateDraft((current) => ({
+                  ...current,
+                  stockStatus: getSelectValue(value) as InventoryEditDraft["stockStatus"],
+                }))
+              }
+              disabled={!canManageInventory || savingProduct}
+              options={STOCK_STATUS_OPTIONS}
+            />
+            <SelectField
+              label="Supplier"
+              value={createDraft.supplierId}
+              onChangeValue={(value) =>
+                setCreateDraft((current) => ({ ...current, supplierId: getSelectValue(value) }))
+              }
+              disabled={!canManageInventory || savingProduct}
+              options={[
+                { value: "", label: "Unassigned" },
+                ...suppliers.map((supplier) => ({
+                  value: supplier.id,
+                  label: supplier.name,
+                })),
+              ]}
+            />
+          </div>
+          <div className="stroane-inventory__toggles">
+            <label>
+              <input
+                type="checkbox"
+                checked={createDraft.inventoryTrackingEnabled}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({
+                    ...current,
+                    inventoryTrackingEnabled: event.target.checked,
+                  }))
+                }
+                disabled={!canManageInventory || savingProduct}
+              />
+              <span>Track inventory</span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={createDraft.isPurchasable}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({
+                    ...current,
+                    isPurchasable: event.target.checked,
+                  }))
+                }
+                disabled={!canManageInventory || savingProduct}
+              />
+              <span>Purchasable</span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={createDraft.allowBackorder}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({
+                    ...current,
+                    allowBackorder: event.target.checked,
+                  }))
+                }
+                disabled={!canManageInventory || savingProduct}
+              />
+              <span>Backorders</span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={createDraft.isFeatured}
+                onChange={(event) =>
+                  setCreateDraft((current) => ({
+                    ...current,
+                    isFeatured: event.target.checked,
+                  }))
+                }
+                disabled={!canManageInventory || savingProduct}
+              />
+              <span>Featured product</span>
+            </label>
+          </div>
+          <ERPTextareaField
+            className="stroane-inventory__wide-field"
+            label="Stock notes"
+            value={createDraft.notes}
+            onChange={(event) =>
+              setCreateDraft((current) => ({ ...current, notes: event.target.value }))
+            }
+            disabled={!canManageInventory || savingProduct}
+          />
+          <div className="stroane-inventory__form-actions">
+            <ERPSecondaryAction
+              type="button"
+              onClick={() => setCreateProductOpen(false)}
+              disabled={savingProduct}
+            >
+              Cancel
+            </ERPSecondaryAction>
+            <ERPPrimaryAction
+              type="submit"
+              icon={<HiOutlineSave />}
+              loading={savingProduct}
+              disabled={!canManageInventory}
+            >
+              Create product
+            </ERPPrimaryAction>
+          </div>
+        </form>
+      </ERPModal>
 
       <section className="stroane-inventory__lower-grid">
         <div className="glass-card stroane-inventory__detail stroane-inventory__legacy-product-detail">

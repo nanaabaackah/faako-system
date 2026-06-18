@@ -70,6 +70,7 @@ import { registerDashboardRoutes } from "./dashboard/dashboard.routes.js";
 import {
   buildAuditEventData,
   buildAuditLogWhere,
+  getRequestIp,
   parseAuditTake,
   serializeAuditLog,
   writeAuditLog,
@@ -79,6 +80,7 @@ import { registerJobRoutes } from "./jobs/jobs.routes.js";
 import { createProductivityAiHandler } from "./productivity/ai.controller.js";
 import { registerProductivityRoutes } from "./productivity/productivity.routes.js";
 import { registerUserRoutes } from "./users/users.routes.js";
+import { registerFaakoOnboardingRoutes } from "./faakoOnboarding/faakoOnboarding.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
 import { buildForgotPasswordEmailContent } from "./forgotPasswordEmailTemplate.js";
 import { getMonorepoMonitoringSites } from "@faako/config";
@@ -344,7 +346,13 @@ const errorHintsContain = (error, patterns) => {
 
 const app = express();
 app.disable("x-powered-by");
-const apiRequestLogger = createRequestLogger();
+const apiRequestLogger = createRequestLogger({
+  appKey: "dev-erp",
+  environment: APP_ENV,
+  auditWriter: (event) => {
+    void writeAuditLog(prisma, event, { environment: APP_ENV });
+  },
+});
 const securityHeaders = createSecurityHeadersMiddleware();
 const databaseUrl = pickDatabaseUrl(APP_ENV);
 if (!databaseUrl) {
@@ -611,10 +619,16 @@ const JOB_RECOMMENDATION_CACHE_TTL_MS = Number(
 const SITE_STATUS_USER_AGENT =
   process.env.SITE_STATUS_USER_AGENT ?? "bynana-portfolio-status/1.0 (+https://dev.nanaabaackah.com)";
 const RAILWAY_WEBHOOK_SECRET = String(process.env.RAILWAY_WEBHOOK_SECRET || "").trim();
+const APP_ACTIVITY_WEBHOOK_SECRET = String(process.env.APP_ACTIVITY_WEBHOOK_SECRET || "").trim();
 
 const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"];
 
 const SITE_PAGES = getMonorepoMonitoringSites(process.env);
+const MONITORED_APP_KEY_SET = new Set(
+  SITE_PAGES.flatMap((site) => [site.appKey, site.id, site.packageName])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+);
 
 let siteStatusCache = { checkedAt: 0, data: null };
 let trustStatsCache = { checkedAt: 0, data: null };
@@ -3960,6 +3974,23 @@ const getRailwayWebhookDiagnostics = ({ currentWindowEvents = 0, latestEvent = n
   latestEventAt: latestEvent?.createdAt ? latestEvent.createdAt.toISOString() : null,
 });
 
+const getAppActivityWebhookDiagnostics = ({
+  currentWindowEvents = 0,
+  latestEvent = null,
+} = {}) => ({
+  configured: Boolean(APP_ACTIVITY_WEBHOOK_SECRET),
+  endpoint: "/api/webhooks/app-activity",
+  secretInputs: [
+    "Authorization: Bearer <secret>",
+    "x-app-activity-webhook-secret",
+    "x-faako-webhook-secret",
+    "x-webhook-secret",
+    "?secret=<secret>",
+  ],
+  currentWindowEvents,
+  latestEventAt: latestEvent?.createdAt ? latestEvent.createdAt.toISOString() : null,
+});
+
 const extractRailwayWebhookSecret = (req) => {
   const authorization = String(req.headers?.authorization || "").trim();
   const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
@@ -3972,6 +4003,112 @@ const extractRailwayWebhookSecret = (req) => {
       || req.headers["x-webhook-secret"]
       || ""
   ).trim();
+};
+
+const extractAppActivityWebhookSecret = (req) => {
+  const authorization = String(req.headers?.authorization || "").trim();
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch?.[1]) return bearerMatch[1].trim();
+
+  return String(
+    req.query?.secret
+      || req.headers["x-app-activity-webhook-secret"]
+      || req.headers["x-faako-webhook-secret"]
+      || req.headers["x-webhook-secret"]
+      || ""
+  ).trim();
+};
+
+const APP_ACTIVITY_SENSITIVE_KEY_PATTERN =
+  /(secret|password|token|api[_-]?key|webhook|cookie|authorization|credential|session)/i;
+
+const sanitizeAppActivityMetadata = (value, depth = 0) => {
+  if (depth > 3) return "[truncated]";
+  if (value === null || value === undefined) return null;
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => sanitizeAppActivityMetadata(item, depth + 1));
+  }
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !APP_ACTIVITY_SENSITIVE_KEY_PATTERN.test(key))
+        .slice(0, 60)
+        .map(([key, item]) => [normalizeRailwayText(key, 80), sanitizeAppActivityMetadata(item, depth + 1)])
+        .filter(([key]) => key)
+    );
+  }
+  if (typeof value === "string") return normalizeRailwayText(value, 500);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return String(value).slice(0, 500);
+};
+
+const resolveAppActivityKey = (payload = {}) => {
+  const candidate = normalizeRailwayText(
+    payload.appKey || payload.app || payload.siteId || payload.service || payload.packageName || "",
+    120
+  );
+  return candidate && MONITORED_APP_KEY_SET.has(candidate) ? candidate : "";
+};
+
+const buildAppActivityAuditEvent = (rawPayload = {}, req) => {
+  const payload =
+    rawPayload && typeof rawPayload === "object" && !Array.isArray(rawPayload) ? rawPayload : {};
+  const appKey = resolveAppActivityKey(payload);
+  if (!appKey) {
+    const error = new Error("appKey must match a monitored app key, site id, or package name.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const eventName = normalizeRailwayText(
+    payload.action || payload.event || payload.eventType || payload.type || "activity",
+    80
+  );
+  const status = normalizeRailwayText(payload.status || "ok", 80).toLowerCase() || "ok";
+  const severity = ["error", "failed", "failure"].includes(status)
+    ? "error"
+    : ["warning", "warn", "degraded"].includes(status)
+      ? "warning"
+      : normalizeRailwayText(payload.severity, 40) || "info";
+  const targetType = normalizeRailwayText(payload.targetType || payload.resourceType || "app", 80);
+  const targetId = normalizeRailwayText(payload.targetId || payload.resourceId || appKey, 120);
+  const eventId = normalizeRailwayText(
+    payload.id || payload.eventId || payload.requestId || payload.externalRef || "",
+    160
+  );
+  const actorLabel = normalizeRailwayText(payload.actorLabel || payload.actor || appKey, 160);
+  const summary =
+    normalizeRailwayText(payload.summary || payload.message, 280) ||
+    `${appKey} reported ${eventName.replace(/[-_]+/g, " ")}.`;
+  const sanitizedMetadata = sanitizeAppActivityMetadata(payload.metadata || payload.data || {});
+  const metadata =
+    sanitizedMetadata && typeof sanitizedMetadata === "object" && !Array.isArray(sanitizedMetadata)
+      ? sanitizedMetadata
+      : { value: sanitizedMetadata };
+
+  return buildAuditEventData(
+    {
+      action: `APP_ACTIVITY_${eventName.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`.slice(0, 120),
+      targetType,
+      targetId,
+      appKey,
+      source: "app",
+      category: normalizeRailwayText(payload.category, 80) || "activity",
+      severity,
+      status,
+      summary,
+      actorType: normalizeRailwayText(payload.actorType, 40) || "system",
+      actorLabel,
+      requestId: normalizeRailwayText(payload.requestId || req.headers["x-request-id"], 120),
+      externalRef: eventId ? `app-activity:${appKey}:${eventId}` : null,
+      ipAddress: getRequestIp(req),
+      metadata: {
+        receivedAt: new Date().toISOString(),
+        ...metadata,
+      },
+    },
+    { environment: APP_ENV }
+  );
 };
 
 const buildAuditReportSummary = async ({ organizationScope, query = {}, user }) => {
@@ -5057,6 +5194,15 @@ registerUserRoutes(app, {
   extractAllowedModules,
 });
 
+registerFaakoOnboardingRoutes(app, {
+  faakoPool,
+  prisma,
+  authMiddleware,
+  requireAdmin,
+  writeAuditLog,
+  appEnv: APP_ENV,
+});
+
 app.get("/api/currency/display-rate", async (_req, res) => {
   const snapshot = await refreshDisplayCurrencyRate();
   res.json({
@@ -5814,7 +5960,18 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   const where = buildScopedAuditWhere(organizationScope, req.query);
   const take = parseAuditTake(req.query.take, 100, 300);
   const railwayWhere = { AND: [where, { source: "railway" }] };
-  const [logs, total, incidents, failures, actors, railwayEvents, latestRailwayEvent] = await Promise.all([
+  const appActivityWhere = { AND: [where, { source: "app" }] };
+  const [
+    logs,
+    total,
+    incidents,
+    failures,
+    actors,
+    railwayEvents,
+    latestRailwayEvent,
+    appEvents,
+    latestAppEvent,
+  ] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -5834,6 +5991,12 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
+    prisma.auditLog.count({ where: appActivityWhere }),
+    prisma.auditLog.findFirst({
+      where: appActivityWhere,
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
   ]);
   const entries = logs.map(serializeAuditLog);
   const summary = {
@@ -5842,9 +6005,11 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
     failures,
     actors: actors.filter((entry) => String(entry.actorLabel || "").trim()).length,
     railway: railwayEvents,
+    appActivity: appEvents,
     latestRailwayEventAt: latestRailwayEvent?.createdAt
       ? latestRailwayEvent.createdAt.toISOString()
       : null,
+    latestAppActivityAt: latestAppEvent?.createdAt ? latestAppEvent.createdAt.toISOString() : null,
   };
 
   return res.json({
@@ -5867,6 +6032,10 @@ app.get("/api/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
       railwayWebhook: getRailwayWebhookDiagnostics({
         currentWindowEvents: railwayEvents,
         latestEvent: latestRailwayEvent,
+      }),
+      appActivityWebhook: getAppActivityWebhookDiagnostics({
+        currentWindowEvents: appEvents,
+        latestEvent: latestAppEvent,
       }),
     },
   });
@@ -5895,6 +6064,29 @@ app.post("/api/webhooks/railway", async (req, res) => {
   return res.status(202).json({ ok: true });
 });
 
+app.post("/api/webhooks/app-activity", async (req, res) => {
+  if (!APP_ACTIVITY_WEBHOOK_SECRET) {
+    return res.status(503).json({ error: "APP_ACTIVITY_WEBHOOK_SECRET is not configured." });
+  }
+
+  const suppliedSecret = extractAppActivityWebhookSecret(req);
+
+  if (!suppliedSecret || suppliedSecret !== APP_ACTIVITY_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: "Invalid webhook secret." });
+  }
+
+  const auditEvent = buildAppActivityAuditEvent(req.body || {}, req);
+  try {
+    await prisma.auditLog.create({ data: auditEvent });
+  } catch (error) {
+    if (error?.code !== "P2002") {
+      throw error;
+    }
+  }
+
+  return res.status(202).json({ ok: true });
+});
+
 app.get("/api/dashboard", authMiddleware, async (req, res) => {
   const dashboardRange = req.query.range && AUDIT_RANGE_LABELS[req.query.range]
     ? req.query.range
@@ -5908,7 +6100,10 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
 
   if (reebsPool) {
     try {
-      await reebsPool.query('SELECT COUNT(*)::int AS count FROM "organization"');
+      const orgsResult = await resolveTableCount(reebsPool, ["organization", "Organization"]);
+      if (!orgsResult.qualifiedName) {
+        reebsStatus = "error";
+      }
     } catch (error) {
       console.warn("Reebs KPI query failed", error);
       reebsStatus = "error";
@@ -5931,7 +6126,14 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
   let stroaneStatus = stroanePool ? "ok" : "not_configured";
   if (stroanePool) {
     try {
-      await stroanePool.query("SELECT 1");
+      const productResult = await resolveTableCount(stroanePool, [
+        "CatalogueProduct",
+        "Product",
+        "CommerceOrder",
+      ]);
+      if (!productResult.qualifiedName) {
+        stroaneStatus = "error";
+      }
     } catch (error) {
       console.warn("Stroane database health query failed", error);
       stroaneStatus = "error";

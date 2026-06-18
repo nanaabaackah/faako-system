@@ -47,6 +47,7 @@ import {
   ORDER_NOTIFICATION_TYPES,
   sendCustomerOrderEmail,
 } from "./src/orderNotifications.js";
+import { searchDeliveryLocations } from "./src/locationSearch.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
 import {
   createAdminInventoryAlertRouter,
@@ -80,6 +81,88 @@ const normalizeEnvironmentName = (value) => {
 const runtimeEnvironment = normalizeEnvironmentName(
   process.env.APP_ENV || process.env.NODE_ENV || "development"
 );
+const APP_ACTIVITY_WEBHOOK_PATH = "/api/webhooks/app-activity";
+
+const sanitizeActivityText = (value, maxLength = 240) =>
+  String(value || "")
+    .trim()
+    .slice(0, maxLength);
+
+const resolveAppActivityWebhookUrl = () => {
+  const directUrl = sanitizeActivityText(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_URL || process.env.APP_ACTIVITY_WEBHOOK_URL,
+    500
+  );
+  if (directUrl) return directUrl;
+
+  const baseUrl = sanitizeActivityText(
+    process.env.DEV_ERP_API_BASE_URL || process.env.DEV_API_BASE_URL,
+    500
+  );
+  if (!baseUrl) return "";
+
+  try {
+    return new URL(APP_ACTIVITY_WEBHOOK_PATH, baseUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const getAppActivityWebhookSecret = () =>
+  sanitizeActivityText(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_SECRET || process.env.APP_ACTIVITY_WEBHOOK_SECRET,
+    500
+  );
+
+const emitAppActivityEvent = async ({
+  action,
+  category = "order",
+  severity = "info",
+  status = "ok",
+  targetType = "commerce_order",
+  targetId = "",
+  summary = "",
+  requestId = "",
+  metadata = {},
+} = {}) => {
+  const webhookUrl = resolveAppActivityWebhookUrl();
+  const webhookSecret = getAppActivityWebhookSecret();
+  if (!webhookUrl || !webhookSecret || typeof fetch !== "function") return;
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${webhookSecret}`,
+      },
+      body: JSON.stringify({
+        appKey: "stroane-api",
+        eventId: requestId ? `stroane:${action}:${requestId}` : undefined,
+        action,
+        category,
+        severity,
+        status,
+        targetType,
+        targetId,
+        actorType: "system",
+        actorLabel: "Stroane API",
+        requestId,
+        summary,
+        metadata: {
+          environment: runtimeEnvironment,
+          ...metadata,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("Dev ERP activity webhook rejected Stroane event:", response.status);
+    }
+  } catch (error) {
+    console.warn("Dev ERP activity webhook failed for Stroane event:", error?.message || error);
+  }
+};
 
 // Initialize Prisma Client with PostgreSQL adapter. Prefer environment-specific
 // database URLs, then fall back to DATABASE_URL for Railway-style deploys.
@@ -119,6 +202,11 @@ const inquiryRateLimit = createApiRateLimitMiddleware({
 const checkoutRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "checkout",
   limit: 20,
+  windowMs: 10 * 60_000,
+});
+const locationSearchRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "location-search",
+  limit: 45,
   windowMs: 10 * 60_000,
 });
 const paymentInitRateLimit = createApiRateLimitMiddleware({
@@ -419,6 +507,20 @@ app.get(["/api/catalogue/products/:slug", "/api/products/:slug"], async (req, re
   }
 });
 
+app.get("/api/location/search", locationSearchRateLimit, async (req, res) => {
+  try {
+    const query = String(req.query.q || "");
+    const locations = await searchDeliveryLocations(query, { limit: req.query.limit });
+    res.json({ ok: true, locations });
+  } catch (error) {
+    console.warn("Location search unavailable:", toSafeErrorLog(error));
+    res.status(error?.statusCode || 503).json({
+      error: "Location search is unavailable. Please try again shortly.",
+      locations: [],
+    });
+  }
+});
+
 app.post("/api/inquiries", inquiryRateLimit, async (req, res) => {
   try {
     const result = createCatalogueInquiry(req.body);
@@ -495,6 +597,12 @@ app.post("/api/orders", checkoutRateLimit, async (req, res) => {
         preferredContactMethod: preparedOrder.customer.preferredContactMethod,
         businessName: preparedOrder.customer.businessName,
         deliveryAddress: preparedOrder.customer.deliveryAddress,
+        deliveryPlaceId: preparedOrder.deliveryLocation?.placeId || null,
+        deliveryLocationLabel: preparedOrder.deliveryLocation?.label || null,
+        deliveryLocationProvider: preparedOrder.deliveryLocation?.provider || null,
+        deliveryLatitude: preparedOrder.deliveryLocation?.latitude ?? null,
+        deliveryLongitude: preparedOrder.deliveryLocation?.longitude ?? null,
+        deliveryMapUrl: preparedOrder.deliveryLocation?.mapUrl || null,
         deliveryNotes: preparedOrder.customer.deliveryNotes,
         deliveryMethod: preparedOrder.deliveryMethod,
         expectedDeliveryDate: preparedOrder.expectedDeliveryDate,
@@ -526,6 +634,19 @@ app.post("/api/orders", checkoutRateLimit, async (req, res) => {
       orderId: savedOrder.id,
       orderNumber: savedOrder.orderNumber,
       itemCount: savedOrder.items.length,
+    });
+    void emitAppActivityEvent({
+      action: "commerce_order_created",
+      targetId: savedOrder.id,
+      summary: `Stroane order ${savedOrder.orderNumber} was created.`,
+      requestId: req.get("x-request-id") || savedOrder.id,
+      metadata: {
+        orderNumber: savedOrder.orderNumber,
+        itemCount: savedOrder.items.length,
+        total: Number(savedOrder.total || 0),
+        currency: savedOrder.currency,
+        deliveryMethod: savedOrder.deliveryMethod,
+      },
     });
 
     res.status(201).json({
@@ -592,6 +713,20 @@ app.post("/api/orders/:orderId/paystack/initialize", paymentInitRateLimit, async
           providerMessage: initializedPayment.providerMessage,
           testMode: initializedPayment.testMode,
         },
+      },
+    });
+    void emitAppActivityEvent({
+      action: "commerce_order_payment_initialized",
+      category: "payment",
+      targetId: order.id,
+      summary: `Paystack payment was initialized for Stroane order ${order.orderNumber}.`,
+      requestId: req.get("x-request-id") || initializedPayment.reference,
+      metadata: {
+        orderNumber: order.orderNumber,
+        reference: initializedPayment.reference,
+        amount: initializedPayment.amountMinor,
+        currency: initializedPayment.currency,
+        testMode: initializedPayment.testMode,
       },
     });
 
@@ -750,6 +885,21 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
           },
         },
       });
+      void emitAppActivityEvent({
+        action: "paystack_webhook_rejected",
+        category: "payment",
+        severity: "warning",
+        status: "rejected",
+        targetId: order.id,
+        summary: `Paystack webhook for Stroane order ${order.orderNumber} was rejected by validation.`,
+        requestId: req.get("x-request-id") || reference,
+        metadata: {
+          orderNumber: order.orderNumber,
+          event,
+          reference,
+          validationError,
+        },
+      });
 
       return res.json({
         received: true,
@@ -794,6 +944,25 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
         paymentMetadata: nextPaymentMetadata,
       },
       include: { items: true },
+    });
+    void emitAppActivityEvent({
+      action: "paystack_webhook_processed",
+      category: "payment",
+      status: nextPaymentStatus === PAYMENT_STATUSES.PAID ? "ok" : String(nextPaymentStatus || "ok"),
+      severity:
+        nextPaymentStatus === PAYMENT_STATUSES.FAILED ||
+        nextPaymentStatus === PAYMENT_STATUSES.ABANDONED
+          ? "warning"
+          : "info",
+      targetId: updatedOrder.id,
+      summary: `Paystack webhook updated Stroane order ${updatedOrder.orderNumber}.`,
+      requestId: req.get("x-request-id") || reference,
+      metadata: {
+        orderNumber: updatedOrder.orderNumber,
+        event,
+        reference,
+        paymentStatus: nextPaymentStatus,
+      },
     });
 
     if (nextPaymentStatus === PAYMENT_STATUSES.PAID) {

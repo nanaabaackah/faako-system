@@ -8,12 +8,12 @@ const tasks = [
   {
     name: "dev-erp-api",
     color: "\u001b[35m",
-    args: ["--filter", "@faako/dev-erp", "run", "server:dev:with-migrate"],
+    args: ["--filter", "@faako/dev-erp", "run", "server:dev"],
   },
   {
     name: "dev-erp-web",
     color: "\u001b[36m",
-    args: ["--filter", "@faako/dev-erp", "run", "dev"],
+    args: ["--filter", "@faako/dev-erp", "run", "dev:frontend"],
   },
 ];
 

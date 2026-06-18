@@ -347,6 +347,9 @@ model CustomerAccount {
   inviteTokenHash        String?               @unique
   inviteExpiresAt        DateTime?
   invitedAt              DateTime?
+  passwordResetTokenHash String?               @unique
+  passwordResetExpiresAt DateTime?
+  passwordResetRequestedAt DateTime?
   activatedAt            DateTime?
   lastLoginAt            DateTime?
   createdById            String?
@@ -358,6 +361,7 @@ model CustomerAccount {
   @@index([status, createdAt])
   @@index([email])
   @@index([inviteExpiresAt])
+  @@index([passwordResetExpiresAt])
 }
 
 model CommerceOrder {
@@ -372,6 +376,12 @@ model CommerceOrder {
   preferredContactMethod String?
   businessName     String?
   deliveryAddress  String
+  deliveryPlaceId  String?
+  deliveryLocationLabel String?
+  deliveryLocationProvider String?
+  deliveryLatitude Decimal?            @db.Decimal(10, 7)
+  deliveryLongitude Decimal?           @db.Decimal(10, 7)
+  deliveryMapUrl   String?
   deliveryNotes    String?
   currency         String              @default("GHS")
   subtotal         Decimal             @db.Decimal(12, 2)
@@ -411,6 +421,7 @@ model CommerceOrder {
   @@index([status, createdAt])
   @@index([customerId])
   @@index([customerEmail])
+  @@index([deliveryPlaceId])
   @@index([paymentReference])
   @@index([paymentWebhookReference])
   @@index([fulfillmentStatus])

@@ -24,6 +24,15 @@ const parseMoney = (value, fieldName) => {
   return parsed.toFixed(2);
 };
 
+const parseOptionalInteger = (value, fieldName) => {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw createHttpError(`${fieldName} must be a whole number or blank.`);
+  }
+  return parsed;
+};
+
 const parseCurrency = (value) => {
   if (value === undefined) return undefined;
   const normalized = sanitizeText(value, 3).toUpperCase();
@@ -116,6 +125,79 @@ export const validateProductPatchPayload = (body = {}) => {
   return data;
 };
 
+export const validateProductCreatePayload = (body = {}) => {
+  const inventory = body.inventory && typeof body.inventory === "object" ? body.inventory : {};
+  const productInput = { name: body.name, currency: body.currency || "GHS" };
+  [
+    "slug",
+    "shortDescription",
+    "longDescription",
+    "sku",
+    "price",
+    "compareAtPrice",
+    "categorySlug",
+    "tags",
+  ].forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(body, field)) productInput[field] = body[field];
+  });
+  const data = validateProductPatchPayload(productInput);
+
+  if (!data.name) throw createHttpError("Product name is required.");
+
+  const publishingPatch = validateProductPublishingPayload({
+    publishingStatus: body.publishingStatus || "draft",
+    isFeatured: body.isFeatured,
+  });
+
+  const stockStatus = sanitizeText(body.stockStatus || inventory.stockStatus || "unavailable", 40)
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const supportedStockStatuses = new Set([
+    "in_stock",
+    "low_stock",
+    "out_of_stock",
+    "preorder",
+    "unavailable",
+    "manual_review",
+  ]);
+  if (!supportedStockStatuses.has(stockStatus)) {
+    throw createHttpError("Stock status is not supported.");
+  }
+
+  return {
+    product: data,
+    publishing: publishingPatch,
+    inventory: {
+      quantityOnHand: parseOptionalInteger(
+        body.quantityOnHand ?? inventory.quantityOnHand,
+        "Quantity on hand"
+      ),
+      reservedQuantity:
+        parseOptionalInteger(body.reservedQuantity ?? inventory.reservedQuantity, "Reserved") ?? 0,
+      lowStockThreshold: parseOptionalInteger(
+        body.lowStockThreshold ?? inventory.lowStockThreshold,
+        "Low stock threshold"
+      ),
+      reorderThreshold: parseOptionalInteger(
+        body.reorderThreshold ?? inventory.reorderThreshold,
+        "Reorder threshold"
+      ),
+      stockStatus,
+      supplierId: sanitizeNullableText(body.supplierId ?? inventory.supplierId, 120),
+      inventoryTrackingEnabled:
+        parseBoolean(
+          body.inventoryTrackingEnabled ?? inventory.inventoryTrackingEnabled,
+          "Track inventory"
+        ) ?? true,
+      allowBackorder:
+        parseBoolean(body.allowBackorder ?? inventory.allowBackorder, "Backorders") ?? false,
+      isPurchasable:
+        parseBoolean(body.isPurchasable ?? inventory.isPurchasable, "Purchasable") ?? false,
+      notes: sanitizeNullableText(body.notes ?? inventory.notes, 1200),
+    },
+  };
+};
+
 export const validateProductMediaPayload = (body = {}) => {
   const data = {};
 
@@ -163,6 +245,29 @@ export const validateProductPublishingPayload = (body = {}) => {
   }
 
   return data;
+};
+
+export const validateProductBulkPayload = (body = {}) => {
+  const productIds = Array.isArray(body.productIds)
+    ? [...new Set(body.productIds.map((id) => sanitizeText(id, 120)).filter(Boolean))]
+    : [];
+  if (!productIds.length) throw createHttpError("Select at least one product.");
+  if (productIds.length > 100) throw createHttpError("Bulk actions are limited to 100 products.");
+
+  const action = sanitizeText(body.action, 40).toLowerCase().replace(/[\s-]+/g, "_");
+  const supportedActions = new Set([
+    "archive",
+    "delete",
+    "delete_listing",
+    "restore",
+    "activate",
+    "draft",
+  ]);
+  if (!supportedActions.has(action)) {
+    throw createHttpError("Bulk product action is not supported.");
+  }
+
+  return { productIds, action };
 };
 
 export const validateProductSupplierPayload = (body = {}) => {

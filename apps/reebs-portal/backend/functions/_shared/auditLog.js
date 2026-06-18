@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 const DEFAULT_APP_KEY = "reebs-portal";
 const DEFAULT_RANGE = "7d";
+const APP_ACTIVITY_WEBHOOK_PATH = "/api/webhooks/app-activity";
 
 const RANGE_HOURS = {
   "24h": 24,
@@ -38,6 +39,27 @@ const normalizeOptionalString = (value, max = 255) => {
   if (!normalized) return null;
   return normalized.slice(0, max);
 };
+
+const resolveAppActivityWebhookUrl = () => {
+  const directUrl = normalizeString(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_URL || process.env.APP_ACTIVITY_WEBHOOK_URL
+  );
+  if (directUrl) return directUrl;
+
+  const baseUrl = normalizeString(process.env.DEV_ERP_API_BASE_URL || process.env.DEV_API_BASE_URL);
+  if (!baseUrl) return "";
+
+  try {
+    return new URL(APP_ACTIVITY_WEBHOOK_PATH, baseUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const getAppActivityWebhookSecret = () =>
+  normalizeString(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_SECRET || process.env.APP_ACTIVITY_WEBHOOK_SECRET
+  );
 
 const toNullableInt = (value) => {
   const parsed = Number(value);
@@ -178,6 +200,46 @@ export const buildAuditEventData = (data = {}, { environment = process.env.APP_E
   };
 };
 
+const emitAppActivity = async (record) => {
+  const webhookUrl = resolveAppActivityWebhookUrl();
+  const webhookSecret = getAppActivityWebhookSecret();
+  if (!webhookUrl || !webhookSecret || typeof fetch !== "function") return;
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${webhookSecret}`,
+      },
+      body: JSON.stringify({
+        appKey: DEFAULT_APP_KEY,
+        eventId: record.externalRef || record.requestId || undefined,
+        action: record.action,
+        category: record.category,
+        severity: record.severity,
+        status: record.status,
+        targetType: record.targetType,
+        targetId: record.targetId,
+        actorType: record.actorType,
+        actorLabel: record.actorLabel,
+        requestId: record.requestId,
+        summary: record.summary,
+        metadata: {
+          localAuditRecorded: true,
+          localEnvironment: record.environment,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("Dev ERP activity webhook rejected REEBS audit event:", response.status);
+    }
+  } catch (error) {
+    console.warn("Dev ERP activity webhook failed for REEBS audit event:", error?.message || error);
+  }
+};
+
 export const writeAuditLog = async (client, data = {}, options = {}) => {
   await ensureExtendedAuditLogSchema(client);
   const record = buildAuditEventData(data, options);
@@ -227,6 +289,7 @@ export const writeAuditLog = async (client, data = {}, options = {}) => {
       record.ipAddress,
     ]
   );
+  void emitAppActivity(record);
   return record;
 };
 

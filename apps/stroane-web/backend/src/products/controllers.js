@@ -1,5 +1,7 @@
-import { sendOk } from "../apiResponse.js";
+import { sendCreated, sendOk } from "../apiResponse.js";
 import {
+  bulkUpdateAdminProductPublishing,
+  createAdminProduct,
   getAdminProduct,
   listAdminProductCategories,
   listAdminProducts,
@@ -10,6 +12,8 @@ import {
 } from "./services.js";
 import {
   validateAdminProductListQuery,
+  validateProductBulkPayload,
+  validateProductCreatePayload,
   validateProductMediaPayload,
   validateProductPatchPayload,
   validateProductPublishingPayload,
@@ -25,6 +29,22 @@ export const createProductAdminController = (prisma) => ({
     ]);
     return sendOk(res, { products, categories });
   },
+
+  createProduct: async (req, res) =>
+    sendCreated(res, {
+      product: await createAdminProduct(
+        prisma,
+        validateProductCreatePayload(req.body),
+        req.authUser
+      ),
+    }),
+
+  bulkUpdateProducts: async (req, res) =>
+    sendOk(res, await bulkUpdateAdminProductPublishing(
+      prisma,
+      validateProductBulkPayload(req.body),
+      req.authUser
+    )),
 
   getProduct: async (req, res) =>
     sendOk(res, { product: await getAdminProduct(prisma, String(req.params.id || "")) }),

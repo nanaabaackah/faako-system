@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "pnpm run server:with-migrate",
-    "dev": "vite",
+    "dev": "pnpm run predeploy:local && pnpm run dev:frontend",
     "dev:frontend": "VITE_API_BASE_URL=http://localhost:8888 vite --host 0.0.0.0 --port 5174",
     "dev:backend": "APP_ENV=development node backend/server.js",
     "build": "vite build",
@@ -20,7 +20,8 @@
     "predeploy": "pnpm run predeploy:local",
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
-    "server:dev:with-migrate": "pnpm run db:generate && pnpm run db:deploy:dev && pnpm run server:dev",
+    "dev:with-backend": "pnpm run predeploy:local && concurrently -k -n backend,portal -c magenta,cyan \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "server:dev:with-migrate": "pnpm run predeploy:local && pnpm run server:dev",
     "server:prod:with-migrate": "pnpm run db:generate && pnpm run db:deploy:prod && pnpm run server:prod",
     "server:with-migrate": "pnpm run server:prod:with-migrate",
     "source-categories:seed": "node scripts/seedSourceCategories.js",

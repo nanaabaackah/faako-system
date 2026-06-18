@@ -11,7 +11,6 @@ import {
 import { ERPStatusBadge } from "@faako/ui";
 import {
   formatInventoryDateTime,
-  formatInventoryLabel,
   formatInventoryStatusLabel,
   getInventoryComputedStatus,
   getInventoryProductName,
@@ -41,6 +40,7 @@ interface InventoryStockTableProps {
   filteredInventory: InventoryItem[];
   paginatedInventory: InventoryItem[];
   selectedItemId: string;
+  selectedItemIds: Set<string>;
   openActionsId: string;
   canManageInventory: boolean;
   savingProduct: boolean;
@@ -55,6 +55,8 @@ interface InventoryStockTableProps {
   formatMoney: (value: number, currency?: string) => string;
   toMoneyNumber: (value: unknown) => number | null;
   onOpenItemDetail: (itemId: string) => void;
+  onToggleSelected: (itemId: string) => void;
+  onTogglePageSelected: () => void;
   onToggleActions: (itemId: string) => void;
   onSavePublishingStatus: (
     item: InventoryItem,
@@ -121,6 +123,7 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
   filteredInventory,
   paginatedInventory,
   selectedItemId,
+  selectedItemIds,
   openActionsId,
   canManageInventory,
   savingProduct,
@@ -135,6 +138,8 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
   formatMoney,
   toMoneyNumber,
   onOpenItemDetail,
+  onToggleSelected,
+  onTogglePageSelected,
   onToggleActions,
   onSavePublishingStatus,
   onPreviousPage,
@@ -153,6 +158,8 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
     />
     <table className="stroane-inventory__table">
       <colgroup>
+        <col className="stroane-inventory__col-select" />
+        <col className="stroane-inventory__col-number" />
         <col className="stroane-inventory__col-product" />
         <col className="stroane-inventory__col-sku" />
         <col className="stroane-inventory__col-variant" />
@@ -167,6 +174,20 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
       </colgroup>
       <thead>
         <tr>
+          <th className="portal-table-select-cell" aria-label="Select rows">
+            <input
+              type="checkbox"
+              className="portal-table-checkbox"
+              checked={
+                paginatedInventory.length > 0 &&
+                paginatedInventory.every((item) => selectedItemIds.has(item.id))
+              }
+              onChange={onTogglePageSelected}
+              disabled={!paginatedInventory.length}
+              aria-label="Select all rows on this page"
+            />
+          </th>
+          <th className="portal-table-number-cell">#</th>
           <th>Product</th>
           <th>SKU</th>
           <th>Variant</th>
@@ -183,27 +204,27 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
       <tbody>
         {loading ? (
           <tr>
-            <td colSpan={11} className="stroane-inventory__table-empty">
+            <td colSpan={13} className="stroane-inventory__table-empty">
               Loading inventory...
             </td>
           </tr>
         ) : null}
         {!loading && error && !filteredInventory.length ? (
           <tr>
-            <td colSpan={11} className="stroane-inventory__table-empty is-error">
+            <td colSpan={13} className="stroane-inventory__table-empty is-error">
               {error || "Unable to load inventory."}
             </td>
           </tr>
         ) : null}
         {!loading && !error && !filteredInventory.length ? (
           <tr>
-            <td colSpan={11} className="stroane-inventory__table-empty">
+            <td colSpan={13} className="stroane-inventory__table-empty">
               No products match the current filters.
             </td>
           </tr>
         ) : null}
         {!loading
-          ? paginatedInventory.map((item) => {
+          ? paginatedInventory.map((item, index) => {
               const product = resolveItemProduct(item);
               const status = getInventoryComputedStatus(item);
               const available = resolveInventoryAvailableQuantity(item);
@@ -216,7 +237,12 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
               return (
                 <tr
                   key={item.id}
-                  className={item.id === selectedItemId ? "is-selected" : ""}
+                  className={[
+                    item.id === selectedItemId ? "is-selected" : "",
+                    selectedItemIds.has(item.id) ? "is-bulk-selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => onOpenItemDetail(item.id)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -226,16 +252,26 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
                   }}
                   tabIndex={0}
                 >
+                  <td
+                    className="portal-table-select-cell"
+                    data-label="Select"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      className="portal-table-checkbox"
+                      checked={selectedItemIds.has(item.id)}
+                      onChange={() => onToggleSelected(item.id)}
+                      aria-label={`Select ${getInventoryProductName(item)}`}
+                    />
+                  </td>
+                  <td className="portal-table-number-cell" data-label="#">
+                    {pageStart + index}
+                  </td>
                   <td data-label="Product">
                     <span className="stroane-inventory__product-cell">
                       <strong>{getInventoryProductName(item)}</strong>
-                      <small>
-                        {[
-                          formatInventoryLabel(publishingStatus),
-                        ]
-                          .filter(Boolean)
-                          .join(" | ")}
-                      </small>
                     </span>
                   </td>
                   <td data-label="SKU">{getInventoryProductSku(item)}</td>
@@ -323,11 +359,13 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
       {filteredInventory.length ? (
         <tfoot className="admin-table-footer">
           <tr>
+            <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-count">
               <span className="admin-table-summary-value">
                 {paginatedInventory.length} records
               </span>
             </td>
+            <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />

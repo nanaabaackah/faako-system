@@ -24,6 +24,9 @@ Full local REEBS stack:
 pnpm --filter @faako/reebs-website run dev:with-backend
 ```
 
+This combined command runs the REEBS Portal local Prisma predeploy first because
+the portal backend owns the REEBS database/API used by the public website.
+
 Equivalent root shortcut:
 
 ```bash

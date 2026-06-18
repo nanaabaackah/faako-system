@@ -8,6 +8,7 @@ import {
   orderApi,
   type CheckoutFulfillmentMethod,
   type CheckoutOrderResponse,
+  type DeliveryLocation,
 } from "../../api/orders";
 import {
   getLineTotal,
@@ -44,19 +45,6 @@ const PICKUP_SPOTS = [
   },
 ];
 
-const DELIVERY_ADDRESS_SUGGESTIONS = [
-  "Accra Central",
-  "Airport Residential Area, Accra",
-  "Cantonments, Accra",
-  "East Legon, Accra",
-  "Labone, Accra",
-  "Madina, Accra",
-  "Osu, Accra",
-  "Spintex Road, Accra",
-  "Tema Community 1",
-  "Tema Community 25",
-];
-
 const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
 
 const Checkout: React.FC = () => {
@@ -74,6 +62,10 @@ const Checkout: React.FC = () => {
   const [fulfillmentMethod, setFulfillmentMethod] =
     useState<CheckoutFulfillmentMethod>("delivery");
   const [address, setAddress] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState<DeliveryLocation | null>(null);
+  const [deliveryLocationResults, setDeliveryLocationResults] = useState<DeliveryLocation[]>([]);
+  const [deliveryLocationLoading, setDeliveryLocationLoading] = useState(false);
+  const [deliveryLocationError, setDeliveryLocationError] = useState("");
   const [pickupSpotId, setPickupSpotId] = useState(PICKUP_SPOTS[0]?.id || "");
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("");
@@ -141,6 +133,51 @@ const Checkout: React.FC = () => {
       : undefined;
   const minimumPickupDate = useMemo(getTodayInputValue, []);
 
+  useEffect(() => {
+    if (fulfillmentMethod !== "delivery") {
+      setDeliveryLocationResults([]);
+      setDeliveryLocationLoading(false);
+      setDeliveryLocationError("");
+      return undefined;
+    }
+
+    const query = address.trim();
+    if (query.length < 3 || deliveryLocation?.address === query || deliveryLocation?.label === query) {
+      setDeliveryLocationResults([]);
+      setDeliveryLocationLoading(false);
+      setDeliveryLocationError("");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setDeliveryLocationLoading(true);
+      setDeliveryLocationError("");
+      orderApi
+        .searchDeliveryLocations(query, { signal: controller.signal, limit: 6 })
+        .then((locations) => {
+          setDeliveryLocationResults(locations);
+        })
+        .catch((searchError) => {
+          if (controller.signal.aborted) return;
+          setDeliveryLocationResults([]);
+          setDeliveryLocationError(
+            searchError instanceof Error
+              ? searchError.message
+              : "Unable to search delivery locations."
+          );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setDeliveryLocationLoading(false);
+        });
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [address, deliveryLocation, fulfillmentMethod]);
+
   const validateDetails = () => {
     if (!lines.length) return "Your basket is empty.";
     if (unavailableLines.length) {
@@ -150,6 +187,9 @@ const Checkout: React.FC = () => {
     if (!isLikelyEmail(email)) return "Add a valid email address.";
     if (!isLikelyPhone(phone)) return "Add a valid phone number.";
     if (fulfillmentMethod === "delivery" && !address.trim()) return "Add a delivery address.";
+    if (fulfillmentMethod === "delivery" && !deliveryLocation) {
+      return "Select a delivery address from the GPS results.";
+    }
     if (fulfillmentMethod === "pickup" && !pickupSpotId) return "Choose a pickup spot.";
     if (fulfillmentMethod === "pickup" && !pickupDate) return "Choose a pickup date.";
     if (fulfillmentMethod === "pickup" && !pickupTime) return "Choose a pickup time.";
@@ -199,6 +239,7 @@ const Checkout: React.FC = () => {
         source: "checkout",
         fulfillmentMethod,
         deliveryMethod: fulfillmentMethod,
+        deliveryLocation: fulfillmentMethod === "delivery" ? deliveryLocation : null,
         pickupLocationId: fulfillmentMethod === "pickup" ? pickupSpotId : undefined,
         pickupLocationName: fulfillmentMethod === "pickup" ? selectedPickupSpot?.name : undefined,
         pickupDate: fulfillmentMethod === "pickup" ? pickupDate : undefined,
@@ -269,7 +310,10 @@ const Checkout: React.FC = () => {
                 phone={phone}
                 businessName={businessName}
                 address={address}
-                addressSuggestions={DELIVERY_ADDRESS_SUGGESTIONS}
+                deliveryLocation={deliveryLocation}
+                deliveryLocationResults={deliveryLocationResults}
+                deliveryLocationLoading={deliveryLocationLoading}
+                deliveryLocationError={deliveryLocationError}
                 deliveryNotes={deliveryNotes}
                 fulfillmentMethod={fulfillmentMethod}
                 pickupSpots={PICKUP_SPOTS}
@@ -305,6 +349,13 @@ const Checkout: React.FC = () => {
                 onFulfillmentMethodChange={updateFulfillmentMethod}
                 onAddressChange={(value) => {
                   setAddress(value);
+                  setDeliveryLocation(null);
+                  markDetailsChanged();
+                }}
+                onDeliveryLocationSelect={(location) => {
+                  setDeliveryLocation(location);
+                  setAddress(location.address || location.label);
+                  setDeliveryLocationResults([]);
                   markDetailsChanged();
                 }}
                 onPickupSpotChange={(value) => {

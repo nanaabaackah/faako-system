@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "pnpm run predeploy:local && vite",
     "dev:frontend": "vite --host 0.0.0.0 --port 5175",
-    "dev:with-backend": "concurrently -k -n backend,frontend -c magenta,cyan \"pnpm run server:dev\" \"pnpm run dev:frontend\"",
+    "dev:with-backend": "pnpm run predeploy:local && concurrently -k -n backend,frontend -c magenta,cyan \"pnpm run server:dev\" \"pnpm run dev:frontend\"",
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
     "test:backend": "node --test backend/*.test.js",

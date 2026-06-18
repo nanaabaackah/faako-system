@@ -20,10 +20,10 @@ Main directories:
 
 | Workspace package | Path | Purpose | Primary local command |
 | --- | --- | --- | --- |
-| `@faako/faako-api` | `apps/faako-api` | Faako Express API for signup and health flows | `pnpm --filter @faako/faako-api run dev:backend` |
+| `@faako/faako-api` | `apps/faako-api` | Faako Express API for signup and health flows | `pnpm --filter @faako/faako-api run dev` |
 | `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` |
 | `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
-| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:frontend` |
+| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:with-backend` |
 | `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
 | `@faako/dev-erp` | `apps/dev-erp` | Fully live operational ERP with real operational data | `pnpm --filter @faako/dev-erp run dev:with-backend` |
 | `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and contact entry points | `pnpm --filter @faako/bynana-portfolio run dev` |
@@ -91,6 +91,11 @@ pnpm dev:dev-erp
 pnpm dev:workbench
 pnpm dev:starter
 ```
+
+Prisma-backed dev commands run their local predeploy migration checks first.
+That means Faako API, Dev ERP, REEBS Portal/Website combined dev, and Stroane
+generate Prisma clients and apply pending development migrations before their
+long-running local servers start.
 
 Common workspace operations:
 

@@ -178,6 +178,34 @@ export function ERPStatusBadge({
   );
 }
 
+function ERPTablePaginationArrow({ direction }: { direction: "previous" | "next" }) {
+  const points =
+    direction === "previous"
+      ? "15 18 9 12 15 6"
+      : "9 18 15 12 9 6";
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="ui-erp-table-pagination__arrow"
+      fill="none"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d={`M${points}`}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+const getPaginationButtonLabel = (value: ReactNode, fallback: string) =>
+  typeof value === "string" || typeof value === "number" ? String(value) : fallback;
+
 export function ERPTablePagination({
   className = "",
   pageIndex,
@@ -202,6 +230,8 @@ export function ERPTablePagination({
   const end = hasItems && pageSize ? Math.min(totalItems, (safePageIndex + 1) * pageSize) : totalItems ?? 0;
   const canGoPrevious = safePageCount > 0 && safePageIndex > 0;
   const canGoNext = safePageCount > 0 && safePageIndex < safePageCount - 1;
+  const previousAccessibleLabel = getPaginationButtonLabel(previousLabel, "Previous page");
+  const nextAccessibleLabel = getPaginationButtonLabel(nextLabel, "Next page");
 
   return (
     <nav className={joinClasses("ui-erp-table-pagination", className)} aria-label="Table pagination" {...props}>
@@ -211,14 +241,26 @@ export function ERPTablePagination({
           : `${totalItems ?? 0} ${itemLabel}`}
       </p>
       <div className="ui-erp-table-pagination__controls">
-        <button type="button" onClick={() => onPageChange(safePageIndex - 1)} disabled={!canGoPrevious}>
-          {previousLabel}
+        <button
+          type="button"
+          onClick={() => onPageChange(safePageIndex - 1)}
+          disabled={!canGoPrevious}
+          aria-label={previousAccessibleLabel}
+          title={previousAccessibleLabel}
+        >
+          <ERPTablePaginationArrow direction="previous" />
         </button>
         <span aria-live="polite">
           Page {safePageCount ? safePageIndex + 1 : 0} of {safePageCount}
         </span>
-        <button type="button" onClick={() => onPageChange(safePageIndex + 1)} disabled={!canGoNext}>
-          {nextLabel}
+        <button
+          type="button"
+          onClick={() => onPageChange(safePageIndex + 1)}
+          disabled={!canGoNext}
+          aria-label={nextAccessibleLabel}
+          title={nextAccessibleLabel}
+        >
+          <ERPTablePaginationArrow direction="next" />
         </button>
       </div>
     </nav>

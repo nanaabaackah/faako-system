@@ -1,0 +1,274 @@
+.faako-onboarding-page {
+  gap: 1.25rem;
+}
+
+.faako-onboarding-summary-card {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.faako-onboarding-summary-card strong {
+  color: var(--ink);
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  line-height: 1;
+}
+
+.faako-onboarding-filters {
+  padding: 1rem;
+}
+
+.faako-onboarding-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.faako-filter-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.faako-onboarding-table-region {
+  min-width: 0;
+}
+
+.faako-onboarding-table .ui-erp-table__table tbody tr {
+  cursor: pointer;
+}
+
+.faako-onboarding-table .ui-erp-table__table tbody tr.is-active,
+.faako-onboarding-table .ui-erp-table__table tbody tr:focus-visible {
+  background: color-mix(in oklab, var(--accent-soft), var(--card) 58%);
+  outline: 2px solid color-mix(in oklab, var(--accent), transparent 42%);
+  outline-offset: -2px;
+}
+
+.faako-onboarding-table .ui-erp-table__table td {
+  vertical-align: top;
+}
+
+.faako-table-company,
+.faako-table-modules {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.faako-table-modules {
+  display: inline-block;
+  max-width: 18rem;
+  color: var(--muted);
+}
+
+.faako-onboarding-empty {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.faako-onboarding-detail {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.faako-onboarding-lightbox {
+  width: min(100%, 76rem);
+}
+
+.faako-onboarding-lightbox .ui-erp-dialog__body {
+  background: color-mix(in oklab, var(--surface), var(--card) 18%);
+}
+
+.faako-onboarding-detail-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.faako-onboarding-detail-hero h2 {
+  margin: 0.18rem 0;
+  font-size: clamp(1.55rem, 4vw, 2.6rem);
+  line-height: 1.05;
+}
+
+.faako-onboarding-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+}
+
+.faako-key-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.faako-key-grid {
+  grid-template-columns: minmax(8rem, 0.45fr) minmax(0, 1fr);
+}
+
+.faako-key-grid span,
+.faako-response-field dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.faako-key-grid strong,
+.faako-response-field dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.faako-management-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.faako-onboarding-side-panels {
+  display: grid;
+  gap: 1rem;
+}
+
+.faako-delivery-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.faako-delivery-item {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 8px);
+  background: color-mix(in oklab, var(--surface), var(--card) 18%);
+}
+
+.faako-delivery-item span,
+.faako-delivery-item small {
+  color: var(--muted);
+}
+
+.faako-timeline {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.faako-timeline-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.faako-timeline-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.38rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.35rem var(--accent-soft);
+}
+
+.faako-timeline-item div {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.faako-timeline-item span,
+.faako-timeline-item small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.faako-response-empty,
+.faako-response-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.faako-response-sections {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.faako-response-section {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.faako-response-section h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.faako-response-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.faako-response-field {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.34fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.faako-response-field:first-child {
+  border-top: 0;
+}
+
+.faako-response-field dt,
+.faako-response-field dd {
+  margin: 0;
+}
+
+.faako-response-field dd {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+@media (max-width: 1100px) {
+  .faako-onboarding-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .faako-onboarding-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .faako-filter-actions,
+  .faako-filter-actions .button {
+    width: 100%;
+  }
+
+  .faako-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .faako-key-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .faako-response-field {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}

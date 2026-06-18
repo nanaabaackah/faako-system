@@ -1,5 +1,10 @@
 import { createHttpError } from "../apiResponse.js";
-import { evaluateStockStatus, resolveAvailableQuantity } from "../inventory/services.js";
+import {
+  calculateAvailableQuantity,
+  evaluateStockStatus,
+  resolveAvailableQuantity,
+} from "../inventory/services.js";
+import { normalizeSlug } from "../inventory/validation.js";
 import { PRODUCT_PUBLISHING_STATUSES } from "./validation.js";
 
 const toNumber = (value) => {
@@ -181,6 +186,50 @@ const mapKnownPrismaError = (error) => {
   throw error;
 };
 
+const getUniqueProductSlug = async (prisma, name, requestedSlug) => {
+  const baseSlug = normalizeSlug(requestedSlug || name) || "product";
+  let candidate = baseSlug;
+  let suffix = 2;
+
+  while (true) {
+    const existing = await prisma.catalogueProduct.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+    candidate = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+};
+
+const assertProductCategory = async (prisma, categorySlug) => {
+  if (!categorySlug) return;
+  const category = await prisma.catalogueCategory.findUnique({
+    where: { slug: categorySlug },
+    select: { slug: true },
+  });
+  if (!category) throw createHttpError("Product category not found.", 404);
+};
+
+const assertSupplier = async (prisma, supplierId) => {
+  if (!supplierId) return;
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { id: true },
+  });
+  if (!supplier) throw createHttpError("Supplier not found.", 404);
+};
+
+const getBulkPublishingPatch = (action) => {
+  if (action === "activate" || action === "restore") {
+    return { publishingStatus: "active", isPublished: true };
+  }
+  if (action === "draft") {
+    return { publishingStatus: "draft", isPublished: false };
+  }
+  return { publishingStatus: "archived", isPublished: false, isFeatured: false };
+};
+
 export const listAdminProductCategories = async (prisma) =>
   prisma.catalogueCategory.findMany({
     where: { isActive: true },
@@ -221,16 +270,145 @@ export const listAdminProducts = async (prisma, query) => {
 
 export const getAdminProduct = async (prisma, id) => toAdminProduct(await getProductById(prisma, id));
 
+export const createAdminProduct = async (prisma, payload, authUser) => {
+  await assertProductCategory(prisma, payload.product.categorySlug);
+  await assertSupplier(prisma, payload.inventory.supplierId);
+
+  const slug = await getUniqueProductSlug(prisma, payload.product.name, payload.product.slug);
+  const quantityOnHand = payload.inventory.quantityOnHand;
+  const reservedQuantity = payload.inventory.reservedQuantity ?? 0;
+  if (quantityOnHand !== null && reservedQuantity > quantityOnHand) {
+    throw createHttpError("Reserved quantity cannot exceed quantity on hand.");
+  }
+
+  const availableQuantity = calculateAvailableQuantity(quantityOnHand, reservedQuantity);
+  const stockStatus = evaluateStockStatus({
+    quantityOnHand,
+    reservedQuantity,
+    availableQuantity,
+    lowStockThreshold: payload.inventory.lowStockThreshold,
+    stockStatus: payload.inventory.stockStatus,
+  });
+  const price = payload.product.price;
+  const productData = buildProductUpdateData(
+    { priceLabel: null },
+    {
+      ...payload.product,
+      slug,
+      publishingStatus: payload.publishing.publishingStatus || "draft",
+      isPublished: payload.publishing.publishingStatus === "active",
+      isFeatured: Boolean(payload.publishing.isFeatured),
+      stockStatus,
+      stockQuantity: quantityOnHand,
+      reservedQuantity,
+      availableQuantity,
+      lowStockThreshold: payload.inventory.lowStockThreshold,
+      reorderThreshold: payload.inventory.reorderThreshold,
+      allowBackorder: payload.inventory.allowBackorder,
+      isPurchasable: payload.inventory.isPurchasable,
+      quoteOnly: price === null || price === undefined,
+    }
+  );
+
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const product = await tx.catalogueProduct.create({
+        data: {
+          ...productData,
+          inventoryItems: {
+            create: {
+              productSlug: slug,
+              sku: payload.product.sku,
+              supplierId: payload.inventory.supplierId,
+              quantityOnHand,
+              reservedQuantity,
+              availableQuantity,
+              lowStockThreshold: payload.inventory.lowStockThreshold,
+              reorderThreshold: payload.inventory.reorderThreshold,
+              stockStatus,
+              inventoryTrackingEnabled: payload.inventory.inventoryTrackingEnabled,
+              allowBackorder: payload.inventory.allowBackorder,
+              isPurchasable: payload.inventory.isPurchasable,
+              notes: payload.inventory.notes,
+            },
+          },
+        },
+        include: productInclude,
+      });
+
+      await writeProductAudit(
+        tx,
+        product,
+        "PRODUCT_CREATED",
+        null,
+        {
+          name: product.name,
+          slug: product.slug,
+          sku: product.sku,
+          publishingStatus: product.publishingStatus,
+          stockStatus,
+        },
+        authUser
+      );
+
+      return product;
+    });
+
+    return toAdminProduct(created);
+  } catch (error) {
+    return mapKnownPrismaError(error);
+  }
+};
+
+export const bulkUpdateAdminProductPublishing = async (prisma, payload, authUser) => {
+  const existingProducts = await prisma.catalogueProduct.findMany({
+    where: { id: { in: payload.productIds } },
+    include: productInclude,
+  });
+  if (!existingProducts.length) throw createHttpError("No matching products were found.", 404);
+
+  const patch = getBulkPublishingPatch(payload.action);
+  const updatedProducts = await prisma.$transaction(async (tx) => {
+    await tx.catalogueProduct.updateMany({
+      where: { id: { in: existingProducts.map((product) => product.id) } },
+      data: patch,
+    });
+
+    await Promise.all(
+      existingProducts.map((product) =>
+        writeProductAudit(
+          tx,
+          product,
+          "PRODUCT_BULK_PUBLISHING_UPDATED",
+          {
+            publishingStatus: product.publishingStatus,
+            isPublished: product.isPublished,
+            isFeatured: product.isFeatured,
+          },
+          { action: payload.action, ...patch },
+          authUser
+        )
+      )
+    );
+
+    return tx.catalogueProduct.findMany({
+      where: { id: { in: existingProducts.map((product) => product.id) } },
+      include: productInclude,
+      orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    });
+  });
+
+  return {
+    products: updatedProducts.map(toAdminProduct),
+    count: updatedProducts.length,
+    action: payload.action,
+  };
+};
+
 export const updateAdminProduct = async (prisma, id, patch, authUser) => {
   const product = await getProductById(prisma, id);
 
-  if (patch.categorySlug) {
-    const category = await prisma.catalogueCategory.findUnique({
-      where: { slug: patch.categorySlug },
-      select: { slug: true },
-    });
-    if (!category) throw createHttpError("Product category not found.", 404);
-  }
+  await assertProductCategory(prisma, patch.categorySlug);
 
   try {
     const updated = await prisma.$transaction(async (tx) => {

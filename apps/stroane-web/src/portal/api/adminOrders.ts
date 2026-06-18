@@ -55,6 +55,15 @@ export interface AdminOrder {
   paymentProvider?: string;
   fulfillmentStatus?: string;
   deliveryMethod?: string;
+  deliveryLocation?: {
+    placeId?: string;
+    label?: string;
+    address?: string;
+    provider?: string;
+    latitude?: number;
+    longitude?: number;
+    mapUrl?: string;
+  };
   expectedDeliveryDate?: string;
   adminDeliveryNotes?: string;
   internalNotes?: string;

@@ -34,6 +34,14 @@ const checkoutPayload = {
     phone: "+233555000000",
     deliveryAddress: "Accra",
   },
+  deliveryLocation: {
+    label: "Accra, Ghana",
+    provider: "test",
+    placeId: "test-accra",
+    latitude: 5.6037,
+    longitude: -0.187,
+    mapUrl: "https://maps.example.test/accra",
+  },
   items: [{ productSlug: "priced-product", quantity: 2 }],
 };
 

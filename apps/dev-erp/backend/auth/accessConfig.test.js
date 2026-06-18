@@ -26,6 +26,11 @@ test("module capability routes cover authenticated productivity surfaces", () =>
   assert.deepEqual(resolveModulesForPath("/api/ai/productivity-coach"), ["dashboard"]);
 });
 
+test("Faako onboarding API is protected by the onboarding module", () => {
+  assert.deepEqual(resolveModulesForPath("/api/faako-onboarding"), ["faako-onboarding"]);
+  assert.deepEqual(resolveModulesForPath("/api/faako-onboarding/request-1"), ["faako-onboarding"]);
+});
+
 test("reports summary compatibility route stays owned by audit logs", () => {
   assert.deepEqual(resolveModulesForPath("/api/reports/summary"), ["audit-logs"]);
   assert.deepEqual(resolveModulesForPath("/api/reports/weekly_kpi/send"), ["reports"]);

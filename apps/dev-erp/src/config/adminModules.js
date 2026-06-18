@@ -50,6 +50,16 @@ export const DEV_ERP_ADMIN_MODULES = [
     requiredPermission: "proposals",
   },
   {
+    key: "faako-onboarding",
+    label: "Form Submissions",
+    ...DEFAULT_MODULE_STATE,
+    path: "/faako-onboarding",
+    group: ERP_MODULE_GROUPS.SALES,
+    status: ERP_MODULE_STATUSES.STABLE,
+    core: false,
+    requiredPermission: "faako-onboarding",
+  },
+  {
     key: "rent",
     label: "Rent",
     ...DEFAULT_MODULE_STATE,

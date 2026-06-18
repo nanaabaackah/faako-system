@@ -54,6 +54,15 @@ export interface CustomerLoginPayload {
   password: string;
 }
 
+export interface CustomerPasswordResetRequestPayload {
+  email: string;
+}
+
+export interface CustomerPasswordResetPayload {
+  token: string;
+  password: string;
+}
+
 export interface CustomerProfileUpdatePayload {
   name: string;
   phone?: string;
@@ -90,6 +99,30 @@ export const customerAccountApi = {
     const data = await parseJsonResponse<{ ok: boolean; customer: CustomerProfile }>(
       response,
       "Unable to sign in."
+    );
+    return data.customer;
+  },
+
+  async requestPasswordReset(payload: CustomerPasswordResetRequestPayload): Promise<string> {
+    const response = await fetch(
+      apiPath("/api/customer/password/forgot"),
+      customerJsonRequest(payload)
+    );
+    const data = await parseJsonResponse<{ ok: boolean; message?: string }>(
+      response,
+      "Unable to request a password reset."
+    );
+    return data.message || "If that email belongs to a Stroane account, a reset link will be sent.";
+  },
+
+  async resetPassword(payload: CustomerPasswordResetPayload): Promise<CustomerProfile> {
+    const response = await fetch(
+      apiPath("/api/customer/password/reset"),
+      customerJsonRequest(payload)
+    );
+    const data = await parseJsonResponse<{ ok: boolean; customer: CustomerProfile }>(
+      response,
+      "Unable to reset your password."
     );
     return data.customer;
   },

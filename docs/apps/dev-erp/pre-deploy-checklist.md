@@ -26,9 +26,11 @@
 ## Database/data loss risk
 
 - Review Prisma migrations and data scripts.
-- Run `pnpm --filter @faako/dev-erp run predeploy:local` before deployment when Prisma migrations changed.
+- `pnpm --filter @faako/dev-erp run dev:with-backend` and `pnpm run dev:dev-erp` run local Prisma predeploy automatically before starting.
+- Run `pnpm --filter @faako/dev-erp run predeploy:local` manually before deployment when Prisma migrations changed and you are not starting dev.
 - Root shortcut: `pnpm run predeploy:dev-erp`.
 - Deploy the additive `20260531000000_add_invoice_paid_amount` migration before relying on invoice partial-payment fields.
+- For Faako Onboarding, confirm `FAAKO_DATABASE_URL` points at the intended Faako API database and the Faako API migration for signup management fields has been deployed before using owner, notes, timeline, email delivery, or PDF metadata updates.
 - Confirm `ENFORCE_DATABASE_ISOLATION=true` where appropriate.
 - Confirm local work cannot accidentally write to production data.
 - Keep local `VITE_API_BASE=""`, `AUTH_COOKIE_SAME_SITE=lax`, and `AUTH_COOKIE_SECURE=false` so Vite proxies `/api` to `VITE_API_PROXY_TARGET` and local HTTP can persist auth cookies instead of inheriting hosted settings.
@@ -76,6 +78,7 @@
 - Test login, session refresh, capability-gated routes, and affected modules.
 - Test at least one full workflow across frontend and backend.
 - Test affected rent/payment records, customer/client data, reports, email workflows, and AI/productivity endpoints when relevant.
+- For Faako Onboarding, test the table filters, row lightbox detail, blank wizard responses as `N/A`, status/owner/notes update, and email/PDF metadata display without submitting through the public Faako forms.
 - Test responsive shell behavior for layout changes.
 - Verify Dashboard and System Health show every registered app workspace, including optional internal apps as `Not configured` when their URLs are blank.
 - Verify Reports contains scheduled email configuration and manual-send workflows only, then verify Audit Logs filtering, analytics, export, refresh, and mobile timeline layout separately.

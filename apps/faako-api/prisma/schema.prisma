@@ -75,6 +75,13 @@ model SignupRequest {
 
   onboardingIntake     Json?
   setupChecklist       Json?
+  internalNotes        String?
+  assignedOwner        String?
+  activityTimeline     Json?
+  emailDelivery        Json?
+  pdfSummary           Json?
+  managementUpdatedAt  DateTime?
+  managementUpdatedBy  String?
 
   organization   Organization?  @relation(fields: [organizationId], references: [id])
   user           User?          @relation(fields: [userId], references: [id])
@@ -150,8 +157,13 @@ enum UserStatus {
 
 enum SignupStatus {
   NEW
+  REVIEWED
   REVIEWING
   CONTACTED
+  PROPOSAL_SENT
+  APPROVED
+  SETUP_IN_PROGRESS
+  CONVERTED
   CLOSED
 }
 

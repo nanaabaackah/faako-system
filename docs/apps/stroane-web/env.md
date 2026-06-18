@@ -6,12 +6,13 @@ Use the ignored `apps/stroane-web/.env.development` file for local frontend and
 API values. `apps/stroane-web/.env.example` is a public reference only and is
 never a runtime configuration file.
 
-From the monorepo root, `pnpm run dev:stroane` starts both the Vite frontend and
-the API backend in development mode. Vite loads `.env.development`, and the API
-loads `.env.development` with development values taking precedence over any
-generic `.env` fallback. Prisma commands with `APP_ENV=development` follow the
-same precedence. The backend resolves its env files from `apps/stroane-web`
-itself, so direct API launches are not dependent on the current shell directory.
+From the monorepo root, `pnpm run dev:stroane` first runs Stroane
+`predeploy:local`, then starts both the Vite frontend and the API backend in
+development mode. Vite loads `.env.development`, and the API loads
+`.env.development` with development values taking precedence over any generic
+`.env` fallback. Prisma commands with `APP_ENV=development` follow the same
+precedence. The backend resolves its env files from `apps/stroane-web` itself,
+so direct API launches are not dependent on the current shell directory.
 
 For the standard local setup, leave `VITE_API_BASE_URL=` blank in
 `.env.development`. Vite proxies same-origin `/api` requests to the local API on
@@ -67,7 +68,11 @@ Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service
 - `STROANE_CUSTOMER_AUTH_COOKIE_SECURE`: set `true` in HTTPS production.
 - `STROANE_CUSTOMER_AUTH_COOKIE_SAME_SITE`: usually `Lax`.
 - `STROANE_CUSTOMER_AUTH_COOKIE_DOMAIN`: leave blank for host-only cookies unless a reviewed cross-subdomain workflow requires otherwise.
-- `STROANE_STOREFRONT_BASE_URL`: public storefront origin used to generate customer invite signup URLs.
+- `STROANE_STOREFRONT_BASE_URL`: public storefront origin used to generate customer invite signup URLs and password reset URLs.
+- `STROANE_LOCATION_SEARCH_ENABLED`: enables the backend delivery-address search proxy. Defaults to enabled unless explicitly set to `false`.
+- `STROANE_LOCATION_SEARCH_URL`: backend-only geocoding/search endpoint. Defaults to OpenStreetMap Nominatim.
+- `STROANE_LOCATION_COUNTRY_CODES`: optional comma-separated country-code filter for address search. Defaults to `gh`.
+- `STROANE_LOCATION_SEARCH_USER_AGENT`: backend-only provider user agent/contact string for location search requests.
 
 Production Railway API service:
 
@@ -80,8 +85,14 @@ Production Railway API service:
 - `STROANE_ADMIN_AUTH_COOKIE_SECURE=true`
 - `STROANE_CUSTOMER_AUTH_COOKIE_SECURE=true`
 - `STROANE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
+- `STROANE_LOCATION_SEARCH_ENABLED=true`
+- `STROANE_LOCATION_SEARCH_USER_AGENT="StroaneSolutions/1.0 (orders@stroanesolutions.com)"`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
+
+Delivery address search is intentionally proxied through the Stroane API at
+`GET /api/location/search` so the browser does not receive provider endpoints,
+provider keys, database credentials, or server-side request headers.
 
 Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
 
@@ -115,6 +126,8 @@ The Railway API requires a database URL at startup. If no production connection 
 - `RESEND_API_KEY`: backend-only email key.
 - `ORDER_NOTIFICATION_FROM`: customer-safe sender.
 - `ORDER_NOTIFICATION_REPLY_TO`: customer-safe reply-to.
+- `CUSTOMER_ACCOUNT_EMAIL_FROM`: customer account/password reset sender.
+- `CUSTOMER_ACCOUNT_EMAIL_REPLY_TO`: customer account/password reset reply-to.
 
 ## Inventory Owner Alerts
 

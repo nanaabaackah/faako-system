@@ -8,14 +8,18 @@ import type {
 } from "../api/adminInventory";
 import type {
   AdminProduct,
+  AdminProductBulkPayload,
   AdminProductCategory,
+  AdminProductCreatePayload,
   AdminProductPatchPayload,
   AdminProductPublishingPayload,
 } from "../api/adminProducts";
 
 export type {
   AdminProduct,
+  AdminProductBulkPayload,
   AdminProductCategory,
+  AdminProductCreatePayload,
   AdminProductPatchPayload,
   AdminProductPublishingPayload,
   InventoryAlertSummary,

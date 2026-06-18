@@ -109,6 +109,7 @@ const CustomerDirectory: React.FC = () => {
   const [inviteAction, setInviteAction] = useState("");
   const [draft, setDraft] = useState<AdminCustomerPayload>(EMPTY_DRAFT);
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -129,6 +130,33 @@ const CustomerDirectory: React.FC = () => {
       ),
     [clampedPageIndex, customers]
   );
+  const toggleCustomerSelection = useCallback((customerId: string) => {
+    setSelectedCustomerIds((current) => {
+      const next = new Set(current);
+      if (next.has(customerId)) {
+        next.delete(customerId);
+      } else {
+        next.add(customerId);
+      }
+      return next;
+    });
+  }, []);
+  const toggleCustomerPageSelection = useCallback(() => {
+    setSelectedCustomerIds((current) => {
+      const next = new Set(current);
+      const allPageSelected =
+        paginatedCustomers.length > 0 &&
+        paginatedCustomers.every((customer) => next.has(customer.id));
+      paginatedCustomers.forEach((customer) => {
+        if (allPageSelected) {
+          next.delete(customer.id);
+        } else {
+          next.add(customer.id);
+        }
+      });
+      return next;
+    });
+  }, [paginatedCustomers]);
 
   const loadCustomers = useCallback(async () => {
     if (!session) return;
@@ -149,6 +177,14 @@ const CustomerDirectory: React.FC = () => {
   useEffect(() => {
     void loadCustomers();
   }, [loadCustomers]);
+
+  useEffect(() => {
+    const customerIds = new Set(customers.map((customer) => customer.id));
+    setSelectedCustomerIds((current) => {
+      const next = new Set(Array.from(current).filter((customerId) => customerIds.has(customerId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [customers]);
 
   const copyInviteLink = async (url: string) => {
     await navigator.clipboard?.writeText(url);
@@ -174,7 +210,10 @@ const CustomerDirectory: React.FC = () => {
     setNotice("");
     setError("");
     try {
-      const result = await adminCustomersApi.createCustomer(session, draft);
+      const result = await adminCustomersApi.createCustomer(session, {
+        ...draft,
+        email: draft.email.trim().toLowerCase(),
+      });
       setCustomers((current) => [result.customer, ...current.filter((c) => c.id !== result.customer.id)]);
       setDraft(EMPTY_DRAFT);
       setCreateOpen(false);
@@ -240,22 +279,22 @@ const CustomerDirectory: React.FC = () => {
       </header>
 
       <section className="stroane-crm__kpis" aria-label="Customer KPIs">
-        <article className="glass-card">
+        <article className="bubble-card">
           <HiOutlineUserGroup aria-hidden="true" />
           <span>Total customers</span>
           <strong>{summary.totalCustomers}</strong>
         </article>
-        <article className="glass-card" data-tone="success">
+        <article className="bubble-card" data-tone="success">
           <HiOutlineUserGroup aria-hidden="true" />
           <span>Active accounts</span>
           <strong>{summary.activeAccounts}</strong>
         </article>
-        <article className="glass-card" data-tone="warning">
+        <article className="bubble-card" data-tone="warning">
           <HiOutlineMail aria-hidden="true" />
           <span>Invited</span>
           <strong>{summary.invitedAccounts}</strong>
         </article>
-        <article className="glass-card" data-tone="info">
+        <article className="bubble-card" data-tone="info">
           <HiOutlineClipboardCopy aria-hidden="true" />
           <span>Linked orders</span>
           <strong>{summary.linkedOrders}</strong>
@@ -265,7 +304,7 @@ const CustomerDirectory: React.FC = () => {
       {notice ? <ERPFormNotice tone="success">{notice}</ERPFormNotice> : null}
       {error ? <ERPFormNotice tone="danger">{error}</ERPFormNotice> : null}
 
-      <section className="glass-card stroane-crm__table-panel">
+      <section className="stroane-crm__table-panel">
         <div className="stroane-crm__toolbar">
           <ERPTableSearch
             value={filters.search || ""}
@@ -274,6 +313,7 @@ const CustomerDirectory: React.FC = () => {
           />
           <SelectField
             fieldClassName="stroane-crm__filter"
+            label="Status"
             value={filters.status || ""}
             ariaLabel="Filter by customer status"
             onChangeValue={(value) => updateFilter("status", getSelectValue(value))}
@@ -281,10 +321,24 @@ const CustomerDirectory: React.FC = () => {
           />
         </div>
 
+        {selectedCustomerIds.size ? (
+          <div className="stroane-crm__bulk-bar" role="region" aria-label="Selected customers">
+            <span>
+              <strong>{selectedCustomerIds.size}</strong> selected
+            </span>
+            <ERPSecondaryAction size="sm" onClick={() => setSelectedCustomerIds(new Set())}>
+              Clear selection
+            </ERPSecondaryAction>
+          </div>
+        ) : null}
+
         <div className="admin-table-shell stroane-crm__admin-table">
           <table className="stroane-crm__table">
             <colgroup>
+              <col className="stroane-crm__col-select" />
+              <col className="stroane-crm__col-number" />
               <col className="stroane-crm__col-customer" />
+              <col className="stroane-crm__col-email" />
               <col className="stroane-crm__col-status" />
               <col className="stroane-crm__col-contact" />
               <col className="stroane-crm__col-orders" />
@@ -293,9 +347,24 @@ const CustomerDirectory: React.FC = () => {
             </colgroup>
             <thead>
               <tr>
+                <th className="portal-table-select-cell" aria-label="Select customers">
+                  <input
+                    type="checkbox"
+                    className="portal-table-checkbox"
+                    checked={
+                      paginatedCustomers.length > 0 &&
+                      paginatedCustomers.every((customer) => selectedCustomerIds.has(customer.id))
+                    }
+                    onChange={toggleCustomerPageSelection}
+                    disabled={!paginatedCustomers.length}
+                    aria-label="Select all customers on this page"
+                  />
+                </th>
+                <th className="portal-table-number-cell">#</th>
                 <th>Customer</th>
+                <th>Email</th>
                 <th>Status</th>
-                <th>Contact</th>
+                <th>Phone</th>
                 <th>Orders</th>
                 <th>Last order</th>
                 <th aria-label="Actions" />
@@ -303,15 +372,33 @@ const CustomerDirectory: React.FC = () => {
             </thead>
             <tbody>
               {paginatedCustomers.length ? (
-                paginatedCustomers.map((customer) => (
-                  <tr key={customer.id}>
+                paginatedCustomers.map((customer, index) => (
+                  <tr
+                    key={customer.id}
+                    className={selectedCustomerIds.has(customer.id) ? "is-bulk-selected" : ""}
+                  >
+                    <td
+                      className="portal-table-select-cell"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        className="portal-table-checkbox"
+                        checked={selectedCustomerIds.has(customer.id)}
+                        onChange={() => toggleCustomerSelection(customer.id)}
+                        aria-label={`Select ${customer.name}`}
+                      />
+                    </td>
+                    <td className="portal-table-number-cell">
+                      {clampedPageIndex * CUSTOMER_PAGE_SIZE + index + 1}
+                    </td>
                     <td>
                       <span className="stroane-crm__customer-cell">
                         <strong>{customer.name}</strong>
-                        <small>{customer.email}</small>
-                        {customer.businessName ? <small>{customer.businessName}</small> : null}
                       </span>
                     </td>
+                    <td>{customer.email}</td>
                     <td>
                       <ERPStatusBadge tone={getStatusTone(customer.status)}>
                         {customer.hasAccount ? "Account active" : customer.status}
@@ -342,7 +429,7 @@ const CustomerDirectory: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td className="stroane-crm__table-empty" colSpan={6}>
+                  <td className="stroane-crm__table-empty" colSpan={9}>
                     {loading ? "Loading customers..." : "No customers found."}
                   </td>
                 </tr>
@@ -376,9 +463,13 @@ const CustomerDirectory: React.FC = () => {
           />
           <ERPTextField
             label="Email"
+            helperText="Email is the customer account ID. One email can only belong to one customer record."
             type="email"
             value={draft.email}
             onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+            onBlur={() =>
+              setDraft((current) => ({ ...current, email: current.email.trim().toLowerCase() }))
+            }
             required
           />
           <ERPTextField

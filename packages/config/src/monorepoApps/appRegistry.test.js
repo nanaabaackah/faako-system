@@ -37,8 +37,8 @@ test("monorepo monitoring includes Stroane storefront, portal, and backend surfa
   assert.ok(stroanePortal, "expected Stroane portal monitoring surface");
   assert.ok(stroaneApi, "expected Stroane API monitoring surface");
   assert.equal(stroanePortal.baseUrl, "https://portal.stroanesolutions.com");
-  assert.equal(stroaneApi.baseUrl, "");
-  assert.equal(stroaneApi.configured, false);
+  assert.equal(stroaneApi.baseUrl, "https://api.stroanesolutions.com");
+  assert.equal(stroaneApi.configured, true);
 
   const storefrontPages = pagePaths(stroaneWeb);
   assert.ok(storefrontPages.has("/catalogue"));
@@ -52,6 +52,10 @@ test("monorepo monitoring includes Stroane storefront, portal, and backend surfa
   assert.ok(portalPages.has("/admin/inventory"));
   assert.ok(portalPages.has("/admin/products"));
   assert.ok(portalPages.has("/admin/reports"));
+
+  const apiPages = pagePaths(stroaneApi);
+  assert.ok(apiPages.has("/health"));
+  assert.ok(apiPages.has("/api/catalogue/products"));
 });
 
 test("monorepo monitoring includes the full Faako marketing route surface", () => {

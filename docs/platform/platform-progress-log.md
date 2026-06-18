@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Dev ERP Faako onboarding management
+
+Date: 2026-06-18
+Change name: Dev ERP Faako onboarding management
+Apps/packages affected: Dev ERP, Faako API
+What changed: Added a protected Dev ERP module for managing Faako Website onboarding and client setup submissions. Dev ERP reads Faako API `SignupRequest` rows through `FAAKO_DATABASE_URL`, shows submissions in a filterable ERP table, opens full wizard responses in a lightbox, and supports internal status, notes, owner, email/PDF metadata, and activity timeline review. Faako API received an additive signup-management migration and now records delivery/PDF metadata when those columns exist.
+Why it changed: Faako needed an internal operational review surface for public onboarding/client setup submissions while preserving the existing public submission, PDF, and email flow.
+Files changed: Dev ERP module/backend/routes/navigation/tests/docs, Faako API signup/schema/migration/docs, package/lock metadata.
+Data impact: No Dev ERP database migration. Faako API migration is additive to `SignupRequest` and keeps existing rows compatible.
+Security impact: Internal management routes are authenticated/admin-protected by Dev ERP capability checks. Public Faako Website flows do not expose internal notes or management fields.
+Testing done: Dev ERP tests passed with 124 tests, Dev ERP lint/typecheck/build passed, Dev ERP Playwright onboarding workflow passed with 1 test, Faako API Prisma validate passed, Faako API syntax checks passed, and Faako API demo access tests passed. Faako API lint remains unavailable because that workspace has no eslint install/config.
+Rollback notes: Revert Dev ERP module wiring and Faako API metadata writes. Treat any deployed Faako API schema removal as a separate forward migration.
+Next step: Deploy the Faako API migration, configure Dev ERP `FAAKO_DATABASE_URL`, and smoke-test the live management workflow.
+
+### Dev startup runs local predeploy migrations
+
+Date: 2026-06-17
+Change name: Dev startup runs local predeploy migrations
+Apps/packages affected: Faako API, Dev ERP, REEBS Portal, REEBS Website combined dev, Stroane Web, root dev shortcuts, platform docs
+What changed: Tied Prisma-backed local dev startup to each app's local predeploy migration flow. Faako API `dev`, Dev ERP `dev`/`dev:with-backend`, REEBS Portal `dev`/`dev:with-backend`, REEBS Website `dev:with-backend`, and Stroane Web `dev`/`dev:with-backend` now run local Prisma predeploy before long-running dev servers start. Root `dev:faako`, `dev:dev-erp`, `dev:reebs`, and `dev:stroane` now run or flow through those guarded commands before launching their stacks.
+Why it changed: Local development should not start against stale Prisma clients or pending development migrations, especially after schema changes.
+Files changed: package.json, apps/faako-api/package.json, apps/dev-erp/package.json, apps/reebs-portal/package.json, apps/reebs-website/package.json, apps/stroane-web/package.json, scripts/dev-faako.mjs, scripts/dev-dev-erp.mjs, README.md, app READMEs, Stroane env/predeploy docs.
+Data impact: Running the affected dev commands can now apply pending migrations to the configured local/development databases before startup. Production migration commands are unchanged.
+Security impact: Positive operationally. Local app servers are less likely to run against stale schemas that can produce broken auth, customer, order, or signup flows.
+Testing done: Package JSON parse checks passed for root and affected app package files. `node --check` passed for `scripts/dev-faako.mjs` and `scripts/dev-dev-erp.mjs`. `git diff --check` passed.
+Rollback notes: Revert the dev script prefixes and launcher command changes if local dev should no longer apply pending migrations automatically. Keep standalone `predeploy:local` scripts for manual checks.
+Next step: Run each affected dev shortcut with approved database/network access and confirm the migration preflight completes before servers stay running.
+
 ### Cross-app local predeploy and dev email routing
 
 Date: 2026-06-16

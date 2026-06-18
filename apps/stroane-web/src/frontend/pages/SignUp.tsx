@@ -5,7 +5,9 @@ import { SelectField, TextField } from "@faako/ui";
 import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import { useAuth } from "../../context/AuthContext";
+import PasswordRequirementList from "../components/auth/PasswordRequirementList";
 import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
+import { getPasswordValidationMessage } from "../../utils/passwordRequirements";
 import "../styles/Auth.css";
 
 type ContactMethod = "email" | "phone" | "whatsapp";
@@ -26,9 +28,9 @@ const SignUp: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const businessName = "";
   const [preferredContactMethod, setPreferredContactMethod] = useState<ContactMethod>("email");
-  const [defaultDeliveryAddress, setDefaultDeliveryAddress] = useState("");
+  const defaultDeliveryAddress = "";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,16 +43,12 @@ const SignUp: React.FC = () => {
     noIndex: true,
   });
 
-  const hasCreationContext = Boolean(inviteToken || paymentReference);
-
   const validate = () => {
-    if (!hasCreationContext) {
-      return "Create your profile from a checkout return link or a Stroane invitation.";
-    }
     if (!name.trim()) return "Add your full name.";
     if (!isLikelyEmail(email)) return "Add a valid email address.";
     if (phone.trim() && !isLikelyPhone(phone)) return "Add a valid phone number.";
-    if (password.length < 8) return "Password must be at least 8 characters.";
+    const passwordMessage = getPasswordValidationMessage(password);
+    if (passwordMessage) return passwordMessage;
     if (password !== confirmPassword) return "Passwords do not match.";
     return "";
   };
@@ -58,6 +56,7 @@ const SignUp: React.FC = () => {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    const normalizedEmail = email.trim().toLowerCase();
     const validationMessage = validate();
     if (validationMessage) {
       setError(validationMessage);
@@ -68,7 +67,7 @@ const SignUp: React.FC = () => {
     try {
       await signUp({
         name,
-        email,
+        email: normalizedEmail,
         phone,
         businessName,
         preferredContactMethod,
@@ -110,14 +109,8 @@ const SignUp: React.FC = () => {
             <span className="auth-card__kicker">Customer profile</span>
             <h1 className="auth-card__title">Create your account</h1>
             <p className="auth-card__sub">
-              Use the same email from checkout or the email attached to your Stroane invitation.
+              Create a secure Stroane profile to manage your details and future orders.
             </p>
-
-            {!hasCreationContext ? (
-              <p className="auth-form__error" role="alert">
-                Account creation links are issued after checkout or by Stroane staff.
-              </p>
-            ) : null}
 
             <form className="auth-form" onSubmit={handleSubmit} noValidate>
               <TextField
@@ -141,6 +134,7 @@ const SignUp: React.FC = () => {
                   setEmail(event.target.value);
                   setError("");
                 }}
+                onBlur={() => setEmail((current) => current.trim().toLowerCase())}
                 autoComplete="email"
                 required
               />
@@ -157,14 +151,6 @@ const SignUp: React.FC = () => {
                 pattern={PHONE_INPUT_PATTERN}
                 autoComplete="tel"
               />
-              <TextField
-                fieldClassName="auth-field"
-                label="Business name"
-                type="text"
-                value={businessName}
-                onChange={(event) => setBusinessName(event.target.value)}
-                autoComplete="organization"
-              />
               <SelectField
                 fieldClassName="auth-field"
                 label="Preferred contact"
@@ -180,14 +166,6 @@ const SignUp: React.FC = () => {
               />
               <TextField
                 fieldClassName="auth-field"
-                label="Default delivery address"
-                type="text"
-                value={defaultDeliveryAddress}
-                onChange={(event) => setDefaultDeliveryAddress(event.target.value)}
-                autoComplete="street-address"
-              />
-              <TextField
-                fieldClassName="auth-field"
                 label="Password"
                 type="password"
                 value={password}
@@ -196,7 +174,12 @@ const SignUp: React.FC = () => {
                   setError("");
                 }}
                 autoComplete="new-password"
+                aria-describedby="signup-password-requirements"
                 required
+              />
+              <PasswordRequirementList
+                id="signup-password-requirements"
+                password={password}
               />
               <TextField
                 fieldClassName="auth-field"
@@ -220,7 +203,7 @@ const SignUp: React.FC = () => {
               <button
                 type="submit"
                 className="auth-form__submit"
-                disabled={loading || !hasCreationContext}
+                disabled={loading}
               >
                 {loading ? "Creating account..." : "Create account"}
                 {!loading ? <HiArrowRight size={17} aria-hidden="true" /> : null}
@@ -228,7 +211,7 @@ const SignUp: React.FC = () => {
             </form>
 
             <p className="auth-card__alt">
-              Already have an account? <Link to="/account">Sign in</Link>
+              Already have an account? <Link to="/signin">Sign in</Link>
             </p>
           </div>
         </div>

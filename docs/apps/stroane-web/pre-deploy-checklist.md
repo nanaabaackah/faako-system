@@ -25,7 +25,8 @@
 ## Database/data loss risk
 
 - Review Prisma migrations and data scripts before production.
-- Run `pnpm --filter @faako/stroane-web run predeploy:local` before deployment when Prisma migrations changed.
+- `pnpm run dev:stroane` and `pnpm --filter @faako/stroane-web run dev:with-backend` run local Prisma predeploy automatically before starting.
+- Run `pnpm --filter @faako/stroane-web run predeploy:local` manually before deployment when Prisma migrations changed and you are not starting dev.
 - Root shortcut: `pnpm run predeploy:stroane`.
 - Confirm backups or rollback options before modifying product, customer, order, or transaction-related data.
 

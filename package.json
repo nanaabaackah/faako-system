@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:portfolio": "pnpm --filter @faako/bynana-portfolio run dev",
-    "dev:faako": "node ./scripts/dev-faako.mjs",
-    "dev:dev-erp": "node ./scripts/dev-dev-erp.mjs",
+    "dev:faako": "pnpm run predeploy:faako-api && node ./scripts/dev-faako.mjs",
+    "dev:dev-erp": "pnpm --filter @faako/dev-erp run dev:with-backend",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
     "dev:stroane": "pnpm --filter @faako/stroane-web run dev:with-backend",
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",

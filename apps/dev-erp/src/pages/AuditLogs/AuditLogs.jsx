@@ -18,6 +18,7 @@ const SOURCE_OPTIONS = [
   { value: "", label: "All sources" },
   { value: "auth", label: "Auth" },
   { value: "api", label: "API" },
+  { value: "app", label: "Apps" },
   { value: "job", label: "Jobs" },
   { value: "system", label: "System" },
   { value: "railway", label: "Railway" },
@@ -65,6 +66,7 @@ const AuditLogs = () => {
   const [analytics, setAnalytics] = useState(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [railwayWebhook, setRailwayWebhook] = useState(null);
+  const [appActivityWebhook, setAppActivityWebhook] = useState(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState("");
 
   const loadAuditLogs = useCallback(async ({ silent = false } = {}) => {
@@ -90,6 +92,7 @@ const AuditLogs = () => {
         setEntries(Array.isArray(payload?.entries) ? payload.entries : []);
         setSummary(payload?.summary || { total: 0, incidents: 0, failures: 0, actors: 0 });
         setRailwayWebhook(payload?.integrations?.railwayWebhook || null);
+        setAppActivityWebhook(payload?.integrations?.appActivityWebhook || null);
         setLastUpdatedAt(new Date().toISOString());
         setError("");
       } else {
@@ -198,6 +201,29 @@ const AuditLogs = () => {
       )}.`,
     };
   }, [railwayWebhook]);
+  const appActivityNotice = useMemo(() => {
+    if (!appActivityWebhook) return null;
+    if (!appActivityWebhook.configured) {
+      return {
+        tone: "warning",
+        message:
+          "App activity logging is not configured. Set APP_ACTIVITY_WEBHOOK_SECRET and post monitored app events to /api/webhooks/app-activity.",
+      };
+    }
+    if (!appActivityWebhook.latestEventAt) {
+      return {
+        tone: "info",
+        message:
+          "App activity logging is configured, but no app events were found in this filter window.",
+      };
+    }
+    return {
+      tone: "info",
+      message: `App activity logging is configured. Latest app event ${formatDateTime(
+        appActivityWebhook.latestEventAt
+      )}.`,
+    };
+  }, [appActivityWebhook]);
   const handleExportSnapshot = () => {
     if (!analytics) return;
     const rows = [
@@ -252,6 +278,78 @@ const AuditLogs = () => {
           </button>
         </div>
       </header>
+
+      {loading ? (
+        <AnimatedLoadingState compact className="panel" title="Loading audit logs" />
+      ) : null}
+
+      {error ? (
+        <div className="notice is-error" role="alert">
+          {error}
+        </div>
+      ) : null}
+
+      {analyticsError ? (
+        <div className="notice is-error" role="alert">
+          {analyticsError}
+        </div>
+      ) : null}
+
+      {railwayWebhookNotice ? (
+        <div className={`notice is-${railwayWebhookNotice.tone}`} role="status">
+          {railwayWebhookNotice.message}
+        </div>
+      ) : null}
+
+      {appActivityNotice ? (
+        <div className={`notice is-${appActivityNotice.tone}`} role="status">
+          {appActivityNotice.message}
+        </div>
+      ) : null}
+
+      <section className="kpi-grid" aria-label="Audit log summary">
+        <article className="panel bubble-card">
+          <span className="kpi-label">Events</span>
+          <div className="kpi-value">{formatCount(summary.total)}</div>
+          <span className="kpi-delta">Captured in the current filter window</span>
+        </article>
+        <article className="panel bubble-card">
+          <span className="kpi-label">Incidents</span>
+          <div className="kpi-value">{formatCount(summary.incidents)}</div>
+          <span className="kpi-delta">Railway and system interruptions</span>
+        </article>
+        <article className="panel bubble-card">
+          <span className="kpi-label">Warnings / Errors</span>
+          <div className="kpi-value">{formatCount(summary.failures)}</div>
+          <span className="kpi-delta">Events that may need follow-up</span>
+        </article>
+        <article className="panel bubble-card">
+          <span className="kpi-label">Actors</span>
+          <div className="kpi-value">{formatCount(summary.actors)}</div>
+          <span className="kpi-delta">
+            {latestEvent ? `Latest event ${formatDateTime(latestEvent.createdAt)}` : "No events yet"}
+          </span>
+        </article>
+        <article className="panel bubble-card">
+          <span className="kpi-label">Railway Events</span>
+          <div className="kpi-value">{formatCount(summary.railway)}</div>
+          <span className="kpi-delta">
+            {summary.latestRailwayEventAt
+              ? `Latest ${formatDateTime(summary.latestRailwayEventAt)}`
+              : "Waiting for webhook events"}
+          </span>
+        </article>
+        <article className="panel bubble-card">
+          <span className="kpi-label">App Activity</span>
+          <div className="kpi-value">{formatCount(summary.appActivity)}</div>
+          <span className="kpi-delta">
+            {summary.latestAppActivityAt
+              ? `Latest ${formatDateTime(summary.latestAppActivityAt)}`
+              : "Waiting for app events"}
+          </span>
+        </article>
+      </section>
+
 
       <section className="panel audit-filters-panel">
         <form className="audit-filters" onSubmit={handleSearchSubmit}>
@@ -308,63 +406,6 @@ const AuditLogs = () => {
           </div>
         </form>
       </section>
-
-      {loading ? (
-        <AnimatedLoadingState compact className="panel" title="Loading audit logs" />
-      ) : null}
-
-      {error ? (
-        <div className="notice is-error" role="alert">
-          {error}
-        </div>
-      ) : null}
-
-      {analyticsError ? (
-        <div className="notice is-error" role="alert">
-          {analyticsError}
-        </div>
-      ) : null}
-
-      {railwayWebhookNotice ? (
-        <div className={`notice is-${railwayWebhookNotice.tone}`} role="status">
-          {railwayWebhookNotice.message}
-        </div>
-      ) : null}
-
-      <section className="kpi-grid" aria-label="Audit log summary">
-        <article className="panel">
-          <span className="kpi-label">Events</span>
-          <div className="kpi-value">{formatCount(summary.total)}</div>
-          <span className="kpi-delta">Captured in the current filter window</span>
-        </article>
-        <article className="panel">
-          <span className="kpi-label">Incidents</span>
-          <div className="kpi-value">{formatCount(summary.incidents)}</div>
-          <span className="kpi-delta">Railway and system interruptions</span>
-        </article>
-        <article className="panel">
-          <span className="kpi-label">Warnings / Errors</span>
-          <div className="kpi-value">{formatCount(summary.failures)}</div>
-          <span className="kpi-delta">Events that may need follow-up</span>
-        </article>
-        <article className="panel">
-          <span className="kpi-label">Actors</span>
-          <div className="kpi-value">{formatCount(summary.actors)}</div>
-          <span className="kpi-delta">
-            {latestEvent ? `Latest event ${formatDateTime(latestEvent.createdAt)}` : "No events yet"}
-          </span>
-        </article>
-        <article className="panel">
-          <span className="kpi-label">Railway Events</span>
-          <div className="kpi-value">{formatCount(summary.railway)}</div>
-          <span className="kpi-delta">
-            {summary.latestRailwayEventAt
-              ? `Latest ${formatDateTime(summary.latestRailwayEventAt)}`
-              : "Waiting for webhook events"}
-          </span>
-        </article>
-      </section>
-
       {analytics ? (
         <section className="audit-analytics-grid" aria-label="Audit analytics">
           <article>

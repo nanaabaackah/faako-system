@@ -1,7 +1,7 @@
 import React, { type FormEvent } from "react";
 import { HiArrowRight } from "react-icons/hi";
 import { DateField, SelectField, TextareaField, TextField, TimeField } from "@faako/ui";
-import type { CheckoutFulfillmentMethod } from "../../../api/orders";
+import type { CheckoutFulfillmentMethod, DeliveryLocation } from "../../../api/orders";
 import { PHONE_INPUT_PATTERN } from "../../../utils/contactValidation";
 
 type PreferredContactMethod = "email" | "phone" | "whatsapp";
@@ -19,7 +19,10 @@ interface CheckoutDetailsFormProps {
   phone: string;
   businessName: string;
   address: string;
-  addressSuggestions: string[];
+  deliveryLocation: DeliveryLocation | null;
+  deliveryLocationResults: DeliveryLocation[];
+  deliveryLocationLoading: boolean;
+  deliveryLocationError: string;
   deliveryNotes: string;
   fulfillmentMethod: CheckoutFulfillmentMethod;
   pickupSpots: PickupSpot[];
@@ -42,6 +45,7 @@ interface CheckoutDetailsFormProps {
   onBusinessNameChange: (value: string) => void;
   onFulfillmentMethodChange: (value: CheckoutFulfillmentMethod) => void;
   onAddressChange: (value: string) => void;
+  onDeliveryLocationSelect: (location: DeliveryLocation) => void;
   onPickupSpotChange: (value: string) => void;
   onPickupDateChange: (value: string) => void;
   onPickupTimeChange: (value: string) => void;
@@ -59,7 +63,10 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
   phone,
   businessName,
   address,
-  addressSuggestions,
+  deliveryLocation,
+  deliveryLocationResults,
+  deliveryLocationLoading,
+  deliveryLocationError,
   deliveryNotes,
   fulfillmentMethod,
   pickupSpots,
@@ -82,6 +89,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
   onBusinessNameChange,
   onFulfillmentMethodChange,
   onAddressChange,
+  onDeliveryLocationSelect,
   onPickupSpotChange,
   onPickupDateChange,
   onPickupTimeChange,
@@ -89,11 +97,6 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
   onWebsiteChange,
   onPreferredContactMethodChange,
 }) => {
-  const searchQuery = address.trim().toLowerCase();
-  const visibleAddressSuggestions = addressSuggestions
-    .filter((suggestion) => !searchQuery || suggestion.toLowerCase().includes(searchQuery))
-    .slice(0, 6);
-
   return (
     <form className="checkout-form" onSubmit={onSubmit} noValidate>
       <h2 className="checkout-section-title">Your details</h2>
@@ -187,18 +190,35 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
               value={address}
               onChange={(event) => onAddressChange(event.target.value)}
               autoComplete="street-address"
+              placeholder="Search your delivery address"
               required
             />
-            {visibleAddressSuggestions.length ? (
-              <div className="checkout-address-suggestions" aria-label="Suggested delivery areas">
-                {visibleAddressSuggestions.map((suggestion) => (
+            {deliveryLocation ? (
+              <p className="checkout-address-selected">
+                Selected GPS address: <strong>{deliveryLocation.label}</strong>
+              </p>
+            ) : null}
+            {deliveryLocationLoading ? (
+              <p className="checkout-address-status" role="status">
+                Searching addresses...
+              </p>
+            ) : null}
+            {deliveryLocationError ? (
+              <p className="checkout-address-status is-error" role="alert">
+                {deliveryLocationError}
+              </p>
+            ) : null}
+            {deliveryLocationResults.length ? (
+              <div className="checkout-address-suggestions" aria-label="GPS address results">
+                {deliveryLocationResults.map((location) => (
                   <button
-                    key={suggestion}
+                    key={location.id || location.placeId || location.label}
                     type="button"
                     className="checkout-address-suggestion"
-                    onClick={() => onAddressChange(suggestion)}
+                    onClick={() => onDeliveryLocationSelect(location)}
                   >
-                    {suggestion}
+                    <strong>{location.label}</strong>
+                    {location.provider ? <small>{location.provider}</small> : null}
                   </button>
                 ))}
               </div>

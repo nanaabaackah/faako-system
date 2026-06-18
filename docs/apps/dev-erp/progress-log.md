@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Faako onboarding management module
+
+Date: 2026-06-18
+Feature/change name: Faako onboarding management module
+Apps affected: Dev ERP, Faako API
+What changed: Added a protected Dev ERP `Faako Onboarding` module with sidebar/mobile navigation, module access routing, backend `/api/faako-onboarding` endpoints, a filterable shared ERP table, and a lightbox detail workflow for Faako Website onboarding/client setup submissions. Detail view shows full wizard responses with blank answers as `N/A`, email delivery metadata, PDF-summary metadata, activity timeline, status updates, assigned owner, and internal notes. Added focused backend serializer/access tests and a mocked Playwright list/detail/save workflow test.
+Why it changed: Dev ERP is now the internal management system for Faako Website onboarding and client setup submissions without changing the public Faako form submission, email, or PDF flow.
+Files changed: apps/dev-erp/backend/faakoOnboarding/faakoOnboarding.routes.js, apps/dev-erp/backend/server.js, apps/dev-erp/backend/auth/accessConfig.js, apps/dev-erp/src/App.jsx, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/utils/moduleAccess.js, apps/dev-erp/src/pages/FaakoOnboarding/*, apps/dev-erp/tests/e2e/faako-onboarding.spec.js, apps/dev-erp/playwright.config.js, apps/faako-api/prisma/schema.prisma, apps/faako-api/src/signup.cjs, docs and package metadata.
+Data impact: No Dev ERP schema migration. Faako API adds a forward-only `SignupRequest` migration for management fields and status enum values. Existing public submissions remain compatible, and the Faako signup handler checks column availability before writing new metadata.
+Security impact: Positive. The new Dev ERP API is authenticated/admin-protected and covered by the `faako-onboarding` module capability. Public Faako Website routes remain unchanged and do not expose internal notes, owner assignments, timeline metadata, or management status edits.
+Testing done: `node --check` passed for Dev ERP onboarding routes, Dev ERP server, Faako API signup, and Faako API server. Focused onboarding/access tests passed with 12 tests. `pnpm --filter @faako/dev-erp run test` passed with 124 tests. `pnpm --filter @faako/dev-erp run lint` passed. `pnpm --filter @faako/dev-erp run typecheck` passed. `pnpm --filter @faako/dev-erp run build` passed. `pnpm --filter @faako/dev-erp run test:e2e` passed with 1 Playwright test after rerunning with elevated local-server permission for port binding. `pnpm --filter @faako/faako-api exec prisma validate` passed. `node --test apps/faako-api/src/demoAccess.test.mjs` passed with 3 tests. `git diff --check` passed for affected files. Faako API lint remains blocked because that workspace does not install/configure `eslint`.
+Rollback notes: Remove the Dev ERP route/nav/module/API/page/test additions and revert the Faako API signup metadata writes. If the Faako API migration has already deployed, leave the additive columns/enum values in place or remove them only through a separately reviewed forward migration.
+Next step: Deploy/apply the Faako API migration, set Dev ERP `FAAKO_DATABASE_URL` to the intended Faako API database, then smoke-test the live table filters, lightbox detail, status/owner/notes save, and email/PDF metadata display.
+
 ### Shared app update notice shell adoption
 
 Date: 2026-06-15

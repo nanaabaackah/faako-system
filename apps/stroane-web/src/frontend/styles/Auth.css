@@ -160,10 +160,101 @@
   color: var(--color-text-muted);
 }
 
+.auth-password-rules {
+  margin-top: -0.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.auth-password-rules__title {
+  margin: 0 0 0.55rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.auth-password-rules__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-password-rules__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.auth-password-rules__item.is-met {
+  color: var(--color-success);
+}
+
+.auth-password-rules__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.auth-password-rules__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.auth-password-rules__dot {
+  display: block;
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  opacity: 0.65;
+}
+
 .auth-form__error {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #dc2626;
+  color: var(--color-danger);
+}
+
+.auth-form__success {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  line-height: 1.5;
+}
+
+.auth-form__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.auth-form__row--right {
+  justify-content: flex-end;
+  margin-top: -0.35rem;
+}
+
+.auth-form__link {
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-form__link:hover {
+  text-decoration: underline;
 }
 
 .auth-form__submit {
@@ -222,5 +313,9 @@
 
   .auth-form-col {
     padding: calc(72px + 2.5rem) 1.5rem 4rem;
+  }
+
+  .auth-password-rules__list {
+    grid-template-columns: 1fr;
   }
 }

@@ -48,6 +48,7 @@ test("mixed rent roles default to rent while rent-only users keep dashboard land
 
 test("route mapping covers legacy and nested module paths", () => {
   assert.equal(getModuleKeyForPath("/proposals/123/preview"), "proposals");
+  assert.equal(getModuleKeyForPath("/faako-onboarding/abc"), "faako-onboarding");
   assert.equal(getModuleKeyForPath("/users"), "user-control");
   assert.equal(getModuleKeyForPath("/system-health"), "system-health");
 });

@@ -22,7 +22,8 @@
 ## Database/data loss risk
 
 - Review Prisma migrations, seed scripts, imports, relinks, and destructive update paths.
-- Run `pnpm --filter @faako/reebs-portal run predeploy:local` before deployment when Prisma migrations changed.
+- `pnpm --filter @faako/reebs-portal run dev:with-backend`, `pnpm --filter @faako/reebs-portal run dev`, and `pnpm run dev:reebs` run local Prisma predeploy automatically before starting.
+- Run `pnpm --filter @faako/reebs-portal run predeploy:local` manually before deployment when Prisma migrations changed and you are not starting dev.
 - Root shortcut: `pnpm run predeploy:reebs-portal`.
 - Confirm backup or rollback strategy for any production data change.
 

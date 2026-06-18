@@ -64,6 +64,7 @@ const SystemHealth = lazy(() => import("./pages/SystemHealth/SystemHealth"));
 const Reports = lazy(() => import("./pages/Reports/Reports"));
 const Proposals = lazy(() => import("./pages/Proposals/Proposals"));
 const ProposalClientView = lazy(() => import("./pages/Proposals/ProposalClientView"));
+const FaakoOnboarding = lazy(() => import("./pages/FaakoOnboarding/FaakoOnboarding"));
 const Settings = lazy(() => import("./pages/Settings/Settings"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs/AuditLogs"));
 const Rent = lazy(() => import("./pages/Rent/Rent"));
@@ -689,6 +690,14 @@ function App() {
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Proposals />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/faako-onboarding"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <FaakoOnboarding />
             </ShellPage>
           }
         />

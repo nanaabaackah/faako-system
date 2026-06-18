@@ -3,6 +3,7 @@ const RENT_MODULE_KEY = "rent";
 export const ACCESS_MODULE_KEYS = [
   "dashboard",
   "proposals",
+  "faako-onboarding",
   "rent",
   "accounting",
   "invoicing",
@@ -40,6 +41,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/ai\/productivity-coach(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/productivity(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/proposals(?:\/|$)/, modules: ["proposals"] },
+  { pattern: /^\/api\/faako-onboarding(?:\/|$)/, modules: ["faako-onboarding"] },
   { pattern: /^\/api\/rent(?:\/|$)/, modules: ["rent"] },
   { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
   { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },

@@ -14,6 +14,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - Faako Website calls these endpoints through `VITE_API_BASE_URL` or the local Vite proxy.
 - `signup` accepts structured onboarding intake payloads and stores a compatibility summary in `SignupRequest.additionalNotes` without requiring a schema migration.
 - `signup` generates a lightweight PDF summary server-side and sends client/admin copies through Resend when configured.
+- `SignupRequest` now has additive management metadata fields for Dev ERP: internal notes, assigned owner, activity timeline, email delivery status, PDF summary metadata, and management update tracking. The public signup handler checks column availability before writing this metadata, so older databases still keep the public form flow working until the migration is applied.
 - `signup` rejects credential-like keys and pasted secret-looking values. Do not add public fields for API keys, passwords, tokens, private email credentials, or bank login details.
 - `/api/demo-access` owns the Faako ERP walkthrough code flow. Codes are generated server-side, stored as HMAC hashes, emailed through Resend, rate-limited per email/IP/challenge, and never returned to browser code. Production fails closed unless `FAAKO_ERP_DEMO_ACCESS_SECRET` is configured with at least 32 characters.
 - `docs/platform/codebase-cleanup-audit.md` flags Faako API cleanup as documentation-first because signup/runtime behavior and website mirroring are deployment-sensitive.
@@ -23,7 +24,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - What hosted API target should own production signup traffic long term?
 - What signup records, notifications, or CRM integrations are planned next?
 - What production alerting is required for signup failures?
-- Should the onboarding intake summary remain in `SignupRequest.additionalNotes`, or should a dedicated intake table be introduced later?
+- Should the onboarding intake summary remain in `SignupRequest.additionalNotes` plus `onboardingIntake`, or should a dedicated intake table be introduced later?
+- Should generated PDF summaries be stored in object storage for Dev ERP download/view, or remain email attachments until storage, retention, and access rules are defined?
 
 ## Future cleanup
 

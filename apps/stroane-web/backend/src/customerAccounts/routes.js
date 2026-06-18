@@ -11,10 +11,13 @@ import {
   signToken,
   verifyToken,
 } from "../auth.js";
+import { sendCustomerPasswordResetEmail } from "../customerAccountNotifications.js";
 import { toPublicCommerceOrder } from "../orders.js";
 
 const CUSTOMER_TOKEN_AUDIENCE = "stroane_customer";
 const CUSTOMER_INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const CUSTOMER_PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const PASSWORD_MIN_LENGTH = 10;
 const PASSWORD_MAX_LENGTH = 100;
 const CUSTOMER_SELECT = {
   id: true,
@@ -46,6 +49,19 @@ const normalizeEmail = (value = "") => {
   return email;
 };
 
+const getPrismaUniqueFields = (error) => {
+  const target = error?.meta?.target;
+  if (Array.isArray(target)) return target.map(String);
+  if (typeof target === "string") return [target];
+  return [];
+};
+
+const isUniqueFieldError = (error, field) =>
+  error?.code === "P2002" && getPrismaUniqueFields(error).includes(field);
+
+const createDuplicateCustomerEmailError = () =>
+  createHttpError("An account already exists for this email. Please sign in.", 409);
+
 const normalizePhone = (value = "") => {
   const phone = sanitizeText(value, 60);
   if (!phone) return "";
@@ -59,9 +75,25 @@ const normalizePreferredContactMethod = (value = "email") => {
   return ["email", "phone", "whatsapp"].includes(normalized) ? normalized : "email";
 };
 
+const getPasswordRequirementErrors = (password = "") => {
+  const errors = [];
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+  }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    errors.push(`Password must be ${PASSWORD_MAX_LENGTH} characters or fewer.`);
+  }
+  if (!/[a-z]/.test(password)) errors.push("Password must include a lowercase letter.");
+  if (!/[A-Z]/.test(password)) errors.push("Password must include an uppercase letter.");
+  if (!/\d/.test(password)) errors.push("Password must include a number.");
+  if (!/[^A-Za-z0-9\s]/.test(password)) errors.push("Password must include a symbol.");
+  if (/\s/.test(password)) errors.push("Password must not contain spaces.");
+  return errors;
+};
+
 const normalizePassword = (value) => {
   if (typeof value !== "string") return "";
-  if (value.length < 8 || value.length > PASSWORD_MAX_LENGTH) return "";
+  if (getPasswordRequirementErrors(value).length) return "";
   return value;
 };
 
@@ -125,6 +157,16 @@ const buildInviteData = (token = createInviteToken()) => ({
   signupUrl: buildSignupUrl(token),
 });
 
+const buildPasswordResetUrl = (token) =>
+  `${resolveStorefrontBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+
+const buildPasswordResetData = (token = createInviteToken()) => ({
+  token,
+  tokenHash: hashInviteToken(token),
+  expiresAt: new Date(Date.now() + CUSTOMER_PASSWORD_RESET_TTL_MS),
+  resetUrl: buildPasswordResetUrl(token),
+});
+
 const linkOrdersForCustomer = async (prisma, customer) => {
   if (!customer?.id || !customer.email || !prisma.commerceOrder?.updateMany) return;
   await prisma.commerceOrder.updateMany({
@@ -184,7 +226,7 @@ const normalizeProfilePayload = (body = {}, { requirePassword = false } = {}) =>
   if (!email) errors.push("A valid email address is required.");
   if ("phone" in body && body.phone && !phone) errors.push("Add a valid phone number.");
   if (requirePassword && !password) {
-    errors.push("Password must be 8-100 characters.");
+    errors.push(...getPasswordRequirementErrors(typeof body.password === "string" ? body.password : ""));
   }
 
   if (errors.length) {
@@ -239,27 +281,30 @@ const findSignupContext = async (prisma, { inviteToken, paymentReference, email 
     return { source: "checkout", order, customer: order.customerAccount || null };
   }
 
-  throw createHttpError("Use a checkout profile link or a Stroane invitation to create an account.", 400);
+  return { source: "direct", customer: null };
 };
 
-const completeSignup = async (prisma, payload, context, createdById = null) => {
+const completeSignup = async (prisma, payload, context = {}, createdById = null) => {
   const passwordHash = hashPassword(payload.password);
   const now = new Date();
-  const existingByEmail = await prisma.customerAccount.findUnique({
-    where: { email: payload.email },
+  const existingByEmail = await prisma.customerAccount.findFirst({
+    where: { email: { equals: payload.email, mode: "insensitive" } },
     select: { id: true, status: true, passwordHash: true, createdById: true },
   });
   const contextCustomer = context.customer;
   const existingId = contextCustomer?.id || existingByEmail?.id || null;
 
+  if (contextCustomer?.email && contextCustomer.email !== payload.email) {
+    throw createHttpError("This account link belongs to a different email address.", 409);
+  }
   if (existingByEmail?.status === "LOCKED" || contextCustomer?.status === "LOCKED") {
     throw createHttpError("This customer account is locked. Contact Stroane.", 403);
   }
   if (existingByEmail?.passwordHash && existingByEmail.id !== contextCustomer?.id) {
-    throw createHttpError("An account already exists for this email. Please sign in.", 409);
+    throw createDuplicateCustomerEmailError();
   }
   if (contextCustomer?.passwordHash) {
-    throw createHttpError("An account already exists for this email. Please sign in.", 409);
+    throw createDuplicateCustomerEmailError();
   }
 
   const data = {
@@ -280,19 +325,28 @@ const completeSignup = async (prisma, payload, context, createdById = null) => {
     lastLoginAt: now,
     inviteTokenHash: null,
     inviteExpiresAt: null,
+    passwordResetTokenHash: null,
+    passwordResetExpiresAt: null,
+    passwordResetRequestedAt: null,
     createdById: contextCustomer?.createdById || existingByEmail?.createdById || createdById,
   };
 
-  const customer = existingId
-    ? await prisma.customerAccount.update({
-        where: { id: existingId },
-        data,
-        select: CUSTOMER_SELECT,
-      })
-    : await prisma.customerAccount.create({
-        data,
-        select: CUSTOMER_SELECT,
-      });
+  let customer;
+  try {
+    customer = existingId
+      ? await prisma.customerAccount.update({
+          where: { id: existingId },
+          data,
+          select: CUSTOMER_SELECT,
+        })
+      : await prisma.customerAccount.create({
+          data,
+          select: CUSTOMER_SELECT,
+        });
+  } catch (error) {
+    if (isUniqueFieldError(error, "email")) throw createDuplicateCustomerEmailError();
+    throw error;
+  }
 
   if (context.order?.id) {
     await prisma.commerceOrder.update({
@@ -362,6 +416,13 @@ const buildCustomerListWhere = (query = {}) => {
   }
   return where;
 };
+
+const toSafeResetLog = (error) => ({
+  message: String(error?.message || "Unknown password reset email error")
+    .replace(/\s+/g, " ")
+    .slice(0, 180),
+  statusCode: Number(error?.statusCode) || undefined,
+});
 
 const getCustomersWithOrderTotals = async (prisma, where, limit) => {
   const customers = await prisma.customerAccount.findMany({
@@ -433,8 +494,8 @@ export const createCustomerAccountRouter = (prisma) => {
         throw createHttpError("Incorrect email or password.", 401);
       }
 
-      const customer = await prisma.customerAccount.findUnique({
-        where: { email },
+      const customer = await prisma.customerAccount.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
         select: { ...CUSTOMER_SELECT, passwordHash: true },
       });
       const valid = safeVerifyPassword(password, customer?.passwordHash || null);
@@ -445,6 +506,95 @@ export const createCustomerAccountRouter = (prisma) => {
       const updatedCustomer = await prisma.customerAccount.update({
         where: { id: customer.id },
         data: { lastLoginAt: new Date() },
+        select: CUSTOMER_SELECT,
+      });
+      await setCustomerSession(prisma, res, updatedCustomer);
+      return res.json({ ok: true, customer: toCustomerProfile(updatedCustomer) });
+    })
+  );
+
+  router.post(
+    "/password/forgot",
+    asyncRoute(async (req, res) => {
+      const email = normalizeEmail(req.body?.email);
+      const genericResponse = {
+        ok: true,
+        message: "If that email belongs to a Stroane account, a reset link will be sent.",
+      };
+
+      if (!email) return res.json(genericResponse);
+
+      const customer = await prisma.customerAccount.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { ...CUSTOMER_SELECT, passwordHash: true },
+      });
+      if (!customer || customer.status === "LOCKED" || !customer.passwordHash) {
+        return res.json(genericResponse);
+      }
+
+      const reset = buildPasswordResetData();
+      await prisma.customerAccount.update({
+        where: { id: customer.id },
+        data: {
+          passwordResetTokenHash: reset.tokenHash,
+          passwordResetExpiresAt: reset.expiresAt,
+          passwordResetRequestedAt: new Date(),
+        },
+        select: { id: true },
+      });
+
+      try {
+        await sendCustomerPasswordResetEmail({
+          customer,
+          resetUrl: reset.resetUrl,
+          expiresInMinutes: Math.round(CUSTOMER_PASSWORD_RESET_TTL_MS / 60_000),
+        });
+      } catch (error) {
+        console.warn("Customer password reset email failed", toSafeResetLog(error));
+      }
+
+      return res.json(genericResponse);
+    })
+  );
+
+  router.post(
+    "/password/reset",
+    asyncRoute(async (req, res) => {
+      const token = sanitizeText(req.body?.token, 240);
+      const password = normalizePassword(req.body?.password);
+
+      if (!token) throw createHttpError("Reset link is invalid or expired.", 400);
+      if (!password) {
+        throw createHttpError(
+          "Password must meet every listed requirement.",
+          400,
+          getPasswordRequirementErrors(typeof req.body?.password === "string" ? req.body.password : "")
+        );
+      }
+
+      const customer = await prisma.customerAccount.findFirst({
+        where: {
+          passwordResetTokenHash: hashInviteToken(token),
+          passwordResetExpiresAt: { gt: new Date() },
+          status: { not: "LOCKED" },
+        },
+        select: CUSTOMER_SELECT,
+      });
+      if (!customer) throw createHttpError("Reset link is invalid or expired.", 400);
+
+      const updatedCustomer = await prisma.customerAccount.update({
+        where: { id: customer.id },
+        data: {
+          passwordHash: hashPassword(password),
+          status: "ACTIVE",
+          activatedAt: customer.activatedAt || new Date(),
+          lastLoginAt: new Date(),
+          passwordResetTokenHash: null,
+          passwordResetExpiresAt: null,
+          passwordResetRequestedAt: null,
+          inviteTokenHash: null,
+          inviteExpiresAt: null,
+        },
         select: CUSTOMER_SELECT,
       });
       await setCustomerSession(prisma, res, updatedCustomer);
@@ -571,60 +721,71 @@ export const createAdminCustomerRouter = (prisma) => {
     asyncRoute(async (req, res) => {
       const payload = normalizeProfilePayload({
         ...req.body,
-        password: "temporary-password-for-validation",
+        password: "Temporary-password-1!",
       });
       const shouldCreateInvite = req.body?.createInvite !== false;
       const invite = shouldCreateInvite ? buildInviteData() : null;
-      const existing = await prisma.customerAccount.findUnique({ where: { email: payload.email } });
+      const existing = await prisma.customerAccount.findFirst({
+        where: { email: { equals: payload.email, mode: "insensitive" } },
+      });
 
       if (existing?.status === "LOCKED") {
         throw createHttpError("This customer account is locked.", 409);
       }
 
-      const customer = existing
-        ? await prisma.customerAccount.update({
-            where: { id: existing.id },
-            data: {
-              name: payload.name,
-              phone: payload.phone,
-              businessName: payload.businessName,
-              preferredContactMethod: payload.preferredContactMethod,
-              defaultDeliveryAddress: payload.defaultDeliveryAddress,
-              deliveryNotes: payload.deliveryNotes,
-              ...(existing.status === "ACTIVE"
-                ? {}
-                : { status: "INVITED" }),
-              ...(invite
-                ? {
-                    inviteTokenHash: invite.tokenHash,
-                    inviteExpiresAt: invite.expiresAt,
-                    invitedAt: new Date(),
-                  }
-                : {}),
-            },
-            select: CUSTOMER_SELECT,
-          })
-        : await prisma.customerAccount.create({
-            data: {
-              email: payload.email,
-              name: payload.name,
-              phone: payload.phone,
-              businessName: payload.businessName,
-              preferredContactMethod: payload.preferredContactMethod,
-              defaultDeliveryAddress: payload.defaultDeliveryAddress,
-              deliveryNotes: payload.deliveryNotes,
-              status: "INVITED",
-              createdById: req.authUser?.id || null,
-              ...(invite
-                ? {
-                    inviteTokenHash: invite.tokenHash,
-                    inviteExpiresAt: invite.expiresAt,
-                    invitedAt: new Date(),
-                  }
-                : {}),
-            },
-            select: CUSTOMER_SELECT,
-          });
+      let customer;
+      try {
+        customer = existing
+          ? await prisma.customerAccount.update({
+              where: { id: existing.id },
+              data: {
+                email: payload.email,
+                name: payload.name,
+                phone: payload.phone,
+                businessName: payload.businessName,
+                preferredContactMethod: payload.preferredContactMethod,
+                defaultDeliveryAddress: payload.defaultDeliveryAddress,
+                deliveryNotes: payload.deliveryNotes,
+                ...(existing.status === "ACTIVE"
+                  ? {}
+                  : { status: "INVITED" }),
+                ...(invite
+                  ? {
+                      inviteTokenHash: invite.tokenHash,
+                      inviteExpiresAt: invite.expiresAt,
+                      invitedAt: new Date(),
+                    }
+                  : {}),
+              },
+              select: CUSTOMER_SELECT,
+            })
+          : await prisma.customerAccount.create({
+              data: {
+                email: payload.email,
+                name: payload.name,
+                phone: payload.phone,
+                businessName: payload.businessName,
+                preferredContactMethod: payload.preferredContactMethod,
+                defaultDeliveryAddress: payload.defaultDeliveryAddress,
+                deliveryNotes: payload.deliveryNotes,
+                status: "INVITED",
+                createdById: req.authUser?.id || null,
+                ...(invite
+                  ? {
+                      inviteTokenHash: invite.tokenHash,
+                      inviteExpiresAt: invite.expiresAt,
+                      invitedAt: new Date(),
+                    }
+                  : {}),
+              },
+              select: CUSTOMER_SELECT,
+            });
+      } catch (error) {
+        if (isUniqueFieldError(error, "email")) {
+          throw createHttpError("A customer record already exists for this email.", 409);
+        }
+        throw error;
+      }
 
       await linkOrdersForCustomer(prisma, customer);
       return res.status(201).json({
@@ -714,8 +875,8 @@ export const tryLinkCustomerForOrder = async (prisma, email) => {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail || !prisma.customerAccount?.findUnique) return null;
   try {
-    const customer = await prisma.customerAccount.findUnique({
-      where: { email: normalizedEmail },
+    const customer = await prisma.customerAccount.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
       select: { id: true, email: true, status: true },
     });
     return customer?.status === "LOCKED" ? null : customer;

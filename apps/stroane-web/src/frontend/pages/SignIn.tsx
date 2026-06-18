@@ -1,5 +1,5 @@
 import React, { useState, type FormEvent } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi";
 import { TextField } from "@faako/ui";
 import Layout from "../../components/Layout";
@@ -114,6 +114,12 @@ const SignIn: React.FC = () => {
                 required
               />
 
+              <div className="auth-form__row auth-form__row--right">
+                <Link className="auth-form__link" to="/forgot-password">
+                  Forgot password?
+                </Link>
+              </div>
+
               {error ? (
                 <p className="auth-form__error" role="alert">
                   {error}
@@ -131,7 +137,7 @@ const SignIn: React.FC = () => {
             </form>
 
             <p className="auth-card__alt">
-              New to Stroane? Create your profile from checkout or a Stroane invitation.
+              New to Stroane? <Link to="/signup">Create an account</Link>
             </p>
           </div>
         </div>

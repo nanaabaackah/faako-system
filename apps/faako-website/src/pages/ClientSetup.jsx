@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt,
@@ -37,6 +37,13 @@ const resolveApiEndpoint = (path) => {
 };
 
 const CLIENT_SETUP_ENDPOINT = resolveApiEndpoint("signup");
+
+const createSubmissionIdempotencyKey = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `client_setup_${crypto.randomUUID()}`;
+  }
+  return `client_setup_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+};
 
 const WIZARD_STEPS = [
   { id: "contact", title: "Contact" },
@@ -1291,6 +1298,8 @@ export default function ClientSetup() {
   const [draftStatus, setDraftStatus] = useState(
     "Draft saves automatically on this device."
   );
+  const submitInFlightRef = useRef(false);
+  const submissionKeyRef = useRef(createSubmissionIdempotencyKey());
 
   const activeStep = WIZARD_STEPS[activeStepIndex];
   const selectedServiceIds = getSelectedServiceIds(values);
@@ -1367,6 +1376,8 @@ export default function ClientSetup() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (submitInFlightRef.current) return;
+
     for (const step of WIZARD_STEPS) {
       if (step.id === "review") continue;
       const error = validateStep(step.id, values);
@@ -1378,6 +1389,9 @@ export default function ClientSetup() {
     }
 
     const payload = buildPayload(values, honeypotValue);
+    const idempotencyKey = submissionKeyRef.current || createSubmissionIdempotencyKey();
+    submissionKeyRef.current = idempotencyKey;
+    submitInFlightRef.current = true;
 
     setStatus({
       state: "loading",
@@ -1390,8 +1404,10 @@ export default function ClientSetup() {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          "x-faako-idempotency-key": idempotencyKey,
         },
         body: JSON.stringify({
+          idempotencyKey,
           formType: payload.formType,
           formLabel: payload.formLabel,
           companyName: payload.companyName,
@@ -1428,6 +1444,7 @@ export default function ClientSetup() {
       clearDraft();
       setValues(deepClone(DEFAULT_VALUES));
       setHoneypotValue("");
+      submissionKeyRef.current = createSubmissionIdempotencyKey();
       setActiveStepIndex(0);
       setDraftStatus("Draft cleared after successful submission.");
       setStatus({
@@ -1441,6 +1458,8 @@ export default function ClientSetup() {
         message:
           error.message || "Could not submit the client setup form. Please try again.",
       });
+    } finally {
+      submitInFlightRef.current = false;
     }
   };
 

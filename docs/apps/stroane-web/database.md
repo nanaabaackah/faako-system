@@ -58,9 +58,27 @@ Customer account and CRM fields added on 2026-06-17:
 - `CustomerAccount`
 - `CommerceOrder.customerId`
 
-Migration: `20260617000000_add_customer_accounts_and_crm`
+Migrations: `20260617000000_add_customer_accounts_and_crm`, `20260617000001_add_customer_password_reset`
 
-This migration is additive. Existing orders keep `customerId=null` until a matching customer account is created or staff/customer actions link them by verified email. `CustomerAccount` stores server-side profile details, password hashes, account status, invite token hashes, invite expiry metadata, activation/login timestamps, and an optional `createdById` staff reference. Invite raw tokens are not stored.
+These migrations are additive. Existing orders keep `customerId=null` until a matching customer account is created or staff/customer actions link them by verified email. `CustomerAccount` stores server-side profile details, password hashes, account status, invite token hashes, password-reset token hashes, token expiry metadata, activation/login timestamps, and an optional `createdById` staff reference. Raw invite and password-reset tokens are not stored.
+
+Order delivery-location fields added on 2026-06-18:
+
+- `CommerceOrder.deliveryPlaceId`
+- `CommerceOrder.deliveryLocationLabel`
+- `CommerceOrder.deliveryLocationProvider`
+- `CommerceOrder.deliveryLatitude`
+- `CommerceOrder.deliveryLongitude`
+- `CommerceOrder.deliveryMapUrl`
+
+Migration: `20260618000000_add_order_delivery_location`
+
+This migration is additive. Existing orders keep these fields `null`. New
+delivery orders can store the selected address-search result from the checkout
+GPS/location search flow so staff can review the delivery location and map link
+inside the portal order modal. The existing `deliveryMethod` field remains the
+customer's order type (`delivery` or `pickup`); fulfillment progress remains a
+separate operational status.
 
 ## Admin Inventory API Mapping
 
@@ -145,8 +163,9 @@ and should be followed by removal of the plaintext CSV from local disk.
 - Keep supplier cost notes and purchase/restock notes admin-only.
 - Supplier/inventory admin API routes require backend `SiteUser` auth through the staff cookie, with legacy bearer fallback during transition. Reads allow `ADMIN` and `VIEWER`; writes require `ADMIN`.
 - Customer account/profile/order-history routes require the customer HttpOnly cookie and must filter by authenticated customer. Customer directory routes require staff `SiteUser` auth; reads allow `ADMIN` and `VIEWER`, writes/invites require `ADMIN`.
+- Delivery-location fields are optional order metadata from a customer-selected search result. They should be treated as customer address data and surfaced only through customer-scoped order history or staff-protected order tooling.
 - No destructive schema change is required for the protected admin API foundation.
 - Run `20260530000000_add_catalogue_product_publishing_fields` before deploying the product operations API and `/admin/products` UI.
 - Run `20260531000000_add_inventory_alert_foundation` before enabling inventory alert scans or the owner-alert summary in `/admin/inventory`.
 - Direct file upload and external media-provider metadata remain deferred. Current product media fields store validated local `/imgs/products/` paths.
-- Customer emails are unique in `CustomerAccount`. Use the invite-token hash plus checkout-reference matching flow for account activation rather than allowing open public account creation by arbitrary email.
+- Customer emails are unique in `CustomerAccount` and are treated as the customer account identifier. Backend customer flows normalize submitted emails to lowercase and use case-insensitive lookup before create/update so one logical email cannot create multiple customer accounts. Public signup can create an account directly; invite-token and checkout-reference matching remain optional server-side linking flows and should not expose raw token hashes or payment details.

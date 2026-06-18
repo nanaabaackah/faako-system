@@ -10,6 +10,8 @@ import {
   customerAccountApi,
   type CustomerProfile,
   type CustomerProfileUpdatePayload,
+  type CustomerPasswordResetPayload,
+  type CustomerPasswordResetRequestPayload,
   type CustomerSignupPayload,
 } from "../api/customerAccount";
 
@@ -20,6 +22,8 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<CustomerProfile>;
   signUp: (payload: CustomerSignupPayload) => Promise<CustomerProfile>;
+  requestPasswordReset: (payload: CustomerPasswordResetRequestPayload) => Promise<string>;
+  resetPassword: (payload: CustomerPasswordResetPayload) => Promise<CustomerProfile>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<CustomerProfile | null>;
   updateProfile: (payload: CustomerProfileUpdatePayload) => Promise<CustomerProfile>;
@@ -109,6 +113,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [applyProfile]
   );
 
+  const requestPasswordReset = useCallback(async (payload: CustomerPasswordResetRequestPayload) => {
+    return customerAccountApi.requestPasswordReset(payload);
+  }, []);
+
+  const resetPassword = useCallback(
+    async (payload: CustomerPasswordResetPayload) => {
+      const profile = await customerAccountApi.resetPassword(payload);
+      return applyProfile(profile);
+    },
+    [applyProfile]
+  );
+
   const signOut = useCallback(async () => {
     await customerAccountApi.logout();
     applyProfile(null);
@@ -123,8 +139,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signUp, signOut, refreshProfile, updateProfile }),
-    [loading, refreshProfile, signIn, signOut, signUp, updateProfile, user]
+    () => ({
+      user,
+      loading,
+      signIn,
+      signUp,
+      requestPasswordReset,
+      resetPassword,
+      signOut,
+      refreshProfile,
+      updateProfile,
+    }),
+    [
+      loading,
+      refreshProfile,
+      requestPasswordReset,
+      resetPassword,
+      signIn,
+      signOut,
+      signUp,
+      updateProfile,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

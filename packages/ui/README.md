@@ -18,7 +18,7 @@ Expanded the ERP shell and low-risk presentation foundation with reusable wrappe
 - `src/ErpNavSidebar.tsx` and `src/ErpBottomNav.tsx`: registry-friendly navigation primitives.
 - `src/components/Primitives.tsx`: shared page/card/button/status primitives plus low-risk ERP panel, panel header, section header, stack, and form-group wrappers.
 - `src/components/Fields.tsx`: shared field controls and typed option parsing for display/input surfaces, including branded dropdown, calendar-date, month, and time selectors.
-- `src/components/ERPTable.tsx`: shared ERP table foundation, toolbar/search/filter/action wrappers, controlled pagination, empty/loading states, and visual status badges.
+- `src/components/ERPTable.tsx`: shared ERP table foundation, toolbar/search/filter/action wrappers, controlled pagination with icon-only previous/next arrow buttons, empty/loading states, and visual status badges.
 - `src/components/ERPForm.tsx`: shared ERP form foundation, section/row/action wrappers, field groups, common input/select/date/textarea/search-select controls, validation messages, and notices.
 - `src/components/ERPActions.tsx`: shared action bars, button groups, primary/secondary/danger action buttons, and icon actions with loading/disabled states.
 - `src/components/ERPModal.tsx`: shared modal, drawer, and confirm-dialog shells with accessible labels and Escape-key close support.
@@ -68,7 +68,7 @@ The shell supports registry-driven navigation metadata, optional `sidebarMarkUrl
 
 The ERP panel/form wrappers intentionally keep legacy class names such as `panel-grid`, `panel`, `panel-header`, `stack`, and `form-field` so apps can adopt them without changing existing CSS or business behavior.
 
-The ERP table components are presentation-only. Apps pass prepared rows, columns, search/filter controls, pagination state, row actions, and status labels. The shared components do not fetch data, filter data, mutate records, enforce permissions, or own workflow validation.
+The ERP table components are presentation-only. Apps pass prepared rows, columns, search/filter controls, pagination state, row actions, and status labels. Shared pagination renders compact arrow buttons while preserving accessible previous/next labels. The shared components do not fetch data, filter data, mutate records, enforce permissions, or own workflow validation.
 
 The ERP form components are presentation-only. Apps own form state, validation rules, submit handlers, API calls, permissions, and workflow side effects. Start adoption with settings, profile, simple filters, and read-only/edit-light admin forms; keep payments, bookings, POS checkout, inventory stock adjustments, auth, and other workflow-heavy forms app-owned until separately reviewed.
 
@@ -84,7 +84,7 @@ The component accepts optional `className` and `style` props so apps can apply a
 
 ## Browser And Mobile Rendering
 
-Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. `SelectField`, `DateField`, `MonthField`, and `TimeField` render branded triggers and popovers while keeping hidden native form controls for value semantics. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
+Shared UI form/action controls intentionally reset unwanted native browser styling where the component owns the visual surface. Buttons, ERP actions, icon buttons, field controls, selects, search fields, date/dropdown triggers, and dropdown options use inherited fonts, theme tokens, `appearance: none`, `-webkit-appearance: none`, visible focus states, and touch-friendly sizing. `SelectField`, `DateField`, `MonthField`, and `TimeField` render branded triggers and popovers while keeping hidden native form controls for value semantics. Shared dropdown and date popovers render above ERP modal/drawer backdrops so selects and calendars remain clickable inside lightbox workflows. Shared app screens, dropdown lists, and maintenance pages keep `vh` fallbacks with `dvh` overrides so mobile browser toolbars do not crop important UI.
 
 Shared ERP field wrappers associate visible labels with their inputs, selects, and textareas. Keep using the provided `label` prop so keyboard users, assistive technology, and browser automation receive the same accessible field name.
 

@@ -3,6 +3,7 @@ const { Pool } = require("pg");
 const { resolveDatabaseUrl } = require("./runtimeConfig.cjs");
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9_-]{16,120}$/;
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS_PER_IP = 20;
@@ -17,6 +18,7 @@ const RESEND_FROM_EMAIL =
     : "Faako <faako@nanaabaackah.com>");
 const INTAKE_ADMIN_EMAIL =
   process.env.INTAKE_ADMIN_EMAIL || process.env.FAAKO_ONBOARDING_ADMIN_EMAIL;
+const APP_ACTIVITY_WEBHOOK_PATH = "/api/webhooks/app-activity";
 
 const DEFAULT_ALLOWED_ORIGIN = "https://faako.nanaabaackah.com";
 
@@ -48,6 +50,82 @@ const normalizeText = (value, maxLength = 2000) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, maxLength) : null;
+};
+
+const resolveAppActivityWebhookUrl = () => {
+  const directUrl = normalizeText(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_URL || process.env.APP_ACTIVITY_WEBHOOK_URL,
+    500
+  );
+  if (directUrl) return directUrl;
+
+  const baseUrl = normalizeText(
+    process.env.DEV_ERP_API_BASE_URL || process.env.DEV_API_BASE_URL,
+    500
+  );
+  if (!baseUrl) return "";
+
+  try {
+    return new URL(APP_ACTIVITY_WEBHOOK_PATH, baseUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const getAppActivityWebhookSecret = () =>
+  normalizeText(
+    process.env.DEV_ERP_ACTIVITY_WEBHOOK_SECRET || process.env.APP_ACTIVITY_WEBHOOK_SECRET,
+    500
+  );
+
+const emitAppActivityEvent = async ({
+  action,
+  category = "onboarding",
+  severity = "info",
+  status = "ok",
+  targetType = "signup_request",
+  targetId = "",
+  summary = "",
+  requestId = "",
+  metadata = {},
+} = {}) => {
+  const webhookUrl = resolveAppActivityWebhookUrl();
+  const webhookSecret = getAppActivityWebhookSecret();
+  if (!webhookUrl || !webhookSecret || typeof fetch !== "function") return;
+
+  try {
+    const webhookResponse = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${webhookSecret}`,
+      },
+      body: JSON.stringify({
+        appKey: "faako-api",
+        eventId: requestId ? `faako-api:${action}:${requestId}` : undefined,
+        action,
+        category,
+        severity,
+        status,
+        targetType,
+        targetId,
+        actorType: "system",
+        actorLabel: "Faako API",
+        requestId,
+        summary,
+        metadata: {
+          environment: process.env.APP_ENV || process.env.NODE_ENV || "development",
+          ...metadata,
+        },
+      }),
+    });
+
+    if (!webhookResponse.ok) {
+      console.warn("Dev ERP activity webhook rejected Faako API event:", webhookResponse.status);
+    }
+  } catch (error) {
+    console.warn("Dev ERP activity webhook failed for Faako API event:", error?.message || error);
+  }
 };
 
 const normalizeEmail = (value) => {
@@ -176,7 +254,7 @@ const buildHeaders = (event) => {
     "content-type": "application/json",
     "cache-control": "no-store",
     "access-control-allow-methods": "POST, OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type, x-faako-idempotency-key",
     "x-content-type-options": "nosniff",
   };
 
@@ -204,6 +282,11 @@ const getClientIp = (event) => {
     "unknown";
 
   return String(forwarded).split(",")[0].trim();
+};
+
+const normalizeIdempotencyKey = (value) => {
+  const normalized = normalizeText(value, 140);
+  return normalized && IDEMPOTENCY_KEY_PATTERN.test(normalized) ? normalized : null;
 };
 
 const consumeRateLimit = (key, limit) => {
@@ -682,7 +765,56 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
     throw new Error(text || "Resend email request failed");
   }
 
-  return text;
+  let providerResponse = null;
+  try {
+    providerResponse = text ? JSON.parse(text) : null;
+  } catch {
+    providerResponse = text || null;
+  }
+
+  return {
+    intendedRecipient: delivery.intendedRecipient,
+    deliveryRecipient: delivery.deliveryRecipient,
+    wasRerouted: delivery.wasRerouted,
+    providerId:
+      providerResponse && typeof providerResponse === "object"
+        ? providerResponse.id || providerResponse?.data?.id || null
+        : null,
+    providerResponse,
+  };
+};
+
+const updateSignupRequestDeliveryMetadata = async (requestId, metadata) => {
+  const dbClient = await getPool().connect();
+  try {
+    const columns = await getPublicTableColumns(dbClient, "SignupRequest");
+    const updates = [];
+    const values = [];
+
+    if (columns.has("emailDelivery")) {
+      values.push(JSON.stringify(metadata.emailDelivery || null));
+      updates.push(`"emailDelivery" = $${values.length}`);
+    }
+    if (columns.has("pdfSummary")) {
+      values.push(JSON.stringify(metadata.pdfSummary || null));
+      updates.push(`"pdfSummary" = $${values.length}`);
+    }
+    if (columns.has("updatedAt")) {
+      updates.push('"updatedAt" = NOW()');
+    }
+
+    if (!updates.length) return;
+
+    values.push(requestId);
+    await dbClient.query(
+      `UPDATE "SignupRequest" SET ${updates.join(", ")} WHERE "id" = $${values.length}`,
+      values
+    );
+  } catch (error) {
+    console.warn("Unable to update signup delivery metadata:", error?.message || error);
+  } finally {
+    dbClient.release();
+  }
 };
 
 const insertSignupRequestCompat = async (dbClient, submission) => {
@@ -739,13 +871,17 @@ const insertSignupRequestCompat = async (dbClient, submission) => {
     placeholders.push("NOW()");
   }
 
-  await dbClient.query(
+  const insertResult = await dbClient.query(
     `
       INSERT INTO "SignupRequest" (${insertColumns.join(", ")})
       VALUES (${placeholders.join(", ")})
+      ON CONFLICT ("id") DO NOTHING
+      RETURNING "id"
     `,
     insertValues
   );
+
+  return Boolean(insertResult.rows[0]?.id);
 };
 
 exports.handler = async (event) => {
@@ -876,9 +1012,12 @@ exports.handler = async (event) => {
     };
   }
 
+  const clientIdempotencyKey =
+    normalizeIdempotencyKey(getHeaderValue(event.headers, "x-faako-idempotency-key")) ||
+    normalizeIdempotencyKey(payload.idempotencyKey);
+  const requestId = clientIdempotencyKey || crypto.randomUUID();
   const dbClient = await getPool().connect();
 
-  const requestId = crypto.randomUUID();
   let organizationId = null;
   let userId = null;
 
@@ -914,6 +1053,21 @@ exports.handler = async (event) => {
   };
 
   try {
+    if (clientIdempotencyKey) {
+      const existingRequest = await dbClient.query(
+        `SELECT "id" FROM "SignupRequest" WHERE "id" = $1 LIMIT 1`,
+        [requestId]
+      );
+      if (existingRequest.rows[0]) {
+        return response(event, 202, {
+          ok: true,
+          message: "Signup received",
+          requestId,
+          duplicate: true,
+        });
+      }
+    }
+
     await dbClient.query("BEGIN");
 
     const canPersistIdentityGraph =
@@ -993,11 +1147,21 @@ exports.handler = async (event) => {
       }
     }
 
-    await insertSignupRequestCompat(dbClient, {
+    const insertedSignupRequest = await insertSignupRequestCompat(dbClient, {
       ...submission,
       organizationId,
       userId,
     });
+
+    if (!insertedSignupRequest) {
+      await dbClient.query("COMMIT");
+      return response(event, 202, {
+        ok: true,
+        message: "Signup received",
+        requestId,
+        duplicate: true,
+      });
+    }
 
     await dbClient.query("COMMIT");
   } catch (error) {
@@ -1038,10 +1202,11 @@ exports.handler = async (event) => {
   });
 
   const rows = buildSubmissionRows(submission, { includeAllFields: true });
+  const deliveryAttempts = [];
 
   try {
     if (INTAKE_ADMIN_EMAIL) {
-      await sendEmail({
+      const adminDelivery = await sendEmail({
         to: INTAKE_ADMIN_EMAIL,
         subject: `[Faako] New ${submission.formLabel} - ${companyName}`,
         html: buildEmailLayout({
@@ -1052,9 +1217,18 @@ exports.handler = async (event) => {
         }),
         attachments: [pdfAttachment],
       });
+      deliveryAttempts.push({
+        type: "admin_copy",
+        status: adminDelivery ? "sent" : "skipped",
+        intendedRecipient: adminDelivery?.intendedRecipient || INTAKE_ADMIN_EMAIL,
+        deliveryRecipient: adminDelivery?.deliveryRecipient || null,
+        wasRerouted: Boolean(adminDelivery?.wasRerouted),
+        providerId: adminDelivery?.providerId || null,
+        attemptedAt: new Date().toISOString(),
+      });
     }
 
-    await sendEmail({
+    const clientDelivery = await sendEmail({
       to: email,
       subject: `Faako ${submission.formLabel.toLowerCase()} received`,
       html: buildEmailLayout({
@@ -1066,11 +1240,63 @@ exports.handler = async (event) => {
       }),
       attachments: [pdfAttachment],
     });
+    deliveryAttempts.push({
+      type: "client_copy",
+      status: clientDelivery ? "sent" : "skipped",
+      intendedRecipient: clientDelivery?.intendedRecipient || email,
+      deliveryRecipient: clientDelivery?.deliveryRecipient || null,
+      wasRerouted: Boolean(clientDelivery?.wasRerouted),
+      providerId: clientDelivery?.providerId || null,
+      attemptedAt: new Date().toISOString(),
+    });
   } catch (emailError) {
+    deliveryAttempts.push({
+      type: "email_delivery",
+      status: "failed",
+      error: emailError?.message || "Unable to send email copy.",
+      attemptedAt: new Date().toISOString(),
+    });
     console.error("Signup email send failed:", {
       message: emailError?.message,
     });
   }
+
+  await updateSignupRequestDeliveryMetadata(requestId, {
+    emailDelivery: {
+      status: deliveryAttempts.some((attempt) => attempt.status === "failed")
+        ? "failed"
+        : deliveryAttempts.some((attempt) => attempt.status === "sent")
+          ? "sent"
+          : "not_configured",
+      attempts: deliveryAttempts,
+      updatedAt: new Date().toISOString(),
+    },
+    pdfSummary: {
+      fileName: pdfAttachment.filename,
+      generatedAt: submission.submittedAt,
+      stored: false,
+      downloadPath: null,
+      note: "Generated as an email attachment; no stored PDF copy is available.",
+    },
+  });
+  void emitAppActivityEvent({
+    action: "signup_request_received",
+    status: deliveryAttempts.some((attempt) => attempt.status === "failed") ? "warning" : "ok",
+    severity: deliveryAttempts.some((attempt) => attempt.status === "failed") ? "warning" : "info",
+    targetId: requestId,
+    requestId,
+    summary: `Faako ${submission.formLabel.toLowerCase()} was received.`,
+    metadata: {
+      formType: submission.formType,
+      packageTier: submission.packageTier,
+      requestedModuleCount: submission.requestedModules.length,
+      emailDeliveryStatus: deliveryAttempts.some((attempt) => attempt.status === "failed")
+        ? "failed"
+        : deliveryAttempts.some((attempt) => attempt.status === "sent")
+          ? "sent"
+          : "not_configured",
+    },
+  });
 
   return response(event, 202, {
     ok: true,

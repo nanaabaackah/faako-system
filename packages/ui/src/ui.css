@@ -1032,7 +1032,7 @@
 }
 
 .ui-date-field__popover {
-  z-index: 1100;
+  z-index: 1300;
   display: grid;
   gap: 0.85rem;
   padding: 0.95rem;
@@ -1238,7 +1238,7 @@
 }
 
 .ui-dropdown-field__popover {
-  z-index: 1100;
+  z-index: 1300;
   padding: 0.5rem;
   border: 1px solid var(--sys-border);
   border-radius: 1.15rem;
@@ -3104,13 +3104,24 @@
 }
 
 .ui-erp-table-pagination button {
-  min-height: 2.35rem;
+  display: inline-grid;
+  width: 2.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  min-height: 2.2rem;
+  place-items: center;
   border: 1px solid var(--sys-border);
-  border-radius: 999px;
+  border-radius: var(--sys-radius-sm);
   background: var(--sys-surface-strong);
   color: var(--sys-text);
-  padding: 0.45rem 0.85rem;
+  padding: 0;
   cursor: pointer;
+}
+
+.ui-erp-table-pagination__arrow {
+  width: 1rem;
+  height: 1rem;
+  pointer-events: none;
 }
 
 .ui-erp-table-pagination button:disabled {

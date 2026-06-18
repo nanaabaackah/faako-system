@@ -2,12 +2,15 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
 import {
   HiOutlineCash,
   HiOutlineCheckCircle,
+  HiOutlineChevronLeft,
+  HiOutlineChevronRight,
   HiOutlineClipboardList,
   HiOutlineCreditCard,
   HiOutlineExternalLink,
@@ -21,6 +24,7 @@ import {
 } from "react-icons/hi";
 import {
   DateField,
+  ERPIconAction,
   ERPFormNotice,
   ERPModal,
   ERPPrimaryAction,
@@ -92,6 +96,12 @@ const FULFILLMENT_OPTIONS = [
 
 const FULFILLMENT_EDIT_OPTIONS = FULFILLMENT_OPTIONS.filter((option) => option.value);
 
+const DELIVERY_METHOD_OPTIONS = [
+  { value: "", label: "Method not set" },
+  { value: "delivery", label: "Delivery" },
+  { value: "pickup", label: "Pickup" },
+];
+
 const CONTACT_METHOD_OPTIONS = [
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
@@ -118,6 +128,9 @@ const formatLabel = (value = "") =>
   String(value || "not set")
     .replace(/[_-]/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDeliveryMethod = (value?: string | null) =>
+  value ? formatLabel(value) : "Method not set";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Not recorded";
@@ -200,6 +213,38 @@ const buildOrderEditDraft = (order: AdminOrder | null) => ({
   internalNotes: order?.internalNotes || "",
 });
 
+type OrderEditDraft = ReturnType<typeof buildOrderEditDraft>;
+type AutosaveStatus = "idle" | "saving" | "saved" | "error";
+
+const areOrderDraftsEqual = (left: OrderEditDraft, right: OrderEditDraft) =>
+  left.status === right.status &&
+  left.fulfillmentStatus === right.fulfillmentStatus &&
+  left.deliveryMethod === right.deliveryMethod &&
+  left.expectedDeliveryDate === right.expectedDeliveryDate &&
+  left.adminDeliveryNotes === right.adminDeliveryNotes &&
+  left.internalNotes === right.internalNotes;
+
+const getOrderMapQuery = (order: AdminOrder | null) => {
+  if (!order) return "";
+  const location = order.deliveryLocation;
+  if (location?.latitude != null && location?.longitude != null) {
+    return `${location.latitude},${location.longitude}`;
+  }
+  return location?.address || location?.label || order.customer.deliveryAddress || "";
+};
+
+const getOrderMapUrls = (order: AdminOrder | null) => {
+  const query = getOrderMapQuery(order);
+  if (!query) return { embedUrl: "", externalUrl: "" };
+  const encodedQuery = encodeURIComponent(query);
+  return {
+    embedUrl: `https://maps.google.com/maps?q=${encodedQuery}&z=15&output=embed`,
+    externalUrl:
+      order?.deliveryLocation?.mapUrl ||
+      `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`,
+  };
+};
+
 const OrderManagement: React.FC = () => {
   const { session } = useAdminPortal();
   const canManageOrders = String(session?.role || "").toUpperCase() === "ADMIN";
@@ -223,8 +268,13 @@ const OrderManagement: React.FC = () => {
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState<ManualOrderDraft>(EMPTY_MANUAL_DRAFT);
   const [orderDraft, setOrderDraft] = useState(buildOrderEditDraft(null));
+  const [orderDraftOrderId, setOrderDraftOrderId] = useState("");
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  const [autosaveError, setAutosaveError] = useState("");
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
   const [pageIndex, setPageIndex] = useState(0);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(() => new Set());
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useSEOMeta({
     title: "Orders | Stroane operations",
@@ -253,6 +303,15 @@ const OrderManagement: React.FC = () => {
     () => orders.find((order) => order.id === selectedOrderId) || null,
     [orders, selectedOrderId]
   );
+  const selectedOrderIndex = useMemo(
+    () => orders.findIndex((order) => order.id === selectedOrderId),
+    [orders, selectedOrderId]
+  );
+  const selectedOrderPosition =
+    selectedOrderIndex >= 0 ? `${selectedOrderIndex + 1} of ${orders.length}` : "";
+  const canGoPreviousOrder = selectedOrderIndex > 0;
+  const canGoNextOrder = selectedOrderIndex >= 0 && selectedOrderIndex < orders.length - 1;
+  const selectedOrderMap = useMemo(() => getOrderMapUrls(selectedOrder), [selectedOrder]);
 
   const pageCount = Math.max(1, Math.ceil(orders.length / ORDER_PAGE_SIZE));
   const clampedPageIndex = Math.min(pageIndex, pageCount - 1);
@@ -264,6 +323,32 @@ const OrderManagement: React.FC = () => {
       ),
     [clampedPageIndex, orders]
   );
+  const toggleOrderSelection = useCallback((orderId: string) => {
+    setSelectedOrderIds((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  }, []);
+  const toggleOrderPageSelection = useCallback(() => {
+    setSelectedOrderIds((current) => {
+      const next = new Set(current);
+      const allPageSelected =
+        paginatedOrders.length > 0 && paginatedOrders.every((order) => next.has(order.id));
+      paginatedOrders.forEach((order) => {
+        if (allPageSelected) {
+          next.delete(order.id);
+        } else {
+          next.add(order.id);
+        }
+      });
+      return next;
+    });
+  }, [paginatedOrders]);
 
   const manualDraftTotal = useMemo(
     () =>
@@ -344,7 +429,18 @@ const OrderManagement: React.FC = () => {
   }, [pageCount, pageIndex]);
 
   useEffect(() => {
+    const orderIds = new Set(orders.map((order) => order.id));
+    setSelectedOrderIds((current) => {
+      const next = new Set(Array.from(current).filter((orderId) => orderIds.has(orderId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [orders]);
+
+  useEffect(() => {
     setOrderDraft(buildOrderEditDraft(selectedOrder));
+    setOrderDraftOrderId(selectedOrder?.id || "");
+    setAutosaveStatus("idle");
+    setAutosaveError("");
   }, [selectedOrder]);
 
   const openOrder = (orderId: string) => {
@@ -356,6 +452,66 @@ const OrderManagement: React.FC = () => {
   const closeOrder = () => {
     setSelectedOrderId("");
     setPaymentAction("");
+  };
+
+  const saveOrderDraft = useCallback(
+    async (mode: "manual" | "autosave" = "manual") => {
+      if (!session || !selectedOrder || !canManageOrders) return null;
+      if (orderDraftOrderId !== selectedOrder.id) return null;
+      const baseline = buildOrderEditDraft(selectedOrder);
+      if (areOrderDraftsEqual(orderDraft, baseline)) return selectedOrder;
+
+      if (mode === "manual") {
+        setSaving(true);
+        setNotice("");
+      } else {
+        setAutosaveStatus("saving");
+        setAutosaveError("");
+      }
+      setError("");
+
+      try {
+        const data = await adminOrdersApi.updateOrder(session, selectedOrder.id, {
+          status: orderDraft.status,
+          fulfillmentStatus: orderDraft.fulfillmentStatus,
+          deliveryMethod: orderDraft.deliveryMethod,
+          expectedDeliveryDate: orderDraft.expectedDeliveryDate,
+          adminDeliveryNotes: orderDraft.adminDeliveryNotes,
+          internalNotes: orderDraft.internalNotes,
+        });
+        replaceOrder(data.order);
+        if (mode === "manual") {
+          setNotice(`${data.order.orderNumber} updated.`);
+        } else {
+          setAutosaveStatus("saved");
+        }
+        return data.order;
+      } catch (saveError) {
+        const message = saveError instanceof Error ? saveError.message : "Unable to update order.";
+        if (mode === "manual") {
+          setError(message);
+        } else {
+          setAutosaveStatus("error");
+          setAutosaveError(message);
+        }
+        return null;
+      } finally {
+        if (mode === "manual") setSaving(false);
+      }
+    },
+    [canManageOrders, orderDraft, orderDraftOrderId, replaceOrder, selectedOrder, session]
+  );
+
+  const openAdjacentOrder = async (direction: -1 | 1) => {
+    if (selectedOrderIndex < 0) return;
+    const nextOrder = orders[selectedOrderIndex + direction];
+    if (!nextOrder) return;
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    await saveOrderDraft("autosave");
+    setSelectedOrderId(nextOrder.id);
   };
 
   const handleManualLineChange = (
@@ -458,27 +614,7 @@ const OrderManagement: React.FC = () => {
 
   const handleSaveOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!session || !selectedOrder || !canManageOrders) return;
-    setSaving(true);
-    setError("");
-    setNotice("");
-
-    try {
-      const data = await adminOrdersApi.updateOrder(session, selectedOrder.id, {
-        status: orderDraft.status,
-        fulfillmentStatus: orderDraft.fulfillmentStatus,
-        deliveryMethod: orderDraft.deliveryMethod,
-        expectedDeliveryDate: orderDraft.expectedDeliveryDate,
-        adminDeliveryNotes: orderDraft.adminDeliveryNotes,
-        internalNotes: orderDraft.internalNotes,
-      });
-      replaceOrder(data.order);
-      setNotice(`${data.order.orderNumber} updated.`);
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to update order.");
-    } finally {
-      setSaving(false);
-    }
+    await saveOrderDraft("manual");
   };
 
   const handleInitializePaystack = async () => {
@@ -524,6 +660,32 @@ const OrderManagement: React.FC = () => {
       setPaymentAction("");
     }
   };
+
+  useEffect(() => {
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (!selectedOrder || !canManageOrders || orderDraftOrderId !== selectedOrder.id) return undefined;
+    const baseline = buildOrderEditDraft(selectedOrder);
+    if (areOrderDraftsEqual(orderDraft, baseline)) {
+      if (autosaveStatus !== "saved") setAutosaveStatus("idle");
+      return undefined;
+    }
+
+    setAutosaveStatus("idle");
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void saveOrderDraft("autosave");
+    }, 900);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
+  }, [autosaveStatus, canManageOrders, orderDraft, orderDraftOrderId, saveOrderDraft, selectedOrder]);
 
   if (!session) return null;
 
@@ -650,6 +812,17 @@ const OrderManagement: React.FC = () => {
           ) : null}
         </div>
 
+        {selectedOrderIds.size ? (
+          <div className="stroane-orders__bulk-bar" role="region" aria-label="Selected orders">
+            <span>
+              <strong>{selectedOrderIds.size}</strong> selected
+            </span>
+            <ERPSecondaryAction size="sm" onClick={() => setSelectedOrderIds(new Set())}>
+              Clear selection
+            </ERPSecondaryAction>
+          </div>
+        ) : null}
+
         <div className="stroane-orders__admin-table admin-table admin-table-scroll">
           <ERPTablePagination
             className="stroane-orders__pagination"
@@ -662,17 +835,33 @@ const OrderManagement: React.FC = () => {
           />
           <table className="stroane-orders__table">
             <colgroup>
+              <col className="stroane-orders__col-select" />
+              <col className="stroane-orders__col-number" />
               <col className="stroane-orders__col-order" />
               <col className="stroane-orders__col-customer" />
               <col className="stroane-orders__col-source" />
               <col className="stroane-orders__col-payment" />
               <col className="stroane-orders__col-fulfillment" />
-              <col className="stroane-orders__col-total" />
               <col className="stroane-orders__col-created" />
+              <col className="stroane-orders__col-total" />
               <col className="stroane-orders__col-actions" />
             </colgroup>
             <thead>
               <tr>
+                <th className="portal-table-select-cell" aria-label="Select orders">
+                  <input
+                    type="checkbox"
+                    className="portal-table-checkbox"
+                    checked={
+                      paginatedOrders.length > 0 &&
+                      paginatedOrders.every((order) => selectedOrderIds.has(order.id))
+                    }
+                    onChange={toggleOrderPageSelection}
+                    disabled={!paginatedOrders.length}
+                    aria-label="Select all orders on this page"
+                  />
+                </th>
+                <th className="portal-table-number-cell">#</th>
                 <th>Order</th>
                 <th>Customer</th>
                 <th>Source</th>
@@ -686,22 +875,23 @@ const OrderManagement: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="stroane-orders__table-empty">
+                  <td colSpan={10} className="stroane-orders__table-empty">
                     Loading orders...
                   </td>
                 </tr>
               ) : null}
               {!loading && !orders.length ? (
                 <tr>
-                  <td colSpan={8} className="stroane-orders__table-empty">
+                  <td colSpan={10} className="stroane-orders__table-empty">
                     No orders match the current view.
                   </td>
                 </tr>
               ) : null}
               {!loading
-                ? paginatedOrders.map((order) => (
+                ? paginatedOrders.map((order, index) => (
                     <tr
                       key={order.id}
+                      className={selectedOrderIds.has(order.id) ? "is-bulk-selected" : ""}
                       onClick={() => openOrder(order.id)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -711,6 +901,23 @@ const OrderManagement: React.FC = () => {
                       }}
                       tabIndex={0}
                     >
+                      <td
+                        className="portal-table-select-cell"
+                        data-label="Select"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          className="portal-table-checkbox"
+                          checked={selectedOrderIds.has(order.id)}
+                          onChange={() => toggleOrderSelection(order.id)}
+                          aria-label={`Select ${order.orderNumber}`}
+                        />
+                      </td>
+                      <td className="portal-table-number-cell" data-label="#">
+                        {clampedPageIndex * ORDER_PAGE_SIZE + index + 1}
+                      </td>
                       <td data-label="Order">
                         <span className="stroane-orders__order-cell">
                           <strong>{order.orderNumber}</strong>
@@ -728,9 +935,14 @@ const OrderManagement: React.FC = () => {
                         </ERPStatusBadge>
                       </td>
                       <td data-label="Fulfillment">
-                        <ERPStatusBadge tone={getFulfillmentTone(order.fulfillmentStatus || "")}>
-                          {formatLabel(order.fulfillmentStatus || "new")}
-                        </ERPStatusBadge>
+                        <span
+                          className="stroane-orders__fulfillment-cell"
+                          title={`${formatDeliveryMethod(order.deliveryMethod)} · ${formatLabel(
+                            order.fulfillmentStatus || "new"
+                          )}`}
+                        >
+                          <strong>{formatDeliveryMethod(order.deliveryMethod)}</strong>
+                        </span>
                       </td>
                       <td data-label="Created">{formatDateTime(order.createdAt)}</td>
                       <td data-label="Total">{formatMoney(order.total, order.currency)}</td>
@@ -739,17 +951,21 @@ const OrderManagement: React.FC = () => {
                         className="stroane-orders__actions-cell"
                         onClick={(event) => event.stopPropagation()}
                       >
-                        {order.paymentReference ? (
-                          <ERPSecondaryAction
-                            size="sm"
-                            icon={<HiOutlineRefresh />}
-                            onClick={() => void handleRefreshPaystack(order.id)}
-                            disabled={!canManageOrders || paymentAction === order.id}
-                            loading={paymentAction === order.id}
-                            loadingLabel="Checking"
-                          >
-                          </ERPSecondaryAction>
-                        ) : null}
+                        <span className="stroane-orders__row-actions">
+                          {order.paymentReference ? (
+                            <ERPIconAction
+                              size="sm"
+                              className="stroane-orders__paystack-sync"
+                              label={`Refresh Paystack status for ${order.orderNumber}`}
+                              title={`Refresh Paystack status for ${order.orderNumber}`}
+                              onClick={() => void handleRefreshPaystack(order.id)}
+                              disabled={!canManageOrders || paymentAction === order.id}
+                              loading={paymentAction === order.id}
+                            >
+                              <HiOutlineRefresh aria-hidden="true" />
+                            </ERPIconAction>
+                          ) : null}
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -758,11 +974,13 @@ const OrderManagement: React.FC = () => {
             {orders.length ? (
               <tfoot className="admin-table-footer">
                 <tr>
+                  <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-count">
                     <span className="admin-table-summary-value">
                       {paginatedOrders.length} orders
                     </span>
                   </td>
+                  <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
@@ -808,13 +1026,32 @@ const OrderManagement: React.FC = () => {
       >
         {selectedOrder ? (
           <div className="stroane-orders__detail-grid">
+            <div className="stroane-orders__modal-nav">
+              <ERPIconAction
+                size="sm"
+                label="Previous order"
+                onClick={() => void openAdjacentOrder(-1)}
+                disabled={!canGoPreviousOrder || autosaveStatus === "saving"}
+              >
+                <HiOutlineChevronLeft aria-hidden="true" />
+              </ERPIconAction>
+              <span>{selectedOrderPosition}</span>
+              <ERPIconAction
+                size="sm"
+                label="Next order"
+                onClick={() => void openAdjacentOrder(1)}
+                disabled={!canGoNextOrder || autosaveStatus === "saving"}
+              >
+                <HiOutlineChevronRight aria-hidden="true" />
+              </ERPIconAction>
+            </div>
             <section className="stroane-orders__detail-panel">
               <div className="stroane-orders__status-row">
                 <ERPStatusBadge tone={getOrderTone(selectedOrder.status)}>
                   {formatLabel(selectedOrder.status)}
                 </ERPStatusBadge>
-                <ERPStatusBadge tone={getPaymentTone(selectedOrder.paymentStatus || "")}>
-                  {formatLabel(selectedOrder.paymentStatus || "not_started")}
+                <ERPStatusBadge tone={selectedOrder.deliveryMethod ? "info" : "neutral"}>
+                  {formatDeliveryMethod(selectedOrder.deliveryMethod)}
                 </ERPStatusBadge>
                 <ERPStatusBadge tone={getFulfillmentTone(selectedOrder.fulfillmentStatus || "")}>
                   {formatLabel(selectedOrder.fulfillmentStatus || "new")}
@@ -846,6 +1083,40 @@ const OrderManagement: React.FC = () => {
                 <p>{selectedOrder.customer.deliveryAddress}</p>
               </div>
 
+              {selectedOrderMap.embedUrl ? (
+                <div className="stroane-orders__delivery-map">
+                  <div>
+                    <span>
+                      {selectedOrder.deliveryMethod === "pickup"
+                        ? "Pickup location"
+                        : "Delivery location"}
+                    </span>
+                    <strong>
+                      {selectedOrder.deliveryLocation?.label ||
+                        selectedOrder.customer.deliveryAddress}
+                    </strong>
+                    {selectedOrder.deliveryLocation?.provider ? (
+                      <small>{formatLabel(selectedOrder.deliveryLocation.provider)}</small>
+                    ) : null}
+                  </div>
+                  <iframe
+                    title={`Map for ${selectedOrder.orderNumber}`}
+                    src={selectedOrderMap.embedUrl}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                  <a
+                    href={selectedOrderMap.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="stroane-orders__map-link"
+                  >
+                    <HiOutlineExternalLink aria-hidden="true" />
+                    <span>Open in maps</span>
+                  </a>
+                </div>
+              ) : null}
+
               <div className="stroane-orders__line-list">
                 {selectedOrder.items.map((item) => (
                   <div key={`${item.productSlug}-${item.sku || item.productName}`}>
@@ -861,6 +1132,19 @@ const OrderManagement: React.FC = () => {
                 ))}
               </div>
 
+              <div className="stroane-orders__payment-summary">
+                <span>
+                  <small>Payment status</small>
+                  <ERPStatusBadge tone={getPaymentTone(selectedOrder.paymentStatus || "")}>
+                    {formatLabel(selectedOrder.paymentStatus || "not_started")}
+                  </ERPStatusBadge>
+                </span>
+                <span>
+                  <small>Provider</small>
+                  <strong>{formatLabel(selectedOrder.paymentProvider || "paystack")}</strong>
+                </span>
+              </div>
+
               <div className="stroane-orders__payment-actions">
                 <ERPPrimaryAction
                   icon={<HiOutlineCreditCard />}
@@ -868,7 +1152,7 @@ const OrderManagement: React.FC = () => {
                   disabled={
                     !canManageOrders ||
                     selectedOrder.paymentStatus === "paid" ||
-                    paymentAction === "initialize"
+                    Boolean(paymentAction)
                   }
                   loading={paymentAction === "initialize"}
                   loadingLabel="Creating"
@@ -878,7 +1162,7 @@ const OrderManagement: React.FC = () => {
                 <ERPSecondaryAction
                   icon={<HiOutlineRefresh />}
                   onClick={() => void handleRefreshPaystack(selectedOrder.id)}
-                  disabled={!canManageOrders || !selectedOrder.paymentReference || paymentAction === selectedOrder.id}
+                  disabled={!canManageOrders || !selectedOrder.paymentReference || Boolean(paymentAction)}
                   loading={paymentAction === selectedOrder.id}
                   loadingLabel="Checking"
                 >
@@ -916,7 +1200,7 @@ const OrderManagement: React.FC = () => {
                   options={ORDER_EDIT_STATUS_OPTIONS}
                 />
                 <SelectField
-                  label="Fulfillment"
+                  label="Fulfillment status"
                   value={orderDraft.fulfillmentStatus}
                   onChangeValue={(value) =>
                     setOrderDraft((current) => ({
@@ -927,19 +1211,20 @@ const OrderManagement: React.FC = () => {
                   disabled={!canManageOrders}
                   options={FULFILLMENT_EDIT_OPTIONS}
                 />
-                <ERPTextField
-                  label="Delivery method"
+                <SelectField
+                  label="Order type"
                   value={orderDraft.deliveryMethod}
-                  onChange={(event) =>
+                  onChangeValue={(value) =>
                     setOrderDraft((current) => ({
                       ...current,
-                      deliveryMethod: event.target.value,
+                      deliveryMethod: getSelectValue(value),
                     }))
                   }
                   disabled={!canManageOrders}
+                  options={DELIVERY_METHOD_OPTIONS}
                 />
                 <DateField
-                  label="Expected delivery"
+                  label="Expected delivery / pickup"
                   value={orderDraft.expectedDeliveryDate}
                   onChangeValue={(value) =>
                     setOrderDraft((current) => ({
@@ -973,13 +1258,28 @@ const OrderManagement: React.FC = () => {
                 disabled={!canManageOrders}
               />
               <div className="stroane-orders__modal-actions">
+                <span
+                  className={`stroane-orders__autosave is-${autosaveStatus}`}
+                  role={autosaveStatus === "error" ? "alert" : "status"}
+                  aria-live="polite"
+                >
+                  {autosaveStatus === "saving"
+                    ? "Autosaving..."
+                    : autosaveStatus === "saved"
+                      ? "Autosaved"
+                      : autosaveStatus === "error"
+                        ? autosaveError || "Autosave failed"
+                        : canManageOrders
+                          ? "Autosave ready"
+                          : "View only"}
+                </span>
                 <ERPPrimaryAction
                   type="submit"
                   icon={<HiOutlineSave />}
                   loading={saving}
-                  disabled={!canManageOrders}
+                  disabled={!canManageOrders || autosaveStatus === "saving"}
                 >
-                  Save order
+                  Save now
                 </ERPPrimaryAction>
               </div>
             </form>

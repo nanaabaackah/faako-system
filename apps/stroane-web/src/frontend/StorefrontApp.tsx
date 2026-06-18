@@ -21,6 +21,8 @@ import CheckoutReturn from "./pages/CheckoutReturn";
 import CustomerAccountPlaceholder from "./pages/CustomerAccountPlaceholder";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Search from "./pages/Search";
 import ErrorPage from "./pages/ErrorPage";
 
@@ -50,6 +52,8 @@ const StorefrontApp: React.FC = () => (
         <Route path="/quotes" element={<CustomerAccountPlaceholder area="quotes" />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/cookies" element={<Cookies />} />

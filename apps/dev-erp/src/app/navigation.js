@@ -28,6 +28,7 @@ import { getAggregateSiteStatus } from "../utils/siteStatus.js";
 const NAV_ITEM_ORDER = [
   "dashboard",
   "proposals",
+  "faako-onboarding",
   "rent",
   "accounting",
   "invoicing",
@@ -47,6 +48,7 @@ const ICONS_BY_MODULE_KEY = {
   bookings: CalendarTick,
   customers: Buildings2,
   dashboard: Category,
+  "faako-onboarding": ClipboardTick,
   proposals: DocumentText,
   invoicing: ReceiptItem,
   profile: Profile2User,
@@ -178,6 +180,7 @@ export const getVisibleMobileTabItems = (user) => {
 export const getTopbarLabel = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment";
   if (pathname.startsWith("/proposals")) return "Proposals";
+  if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding";
   switch (pathname) {
     case "/dashboard":
       return "Dashboard";
@@ -189,6 +192,8 @@ export const getTopbarLabel = (pathname) => {
       return "Appointments";
     case "/proposals":
       return "Proposals";
+    case "/faako-onboarding":
+      return "Faako Onboarding";
     case "/invoicing":
       return "Invoicing";
     case "/organizations":
@@ -213,6 +218,7 @@ export const getTopbarLabel = (pathname) => {
 export const getTitleForPath = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment | Dev";
   if (pathname.startsWith("/proposals")) return "Proposals | Dev";
+  if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding | Dev";
   switch (pathname) {
     case "/":
     case "/dashboard":
@@ -239,6 +245,8 @@ export const getTitleForPath = (pathname) => {
       return "Rent | Dev";
     case "/proposals":
       return "Proposals | Dev";
+    case "/faako-onboarding":
+      return "Faako Onboarding | Dev";
     case "/invoicing":
       return "Invoicing | Dev";
     case "/settings":

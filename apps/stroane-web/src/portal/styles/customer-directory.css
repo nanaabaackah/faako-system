@@ -112,8 +112,7 @@
 
 .stroane-crm__toolbar {
   align-items: flex-start;
-  padding: 1rem;
-  border-bottom: 1px solid var(--sys-border);
+  padding: 1rem 0;
 }
 
 .stroane-crm__toolbar .ui-erp-table-search {
@@ -129,7 +128,7 @@
 }
 
 .stroane-crm__admin-table table {
-  min-width: 1040px;
+  min-width: 1120px;
 }
 
 .stroane-crm__table {
@@ -141,12 +140,21 @@
   font-size: 0.84rem;
 }
 
-.stroane-crm__col-customer {
-  width: 27%;
+.stroane-crm__col-select {
+  width: 2.7rem;
+}
+
+.stroane-crm__col-number {
+  width: 3.2rem;
+}
+
+.stroane-crm__col-customer,
+.stroane-crm__col-email {
+  width: 14%;
 }
 
 .stroane-crm__col-status {
-  width: 14%;
+  width: 13%;
 }
 
 .stroane-crm__col-contact {
@@ -158,11 +166,11 @@
 }
 
 .stroane-crm__col-last {
-  width: 19%;
+  width: 15%;
 }
 
 .stroane-crm__col-actions {
-  width: 6rem;
+  width: 8rem;
 }
 
 .stroane-crm__table th,
@@ -174,14 +182,14 @@
 }
 
 .stroane-crm__table th,
-.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty) {
+.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty):not(.portal-table-select-cell):not(.portal-table-number-cell) {
   max-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty) > * {
+.stroane-crm__table td:not(.stroane-crm__actions-cell):not(.stroane-crm__table-empty):not(.portal-table-select-cell):not(.portal-table-number-cell) > * {
   max-width: 100%;
 }
 
@@ -202,6 +210,25 @@
   font-size: 0.68rem;
   font-weight: 850;
   text-transform: uppercase;
+}
+
+.stroane-crm__bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.65rem;
+  background: color-mix(in srgb, var(--sys-accent-soft) 42%, transparent);
+}
+
+.stroane-crm__bulk-bar > span {
+  margin-right: auto;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .stroane-crm__customer-cell {

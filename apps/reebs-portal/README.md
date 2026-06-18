@@ -33,6 +33,10 @@ Full local REEBS stack from the repo root:
 pnpm run dev:reebs
 ```
 
+The full stack command runs the REEBS Portal `predeploy:local` first, generating
+Prisma, applying pending development migrations, and checking migration status
+before the portal API/frontend and public website start.
+
 Typical local ports:
 
 - portal frontend: `5174`
@@ -42,12 +46,15 @@ Typical local ports:
 
 ```bash
 pnpm --filter @faako/reebs-portal run build
+pnpm --filter @faako/reebs-portal run dev
+pnpm --filter @faako/reebs-portal run dev:with-backend
 pnpm --filter @faako/reebs-portal run dev:backend
 pnpm --filter @faako/reebs-portal run server:prod
 pnpm --filter @faako/reebs-portal run db:generate
 pnpm --filter @faako/reebs-portal run db:migrate:dev
 pnpm --filter @faako/reebs-portal run db:deploy:dev
 pnpm --filter @faako/reebs-portal run db:status:dev
+pnpm --filter @faako/reebs-portal run predeploy:local
 pnpm --filter @faako/reebs-portal run source-categories:seed
 pnpm --filter @faako/reebs-portal run source-categories:relink:dry
 pnpm --filter @faako/reebs-portal run source-categories:relink:apply
@@ -77,6 +84,7 @@ pnpm --filter @faako/reebs-portal run test:e2e
 - Offline inventory adjustment queue support lives in `src/pages/Admin/offlineInventoryAdjustmentQueue.js` and is wired from `src/pages/Admin/Admin.jsx`. Use it by opening Inventory, choosing Adjust stock, and submitting while offline; the adjustment stays local as pending sync until the stock API endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, or route changes are required.
 - Offline booking queue support lives in `src/pages/AdminBookings/offlineBookingQueue.js` and is wired from `src/pages/AdminBookings/AdminBookings.jsx`. Use it by opening Bookings and creating, editing, or changing status while offline; the action stays local as pending sync until the bookings API endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, route changes, payment changes, receipt changes, or inventory-reservation logic changes are required.
 - The registry uses shared helpers from `@faako/config`; it has no required environment variables, setup steps, migrations, database impact, billing behavior, SaaS plan gating, or access-control enforcement changes.
+- Optional Dev ERP activity forwarding is server-side only. Set `DEV_ERP_ACTIVITY_WEBHOOK_URL` to Dev ERP's `/api/webhooks/app-activity` endpoint and `DEV_ERP_ACTIVITY_WEBHOOK_SECRET` to the matching Dev ERP `APP_ACTIVITY_WEBHOOK_SECRET` to forward minimal activity summaries from REEBS audit writes. Forwarded events do not include raw order payloads, payment payloads, offline queue contents, or secret values.
 - `AppUpdateNotice` from `@faako/ui` is mounted in the portal, store-mode, and public app shell paths. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh when a newer deployed bundle exists without interrupting active POS carts, bookings, stock adjustments, offline queues, or admin edits.
 - Known limitation: the registry now drives navigation metadata, but route guards and backend permissions remain manual and unchanged. Database-backed module toggles, org-level module config, permissions integration, SaaS plan gating, and visual grouped navigation remain future work.
 - Known limitation: shell placeholder support for offline/sync/notifications/org switching is structural only; REEBS production notification/search behavior remains app-owned.

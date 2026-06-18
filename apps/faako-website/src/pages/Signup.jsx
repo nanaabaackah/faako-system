@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBolt,
@@ -37,6 +37,13 @@ const resolveApiEndpoint = (path) => {
 };
 
 const SIGNUP_ENDPOINT = resolveApiEndpoint("signup");
+
+const createSubmissionIdempotencyKey = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `signup_${crypto.randomUUID()}`;
+  }
+  return `signup_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+};
 
 const WIZARD_STEPS = [
   { id: "company", title: "Company Details" },
@@ -602,6 +609,8 @@ export default function Signup() {
   const [draftStatus, setDraftStatus] = useState(
     "Draft saves automatically on this device."
   );
+  const submitInFlightRef = useRef(false);
+  const submissionKeyRef = useRef(createSubmissionIdempotencyKey());
 
   const activeStep = WIZARD_STEPS[activeStepIndex];
   const reviewSections = useMemo(() => buildReviewSections(values), [values]);
@@ -665,6 +674,8 @@ export default function Signup() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (submitInFlightRef.current) return;
+
     for (const step of WIZARD_STEPS) {
       if (step.id === "review") continue;
       const error = validateStep(step.id, values);
@@ -676,6 +687,9 @@ export default function Signup() {
     }
 
     const payload = buildPayload(values, honeypotValue);
+    const idempotencyKey = submissionKeyRef.current || createSubmissionIdempotencyKey();
+    submissionKeyRef.current = idempotencyKey;
+    submitInFlightRef.current = true;
 
     setStatus({
       state: "loading",
@@ -688,8 +702,10 @@ export default function Signup() {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          "x-faako-idempotency-key": idempotencyKey,
         },
         body: JSON.stringify({
+          idempotencyKey,
           companyName: payload.companyName,
           contactName: payload.contactName,
           email: payload.email,
@@ -720,6 +736,7 @@ export default function Signup() {
       clearDraft();
       setValues(deepClone(DEFAULT_VALUES));
       setHoneypotValue("");
+      submissionKeyRef.current = createSubmissionIdempotencyKey();
       setActiveStepIndex(0);
       setDraftStatus("Draft cleared after successful submission.");
       setStatus({
@@ -732,6 +749,8 @@ export default function Signup() {
         state: "error",
         message: error.message || "Could not submit onboarding intake. Please try again.",
       });
+    } finally {
+      submitInFlightRef.current = false;
     }
   };
 

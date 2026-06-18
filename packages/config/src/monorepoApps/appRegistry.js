@@ -167,9 +167,12 @@ export const MONOREPO_APP_REGISTRY = [
         title: "Stroane API",
         purpose: "Optional Stroane backend/API health and catalogue endpoints.",
         category: "api",
+        defaultBaseUrl: "https://api.stroanesolutions.com",
         envBaseUrlKeys: [
           "STROANE_API_BASE_URL",
           "STROANE_BACKEND_BASE_URL",
+          "APP_API_BASE_URL",
+          "VITE_API_BASE",
           "VITE_BACKEND_BASE_URL",
         ],
         monitoringPages: [
