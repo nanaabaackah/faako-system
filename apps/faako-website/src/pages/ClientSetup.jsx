@@ -1742,22 +1742,6 @@ export default function ClientSetup() {
                         options={["Will share later", "Already available", "Needs cleanup", "Needs design support", "Not sure"]}
                       />
                     </div>
-                    <div className="signup-grid signup-grid--two">
-                      <TextField
-                        label="How should the design feel?"
-                        path="brand.brandFeeling"
-                        values={values}
-                        onChange={updateField}
-                        placeholder="Clean, premium, friendly, bold, corporate..."
-                      />
-                      <TextField
-                        label="Who will provide content?"
-                        path="brand.contentOwner"
-                        values={values}
-                        onChange={updateField}
-                        placeholder="Me, my team, Faako support, not sure..."
-                      />
-                    </div>
                     <TextAreaField
                       label="Anything the design should avoid?"
                       path="brand.mustAvoid"
@@ -1846,13 +1830,6 @@ export default function ClientSetup() {
                       />
                     </div>
                     <div className="signup-grid signup-grid--two">
-                      <SelectField
-                        label="Is the decision maker available?"
-                        path="launch.hasDecisionMaker"
-                        values={values}
-                        onChange={updateField}
-                        options={["Yes", "No", "I am the decision maker", "Not sure"]}
-                      />
                       <SelectField
                         label="Are brand files, photos, or content ready?"
                         path="launch.filesReady"
