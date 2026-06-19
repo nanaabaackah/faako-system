@@ -7,6 +7,12 @@ import {
 import { normalizeDeliveryLocation, toPublicDeliveryLocation } from "./locationSearch.js";
 
 const MAX_ORDER_QUANTITY = 99;
+const PICKUP_WINDOWS = [
+  { value: "10:00", label: "Morning pickup window, 10:00 AM - 12:00 PM" },
+  { value: "13:00", label: "Afternoon pickup window, 1:00 PM - 4:00 PM" },
+  { value: "17:00", label: "Evening pickup window, 5:00 PM - 7:00 PM" },
+];
+const PICKUP_WINDOW_BY_VALUE = new Map(PICKUP_WINDOWS.map((window) => [window.value, window]));
 
 const sanitizeText = (value, maxLength) =>
   String(value || "")
@@ -54,6 +60,23 @@ const parseExpectedFulfillmentDate = ({ expectedDeliveryDate, pickupDate, pickup
   const dateValue = explicitDate.includes("T") ? explicitDate : `${date}T${time}:00`;
   const parsed = new Date(dateValue);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const parsePickupDateInput = (value = "") => {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getPickupWindow = (value = "") => PICKUP_WINDOW_BY_VALUE.get(String(value || "").trim());
+
+const appendPickupWindowNote = (notes, pickupTime) => {
+  const pickupWindow = getPickupWindow(pickupTime);
+  if (!pickupWindow) return notes || null;
+  const windowNote = `Pickup window: ${pickupWindow.label}.`;
+  return notes ? `${notes}\n${windowNote}` : windowNote;
 };
 
 const compactObject = (value = {}) =>
@@ -156,6 +179,8 @@ const validateCheckoutPayload = (payload = {}) => {
   );
   const pickupDate = sanitizeText(payload.pickupDate || fulfillment.pickupDate, 20);
   const pickupTime = sanitizeText(payload.pickupTime || fulfillment.pickupTime, 12);
+  const parsedPickupDate = parsePickupDateInput(pickupDate);
+  const pickupWindow = getPickupWindow(pickupTime);
   const expectedDeliveryDate = parseExpectedFulfillmentDate({
     expectedDeliveryDate: payload.expectedDeliveryDate || fulfillment.expectedDeliveryDate,
     pickupDate,
@@ -187,6 +212,15 @@ const validateCheckoutPayload = (payload = {}) => {
   }
   if (fulfillmentMethod === "pickup" && (!pickupDate || !pickupTime || !expectedDeliveryDate)) {
     errors.push("Choose a pickup date and time.");
+  }
+  if (fulfillmentMethod === "pickup" && pickupDate && !parsedPickupDate) {
+    errors.push("Choose a valid pickup date.");
+  }
+  if (fulfillmentMethod === "pickup" && parsedPickupDate?.getDay() === 0) {
+    errors.push("Sunday pickups are not available. Choose Monday to Saturday.");
+  }
+  if (fulfillmentMethod === "pickup" && pickupTime && !pickupWindow) {
+    errors.push("Choose a pickup window between 10:00 AM and 7:00 PM.");
   }
   if (!items.length) errors.push("Add at least one product to checkout.");
 
@@ -223,7 +257,10 @@ const validateCheckoutPayload = (payload = {}) => {
       preferredContactMethod,
       businessName: businessName || null,
       deliveryAddress,
-      deliveryNotes: deliveryNotes || null,
+      deliveryNotes:
+        fulfillmentMethod === "pickup"
+          ? appendPickupWindowNote(deliveryNotes, pickupTime)
+          : deliveryNotes || null,
     },
     items: normalizedItems,
     source,

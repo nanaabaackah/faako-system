@@ -77,6 +77,16 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - `backend/src/orders.js` normalizes fulfillment with `deliveryMethod` and `expectedDeliveryDate`. Pickup location details are currently preserved through the customer delivery address string plus order notes; add dedicated pickup-location columns only if reporting/fulfillment needs outgrow this lightweight shape.
 - The profile module now uses shared ERP fields/actions for editable profile fields. Keep future profile controls on shared `@faako/ui` primitives unless a one-off control is clearly necessary.
 
+### Accounting module - 2026-06-19
+
+- `/admin/accounting` is the private accounting and analytics hub. It combines paid orders, receipts, inventory stock value, supplier cost data where available, and manually entered historical lump-sum accounting entries.
+- Protected accounting routes live in `backend/src/accounting/routes.js` under `/api/admin/accounting/*`. Reads allow `ADMIN` and `VIEWER`; manual ledger entry creation requires `ADMIN`.
+- `AccountingLedgerEntry` is an additive Prisma model for manual historical balances and adjustments. Deploy migration `20260619000000_add_accounting_ledger_entries` before relying on manual entries in production.
+- The accounting overview intentionally separates collected revenue, receivables, manual income/expenses, known stock cost value, retail stock value, liabilities, equity, and estimated net position. These are management analytics, not audited statutory financial statements.
+- Cost of goods and gross margin are shown only where supplier cost data exists. Add preferred supplier cost prices in the product/inventory workflow before using gross margin as a business decision source.
+- Accounting exports are browser-generated CSV/Excel-compatible downloads from the protected admin API response. They must not include payment secrets, Paystack authorization payloads, password hashes, invite/reset token hashes, or private provider metadata.
+- Shared `ERPFormNotice` now supports an optional clear action. Portal success/error notes in dashboard, inventory, orders, receipts, CRM, profile, and accounting should use the shared dismissible notice pattern instead of custom inline message markup.
+
 ### Shared field styling and validation pass - 2026-06-17
 
 - Stroane storefront and portal source should not introduce raw native `select`, `input[type=date]`, `input[type=time]`, or `datalist` controls for normal product/order/profile workflows. Use shared `@faako/ui` `SelectField`, `DateField`, `TimeField`, `TextField`, `TextareaField`, or an app-specific wrapper around those primitives.
@@ -93,6 +103,8 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - The current public commerce fallback has four restored confirmed price-list products: AstroAI IR Thermometer (GHS 900), Taylor Precision Large Dial Fridge/Freezer Thermometer (GHS 500), Taylor Pro Horizontal Strip Fridge/Freezer Thermometer (GHS 500), and Taylor Precision Fridge/Freezer Thermometer with suction cups (GHS 400). Newer PDF/image-imported products without numeric prices should stay hidden from shop/product listing/search commerce surfaces until pricing is confirmed.
 - Direct unpriced product detail URLs should render the "not available online" gate and link customers back to priced products/contact, not display quote-first product detail pages.
 - Customer account pages are server-backed convenience surfaces for profile, password recovery, and order history. `/signup` is open to customers, while optional checkout references/staff invites link existing context. `/account`, `/orders`, and `/quotes` must continue using customer-cookie APIs rather than sending customers to the staff portal.
+- Customer order history rows open a private account lightbox with line items, totals, payment status, fulfillment method/location, expected pickup/delivery date, and safe payment reference only. Keep richer customer contact fields off public Paystack callback/verification responses.
+- Checkout pickup uses fixed pickup windows only: morning 10:00 AM-12:00 PM, afternoon 1:00 PM-4:00 PM, and evening 5:00 PM-7:00 PM. Sunday pickups are blocked in the shared date picker and validated again by the backend order payload validator.
 
 ### Page layout — full-width by default (2026-05-15)
 
@@ -195,6 +207,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Stroane 
 - Paid status rule: an order is marked `PAID` only from the signed Paystack webhook path after the backend calls Paystack's transaction verify endpoint and the verified reference, amount, and currency match the stored order. Failed or abandoned statuses keep the order available for follow-up.
 - Current payment statuses are `payment_pending`, `paid`, `failed`, and `abandoned` in `CommerceOrder.paymentStatus`.
 - `paymentMetadata` stores a safe subset only: provider, reference, status, gateway response, channel, currency, amount, paid/transaction dates, verification timestamp, and test-mode flag. Do not store card details, MoMo wallet details, authorization payloads, or secrets.
+- Receipts are now automatic and idempotent. `ensureReceiptForOrder()` creates one `CommerceReceipt` when a storefront/manual order is created, keeps it synced when Paystack references/statuses change, and `sendReceiptForPaidOrder()` sends the customer-safe receipt email once the order is paid. Receipt emails come from Stroane Solutions, include order/receipt/payment-reference details and purchase terms, and repeat that Paystack/payment-provider credentials are not stored on Stroane systems.
 - Env values: `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `PAYSTACK_CALLBACK_URL`, `PAYSTACK_CURRENCY`, and `PAYSTACK_ALLOW_LIVE`. `PAYSTACK_SECRET_KEY` must remain backend-only. Start with Paystack test keys (`sk_test_...`); `sk_live_...` is blocked unless `PAYSTACK_ALLOW_LIVE=true` is explicitly set server-side.
 - Webhook processing is implemented at `POST /api/paystack/webhook` with raw body signature verification, event validation, reference lookup, Paystack transaction verification, verified amount/currency validation, safe metadata storage, duplicate paid-event short-circuiting, and payment-confirmed customer email trigger. Next phase should add a dedicated payment event/notification log before fulfillment automation, staff alerts, or multi-channel order updates.
 

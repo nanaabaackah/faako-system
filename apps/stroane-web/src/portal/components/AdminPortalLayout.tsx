@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   HiOutlineChevronDown,
+  HiOutlineCash,
   HiOutlineCog,
   HiOutlineCube,
   HiOutlineDesktopComputer,
@@ -52,12 +53,18 @@ const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
   { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
   { id: "receipts", label: "Receipts", path: "/admin/receipts", iconKey: "receipts" },
+  { id: "accounting", label: "Accounting", path: "/admin/accounting", iconKey: "accounting" },
   { id: "crm", label: "CRM", path: "/admin/crm", iconKey: "crm" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
 ];
 
-const MOBILE_ITEMS = PORTAL_ITEMS;
+const MOBILE_ITEMS: ErpNavItem[] = [
+  { id: "overview", label: "Dashboard", path: "/admin", iconKey: "home" },
+  { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
+  { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
+  { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
+];
 
 const PAGE_TITLES: Record<string, string> = {
   "/admin": "Dashboard",
@@ -70,6 +77,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/operations": "Module reset",
   "/admin/orders": "Orders",
   "/admin/receipts": "Receipts",
+  "/admin/accounting": "Accounting",
   "/admin/reports": "Module reset",
   "/admin/settings": "Module reset",
 };
@@ -78,6 +86,7 @@ const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "home") return <HiOutlineHome />;
   if (iconKey === "orders") return <HiOutlineShoppingBag />;
   if (iconKey === "receipts") return <HiOutlineDocumentText />;
+  if (iconKey === "accounting") return <HiOutlineCash />;
   if (iconKey === "crm") return <HiOutlineUserGroup />;
   if (iconKey === "inventory") return <HiOutlineCube />;
   if (iconKey === "profile") return <HiOutlineUserCircle />;

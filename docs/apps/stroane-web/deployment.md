@@ -127,7 +127,7 @@ After the API service deploys, test:
 - `https://api.stroanesolutions.com/api/catalogue/categories`
 - `https://api.stroanesolutions.com/api/catalogue/products/<slug>`
 
-Protected dashboard data routes should be tested after authenticating with a backend `SiteUser` account, never from the public storefront bundle. Active portal modules read protected APIs for product, supplier, inventory, movement, alert, order, and customer signals:
+Protected dashboard data routes should be tested after authenticating with a backend `SiteUser` account, never from the public storefront bundle. Active portal modules read protected APIs for product, supplier, inventory, movement, alert, order, receipt, accounting, and customer signals:
 
 - `GET https://api.stroanesolutions.com/api/admin/suppliers`
 - `GET https://api.stroanesolutions.com/api/admin/inventory`
@@ -135,6 +135,8 @@ Protected dashboard data routes should be tested after authenticating with a bac
 - `GET https://api.stroanesolutions.com/api/admin/products`
 - `GET https://api.stroanesolutions.com/api/admin/inventory/alerts`
 - `GET https://api.stroanesolutions.com/api/admin/orders`
+- `GET https://api.stroanesolutions.com/api/admin/receipts`
+- `GET https://api.stroanesolutions.com/api/admin/accounting/overview`
 - `GET https://api.stroanesolutions.com/api/admin/customers`
 
 After configuring a Railway cron/scheduler with the private bearer secret, test:
@@ -151,11 +153,13 @@ After the API routes pass, authenticate with a private backend `SiteUser` accoun
 - `https://portal.stroanesolutions.com/admin`
 - `https://portal.stroanesolutions.com/admin/inventory`
 - `https://portal.stroanesolutions.com/admin/orders`
+- `https://portal.stroanesolutions.com/admin/receipts`
+- `https://portal.stroanesolutions.com/admin/accounting`
 - `https://portal.stroanesolutions.com/admin/crm`
 - `https://portal.stroanesolutions.com/admin/products`
 - `https://portal.stroanesolutions.com/admin/operations`
 
-Confirm `/admin` loads dashboard product/order/stock signals. Confirm `/admin/inventory`, `/admin/orders`, and `/admin/crm` render active modules. Confirm placeholder routes such as `/admin/products` and `/admin/operations` remain reset placeholders rather than old module workflows.
+Confirm `/admin` loads dashboard product/order/stock signals. Confirm `/admin/inventory`, `/admin/orders`, `/admin/receipts`, `/admin/accounting`, and `/admin/crm` render active modules. Confirm placeholder routes such as `/admin/products` and `/admin/operations` remain reset placeholders rather than old module workflows.
 
 Legacy read-only aliases should also remain available during rollout:
 

@@ -72,7 +72,10 @@ export interface CustomerProfileUpdatePayload {
   deliveryNotes?: string;
 }
 
-export type CustomerOrder = CheckoutOrderResponse["order"];
+export type CustomerOrder = CheckoutOrderResponse["order"] & {
+  deliveryAddress?: string;
+  deliveryNotes?: string;
+};
 
 const customerJsonRequest = (payload: unknown): RequestInit => ({
   method: "POST",

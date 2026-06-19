@@ -848,13 +848,20 @@
 }
 
 .ui-erp-form-notice {
-  display: grid;
-  gap: 0.3rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   border: 1px solid var(--sys-border);
   border-radius: var(--sys-radius-sm);
   padding: 0.85rem 0.95rem;
   background: var(--sys-surface);
   color: var(--sys-text);
+}
+
+.ui-erp-form-notice__content {
+  display: grid;
+  gap: 0.3rem;
 }
 
 .ui-erp-form-notice strong,
@@ -880,6 +887,29 @@
 .ui-erp-form-notice--danger {
   border-color: color-mix(in srgb, var(--sys-danger) 35%, var(--sys-border));
   background: var(--sys-danger-soft);
+}
+
+.ui-erp-form-notice__dismiss {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  padding: 0.32rem 0.62rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.ui-erp-form-notice__dismiss:hover,
+.ui-erp-form-notice__dismiss:focus-visible {
+  border-color: var(--sys-accent);
+  color: var(--sys-accent);
+  outline: none;
 }
 
 .ui-erp-search-select {
@@ -2833,7 +2863,7 @@
   letter-spacing: 0.08em;
   color: var(--sys-muted);
   border-bottom: 1px solid var(--sys-border);
-  background: var(--sys-bg-elevated);
+  background: var(--sys-table-head-bg, var(--sys-bg-elevated));
 }
 
 .ui-data-table tbody tr {
@@ -2859,11 +2889,11 @@
 .ui-data-table tfoot td {
   font-weight: 700;
   border-top: 1px solid var(--sys-border);
-  background: color-mix(in srgb, var(--sys-surface-strong) 88%, var(--sys-bg-elevated));
+  background: var(--sys-table-footer-bg, color-mix(in srgb, var(--sys-surface-strong) 88%, var(--sys-bg-elevated)));
 }
 
 .ui-data-table tfoot td.is-empty {
-  background: transparent;
+  background: var(--sys-table-footer-bg, color-mix(in srgb, var(--sys-surface-strong) 88%, var(--sys-bg-elevated)));
   color: transparent;
 }
 
@@ -3008,7 +3038,12 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sys-muted);
-  background: var(--sys-bg-elevated);
+  background: var(--sys-table-head-bg, var(--sys-bg-elevated));
+}
+
+.ui-erp-table__table tfoot td {
+  font-weight: 700;
+  background: var(--sys-table-footer-bg, var(--sys-table-head-bg, var(--sys-bg-elevated)));
 }
 
 .ui-erp-table__table tbody tr {
@@ -3117,6 +3152,9 @@
   justify-content: space-between;
   gap: 0.8rem;
   flex-wrap: wrap;
+  padding: 0.86rem 1rem;
+  border-top: 1px solid var(--sys-border);
+  background: var(--sys-table-pagination-bg, var(--sys-table-footer-bg, var(--sys-table-head-bg, var(--sys-bg-elevated))));
   color: var(--sys-muted);
 }
 
@@ -3140,7 +3178,7 @@
   place-items: center;
   border: 1px solid var(--sys-border);
   border-radius: var(--sys-radius-sm);
-  background: var(--sys-surface-strong);
+  background: var(--sys-table-footer-bg, var(--sys-surface-strong));
   color: var(--sys-text);
   padding: 0;
   cursor: pointer;

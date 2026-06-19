@@ -1,6 +1,6 @@
 import React, { type FormEvent } from "react";
 import { HiArrowRight } from "react-icons/hi";
-import { DateField, SelectField, TextareaField, TextField, TimeField } from "@faako/ui";
+import { DateField, SelectField, TextareaField, TextField } from "@faako/ui";
 import type { CheckoutFulfillmentMethod, DeliveryLocation } from "../../../api/orders";
 import { PHONE_INPUT_PATTERN } from "../../../utils/contactValidation";
 
@@ -11,6 +11,11 @@ interface PickupSpot {
   name: string;
   address: string;
   detail: string;
+}
+
+interface PickupWindow {
+  value: string;
+  label: string;
 }
 
 interface CheckoutDetailsFormProps {
@@ -27,6 +32,7 @@ interface CheckoutDetailsFormProps {
   fulfillmentMethod: CheckoutFulfillmentMethod;
   pickupSpots: PickupSpot[];
   pickupSpotId: string;
+  pickupWindows: PickupWindow[];
   pickupDate: string;
   pickupTime: string;
   minimumPickupDate: string;
@@ -71,6 +77,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
   fulfillmentMethod,
   pickupSpots,
   pickupSpotId,
+  pickupWindows,
   pickupDate,
   pickupTime,
   minimumPickupDate,
@@ -249,15 +256,17 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
                 value={pickupDate}
                 min={minimumPickupDate}
                 onChangeValue={onPickupDateChange}
+                isDateDisabled={(date) => date.getDay() === 0}
+                hint="Pickup is available Monday to Saturday."
                 required
               />
-              <TimeField
+              <SelectField
                 fieldClassName="checkout-field"
-                label="Pickup time"
+                label="Pickup window"
                 value={pickupTime}
                 onChangeValue={(value) => onPickupTimeChange(getSelectValue(value))}
-                intervalMinutes={30}
-                placeholder="Select time"
+                options={pickupWindows}
+                placeholder="Select pickup window"
                 required
               />
             </div>

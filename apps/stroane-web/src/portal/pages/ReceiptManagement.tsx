@@ -363,8 +363,16 @@ const ReceiptManagement: React.FC = () => {
         </article>
       </section>
 
-      {notice ? <ERPFormNotice tone="success">{notice}</ERPFormNotice> : null}
-      {error ? <ERPFormNotice tone="danger">{error}</ERPFormNotice> : null}
+      {notice ? (
+        <ERPFormNotice tone="success" onDismiss={() => setNotice("")}>
+          {notice}
+        </ERPFormNotice>
+      ) : null}
+      {error ? (
+        <ERPFormNotice tone="danger" onDismiss={() => setError("")}>
+          {error}
+        </ERPFormNotice>
+      ) : null}
 
       <section className="stroane-receipts__table-panel">
         <div className="stroane-receipts__toolbar">
@@ -408,9 +416,9 @@ const ReceiptManagement: React.FC = () => {
             <colgroup>
               <col className="stroane-receipts__col-select" />
               <col className="stroane-receipts__col-number" />
+              <col className="stroane-receipts__col-customer" />
               <col className="stroane-receipts__col-receipt" />
               <col className="stroane-receipts__col-order" />
-              <col className="stroane-receipts__col-customer" />
               <col className="stroane-receipts__col-payment" />
               <col className="stroane-receipts__col-issued" />
               <col className="stroane-receipts__col-total" />
@@ -433,9 +441,9 @@ const ReceiptManagement: React.FC = () => {
                   />
                 </th>
                 <th className="portal-table-number-cell">#</th>
+                <th>Customer</th>
                 <th>Receipt</th>
                 <th>Order</th>
-                <th>Customer</th>
                 <th>Payment</th>
                 <th>Issued</th>
                 <th>Total</th>
@@ -494,17 +502,17 @@ const ReceiptManagement: React.FC = () => {
                       <td className="portal-table-number-cell" data-label="#">
                         {clampedPageIndex * RECEIPT_PAGE_SIZE + index + 1}
                       </td>
+                      <td data-label="Customer">
+                        <span className="stroane-receipts__customer-cell">
+                          <strong>{receipt.customerName}</strong>
+                        </span>
+                      </td>
                       <td data-label="Receipt">
                         <span className="stroane-receipts__receipt-cell">
                           <strong>{receipt.receiptNumber}</strong>
                         </span>
                       </td>
                       <td data-label="Order">{receipt.orderNumber || "Unlinked"}</td>
-                      <td data-label="Customer">
-                        <span className="stroane-receipts__customer-cell">
-                          <strong>{receipt.customerName}</strong>
-                        </span>
-                      </td>
                       <td data-label="Payment">
                         <ERPStatusBadge tone={getPaymentTone(receipt.paymentStatus || "")}>
                           {formatLabel(receipt.paymentStatus || "not_started")}
@@ -551,11 +559,7 @@ const ReceiptManagement: React.FC = () => {
               <tfoot className="admin-table-footer">
                 <tr>
                   <td className="admin-table-summary-cell is-empty" />
-                  <td className="admin-table-summary-cell is-count">
-                    <span className="admin-table-summary-value">
-                      {paginatedReceipts.length} receipts
-                    </span>
-                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />

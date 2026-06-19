@@ -45,7 +45,32 @@ const PICKUP_SPOTS = [
   },
 ];
 
+const PICKUP_WINDOWS = [
+  {
+    value: "10:00",
+    label: "Morning, 10:00 AM - 12:00 PM",
+  },
+  {
+    value: "13:00",
+    label: "Afternoon, 1:00 PM - 4:00 PM",
+  },
+  {
+    value: "17:00",
+    label: "Evening, 5:00 PM - 7:00 PM",
+  },
+];
+
 const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
+
+const parseDateInput = (value: string) => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isSundayPickupDate = (value: string) => parseDateInput(value)?.getDay() === 0;
 
 const Checkout: React.FC = () => {
   const { products: catalogueProducts, loading, notice } = useCatalogueData();
@@ -132,6 +157,10 @@ const Checkout: React.FC = () => {
       ? `${pickupDate}T${pickupTime}:00`
       : undefined;
   const minimumPickupDate = useMemo(getTodayInputValue, []);
+  const pickupWindowValues = useMemo(
+    () => new Set(PICKUP_WINDOWS.map((window) => window.value)),
+    []
+  );
 
   useEffect(() => {
     if (fulfillmentMethod !== "delivery") {
@@ -192,7 +221,13 @@ const Checkout: React.FC = () => {
     }
     if (fulfillmentMethod === "pickup" && !pickupSpotId) return "Choose a pickup spot.";
     if (fulfillmentMethod === "pickup" && !pickupDate) return "Choose a pickup date.";
-    if (fulfillmentMethod === "pickup" && !pickupTime) return "Choose a pickup time.";
+    if (fulfillmentMethod === "pickup" && isSundayPickupDate(pickupDate)) {
+      return "Sunday pickups are not available. Choose Monday to Saturday.";
+    }
+    if (fulfillmentMethod === "pickup" && !pickupTime) return "Choose a pickup window.";
+    if (fulfillmentMethod === "pickup" && !pickupWindowValues.has(pickupTime)) {
+      return "Choose a pickup window between 10:00 AM and 7:00 PM.";
+    }
     if (website.trim()) return "The checkout request could not be submitted.";
     return "";
   };
@@ -318,6 +353,7 @@ const Checkout: React.FC = () => {
                 fulfillmentMethod={fulfillmentMethod}
                 pickupSpots={PICKUP_SPOTS}
                 pickupSpotId={pickupSpotId}
+                pickupWindows={PICKUP_WINDOWS}
                 pickupDate={pickupDate}
                 pickupTime={pickupTime}
                 minimumPickupDate={minimumPickupDate}

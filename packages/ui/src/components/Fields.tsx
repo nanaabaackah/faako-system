@@ -571,6 +571,7 @@ export const DateField = forwardRef<
     placeholder?: string;
     clearable?: boolean;
     ariaLabel?: string;
+    isDateDisabled?: (date: Date) => boolean;
   }
 >(function DateField(
   {
@@ -590,6 +591,7 @@ export const DateField = forwardRef<
     max,
     clearable = true,
     ariaLabel,
+    isDateDisabled,
     id,
     className = "",
     onBlur,
@@ -687,6 +689,7 @@ export const DateField = forwardRef<
     const time = startOfDay(date).getTime();
     if (minTime !== null && time < minTime) return true;
     if (maxTime !== null && time > maxTime) return true;
+    if (isDateDisabled?.(date)) return true;
     return false;
   };
 
@@ -823,7 +826,12 @@ export const DateField = forwardRef<
               </div>
 
               <div className="ui-date-field__footer">
-                <button type="button" className="ui-date-field__action" onClick={() => applyValue(today)}>
+                <button
+                  type="button"
+                  className="ui-date-field__action"
+                  onClick={() => applyValue(today)}
+                  disabled={isDayDisabled(today)}
+                >
                   Today
                 </button>
                 {clearable ? (

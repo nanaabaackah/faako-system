@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncRoute } from "../apiResponse.js";
 import { requireAdminRole, requireSiteUser } from "../adminAuth.js";
 import { RECEIPT_EMAIL_STATUSES, sendReceiptEmail } from "./notifications.js";
+import { ensureReceiptForOrder, receiptInclude } from "./service.js";
 
 const sanitizeText = (value = "", maxLength = 160) =>
   String(value || "")
@@ -43,14 +44,6 @@ const formatDate = (value) => {
     month: "short",
     year: "numeric",
   });
-};
-
-const receiptInclude = {
-  order: {
-    include: {
-      items: true,
-    },
-  },
 };
 
 const toAdminReceipt = (receipt) => ({
@@ -149,31 +142,6 @@ const buildListWhere = (query = {}) => {
   return where;
 };
 
-const buildReceiptNumberBase = (order) =>
-  sanitizeText(order.orderNumber || order.id, 80)
-    .replace(/[^a-z0-9-]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .toUpperCase() || "STROANE";
-
-const buildUniqueReceiptNumber = async (prisma, order) => {
-  const base = buildReceiptNumberBase(order);
-  const existingCount = await prisma.commerceReceipt.count({
-    where: { orderId: order.id },
-  });
-
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const suffix = String(existingCount + attempt + 1).padStart(2, "0");
-    const receiptNumber = `RCPT-${base}-${suffix}`;
-    const existing = await prisma.commerceReceipt.findUnique({
-      where: { receiptNumber },
-      select: { id: true },
-    });
-    if (!existing) return receiptNumber;
-  }
-
-  return `RCPT-${base}-${Date.now()}`;
-};
-
 const renderReceiptHtml = (receipt) => {
   const adminReceipt = toAdminReceipt(receipt);
   const items = adminReceipt.order?.items || [];
@@ -253,6 +221,9 @@ const renderReceiptHtml = (receipt) => {
       <p>${escapeHtml(adminReceipt.order?.customer?.deliveryAddress || "N/A")}</p>
       <h2>Payment reference</h2>
       <p>${escapeHtml(adminReceipt.paymentReference || "N/A")}</p>
+      <h2>Purchase terms</h2>
+      <p>This receipt confirms payment for the Stroane order items listed above. Fulfillment follows the delivery or pickup details confirmed for the order.</p>
+      <p class="muted">Payment credentials such as card numbers, CVV codes, mobile money PINs, and bank credentials are processed by Paystack or the payment provider and are not stored by Stroane Solutions.</p>
     </main>
   </body>
 </html>`;
@@ -317,27 +288,18 @@ export const createAdminReceiptRouter = (prisma) => {
         return res.status(409).json({ error: "Cancelled orders cannot receive receipts." });
       }
 
-      const receiptNumber = await buildUniqueReceiptNumber(prisma, order);
-      const receipt = await prisma.commerceReceipt.create({
-        data: {
-          receiptNumber,
-          orderId: order.id,
-          status: "issued",
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          currency: order.currency || "GHS",
-          subtotal: order.subtotal,
-          total: order.total,
-          paymentReference: order.paymentReference || null,
-          paymentStatus: order.paymentStatus || null,
-          notes: sanitizeText(req.body?.notes, 600) || null,
-          createdById: req.authUser?.id || null,
-          createdByName: req.authUser?.username || null,
-        },
-        include: receiptInclude,
+      const result = await ensureReceiptForOrder(prisma, order, {
+        notes: sanitizeText(req.body?.notes, 600),
+        createdById: req.authUser?.id || null,
+        createdByName: req.authUser?.username || null,
       });
+      if (!result.receipt) {
+        return res.status(503).json({ error: "Receipt could not be created." });
+      }
 
-      res.status(201).json({ receipt: toAdminReceipt(receipt) });
+      res.status(result.status === "created" ? 201 : 200).json({
+        receipt: toAdminReceipt(result.receipt),
+      });
     })
   );
 

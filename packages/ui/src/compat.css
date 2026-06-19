@@ -100,6 +100,8 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   --sys-table-card-bg: var(--sys-surface-strong);
   --sys-table-card-border: var(--sys-border);
   --sys-table-head-bg: color-mix(in srgb, transparent 82%, var(--sys-surface-strong));
+  --sys-table-footer-bg: color-mix(in srgb, var(--sys-table-head-bg) 86%, var(--sys-surface-strong) 14%);
+  --sys-table-pagination-bg: color-mix(in srgb, var(--sys-table-head-bg) 88%, var(--sys-surface) 12%);
   --sys-table-row-hover: var(--sys-accent-soft);
 }
 
@@ -191,7 +193,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 }
 
 [data-faako-theme] :where(.admin-table tfoot td, table[class*="table"] tfoot td, .admin-table-footer .admin-table-summary-cell) {
-  background-color: var(--sys-table-head-bg) !important;
+  background-color: var(--sys-table-footer-bg, var(--sys-table-head-bg)) !important;
   color: var(--sys-text) !important;
   font-weight: 700;
 }
@@ -204,7 +206,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
   margin: 0 !important;
   padding: 0.9rem 1rem !important;
   border-top: 1px solid var(--sys-table-card-border) !important;
-  background: var(--sys-table-head-bg) !important;
+  background: var(--sys-table-pagination-bg, var(--sys-table-footer-bg, var(--sys-table-head-bg))) !important;
 }
 
 [data-faako-theme] :where(.inventory-register-pagination-header) {
@@ -222,7 +224,7 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 [data-faako-theme] :where(.table-pagination-controls button, .inventory-register-pagination-controls button) {
   border: 1px solid var(--sys-table-card-border) !important;
   border-radius: 8px !important;
-  background: var(--sys-bg-elevated) !important;
+  background: var(--sys-table-footer-bg, var(--sys-bg-elevated)) !important;
   color: var(--sys-text) !important;
   box-shadow: none !important;
 }
@@ -473,8 +475,15 @@ html[data-faako-theme] body.admin-theme .portal-app-content :where(.glass-card) 
 }
 
 [data-admin-theme="dark"] body.admin-theme :is(.ui-data-table thead th, .ui-data-table tfoot td) {
-  background-color: var(--sys-table-head-bg) !important;
   color: var(--admin-text) !important;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(.ui-data-table thead th) {
+  background-color: var(--sys-table-head-bg) !important;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(.ui-data-table tfoot td) {
+  background-color: var(--sys-table-footer-bg, var(--sys-table-head-bg)) !important;
 }
 
 [data-admin-theme="dark"] body.admin-theme :is(

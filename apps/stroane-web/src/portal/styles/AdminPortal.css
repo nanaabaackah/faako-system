@@ -26,6 +26,8 @@
   --sys-table-card-bg: var(--sys-surface-strong);
   --sys-table-card-border: var(--sys-border);
   --sys-table-head-bg: var(--sys-bg-elevated);
+  --sys-table-footer-bg: color-mix(in srgb, var(--sys-table-head-bg) 84%, var(--sys-surface) 16%);
+  --sys-table-pagination-bg: color-mix(in srgb, var(--sys-table-head-bg) 88%, var(--sys-surface) 12%);
   --sys-table-row-hover: var(--sys-accent-soft);
   --text-main: var(--sys-text);
   --text-subtle: var(--sys-muted);
@@ -95,6 +97,8 @@
   --sys-table-card-bg: #20242b;
   --sys-table-card-border: rgba(226, 232, 240, 0.13);
   --sys-table-head-bg: #242934;
+  --sys-table-footer-bg: color-mix(in srgb, var(--sys-table-head-bg) 84%, var(--sys-surface-strong) 16%);
+  --sys-table-pagination-bg: color-mix(in srgb, var(--sys-table-head-bg) 88%, var(--sys-surface) 12%);
   --sys-table-row-hover: rgba(90, 167, 255, 0.15);
   --text-main: #ffffff;
   --text-subtle: rgba(232, 240, 248, 0.84);
@@ -576,7 +580,7 @@
 
 .stroane-portal-overview__kpis {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   min-height: auto !important;
   justify-content: stretch !important;
@@ -1770,7 +1774,7 @@
   }
 
   .stroane-portal-overview__kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .stroane-portal-overview__business > div,

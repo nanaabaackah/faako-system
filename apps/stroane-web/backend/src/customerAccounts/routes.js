@@ -148,7 +148,11 @@ const toCustomerProfile = (customer) => ({
   updatedAt: customer.updatedAt,
 });
 
-const toCustomerOrder = (order) => toPublicCommerceOrder(order);
+const toCustomerOrder = (order) => ({
+  ...toPublicCommerceOrder(order),
+  deliveryAddress: order.deliveryAddress || "",
+  deliveryNotes: order.deliveryNotes || "",
+});
 
 const buildInviteData = (token = createInviteToken()) => ({
   token,

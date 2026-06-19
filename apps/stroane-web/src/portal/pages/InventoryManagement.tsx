@@ -1310,19 +1310,30 @@ const InventoryManagementContent: React.FC = () => {
       ) : null}
 
       {loadWarning ? (
-        <ERPFormNotice tone="warning" title={isOnline ? "Partial inventory view" : "Offline inventory"}>
+        <ERPFormNotice
+          tone="warning"
+          title={isOnline ? "Partial inventory view" : "Offline inventory"}
+          onDismiss={clearMessages}
+        >
           {loadWarning}
         </ERPFormNotice>
       ) : null}
 
       {notice ? (
-        <ERPFormNotice tone="success" title="Inventory update">
+        <ERPFormNotice tone="success" title="Inventory update" onDismiss={clearMessages}>
           {notice}
         </ERPFormNotice>
       ) : null}
 
       {(error || formError) ? (
-        <ERPFormNotice tone="danger" title="Inventory action">
+        <ERPFormNotice
+          tone="danger"
+          title="Inventory action"
+          onDismiss={() => {
+            setFormError("");
+            clearMessages();
+          }}
+        >
           {formError || error}
         </ERPFormNotice>
       ) : null}

@@ -724,13 +724,13 @@ const OrderManagement: React.FC = () => {
       ) : null}
 
       {notice ? (
-        <ERPFormNotice tone="success" title="Orders update">
+        <ERPFormNotice tone="success" title="Orders update" onDismiss={() => setNotice("")}>
           {notice}
         </ERPFormNotice>
       ) : null}
 
       {error ? (
-        <ERPFormNotice tone="danger" title="Orders action">
+        <ERPFormNotice tone="danger" title="Orders action" onDismiss={() => setError("")}>
           {error}
         </ERPFormNotice>
       ) : null}

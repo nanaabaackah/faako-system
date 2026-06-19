@@ -148,6 +148,17 @@ export const buildReceiptNotificationContent = (receipt = {}) => {
       ),
     }),
     renderNotice({
+      title: "Purchase terms",
+      lines: [
+        "This receipt confirms payment for the Stroane order items listed above.",
+        "Fulfillment follows the delivery or pickup details confirmed for the order.",
+        "Please inspect products on delivery or pickup and contact Stroane Solutions promptly if anything does not match the confirmed order.",
+        "Payment credentials such as card numbers, CVV codes, mobile money PINs, and bank credentials are processed by Paystack or the payment provider and are not stored by Stroane Solutions.",
+      ],
+      tone: "info",
+      theme,
+    }),
+    renderNotice({
       title: "Support",
       lines: [
         "This is a customer-safe receipt. It does not include internal notes or payment secrets.",
@@ -180,6 +191,12 @@ export const buildReceiptNotificationContent = (receipt = {}) => {
     `Customer: ${customerName || "N/A"}`,
     `Email: ${customerEmail || "N/A"}`,
     `Payment reference: ${safeText(receipt.paymentReference || order.paymentReference, 120) || "N/A"}`,
+    "",
+    "Purchase terms:",
+    "- This receipt confirms payment for the Stroane order items listed above.",
+    "- Fulfillment follows the delivery or pickup details confirmed for the order.",
+    "- Please inspect products on delivery or pickup and contact Stroane Solutions promptly if anything does not match the confirmed order.",
+    "- Payment credentials such as card numbers, CVV codes, mobile money PINs, and bank credentials are processed by Paystack or the payment provider and are not stored by Stroane Solutions.",
   ].join("\n");
 
   return {

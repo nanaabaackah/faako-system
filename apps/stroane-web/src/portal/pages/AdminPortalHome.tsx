@@ -1146,13 +1146,17 @@ const AdminPortalHome: React.FC = () => {
       </header>
 
       {loadWarning ? (
-        <ERPFormNotice tone="warning" title="Partial operational view">
+        <ERPFormNotice
+          tone="warning"
+          title="Partial operational view"
+          onDismiss={() => setLoadWarning("")}
+        >
           {loadWarning}
         </ERPFormNotice>
       ) : null}
 
       {syncMessage ? (
-        <ERPFormNotice tone="info" title="Offline sync">
+        <ERPFormNotice tone="info" title="Offline sync" onDismiss={() => setSyncMessage("")}>
           {syncMessage}
         </ERPFormNotice>
       ) : null}

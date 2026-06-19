@@ -16,6 +16,7 @@ import {
   toSafePaystackMetadata,
   verifyPaystackTransaction,
 } from "../paystack.js";
+import { ensureReceiptForOrder, sendReceiptForPaidOrder } from "../receipts/service.js";
 
 const ORDER_STATUSES = new Set([
   "PENDING",
@@ -135,6 +136,32 @@ const parseExpectedDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const ensureAdminReceipt = async (prisma, order, options = {}) => {
+  try {
+    return await ensureReceiptForOrder(prisma, order, options);
+  } catch (error) {
+    console.warn("Stroane admin receipt creation failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: sanitizeText(error?.message || "Unable to create receipt.", 240),
+    });
+    return null;
+  }
+};
+
+const sendAdminPaidReceipt = async (prisma, order) => {
+  try {
+    return await sendReceiptForPaidOrder(prisma, order);
+  } catch (error) {
+    console.warn("Stroane admin receipt email failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: sanitizeText(error?.message || "Unable to send receipt.", 240),
+    });
+    return null;
+  }
+};
+
 export const createAdminOrderRouter = (prisma) => {
   const router = Router();
 
@@ -224,6 +251,11 @@ export const createAdminOrderRouter = (prisma) => {
         },
         include: { items: true },
       });
+      await ensureAdminReceipt(prisma, savedOrder, {
+        notes: "Automatically created when the manual order was submitted.",
+        createdById: req.authUser?.id || null,
+        createdByName: req.authUser?.username || null,
+      });
 
       res.status(201).json({ order: toAdminOrder(savedOrder) });
     })
@@ -293,6 +325,11 @@ export const createAdminOrderRouter = (prisma) => {
         },
         include: { items: true },
       });
+      await ensureAdminReceipt(prisma, updatedOrder, {
+        notes: "Automatically synced when Paystack payment was initialized.",
+        createdById: req.authUser?.id || null,
+        createdByName: req.authUser?.username || null,
+      });
 
       res.json({
         order: toAdminOrder(updatedOrder),
@@ -351,6 +388,7 @@ export const createAdminOrderRouter = (prisma) => {
         },
         include: { items: true },
       });
+      if (paid) await sendAdminPaidReceipt(prisma, updatedOrder);
 
       res.json({
         order: toAdminOrder(updatedOrder),

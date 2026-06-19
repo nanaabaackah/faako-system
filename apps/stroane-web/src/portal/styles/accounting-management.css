@@ -1,0 +1,407 @@
+.stroane-accounting {
+  width: min(100%, 1480px);
+  padding: 0.85rem 0 2rem;
+}
+
+.stroane-accounting,
+.stroane-accounting * {
+  min-width: 0;
+}
+
+.stroane-accounting__head,
+.stroane-accounting__head-actions,
+.stroane-accounting__filters,
+.stroane-accounting__export-actions,
+.stroane-accounting__modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stroane-accounting__head {
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.stroane-accounting__head span,
+.stroane-accounting__section-head span {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-accounting__head h1,
+.stroane-accounting__section-head h2 {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-primary);
+  line-height: 1.08;
+}
+
+.stroane-accounting__head h1 {
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+}
+
+.stroane-accounting__section-head h2 {
+  font-size: 1.05rem;
+}
+
+.stroane-accounting__head p {
+  max-width: 780px;
+  margin: 0.65rem 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.stroane-accounting__head-actions,
+.stroane-accounting__export-actions,
+.stroane-accounting__modal-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.stroane-accounting__filters {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+  padding: 0.95rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  background: var(--sys-table-pagination-bg, var(--sys-table-head-bg));
+}
+
+.stroane-accounting__filters .ui-dropdown-field,
+.stroane-accounting__filters .ui-date-field {
+  flex: 0 1 13rem;
+}
+
+.stroane-accounting__export-actions {
+  margin-left: auto;
+}
+
+.stroane-accounting__kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.stroane-accounting__kpis article {
+  align-self: start;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-height: 134px;
+  padding: 0.92rem;
+}
+
+.stroane-accounting__kpis svg {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: var(--sys-radius-sm);
+  padding: 0.42rem;
+  background: var(--sys-accent-soft);
+  color: var(--sys-accent);
+}
+
+.stroane-accounting__kpis article[data-tone="success"] svg {
+  background: var(--sys-success-soft);
+  color: var(--sys-success);
+}
+
+.stroane-accounting__kpis article[data-tone="warning"] svg {
+  background: var(--sys-warning-soft);
+  color: var(--sys-warning);
+}
+
+.stroane-accounting__kpis article[data-tone="info"] svg {
+  background: var(--sys-info-soft);
+  color: var(--sys-info);
+}
+
+.stroane-accounting__kpis span,
+.stroane-accounting__mini-table span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-accounting__kpis strong {
+  color: var(--color-text-primary);
+  font-size: 1.36rem;
+  line-height: 1;
+}
+
+.stroane-accounting__kpis small {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.stroane-accounting__insights,
+.stroane-accounting__split {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stroane-accounting__insights {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stroane-accounting__split {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.stroane-accounting__position {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.stroane-accounting__position dl {
+  display: grid;
+  gap: 0.62rem;
+  margin: 0;
+}
+
+.stroane-accounting__position dl div,
+.stroane-accounting__mini-table div {
+  display: grid;
+  gap: 0.22rem;
+  border-bottom: 1px solid var(--sys-border);
+  padding: 0 0 0.58rem;
+}
+
+.stroane-accounting__position dl div:last-child,
+.stroane-accounting__mini-table div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.stroane-accounting__position dl div.is-strong {
+  margin-top: 0.1rem;
+  border-radius: var(--sys-radius-sm);
+  border: 1px solid var(--sys-border);
+  padding: 0.72rem;
+  background: var(--sys-accent-soft);
+}
+
+.stroane-accounting__position dt {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.stroane-accounting__position dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.04rem;
+  font-weight: 850;
+}
+
+.stroane-accounting__mini-table {
+  display: grid;
+  gap: 0.72rem;
+  margin-top: 1rem;
+}
+
+.stroane-accounting__mini-table strong {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.stroane-accounting__mini-table small,
+.stroane-accounting__mini-table p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.stroane-accounting__table-panel {
+  margin-top: 1rem;
+}
+
+.stroane-accounting__admin-table {
+  overflow: visible;
+  margin-top: 0.75rem;
+}
+
+.stroane-accounting__admin-table table {
+  min-width: 1100px;
+}
+
+.stroane-accounting__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  table-layout: fixed;
+}
+
+.stroane-accounting__col-number {
+  width: 4rem;
+}
+
+.stroane-accounting__col-date {
+  width: 12%;
+}
+
+.stroane-accounting__col-type {
+  width: 13%;
+}
+
+.stroane-accounting__col-description {
+  width: 30%;
+}
+
+.stroane-accounting__col-category {
+  width: 17%;
+}
+
+.stroane-accounting__col-amount {
+  width: 15%;
+}
+
+.stroane-accounting__col-status {
+  width: 12%;
+}
+
+.stroane-accounting__table th,
+.stroane-accounting__table td {
+  border-bottom: 1px solid var(--sys-border);
+  padding: 0.82rem 0.9rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.stroane-accounting__table th,
+.stroane-accounting__table td:not(.stroane-accounting__table-empty):not(.admin-table-summary-cell):not(.portal-table-number-cell) {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-accounting__table td:not(.stroane-accounting__table-empty):not(.admin-table-summary-cell):not(.portal-table-number-cell) > * {
+  max-width: 100%;
+}
+
+.stroane-accounting__table .ui-erp-status-badge,
+.stroane-accounting__table .erp-status-badge {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-accounting__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sys-table-head-bg);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stroane-accounting__transaction-cell {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.stroane-accounting__transaction-cell strong,
+.stroane-accounting__transaction-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stroane-accounting__transaction-cell strong {
+  color: var(--color-text-primary);
+}
+
+.stroane-accounting__transaction-cell small {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.stroane-accounting__table-empty {
+  height: 6rem;
+  color: var(--color-text-muted);
+  text-align: center !important;
+}
+
+.stroane-accounting__pagination {
+  border-top: 1px solid var(--sys-border);
+  padding: 0.86rem 1rem;
+  background: var(--sys-table-pagination-bg, var(--sys-table-footer-bg, var(--sys-table-head-bg)));
+}
+
+.stroane-accounting__modal.ui-erp-modal {
+  width: min(100%, 56rem);
+}
+
+.stroane-accounting__entry-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.stroane-accounting__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+  .stroane-accounting__kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stroane-accounting__split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .stroane-accounting__head,
+  .stroane-accounting__filters,
+  .stroane-accounting__modal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .stroane-accounting__head-actions,
+  .stroane-accounting__export-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .stroane-accounting__head-actions .ui-erp-action,
+  .stroane-accounting__export-actions .ui-erp-action,
+  .stroane-accounting__modal-actions .ui-erp-action {
+    width: 100%;
+  }
+
+  .stroane-accounting__filters .ui-dropdown-field,
+  .stroane-accounting__filters .ui-date-field {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .stroane-accounting__kpis,
+  .stroane-accounting__insights,
+  .stroane-accounting__form-grid {
+    grid-template-columns: 1fr;
+  }
+}

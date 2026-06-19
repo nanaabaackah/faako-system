@@ -131,11 +131,15 @@ export function ERPFormNotice({
   className = "",
   tone = "info",
   title,
+  onDismiss,
+  dismissLabel = "Clear",
   children,
   ...props
 }: Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   tone?: ERPFormTone;
   title?: ReactNode;
+  onDismiss?: () => void;
+  dismissLabel?: string;
 }) {
   const normalizedTone = tone === "error" ? "danger" : tone;
   const defaultRole = normalizedTone === "danger" || normalizedTone === "warning" ? "alert" : "status";
@@ -145,8 +149,20 @@ export function ERPFormNotice({
       role={props.role ?? defaultRole}
       {...props}
     >
-      {title ? <strong>{title}</strong> : null}
-      {children ? <p>{children}</p> : null}
+      <span className="ui-erp-form-notice__content">
+        {title ? <strong>{title}</strong> : null}
+        {children ? <p>{children}</p> : null}
+      </span>
+      {onDismiss ? (
+        <button
+          type="button"
+          className="ui-erp-form-notice__dismiss"
+          onClick={onDismiss}
+          aria-label={dismissLabel}
+        >
+          {dismissLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

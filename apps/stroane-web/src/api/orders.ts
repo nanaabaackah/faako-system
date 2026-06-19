@@ -67,6 +67,8 @@ export interface CheckoutOrderResponse {
     preferredContactMethod?: string;
     deliveryMethod?: CheckoutFulfillmentMethod;
     deliveryLocation?: DeliveryLocation;
+    deliveryAddress?: string;
+    deliveryNotes?: string;
     expectedDeliveryDate?: string;
     paymentStatus?: "payment_pending" | "paid" | "failed" | "abandoned" | "not_started";
     paymentReference?: string;

@@ -149,9 +149,12 @@
   width: 3%;
 }
 
-.stroane-receipts__col-receipt,
+.stroane-receipts__col-receipt{
+  width: 12%;
+}
+
 .stroane-receipts__col-customer {
-  width: 18%;
+  width: 15%;
 }
 
 .stroane-receipts__col-order {
@@ -201,7 +204,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--sys-surface-strong) 94%, transparent);
+  background: var(--sys-table-head-bg);
   color: var(--color-text-muted);
   font-size: 0.68rem;
   font-weight: 850;
@@ -256,6 +259,19 @@
   gap: 0.35rem;
 }
 
+.stroane-receipts__row-actions .ui-erp-icon-action {
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  border-radius: var(--sys-radius-sm);
+}
+
+.stroane-receipts__row-actions .ui-erp-icon-action svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
 .stroane-receipts__table-empty {
   height: 6rem;
   color: var(--color-text-muted);
@@ -265,6 +281,7 @@
 .stroane-receipts__pagination {
   border-top: 1px solid var(--sys-border);
   padding: 0.86rem 1rem;
+  background: var(--sys-table-pagination-bg, var(--sys-table-footer-bg, var(--sys-table-head-bg)));
 }
 
 .stroane-receipts__bulk-bar {

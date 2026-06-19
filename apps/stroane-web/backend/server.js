@@ -60,7 +60,9 @@ import {
 } from "./src/customerAccounts/routes.js";
 import { createAdminOrderRouter } from "./src/ordersAdmin/routes.js";
 import { createAdminReceiptRouter } from "./src/receipts/routes.js";
+import { ensureReceiptForOrder, sendReceiptForPaidOrder } from "./src/receipts/service.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
+import { createAdminAccountingRouter } from "./src/accounting/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
 const appDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -362,6 +364,32 @@ const sendPaymentConfirmedNotification = async (order) => {
   }
 };
 
+const ensureOrderReceipt = async (order, options = {}) => {
+  try {
+    return await ensureReceiptForOrder(prisma, order, options);
+  } catch (error) {
+    console.warn("Stroane receipt creation failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: sanitizeNotificationError(error?.message || "Unable to create receipt."),
+    });
+    return { receipt: null, status: "failed", reason: "receipt_creation_failed" };
+  }
+};
+
+const sendPaidOrderReceipt = async (order, options = {}) => {
+  try {
+    return await sendReceiptForPaidOrder(prisma, order, options);
+  } catch (error) {
+    console.warn("Stroane receipt email failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: sanitizeNotificationError(error?.message || "Unable to send receipt."),
+    });
+    return { receipt: null, status: "failed", reason: "receipt_email_failed", sent: false };
+  }
+};
+
 const resolvePaidOrderStatus = (status) =>
   ["PAID", "PROCESSING", "COMPLETED"].includes(String(status || "").toUpperCase())
     ? status
@@ -426,6 +454,7 @@ app.use("/api/customer", customerAuthRateLimit, createCustomerAccountRouter(pris
 app.use("/api/admin", adminRateLimit, createAdminCustomerRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminReceiptRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminAccountingRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
@@ -637,6 +666,9 @@ app.post("/api/orders", checkoutRateLimit, async (req, res) => {
       orderNumber: savedOrder.orderNumber,
       itemCount: savedOrder.items.length,
     });
+    await ensureOrderReceipt(savedOrder, {
+      notes: "Automatically created when the order was submitted.",
+    });
     void emitAppActivityEvent({
       action: "commerce_order_created",
       targetId: savedOrder.id,
@@ -698,7 +730,7 @@ app.post("/api/orders/:orderId/paystack/initialize", paymentInitRateLimit, async
     const reference = buildPaystackReference(order);
     const initializedPayment = await initializePaystackTransaction({ order, reference });
 
-    await prisma.commerceOrder.update({
+    const paymentOrder = await prisma.commerceOrder.update({
       where: { id: order.id },
       data: {
         status: "PAYMENT_PENDING",
@@ -716,6 +748,10 @@ app.post("/api/orders/:orderId/paystack/initialize", paymentInitRateLimit, async
           testMode: initializedPayment.testMode,
         },
       },
+      include: { items: true },
+    });
+    await ensureOrderReceipt(paymentOrder, {
+      notes: "Automatically synced when Paystack payment was initialized.",
     });
     void emitAppActivityEvent({
       action: "commerce_order_payment_initialized",
@@ -821,6 +857,7 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
       if (!order.customerNotificationSentAt) {
         await sendPaymentConfirmedNotification(order);
       }
+      await sendPaidOrderReceipt(order);
 
       return res.json({
         received: true,
@@ -969,6 +1006,7 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
 
     if (nextPaymentStatus === PAYMENT_STATUSES.PAID) {
       await sendPaymentConfirmedNotification(updatedOrder);
+      await sendPaidOrderReceipt(updatedOrder);
     }
 
     return res.json({

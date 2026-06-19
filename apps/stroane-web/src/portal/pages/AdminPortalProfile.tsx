@@ -197,13 +197,13 @@ const AdminPortalProfile: React.FC = () => {
       </header>
 
       {message ? (
-        <ERPFormNotice tone="success" title="Saved">
+        <ERPFormNotice tone="success" title="Saved" onDismiss={() => setMessage("")}>
           {message}
         </ERPFormNotice>
       ) : null}
 
       {error ? (
-        <ERPFormNotice tone="warning" title="Profile update">
+        <ERPFormNotice tone="warning" title="Profile update" onDismiss={() => setError("")}>
           {error}
         </ERPFormNotice>
       ) : null}

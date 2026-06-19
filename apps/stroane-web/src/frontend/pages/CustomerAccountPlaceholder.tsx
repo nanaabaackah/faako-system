@@ -2,9 +2,14 @@ import React, { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   HiArrowRight,
+  HiOutlineCalendar,
+  HiOutlineCreditCard,
+  HiOutlineLocationMarker,
   HiOutlineLogout,
   HiOutlineRefresh,
   HiOutlineSave,
+  HiOutlineShoppingBag,
+  HiOutlineX,
 } from "react-icons/hi";
 import { SelectField, TextField, TextareaField } from "@faako/ui";
 import Layout from "../../components/Layout";
@@ -32,8 +37,24 @@ const formatDate = (value?: string) => {
   });
 };
 
+const formatDateTime = (value?: string) => {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const formatStatus = (value = "") =>
   value.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Pending";
+
+const formatDeliveryMethod = (value?: string) =>
+  value === "pickup" ? "Pickup" : value === "delivery" ? "Delivery" : "Not recorded";
 
 const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) => {
   const { user, loading, signOut, updateProfile, refreshProfile } = useAuth();
@@ -46,6 +67,7 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -95,6 +117,15 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
     () => orders.reduce((total, order) => total + Number(order.total || 0), 0),
     [orders]
   );
+
+  useEffect(() => {
+    if (!selectedOrder) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedOrder(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedOrder]);
 
   const handleProfileSave = async (event: FormEvent) => {
     event.preventDefault();
@@ -299,15 +330,22 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
                 {orders.length ? (
                   <div className="customer-account-orders" role="list">
                     {orders.map((order) => (
-                      <article key={order.id} className="customer-account-order" role="listitem">
-                        <div>
-                          <strong>{order.orderNumber}</strong>
-                          <span>{formatDate(order.createdAt)}</span>
-                        </div>
-                        <div>
-                          <span>{formatStatus(order.status)}</span>
-                          <strong>{formatCurrency(order.total)}</strong>
-                        </div>
+                      <article key={order.id} role="listitem">
+                        <button
+                          type="button"
+                          className="customer-account-order"
+                          onClick={() => setSelectedOrder(order)}
+                          aria-label={`Open details for order ${order.orderNumber}`}
+                        >
+                          <div>
+                            <strong>{order.orderNumber}</strong>
+                            <span>{formatDate(order.createdAt)}</span>
+                          </div>
+                          <div>
+                            <span>{formatStatus(order.status)}</span>
+                            <strong>{formatCurrency(order.total)}</strong>
+                          </div>
+                        </button>
                       </article>
                     ))}
                   </div>
@@ -320,6 +358,111 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
             </div>
           )}
         </div>
+
+        {selectedOrder ? (
+          <div
+            className="customer-order-lightbox"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-order-lightbox-title"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSelectedOrder(null);
+            }}
+          >
+            <article className="customer-order-modal">
+              <header className="customer-order-modal__head">
+                <div>
+                  <span>Order details</span>
+                  <h2 id="customer-order-lightbox-title">{selectedOrder.orderNumber}</h2>
+                  <p>{formatDate(selectedOrder.createdAt)}</p>
+                </div>
+                <button
+                  type="button"
+                  className="customer-order-modal__close"
+                  onClick={() => setSelectedOrder(null)}
+                  aria-label="Close order details"
+                >
+                  <HiOutlineX size={20} aria-hidden="true" />
+                </button>
+              </header>
+
+              <div className="customer-order-modal__summary">
+                <div>
+                  <HiOutlineShoppingBag size={18} aria-hidden="true" />
+                  <span>Status</span>
+                  <strong>{formatStatus(selectedOrder.status)}</strong>
+                </div>
+                <div>
+                  <HiOutlineCreditCard size={18} aria-hidden="true" />
+                  <span>Payment</span>
+                  <strong>{formatStatus(selectedOrder.paymentStatus)}</strong>
+                </div>
+                <div>
+                  <HiOutlineCalendar size={18} aria-hidden="true" />
+                  <span>{formatDeliveryMethod(selectedOrder.deliveryMethod)}</span>
+                  <strong>{formatDateTime(selectedOrder.expectedDeliveryDate)}</strong>
+                </div>
+              </div>
+
+              <section className="customer-order-modal__section">
+                <h3>Items</h3>
+                <div className="customer-order-items">
+                  {selectedOrder.items.map((item) => (
+                    <div
+                      className="customer-order-item"
+                      key={`${selectedOrder.id}-${item.productSlug}`}
+                    >
+                      <div>
+                        <strong>{item.productName}</strong>
+                        <span>
+                          {item.quantity} x {formatCurrency(item.unitPrice)}
+                          {item.sku ? ` - ${item.sku}` : ""}
+                        </span>
+                      </div>
+                      <strong>{formatCurrency(item.lineTotal)}</strong>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="customer-order-modal__section">
+                <h3>Fulfillment</h3>
+                <div className="customer-order-fulfillment">
+                  <HiOutlineLocationMarker size={18} aria-hidden="true" />
+                  <div>
+                    <strong>{formatDeliveryMethod(selectedOrder.deliveryMethod)}</strong>
+                    <span>
+                      {selectedOrder.deliveryAddress ||
+                        selectedOrder.deliveryLocation?.address ||
+                        selectedOrder.deliveryLocation?.label ||
+                        "Location not recorded"}
+                    </span>
+                    {selectedOrder.deliveryNotes ? (
+                      <small>{selectedOrder.deliveryNotes}</small>
+                    ) : null}
+                    {selectedOrder.deliveryLocation?.mapUrl ? (
+                      <a
+                        href={selectedOrder.deliveryLocation.mapUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open map
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+
+              <footer className="customer-order-modal__footer">
+                <span>Total</span>
+                <strong>{formatCurrency(selectedOrder.total)}</strong>
+                {selectedOrder.paymentReference ? (
+                  <small>Payment reference: {selectedOrder.paymentReference}</small>
+                ) : null}
+              </footer>
+            </article>
+          </div>
+        ) : null}
       </section>
     </Layout>
   );

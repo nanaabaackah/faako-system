@@ -205,7 +205,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: color-mix(in srgb, var(--sys-surface-strong) 94%, transparent);
+  background: var(--sys-table-head-bg);
   color: var(--color-text-muted);
   font-size: 0.68rem;
   font-weight: 850;
@@ -293,6 +293,7 @@
 .stroane-crm__pagination {
   border-top: 1px solid var(--sys-border);
   padding: 0.86rem 1rem;
+  background: var(--sys-table-pagination-bg, var(--sys-table-footer-bg, var(--sys-table-head-bg)));
 }
 
 .stroane-crm__modal.ui-erp-modal {

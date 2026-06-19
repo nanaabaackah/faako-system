@@ -58,7 +58,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 - Stroane currently uses Prisma/Postgres from the backend. The browser does not connect directly to the database.
 - Railway Postgres is the chosen production database direction.
-- Tables that require strict protection: `CommerceOrder`, `CommerceOrderItem`, `CatalogueInquiry`, `SiteUser`, future payment/event logs, future notification logs, and any future admin data.
+- Tables that require strict protection: `CommerceOrder`, `CommerceOrderItem`, `CommerceReceipt`, `AccountingLedgerEntry`, `CatalogueInquiry`, `SiteUser`, future payment/event logs, future notification logs, and any future admin data.
 - `CustomerAccount` stores customer profile details, invite hashes, password-reset token hashes, and account status. Customer records must remain server-side only; the browser may cache a non-secret profile shell for UX, but not session tokens, password hashes, invite/reset token hashes, payment secrets, or cross-customer data.
 - Recommended Railway Postgres direction: keep all direct database access server-side, use separate migration and runtime credentials/roles where available, prevent browser database access, and keep payment/order/inquiry/user writes backend-only.
 
@@ -72,7 +72,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.
-- The private order module is active for order review, manual order creation, fulfillment metadata, Paystack initialization, and Paystack status refresh. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
+- The private order module is active for order review, manual order creation, fulfillment metadata, Paystack initialization, and Paystack status refresh. The private accounting module is active for protected financial analytics and manual historical entries; writes require `ADMIN`. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
 - Railway Postgres least-privilege runtime/migration roles are documented but not implemented in app code.
 - Centralized redacted logging is still future work. Route-level auth/payment/catalogue/order errors are now sanitized, but future logging should still avoid request bodies, provider payloads, secrets, card/MoMo details, or full customer records.
 - Backend maintenance/read-only enforcement remains future work.

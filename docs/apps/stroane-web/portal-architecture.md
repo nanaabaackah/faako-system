@@ -48,7 +48,7 @@ These use the storefront layout and a separate customer account auth flow. The c
 - `/admin/reports`
 - `/admin/settings`
 
-The old `/admin/signin` path redirects to `/login` for bookmark compatibility. The portal login page reuses the public Stroane site header and footer so staff retain a clear storefront handoff; its header, footer, search, cart, and informational links point back to `https://stroanesolutions.com`. Protected `/admin/*` routes render inside the shared `@faako/ui` ERP shell with a portal sidebar, topbar, and mobile bottom navigation, without storefront chrome. Active modules currently include the dashboard, inventory, orders, and CRM/directory. Other module routes remain reset placeholders for the next rebuild.
+The old `/admin/signin` path redirects to `/login` for bookmark compatibility. The portal login page reuses the public Stroane site header and footer so staff retain a clear storefront handoff; its header, footer, search, cart, and informational links point back to `https://stroanesolutions.com`. Protected `/admin/*` routes render inside the shared `@faako/ui` ERP shell with a portal sidebar, topbar, and mobile bottom navigation, without storefront chrome. Active modules currently include the dashboard, inventory, orders, receipts, accounting, and CRM/directory. Other module routes remain reset placeholders for the next rebuild.
 
 ## Frontend Surface Split
 
@@ -78,7 +78,7 @@ The `/admin` entry screen is a restrained operational dashboard rather than a ma
 - catalogue-readiness indicators for publication, stock tracking, and supplier-link coverage
 - low-stock, out-of-stock, and reorder attention items
 - recent inventory movements
-- module links for inventory, orders, CRM, suppliers, products, and operations routes
+- module links for inventory, orders, receipts, accounting, CRM, suppliers, products, and operations routes
 
 Each data source degrades independently. If one protected API is temporarily unavailable, the portal keeps the remaining operational context visible and shows a safe partial-data notice.
 

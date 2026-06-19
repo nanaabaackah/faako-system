@@ -307,8 +307,16 @@ const CustomerDirectory: React.FC = () => {
         </article>
       </section>
 
-      {notice ? <ERPFormNotice tone="success">{notice}</ERPFormNotice> : null}
-      {error ? <ERPFormNotice tone="danger">{error}</ERPFormNotice> : null}
+      {notice ? (
+        <ERPFormNotice tone="success" onDismiss={() => setNotice("")}>
+          {notice}
+        </ERPFormNotice>
+      ) : null}
+      {error ? (
+        <ERPFormNotice tone="danger" onDismiss={() => setError("")}>
+          {error}
+        </ERPFormNotice>
+      ) : null}
 
       <section className="stroane-crm__table-panel">
         <div className="stroane-crm__toolbar">

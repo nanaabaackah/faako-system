@@ -13,6 +13,7 @@ import AdminPortalHome from "./pages/AdminPortalHome";
 import InventoryManagement from "./pages/InventoryManagement";
 import OrderManagement from "./pages/OrderManagement";
 import ReceiptManagement from "./pages/ReceiptManagement";
+import AccountingManagement from "./pages/AccountingManagement";
 import CustomerDirectory from "./pages/CustomerDirectory";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
 import AdminPortalProfile from "./pages/AdminPortalProfile";
@@ -47,6 +48,7 @@ const PortalApp: React.FC = () => (
             <Route path="inventory" element={<InventoryManagement />} />
             <Route path="orders" element={<OrderManagement />} />
             <Route path="receipts" element={<ReceiptManagement />} />
+            <Route path="accounting" element={<AccountingManagement />} />
             <Route path="crm" element={<CustomerDirectory />} />
             <Route path="directory" element={<CustomerDirectory />} />
             <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />

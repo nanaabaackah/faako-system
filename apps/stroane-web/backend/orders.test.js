@@ -45,6 +45,23 @@ const checkoutPayload = {
   items: [{ productSlug: "priced-product", quantity: 2 }],
 };
 
+const pickupPayload = {
+  ...checkoutPayload,
+  customer: {
+    ...checkoutPayload.customer,
+    deliveryAddress: "Accra Central pickup - Stroane Solutions, Accra Central",
+    deliveryNotes: "Please call on arrival.",
+  },
+  fulfillmentMethod: "pickup",
+  deliveryMethod: "pickup",
+  deliveryLocation: null,
+  pickupLocationId: "accra-central",
+  pickupLocationName: "Accra Central pickup",
+  pickupDate: "2026-06-20",
+  pickupTime: "10:00",
+  expectedDeliveryDate: "2026-06-20T10:00:00",
+};
+
 test("priced products can checkout while stock is still unconfirmed", async () => {
   const order = await prepareCommerceOrder(createPrismaWithProduct(baseProduct), checkoutPayload);
 
@@ -65,5 +82,40 @@ test("priced products with explicit zero available stock still cannot checkout",
         checkoutPayload
       ),
     /Priced Product is out of stock/
+  );
+});
+
+test("pickup checkout accepts the fixed morning afternoon and evening windows", async () => {
+  const order = await prepareCommerceOrder(createPrismaWithProduct(baseProduct), pickupPayload);
+
+  assert.equal(order.deliveryMethod, "pickup");
+  assert.equal(order.fulfillment.pickupDate, "2026-06-20");
+  assert.equal(order.fulfillment.pickupTime, "10:00");
+  assert.match(order.customer.deliveryNotes, /Morning pickup window, 10:00 AM - 12:00 PM/);
+});
+
+test("pickup checkout rejects Sundays and arbitrary pickup times", async () => {
+  await assert.rejects(
+    () =>
+      prepareCommerceOrder(createPrismaWithProduct(baseProduct), {
+        ...pickupPayload,
+        pickupDate: "2026-06-21",
+        expectedDeliveryDate: "2026-06-21T10:00:00",
+      }),
+    (error) =>
+      Array.isArray(error.details) &&
+      error.details.includes("Sunday pickups are not available. Choose Monday to Saturday.")
+  );
+
+  await assert.rejects(
+    () =>
+      prepareCommerceOrder(createPrismaWithProduct(baseProduct), {
+        ...pickupPayload,
+        pickupTime: "09:30",
+        expectedDeliveryDate: "2026-06-20T09:30:00",
+      }),
+    (error) =>
+      Array.isArray(error.details) &&
+      error.details.includes("Choose a pickup window between 10:00 AM and 7:00 PM.")
   );
 });
