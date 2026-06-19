@@ -8,6 +8,7 @@ const dataGroups = [
       "Name, work email, phone number, company, and role.",
       "Project details, planning notes, and uploaded files.",
       "Billing and invoicing details submitted for contracts.",
+      "Payment references, invoice status, and provider confirmation details.",
       "Messages sent through support and contact forms.",
     ],
   },
@@ -18,6 +19,7 @@ const dataGroups = [
       "Usage events, log files, and diagnostics.",
       "Approximate location derived from IP address.",
       "Cookie and tracker preferences saved on your device.",
+      "Browser storage for theme choices, language preferences, and form drafts.",
     ],
   },
 ];
@@ -92,7 +94,7 @@ export default function Privacy() {
           </p>
             <div className="privacy-meta">
               <span>Effective date: February 11, 2026</span>
-              <span>Last updated: February 11, 2026</span>
+              <span>Last updated: June 19, 2026</span>
               <span>Region: Global operations</span>
             </div>
             <div className="privacy-chip-row">
@@ -237,6 +239,11 @@ export default function Privacy() {
                 <li>All providers are contractually bound to protect data.</li>
                 <li>Access is limited to data required for their service scope.</li>
                 <li>
+                  Where a project or invoice uses Paystack, payment credentials
+                  are collected and processed by Paystack, not stored in Faako
+                  systems.
+                </li>
+                <li>
                   Cross-border transfers use contractual and organizational
                   safeguards.
                 </li>
@@ -251,20 +258,24 @@ export default function Privacy() {
             >
               <h2>5. Cookies and tracking technologies</h2>
               <p>
-                We use essential cookies for security and session continuity,
-                and optional analytics cookies to improve site performance.
+                We use essential cookies and browser storage for security,
+                session continuity, form drafts, theme choices, language
+                preferences, and saved cookie choices. Optional analytics cookies
+                are only used after consent to improve site performance.
               </p>
               <ul className="privacy-list">
                 <li>
                   Essential cookies cannot be disabled because they are required
-                  for core functionality.
+                  for core functionality and abuse prevention.
                 </li>
                 <li>
-                  Optional analytics preferences can be changed at any time.
+                  Optional analytics may include page paths, browser/device type,
+                  approximate region, and performance signals.
                 </li>
                 <li>
-                  Browser-level controls can also be used to block or clear
-                  cookies.
+                  Payment details such as card numbers, CVV codes, mobile money
+                  PINs, and bank credentials are not stored by Faako. Paystack
+                  handles those details on its secure payment flow.
                 </li>
               </ul>
             </section>

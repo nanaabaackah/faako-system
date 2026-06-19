@@ -13,6 +13,7 @@ const SECTIONS: LegalSection[] = [
           <li>Name, business name, email address, and phone number.</li>
           <li>Details of your operation that you share for advisory work.</li>
           <li>Order, pricing, and delivery information from the Stroane store.</li>
+          <li>Payment references, payment status, and receipt records.</li>
           <li>Content of messages you send us by email, WhatsApp, or web form.</li>
         </ul>
         <p>
@@ -57,9 +58,15 @@ const SECTIONS: LegalSection[] = [
         </p>
         <ul>
           <li>Service providers (e.g. hosting, email) under contract.</li>
+          <li>Paystack, for secure checkout and payment verification.</li>
           <li>Regulators or auditors where required by law.</li>
           <li>Specific recipients you direct us to share with (e.g. for joint audits).</li>
         </ul>
+        <p>
+          Stroane does not receive or store full card numbers, CVV codes, mobile
+          money PINs, bank credentials, or other sensitive payment credentials.
+          Those details are entered with and processed by Paystack.
+        </p>
       </>
     ),
   },
@@ -109,11 +116,18 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Cookies",
     body: (
-      <p>
-        We use a small number of cookies to keep the site working and to
-        understand usage. See our <Link to="/cookies">Cookie Policy</Link> for
-        the full list and how to manage them.
-      </p>
+      <>
+        <p>
+          We use essential browser storage for the cart, checkout, customer
+          account session, security, and your consent choice. Optional analytics
+          storage helps us understand page usage in aggregate only after you
+          accept it.
+        </p>
+        <p>
+          See our <Link to="/cookies">Cookie Policy</Link> for the full list and
+          how to manage your choices.
+        </p>
+      </>
     ),
   },
   {
@@ -139,7 +153,7 @@ const Privacy: React.FC = () => {
   return (
     <LegalLayout
       title="Privacy Policy"
-      lastUpdated="14 May 2026"
+      lastUpdated="19 June 2026"
       intro={
         <p>
           This policy explains what information Stroane collects, how we use

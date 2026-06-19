@@ -1,0 +1,149 @@
+.bn-cookie {
+  position: fixed;
+  right: clamp(1rem, 3vw, 1.5rem);
+  bottom: clamp(1rem, 3vw, 1.5rem);
+  z-index: 3400;
+  width: min(430px, calc(100vw - 2rem));
+}
+
+.bn-cookie__panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.bn-cookie__copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bn-cookie__copy span {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bn-cookie h2,
+.bn-cookie p {
+  margin: 0;
+}
+
+.bn-cookie h2 {
+  color: var(--text-1);
+  font-family: var(--font-heading);
+  font-size: 1.28rem;
+  line-height: 1.12;
+}
+
+.bn-cookie p,
+.bn-cookie small {
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+.bn-cookie a {
+  justify-self: start;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.bn-cookie__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.bn-cookie button {
+  min-height: 2.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--button-plain-bg);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.bn-cookie button:hover,
+.bn-cookie button:focus-visible {
+  border-color: var(--accent-line);
+}
+
+.bn-cookie button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--button-primary-text);
+}
+
+.bn-cookie__prefs {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bn-cookie__prefs[hidden] {
+  display: none;
+}
+
+.bn-cookie__pref {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--glass-2);
+}
+
+.bn-cookie__pref div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.bn-cookie__pref strong {
+  color: var(--text-1);
+}
+
+.bn-cookie__pref em {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.bn-cookie__pref input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+
+.bn-cookie__save {
+  justify-self: end;
+  padding-inline: 1rem;
+}
+
+@media (max-width: 680px) {
+  .bn-cookie {
+    inset-inline: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: auto;
+  }
+
+  .bn-cookie__panel {
+    max-height: min(72dvh, 560px);
+    overflow-y: auto;
+  }
+
+  .bn-cookie__actions {
+    grid-template-columns: 1fr;
+  }
+}

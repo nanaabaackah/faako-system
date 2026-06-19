@@ -6,6 +6,11 @@ import { AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } fr
 import { useFrontFacingScrollReveal } from "@faako/ui/useFrontFacingScrollReveal";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
+import CookieConsentBanner from "./components/CookieConsentBanner.jsx";
+import {
+  FAAKO_COOKIE_PREFS_EVENT,
+  hasFaakoAnalyticsConsent,
+} from "./utils/cookieConsent.js";
 import Particles from "./components/Particles.jsx";
 import { getModuleById } from "./data/modules.js";
 import "./styles/components/button.css";
@@ -69,6 +74,7 @@ const getStoredTheme = () => {
 export default function App() {
   const [theme, setTheme] = useState(getStoredTheme);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(hasFaakoAnalyticsConsent);
   const [systemTheme, setSystemTheme] = useState(() => {
     if (typeof window === "undefined") {
       return "light";
@@ -101,6 +107,19 @@ export default function App() {
         media.removeListener(handleChange);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handlePreferences = (event) => {
+      setAnalyticsAllowed(Boolean(event.detail?.analytics));
+    };
+
+    window.addEventListener(FAAKO_COOKIE_PREFS_EVENT, handlePreferences);
+    return () => window.removeEventListener(FAAKO_COOKIE_PREFS_EVENT, handlePreferences);
   }, []);
 
   useEffect(() => {
@@ -185,7 +204,7 @@ export default function App() {
     <div className="app-shell">
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
-        enabled={GOOGLE_ANALYTICS_ENABLED}
+        enabled={GOOGLE_ANALYTICS_ENABLED && analyticsAllowed}
       />
       <AppUpdateNotice
         appName="Faako"
@@ -258,6 +277,7 @@ export default function App() {
         </button>
       ) : null}
       <Footer footerLogo={footerLogo} />
+      <CookieConsentBanner />
     </div>
   );
 }

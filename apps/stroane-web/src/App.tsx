@@ -1,8 +1,13 @@
 import "./styles/globals.css";
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
 import { AppBottomBar, AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { resolveAppSurface } from "./config/appSurface";
+import {
+  hasStroaneAnalyticsConsent,
+  STROANE_COOKIE_PREFS_EVENT,
+  type StroaneCookiePreferences,
+} from "./frontend/utils/cookieConsent";
 
 const PortalApp = lazy(() => import("./portal/PortalApp"));
 const StorefrontApp = lazy(() => import("./frontend/StorefrontApp"));
@@ -39,13 +44,35 @@ const StroaneUpdateNotice: React.FC = () => {
   );
 };
 
+const StroaneAnalyticsTracker: React.FC = () => {
+  const location = useLocation();
+  const surface = resolveAppSurface();
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(hasStroaneAnalyticsConsent);
+  const isStorefrontSurface = surface === "storefront" || (surface === "combined" && !isPortalPath(location.pathname));
+
+  useEffect(() => {
+    const handlePreferences = (event: Event) => {
+      const detail = (event as CustomEvent<StroaneCookiePreferences>).detail;
+      setAnalyticsAllowed(Boolean(detail?.analytics));
+    };
+
+    window.addEventListener(STROANE_COOKIE_PREFS_EVENT, handlePreferences);
+    return () => window.removeEventListener(STROANE_COOKIE_PREFS_EVENT, handlePreferences);
+  }, []);
+
+  return (
+    <GoogleAnalyticsRouteTracker
+      measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
+      enabled={GOOGLE_ANALYTICS_ENABLED}
+      shouldTrack={() => !isStorefrontSurface || analyticsAllowed}
+    />
+  );
+};
+
 const App: React.FC = () => {
   return (
     <Router>
-      <GoogleAnalyticsRouteTracker
-        measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
-        enabled={GOOGLE_ANALYTICS_ENABLED}
-      />
+      <StroaneAnalyticsTracker />
       <StroaneUpdateNotice />
       <Suspense
         fallback={

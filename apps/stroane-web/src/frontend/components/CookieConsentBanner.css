@@ -1,0 +1,161 @@
+.stroane-cookie {
+  position: fixed;
+  right: clamp(1rem, 3vw, 1.5rem);
+  bottom: clamp(1rem, 3vw, 1.5rem);
+  z-index: 4200;
+  width: min(440px, calc(100vw - 2rem));
+}
+
+.stroane-cookie__shell {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.stroane-cookie__copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.stroane-cookie__kicker {
+  color: var(--color-primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.stroane-cookie h2,
+.stroane-cookie p {
+  margin: 0;
+}
+
+.stroane-cookie h2 {
+  color: var(--color-text-primary);
+  font-size: 1.22rem;
+  line-height: 1.18;
+}
+
+.stroane-cookie p,
+.stroane-cookie span {
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.stroane-cookie__link {
+  justify-self: start;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.stroane-cookie__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.stroane-cookie button {
+  min-height: 2.55rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.stroane-cookie button:hover,
+.stroane-cookie button:focus-visible {
+  border-color: var(--color-primary-border-hover);
+}
+
+.stroane-cookie__primary,
+.stroane-cookie__save {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
+}
+
+.stroane-cookie__secondary {
+  background: var(--color-primary-tint) !important;
+  color: var(--color-primary-dark) !important;
+}
+
+.stroane-cookie__prefs {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.stroane-cookie__prefs[hidden] {
+  display: none;
+}
+
+.stroane-cookie__pref {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+}
+
+.stroane-cookie__pref div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.stroane-cookie__pref strong {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.stroane-cookie__pref em {
+  color: var(--color-success);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.stroane-cookie__pref input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--color-primary);
+}
+
+.stroane-cookie__save {
+  justify-self: end;
+  padding-inline: 1rem;
+}
+
+@media (max-width: 620px) {
+  .stroane-cookie {
+    inset-inline: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: auto;
+  }
+
+  .stroane-cookie__shell {
+    max-height: min(72dvh, 560px);
+    overflow-y: auto;
+  }
+
+  .stroane-cookie__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .stroane-cookie__pref {
+    align-items: flex-start;
+  }
+}

@@ -8,6 +8,7 @@ const footerLinks = [
   { href: '/projects', label: 'Projects' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
+  { href: '/privacy', label: 'Privacy & Cookies' },
   { href: 'https://dev.nanaabaackah.com/book', label: 'Book', external: true },
 ];
 

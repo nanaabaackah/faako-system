@@ -9,7 +9,6 @@ import {
   faTimes,
 } from "/src/icons/iconSet";
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
-import CookieBanner from "/src/components/CookieBanner/CookieBanner";
 import { useAuth } from "/src/components/AuthContext/AuthContext";
 import SideNav from "/src/components/SideNav/SideNav";
 import SiteLoader from "/src/components/SiteLoader/SiteLoader";
@@ -751,7 +750,6 @@ function Shop() {
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
-      <CookieBanner />
 
       <main className="shop-page page-shell" role="main" id="main">
         <section id="shop-intro" className="shop-hero page-hero" aria-labelledby="shop-hero-heading">

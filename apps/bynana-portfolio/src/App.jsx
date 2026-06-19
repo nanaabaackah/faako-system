@@ -6,6 +6,11 @@ import { HiXMark } from 'react-icons/hi2';
 import Navbar from './components/Navbar';
 import SideRails from './components/SideRails';
 import Footer from './components/Footer';
+import CookieConsentBanner from './components/CookieConsentBanner';
+import {
+  BYNANA_COOKIE_PREFS_EVENT,
+  hasByNanaAnalyticsConsent,
+} from './utils/cookieConsent';
 import { useTheme } from './hooks/useTheme';
 import ErrorBoundary from './components/ErrorBoundary';
 import BackgroundFX from './components/BackgroundFX';
@@ -17,6 +22,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Projects from './pages/Projects';
 import Blog from './pages/Blog';
+import Privacy from './pages/Privacy';
 import ProjectDetail from './pages/ProjectDetail';
 import BlogPostDetail from './pages/BlogPostDetail';
 import ErrorPage from './pages/Error';
@@ -36,7 +42,17 @@ function AppLayout() {
   const projectDetailTitle = projectDetailsBySlug[projectDetailSlug]?.title ?? 'Project not found';
   const [isHomeBlurbActive, setIsHomeBlurbActive] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(hasByNanaAnalyticsConsent);
   useScrollAnimations(location.pathname);
+
+  useEffect(() => {
+    const handlePreferences = (event) => {
+      setAnalyticsAllowed(Boolean(event.detail?.analytics));
+    };
+
+    window.addEventListener(BYNANA_COOKIE_PREFS_EVENT, handlePreferences);
+    return () => window.removeEventListener(BYNANA_COOKIE_PREFS_EVENT, handlePreferences);
+  }, []);
 
   useEffect(() => {
     let observer;
@@ -116,7 +132,7 @@ function AppLayout() {
     <div className="app-layer">
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
-        enabled={GOOGLE_ANALYTICS_ENABLED}
+        enabled={GOOGLE_ANALYTICS_ENABLED && analyticsAllowed}
       />
       <AppUpdateNotice
         appName="By Nana"
@@ -174,6 +190,7 @@ function AppLayout() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           <Route path="/projects/:slug" element={<ProjectDetail />} />
           <Route path="/blog/:slug" element={<BlogPostDetail />} />
@@ -181,6 +198,7 @@ function AppLayout() {
         </Routes>
       </div>
       <Footer themeControls={theme} />
+      <CookieConsentBanner />
     </div>
   );
 }

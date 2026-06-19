@@ -2,7 +2,7 @@ import React from "react";
 import "./PrivacyPolicy.css";
 import LegalDocumentPage from "../../components/LegalDocumentPage/LegalDocumentPage";
 
-const LAST_UPDATED = "February 28, 2026";
+const LAST_UPDATED = "June 19, 2026";
 
 const sections = [
   {
@@ -15,7 +15,7 @@ const sections = [
       "Contact details such as your name, phone number, email address, delivery address, and venue notes.",
       "Order and booking details such as event dates, quantities, styling preferences, rental selections, and communication history.",
       "Technical data such as your browser, device type, IP address, pages viewed, and basic analytics events.",
-      "Payment references or proof of payment, but we do not store full bank card numbers, PINs, or mobile money credentials.",
+      "Payment references, Paystack references, receipt records, and proof of payment, but we do not store full bank card numbers, CVV codes, PINs, bank credentials, or mobile money credentials.",
     ],
   },
   {
@@ -54,14 +54,28 @@ const sections = [
     items: [
       "Website hosting, form, analytics, and workflow providers that help us operate the site.",
       "Payment, banking, and mobile money partners that confirm transactions.",
+      "Paystack, where online checkout or payment verification is used.",
       "Drivers, couriers, setup crew, and logistics partners involved in fulfilment.",
       "Professional advisers, insurers, regulators, or law-enforcement authorities where disclosure is required.",
       "We do not sell your personal data.",
     ],
   },
   {
-    id: "retention-rights",
+    id: "cookies-storage",
     label: "5.",
+    title: "Cookies and browser storage",
+    summary:
+      "We use essential storage to keep the site working and optional storage only where you allow it.",
+    items: [
+      "Essential storage keeps your cart, booking drafts, checkout state, account session, currency choice, and consent choice working.",
+      "Optional analytics may include page paths, browser/device type, approximate region, and performance signals so we can improve the site.",
+      "Optional marketing storage may remember promotion preferences and campaign measurement where enabled.",
+      "You can reject optional cookies in the banner or clear storage in your browser settings.",
+    ],
+  },
+  {
+    id: "retention-rights",
+    label: "6.",
     title: "Retention and your rights",
     summary:
       "We keep data only for as long as it is reasonably needed for service delivery, legal compliance, accounting, and dispute handling.",

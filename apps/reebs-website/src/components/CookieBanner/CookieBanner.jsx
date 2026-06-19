@@ -109,11 +109,15 @@ const CookieBanner = () => {
         <div className="cookie-copy">
           <h3 className="cookie-title">Cookie Settings</h3>
           <p className="cookie-sub">
-            We use cookies to enhance your experience, analyze site traffic, and deliver personalized content.
+            REEBS uses essential browser storage for your cart, booking drafts,
+            checkout, currency choice, account session, and security. Optional
+            analytics helps us improve pages in aggregate. Card, mobile money,
+            and bank details are handled by Paystack or your payment provider,
+            not stored on REEBS systems.
             {' '}
             Read our
             {' '}
-            <a href="/privacy-policy" className="cookie-link">Cookie Policy</a>
+            <a href="/privacy-policy" className="cookie-link">Privacy and Cookie Policy</a>
             .
           </p>
         </div>
@@ -139,7 +143,7 @@ const CookieBanner = () => {
           <div className="cookie-preference-card is-locked">
             <div>
               <p>Essential</p>
-              <small>Required for cart, checkout, and basic site security.</small>
+              <small>Required for cart, checkout, booking drafts, account access, security, and this consent choice.</small>
             </div>
             <span className="cookie-chip">Always on</span>
           </div>
@@ -147,7 +151,7 @@ const CookieBanner = () => {
           <div className="cookie-preference-card">
             <div>
               <p>Analytics</p>
-              <small>Helps us improve pages and performance.</small>
+              <small>Page paths, device/browser type, approximate region, and performance signals.</small>
             </div>
             <label className="cookie-switch">
               <input
@@ -163,7 +167,7 @@ const CookieBanner = () => {
           <div className="cookie-preference-card">
             <div>
               <p>Marketing</p>
-              <small>Used for promos and personalized campaigns.</small>
+              <small>Optional promotion preferences and campaign measurement where enabled.</small>
             </div>
             <label className="cookie-switch">
               <input

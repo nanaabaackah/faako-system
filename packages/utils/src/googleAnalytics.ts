@@ -175,12 +175,15 @@ export const initializeGoogleAnalytics = ({
   const gtag = ensureGtag(analyticsWindow);
   const initializedIds = getInitializedIds(analyticsWindow);
   const scriptId = `${SCRIPT_ID_PREFIX}-${resolvedMeasurementId.replace(/[^a-z0-9_-]/gi, "-")}`;
+  const consentPayload = getConsentPayload(consent);
 
   if (!analyticsWindow.__faakoGoogleAnalyticsBootstrapped) {
     const consentCommand = analyticsWindow.__faakoGoogleAnalyticsConsentDefaulted ? "update" : "default";
-    gtag("consent", consentCommand, getConsentPayload(consent));
+    gtag("consent", consentCommand, consentPayload);
     gtag("js", new Date());
     analyticsWindow.__faakoGoogleAnalyticsBootstrapped = true;
+  } else {
+    gtag("consent", "update", consentPayload);
   }
 
   if (!hasGoogleAnalyticsScript(analyticsDocument, scriptId, resolvedMeasurementId)) {

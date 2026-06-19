@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import "./Home.css";
 import { useNavigate } from "react-router-dom";
 import PopupModal from "../../components/PopupModal/PopupModal";
-import CookieBanner from "../../components/CookieBanner/CookieBanner";
 import { useCart } from "../../components/CartContext/CartContext";
 import {
   fetchInventoryWithCache,
@@ -202,7 +201,6 @@ function Home() {
   return (
     <>
       <a href="#main" className="skip-link">Skip to main content</a>
-      <CookieBanner />
       <PopupModal />
 
       <main className="home" id="main" role="main">

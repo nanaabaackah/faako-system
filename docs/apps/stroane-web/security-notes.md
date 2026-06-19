@@ -81,7 +81,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 
 - Keep Cloudflare Pages for frontend hosting, Railway for backend/rate-limit layer, and Railway Postgres for the production database. Cloudflare manages DNS/domain routing; keep registrar/email services separate from application database duties.
 - Cloudflare Pages static responses use `apps/stroane-web/public/_headers`.
-- The frontend CSP allows the intended browser API origin `https://api.stroanesolutions.com`, Paystack, Google Analytics, Cloudflare Insights, and Google Maps frames for the staff order-location map. `script-src-attr 'none'` remains set so inline event-handler attributes stay blocked; `script-src-elem` allows trusted inline script elements required by static structured data and deployed analytics hosting.
+- The frontend CSP allows the intended browser API origin `https://api.stroanesolutions.com`, Paystack, Google Analytics and its regional collection hosts, Cloudflare Insights, and Google Maps frames for the staff order-location map. `script-src-attr 'none'` remains set so inline event-handler attributes stay blocked; `script-src-elem` allows trusted script elements required by deployed analytics/payment hosting.
 - Keep `VITE_*` values browser-safe only. `VITE_API_BASE_URL` is acceptable; secrets, database URLs, provider keys, session keys, and webhook secrets are not. `VITE_BACKEND_BASE_URL` should be treated as a legacy fallback only.
 - Set `CORS_ORIGINS` to the exact deployed frontend origin.
 - Set `PAYSTACK_CALLBACK_URL` to the public `/checkout/return` URL for the deployed frontend.

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import "./About.css";
-import CookieBanner from '/src/components/CookieBanner/CookieBanner';
 import { Link } from 'react-router-dom';
 import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCache';
 
@@ -103,7 +102,6 @@ function About() {
     return (
         <>
             <a href="#main" className="skip-link">Skip to main content</a>
-            <CookieBanner />
             <main className="about page-shell" role="main" id="main">
                 <section id="r2-intro" className="about-hero page-hero" aria-labelledby="about-heading about-tagline">
                     <div className="about-hero-copy page-hero-copy">

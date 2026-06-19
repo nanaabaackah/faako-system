@@ -1,6 +1,5 @@
 import React from 'react';
 import "./Contact.css";
-import CookieBanner from '/src/components/CookieBanner/CookieBanner';
 import Map from '/src/components/Map/Map';
 import { Link } from 'react-router-dom';
 import ContactForm from '/src/components/ContactForm/ContactForm';
@@ -52,7 +51,6 @@ function Contact() {
     return (
         <div className="contact-page">
             <a href="#main" className="skip-link">Skip to main content</a>
-            <CookieBanner />
             <main className="contact-shell page-shell" id="main" role="main">
                 <section className="contact-hero page-hero" aria-labelledby="contact-hero-heading">
                     <div className="contact-hero-grid">

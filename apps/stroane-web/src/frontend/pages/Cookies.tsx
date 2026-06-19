@@ -22,12 +22,13 @@ const SECTIONS: LegalSection[] = [
         <p>Stroane uses cookies to:</p>
         <ul>
           <li>Keep the site working and secure.</li>
-          <li>Remember preferences such as your basket and category filters.</li>
+          <li>Remember your cart, checkout progress, consent choice, and customer session.</li>
           <li>Understand how visitors find and use the site, in aggregate.</li>
         </ul>
         <p>
-          We do not use cookies to build advertising profiles or sell data to
-          third parties.
+          We do not use cookies to sell personal data. Payment credentials such as
+          card numbers, mobile money PINs, bank credentials, and CVV codes are
+          handled by Paystack, not stored on Stroane systems.
         </p>
       </>
     ),
@@ -39,7 +40,9 @@ const SECTIONS: LegalSection[] = [
         <p>
           <strong>Strictly necessary.</strong> These are required for core
           functions such as page navigation, session security, and the store
-          basket. The site does not work properly without them.
+          basket. The site does not work properly without them. This includes
+          browser storage for cart quantities, checkout flow state, customer
+          session metadata, and your cookie preference.
         </p>
         <p>
           <strong>Preference.</strong> Remember choices you make &mdash; for
@@ -48,8 +51,15 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>
           <strong>Analytics.</strong> Help us understand which pages and
-          guides are useful, in aggregate, so we can improve them. Data is not
-          linked to your identity.
+          guides are useful, in aggregate, so we can improve them. This may
+          include page paths, device/browser type, approximate region, and
+          performance signals. We only use analytics after you accept optional
+          cookies.
+        </p>
+        <p>
+          <strong>Marketing.</strong> If Stroane runs optional campaigns, this
+          preference lets us remember whether campaign-related storage is allowed.
+          We do not currently use it to sell or share personal data.
         </p>
       </>
     ),
@@ -57,12 +67,19 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Third-Party Cookies",
     body: (
-      <p>
-        When you click through to an external service &mdash; for example,
-        WhatsApp, social platforms, or our payment processors &mdash; those
-        services may set their own cookies. Their cookies are governed by
-        their own policies, which we recommend reviewing.
-      </p>
+      <>
+        <p>
+          When you click through to an external service &mdash; for example,
+          WhatsApp, social platforms, Google Analytics, or Paystack &mdash; those
+          services may set their own cookies. Their cookies are governed by
+          their own policies, which we recommend reviewing.
+        </p>
+        <p>
+          For payments, Stroane stores order details, payment reference, payment
+          status, and receipts. Full card, mobile money, and bank credentials are
+          processed by Paystack and are not stored on our systems.
+        </p>
+      </>
     ),
   },
   {
@@ -106,7 +123,7 @@ const Cookies: React.FC = () => {
   return (
     <LegalLayout
       title="Cookie Policy"
-      lastUpdated="14 May 2026"
+      lastUpdated="19 June 2026"
       intro={
         <p>
           This page lists the cookies Stroane uses, why we use them, and how

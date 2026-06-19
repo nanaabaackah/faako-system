@@ -72,6 +72,26 @@ RAILWAY_WORKSPACE=@faako/faako-api
 
 The launcher chooses a build script from `railway:build`, `db:generate`, `prisma:generate`, or `build:api`, then chooses a start script from `railway:start`, `server:with-migrate`, `server:prod:with-migrate`, `server:prod`, `start:api`, `server`, or `start`.
 
+## Google Analytics Defaults
+
+Vite apps use `scripts/vite/googleAnalyticsHtml.mjs` plus `GoogleAnalyticsRouteTracker` from `@faako/ui`.
+
+- Set `VITE_GA_MEASUREMENT_ID` on the deployed app whenever Google Analytics should be connected.
+- `VITE_GA_ID` remains a legacy fallback, but new deployments should use `VITE_GA_MEASUREMENT_ID`.
+- `VITE_ENABLE_GA_IN_DEV=true` is only for local verification. Production builds enable the tag automatically when a measurement ID exists.
+- The build injects a CSP-safe local bootstrap asset and the Google tag script into the initial HTML. The bootstrap sends the GA4 `js` and `config` commands with `send_page_view: false`, then the route tracker sends SPA page views on route changes.
+- Keep `public/_headers` compatible with `https://www.googletagmanager.com`, `https://*.google-analytics.com`, `https://*.analytics.google.com`, and `https://stats.g.doubleclick.net` when an app uses a strict CSP.
+- If Google Analytics still reports "not connected", first confirm the production deploy has the env value, the deployed HTML contains the `googletagmanager.com/gtag/js?id=...` script, and the browser is not blocking requests through consent, extensions, Do Not Track, or CSP.
+
+## Public Privacy And Cookie Consent
+
+Public websites and storefronts must keep their cookie consent prompt and privacy/cookie policy aligned with the data they actually collect. The current shared rollout is documented in `docs/platform/public-privacy-cookie-consent.md`.
+
+- Optional analytics should run only after analytics consent on public marketing/storefront routes.
+- Consent records should store preferences only, not customer, order, payment, or contact data.
+- Public payment copy must clearly state that sensitive payment credentials are handled by Paystack or the payment provider and are not stored on our systems.
+- Admin portals and ERP apps should document their own internal privacy/storage behavior rather than reusing the public-site banner copy.
+
 ## Template Strategy
 
 Do not create a generic "one template fits every app" layer yet. The existing apps are not uniform enough for that without flattening real business logic.

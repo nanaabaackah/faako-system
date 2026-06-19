@@ -1,7 +1,24 @@
 const SCRIPT_ID_PREFIX = "faako-google-analytics";
-const BOOTSTRAP_FILE_NAME = "assets/faako-google-analytics-bootstrap.js";
+const BOOTSTRAP_FILE_PREFIX = "assets/faako-google-analytics";
 
-const BOOTSTRAP_SOURCE = `(function () {
+const getScriptId = (measurementId) => (
+  `${SCRIPT_ID_PREFIX}-${measurementId.replace(/[^a-z0-9_-]/gi, "-")}`
+);
+
+const getSafeMeasurementId = (measurementId) => measurementId.replace(/[^a-z0-9_-]/gi, "-");
+
+const createBootstrapSource = (measurementId) => `(function () {
+  var measurementId = ${JSON.stringify(measurementId)};
+  var doNotTrack = String(window.doNotTrack || "") === "1"
+    || (typeof navigator !== "undefined" && String(navigator.doNotTrack || "") === "1")
+    || (typeof navigator !== "undefined" && String(navigator.msDoNotTrack || "") === "1");
+  var initializedIds = window.__faakoGoogleAnalyticsInitializedIds;
+
+  if (!Array.isArray(initializedIds)) {
+    initializedIds = [];
+    window.__faakoGoogleAnalyticsInitializedIds = initializedIds;
+  }
+
   window.dataLayer = window.dataLayer || [];
   if (typeof window.gtag !== "function") {
     window.gtag = function gtag() {
@@ -16,6 +33,22 @@ const BOOTSTRAP_SOURCE = `(function () {
     wait_for_update: 500
   });
   window.__faakoGoogleAnalyticsConsentDefaulted = true;
+
+  if (doNotTrack) {
+    window["ga-disable-" + measurementId] = true;
+    return;
+  }
+
+  window["ga-disable-" + measurementId] = false;
+  window.gtag("js", new Date());
+  window.gtag("config", measurementId, {
+    send_page_view: false
+  });
+  window.__faakoGoogleAnalyticsBootstrapped = true;
+
+  if (initializedIds.indexOf(measurementId) === -1) {
+    initializedIds.push(measurementId);
+  }
 }());
 `;
 
@@ -33,16 +66,19 @@ const isGoogleAnalyticsEnabledForEnvironment = (mode, enableInDevelopment) => {
   return mode === "production" || toBoolean(enableInDevelopment);
 };
 
-const getScriptId = (measurementId) => (
-  `${SCRIPT_ID_PREFIX}-${measurementId.replace(/[^a-z0-9_-]/gi, "-")}`
-);
-
 const joinBasePath = (base, path) => {
   if (!base || base === "./") return path;
   return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 };
 
-const getBootstrapSrc = (base) => joinBasePath(base || "/", BOOTSTRAP_FILE_NAME);
+const getBootstrapFileName = (measurementId) => (
+  `${BOOTSTRAP_FILE_PREFIX}-${getSafeMeasurementId(measurementId)}-bootstrap.js`
+);
+
+const getBootstrapSrc = (base, measurementId) => joinBasePath(
+  base || "/",
+  getBootstrapFileName(measurementId),
+);
 
 const getRequestPath = (requestUrl = "") => {
   try {
@@ -67,6 +103,8 @@ export const createGoogleAnalyticsHtmlPlugin = ({
       : isGoogleAnalyticsEnabledForEnvironment(mode, enableInDevelopment))
   );
   let resolvedConfig;
+  const bootstrapFileName = resolvedMeasurementId ? getBootstrapFileName(resolvedMeasurementId) : "";
+  const bootstrapSource = resolvedMeasurementId ? createBootstrapSource(resolvedMeasurementId) : "";
 
   return {
     name: "faako-google-analytics-html",
@@ -79,8 +117,8 @@ export const createGoogleAnalyticsHtmlPlugin = ({
       server.middlewares.use((request, response, next) => {
         const requestPath = getRequestPath(request.url);
         const bootstrapPaths = new Set([
-          `/${BOOTSTRAP_FILE_NAME}`,
-          getBootstrapSrc(resolvedConfig?.base),
+          `/${bootstrapFileName}`,
+          getBootstrapSrc(resolvedConfig?.base, resolvedMeasurementId),
         ]);
 
         if (!bootstrapPaths.has(requestPath)) {
@@ -99,8 +137,8 @@ export const createGoogleAnalyticsHtmlPlugin = ({
 
       this.emitFile({
         type: "asset",
-        fileName: BOOTSTRAP_FILE_NAME,
-        source: BOOTSTRAP_SOURCE,
+        fileName: bootstrapFileName,
+        source: bootstrapSource,
       });
     },
     transformIndexHtml() {
@@ -112,16 +150,16 @@ export const createGoogleAnalyticsHtmlPlugin = ({
         {
           tag: "script",
           attrs: {
-            id: scriptId,
-            async: true,
-            src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(resolvedMeasurementId)}`,
+            src: getBootstrapSrc(resolvedConfig?.base, resolvedMeasurementId),
           },
           injectTo: "head-prepend",
         },
         {
           tag: "script",
           attrs: {
-            src: getBootstrapSrc(resolvedConfig?.base),
+            id: scriptId,
+            async: true,
+            src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(resolvedMeasurementId)}`,
           },
           injectTo: "head-prepend",
         },

@@ -70,7 +70,7 @@ export default function Footer({ footerLogo }) {
 
         <div className="footer-bottom">
           <div className="footer-legal-links">
-            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/privacy">Privacy & Cookie Policy</Link>
             <Link to="/terms">Terms of Service</Link>
           </div>
         </div>

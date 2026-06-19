@@ -9,6 +9,7 @@ import { AppIcon } from "./components/Icon/Icon";
 import SiteLoader from "./components/SiteLoader/SiteLoader";
 import Navbar from "./components/Navbar/Navbar";
 import CartOverlay from "./components/CartOverlay/CartOverlay";
+import CookieBanner from "./components/CookieBanner/CookieBanner";
 import PartyConfetti from "./components/PartyConfetti/PartyConfetti";
 import { faArrowRight } from "./icons/iconSet";
 import useScrollReveal from "./hooks/useScrollReveal";
@@ -295,6 +296,7 @@ function App() {
             </Suspense>
             <BackToTop scrollContainerRef={publicScrollRef} />
             <CartOverlay />
+            <CookieBanner />
           </div>
           {isHomeRoute && (
             <div className={`shell-bottom-cta ${showShellCta ? "is-visible" : ""}`} aria-hidden={!showShellCta}>

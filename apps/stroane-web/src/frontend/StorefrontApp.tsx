@@ -4,6 +4,7 @@ import ExternalRedirect from "../components/ExternalRedirect";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { portalUrl } from "../config/appSurface";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -71,6 +72,7 @@ const StorefrontApp: React.FC = () => (
         />
         <Route path="*" element={<ErrorPage statusCode="404" />} />
       </Routes>
+      <CookieConsentBanner />
     </CartProvider>
   </AuthProvider>
 );

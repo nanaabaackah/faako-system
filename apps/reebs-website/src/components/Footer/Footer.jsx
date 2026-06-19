@@ -38,7 +38,7 @@ const COMPANY_LINKS = [
   { to: '/faq', label: 'FAQ' },
   { to: '/refund-policy', label: 'Refund policy' },
   { to: '/delivery-policy', label: 'Delivery policy' },
-  { to: '/privacy-policy', label: 'Privacy policy' },
+  { to: '/privacy-policy', label: 'Privacy & cookie policy' },
   { to: '/terms-of-service', label: 'Terms of service' },
 ];
 
