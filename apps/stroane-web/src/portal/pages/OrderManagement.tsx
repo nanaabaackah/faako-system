@@ -862,12 +862,12 @@ const OrderManagement: React.FC = () => {
                   />
                 </th>
                 <th className="portal-table-number-cell">#</th>
-                <th>Order</th>
+                <th className="col-desktop">Order</th>
                 <th>Customer</th>
-                <th>Source</th>
-                <th>Payment</th>
-                <th>Fulfillment</th>
-                <th>Created</th>
+                <th className="col-desktop">Source</th>
+                <th className="col-desktop">Payment</th>
+                <th className="col-desktop">Fulfillment</th>
+                <th className="col-desktop">Created</th>
                 <th>Total</th>
                 <th aria-label="Actions" />
               </tr>
@@ -918,7 +918,7 @@ const OrderManagement: React.FC = () => {
                       <td className="portal-table-number-cell" data-label="#">
                         {clampedPageIndex * ORDER_PAGE_SIZE + index + 1}
                       </td>
-                      <td data-label="Order">
+                      <td className="col-desktop" data-label="Order">
                         <span className="stroane-orders__order-cell">
                           <strong>{order.orderNumber}</strong>
                         </span>
@@ -928,13 +928,15 @@ const OrderManagement: React.FC = () => {
                           <strong>{order.customer.name}</strong>
                         </span>
                       </td>
-                      <td data-label="Source">{formatLabel(order.source || "checkout")}</td>
-                      <td data-label="Payment">
+                      <td className="col-desktop" data-label="Source">
+                        {formatLabel(order.source || "checkout")}
+                      </td>
+                      <td className="col-desktop" data-label="Payment">
                         <ERPStatusBadge tone={getPaymentTone(order.paymentStatus || "")}>
                           {formatLabel(order.paymentStatus || "not_started")}
                         </ERPStatusBadge>
                       </td>
-                      <td data-label="Fulfillment">
+                      <td className="col-desktop" data-label="Fulfillment">
                         <span
                           className="stroane-orders__fulfillment-cell"
                           title={`${formatDeliveryMethod(order.deliveryMethod)} · ${formatLabel(
@@ -944,11 +946,11 @@ const OrderManagement: React.FC = () => {
                           <strong>{formatDeliveryMethod(order.deliveryMethod)}</strong>
                         </span>
                       </td>
-                      <td data-label="Created">{formatDateTime(order.createdAt)}</td>
+                      <td className="col-desktop" data-label="Created">{formatDateTime(order.createdAt)}</td>
                       <td data-label="Total">{formatMoney(order.total, order.currency)}</td>
                       <td
                         data-label="Actions"
-                        className="stroane-orders__actions-cell"
+                        className="col-desktop stroane-orders__actions-cell"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <span className="stroane-orders__row-actions">

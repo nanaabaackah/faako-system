@@ -6,7 +6,6 @@ import {
   HiOutlineChartBar,
   HiOutlineCheckCircle,
   HiOutlineClipboardList,
-  HiOutlineCube,
   HiOutlineExclamation,
   HiOutlineLockClosed,
   HiOutlineOfficeBuilding,
@@ -1507,35 +1506,6 @@ const AdminPortalHome: React.FC = () => {
             </span>
           </div>
         )}
-      </section>
-
-      <section className="stroane-portal-overview__workspaces" aria-labelledby="stroane-workspaces-title">
-        <header>
-          <span>Workspaces</span>
-          <h2 id="stroane-workspaces-title">Move the work forward</h2>
-        </header>
-        <div className="stroane-portal-overview__links">
-          <Link to="/admin/inventory" className="bubble-card">
-            <HiOutlineCube aria-hidden="true" />
-            <span><strong>Inventory</strong><small>Review stock counts and movements</small></span>
-          </Link>
-          <Link to="/admin/orders" className="bubble-card">
-            <HiOutlineClipboardList aria-hidden="true" />
-            <span><strong>Orders</strong><small>Manage storefront and manual orders</small></span>
-          </Link>
-          <Link to="/admin/suppliers" className="bubble-card">
-            <HiOutlineOfficeBuilding aria-hidden="true" />
-            <span><strong>Suppliers</strong><small>Manage supplier coverage and reorder routes</small></span>
-          </Link>
-          <Link to="/admin/products" className="bubble-card">
-            <HiOutlineShoppingBag aria-hidden="true" />
-            <span><strong>Products</strong><small>Prepare catalogue items for sale</small></span>
-          </Link>
-          <Link to="/admin/operations" className="bubble-card">
-            <HiOutlineClipboardList aria-hidden="true" />
-            <span><strong>Operations</strong><small>Review the wider portal workflow</small></span>
-          </Link>
-        </div>
       </section>
 
       <ERPModal

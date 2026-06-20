@@ -683,10 +683,10 @@ const AccountingManagement: React.FC = () => {
                 <th className="portal-table-number-cell">#</th>
                 <th>Date</th>
                 <th>Type</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Status</th>
+                <th className="col-desktop">Description</th>
+                <th className="col-desktop">Category</th>
+                <th className="col-desktop">Amount</th>
+                <th className="col-desktop">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -716,17 +716,17 @@ const AccountingManagement: React.FC = () => {
                           {formatLabel(transaction.type)}
                         </ERPStatusBadge>
                       </td>
-                      <td data-label="Description">
+                      <td className="col-desktop" data-label="Description">
                         <span className="stroane-accounting__transaction-cell">
                           <strong>{transaction.label}</strong>
                           <small>{transaction.description}</small>
                         </span>
                       </td>
-                      <td data-label="Category">{transaction.category}</td>
-                      <td data-label="Amount">
+                      <td className="col-desktop" data-label="Category">{transaction.category}</td>
+                      <td className="col-desktop" data-label="Amount">
                         {formatMoney(transaction.amount, transaction.currency)}
                       </td>
-                      <td data-label="Status">{formatLabel(transaction.status || "recorded")}</td>
+                      <td className="col-desktop" data-label="Status">{formatLabel(transaction.status || "recorded")}</td>
                     </tr>
                   ))
                 : null}

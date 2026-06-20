@@ -442,12 +442,12 @@ const ReceiptManagement: React.FC = () => {
                 </th>
                 <th className="portal-table-number-cell">#</th>
                 <th>Customer</th>
-                <th>Receipt</th>
-                <th>Order</th>
-                <th>Payment</th>
-                <th>Issued</th>
+                <th className="col-desktop">Receipt</th>
+                <th className="col-desktop">Order</th>
+                <th className="col-desktop">Payment</th>
+                <th className="col-desktop">Issued</th>
                 <th>Total</th>
-                <th>Status</th>
+                <th className="col-desktop">Status</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
@@ -507,20 +507,20 @@ const ReceiptManagement: React.FC = () => {
                           <strong>{receipt.customerName}</strong>
                         </span>
                       </td>
-                      <td data-label="Receipt">
+                      <td className="col-desktop" data-label="Receipt">
                         <span className="stroane-receipts__receipt-cell">
                           <strong>{receipt.receiptNumber}</strong>
                         </span>
                       </td>
-                      <td data-label="Order">{receipt.orderNumber || "Unlinked"}</td>
-                      <td data-label="Payment">
+                      <td className="col-desktop" data-label="Order">{receipt.orderNumber || "Unlinked"}</td>
+                      <td className="col-desktop" data-label="Payment">
                         <ERPStatusBadge tone={getPaymentTone(receipt.paymentStatus || "")}>
                           {formatLabel(receipt.paymentStatus || "not_started")}
                         </ERPStatusBadge>
                       </td>
-                      <td data-label="Issued">{formatDate(receipt.issuedAt)}</td>
+                      <td className="col-desktop" data-label="Issued">{formatDate(receipt.issuedAt)}</td>
                       <td data-label="Total">{formatMoney(receipt.total, receipt.currency)}</td>
-                      <td data-label="Status">
+                      <td className="col-desktop" data-label="Status">
                         <ERPStatusBadge tone={getReceiptTone(receipt.status)}>
                           {formatLabel(receipt.status)}
                         </ERPStatusBadge>

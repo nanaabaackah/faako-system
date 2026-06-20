@@ -1964,6 +1964,10 @@ button.aw-activity-item {
     width: auto;
     max-width: none;
   }
+
+  .aw-home-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Skeleton loading shimmer ─────────────────────────────────────────── */
@@ -2114,7 +2118,7 @@ button.aw-activity-item {
 /* ─── Mobile responsive fixes ───────────────────────────────────────────── */
 @media (max-width: 480px) {
   .aw-home-kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .aw-home-kpi-donut-shell {
@@ -2821,4 +2825,11 @@ body.admin-theme.aw-theme .aw-performance-text {
   .aw-section-grid {
     padding: 1rem;
   }
+
+  body.admin-theme.aw-theme .aw-quick-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 0.76rem 0;
+}
 }

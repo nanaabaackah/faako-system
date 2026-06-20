@@ -1168,6 +1168,7 @@
   .stroane-inventory__filters .ui-dropdown-field,
   .stroane-inventory__filters .ui-erp-action {
     width: 100%;
+    display: grid;
   }
 
   .stroane-inventory__field-grid,
@@ -1186,6 +1187,7 @@
     min-height: 100dvh;
     border-radius: 0;
     padding: 0.75rem;
+    padding-bottom: 7rem;
   }
 
   .stroane-inventory__modal-bar {
@@ -1237,6 +1239,12 @@
   .stroane-inventory__kpis {
     grid-template-columns: 1fr;
   }
+
+
+.col-desktop {
+  display: none;
+}
+
 }
 
 .stroane-admin-theme[data-portal-theme="dark"] .stroane-inventory__mini-stats span,

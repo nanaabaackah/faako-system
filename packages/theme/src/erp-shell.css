@@ -826,6 +826,7 @@
     flex-direction: row;
     min-height: 64px;
     padding: 0 1rem;
+    position: sticky;
   }
 
   .erp-shell-topbar__mobile-nav-trigger {

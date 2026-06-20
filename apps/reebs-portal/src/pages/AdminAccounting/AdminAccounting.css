@@ -311,6 +311,10 @@ body.admin-theme .ui-dropdown-field__option.is-selected {
     padding: 0.9rem;
   }
 
+  .accounting-page .accounting-mini-grid {
+    grid-template-columns: 1fr;
+  }
+
   .accounting-page .accounting-toolbar-row {
     gap: 0.85rem;
   }

@@ -376,11 +376,11 @@ const CustomerDirectory: React.FC = () => {
                 </th>
                 <th className="portal-table-number-cell">#</th>
                 <th>Customer</th>
-                <th>Email</th>
-                <th>Status</th>
+                <th className="col-desktop" >Email</th>
+                <th className="col-desktop" >Status</th>
                 <th>Phone</th>
-                <th>Orders</th>
-                <th>Last order</th>
+                <th className="col-desktop" >Orders</th>
+                <th className="col-desktop" >Last order</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
@@ -425,23 +425,27 @@ const CustomerDirectory: React.FC = () => {
                         <strong>{customer.name}</strong>
                       </span>
                     </td>
-                    <td data-label="Email">{customer.email}</td>
-                    <td data-label="Status">
+                    <td className="col-desktop" data-label="Email">
+                      {customer.email}
+                    </td>
+                    <td className="col-desktop" data-label="Status">
                       <ERPStatusBadge tone={getStatusTone(customer.status)}>
                         {customer.hasAccount ? "Account active" : customer.status}
                       </ERPStatusBadge>
                     </td>
-                    <td data-label="Phone">{customer.phone || customer.preferredContactMethod || "Not recorded"}</td>
-                    <td data-label="Orders">
+                    <td data-label="Phone">
+                      {customer.phone || customer.preferredContactMethod || "Not recorded"}
+                    </td>
+                    <td className="col-desktop" data-label="Orders">
                       {customer.orderCount} · {formatMoney(customer.totalSpend)}
                     </td>
-                    <td data-label="Last order">
+                    <td className="col-desktop" data-label="Last order">
                       {customer.lastOrder
                         ? `${customer.lastOrder.orderNumber} · ${formatDate(customer.lastOrder.createdAt)}`
                         : "No orders"}
                     </td>
                     <td
-                      className="stroane-crm__actions-cell"
+                      className="col-desktop stroane-crm__actions-cell"
                       data-label="Actions"
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}

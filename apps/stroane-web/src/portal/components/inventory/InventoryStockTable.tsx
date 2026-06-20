@@ -160,7 +160,7 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
         <col className="stroane-inventory__col-select" />
         <col className="stroane-inventory__col-number" />
         <col className="stroane-inventory__col-product" />
-        <col className="stroane-inventory__col-sku" />
+        <col className="col-desktop stroane-inventory__col-sku" />
         <col className="stroane-inventory__col-variant" />
         <col className="stroane-inventory__col-category" />
         <col className="stroane-inventory__col-price" />
@@ -187,14 +187,14 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
           </th>
           <th className="portal-table-number-cell">#</th>
           <th>Product</th>
-          <th>SKU</th>
-          <th>Variant</th>
-          <th>Category</th>
-          <th>Price</th>
-          <th>Quantity</th>
-          <th>Stock value</th>
-          <th>Supplier</th>
-          <th>Status</th>
+          <th className="col-desktop">SKU</th>
+          <th className="col-desktop">Variant</th>
+          <th className="col-desktop">Category</th>
+          <th className="col-desktop">Price</th>
+          <th className="col-desktop">Quantity</th>
+          <th className="col-desktop">Stock value</th>
+          <th className="col-desktop">Supplier</th>
+          <th className="col-desktop">Status</th>
           <th aria-label="Actions" />
         </tr>
       </thead>
@@ -271,22 +271,22 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
                       <strong>{getInventoryProductName(item)}</strong>
                     </span>
                   </td>
-                  <td data-label="SKU">{getInventoryProductSku(item)}</td>
-                  <td data-label="Variant">{item.variantId ? getInventoryVariantLabel(item) : "—"}</td>
-                  <td data-label="Category">{getItemCategoryLabel(item)}</td>
-                  <td data-label="Price">
+                  <td className="col-desktop" data-label="SKU">{getInventoryProductSku(item)}</td>
+                  <td className="col-desktop" data-label="Variant">{item.variantId ? getInventoryVariantLabel(item) : "—"}</td>
+                  <td className="col-desktop" data-label="Category">{getItemCategoryLabel(item)}</td>
+                  <td className="col-desktop" data-label="Price">
                     {price === null ? "Not set" : formatMoney(price, currency)}
                   </td>
-                  <td data-label="Stock">
+                  <td className="col-desktop" data-label="Stock">
                     <span className="stroane-inventory__quantity-cell">
                       <strong>{available === null ? "Not set" : available}</strong>
                     </span>
                   </td>
-                  <td data-label="Stock value">
+                  <td className="col-desktop" data-label="Stock value">
                     {stockValue === null ? "Not set" : formatMoney(stockValue, currency)}
                   </td>
-                  <td data-label="Supplier">{item.supplier?.name || "Unassigned"}</td>
-                  <td data-label="Status">
+                  <td className="col-desktop" data-label="Supplier">{item.supplier?.name || "Unassigned"}</td>
+                  <td className="col-desktop" data-label="Status">
                     <ERPStatusBadge tone={getInventoryStatusTone(status)}>
                       {formatInventoryStatusLabel(status)}
                     </ERPStatusBadge>

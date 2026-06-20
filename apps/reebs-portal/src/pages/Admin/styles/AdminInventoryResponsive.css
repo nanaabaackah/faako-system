@@ -30,7 +30,7 @@
   }
 
   .inventory-scope-grid,
-  .inventory-kpi-grid--primary {
+  .inventory-kpi-grid.inventory-kpi-grid--primary  {
     grid-template-columns: 1fr;
   }
 
