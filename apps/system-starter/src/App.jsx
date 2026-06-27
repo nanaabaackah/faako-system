@@ -99,6 +99,7 @@ function StarterScreen() {
         <Card>
           <AnimatedLoadingState
             compact
+            variant="workspace"
             title="Loading workspace"
             message="Use the shared app-themed skeleton for route and data fetch transitions."
           />

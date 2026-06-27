@@ -1,4 +1,5 @@
 import React from "react";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faBoxArchive, faFloppyDisk, faXmark } from "/src/icons/iconSet";
 import {
@@ -9,6 +10,16 @@ import {
 } from "../crmShared";
 import CustomerActivityList from "./CustomerActivityList";
 
+const CONTACT_REQUEST_STATUS_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "reviewing", label: "Reviewing" },
+  { value: "waiting_customer", label: "Waiting customer" },
+  { value: "quoted", label: "Quoted" },
+  { value: "converted", label: "Converted" },
+  { value: "closed", label: "Closed" },
+  { value: "spam", label: "Spam" },
+];
+
 export default function CustomerDetailModal({
   isOpen,
   customer,
@@ -18,13 +29,17 @@ export default function CustomerDetailModal({
   detailSaving,
   detailError,
   detailStatus,
+  onDetailErrorClear,
+  onDetailStatusClear,
   selectedSegment,
   selectedTotals,
   removingCustomerId,
+  requestStatusSavingId,
   onClose,
   onSave,
   onArchive,
   onFormChange,
+  onRequestStatusChange,
 }) {
   if (!isOpen || !customer) return null;
 
@@ -45,9 +60,25 @@ export default function CustomerDetailModal({
           </button>
         </header>
 
-        {detailLoading ? <p className="crm-status-text">Loading customer...</p> : null}
-        {detailError ? <p className="crm-error">{detailError}</p> : null}
-        {detailStatus ? <p className="crm-success">{detailStatus}</p> : null}
+        {detailLoading ? (
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading customer"
+            message="Opening customer activity and contact requests."
+            variant="detail"
+          />
+        ) : null}
+        {detailError ? (
+          <ERPFormNotice tone="danger" title="Customer unavailable" onDismiss={onDetailErrorClear}>
+            {detailError}
+          </ERPFormNotice>
+        ) : null}
+        {detailStatus ? (
+          <ERPFormNotice tone="success" title="Customer updated" onDismiss={onDetailStatusClear}>
+            {detailStatus}
+          </ERPFormNotice>
+        ) : null}
 
         <section className="crm-detail-stat-grid">
           <article className="bubble-card crm-detail-stat">
@@ -150,6 +181,43 @@ export default function CustomerDetailModal({
               subtitle: `${formatDate(booking.eventDate)}${booking.status ? ` · ${booking.status}` : ""}`,
             })}
             renderValue={(booking) => formatMoney(centsToMoneyAmount(booking.totalAmount))}
+          />
+
+          <CustomerActivityList
+            title="Planning requests"
+            emptyText="No planning briefs yet."
+            items={detail?.contactRequests?.slice(0, 6) || []}
+            keyPrefix="request"
+            renderMeta={(request) => ({
+              title: request.topic || `Request #${request.id}`,
+              subtitle: `${formatDate(request.createdAt)}${request.eventDate ? ` · Event ${formatDate(request.eventDate)}` : ""}`,
+            })}
+            renderValue={(request) => (
+              <SelectField
+                value={request.status || "new"}
+                onChange={(event) => onRequestStatusChange(request, event.target.value)}
+                ariaLabel={`Update request ${request.id} status`}
+                disabled={requestStatusSavingId === request.id}
+              >
+                {CONTACT_REQUEST_STATUS_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectField>
+            )}
+          />
+
+          <CustomerActivityList
+            title="Follow-up"
+            emptyText="No follow-up activity yet."
+            items={detail?.activities?.slice(0, 6) || []}
+            keyPrefix="activity"
+            renderMeta={(activity) => ({
+              title: activity.title || activity.type || `Activity #${activity.id}`,
+              subtitle: activity.dueAt ? `Due ${formatDate(activity.dueAt)}` : formatDate(activity.createdAt),
+            })}
+            renderValue={(activity) => activity.status || "-"}
           />
         </section>
       </div>

@@ -63,6 +63,7 @@ import { createAdminReceiptRouter } from "./src/receipts/routes.js";
 import { ensureReceiptForOrder, sendReceiptForPaidOrder } from "./src/receipts/service.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAdminAccountingRouter } from "./src/accounting/routes.js";
+import { createAdminAuditLogRouter } from "./src/auditLogs/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
 const appDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -455,6 +456,7 @@ app.use("/api/admin", adminRateLimit, createAdminCustomerRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminReceiptRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminAccountingRouter(prisma));
+app.use("/api/admin", adminRateLimit, createAdminAuditLogRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
 app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));

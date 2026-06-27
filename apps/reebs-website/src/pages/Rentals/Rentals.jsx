@@ -16,8 +16,10 @@ import {
     getCatalogItemImage,
 } from '/src/utils/itemMediaBackgrounds';
 import {
+    getFrontendRentalAvailabilityLabel,
     getFrontendRentalCategory,
     getFrontendRentalDetailPath,
+    isFrontendRentalBookable,
     isFrontendRentalItem,
     shouldExcludeFrontendRental,
     slugifyRentalValue,
@@ -147,7 +149,7 @@ const getPopularityScore = (item = {}) => {
 
     score += Math.min(quantity, 40);
     if (image.includes("placeholder")) score -= 40;
-    if ((item.status ?? item.isActive) === false) score -= 1000;
+    if (!isFrontendRentalBookable(item)) score -= 1000;
 
     return score;
 };
@@ -209,8 +211,7 @@ function Rentals() {
 
                 const rentalItems = (Array.isArray(inventoryData) ? inventoryData : [])
                     .filter((item) => {
-                        const isActive = (item.status ?? item.isActive) !== false;
-                        return isFrontendRentalItem(item) && isActive;
+                        return isFrontendRentalItem(item) && isFrontendRentalBookable(item);
                     });
 
                 const baseCombined = rentalItems.filter(
@@ -402,7 +403,7 @@ function Rentals() {
     const categoryOptions = useMemo(() => ["All", ...allCategories], [allCategories]);
     const popularHeroRentals = useMemo(() => {
         return [...rentals]
-            .filter((item) => (item.status ?? item.isActive) !== false)
+            .filter((item) => isFrontendRentalBookable(item))
             .sort((a, b) => {
                 const scoreDiff = getPopularityScore(b) - getPopularityScore(a);
                 if (scoreDiff !== 0) return scoreDiff;
@@ -418,30 +419,6 @@ function Rentals() {
         }
         setActiveHeroPanelIndex((prev) => Math.min(prev, popularHeroRentals.length - 1));
     }, [popularHeroRentals.length]);
-
-    const normalizeAvailability = (value) => {
-        const raw = `${value || ""}`.trim().toLowerCase();
-        if (!raw) return null;
-        if (raw.includes("unavail") || raw.includes("out") || raw.includes("sold")) {
-            return "Unavailable";
-        }
-        return "Available";
-    };
-
-    const getRentalAvailability = (item = {}) => {
-        const explicitAvailability = normalizeAvailability(item.availability);
-        if (explicitAvailability) return explicitAvailability;
-
-        if (typeof item.status === "string" && item.status.trim()) {
-            return normalizeAvailability(item.status) || "Available";
-        }
-        if (item.status === false || item.isActive === false) return "Unavailable";
-
-        const quantity = Number(item.quantity ?? item.stock);
-        if (Number.isFinite(quantity) && quantity <= 0) return "Unavailable";
-
-        return "Available";
-    };
 
     const getRentalAgeRange = (item = {}) => {
         const ageValue = item.age ?? item.recommendedAge ?? item.recommendedage;
@@ -562,6 +539,7 @@ function Rentals() {
         <SiteLoader
             label="Loading rentals"
             sublabel="Pulling the latest party rental options."
+            variant="commerce"
         />
     );
 
@@ -648,7 +626,7 @@ function Rentals() {
                                                     {filteredRentals.length} items shown · {allCategories.length} categories
                                                 </p>
                                             </div>
-                                    </div>
+                                        </div>
 
                                     <div className="rentals-controls">
                                         <SearchField
@@ -703,7 +681,7 @@ function Rentals() {
                                                 return (
                                                 <div
                                                     key={item.productId || item.id || rentalPath(item)}
-                                                    className={`rent-card ${getCategory(item) === "Indoor Games" ? "rent-card-indoor" : ""}`}
+                                                    className={`bubble-card rent-card ${getCategory(item) === "Indoor Games" ? "rent-card-indoor" : ""}`}
                                                     role="button"
                                                     tabIndex={0}
                                                     aria-label={`View ${itemDisplayName}`}
@@ -739,7 +717,7 @@ function Rentals() {
                                                             <p className="price">{getRentalPriceLabel(item)}</p>
                                                             <p className="rent-meta-line">
                                                                 <span>Availability</span>
-                                                                <strong>{getRentalAvailability(item)}</strong>
+                                                                <strong>{getFrontendRentalAvailabilityLabel(item)}</strong>
                                                             </p>
                                                             <p className="rent-meta-line">
                                                                 <span>Age Range</span>

@@ -6,6 +6,7 @@ import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
+import { buildAttendantChargeExpenseRow } from "./_shared/bookingCharges.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
@@ -182,15 +183,27 @@ export async function handler(event = {}) {
       }
     }
 
-    const expenses = expenseRows.map((row) => ({
+    const hasAttendantExpense = expenseRows.some((row) => {
+      const haystack = `${row.category || ""} ${row.description || ""}`.toLowerCase();
+      return haystack.includes("attendant");
+    });
+    const attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
+      date: bookingRow.eventDate || new Date().toISOString(),
+    });
+    const chargebackRows = attendantExpense && !hasAttendantExpense
+      ? [...expenseRows, attendantExpense]
+      : expenseRows;
+
+    const expenses = chargebackRows.map((row) => ({
       id: row.id,
       category: row.category,
       description: row.description,
       date: row.date,
       amount: Number(row.amount || 0) / 100,
+      isClientCharge: row.isClientCharge === true,
     }));
 
-    const expensesTotal = expenseRows.reduce(
+    const expensesTotal = chargebackRows.reduce(
       (sum, row) => sum + Number(row.amount || 0),
       0
     );

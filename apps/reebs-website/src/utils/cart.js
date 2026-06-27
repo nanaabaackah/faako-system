@@ -1,6 +1,8 @@
 export const normalizeCartKey = (value) => String(value ?? "").trim();
 
 const PER_HEAD_RATE_PATTERN = /\b(per head|per person|per guest)\b/i;
+const RENTAL_UNAVAILABLE_PATTERN =
+  /\b(unavailable|out of service|out-of-service|maintenance|repair|broken|damaged|offline|inactive|retired|not working)\b/i;
 
 const toCartNumber = (value) => {
   if (typeof value === "number") {
@@ -37,6 +39,30 @@ export const isRentalCartItem = (item = {}) => {
   return (item?.sku || "").toString().toUpperCase().startsWith("REN");
 };
 
+export const isRentalCartItemBookable = (item = {}) => {
+  if (!isRentalCartItem(item)) return false;
+  if (
+    item?.status === false ||
+    item?.isActive === false ||
+    item?.isWorking === false ||
+    item?.working === false
+  ) {
+    return false;
+  }
+
+  const statusText = [
+    item?.availability,
+    item?.status,
+    item?.condition,
+    item?.maintenanceStatus,
+    item?.workingStatus,
+  ]
+    .filter((value) => typeof value === "string")
+    .join(" ");
+
+  return !RENTAL_UNAVAILABLE_PATTERN.test(statusText);
+};
+
 export const getCartItemSectionKey = (item = {}) =>
   isRentalCartItem(item) ? "rentals" : "shop";
 
@@ -68,10 +94,16 @@ export const getCartItemRateLabel = (item = {}, fallback = null) => {
 };
 
 export const isCartItemStockTracked = (item = {}) =>
-  !(isRentalCartItem(item) && isPerHeadCartItem(item));
+  !isRentalCartItem(item);
 
-export const getCartItemMaxSelectableQuantity = (item = {}) =>
-  isCartItemStockTracked(item) ? getCartItemQuantity(item) : 999;
+export const getCartItemMaxSelectableQuantity = (item = {}) => {
+  if (isRentalCartItem(item)) {
+    if (isPerHeadCartItem(item)) return 999;
+    return Math.max(getCartItemQuantity(item), 1);
+  }
+
+  return isCartItemStockTracked(item) ? getCartItemQuantity(item) : 999;
+};
 
 export const getCartItemBillingQuantity = (item = {}) =>
   Math.max(1, parseInt(item?.cartQuantity, 10) || 1);

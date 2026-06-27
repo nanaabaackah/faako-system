@@ -25,6 +25,7 @@ import {
 } from "@faako/ui";
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
+import { hasPortalPermission } from "../api/adminSession";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import {
   adminAccountingApi,
@@ -280,7 +281,12 @@ const buildExcelHtml = (overview: AccountingOverview) => {
 
 const AccountingManagement: React.FC = () => {
   const { session } = useAdminPortal();
-  const canManageAccounting = String(session?.role || "").toUpperCase() === "ADMIN";
+  const canManageAccounting =
+    hasPortalPermission(session, "accounting", "create") ||
+    hasPortalPermission(session, "accounting", "edit") ||
+    hasPortalPermission(session, "accounting", "delete") ||
+    hasPortalPermission(session, "accounting", "archive") ||
+    hasPortalPermission(session, "accounting", "manage");
   const [overview, setOverview] = useState<AccountingOverview>(EMPTY_OVERVIEW);
   const [filters, setFilters] = useState<AccountingOverviewFilters>({
     period: "90d",

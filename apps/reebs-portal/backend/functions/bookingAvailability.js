@@ -62,7 +62,7 @@ export async function handler(event = {}) {
 
     // Fetch product to confirm it exists and is a rental.
     const productRes = await client.query(
-      `SELECT id, name, stock, "sourceCategoryCode", "isActive", "isDeleted", "isArchived"
+      `SELECT id, name, sku, stock, "sourceCategoryCode", "isActive", "isDeleted", "isArchived"
        FROM "product"
        WHERE id = $1 AND "organizationId" = $2`,
       [productId, organizationId]
@@ -93,6 +93,31 @@ export async function handler(event = {}) {
     const sku = String(product.sku || "").trim().toUpperCase();
     const isRental = sourceCode === "RENTAL" || sku.startsWith("RENT") || sku.startsWith("REN-");
 
+    if (isRental) {
+      const maintenanceRes = await client.query(
+        `SELECT COUNT(*)::int AS open_count
+         FROM "maintenanceLog"
+         WHERE "productId" = $1
+           AND "organizationId" = $2
+           AND "resolvedAt" IS NULL
+           AND LOWER(COALESCE(status, 'open')) NOT IN ('closed', 'resolved', 'complete', 'completed', 'cancelled', 'canceled')`,
+        [productId, organizationId]
+      );
+      if (Number(maintenanceRes.rows[0]?.open_count || 0) > 0) {
+        return json(event, 200, {
+          productId,
+          variantId: variantId || null,
+          eventDate: eventDate.toISOString().slice(0, 10),
+          available: false,
+          totalUnits: 0,
+          reservedUnits: 0,
+          availableUnits: 0,
+          isRental,
+          reason: "Item is in maintenance.",
+        });
+      }
+    }
+
     if (variantId) {
       // Variant-level availability.
       const variantRes = await client.query(
@@ -104,7 +129,9 @@ export async function handler(event = {}) {
         return json(event, 404, { error: "Variant not found for that product." });
       }
       const variant = variantRes.rows[0];
-      const totalUnits = Number(variant.stockQty || 0);
+      const totalUnits = isRental
+        ? Math.max(Number(variant.stockQty || 0), 1)
+        : Number(variant.stockQty || 0);
 
       const reservedRes = await client.query(
         `SELECT COALESCE(SUM(bi.quantity), 0)::int AS reserved
@@ -132,7 +159,9 @@ export async function handler(event = {}) {
     }
 
     // Product-level (non-variant) availability.
-    const totalUnits = Number(product.stock || 0);
+    const totalUnits = isRental
+      ? Math.max(Number(product.stock || 0), 1)
+      : Number(product.stock || 0);
 
     const reservedRes = await client.query(
       `SELECT COALESCE(SUM(bi.quantity), 0)::int AS reserved

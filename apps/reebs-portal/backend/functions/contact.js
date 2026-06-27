@@ -1,9 +1,19 @@
 /* eslint-disable no-undef */
+import { Client } from "pg";
+import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import {
+  createCrmContactRequest,
+} from "./_shared/crmContact.js";
 import { json, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import {
   getNotificationCatchallEmail,
   sendNotificationEmail,
 } from "./_shared/email.js";
+import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
+import {
+  applyWindowRateLimit,
+  getRequestClientIp,
+} from "./_shared/requestRateLimit.js";
 
 const MAX_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 120;
@@ -47,6 +57,14 @@ const parseBody = (event = {}) => {
   }
 };
 
+const getHeaderValue = (event, key) =>
+  String(
+    event?.headers?.[key]
+    || event?.headers?.[key.toLowerCase()]
+    || event?.headers?.[key.toUpperCase()]
+    || ""
+  ).trim();
+
 const respond = (event, statusCode, payload = {}) =>
   json(event, statusCode, payload, {
     methods: "POST, OPTIONS",
@@ -89,9 +107,59 @@ export async function handler(event = {}) {
     });
   }
 
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: resolvePgSslConfig(),
+  });
+
+  let crmResult = null;
+  try {
+    await client.connect();
+    const rateLimit = await applyWindowRateLimit(client, {
+      scope: "reebs-contact",
+      identifier: `${getRequestClientIp(event)}:${email}`,
+      limit: 8,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return respond(event, 429, {
+        error: "Too many contact requests. Please wait a few minutes and try again.",
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      });
+    }
+
+    const organizationId = await resolveConfiguredPublicOrganizationId(client);
+    crmResult = await createCrmContactRequest(client, organizationId, {
+      name,
+      email,
+      phone,
+      topic,
+      eventDate,
+      location,
+      message,
+      source: "contact_form",
+      metadata: {
+        page: "contact",
+        userAgent: cleanText(getHeaderValue(event, "user-agent"), 240),
+        ip: getRequestClientIp(event),
+      },
+    });
+  } catch (error) {
+    console.error("Contact form CRM persistence failed", {
+      message: error?.message || String(error),
+    });
+    return respond(event, Number(error?.statusCode) || 500, {
+      error: "We could not save your planning brief right now.",
+    });
+  } finally {
+    await client.end().catch(() => {});
+  }
+
   const subjectName = name || "Website visitor";
   const text = [
     "New REEBS planning brief",
+    crmResult?.request?.id ? `Request ID: ${crmResult.request.id}` : "",
+    crmResult?.customer?.id ? `CRM customer ID: ${crmResult.customer.id}` : "",
     "",
     `Name: ${name}`,
     `Email: ${email}`,
@@ -107,19 +175,31 @@ export async function handler(event = {}) {
   try {
     const result = await sendNotificationEmail({
       to: getNotificationCatchallEmail(),
-      subject: `REEBS planning brief from ${subjectName}`,
+      subject: crmResult?.request?.id
+        ? `REEBS planning brief #${crmResult.request.id} from ${subjectName}`
+        : `REEBS planning brief from ${subjectName}`,
       text,
       replyTo: email,
     });
 
     if (result?.skipped) {
-      return respond(event, 503, {
-        error: "Message delivery is not configured.",
+      console.warn("Contact form email notification skipped", {
+        reason: result.reason,
+        requestId: crmResult?.request?.id || null,
+      });
+      return respond(event, 200, {
+        ok: true,
+        requestId: crmResult?.request?.id || null,
+        customerId: crmResult?.customer?.id || null,
+        emailSkipped: true,
+        message: "Your planning brief was saved. We will reply within one business day.",
       });
     }
 
     return respond(event, 200, {
       ok: true,
+      requestId: crmResult?.request?.id || null,
+      customerId: crmResult?.customer?.id || null,
       message: "Your planning brief was sent. We will reply within one business day.",
     });
   } catch (error) {

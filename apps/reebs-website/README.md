@@ -2,7 +2,7 @@
 
 Workspace package: `@faako/reebs-website`
 
-Reebs Website is the public REEBS storefront, rentals, and booking site. It is the customer-facing half of the REEBS stack and works against the portal/backend for real product, rental, booking, and portal-entry flows.
+Reebs Website is the public REEBS storefront, rentals, booking, and contact-intake site. It is the customer-facing half of the REEBS stack and works against the portal/backend for real product, rental, booking, contact request, and portal-entry flows.
 
 ## What Lives Here
 
@@ -43,6 +43,7 @@ Typical local ports:
 
 - rental listings and rental detail pages now resolve through the same shared rental catalog rules so storefront links and detail slugs stay in sync
 - this app should stay frontend-focused in production and point at `https://api.reebspartythemes.com` for data and auth-adjacent flows
+- the contact form posts to `/api/contact`; the portal backend validates/rate-limits the request, stores it in CRM as a planning request, links or creates a customer, creates follow-up activity, and then sends the notification email
 - the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for a user-controlled refresh when a newer deployed bundle exists
 
 ## Configuration

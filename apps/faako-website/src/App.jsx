@@ -239,7 +239,8 @@ export default function App() {
         <Suspense
           fallback={
             <AnimatedLoadingState
-              compact
+              page
+              variant="portfolio"
               title="Loading Faako"
               message="Preparing the next view."
             />

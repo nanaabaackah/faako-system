@@ -44,7 +44,7 @@ export default function CustomerSummaryPanel({ summary, segmentFilter, onSegment
         <article className="bubble-card crm-kpi-card">
           <p>At risk</p>
           <h2>{summary.risk}</h2>
-          <span>{summary.prospect} new</span>
+          <span>{summary.openContactRequests} open requests</span>
         </article>
       </section>
 
@@ -54,8 +54,8 @@ export default function CustomerSummaryPanel({ summary, segmentFilter, onSegment
             <AppIcon icon={faUsers} />
             <span>Connected</span>
           </div>
-          <strong>{summary.orders + summary.bookings}</strong>
-          <p>Orders {summary.orders} · Bookings {summary.bookings}</p>
+          <strong>{summary.orders + summary.bookings + summary.contactRequests}</strong>
+          <p>Orders {summary.orders} · Bookings {summary.bookings} · Requests {summary.contactRequests}</p>
         </article>
         <article className="bubble-card crm-mini-card">
           <div className="crm-mini-card-head">

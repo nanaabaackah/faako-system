@@ -21,6 +21,7 @@ import {
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
+import { hasPortalPermission } from "../api/adminSession";
 import {
   adminCustomersApi,
   type AdminCustomer,
@@ -95,7 +96,12 @@ const getStatusTone = (status = ""): "neutral" | "success" | "warning" | "danger
 
 const CustomerDirectory: React.FC = () => {
   const { session } = useAdminPortal();
-  const canManageCustomers = String(session?.role || "").toUpperCase() === "ADMIN";
+  const canManageCustomers =
+    hasPortalPermission(session, "crm", "create") ||
+    hasPortalPermission(session, "crm", "edit") ||
+    hasPortalPermission(session, "crm", "delete") ||
+    hasPortalPermission(session, "crm", "archive") ||
+    hasPortalPermission(session, "crm", "manage");
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [summary, setSummary] = useState<AdminCustomerSummary>(EMPTY_SUMMARY);
   const [filters, setFilters] = useState<AdminCustomerFilters>({

@@ -28,6 +28,7 @@ import {
   type AdminProductPatchPayload,
   type AdminProductPublishingPayload,
 } from "../api/adminProducts";
+import { hasPortalPermission } from "../api/adminSession";
 import { useAdminPortal } from "./AdminPortalContext";
 import {
   STROANE_PORTAL_QUEUE_ORGANIZATION_ID,
@@ -236,7 +237,12 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     pollIntervalMs: 4000,
   });
 
-  const canManageInventory = session?.role === "ADMIN";
+  const canManageInventory =
+    hasPortalPermission(session, "inventory", "create") ||
+    hasPortalPermission(session, "inventory", "edit") ||
+    hasPortalPermission(session, "inventory", "delete") ||
+    hasPortalPermission(session, "inventory", "archive") ||
+    hasPortalPermission(session, "inventory", "manage");
 
   const applySnapshot = useCallback((snapshot: InventoryManagementSnapshot) => {
     setInventory(snapshot.inventory);

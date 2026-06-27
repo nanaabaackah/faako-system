@@ -5,7 +5,7 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEllipsisVertical } from "/src/icons/iconSet";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
 
@@ -485,8 +485,20 @@ function AdminRoles() {
             </div>
           </div>
 
-          {loading && <p className="accounting-status">Loading users…</p>}
-          {!loading && error && <p className="accounting-error">{error}</p>}
+          {loading && (
+            <AnimatedLoadingState
+              compact
+              className="glass-card admin-module-loading"
+              title="Loading users"
+              message="Preparing roles, sessions, and permission groups."
+              variant="dashboard"
+            />
+          )}
+          {!loading && error && (
+            <ERPFormNotice tone="danger" title="Roles unavailable" onDismiss={() => setError("")}>
+              {error}
+            </ERPFormNotice>
+          )}
           {!loading && !error && (
             <div className="roles-table-wrapper">
           <table className="roles-table">
@@ -533,7 +545,7 @@ function AdminRoles() {
                               onClick={(event) => toggleUserMenu(user.id, event)}
                             >
                               <AppIcon icon={faEllipsisVertical} />
-                              <span className="sr-only">Actions</span>
+                              <span>Actions</span>
                             </button>
                           </div>
                         </td>
@@ -661,7 +673,11 @@ function AdminRoles() {
                   ))}
                 </SelectField>
               </label>
-              {inviteError && <p className="customers-error">{inviteError}</p>}
+              {inviteError && (
+                <ERPFormNotice tone="danger" title="Invite failed" onDismiss={() => setInviteError("")}>
+                  {inviteError}
+                </ERPFormNotice>
+              )}
               <div className="customers-form-actions">
                 <button type="button" className="customers-secondary" onClick={() => setInviteOpen(false)} disabled={inviteSaving}>
                   Cancel
@@ -701,8 +717,16 @@ function AdminRoles() {
                     <p className="roles-note">Only the system administrator can change roles.</p>
                   )}
                 </label>
-                {permissionStatus && <p className="roles-success">{permissionStatus}</p>}
-                {permissionError && <p className="roles-error">{permissionError}</p>}
+                {permissionStatus && (
+                  <ERPFormNotice tone="success" title="Permissions saved" onDismiss={() => setPermissionStatus("")}>
+                    {permissionStatus}
+                  </ERPFormNotice>
+                )}
+                {permissionError && (
+                  <ERPFormNotice tone="danger" title="Permissions not saved" onDismiss={() => setPermissionError("")}>
+                    {permissionError}
+                  </ERPFormNotice>
+                )}
               </div>
               <button
                 type="button"

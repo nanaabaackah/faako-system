@@ -40,10 +40,23 @@ const getCategory = (item) =>
 const shouldExcludeFromBooking = (item) => {
   const name = `${item?.name || ""}`.toLowerCase();
   return (
+    isPumpAccessory(item) ||
     name.includes("air blower") ||
     name.includes("air-blower") ||
     name.includes("airblower") ||
     name.includes("blower pump")
+  );
+};
+
+const isPumpAccessory = (item) => {
+  const name = `${item?.name || ""}`.toLowerCase();
+  const sku = `${item?.sku || ""}`.toUpperCase();
+  return (
+    sku.startsWith("PUM") ||
+    name.includes("motor pump") ||
+    name.includes("air pump") ||
+    name.includes("blower pump") ||
+    name.includes("air blower")
   );
 };
 
@@ -144,6 +157,8 @@ const formatDateShort = (value) => {
 
 const BUNDLE_MIN_ITEMS = 3;
 const BUNDLE_DISCOUNT_RATE = 0.1;
+const DEFAULT_ATTENDANT_RATE = 100;
+const ATTENDANT_RATE = Number.parseFloat(import.meta.env?.VITE_REEBS_ATTENDANT_RATE || "") || DEFAULT_ATTENDANT_RATE;
 const BOOKING_DRAFT_KEY = "bookingDraft";
 const EVENT_WINDOW_OPTIONS = [
   { value: "Morning setup (7am - 11am)", label: "Morning setup (7am – 11am)", endMinutes: 11 * 60 },
@@ -167,6 +182,7 @@ function Book() {
   };
   const [rentals, setRentals] = useState([]);
   const [bouncyTypes, setBouncyTypes] = useState([]);
+  const [pumpProduct, setPumpProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -229,7 +245,9 @@ function Book() {
         const inventoryData = inventoryResult.items;
         const bouncyData = bouncyRes.ok ? await bouncyRes.json() : [];
 
-        const rentalsOnly = (Array.isArray(inventoryData) ? inventoryData : []).filter((item) => {
+        const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
+        const pumpItem = inventoryItems.find((item) => isPumpAccessory(item)) || null;
+        const rentalsOnly = inventoryItems.filter((item) => {
           const isActive = (item.status ?? item.isActive) !== false;
           return (
             isFrontendRentalItem(item)
@@ -242,6 +260,7 @@ function Book() {
         if (!active) return;
         setRentals(rentalsOnly);
         setBouncyTypes(Array.isArray(bouncyData) ? bouncyData : []);
+        setPumpProduct(pumpItem);
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("❌ Error fetching rental:", err);
@@ -280,6 +299,8 @@ function Book() {
       isActive: baseBouncy.isActive,
       displayPrice: type.priceRange,
       productId: Number(type.productId),
+      attendantsNeeded: Number(type.attendantsNeeded || 0),
+      motorsToPump: Number(type.motorsToPump || 0),
       specificCategory: baseBouncy.specificCategory || baseBouncy.specificcategory || baseBouncy.category || "Bouncy Castle",
       detailSlug: rentalSlug(baseBouncy),
       type: "bouncy",
@@ -290,6 +311,8 @@ function Book() {
       .map((item) => ({
         ...item,
         productId: Number.isFinite(Number(item.productId)) ? Number(item.productId) : item.id,
+        attendantsNeeded: Number(item.attendantsNeeded || 0),
+        motorsToPump: Number(item.motorsToPump || 0),
       }));
     return [...bouncyOptions, ...filtered];
   }, [rentals, bouncyTypes]);
@@ -381,19 +404,60 @@ function Book() {
     return unitPrice;
   };
 
+  const getBookingQuantity = (item) =>
+    isPerHeadRate(item?.rate) && guestCountValue > 0 ? guestCountValue : 1;
+
   const bundleEligible = selectedRentals.length >= BUNDLE_MIN_ITEMS;
   const subtotal = selectedRentals.reduce((sum, item) => {
     return sum + getItemTotal(item);
   }, 0);
   const bundleDiscount = bundleEligible ? subtotal * BUNDLE_DISCOUNT_RATE : 0;
-  const totalAfterDiscount = Math.max(0, subtotal - bundleDiscount);
+  const pumpQuantity = selectedRentals.reduce((sum, item) => {
+    const motors = Math.max(0, Number(item?.motorsToPump || 0));
+    if (!motors) return sum;
+    return sum + motors * getBookingQuantity(item);
+  }, 0);
+  const pumpUnitPrice = parseNumericPrice(getItemPrice(pumpProduct)) || 0;
+  const pumpCharge = pumpQuantity * pumpUnitPrice;
+  const attendantCount = selectedRentals.reduce((sum, item) => {
+    const attendants = Math.max(0, Number(item?.attendantsNeeded || 0));
+    if (!attendants) return sum;
+    return sum + attendants * getBookingQuantity(item);
+  }, 0);
+  const attendantCharge = attendantCount * ATTENDANT_RATE;
+  const automaticChargeLines = [
+    pumpQuantity > 0
+      ? {
+          id: "air-pump",
+          label: "Air pump for bouncers",
+          helper: pumpUnitPrice > 0 ? `${pumpQuantity} required` : "Required for selected bouncers",
+          quantity: pumpQuantity,
+          unitPrice: pumpUnitPrice,
+          total: pumpCharge,
+        }
+      : null,
+    attendantCount > 0
+      ? {
+          id: "attendant-fee",
+          label: "Attendant fee",
+          helper: `${attendantCount} ${attendantCount === 1 ? "attendant" : "attendants"} required`,
+          quantity: attendantCount,
+          unitPrice: ATTENDANT_RATE,
+          total: attendantCharge,
+        }
+      : null,
+  ].filter(Boolean);
+  const automaticChargeTotal = automaticChargeLines.reduce((sum, line) => sum + line.total, 0);
+  const automaticChargeNote = automaticChargeLines.map((line) => `${line.label}: ${line.helper}`).join(", ");
+  const totalAfterDiscount = Math.max(0, subtotal - bundleDiscount + automaticChargeTotal);
   const bundleRemaining = Math.max(0, BUNDLE_MIN_ITEMS - selectedRentals.length);
 
   useEffect(() => {
     if (!noteTouched) {
-      setItemsNote(selectedRentals.map((item) => getCatalogItemDisplayName(item, "Rental item")).join(", "));
+      const rentalNote = selectedRentals.map((item) => getCatalogItemDisplayName(item, "Rental item")).join(", ");
+      setItemsNote([rentalNote, automaticChargeNote].filter(Boolean).join(", "));
     }
-  }, [selectedRentals, noteTouched]);
+  }, [automaticChargeNote, selectedRentals, noteTouched]);
 
   useEffect(() => {
     if (!draftLoadedRef.current) return;
@@ -454,6 +518,7 @@ function Book() {
       (item) =>
         `${getCatalogItemDisplayName(item, "Rental item")} (${item.specificCategory || item.specificcategory || item.category || "Rental"})`
     ),
+    ...automaticChargeLines.map((line) => `${line.label}: ${line.helper}`),
     bundleSelected && selectedIndoorGames.length
       ? `Board game bundle picks: ${selectedIndoorGames
           .map((item) => getCatalogItemDisplayName(item, "Rental item"))
@@ -619,6 +684,7 @@ function Book() {
         bundleApplied: bundleEligible,
         bundleSubtotal: subtotal,
         bundleDiscount: bundleEligible ? bundleDiscount : 0,
+        automaticChargeLines,
       });
       setSubmitSuccess(`Booking #${bookingPayload.id} received! We’ll confirm availability shortly.`);
       setSelectedIds([]);
@@ -639,6 +705,7 @@ function Book() {
       <SiteLoader
         label="Loading booking options"
         sublabel="Preparing your rental list and pricing."
+        variant="commerce"
       />
     );
   }
@@ -947,6 +1014,20 @@ function Book() {
                         </strong>
                       </div>
                     ))}
+                    {(bookingReceipt.automaticChargeLines || []).map((line) => (
+                      <div key={line.id} className="booking-receipt-item booking-receipt-charge">
+                        <div className="booking-receipt-info">
+                          <h4>{line.label}</h4>
+                          <p>
+                            {line.helper}
+                            {line.unitPrice > 0 ? ` · ${formatAmount(line.unitPrice)} each` : ""}
+                          </p>
+                        </div>
+                        <strong className="booking-receipt-line-total">
+                          {line.total > 0 ? formatAmount(line.total) : "Review"}
+                        </strong>
+                      </div>
+                    ))}
                   </div>
                   <div className="booking-receipt-total">
                     <span>Total</span>
@@ -1031,6 +1112,15 @@ function Book() {
                         <span>{bundleLabel}</span>
                         <strong>{discountDisplay}</strong>
                       </div>
+                      {automaticChargeLines.map((line) => (
+                        <div className="booking-summary-row booking-summary-row--charge" key={line.id}>
+                          <span>
+                            {line.label}
+                            <small>{line.helper}</small>
+                          </span>
+                          <strong>{line.total > 0 ? formatAmount(line.total) : "Review"}</strong>
+                        </div>
+                      ))}
                       <div className="booking-summary-total">
                         <span>Estimated total</span>
                         <strong>{totalDisplay}</strong>

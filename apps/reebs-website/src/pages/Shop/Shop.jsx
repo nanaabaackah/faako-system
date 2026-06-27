@@ -741,6 +741,7 @@ function Shop() {
       <SiteLoader
         label="Loading shop"
         sublabel="Pulling in the latest online-available party supplies."
+        variant="commerce"
       />
     );
   }

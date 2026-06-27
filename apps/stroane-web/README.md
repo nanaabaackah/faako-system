@@ -151,7 +151,7 @@ The private order module at `/admin/orders` lists storefront/manual orders, crea
 
 ## Internal Product And Media Operations
 
-Authenticated staff can see product, inventory, supplier, alert, and order signals on the `/admin` dashboard. Dashboard KPI cards open focused drilldown modals. The dedicated `/admin/inventory` module has stock value analytics, full-width table pagination, product management lightbox, movement recording, and autosave. The dedicated `/admin/orders` module handles current order operations. `/admin/products` and `/admin/suppliers` remain placeholders while their module shape is rebuilt.
+Authenticated staff can see product, inventory, supplier, alert, and order signals on the `/admin` dashboard. Dashboard KPI cards open focused drilldown modals. The dedicated `/admin/inventory` module has stock value analytics, full-width table pagination, product management lightbox, movement recording, and autosave. The dedicated `/admin/orders` module handles current order operations. `/admin/audit-logs` is an Admin-only read-only audit console over existing inventory, order, payment, receipt, accounting, CRM, and team activity sources. `/admin/products` and `/admin/suppliers` remain placeholders while their module shape is rebuilt.
 
 Public catalogue APIs still return active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
 

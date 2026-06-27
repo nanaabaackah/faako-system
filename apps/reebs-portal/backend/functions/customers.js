@@ -5,6 +5,7 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { ensureCrmContactTables } from "./_shared/crmContact.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 import { requireUser } from "./_shared/userAuth.js";
@@ -66,6 +67,7 @@ export async function handler(event) {
   try {
     await client.connect();
     await ensureCustomerStatusColumns(client);
+    await ensureCrmContactTables(client);
     const authUser = await requireUser(client, event);
     if (!authUser && isCrossSiteBrowserRequest(event)) {
       return {
@@ -421,7 +423,7 @@ export async function handler(event) {
         };
       }
 
-      const [ordersRes, bookingsRes] = await Promise.all([
+      const [ordersRes, bookingsRes, contactRequestsRes, activitiesRes] = await Promise.all([
         client.query(
           `SELECT id, "orderNumber", total_amount, "orderDate", "deliveryMethod", "deliveryDetails"
            FROM "order"
@@ -434,6 +436,24 @@ export async function handler(event) {
            FROM "booking"
            WHERE "customerId" = $1 AND "organizationId" = $2
            ORDER BY "eventDate" DESC`,
+          [id, organizationId]
+        ),
+        client.query(
+          `SELECT id, source, status, priority, topic, "eventDate", location, message,
+                  "followUpDueAt", "createdAt", "updatedAt"
+           FROM "contactRequest"
+           WHERE "customerId" = $1 AND "organizationId" = $2
+           ORDER BY "createdAt" DESC
+           LIMIT 12`,
+          [id, organizationId]
+        ),
+        client.query(
+          `SELECT id, "contactRequestId", type, title, description, status,
+                  "dueAt", "completedAt", metadata, "createdAt", "updatedAt"
+           FROM "customerActivity"
+           WHERE "customerId" = $1 AND "organizationId" = $2
+           ORDER BY COALESCE("dueAt", "createdAt") DESC, "createdAt" DESC
+           LIMIT 16`,
           [id, organizationId]
         ),
       ]);
@@ -469,9 +489,13 @@ export async function handler(event) {
           totals: {
             orders: ordersRes.rows.length,
             bookings: bookingsRes.rows.length,
+            contactRequests: contactRequestsRes.rows.length,
+            openContactRequests: contactRequestsRes.rows.filter((row) => row.status !== "closed").length,
             totalSpent,
             totalRented,
           },
+          contactRequests: contactRequestsRes.rows,
+          activities: activitiesRes.rows,
         }),
       };
     }
@@ -599,12 +623,17 @@ export async function handler(event) {
          COALESCE(b.bookings, 0)::int AS bookings,
          COALESCE(o.total_spent, 0) AS total_spent,
          COALESCE(b.total_rented, 0) AS total_rented,
+         COALESCE(cr.contact_requests, 0)::int AS contact_requests,
+         COALESCE(cr.open_contact_requests, 0)::int AS open_contact_requests,
          o.last_order_date,
          b.last_booking_date,
+         cr.last_contact_request_at,
+         cr.next_follow_up_due_at,
          NULLIF(
            GREATEST(
              COALESCE(o.last_order_date, TIMESTAMP 'epoch'),
-             COALESCE(b.last_booking_date, TIMESTAMP 'epoch')
+             COALESCE(b.last_booking_date, TIMESTAMP 'epoch'),
+             COALESCE(cr.last_contact_request_at, TIMESTAMP 'epoch')
            ),
            TIMESTAMP 'epoch'
          ) AS last_activity_at
@@ -629,6 +658,17 @@ export async function handler(event) {
          WHERE "organizationId" = $1
          GROUP BY "customerId"
        ) b ON b."customerId" = c.id
+       LEFT JOIN (
+         SELECT
+           "customerId",
+           COUNT(*) AS contact_requests,
+           COUNT(*) FILTER (WHERE status NOT IN ('closed', 'converted', 'spam')) AS open_contact_requests,
+           MAX("createdAt") AS last_contact_request_at,
+           MIN("followUpDueAt") FILTER (WHERE status NOT IN ('closed', 'converted', 'spam')) AS next_follow_up_due_at
+         FROM "contactRequest"
+         WHERE "organizationId" = $1
+         GROUP BY "customerId"
+       ) cr ON cr."customerId" = c.id
        WHERE c."organizationId" = $1
          AND c."deletedAt" IS NULL
        ORDER BY c.name ASC`,

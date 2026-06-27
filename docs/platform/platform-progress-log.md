@@ -24,6 +24,20 @@ Next step:
 
 ## Entries
 
+### REEBS CRM contact intake and project metadata refresh
+
+Date: 2026-06-25
+Change name: REEBS CRM contact intake and project metadata refresh
+Apps/packages affected: REEBS Website, REEBS Portal, Dev ERP docs, ByNana Portfolio, @faako/config
+What changed: Connected REEBS public contact submissions to CRM persistence: contact requests now upsert/link customers, create request rows, create follow-up activity, return a request reference, and still send email notifications. Added authenticated contact-request list/status-update support. REEBS CRM customer detail now shows planning requests and follow-up activity with inline status updates. Updated ByNana portfolio/project registry metadata for current REEBS and Dev ERP system state, including CRM-backed contact intake, registry-driven modules, proposal workflow, Faako onboarding review, and the future module-settings direction.
+Why it changed: Contact submissions need an operational source of truth inside CRM, and public/internal project metadata should match the current monorepo capabilities.
+Files changed: REEBS contact/backend/customer/CRM files, REEBS READMEs/docs, ByNana project content/pages, shared project registry, Dev ERP implementation/progress docs.
+Data impact: Additive REEBS runtime table creation for `contactRequest` and `customerActivity`; contact submissions can create/update CRM customer records as prospects. Dev ERP and ByNana updates are metadata/content only.
+Security impact: Positive. Contact intake remains server-validated, cross-site browser requests are rejected, rate limiting was added, and CRM persistence avoids relying on email-only handling.
+Testing done: REEBS backend syntax checks passed. Targeted REEBS contact/CRM ESLint checks passed. ByNana content lint passed. `pnpm run project-registry:check` passed.
+Rollback notes: Revert the REEBS CRM/contact changes and metadata/docs updates. Handle any created CRM contact request data with a separate reviewed data-retention decision.
+Next step: Add a dedicated CRM request inbox/filter view, then design backend-owned module enablement and editable template/settings APIs with audit logging.
+
 ### Dev ERP Faako onboarding management
 
 Date: 2026-06-18

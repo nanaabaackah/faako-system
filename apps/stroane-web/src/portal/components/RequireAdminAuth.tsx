@@ -11,6 +11,7 @@ const RequireAdminAuth: React.FC = () => {
     return (
       <AnimatedLoadingState
         page
+        variant="portal"
         title="Checking portal access"
         message="Confirming your secure Stroane session."
       />

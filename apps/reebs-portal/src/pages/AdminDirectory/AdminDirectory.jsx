@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminDirectory.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -583,8 +583,20 @@ function AdminDirectory() {
             </label>
           </div>
 
-          {loading && <p className="customers-status">Loading directory...</p>}
-          {!loading && error && <p className="customers-error">{error}</p>}
+          {loading && (
+            <AnimatedLoadingState
+              compact
+              className="glass-card admin-module-loading"
+              title="Loading directory"
+              message="Pulling users, customers, and vendors."
+              variant="dashboard"
+            />
+          )}
+          {!loading && error && (
+            <ERPFormNotice tone="danger" title="Directory unavailable" onDismiss={() => setError("")}>
+              {error}
+            </ERPFormNotice>
+          )}
 
           {!loading && !error && (
             <>
@@ -680,6 +692,7 @@ function AdminDirectory() {
                                 onClick={() => openDetail(row)}
                               >
                                 <AppIcon icon={faEye} />
+                                View
                               </button>
                               {canMutate ? (
                                 <button
@@ -908,7 +921,11 @@ function AdminDirectory() {
                 </>
               )}
 
-              {saveError && <p className="customers-error">{saveError}</p>}
+              {saveError && (
+                <ERPFormNotice tone="danger" title="Save failed" onDismiss={() => setSaveError("")}>
+                  {saveError}
+                </ERPFormNotice>
+              )}
 
               <div className="customers-form-actions">
                 <button type="button" className="customers-secondary" onClick={closeModal} disabled={saving}>
@@ -952,8 +969,20 @@ function AdminDirectory() {
               </button>
             </header>
 
-            {detailLoading && <p className="crm-muted">Loading details...</p>}
-            {!detailLoading && detailError && <p className="crm-error">{detailError}</p>}
+            {detailLoading && (
+              <AnimatedLoadingState
+                compact
+                className="glass-card admin-module-loading"
+                title="Loading profile"
+                message="Opening customer and vendor activity."
+                variant="detail"
+              />
+            )}
+            {!detailLoading && detailError && (
+              <ERPFormNotice tone="danger" title="Profile unavailable" onDismiss={() => setDetailError("")}>
+                {detailError}
+              </ERPFormNotice>
+            )}
             {!detailLoading && !detailError && detailTab === "customers" && detailRecord && (
               <div className="crm-detail-grid">
                 <div className="glass-card crm-detail-card">

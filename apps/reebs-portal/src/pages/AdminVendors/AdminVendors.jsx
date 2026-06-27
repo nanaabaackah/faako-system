@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatedLoadingState, ERPFormNotice } from "@faako/ui";
 import "./AdminVendors.css";
 import { Link } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -305,8 +306,16 @@ function AdminVendors() {
           }
         />
 
-        {error && <p className="vendors-error">{error}</p>}
-        {status && <p className="vendors-success">{status}</p>}
+        {error && (
+          <ERPFormNotice tone="danger" title="Vendors unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
+        {status && (
+          <ERPFormNotice tone="success" title="Vendor update complete" onDismiss={() => setStatus("")}>
+            {status}
+          </ERPFormNotice>
+        )}
 
         <section className="vendors-overview">
           <div className="vendors-kpis">
@@ -337,7 +346,13 @@ function AdminVendors() {
         </section>
 
         {loading ? (
-          <p className="vendors-muted">Loading vendors...</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading vendors"
+            message="Fetching supplier profiles and stock links."
+            variant="dashboard"
+          />
         ) : (
           <section className="vendors-board">
             <div className="vendors-list">

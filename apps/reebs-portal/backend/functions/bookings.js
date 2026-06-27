@@ -24,6 +24,7 @@ import {
 } from "./_shared/email.js";
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
+import { calculateAttendantChargeCents } from "./_shared/bookingCharges.js";
 import {
   applyWindowRateLimit,
   getRequestClientIp,
@@ -205,6 +206,8 @@ const fullSelectColumns = `
           'quantity', bi.quantity,
           'price', bi.price,
           'productName', p.name,
+          'sku', p.sku,
+          'attendantsNeeded', p."attendantsNeeded",
           'variantLabel', CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size),
           'productImage', p."imageUrl"
         )
@@ -546,7 +549,7 @@ export async function handler(event) {
 
       const productIds = [...new Set(mergedItems.map((item) => item.productId))];
       const productRes = await client.query(
-        `SELECT id, name, price, sku, "sourceCategoryCode", "itemType"
+        `SELECT id, name, price, stock, sku, "sourceCategoryCode", "itemType", "attendantsNeeded", "isActive", "isDeleted", "isArchived"
          FROM "product"
          WHERE id = ANY($1::int[]) AND "organizationId" = $2`,
         [productIds, organizationId]
@@ -591,6 +594,10 @@ export async function handler(event) {
         if (!product) {
           await client.query("ROLLBACK");
           return json(event, 404, { error: `Product ${item.productId} not found.` });
+        }
+        if (product.isDeleted || product.isArchived || product.isActive === false) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `${product.name || `Item ${item.productId}`} is unavailable.` });
         }
         const sku = typeof product.sku === "string" ? product.sku.trim().toUpperCase() : "";
         const source = typeof product.sourceCategoryCode === "string"
@@ -654,7 +661,7 @@ export async function handler(event) {
 
       if (pumpQuantity > 0) {
         const pumpRes = await client.query(
-          `SELECT id, price, sku, "sourceCategoryCode"
+          `SELECT id, name, price, stock, sku, "sourceCategoryCode", "itemType", "attendantsNeeded", "isActive", "isDeleted", "isArchived"
            FROM "product"
            WHERE (LOWER(name) LIKE '%motor pump%' OR UPPER(sku) LIKE 'PUM-%')
              AND "organizationId" = $1
@@ -671,6 +678,10 @@ export async function handler(event) {
         const pumpSource = typeof pumpProduct.sourceCategoryCode === "string"
           ? pumpProduct.sourceCategoryCode.trim().toUpperCase()
           : "";
+        if (pumpProduct.isDeleted || pumpProduct.isArchived || pumpProduct.isActive === false) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: "Motor Pump product is unavailable." });
+        }
         if (pumpSource !== "RENTAL" && !pumpSku.startsWith("RENT") && !pumpSku.startsWith("PUM")) {
           await client.query("ROLLBACK");
           return json(event, 500, { error: "Motor Pump product is not marked as a rental." });
@@ -683,6 +694,18 @@ export async function handler(event) {
           finalItems.push({ productId: pumpProduct.id, quantity: pumpQuantity });
         }
       }
+
+      const finalProductIds = [...new Set(finalItems.map((item) => Number(item.productId)).filter(Number.isFinite))];
+      const maintenanceRes = await client.query(
+        `SELECT "productId"
+         FROM "maintenanceLog"
+         WHERE "productId" = ANY($1::int[])
+           AND "organizationId" = $2
+           AND "resolvedAt" IS NULL
+           AND LOWER(COALESCE(status, 'open')) NOT IN ('closed', 'resolved', 'complete', 'completed', 'cancelled', 'canceled')`,
+        [finalProductIds, organizationId]
+      );
+      const productsInMaintenance = new Set(maintenanceRes.rows.map((row) => Number(row.productId)));
 
       const shouldReserveVariants = !["completed", "cancelled"].includes(status);
       const releaseExistingReservations = event.httpMethod === "PUT"
@@ -711,6 +734,10 @@ export async function handler(event) {
 
       for (const item of finalItems) {
         const product = productMap.get(item.productId);
+        if (productsInMaintenance.has(Number(item.productId))) {
+          await client.query("ROLLBACK");
+          return json(event, 409, { error: `${product?.name || `Item ${item.productId}`} is currently in maintenance.` });
+        }
 
         if (item.variantId) {
           const variant = variantMap.get(Number(item.variantId));
@@ -737,7 +764,8 @@ export async function handler(event) {
               [item.variantId, organizationId, eventDate]
             );
             const reservedOnDate = Number(dateReservedRes.rows[0]?.reserved || 0);
-            const availableOnDate = Math.max(Number(variant.stockQty || 0) - reservedOnDate, 0);
+            const totalUnits = Math.max(Number(variant.stockQty || 0), Number(item.quantity) || 1);
+            const availableOnDate = Math.max(totalUnits - reservedOnDate, 0);
             if (availableOnDate < item.quantity) {
               await client.query("ROLLBACK");
               return json(event, 409, { error: `Insufficient availability on this date for ${formatVariantLabel(product?.name, variant)}.` });
@@ -766,7 +794,7 @@ export async function handler(event) {
               [item.productId, organizationId, eventDate]
             );
             const reservedOnDate = Number(productDateRes.rows[0]?.reserved || 0);
-            const totalUnits = Number(product?.stock ?? 0);
+            const totalUnits = Math.max(Number(product?.stock ?? 0), Number(item.quantity) || 1);
             const availableOnDate = Math.max(totalUnits - reservedOnDate, 0);
             if (availableOnDate < item.quantity) {
               await client.query("ROLLBACK");
@@ -775,6 +803,13 @@ export async function handler(event) {
           }
         }
       }
+
+      const attendantCharge = calculateAttendantChargeCents(
+        finalItems.map((item) => ({
+          ...item,
+          attendantsNeeded: productMap.get(item.productId)?.attendantsNeeded,
+        }))
+      );
 
       const totalAmount = Math.max(
         0,
@@ -786,7 +821,7 @@ export async function handler(event) {
               ? variantPrice
               : product.price;
           return sum + priceCents * item.quantity;
-        }, 0) - Math.round(discountValue * 100)
+        }, 0) - Math.round(discountValue * 100) + attendantCharge.totalCents
       );
 
       if (event.httpMethod === "POST") {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
 import "./PortalSidebar.css";
 import { createPortal } from "react-dom";
@@ -171,8 +171,60 @@ const DEFAULT_APPS = [
 
 const normalizePath = (pathname) => {
   if (!pathname) return "/admin";
-  const trimmed = pathname.replace(/\/+$/, "");
+  const [pathOnly = ""] = String(pathname).split(/[?#]/);
+  const trimmed = pathOnly.replace(/\/+$/, "");
   return trimmed || "/admin";
+};
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const routePatternMatches = (pattern, pathname) => {
+  const normalizedPattern = normalizePath(pattern);
+  const normalizedPathname = normalizePath(pathname);
+  if (!normalizedPattern.includes(":")) return normalizedPattern === normalizedPathname;
+
+  const regexSource = normalizedPattern
+    .split("/")
+    .map((segment) => (segment.startsWith(":") ? "[^/]+" : escapeRegExp(segment)))
+    .join("/");
+  return new RegExp(`^${regexSource}$`).test(normalizedPathname);
+};
+
+const getAppKey = (app) => app?.id || app?.label || app?.path || "";
+
+const getAppActiveScore = (app, pathname) => {
+  if (!app || app.external) return 0;
+  const normalizedPathname = normalizePath(pathname);
+  const appPath = normalizePath(app.path);
+  let score = 0;
+
+  if (appPath === normalizedPathname) {
+    score = Math.max(score, 100000 + appPath.length);
+  } else if (
+    appPath !== "/admin" &&
+    normalizedPathname.startsWith(`${appPath}/`)
+  ) {
+    score = Math.max(score, 50000 + appPath.length);
+  }
+
+  const matchPaths = Array.isArray(app.matchPaths) ? app.matchPaths : [];
+  matchPaths.forEach((matchPath) => {
+    const normalizedMatchPath = normalizePath(matchPath);
+    if (routePatternMatches(normalizedMatchPath, normalizedPathname)) {
+      score = Math.max(score, 80000 + normalizedMatchPath.length);
+      return;
+    }
+
+    if (
+      normalizedMatchPath !== "/admin" &&
+      !normalizedMatchPath.includes(":") &&
+      normalizedPathname.startsWith(`${normalizedMatchPath}/`)
+    ) {
+      score = Math.max(score, 40000 + normalizedMatchPath.length);
+    }
+  });
+
+  return score;
 };
 
 const NOTIFICATION_WINDOW_DAYS = 21;
@@ -357,30 +409,41 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     }
   }, [authReady, isAuthenticated, readStorageKey]);
 
-  const isActive = (app) => {
-    if (app.external) return false;
-    const matchPaths = app.matchPaths ?? [app.path];
-    return matchPaths.some((path) => {
-      if (!path) return false;
-      const normalized = path.replace(/\/+$/, "") || "/admin";
-      return (
-        normalized === normalizedPath ||
-        (normalized !== "/" && normalizedPath.startsWith(normalized))
-      );
-    });
-  };
+  const visibleApps = useMemo(
+    () =>
+      apps.filter((app) => {
+        if (isWaterUser) {
+          return app.path === "/admin/water";
+        }
+        if (!app.roles || app.roles.length === 0) return true;
+        return app.roles.some((role) => String(role).toLowerCase() === userRole);
+      }),
+    [apps, isWaterUser, userRole]
+  );
 
-  const canSeeApp = (app) => {
-    if (isWaterUser) {
-      return app.path === "/admin/water";
-    }
-    if (!app.roles || app.roles.length === 0) return true;
-    return app.roles.some((role) => String(role).toLowerCase() === userRole);
+  const activeAppKey = useMemo(() => {
+    let bestMatch = null;
+    let bestScore = 0;
+
+    visibleApps.forEach((app) => {
+      const score = getAppActiveScore(app, normalizedPath);
+      if (score > bestScore) {
+        bestMatch = app;
+        bestScore = score;
+      }
+    });
+
+    return getAppKey(bestMatch);
+  }, [normalizedPath, visibleApps]);
+
+  const isActive = (app) => {
+    if (app.external || !activeAppKey) return false;
+    return getAppKey(app) === activeAppKey;
   };
 
   const renderLinks = (context = "sidebar") => (
     <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
-      {apps.filter(canSeeApp).map((app) => {
+      {visibleApps.map((app) => {
         const active = isActive(app);
         const linkClasses = [
           "portal-sidebar__link",
@@ -590,14 +653,14 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
 
   const unreadCount = unreadNotifications.length;
 
-  const persistReadNotifications = (nextSet) => {
+  const persistReadNotifications = useCallback((nextSet) => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(readStorageKey, JSON.stringify([...nextSet]));
     } catch (err) {
       console.warn("Failed to persist notification state", err);
     }
-  };
+  }, [readStorageKey]);
 
   useEffect(() => {
     if (!notifications.length) return;
@@ -617,7 +680,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       persistReadNotifications(next);
       return next;
     });
-  }, [notifications, readStorageKey]);
+  }, [notifications, persistReadNotifications]);
 
   const markNotificationRead = (id) => {
     setReadNotifications((prev) => {

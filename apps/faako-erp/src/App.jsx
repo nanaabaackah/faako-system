@@ -366,7 +366,8 @@ function AppLayout() {
           <Suspense
             fallback={
               <AnimatedLoadingState
-                compact
+                page
+                variant="dashboard"
                 title="Loading Faako ERP"
                 message="Preparing the next workspace view."
               />

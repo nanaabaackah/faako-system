@@ -159,8 +159,12 @@ const canAccessPortalNavigationItem = (role, item = {}) => {
   return canAccessPortalRoute(role, item.path);
 };
 
-const getPortalAccessFallbackPath = (role) =>
-  isWaterPortalRole(role) ? "/admin/water" : "/admin";
+const getPortalAccessFallbackPath = (role) => {
+  if (isWaterPortalRole(role)) return "/admin/water";
+  if (isDriverPortalRole(role)) return "/admin/bookings";
+  if (canAccessStandardPortalArea(role)) return "/admin";
+  return "/admin/profile";
+};
 
 export {
   DRIVER_PORTAL_ROLES,

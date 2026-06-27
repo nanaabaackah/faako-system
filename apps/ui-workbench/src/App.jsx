@@ -164,6 +164,7 @@ function WorkbenchScreen({ presetId, setPresetId }) {
               <NoticeBanner tone="warning" title="Privilege escalation blocked" message="This action needs a stronger role before it can continue." />
               <AnimatedLoadingState
                 compact
+                variant="workspace"
                 title="Loading workspace"
                 message="Shared skeleton animation with the active app theme."
               />

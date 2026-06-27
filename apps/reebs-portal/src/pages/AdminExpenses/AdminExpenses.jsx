@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useState } from "react";
-import { DateField, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, ERPFormNotice, MonthField, SelectField } from "@faako/ui";
 import "./AdminExpenses.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faPlus, faReceipt } from "/src/icons/iconSet";
@@ -373,15 +373,13 @@ function AdminExpenses() {
 
         <div className="expenses-filter-rail">
           <div className="expenses-filters">
-            <label>
-              Posting period
-              <input
-                type="month"
-                value={monthFilter}
-                onChange={(event) => setMonthFilter(event.target.value)}
-                disabled={allTimeView}
-              />
-            </label>
+            <MonthField
+              fieldClassName="expenses-period-field"
+              label="Posting period"
+              value={monthFilter}
+              onChange={(event) => setMonthFilter(event.target.value)}
+              disabled={allTimeView}
+            />
             <label className="expenses-check">
               <input
                 type="checkbox"
@@ -396,8 +394,16 @@ function AdminExpenses() {
           </p>
         </div>
 
-        {error && <p className="expenses-error">{error}</p>}
-        {status && <p className="expenses-success">{status}</p>}
+        {error && (
+          <ERPFormNotice tone="danger" title="Expenses unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
+        {status && (
+          <ERPFormNotice tone="success" title="Expense updated" onDismiss={() => setStatus("")}>
+            {status}
+          </ERPFormNotice>
+        )}
 
         <section className="expenses-kpis-wrap" aria-label="Category totals">
           <div className="expenses-kpis-head">
@@ -568,7 +574,13 @@ function AdminExpenses() {
                   {loading ? (
                     <tr>
                       <td colSpan={6} className="expenses-empty">
-                        Loading expenses...
+                        <AnimatedLoadingState
+                          compact
+                          className="expenses-loading-state admin-module-loading"
+                          title="Loading expenses"
+                          message="Collecting ledger, filters, and category totals."
+                          variant="dashboard"
+                        />
                       </td>
                     </tr>
                   ) : visibleExpenses.length === 0 ? (

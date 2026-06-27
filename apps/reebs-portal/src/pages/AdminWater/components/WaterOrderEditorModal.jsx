@@ -1,4 +1,4 @@
-import { DateField, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTrash, faXmark } from "/src/icons/iconSet";
@@ -204,7 +204,7 @@ export default function WaterOrderEditorModal({
             </div>
           </div>
 
-          {orderError ? <p className="water-module-feedback water-module-feedback--error">{orderError}</p> : null}
+          {orderError ? <InlineNotice tone="error" compact title="Order not saved" message={orderError} /> : null}
 
           <div className="water-order-modal-actions">
             <button

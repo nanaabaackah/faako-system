@@ -120,6 +120,26 @@
   color: rgba(var(--ink-rgb), 0.74);
 }
 
+.booking-shell .booking-summary-row--charge {
+  align-items: start;
+}
+
+.booking-shell .booking-summary-row--charge span {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.booking-shell .booking-summary-row--charge small {
+  color: rgba(var(--ink-rgb), 0.68);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.booking-shell .booking-receipt-charge {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .booking-shell .booking-form {
   gap: clamp(1.35rem, 2.6vw, 1.95rem);
 }

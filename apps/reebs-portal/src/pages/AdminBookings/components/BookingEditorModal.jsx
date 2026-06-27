@@ -1,5 +1,5 @@
 import React from "react";
-import { DateField, SelectField } from "@faako/ui";
+import { DateField, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faXmark } from "/src/icons/iconSet";
@@ -10,6 +10,7 @@ function BookingEditorModal({
   closeModal,
   save,
   saveError,
+  setSaveError,
   saving,
   form,
   setForm,
@@ -282,7 +283,15 @@ function BookingEditorModal({
           )}
         </div>
 
-        {saveError && <p className="customers-error">{saveError}</p>}
+        {saveError && (
+          <ERPFormNotice
+            tone="danger"
+            title="Booking not saved"
+            onDismiss={typeof setSaveError === "function" ? () => setSaveError("") : undefined}
+          >
+            {saveError}
+          </ERPFormNotice>
+        )}
 
         <div className="customers-form-actions">
           <button type="button" className="customers-secondary" onClick={closeModal} disabled={saving}>

@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { InlineNotice, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, InlineNotice, SelectField } from "@faako/ui";
 import {
   SyncReviewPanel,
   createIndexedDbQueueStorage,
@@ -18,7 +18,6 @@ import {
   faBoxesStacked,
   faCalendarDays,
   faClipboardList,
-  faCircleCheck,
   faCloudArrowUp,
   faClock,
   faMinus,
@@ -2330,13 +2329,6 @@ function AdminWorkspace({ section = "home" }) {
           path: DASHBOARD_PATHS.bookingsConfirmed,
         },
         {
-          key: "orders-count",
-          label: "Orders & Bookings",
-          value: String(totalOrders + totalBookings),
-          meta: `${totalOrders} orders • ${totalBookings} bookings`,
-          path: DASHBOARD_PATHS.orders,
-        },
-        {
           key: "aov",
           label: "Avg. Order Value",
           value: avgOrderValue > 0 ? toCurrency(avgOrderValue, "GHS") : "—",
@@ -3037,7 +3029,13 @@ function AdminWorkspace({ section = "home" }) {
           </div>
         </div>
         {inventoryLoading ? (
-          <p className="aw-muted">Loading stock...</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading stock"
+            message="Preparing workspace stock actions and variant availability."
+            variant="workspace"
+          />
         ) : (
           <div className="aw-stock-list">
             {visibleInventory.map((item) => {
@@ -3454,6 +3452,7 @@ function AdminWorkspace({ section = "home" }) {
           </button>
           <button type="button" className="aw-secondary-btn" onClick={logout}>
             <AppIcon icon={faArrowRightFromBracket} />
+            Logout
           </button>
         </div>
       </header>
@@ -3461,13 +3460,10 @@ function AdminWorkspace({ section = "home" }) {
       {(surfaceNotice || surfaceError || inventoryError) && (
         <section className="aw-feedback">
           {surfaceNotice && (
-            <p className="aw-feedback-success">
-              <AppIcon icon={faCircleCheck} />
-              {surfaceNotice}
-            </p>
+            <InlineNotice tone="success" compact title="Workspace updated" message={surfaceNotice} />
           )}
           {surfaceError && <InlineNotice tone="error" compact message={surfaceError} />}
-          {inventoryError && <p className="aw-feedback-note">{inventoryError}</p>}
+          {inventoryError && <InlineNotice tone="warning" compact message={inventoryError} />}
         </section>
       )}
 

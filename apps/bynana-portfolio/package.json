@@ -12,22 +12,15 @@
   "dependencies": {
     "@faako/ui": "workspace:*",
     "animejs": "^4.3.6",
-    "bootstrap": "^5.3.7",
-    "iconsax": "^0.0.1",
     "iconsax-react": "^0.0.8",
-    "jquery": "^3.7.1",
-    "jquery.easing": "^1.4.1",
     "mathjs": "^15.1.1",
     "react": "^19.1.1",
-    "react-bootstrap": "^2.10.10",
     "react-dom": "^19.1.1",
     "react-helmet": "^6.1.0",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.2",
-    "stellar.js": "^0.6.5",
     "tailwindcss": "^4.2.0",
-    "three": "^0.183.0",
-    "waypoints": "^4.0.1"
+    "three": "^0.183.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

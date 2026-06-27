@@ -1,4 +1,5 @@
 import React from "react";
+import { ERPFormNotice } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faUserPlus, faXmark } from "/src/icons/iconSet";
 
@@ -6,6 +7,7 @@ export default function CustomerCreateModal({
   isOpen,
   createForm,
   createError,
+  onCreateErrorClear,
   createSaving,
   onClose,
   onSubmit,
@@ -60,7 +62,11 @@ export default function CustomerCreateModal({
             </label>
           </div>
 
-          {createError ? <p className="crm-error">{createError}</p> : null}
+          {createError ? (
+            <ERPFormNotice tone="danger" title="Customer not created" onDismiss={onCreateErrorClear}>
+              {createError}
+            </ERPFormNotice>
+          ) : null}
 
           <div className="crm-modal-actions">
             <button type="button" className="admin-secondary crm-button" onClick={onClose}>

@@ -130,7 +130,7 @@ export default function Dashboard() {
     }
     try {
       return JSON.parse(window.localStorage.getItem(configStorageKey) || "");
-    } catch (error) {
+    } catch {
       return null;
     }
   }, []);

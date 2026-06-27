@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Project metadata and module-settings direction refresh
+
+Date: 2026-06-25
+Feature/change name: Project metadata and module-settings direction refresh
+What changed: Updated shared project registry and ByNana portfolio project descriptions so Dev ERP is described with its current registry-driven module foundation, proposals workflow, Faako onboarding review module, and production-sensitive operating model. Added implementation notes clarifying that Odoo-style module selection and editable operational templates should become database-backed settings with backend capability enforcement and audit logs before they control live routes or payment/receipt text.
+Why it changed: Dev ERP and the public portfolio should reflect the current system accurately while keeping future editable-module/settings work explicit and safe.
+Files changed: packages/config/src/projectRegistry/projectRegistry.js, apps/bynana-portfolio/src/content/projectDetails.js, apps/bynana-portfolio/src/pages/Home.jsx, apps/bynana-portfolio/src/pages/Projects.jsx, apps/bynana-portfolio/src/pages/Resume.jsx, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. Documentation and public-safe metadata/content only.
+Security impact: Positive documentation clarity. No Dev ERP routes, permissions, schema, auth, payment, rent, invoice, report, or operational data behavior changed.
+Testing done: ByNana content lint passed. `pnpm run project-registry:check` passed.
+Rollback notes: Revert the metadata/content/docs changes if the public presentation needs a different wording pass.
+Next step: Design org-scoped module settings and editable template settings as backend-owned configuration before wiring any admin-facing toggles.
+
 ### Faako onboarding management module
 
 Date: 2026-06-18

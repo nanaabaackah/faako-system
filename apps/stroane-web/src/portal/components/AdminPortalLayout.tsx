@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   HiOutlineChevronDown,
   HiOutlineCash,
   HiOutlineCog,
+  HiOutlineClipboardList,
   HiOutlineCube,
   HiOutlineDesktopComputer,
   HiOutlineDocumentText,
@@ -12,6 +13,7 @@ import {
   HiOutlineMenuAlt2,
   HiOutlineMoon,
   HiOutlineShoppingBag,
+  HiOutlineShieldCheck,
   HiOutlineSun,
   HiOutlineUserGroup,
   HiOutlineUserCircle,
@@ -29,8 +31,10 @@ import { useOnlineStatus, useSyncQueueSummary } from "@faako/offline-sync";
 import type { ErpBranding, ErpNavItem } from "@faako/types";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import {
+  canAccessPortalModule,
   getAdminDisplayName,
   type AdminAppearancePreference,
+  type AdminRoleModule,
 } from "../api/adminSession";
 import { STOREFRONT_BASE_URL } from "../../config/appSurface";
 import {
@@ -56,6 +60,8 @@ const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "accounting", label: "Accounting", path: "/admin/accounting", iconKey: "accounting" },
   { id: "crm", label: "CRM", path: "/admin/crm", iconKey: "crm" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
+  { id: "audit-logs", label: "Audit Logs", path: "/admin/audit-logs", iconKey: "audit" },
+  { id: "team", label: "Team", path: "/admin/team", iconKey: "team" },
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
 ];
 
@@ -66,10 +72,22 @@ const MOBILE_ITEMS: ErpNavItem[] = [
   { id: "profile", label: "Profile", path: "/admin/profile", iconKey: "profile" },
 ];
 
+const PORTAL_ITEM_MODULES: Record<string, AdminRoleModule> = {
+  overview: "dashboard",
+  orders: "orders",
+  receipts: "receipts",
+  accounting: "accounting",
+  crm: "crm",
+  inventory: "inventory",
+  team: "team",
+  profile: "profile",
+};
+
 const PAGE_TITLES: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/profile": "Profile",
   "/admin/inventory": "Inventory",
+  "/admin/team": "Team",
   "/admin/crm": "CRM",
   "/admin/directory": "Directory",
   "/admin/suppliers": "Module reset",
@@ -78,6 +96,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/orders": "Orders",
   "/admin/receipts": "Receipts",
   "/admin/accounting": "Accounting",
+  "/admin/audit-logs": "Audit Logs",
   "/admin/reports": "Module reset",
   "/admin/settings": "Module reset",
 };
@@ -89,6 +108,8 @@ const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "accounting") return <HiOutlineCash />;
   if (iconKey === "crm") return <HiOutlineUserGroup />;
   if (iconKey === "inventory") return <HiOutlineCube />;
+  if (iconKey === "audit") return <HiOutlineClipboardList />;
+  if (iconKey === "team") return <HiOutlineShieldCheck />;
   if (iconKey === "profile") return <HiOutlineUserCircle />;
   return <HiOutlineCog />;
 };
@@ -106,6 +127,17 @@ const APPEARANCE_OPTIONS: Array<{
 const getUserInitials = (displayName?: string) => {
   const parts = displayName?.trim().split(/\s+/).filter(Boolean) || [];
   return parts.map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
+};
+
+const getPortalItemModule = (item: ErpNavItem): AdminRoleModule =>
+  PORTAL_ITEM_MODULES[item.id] || "dashboard";
+
+const canAccessPortalItem = (
+  session: ReturnType<typeof useAdminPortal>["session"],
+  item: ErpNavItem
+) => {
+  if (item.id === "audit-logs") return session?.role === "ADMIN";
+  return canAccessPortalModule(session, getPortalItemModule(item));
 };
 
 const AdminPortalLayout: React.FC = () => {
@@ -130,6 +162,14 @@ const AdminPortalLayout: React.FC = () => {
   const displayName = getAdminDisplayName(session);
   const appearancePreference = session?.appearancePreference || "system";
   const userInitials = getUserInitials(displayName || session?.username);
+  const visiblePortalItems = useMemo(
+    () => PORTAL_ITEMS.filter((item) => canAccessPortalItem(session, item)),
+    [session]
+  );
+  const visibleMobileItems = useMemo(
+    () => MOBILE_ITEMS.filter((item) => canAccessPortalModule(session, getPortalItemModule(item))),
+    [session]
+  );
 
   useEffect(() => {
     document.body.classList.add("stroane-admin-theme");
@@ -237,7 +277,7 @@ const AdminPortalLayout: React.FC = () => {
   const sidebar = (
     <ErpNavSidebar
       brand={PORTAL_BRAND}
-      items={PORTAL_ITEMS}
+      items={visiblePortalItems}
       currentPath={location.pathname}
       renderIcon={renderPortalIcon}
       collapsed={mobileSidebarOpen ? false : sidebarCollapsed}
@@ -260,7 +300,7 @@ const AdminPortalLayout: React.FC = () => {
             </span>
             <span className="stroane-admin-portal__sidebar-user-copy">
               <strong>{displayName || session?.username}</strong>
-              <small>{session?.role}</small>
+              <small>{session?.roleLabel || session?.roleKey || session?.role}</small>
             </span>
             <HiOutlineChevronDown
               aria-hidden="true"
@@ -358,7 +398,7 @@ const AdminPortalLayout: React.FC = () => {
       topbar={topbar}
       bottomNav={
         <ErpBottomNav
-          items={MOBILE_ITEMS}
+          items={visibleMobileItems}
           currentPath={location.pathname}
           renderIcon={renderPortalIcon}
         />

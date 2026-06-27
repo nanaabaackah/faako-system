@@ -144,6 +144,7 @@ Platform docs:
 - [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md)
 - [docs/monorepo-restructure.md](/Users/Nana/Desktop/Developer/faako-system/docs/monorepo-restructure.md)
 - [docs/platform/codex-handoff-verification.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/codex-handoff-verification.md)
+- [docs/platform/operations-manual.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/operations-manual.md)
 - [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md)
 - [docs/security_best_practices_report.md](/Users/Nana/Desktop/Developer/faako-system/docs/security_best_practices_report.md)
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatedLoadingState, ERPFormNotice } from "@faako/ui";
 import "./AdminCustomers.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faUserPlus } from "/src/icons/iconSet";
@@ -48,6 +49,7 @@ export default function AdminCustomers() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailSaving, setDetailSaving] = useState(false);
+  const [requestStatusSavingId, setRequestStatusSavingId] = useState(null);
   const [detailError, setDetailError] = useState("");
   const [detailStatus, setDetailStatus] = useState("");
   const [detail, setDetail] = useState(null);
@@ -103,10 +105,12 @@ export default function AdminCustomers() {
     const base = customers.map((customer) => {
       const orders = toNumber(customer.orders);
       const bookings = toNumber(customer.bookings);
+      const contactRequests = toNumber(customer.contact_requests);
+      const openContactRequests = toNumber(customer.open_contact_requests);
       const totalSpent = centsToMoneyAmount(customer.total_spent);
       const totalRented = centsToMoneyAmount(customer.total_rented);
       const ltv = totalSpent + totalRented;
-      const activity = orders + bookings;
+      const activity = orders + bookings + contactRequests;
       const lastTouch = getLastTouch(customer);
       const daysSince = getDaysSince(lastTouch);
 
@@ -114,6 +118,8 @@ export default function AdminCustomers() {
         ...customer,
         orders,
         bookings,
+        contactRequests,
+        openContactRequests,
         totalSpent,
         totalRented,
         ltv,
@@ -141,6 +147,8 @@ export default function AdminCustomers() {
         accumulator.value += customer.ltv;
         accumulator.orders += customer.orders;
         accumulator.bookings += customer.bookings;
+        accumulator.contactRequests += customer.contactRequests;
+        accumulator.openContactRequests += customer.openContactRequests;
         accumulator.connected += customer.activity > 0 ? 1 : 0;
         accumulator.phone += customer.phone ? 1 : 0;
         accumulator.email += customer.email ? 1 : 0;
@@ -151,6 +159,8 @@ export default function AdminCustomers() {
         value: 0,
         orders: 0,
         bookings: 0,
+        contactRequests: 0,
+        openContactRequests: 0,
         connected: 0,
         phone: 0,
         email: 0,
@@ -489,6 +499,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
     setDetailLoading(false);
     setDetailSaving(false);
+    setRequestStatusSavingId(null);
     setDetailForm(EMPTY_CUSTOMER_FORM);
     const params = new URLSearchParams(location.search);
     if (params.has("id")) {
@@ -591,6 +602,47 @@ export default function AdminCustomers() {
     }
   };
 
+  const updateContactRequestStatus = async (request, status) => {
+    const requestId = Number(request?.id);
+    if (!Number.isFinite(requestId) || !status || requestStatusSavingId === requestId) return;
+
+    setRequestStatusSavingId(requestId);
+    setDetailError("");
+    setDetailStatus("");
+
+    try {
+      const response = await fetch("/api/contactRequests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: requestId, status }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readResponseError(response, "Failed to update contact request."));
+      }
+
+      const payload = await response.json();
+      const updatedRequest = payload?.request;
+      setDetail((current) =>
+        current
+          ? {
+            ...current,
+            contactRequests: (current.contactRequests || []).map((item) =>
+              item.id === requestId ? { ...item, ...updatedRequest } : item
+            ),
+          }
+          : current
+      );
+      setDetailStatus("Contact request updated.");
+      await loadCustomers();
+    } catch (err) {
+      console.error("Failed to update contact request", err);
+      setDetailError(err.message || "Failed to update contact request.");
+    } finally {
+      setRequestStatusSavingId(null);
+    }
+  };
+
   return (
     <div className="admin-page crm-page">
       <div className="admin-shell crm-shell">
@@ -609,9 +661,11 @@ export default function AdminCustomers() {
                 disabled={loading}
               >
                 <AppIcon icon={faRotateRight} />
+                Refresh
               </button>
               <button type="button" className="admin-primary crm-button" onClick={openCreate}>
                 <AppIcon icon={faUserPlus} />
+                Add customer
               </button>
             </>
           )}
@@ -636,8 +690,20 @@ export default function AdminCustomers() {
           isMobileCardView={isMobileCardView}
         />
 
-        {loading ? <p className="crm-status-text">Loading customers...</p> : null}
-        {!loading && error ? <p className="crm-error">{error}</p> : null}
+        {loading ? (
+          <AnimatedLoadingState
+            compact
+            className="glass-card crm-loading-state admin-module-loading"
+            title="Loading customers"
+            message="Preparing CRM history and segments."
+            variant="dashboard"
+          />
+        ) : null}
+        {!loading && error ? (
+          <ERPFormNotice tone="danger" title="Customers unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        ) : null}
 
         {!loading && !error ? (
           <CustomerResultsSection
@@ -664,6 +730,7 @@ export default function AdminCustomers() {
         isOpen={createOpen}
         createForm={createForm}
         createError={createError}
+        onCreateErrorClear={() => setCreateError("")}
         createSaving={createSaving}
         onClose={closeCreate}
         onSubmit={createCustomer}
@@ -679,13 +746,17 @@ export default function AdminCustomers() {
         detailSaving={detailSaving}
         detailError={detailError}
         detailStatus={detailStatus}
+        onDetailErrorClear={() => setDetailError("")}
+        onDetailStatusClear={() => setDetailStatus("")}
         selectedSegment={selectedSegment}
         selectedTotals={selectedTotals}
         removingCustomerId={removingCustomerId}
+        requestStatusSavingId={requestStatusSavingId}
         onClose={closeDetail}
         onSave={saveCustomer}
         onArchive={archiveCustomer}
         onFormChange={handleDetailFormChange}
+        onRequestStatusChange={updateContactRequestStatus}
       />
     </div>
   );

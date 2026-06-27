@@ -956,6 +956,33 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
   flex-wrap: wrap;
 }
 
+.detail-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-main);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detail-nav-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .bookings-action {
   border: 1px solid var(--glass-border);
   color: inherit;
@@ -1912,7 +1939,7 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
   .booking-detail-actions {
     width: 100%;
     justify-content: flex-start;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     overflow: visible;
     gap: 8px;
     padding-bottom: 0;
@@ -1928,13 +1955,13 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
 
   .booking-detail-actions .bookings-action,
   .booking-detail-actions .bookings-edit {
-    padding: 0;
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
+    padding: 8px 12px;
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
     font-size: 0.78rem;
     line-height: 1;
-    gap: 0;
+    gap: 6px;
   }
 
   .booking-detail-actions .bookings-detail-save-action {
@@ -1944,8 +1971,10 @@ body.admin-theme .bookings-shell > .admin-header.bookings-header > .bookings-hea
   }
 
   .booking-detail-actions .detail-nav-button {
-    width: 30px;
-    height: 30px;
+    width: auto;
+    min-height: 32px;
+    padding: 8px 10px;
+    gap: 5px;
   }
 
   .booking-detail-actions .bookings-action--icon,

@@ -1,5 +1,5 @@
 import React from "react";
-import { DateField, SelectField } from "@faako/ui";
+import { DateField, ERPFormNotice, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import SearchField from "/src/components/SearchField/SearchField";
 import {
@@ -68,6 +68,7 @@ function BookingDetailModal({
   setDetailExpenseDraft,
   detailExpenseSaving,
   detailExpenseError,
+  setDetailExpenseError,
   addDetailExpense,
   bookingLocked = false,
   formatDate,
@@ -446,17 +447,15 @@ function BookingDetailModal({
             disabled={detailExpenseSaving || bookingLocked}
           />
         </label>
-        <label className="bookings-expense-field bookings-expense-field--date">
-          <span>Date</span>
-          <input
-            type="date"
-            value={detailExpenseDraft?.date || ""}
-            onChange={(event) =>
-              setDetailExpenseDraft((current) => ({ ...current, date: event.target.value }))
-            }
-            disabled={detailExpenseSaving || bookingLocked}
-          />
-        </label>
+        <DateField
+          fieldClassName="bookings-expense-field bookings-expense-field--date"
+          label="Date"
+          value={detailExpenseDraft?.date || ""}
+          onChange={(event) =>
+            setDetailExpenseDraft((current) => ({ ...current, date: event.target.value }))
+          }
+          disabled={detailExpenseSaving || bookingLocked}
+        />
         <button
           type="submit"
           className="bookings-primary"
@@ -470,14 +469,27 @@ function BookingDetailModal({
           }
           title={bookingLocked ? "Completed bookings are locked" : "Add expense"}
         >
-          {detailExpenseSaving ? "Adding..." : <AppIcon icon={faPlus} />}
+          {detailExpenseSaving ? (
+            "Adding..."
+          ) : (
+            <>
+              <AppIcon icon={faPlus} />
+              <span>Add expense</span>
+            </>
+          )}
         </button>
       </form>
       {bookingLocked ? (
         <p className="bookings-inline-note">Completed bookings are locked. Existing expenses remain view-only.</p>
       ) : null}
       {detailExpenseError ? (
-        <p className="bookings-inline-note bookings-inline-note--error">{detailExpenseError}</p>
+        <ERPFormNotice
+          tone="danger"
+          title="Expense not added"
+          onDismiss={typeof setDetailExpenseError === "function" ? () => setDetailExpenseError("") : undefined}
+        >
+          {detailExpenseError}
+        </ERPFormNotice>
       ) : null}
       {expenseQuery && detailExpenses.length > 0 ? (
         <p className="bookings-inline-note">
@@ -539,6 +551,7 @@ function BookingDetailModal({
                 aria-label="Previous booking"
               >
                 <AppIcon icon={faChevronLeft} />
+                <span>Previous</span>
               </button>
             ) : !detailEditing ? (
               <div className="detail-nav">
@@ -550,6 +563,7 @@ function BookingDetailModal({
                   aria-label="Previous booking"
                 >
                   <AppIcon icon={faChevronLeft} />
+                  <span>Previous</span>
                 </button>
                 <button
                   type="button"
@@ -559,6 +573,7 @@ function BookingDetailModal({
                   aria-label="Next booking"
                 >
                   <AppIcon icon={faChevronRight} />
+                  <span>Next</span>
                 </button>
               </div>
             ) : null}
@@ -573,10 +588,13 @@ function BookingDetailModal({
                   aria-label="Accept booking"
                   title="Accept booking"
                 >
-                  {isMobileView ? (
-                    <AppIcon icon={faCalendarCheck} />
+                  {statusUpdatingId === booking.id ? (
+                    "Updating..."
                   ) : (
-                    statusUpdatingId === booking.id ? "Updating..." : "Accept"
+                    <>
+                      <AppIcon icon={faCalendarCheck} />
+                      <span>Accept</span>
+                    </>
                   )}
                 </button>
                 <button
@@ -587,10 +605,13 @@ function BookingDetailModal({
                   aria-label="Complete booking"
                   title="Complete booking"
                 >
-                  {isMobileView ? (
-                    <AppIcon icon={faCircleCheck} />
+                  {statusUpdatingId === booking.id ? (
+                    "Updating..."
                   ) : (
-                    statusUpdatingId === booking.id ? "Updating..." : "Complete"
+                    <>
+                      <AppIcon icon={faCircleCheck} />
+                      <span>Complete</span>
+                    </>
                   )}
                 </button>
                 {canAccessInvoicing && (
@@ -602,7 +623,7 @@ function BookingDetailModal({
                     title="Open invoice"
                   >
                     <AppIcon icon={faFileInvoice} />
-                    {!isMobileView ? "Invoice" : null}
+                    <span>Invoice</span>
                   </button>
                 )}
                 <button
@@ -614,7 +635,7 @@ function BookingDetailModal({
                   title={bookingLocked ? "Completed bookings are locked" : "Open delivery"}
                 >
                   <AppIcon icon={faTruck} />
-                  {!isMobileView ? "Delivery" : null}
+                  <span>Delivery</span>
                 </button>
               </>
             ) : null}
@@ -630,7 +651,7 @@ function BookingDetailModal({
                   title="Cancel booking edits"
                 >
                   <AppIcon icon={faChevronLeft} />
-                  {!isMobileView ? "Cancel" : null}
+                  <span>Cancel</span>
                 </button>
                 <button
                   type="submit"
@@ -653,7 +674,7 @@ function BookingDetailModal({
                 title={bookingLocked ? "Completed bookings are locked" : "Edit booking"}
               >
                 <AppIcon icon={bookingLocked ? faLock : faPen} />
-                {!isMobileView ? (bookingLocked ? "Locked" : "Edit") : null}
+                <span>{bookingLocked ? "Locked" : "Edit"}</span>
               </button>
             ) : null}
             {!detailEditing && isMobileView ? (
@@ -665,6 +686,7 @@ function BookingDetailModal({
                 aria-label="Next booking"
               >
                 <AppIcon icon={faChevronRight} />
+                <span>Next</span>
               </button>
             ) : null}
           </div>
@@ -800,7 +822,15 @@ function BookingDetailModal({
                 {renderRentalItemsSection()}
               </div>
 
-              {saveError ? <p className="customers-error">{saveError}</p> : null}
+              {saveError ? (
+                <ERPFormNotice
+                  tone="danger"
+                  title="Booking not saved"
+                  onDismiss={typeof editor?.setSaveError === "function" ? () => editor.setSaveError("") : undefined}
+                >
+                  {saveError}
+                </ERPFormNotice>
+              ) : null}
             </form>
 
             <div className="bookings-detail-layout bookings-detail-layout--secondary">

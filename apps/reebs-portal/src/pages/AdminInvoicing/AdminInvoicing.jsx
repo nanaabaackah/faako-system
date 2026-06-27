@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { DateField, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminInvoicing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -1560,6 +1560,7 @@ function EditableDocumentTemplate({
   productById,
   productLoading,
   productError,
+  onProductErrorClear,
   onEventChange,
   onLineItemChange,
   onLineItemDescriptionChange,
@@ -1792,9 +1793,19 @@ function EditableDocumentTemplate({
         <div className="invoice-editable-lines-head">
           <div>
             <h4>Product Items</h4>
-            {productLoading ? <p className="invoice-editable-lines-helper">Loading products...</p> : null}
+            {productLoading ? (
+              <AnimatedLoadingState
+                compact
+                className="admin-module-loading"
+                title="Loading products"
+                message="Fetching product directory for invoice lines."
+                variant="detail"
+              />
+            ) : null}
             {!productLoading && productError ? (
-              <p className="invoice-editable-lines-helper">{productError}</p>
+              <ERPFormNotice tone="danger" title="Products unavailable" onDismiss={onProductErrorClear}>
+                {productError}
+              </ERPFormNotice>
             ) : null}
           </div>
 
@@ -4103,106 +4114,116 @@ function AdminInvoicing() {
             title={documentTitle}
           >
             <div className="invoice-hub-header-actions">
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={closeEditorModal}
-                  aria-label="Back"
-                  title="Back"
-                >
-                  <AppIcon icon={faArrowLeft} />
-                  <span className="sr-only">Back</span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={saveSelectedDocument}
-                  disabled={savingDocument || autosavingDocument || !activeDocument}
-                  aria-label={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
-                  title={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
-                >
-                  <AppIcon icon={faFloppyDisk} />
-                  <span className="sr-only">
-                    {savingDocument || autosavingDocument ? "Saving document" : "Save document"}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={buildPdf}
-                  disabled={pdfLoading || !activeDocument}
-                  aria-label={pdfLoading ? "Preparing PDF" : "Build PDF"}
-                  title={pdfLoading ? "Preparing PDF" : "Build PDF"}
-                >
-                  <AppIcon icon={faFilePdf} />
-                  <span className="sr-only">{pdfLoading ? "Preparing PDF" : "Build PDF"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={sendDocumentByEmail}
-                  disabled={emailingDocument || !activeDocument || !activeDocument.customer?.email}
-                  aria-label={emailingDocument ? "Sending to email" : "Send to email"}
-                  title={
-                    !activeDocument?.customer?.email
-                      ? "Add customer email"
-                      : emailingDocument
-                        ? "Sending to email"
-                        : "Send to email"
-                  }
-                >
-                  <AppIcon icon={faEnvelope} />
-                  <span className="sr-only">{emailingDocument ? "Sending to email" : "Send to email"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={saveToDocuments}
-                  disabled={savingPdfDocument || !activeDocument}
-                  aria-label={savingPdfDocument ? "Saving to documents" : "Save to documents"}
-                  title={savingPdfDocument ? "Saving to documents" : "Save to documents"}
-                >
-                  <AppIcon icon={faFolderOpen} />
-                  <span className="sr-only">
-                    {savingPdfDocument ? "Saving to documents" : "Save to documents"}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action invoice-hub-action-danger"
-                  onClick={archiveSelectedDocument}
-                  disabled={archivingDocument || !activeDocument}
-                  aria-label={archivingDocument ? "Archiving document" : "Archive"}
-                  title={archivingDocument ? "Archiving document" : "Archive"}
-                >
-                  <AppIcon icon={faBoxArchive} />
-                  <span className="sr-only">{archivingDocument ? "Archiving document" : "Archive"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary invoice-hub-action"
-                  onClick={() => window.print()}
-                  disabled={!activeDocument}
-                  aria-label="Print"
-                  title="Print"
-                >
-                  <AppIcon icon={faPrint} />
-                  <span className="sr-only">Print</span>
-                </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={closeEditorModal}
+                aria-label="Back"
+                title="Back"
+              >
+                <AppIcon icon={faArrowLeft} />
+                <span>Back</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={saveSelectedDocument}
+                disabled={savingDocument || autosavingDocument || !activeDocument}
+                aria-label={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
+                title={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
+              >
+                <AppIcon icon={faFloppyDisk} />
+                <span>{savingDocument || autosavingDocument ? "Saving document" : "Save document"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={buildPdf}
+                disabled={pdfLoading || !activeDocument}
+                aria-label={pdfLoading ? "Preparing PDF" : "Build PDF"}
+                title={pdfLoading ? "Preparing PDF" : "Build PDF"}
+              >
+                <AppIcon icon={faFilePdf} />
+                <span>{pdfLoading ? "Preparing PDF" : "Build PDF"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={sendDocumentByEmail}
+                disabled={emailingDocument || !activeDocument || !activeDocument.customer?.email}
+                aria-label={emailingDocument ? "Sending to email" : "Send to email"}
+                title={
+                  !activeDocument?.customer?.email
+                    ? "Add customer email"
+                    : emailingDocument
+                      ? "Sending to email"
+                      : "Send to email"
+                }
+              >
+                <AppIcon icon={faEnvelope} />
+                <span>{emailingDocument ? "Sending to email" : "Send to email"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={saveToDocuments}
+                disabled={savingPdfDocument || !activeDocument}
+                aria-label={savingPdfDocument ? "Saving to documents" : "Save to documents"}
+                title={savingPdfDocument ? "Saving to documents" : "Save to documents"}
+              >
+                <AppIcon icon={faFolderOpen} />
+                <span>{savingPdfDocument ? "Saving to documents" : "Save to documents"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action invoice-hub-action-danger"
+                onClick={archiveSelectedDocument}
+                disabled={archivingDocument || !activeDocument}
+                aria-label={archivingDocument ? "Archiving document" : "Archive"}
+                title={archivingDocument ? "Archiving document" : "Archive"}
+              >
+                <AppIcon icon={faBoxArchive} />
+                <span>{archivingDocument ? "Archiving document" : "Archive"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={() => window.print()}
+                disabled={!activeDocument}
+                aria-label="Print"
+                title="Print"
+              >
+                <AppIcon icon={faPrint} />
+                <span>Print</span>
+              </button>
             </div>
           </AdminPageHeader>
 
-          {saveError ? <p className="invoicing-error">{saveError}</p> : null}
-          {saveStatus ? <p className="invoicing-success">{saveStatus}</p> : null}
+          {saveError ? (
+            <ERPFormNotice tone="danger" title="Document not saved" onDismiss={() => setSaveError("")}>
+              {saveError}
+            </ERPFormNotice>
+          ) : null}
+          {saveStatus ? (
+            <ERPFormNotice tone="success" title="Document updated" onDismiss={() => setSaveStatus("")}>
+              {saveStatus}
+            </ERPFormNotice>
+          ) : null}
 
           {selectedLoading ? (
-            <div className="glass-card invoice-hub-empty">
-              <h3>Loading document…</h3>
-            </div>
+            <AnimatedLoadingState
+              compact
+              className="glass-card admin-module-loading"
+              title="Loading document"
+              message="Opening invoice, receipt, customer, and line items."
+              variant="detail"
+            />
           ) : selectedError ? (
             <div className="glass-card invoice-hub-empty">
               <h3>Unable to open document</h3>
-              <p>{selectedError}</p>
+              <ERPFormNotice tone="danger" title="Document unavailable" onDismiss={() => setSelectedError("")}>
+                {selectedError}
+              </ERPFormNotice>
             </div>
           ) : !activeDocument ? (
             <div className="glass-card invoice-hub-empty">
@@ -4254,6 +4275,7 @@ function AdminInvoicing() {
                   productById={productById}
                   productLoading={productsLoading}
                   productError={productError}
+                  onProductErrorClear={() => setProductError("")}
                   onEventChange={handleEventChange}
                   onLineItemChange={handleLineItemChange}
                   onLineItemDescriptionChange={handleLineItemDescriptionChange}
@@ -4285,48 +4307,52 @@ function AdminInvoicing() {
           title="Invoicing"
         >
           <div className="invoice-hub-header-actions">
-              <button
-                type="button"
-                className="admin-secondary invoice-hub-action"
-                onClick={refreshAll}
-                disabled={ordersLoading || bookingsLoading || documentsLoading}
-                aria-label="Refresh"
-                title="Refresh"
-              >
-                <AppIcon icon={faRotateRight} />
-                <span className="sr-only">Refresh</span>
-              </button>
-              <button
-                type="button"
-                className="admin-secondary invoice-hub-action"
-                onClick={() => createDraftDocument("receipt")}
-                disabled={Boolean(creatingDocument)}
-                aria-label={creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}
-                title={creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}
-              >
-                <AppIcon icon={faReceipt} />
-                <span className="sr-only">
-                  {creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="admin-primary invoice-hub-action"
-                onClick={() => createDraftDocument("invoice")}
-                disabled={Boolean(creatingDocument)}
-                aria-label={creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}
-                title={creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}
-              >
-                <AppIcon icon={faFileInvoice} />
-                <span className="sr-only">
-                  {creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}
-                </span>
-              </button>
+            <button
+              type="button"
+              className="admin-secondary invoice-hub-action"
+              onClick={refreshAll}
+              disabled={ordersLoading || bookingsLoading || documentsLoading}
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <AppIcon icon={faRotateRight} />
+              <span>Refresh</span>
+            </button>
+            <button
+              type="button"
+              className="admin-secondary invoice-hub-action"
+              onClick={() => createDraftDocument("receipt")}
+              disabled={Boolean(creatingDocument)}
+              aria-label={creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}
+              title={creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}
+            >
+              <AppIcon icon={faReceipt} />
+              <span>{creatingDocument === "receipt" ? "Creating receipt" : "New receipt"}</span>
+            </button>
+            <button
+              type="button"
+              className="admin-primary invoice-hub-action"
+              onClick={() => createDraftDocument("invoice")}
+              disabled={Boolean(creatingDocument)}
+              aria-label={creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}
+              title={creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}
+            >
+              <AppIcon icon={faFileInvoice} />
+              <span>{creatingDocument === "invoice" ? "Creating invoice" : "New invoice"}</span>
+            </button>
           </div>
         </AdminPageHeader>
 
-        {saveError ? <p className="invoicing-error">{saveError}</p> : null}
-        {saveStatus ? <p className="invoicing-success">{saveStatus}</p> : null}
+        {saveError ? (
+          <ERPFormNotice tone="danger" title="Document not saved" onDismiss={() => setSaveError("")}>
+            {saveError}
+          </ERPFormNotice>
+        ) : null}
+        {saveStatus ? (
+          <ERPFormNotice tone="success" title="Document updated" onDismiss={() => setSaveStatus("")}>
+            {saveStatus}
+          </ERPFormNotice>
+        ) : null}
 
         <InvoiceDocumentListSection
           config={config}

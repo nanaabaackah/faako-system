@@ -183,12 +183,37 @@ h1{
   gap: 24px;
 }
 
+.admin-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  text-align: left;
+}
+
 .admin-header-actions {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  margin-left: auto;
+}
+
+.admin-header-actions :is(.ui-field, .ui-select-field, .ui-erp-field-group) {
+  min-width: 180px;
+}
+
+@media (max-width: 860px) {
+  .admin-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-header-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
 }
 
 .admin-header h1 {
@@ -260,6 +285,85 @@ body.admin-readonly .orders-select select,
 body.admin-readonly .vendors-search input,
 body.admin-readonly .customers-search-input input {
   pointer-events: auto;
+}
+
+body.admin-theme :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+  select,
+  textarea
+):not(.ui-select-field__native):not(.sr-only) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--admin-portal-border, rgba(148, 163, 184, 0.28)) 75%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--admin-portal-surface-strong, rgba(255, 255, 255, 0.72)) 86%, white 14%);
+  color: var(--text-main);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  font: inherit;
+  line-height: 1.35;
+  padding: 0.72rem 0.9rem;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+body.admin-theme textarea:not(.sr-only) {
+  min-height: 108px;
+  resize: vertical;
+}
+
+body.admin-theme select:not(.ui-select-field__native) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.4rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.1rem) 50%,
+    calc(100% - 0.78rem) 50%;
+  background-size: 0.34rem 0.34rem, 0.34rem 0.34rem;
+  background-repeat: no-repeat;
+}
+
+body.admin-theme :is(input, select, textarea):not(.ui-select-field__native):focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--back3, #ff9932) 74%, white 26%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--back3, #ff9932) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+body.admin-theme :is(input, select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+  select,
+  textarea
+):not(.ui-select-field__native):not(.sr-only) {
+  background: color-mix(in srgb, var(--admin-portal-surface-strong, rgba(15, 23, 42, 0.72)) 88%, #020617 12%);
+  border-color: color-mix(in srgb, var(--admin-portal-border, rgba(148, 163, 184, 0.24)) 80%, white 20%);
+  color: var(--text-main);
+}
+
+body.admin-theme .admin-module-loading,
+body.admin-theme .ui-animated-loading-state.admin-module-loading {
+  width: 100%;
+  min-height: min(58vh, 560px);
+}
+
+body.admin-theme .admin-module-loading.is-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body.admin-theme .ui-erp-form-notice {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
@@ -666,6 +770,50 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   padding: 16px 18px;
   vertical-align: middle;
   color: var(--text-main);
+}
+
+body.admin-theme .admin-table table:not(.invoice-editable-table) {
+  table-layout: fixed;
+}
+
+body.admin-theme .admin-table table:not(.invoice-editable-table) tbody td {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+body.admin-theme .admin-table table:not(.invoice-editable-table) tbody td > :where(
+  a,
+  div,
+  span,
+  p,
+  strong,
+  small
+) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.admin-theme .admin-table table:not(.invoice-editable-table) tbody td:has(:where(
+  button,
+  input,
+  select,
+  textarea,
+  .admin-actions,
+  .admin-row-actions,
+  .inventory-actions,
+  .inventory-cell-actions,
+  .roles-actions-col
+)) {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 body.admin-theme .admin-table:not(.inventory-table-scroll) tbody td.table-row-index {
@@ -9042,6 +9190,10 @@ body.admin-readonly .delivery-form .delivery-primary {
 }
 
 .roles-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   color: var(--text-main);
@@ -10487,6 +10639,10 @@ body.admin-readonly .delivery-form .delivery-primary {
 }
 
 .table-pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.6);
@@ -11890,9 +12046,10 @@ body.admin-theme .template-editor-page.admin-shell {
 
 body.admin-theme .admin-header {
   padding: 1.5rem 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1.5rem;
 }
 
@@ -11902,17 +12059,19 @@ body.admin-theme .admin-header h1 {
 }
 
 body.admin-theme .admin-header > :first-child {
-  grid-column: 2;
+  flex: 1 1 18rem;
   min-width: 0;
-  justify-self: center;
-  text-align: center;
+  margin-right: auto;
+  justify-self: start;
+  text-align: left;
 }
 
 body.admin-theme .admin-header > :last-child:not(:first-child) {
-  grid-column: 3;
+  flex: 0 1 auto;
   min-width: 0;
   width: auto;
   justify-self: end;
+  margin-left: auto;
 }
 
 body.admin-theme .admin-eyebrow {
@@ -12677,6 +12836,16 @@ body.admin-theme {
   --border: var(--admin-border);
   --glass-bg: var(--admin-card);
   --glass-border: var(--admin-border);
+  --sys-color-scheme: light;
+  --sys-bg: var(--admin-bg);
+  --sys-bg-elevated: var(--admin-surface);
+  --sys-surface: var(--admin-surface);
+  --sys-surface-strong: var(--admin-card);
+  --sys-border: var(--admin-border);
+  --sys-text: var(--admin-text);
+  --sys-muted: var(--admin-muted);
+  --sys-accent: var(--accent);
+  --sys-accent-soft: var(--accent-soft);
 }
 
 
@@ -13415,11 +13584,96 @@ body.admin-theme :is(
   --admin-text: #e5e7eb;
   --admin-muted: rgba(203, 213, 225, 0.74);
   --admin-overlay: rgba(2, 6, 23, 0.62);
+  --ink: var(--admin-text);
+  --text-main: var(--admin-text);
+  --text-subtle: var(--admin-muted);
+  --muted: var(--admin-muted);
+  --card: var(--admin-card);
+  --surface: var(--admin-surface);
+  --border: var(--admin-border);
+  --bg-base: #07111b;
+  --bg-surface: var(--admin-surface);
+  --sys-color-scheme: dark;
+  --sys-bg: #07111b;
+  --sys-bg-elevated: rgba(15, 23, 42, 0.72);
+  --sys-surface: var(--admin-surface);
+  --sys-surface-strong: var(--admin-card);
+  --sys-border: var(--admin-border);
+  --sys-border-strong: rgba(203, 213, 225, 0.34);
+  --sys-text: var(--admin-text);
+  --sys-muted: var(--admin-muted);
+  --sys-accent: #5eead4;
+  --sys-accent-soft: rgba(94, 234, 212, 0.14);
+  --sys-accent-contrast: #08111f;
   background:
     radial-gradient(1200px 420px at -10% -20%, rgba(94, 234, 212, 0.08), transparent 58%),
     radial-gradient(900px 360px at 110% -10%, rgba(59, 130, 246, 0.08), transparent 56%),
     linear-gradient(180deg, #07111b 0%, #0b1522 48%, #0a1624 100%);
   color-scheme: dark;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea,
+  .ui-field__control,
+  .ui-field__input,
+  .ui-erp-field__control,
+  .ui-date-field__trigger,
+  .ui-dropdown-field__trigger,
+  .ui-search-field__input,
+  .ui-date-field__popover,
+  .ui-dropdown-field__popover,
+  .admin-search input,
+  .admin-select select,
+  .admin-form input,
+  .admin-form select,
+  .admin-form textarea,
+  .login-form input
+) {
+  background: rgba(15, 23, 42, 0.66);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--admin-text);
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  input,
+  textarea,
+  .ui-field__input,
+  .ui-search-field__input
+)::placeholder {
+  color: rgba(203, 213, 225, 0.62);
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  .ui-date-field__trigger.is-placeholder .ui-date-field__value,
+  .ui-dropdown-field__trigger.is-placeholder .ui-dropdown-field__value,
+  .ui-field__label,
+  .ui-erp-field__label
+) {
+  color: var(--admin-muted);
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(.ui-date-field__day, .ui-dropdown-field__option) {
+  color: var(--admin-text);
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(.ui-date-field__day.is-selected, .ui-dropdown-field__option.is-selected) {
+  color: #5eead4;
+}
+
+[data-admin-theme="dark"] body.admin-theme :is(
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus,
+  .ui-field__control:focus-within,
+  .ui-erp-field__control:focus-visible,
+  .ui-date-field__trigger:focus-visible,
+  .ui-dropdown-field__trigger:focus-visible
+) {
+  border-color: rgba(94, 234, 212, 0.52);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.16);
+  outline: none;
 }
 
 [data-admin-theme="dark"] body.admin-theme :is(table tbody td, table tfoot td) {
@@ -13619,28 +13873,29 @@ body.admin-theme button.inventory-card-quick:focus-visible {
   }
 
   body.admin-theme .admin-header {
-    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+    justify-content: flex-start;
   }
 
   body.admin-theme .admin-header > :first-child,
   body.admin-theme .admin-header > :last-child:not(:first-child) {
-    grid-column: 1;
+    width: 100%;
   }
 
   body.admin-theme .admin-header > :first-child {
     justify-self: stretch;
-    text-align: center;
+    text-align: left;
   }
 
   body.admin-theme .admin-header > :last-child:not(:first-child) {
     width: 100%;
     justify-self: stretch;
+    margin-left: 0;
   }
 
   body.admin-theme .admin-header-actions {
     width: 100%;
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   body.admin-theme .admin-breadcrumb {
@@ -15193,6 +15448,89 @@ body.admin-theme :is(.crm-table-value, .crm-table-updated, .crm-table-segment) {
   .rentals-table,
   .water-module-table,
   .expenses-ledger-table,
+  .maintenance-table,
+  .store-mode-table,
+  .ui-data-table table
+) {
+  table-layout: fixed !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .maintenance-table,
+  .store-mode-table,
+  .ui-data-table table
+) tbody td {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .maintenance-table,
+  .store-mode-table,
+  .ui-data-table table
+) tbody td > :where(a, div, span, p, strong, small) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
+  .maintenance-table,
+  .store-mode-table,
+  .ui-data-table table
+) tbody td:has(:where(button, input, select, textarea, label, .admin-row-actions, .admin-actions, .inventory-actions)) {
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+:is(body.admin-theme, .store-mode-page) :is(
+  .admin-table table:not(.invoice-editable-table),
+  .accounting-table table,
+  .bookings-hub-table,
+  .customers-table,
+  .orders-table,
+  .marketing-table,
+  .roles-table,
+  .rentals-table,
+  .water-module-table,
+  .expenses-ledger-table,
   .store-mode-table
 ) tbody tr:hover {
   background: var(--admin-list-table-hover) !important;
@@ -15305,6 +15643,68 @@ body.admin-theme :is(.crm-table-value, .crm-table-updated, .crm-table-segment) {
   :where(body.admin-theme, .store-mode-page) .inventory-register-pagination-controls button {
     flex: 1 1 0;
     min-width: 0;
+  }
+}
+
+/* Keep portal page and subpage headers anchored left, even when module CSS is imported after shared styles. */
+body.admin-theme :is(.admin-header, .ui-page-header, .erp-page-header) {
+  align-items: flex-start;
+  justify-content: space-between;
+  text-align: left;
+}
+
+body.admin-theme :is(.admin-header, .ui-page-header, .erp-page-header) > :first-child,
+body.admin-theme :is(
+  .admin-header-copy,
+  .ui-page-header__copy,
+  .erp-page-header__copy,
+  .bookings-header-copy,
+  .water-module-header-copy,
+  .invoice-hub-copy
+) {
+  margin-right: auto;
+  min-width: 0;
+  justify-self: start !important;
+  justify-items: start !important;
+  text-align: left !important;
+}
+
+body.admin-theme :is(.admin-header, .ui-page-header, .erp-page-header) :is(
+  h1,
+  h2,
+  p,
+  .admin-subtitle,
+  .ui-page-header__subtitle,
+  .erp-page-header__description
+) {
+  text-align: left !important;
+}
+
+body.admin-theme :is(
+  .admin-header-actions,
+  .ui-page-header__actions,
+  .erp-page-header__actions,
+  .bookings-header-actions,
+  .water-module-header-actions,
+  .invoice-hub-header-actions
+) {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  body.admin-theme :is(.admin-header, .ui-page-header, .erp-page-header) > :first-child,
+  body.admin-theme :is(
+    .admin-header-actions,
+    .ui-page-header__actions,
+    .erp-page-header__actions,
+    .bookings-header-actions,
+    .water-module-header-actions,
+    .invoice-hub-header-actions
+  ) {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
   }
 }
 

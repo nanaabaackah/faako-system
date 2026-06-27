@@ -159,10 +159,11 @@ export const REEBS_ADMIN_MODULES = [
       },
       {
         key: "invoicing",
-        label: "Invoicing",
+        label: "Receipts & Invoicing",
+        navLabel: "Receipts & Invoicing",
         path: "/admin/invoicing",
         requiredPermission: "privileged",
-        sidebar: false,
+        sidebar: true,
       },
       {
         key: "expenses",

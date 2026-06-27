@@ -165,7 +165,7 @@ const sendAdminPaidReceipt = async (prisma, order) => {
 export const createAdminOrderRouter = (prisma) => {
   const router = Router();
 
-  router.use(requireSiteUser(prisma, ["ADMIN", "VIEWER"]));
+  router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
 
   router.get(
     "/orders",
@@ -199,7 +199,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.post(
     "/orders",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "orders", "create"),
     asyncRoute(async (req, res) => {
       const preparedOrder = await prepareCommerceOrder(prisma, {
         ...req.body,
@@ -263,7 +263,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.patch(
     "/orders/:id",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "orders", "edit"),
     asyncRoute(async (req, res) => {
       const status = sanitizeText(req.body?.status, 40).toUpperCase();
       const data = {
@@ -288,7 +288,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.post(
     "/orders/:id/paystack/initialize",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "orders", "edit"),
     asyncRoute(async (req, res) => {
       const order = await prisma.commerceOrder.findUnique({
         where: { id: String(req.params.id || "") },
@@ -346,7 +346,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.post(
     "/orders/:id/paystack/verify",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "orders", "edit"),
     asyncRoute(async (req, res) => {
       const order = await prisma.commerceOrder.findUnique({
         where: { id: String(req.params.id || "") },

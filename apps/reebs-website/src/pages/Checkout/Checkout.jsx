@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Checkout.css";
 import { Link } from "react-router-dom";
 import { DateField, SelectField } from "@faako/ui";
+import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faBagShopping,
@@ -18,12 +19,15 @@ import {
 } from "/src/utils/itemMediaBackgrounds";
 import {
   getCartItemBillingQuantity,
+  getCartItemKey,
   getCartItemLineTotal,
   getCartItemPrice,
   getCartItemRateLabel,
   isRentalCartItem,
   splitCartItems,
 } from "/src/utils/cart";
+import { isOnlineShopItem } from "/src/utils/frontendInventoryFilters";
+import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
 import {
   clearExpiringDraft,
   loadExpiringDraft,
@@ -220,6 +224,7 @@ const Checkout = () => {
     method: "card",
     momoProvider: "",
   });
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [now, setNow] = useState(() => new Date());
   const draftLoadedRef = useRef(false);
   const itemCount = cart.reduce((acc, item) => acc + getCartItemBillingQuantity(item), 0);
@@ -231,6 +236,10 @@ const Checkout = () => {
   const draftKey = "checkoutPaymentDraft";
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const cartGroups = useMemo(() => splitCartItems(cart), [cart]);
+  const cartItemKeys = useMemo(
+    () => new Set(cart.map((item) => getCartItemKey(item))),
+    [cart]
+  );
   const checkoutSections = useMemo(
     () =>
       [
@@ -375,6 +384,66 @@ const Checkout = () => {
     const intervalId = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!paymentOpen || typeof document === "undefined") return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setPaymentOpen(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [paymentOpen]);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    fetchInventoryWithCache({ signal: controller.signal })
+      .then(({ items }) => {
+        if (!active) return;
+        const picks = (Array.isArray(items) ? items : [])
+          .filter(isOnlineShopItem)
+          .filter((item) => !cartItemKeys.has(getCartItemKey(item)))
+          .filter((item) => {
+            const status = typeof item?.status === "string" ? item.status.toLowerCase() : "";
+            const quantity = Number(item?.quantity ?? item?.stock ?? 0);
+            return (
+              item?.status !== false &&
+              item?.isActive !== false &&
+              status !== "unavailable" &&
+              Number.isFinite(quantity) &&
+              quantity > 0
+            );
+          })
+          .sort((a, b) => {
+            const bQty = Number(b?.quantity ?? b?.stock ?? 0) || 0;
+            const aQty = Number(a?.quantity ?? a?.stock ?? 0) || 0;
+            if (bQty !== aQty) return bQty - aQty;
+            return `${a?.name || ""}`.localeCompare(`${b?.name || ""}`);
+          })
+          .slice(0, 4);
+        setRecommendedProducts(picks);
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.error("Failed to load checkout recommendations:", err);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [cartItemKeys]);
 
   useEffect(() => {
     const parsed = loadExpiringDraft(draftKey);
@@ -896,7 +965,7 @@ const Checkout = () => {
                         inputClassName="checkout-phone-code"
                         value={deliveryDetails.contactCode}
                         onChange={updateDelivery("contactCode")}
-                        aria-label="Delivery contact dialing code"
+                        ariaLabel="Delivery contact dialing code"
                       >
                         {PHONE_CODE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -927,6 +996,7 @@ const Checkout = () => {
                       min={today}
                       value={deliveryDetails.date}
                       onChange={updateDelivery("date")}
+                      ariaLabel="Preferred delivery date"
                     />
                   </div>
                   <div className="checkout-field">
@@ -936,6 +1006,7 @@ const Checkout = () => {
                       name="deliveryWindow"
                       value={deliveryDetails.window}
                       onChange={updateDelivery("window")}
+                      ariaLabel="Delivery time window"
                     >
                       <option value="" disabled>Select a window</option>
                       {TIME_WINDOW_OPTIONS.map((option) => (
@@ -978,6 +1049,7 @@ const Checkout = () => {
                       min={today}
                       value={pickupDetails.date}
                       onChange={updatePickup("date")}
+                      ariaLabel="Pickup date"
                     />
                   </div>
                   <div className="checkout-field">
@@ -987,6 +1059,7 @@ const Checkout = () => {
                       name="pickupWindow"
                       value={pickupDetails.window}
                       onChange={updatePickup("window")}
+                      ariaLabel="Pickup time window"
                     >
                       <option value="" disabled>Select a window</option>
                       {TIME_WINDOW_OPTIONS.map((option) => (
@@ -1142,12 +1215,41 @@ const Checkout = () => {
               </div>
             </div>
             <p className="checkout-note">{fulfillmentCopy.summaryNote}</p>
+            {recommendedProducts.length > 0 ? (
+              <section className="checkout-recommendations" aria-labelledby="checkout-recommendations-heading">
+                <div className="checkout-recommendations-head">
+                  <p className="kicker">Add-ons</p>
+                  <h4 id="checkout-recommendations-heading">Recommended for checkout</h4>
+                </div>
+                <div className="checkout-recommendations-grid">
+                  {recommendedProducts.map((item) => {
+                    const itemDisplayName = getCatalogItemDisplayName(item, "Recommended item");
+                    const itemPrice = getCartItemPrice(item);
+                    return (
+                      <article className="checkout-recommendation" key={getCartItemKey(item)}>
+                        <div
+                          className="checkout-recommendation-media category-image-bg"
+                          style={getCatalogItemBackgroundStyle(item)}
+                        >
+                          <img src={getCatalogItemImage(item)} alt={itemDisplayName} loading="lazy" />
+                        </div>
+                        <div className="checkout-recommendation-copy">
+                          <h5>{itemDisplayName}</h5>
+                          <p>{formatCurrency(convertPrice(itemPrice))}</p>
+                        </div>
+                        <AddToCartButton item={item} variant="compact" addLabel="Add" />
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
           </aside>
         </section>
       )}
       {paymentOpen && (
         <div
-          className="checkout-modal"
+          className="lightbox checkout-modal checkout-confirmation-lightbox"
           role="dialog"
           aria-modal="true"
           aria-labelledby="checkout-payment-title"
@@ -1237,7 +1339,7 @@ const Checkout = () => {
                         inputClassName="checkout-phone-code"
                         value={paymentDetails.phoneCode}
                         onChange={updatePayment("phoneCode")}
-                        aria-label="Phone dialing code"
+                        ariaLabel="Phone dialing code"
                       >
                         {PHONE_CODE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -1290,6 +1392,7 @@ const Checkout = () => {
                         id="momo-provider"
                         value={paymentDetails.momoProvider}
                         onChange={updatePayment("momoProvider")}
+                        ariaLabel="Mobile money type"
                       >
                         <option value="">Select wallet</option>
                         {MOMO_PROVIDER_OPTIONS.map((option) => (

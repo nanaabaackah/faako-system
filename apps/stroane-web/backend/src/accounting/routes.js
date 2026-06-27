@@ -461,7 +461,7 @@ const parseEntryPayload = (body = {}) => {
 export const createAdminAccountingRouter = (prisma) => {
   const router = Router();
 
-  router.use(requireSiteUser(prisma, ["ADMIN", "VIEWER"]));
+  router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
 
   router.get(
     "/accounting/overview",
@@ -473,7 +473,7 @@ export const createAdminAccountingRouter = (prisma) => {
 
   router.post(
     "/accounting/entries",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "accounting", "create"),
     asyncRoute(async (req, res) => {
       const entryModel = getEntryModel(prisma);
       if (!entryModel) {

@@ -39,6 +39,7 @@ import {
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
+import { hasPortalPermission } from "../api/adminSession";
 import { adminProductsApi, type AdminProduct } from "../api/adminProducts";
 import {
   adminOrdersApi,
@@ -247,7 +248,12 @@ const getOrderMapUrls = (order: AdminOrder | null) => {
 
 const OrderManagement: React.FC = () => {
   const { session } = useAdminPortal();
-  const canManageOrders = String(session?.role || "").toUpperCase() === "ADMIN";
+  const canManageOrders =
+    hasPortalPermission(session, "orders", "create") ||
+    hasPortalPermission(session, "orders", "edit") ||
+    hasPortalPermission(session, "orders", "delete") ||
+    hasPortalPermission(session, "orders", "archive") ||
+    hasPortalPermission(session, "orders", "manage");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [summary, setSummary] = useState<AdminOrderSummary>(EMPTY_SUMMARY);
   const [products, setProducts] = useState<AdminProduct[]>([]);

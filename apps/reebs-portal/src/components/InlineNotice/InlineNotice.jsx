@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { InlineNotice as SharedInlineNotice } from "@faako/ui";
 import { AppIcon } from "../Icon/Icon";
 import { faCircleCheck, faClock, faRotateRight, faXmark } from "../../icons/iconSet";
@@ -38,16 +38,30 @@ export function InlineNotice({
   className = "",
   compact = false,
   onDismiss,
+  dismissible,
   dismissLabel = "Dismiss notice",
 }) {
   const meta = NOTICE_META[tone] || NOTICE_META.info;
+  const [dismissed, setDismissed] = useState(false);
+  const canDismiss = dismissible ?? tone !== "loading";
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    if (typeof onDismiss === "function") {
+      onDismiss();
+      return;
+    }
+    setDismissed(true);
+  };
+
   const notice = (
     <SharedInlineNotice
       tone={tone}
       title={title || meta.title}
       message={message}
       compact={compact}
-      className={`inline-notice inline-notice--${tone}${onDismiss ? " inline-notice--dismissible" : ""}${className ? ` ${className}` : ""}`}
+      dismissible={false}
+      className={`inline-notice inline-notice--${tone}${canDismiss ? " inline-notice--dismissible" : ""}${className ? ` ${className}` : ""}`}
       iconClassName="inline-notice__icon"
       bodyClassName="inline-notice__body"
       titleClassName="inline-notice__title"
@@ -56,7 +70,7 @@ export function InlineNotice({
     />
   );
 
-  if (!onDismiss) return notice;
+  if (!canDismiss) return notice;
 
   return (
     <div className="inline-notice-wrap">
@@ -64,7 +78,7 @@ export function InlineNotice({
       <button
         type="button"
         className="inline-notice__dismiss"
-        onClick={onDismiss}
+        onClick={handleDismiss}
         aria-label={dismissLabel}
         title={dismissLabel}
       >
@@ -89,6 +103,7 @@ export function InlineNoticeStack({ notices = [], className = "", compact = fals
           compact={notice.compact ?? compact}
           className={notice.className}
           onDismiss={notice.onDismiss}
+          dismissible={notice.dismissible}
           dismissLabel={notice.dismissLabel}
         />
       ))}

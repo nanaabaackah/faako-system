@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminDelivery.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTruck, faRotateRight } from "/src/icons/iconSet";
@@ -334,8 +334,16 @@ function AdminDelivery() {
           }
         />
 
-        {error && <p className="delivery-error">{error}</p>}
-        {status && <p className="delivery-success">{status}</p>}
+        {error && (
+          <ERPFormNotice tone="danger" title="Deliveries unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
+        {status && (
+          <ERPFormNotice tone="success" title="Delivery updated" onDismiss={() => setStatus("")}>
+            {status}
+          </ERPFormNotice>
+        )}
 
         <section className="delivery-kpis">
           <div className="delivery-kpi">
@@ -411,7 +419,13 @@ function AdminDelivery() {
 
             <div className="delivery-list">
               {loading ? (
-                <p className="delivery-muted">Loading deliveries...</p>
+                <AnimatedLoadingState
+                  compact
+                  className="delivery-loading-state admin-module-loading"
+                  title="Loading deliveries"
+                  message="Preparing routes, drivers, and delivery statuses."
+                  variant="dashboard"
+                />
               ) : filteredDeliveries.length === 0 ? (
                 <p className="delivery-muted">No deliveries match your filters.</p>
               ) : (

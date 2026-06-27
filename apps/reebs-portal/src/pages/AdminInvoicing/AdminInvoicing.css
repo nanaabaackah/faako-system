@@ -12,35 +12,38 @@
 .invoice-hub-copy {
   display: grid;
   gap: 8px;
-  justify-items: center;
-  text-align: center;
+  justify-items: start;
+  text-align: left;
 }
 
 .invoice-hub-page .admin-header {
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
 .invoice-hub-header-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px;
-  width: 100%;
+  width: auto;
+  margin-left: auto;
 }
 
 .invoice-hub-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.85rem;
-  height: 2.85rem;
-  min-width: 2.85rem;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
   min-height: 2.85rem;
-  padding: 0;
+  padding: 0.7rem 1rem;
   border-radius: 999px;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .invoice-hub-action-danger {

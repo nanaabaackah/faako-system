@@ -816,6 +816,27 @@ hr {
   }
 }
 
+:where(body:not(.admin-theme)) table {
+  table-layout: fixed;
+}
+
+:where(body:not(.admin-theme)) table td {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(body:not(.admin-theme)) table td > :where(a, div, span, p, strong, small) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

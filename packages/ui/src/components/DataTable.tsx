@@ -127,17 +127,19 @@ export function DataTable<Row>({
               <tr>
                 {columns.map((column) => {
                   const isActive = sortConfig?.columnId === column.id;
+                  const isSortable = column.sortable !== false;
                   return (
                     <th
                       key={column.id}
                       style={column.width ? { width: column.width } : undefined}
                       className={column.align ? `is-${column.align}` : undefined}
                     >
-                      {column.sortable ? (
+                      {isSortable ? (
                         <button
                           type="button"
                           className={joinClasses("ui-data-table__sort", isActive && "is-active")}
                           onClick={() => handleSort(column.id)}
+                          aria-sort={isActive ? (sortConfig?.direction === "asc" ? "ascending" : "descending") : "none"}
                         >
                           <span>{column.header}</span>
                           <span aria-hidden="true">

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminScheduler.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -65,6 +65,12 @@ const GHANA_EID_BY_YEAR = {
   2027: { fitr: "2027-03-10", adha: "2027-05-16" },
   2028: { fitr: "2028-02-27", adha: "2028-05-05" },
 };
+
+const VIEW_OPTIONS = [
+  { value: "month", label: "Month" },
+  { value: "agenda", label: "Agenda" },
+  { value: "map", label: "Map" },
+];
 
 const parseIsoDate = (value) => {
   if (!value) return null;
@@ -806,44 +812,35 @@ function AdminScheduler() {
           actionsClassName="scheduler-actions"
           actions={
             <>
-            <button type="button" className="scheduler-secondary" onClick={fetchBookings}>
-              Refresh
-            </button>
-            <div className="scheduler-seg" role="tablist" aria-label="Scheduler views">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === "month"}
-                className={view === "month" ? "is-active" : ""}
-                onClick={() => setView("month")}
-              >
-                Month
+              <button type="button" className="scheduler-secondary" onClick={fetchBookings}>
+                Refresh
               </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === "agenda"}
-                className={view === "agenda" ? "is-active" : ""}
-                onClick={() => setView("agenda")}
-              >
-                Agenda
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === "map"}
-                className={view === "map" ? "is-active" : ""}
-                onClick={() => setView("map")}
-              >
-                Map
-              </button>
-            </div>
+              <SelectField
+                fieldClassName="scheduler-view-field"
+                label="View"
+                value={view}
+                onChangeValue={(nextValue) => setView(String(nextValue))}
+                options={VIEW_OPTIONS}
+                ariaLabel="Scheduler view"
+              />
             </>
           }
         />
 
-        {loading && <p className="scheduler-status">Loading bookings...</p>}
-        {!loading && error && <p className="scheduler-error">{error}</p>}
+        {loading && (
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading bookings"
+            message="Preparing calendar, agenda, and map data."
+            variant="dashboard"
+          />
+        )}
+        {!loading && error && (
+          <ERPFormNotice tone="danger" title="Scheduler unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
 
         {!loading && !error && view === "month" && (
           <div className="scheduler-grid">
@@ -1056,7 +1053,13 @@ function AdminScheduler() {
               ) : googleLoadError ? (
                 <p className="scheduler-muted">Unable to load Google Maps right now.</p>
               ) : !isGoogleLoaded ? (
-                <p className="scheduler-muted">Loading map…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading map"
+                  message="Connecting to Google Maps."
+                  variant="detail"
+                />
               ) : (
                 <GoogleMap
                   mapContainerStyle={googleMapContainerStyle}
@@ -1325,7 +1328,11 @@ function AdminScheduler() {
                 )}
               </div>
 
-              {bookingError && <p className="customers-error">{bookingError}</p>}
+              {bookingError && (
+                <ERPFormNotice tone="danger" title="Booking not saved" onDismiss={() => setBookingError("")}>
+                  {bookingError}
+                </ERPFormNotice>
+              )}
 
               <div className="customers-form-actions">
                 <button

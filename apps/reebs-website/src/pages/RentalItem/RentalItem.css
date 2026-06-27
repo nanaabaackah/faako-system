@@ -1,6 +1,11 @@
 @import "../../styles/public.css";
 
 .rental-item-page .rental-item-shell {
+  --rental-item-surface: rgba(8, 25, 36, 0.88);
+  --rental-item-surface-soft: rgba(15, 43, 58, 0.78);
+  --rental-item-border: rgba(var(--white-rgb), 0.16);
+  --rental-item-copy: rgba(var(--white-rgb), 0.86);
+  --rental-item-muted: rgba(var(--white-rgb), 0.66);
   width: min(1180px, calc(100% - 2rem));
   margin-inline: auto;
   padding-bottom: clamp(2rem, 4vw, 3rem);
@@ -15,24 +20,27 @@
   width: fit-content;
   max-width: 100%;
   border-radius: 999px;
-  border: 1px solid rgba(var(--white-rgb), 0.58);
-  background: rgba(58, 63, 69, 0.05);
+  border: 1px solid var(--rental-item-border);
+  color: var(--white);
+  background: rgba(8, 25, 36, 0.76);
   padding: 0.35rem 0.5rem;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
 .rental-item-page .breadcrumb-back {
-  
-  background: rgba(58, 63, 69, 0.05);
-  border-color: rgba(var(--back3-rgb), 0.3);
+  background: rgba(var(--white-rgb), 0.08);
+  border-color: rgba(var(--white-rgb), 0.18);
+  color: var(--white);
 }
 
 .rental-item-page .rental-item-hero {
   border-radius: 28px;
-  border: 1px solid rgba(var(--white-rgb), 0.5);
-  background: rgba(var(--white-rgb), 0.58);
-  box-shadow: 0 22px 34px rgba(var(--ink-rgb), 0.14);
+  border: 1px solid var(--rental-item-border);
+  background:
+    linear-gradient(145deg, rgba(8, 25, 36, 0.92), rgba(15, 43, 58, 0.86)),
+    var(--rental-item-surface);
+  box-shadow: 0 26px 54px rgba(var(--ink-rgb), 0.28);
   grid-template-columns: 1fr;
   overflow: hidden;
 }
@@ -65,20 +73,21 @@
   font-size: clamp(1.95rem, 4vw, 3.2rem);
   line-height: 1.02;
   letter-spacing: -0.02em;
-  color: var(--ink);
+  color: var(--white);
   text-wrap: balance;
 }
 
 .rental-item-page .rental-sub {
   margin: 0;
   max-width: 45ch;
+  color: var(--rental-item-copy);
 }
 
 .rental-item-page .rental-price-line {
   padding: 0.72rem;
   border-radius: 18px;
-  border: 1px solid rgba(var(--back3-rgb), 0.16);
-  background: rgba(58, 63, 69, 0.05);
+  border: 1px solid rgba(var(--white-rgb), 0.14);
+  background: rgba(var(--white-rgb), 0.08);
 }
 
 .rental-item-page .rental-price-line .price {
@@ -93,9 +102,20 @@
 
 .rental-item-page .rental-meta-grid > div {
   border-radius: 14px;
-  border: 1px solid rgba(var(--back3-rgb), 0.18);
-  background: rgba(58, 63, 69, 0.05);
+  border: 1px solid rgba(var(--white-rgb), 0.14);
+  background: rgba(var(--white-rgb), 0.08);
   padding: 0.55rem 0.64rem;
+}
+
+.rental-item-page .rental-meta-grid span,
+.rental-item-page .rental-meta-grid small,
+.rental-item-page .rental-price-line span {
+  color: var(--rental-item-muted);
+}
+
+.rental-item-page .rental-meta-grid strong,
+.rental-item-page .rental-price-line .price {
+  color: var(--white);
 }
 
 .rental-item-page .rental-actions {
@@ -123,10 +143,26 @@
 
 .rental-item-page .rental-item-bouncy,
 .rental-item-page .rental-detail-card {
-  border: 1px solid rgba(var(--white-rgb), 0.5);
-  background: rgba(var(--white-rgb), 0.62);
-  box-shadow: 0 16px 28px rgba(var(--ink-rgb), 0.12);
+  border: 1px solid var(--rental-item-border);
+  background:
+    linear-gradient(145deg, rgba(8, 25, 36, 0.9), rgba(15, 43, 58, 0.82)),
+    var(--rental-item-surface);
+  box-shadow: 0 20px 42px rgba(var(--ink-rgb), 0.24);
   border-radius: 22px;
+  color: var(--rental-item-copy);
+}
+
+.rental-item-page .rental-detail-card h2,
+.rental-item-page .rental-detail-card h3,
+.rental-item-page .rental-detail-card strong,
+.rental-item-page .section-header.rent-section-header h2 {
+  color: var(--white);
+}
+
+.rental-item-page .rental-detail-card p,
+.rental-item-page .rental-detail-card li,
+.rental-item-page .rental-detail-card dd {
+  color: var(--rental-item-copy);
 }
 
 .rental-item-page .section-header.rent-section-header {
@@ -152,9 +188,9 @@
 
 .rental-item-page .bouncy-card {
   position: relative;
-  border: 1px solid rgba(var(--back3-rgb), 0.14);
-  background: rgba(58, 63, 69, 0.1);
-  box-shadow: 0 8px 18px rgba(var(--ink-rgb), 0.08);
+  border: 1px solid rgba(var(--white-rgb), 0.12);
+  background: var(--rental-item-surface-soft);
+  box-shadow: 0 12px 24px rgba(var(--ink-rgb), 0.18);
   padding: 0.7rem;
   border-radius: 18px;
   overflow: hidden;
@@ -228,7 +264,7 @@
   border-radius: 999px;
   border: 1px solid rgba(var(--other-rgb), 0.45);
   background: rgba(var(--other-rgb), 0.16);
-  color: var(--ink);
+  color: var(--white);
   font-weight: 800;
   font-size: 0.8rem;
   white-space: nowrap;
@@ -253,7 +289,7 @@
   border-radius: 999px;
   border: 1px solid rgba(var(--white-rgb), 0.56);
   
-  background: rgba(58, 63, 69, 0.05);
+  background: var(--white);
   color: rgba(var(--ink-rgb), 0.9);
   display: grid;
   place-items: center;
@@ -285,15 +321,15 @@
 
 .rental-item-page .bouncy-specs > div {
   border-radius: 12px;
-  border: 1px solid rgba(var(--back3-rgb), 0.14);
-  background: rgba(var(--white-rgb), 0.76);
+  border: 1px solid rgba(var(--white-rgb), 0.12);
+  background: rgba(var(--white-rgb), 0.08);
   padding: 0.45rem 0.5rem;
 }
 
 .rental-item-page .bouncy-specs dt {
   margin: 0;
   font-size: 0.65rem;
-  color: var(--text-subtle);
+  color: var(--rental-item-muted);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   font-weight: 700;
@@ -303,19 +339,19 @@
   margin: 0.18rem 0 0;
   font-size: 0.88rem;
   font-weight: 800;
-  color: var(--ink);
+  color: var(--white);
 }
 
 .rental-item-page .bouncy-best {
   margin: 0;
-  color: var(--ink);
+  color: var(--white);
   font-weight: 700;
   line-height: 1.45;
 }
 
 .rental-item-page .bouncy-features {
   margin: 0;
-  color: var(--text-subtle);
+  color: var(--rental-item-muted);
   font-size: 0.9rem;
   line-height: 1.52;
 }
@@ -328,8 +364,8 @@
 
 .rental-item-page .bouncy-select.selected {
   border-color: rgba(var(--other-rgb), 0.6);
-  background: linear-gradient(120deg, rgba(var(--other-rgb), 0.24), rgba(var(--back-rgb), 0.18));
-  color: var(--ink);
+  background: linear-gradient(120deg, rgba(var(--other-rgb), 0.34), rgba(var(--back-rgb), 0.2));
+  color: var(--white);
 }
 
 .rental-item-page .rental-item-detail-grid {
@@ -343,7 +379,7 @@
 }
 
 .rental-item-page .rental-includes li {
-  border-bottom: 1px dashed rgba(var(--back3-rgb), 0.2);
+  border-bottom: 1px dashed rgba(var(--white-rgb), 0.18);
   padding-bottom: 0.44rem;
 }
 
@@ -353,8 +389,8 @@
 
 .rental-item-page .rental-feature-row > div {
   border-radius: 14px;
-  border: 1px solid rgba(var(--back3-rgb), 0.16);
-  background: rgba(var(--white-rgb), 0.5);
+  border: 1px solid rgba(var(--white-rgb), 0.12);
+  background: rgba(var(--white-rgb), 0.08);
   padding: 0.55rem;
 }
 
@@ -367,8 +403,8 @@
   grid-template-columns: 88px minmax(0, 1fr);
   align-items: center;
   gap: 0.55rem;
-  border: 1px solid rgba(var(--back3-rgb), 0.15);
-  background: rgba(var(--white-rgb), 0.1);
+  border: 1px solid rgba(var(--white-rgb), 0.12);
+  background: rgba(var(--white-rgb), 0.08);
   box-shadow: none;
   padding: 0.45rem;
   border-radius: 14px;

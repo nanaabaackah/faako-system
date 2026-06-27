@@ -2,9 +2,11 @@
 
 Date: 2026-05-12
 
+Latest update: 2026-06-25
+
 ## Summary
 
-This is a planning-only cleanup audit for the Faako monorepo. No files were deleted, moved, renamed, or refactored as part of this audit.
+This started as a planning-only cleanup audit for the Faako monorepo. The 2026-06-25 update includes one confirmed low-risk cleanup: the unused legacy `apps/bynana-portfolio/src/js` browser script folder was removed after source scans showed the current React/Vite app does not import it. Matching unused package dependencies were also removed from the ByNana package manifest.
 
 REEBS Portal and Dev ERP must remain production-sensitive during any future cleanup. REEBS Portal is live/private beta and used by authenticated users. Dev ERP is fully live with real operational data. Any cleanup touching auth, API permissions, payments, receipts, orders, bookings, rent, inventory, reports, email workflows, AI/productivity endpoints, offline sync, or database schema should be treated as high risk.
 
@@ -55,13 +57,14 @@ Reference scans included:
 
 Notable source-size hotspots:
 
-- `apps/dev-erp/backend/server.js`: about 10,974 lines.
+- `apps/dev-erp/backend/server.js`: about 12,809 lines.
 - `apps/reebs-portal/src/pages/Admin/Admin.jsx`: about 6,209 lines.
 - `apps/reebs-portal/src/pages/AdminInvoicing/AdminInvoicing.jsx`: about 4,363 lines.
 - `apps/reebs-portal/src/pages/AdminWorkspace/AdminWorkspace.jsx`: about 3,484 lines.
 - `apps/reebs-portal/src/pages/AdminAccounting/AdminAccounting.jsx`: about 3,414 lines.
 - `apps/reebs-portal/src/pages/AdminBookings/AdminBookings.jsx`: about 2,784 lines.
 - `apps/reebs-portal/src/styles/admin.css`: about 15,376 lines.
+- `apps/reebs-website/src/styles/admin.css`: about 14,955 lines.
 - `apps/dev-erp/src/index.css`: about 2,950 lines.
 - `apps/faako-website/src/styles/pages/Home.css`: about 4,410 lines.
 
@@ -201,6 +204,8 @@ Risk level: Medium for public commerce/booking UI, High for any shared backend o
 Findings:
 
 - REEBS Website duplicates many components and styles with REEBS Portal: `admin.css`, `public.css`, `global.css`, Navbar, Footer, CartOverlay, PortalSidebar, booking/shop/checkout UI, and cart/SEO utilities.
+- Checkout and rental detail page readability are sensitive to transparent surfaces over image-heavy backgrounds. Summary cards, confirmation panels, and rental content cards should keep explicit contrast tokens.
+- Rental availability should continue to be treated as booking/working/availability state, not as shop stock alone.
 - Runtime/generated scan results should not be treated as source refactor candidates.
 - Public booking/checkout/rental flows overlap with REEBS Portal data concepts but should not be merged without a customer-facing workflow review.
 
@@ -615,6 +620,34 @@ For production-sensitive areas:
 - REEBS: test auth, roles, POS, orders, payments, receipts, bookings, inventory, offline queue visibility, and reports.
 - Dev ERP: test auth/session, capabilities, rent, rent payments, accounting, invoices, reports, public invoice view, public booking, settings, and sync review.
 - Confirm rollback is a revert of the cleanup change, not a data operation.
+
+## Safe Cleanup Wave 2 Results
+
+Date: 2026-06-25
+
+Completed low-risk cleanup:
+
+- REEBS Website: moved checkout page layout, form, modal status, item image, and recommendation styling fully into `pages/Checkout/Checkout.css`.
+- REEBS Website: removed legacy checkout selectors from `styles/public.css`, leaving shared button styling such as `.checkout-btn` available for cart links and overlays.
+- REEBS Website and REEBS Portal: removed duplicate cart drawer/overlay internals from `styles/public.css`; the drawer is now owned by each app's `components/CartOverlay/CartOverlay.css`.
+- REEBS Website and REEBS Portal: removed lingering overlay-only button selectors such as `.clear-cart` and `.close-cart` from `styles/public.css`.
+- REEBS Website: tightened checkout form sizing so text inputs, shared dropdown/date triggers, textareas, and phone-code fields share stable width, min-width, height, padding, and box sizing.
+- REEBS Website and REEBS Portal: parsed the changed CSS with PostCSS to confirm syntax after selector cleanup.
+- Focused duplicate cleanup removed the high-confidence REEBS public checkout/cart collisions. A broader PostCSS selector scan still reports 689 in-app duplicate selectors, mostly page variants, responsive overrides, and theme integrations that should be refactored only with visual regression checks.
+
+Verification:
+
+- `pnpm --filter @faako/reebs-website exec eslint src/pages/Checkout/Checkout.jsx`
+- `pnpm --filter @faako/reebs-website run build`
+- PostCSS parse check for `apps/reebs-website/src/styles/public.css`, `apps/reebs-website/src/pages/Checkout/Checkout.css`, `apps/reebs-portal/src/styles/public.css`, and both REEBS `CartOverlay.css` files.
+- Targeted selector search confirmed `styles/public.css` no longer contains checkout-page selectors, cart drawer selectors, `.clear-cart`, or `.close-cart`.
+- `git diff --check`
+
+Known limitations:
+
+- `pnpm --filter @faako/reebs-portal run build` was attempted after the CSS cleanup but did not complete within the working window and was stopped with `SIGINT`; no compile error was printed before it was stopped.
+- REEBS Portal CSS still has admin/sidebar/theme duplicates across `src/styles/admin.css`, `PortalSidebar.css`, and Admin Workspace styles. These should be cleaned only with desktop/mobile screenshots because some are intentional theme and layout integration overrides.
+- Dev ERP proposal CSS duplicates global shell selectors only in print rules. They were left in place because they intentionally hide or flatten the shell for proposal printing/PDF output.
 
 ## Next Step
 

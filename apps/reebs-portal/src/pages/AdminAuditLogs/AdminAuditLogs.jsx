@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminAuditLogs.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -63,6 +64,24 @@ const buildQuery = (filters) => {
   return params.toString();
 };
 
+const formatMetadata = (metadata) => {
+  if (!metadata) return "—";
+  try {
+    const summary = JSON.stringify(metadata);
+    return summary.length > 140 ? `${summary.slice(0, 140)}...` : summary;
+  } catch {
+    return "Metadata attached";
+  }
+};
+
+const getSeverityClass = (severity) => {
+  const normalized = String(severity || "info").toLowerCase();
+  if (normalized === "error" || normalized === "failed" || normalized === "failure") return "error";
+  if (normalized === "warning" || normalized === "warn") return "warning";
+  if (normalized === "success" || normalized === "ok") return "success";
+  return "info";
+};
+
 function AdminAuditLogs() {
   const [filters, setFilters] = useState({
     range: "7d",
@@ -81,6 +100,11 @@ function AdminAuditLogs() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.body.classList.add("admin-theme");
+    return () => document.body.classList.remove("admin-theme");
+  }, []);
 
   const loadAuditLogs = useCallback(async ({ silent = false } = {}) => {
     if (silent) {
@@ -113,6 +137,26 @@ function AdminAuditLogs() {
   }, [loadAuditLogs]);
 
   const latestEvent = useMemo(() => entries[0] || null, [entries]);
+  const terminalEntries = useMemo(
+    () =>
+      entries.map((entry, index) => {
+        const detail = [
+          entry.action,
+          entry.actorLabel,
+          [entry.targetType, entry.targetId].filter(Boolean).join(" "),
+        ].filter(Boolean).join(" · ");
+        return {
+          id: entry.id || `${entry.createdAt || "event"}-${index}`,
+          timestamp: entry.createdAt,
+          level: String(entry.severity || "info").toLowerCase(),
+          source: entry.source || "api",
+          message: entry.summary || entry.action || "Audit event",
+          detail: detail || "System activity",
+          metadata: formatMetadata(entry.metadata),
+        };
+      }),
+    [entries]
+  );
 
   return (
     <div className="admin-page admin-audit-page">
@@ -120,8 +164,7 @@ function AdminAuditLogs() {
         <AdminBreadcrumb items={[{ label: "Audit Log" }]} />
 
         <AdminPageHeader
-          eyebrow="Compliance"
-          title="Audit Log"
+          title="Audit Logs"
           subtitle="Track admin actions, system activity, and Railway incidents across the portal."
           actionsClassName="admin-header-actions admin-audit-actions"
           actions={(
@@ -136,11 +179,11 @@ function AdminAuditLogs() {
           )}
         />
 
-        <section className="admin-card admin-audit-filters">
-          <div className="admin-audit-filter-grid admin-form">
-            <label>
-              Range
-              <select
+        <section className="glass-card admin-audit-filters">
+          <div className="admin-audit-filter-grid">
+            <SelectField
+                fieldClassName="admin-audit-field"
+                label="Range"
                 value={filters.range}
                 onChange={(event) => setFilters((current) => ({ ...current, range: event.target.value }))}
               >
@@ -149,11 +192,10 @@ function AdminAuditLogs() {
                     {option.label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label>
-              Source
-              <select
+            </SelectField>
+            <SelectField
+                fieldClassName="admin-audit-field"
+                label="Source"
                 value={filters.source}
                 onChange={(event) => setFilters((current) => ({ ...current, source: event.target.value }))}
               >
@@ -162,11 +204,10 @@ function AdminAuditLogs() {
                     {option.label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label>
-              Category
-              <select
+            </SelectField>
+            <SelectField
+                fieldClassName="admin-audit-field"
+                label="Category"
                 value={filters.category}
                 onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
               >
@@ -175,11 +216,10 @@ function AdminAuditLogs() {
                     {option.label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label>
-              Severity
-              <select
+            </SelectField>
+            <SelectField
+                fieldClassName="admin-audit-field"
+                label="Severity"
                 value={filters.severity}
                 onChange={(event) => setFilters((current) => ({ ...current, severity: event.target.value }))}
               >
@@ -188,10 +228,9 @@ function AdminAuditLogs() {
                     {option.label}
                   </option>
                 ))}
-              </select>
-            </label>
+            </SelectField>
             <label className="admin-audit-filter-search">
-              Search
+              <span>Search</span>
               <input
                 type="search"
                 value={filters.q}
@@ -208,69 +247,93 @@ function AdminAuditLogs() {
         </section>
 
         <section className="admin-cards admin-audit-kpis">
-          <div className="admin-card">
+          <div className="bubble-card admin-card admin-audit-kpi-card">
             <p className="admin-card-label">Events</p>
             <h2>{summary.total}</h2>
             <span>{latestEvent ? `Latest ${formatDateTime(latestEvent.createdAt)}` : "No events yet"}</span>
           </div>
-          <div className="admin-card">
+          <div className="bubble-card admin-card admin-audit-kpi-card">
             <p className="admin-card-label">Incidents</p>
             <h2>{summary.incidents}</h2>
             <span>Railway and system events</span>
           </div>
-          <div className="admin-card">
+          <div className="bubble-card admin-card admin-audit-kpi-card">
             <p className="admin-card-label">Warnings / errors</p>
             <h2>{summary.failures}</h2>
             <span>Needs review</span>
           </div>
-          <div className="admin-card">
+          <div className="bubble-card admin-card admin-audit-kpi-card">
             <p className="admin-card-label">Actors</p>
             <h2>{summary.actors}</h2>
             <span>Distinct users and systems</span>
           </div>
         </section>
 
-        {error ? <p className="admin-audit-error">{error}</p> : null}
-        {loading ? <p className="admin-audit-muted">Loading audit log…</p> : null}
-
-        <section className="admin-card admin-audit-log-list">
-          <div className="admin-audit-panel-head">
-            <h2>Recent activity</h2>
-            <p className="admin-audit-muted">
-              {entries.length
-                ? `${entries.length} event${entries.length === 1 ? "" : "s"} in the current result set.`
-                : "No audit events match the current filters."}
-            </p>
-          </div>
-
-          <div className="admin-audit-entries">
-            {entries.map((entry) => (
-              <article className="admin-audit-entry" key={entry.id}>
-                <div className="admin-audit-entry-main">
-                  <div className="admin-audit-entry-head">
-                    <strong>{entry.summary || entry.action}</strong>
-                    <span>{formatDateTime(entry.createdAt)}</span>
+        {error ? (
+          <ERPFormNotice tone="danger" title="Audit log unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        ) : null}
+        {loading ? (
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-audit-loading admin-module-loading"
+            title="Loading audit logs"
+            message="Reading activity, severity, and integration events."
+            variant="dashboard"
+          />
+        ) : (
+          <section className="glass-card admin-audit-command-log" aria-label="Recent audit command log">
+            <div className="admin-audit-command-log__chrome">
+              <span className="admin-audit-command-log__dot is-red" aria-hidden="true" />
+              <span className="admin-audit-command-log__dot is-yellow" aria-hidden="true" />
+              <span className="admin-audit-command-log__dot is-green" aria-hidden="true" />
+              <span className="admin-audit-command-log__title">Recent activity</span>
+              <span className={`admin-audit-command-log__live ${refreshing ? "is-refreshing" : ""}`}>
+                {refreshing ? "Syncing" : "Live"}
+              </span>
+            </div>
+            <div className="admin-audit-command-log__sync">
+              {terminalEntries.length
+                ? `${terminalEntries.length} event${terminalEntries.length === 1 ? "" : "s"} in the current result set`
+                : "No audit events match the current filters"}
+            </div>
+            <div className="admin-audit-command-log__body">
+              {terminalEntries.length ? (
+                terminalEntries.map((entry) => (
+                  <div className="admin-audit-command-row" key={entry.id}>
+                    <span className="admin-audit-command-row__prompt" aria-hidden="true">$</span>
+                    <span className="admin-audit-command-row__time" title={formatDateTime(entry.timestamp)}>
+                      {formatDateTime(entry.timestamp)}
+                    </span>
+                    <span className={`admin-audit-command-row__level is-${getSeverityClass(entry.level)}`}>
+                      {entry.level}
+                    </span>
+                    <span className="admin-audit-command-row__source" title={entry.source}>
+                      {entry.source}
+                    </span>
+                    <span className="admin-audit-command-row__message" title={entry.message}>
+                      {entry.message}
+                    </span>
+                    <span className="admin-audit-command-row__detail" title={entry.detail}>
+                      {entry.detail}
+                    </span>
+                    {entry.metadata !== "—" ? (
+                      <span className="admin-audit-command-row__metadata" title={entry.metadata}>
+                        {entry.metadata}
+                      </span>
+                    ) : null}
                   </div>
-                  <p>
-                    {entry.action}
-                    {entry.actorLabel ? ` · ${entry.actorLabel}` : ""}
-                    {entry.targetType ? ` · ${entry.targetType}` : ""}
-                    {entry.targetId ? ` ${entry.targetId}` : ""}
-                  </p>
-                  {entry.metadata ? (
-                    <pre>{JSON.stringify(entry.metadata, null, 2)}</pre>
-                  ) : null}
+                ))
+              ) : (
+                <div className="admin-audit-command-log__empty">
+                  <span aria-hidden="true">$</span>
+                  <span>Adjust the filters or refresh to see the latest admin activity.</span>
                 </div>
-                <div className="admin-audit-entry-badges">
-                  <span className={`admin-audit-badge is-${String(entry.severity || "info").toLowerCase()}`}>
-                    {entry.severity || "info"}
-                  </span>
-                  <span className="admin-audit-badge is-neutral">{entry.source || "api"}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

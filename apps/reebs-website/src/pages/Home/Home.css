@@ -930,14 +930,6 @@
   border-color: rgba(var(--other-rgb), 0.55);
 }
 
-
-
-
-
-
-
-
-
 @keyframes homeRise {
   from {
     opacity: 0;

@@ -1,5 +1,5 @@
 import React from "react";
-import { EmptyState, InlineNotice } from "@faako/ui";
+import { AnimatedLoadingState, EmptyState, InlineNotice } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faArrowRight, faMinus, faPlus, faRotateRight } from "/src/icons/iconSet";
 
@@ -106,7 +106,13 @@ function AssignedWorkPanel({
         ))}
       </div>
       {!isAssignedWorkListVisible ? null : workflowLoading && !assignedWorkItems.length ? (
-        <p className="aw-muted">Loading assigned work...</p>
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Loading assigned work"
+          message="Fetching orders and bookings assigned to you."
+          variant="workspace"
+        />
       ) : isAssignedWorkListVisible && assignedWorkItems.length ? (
         <ul className="aw-home-list aw-home-list--work">
           {assignedWorkItems.map((item) => {
@@ -298,8 +304,8 @@ function BusinessKpiPanel({ panel, onNavigate }) {
     >
       {panel.loading && (
         <div className="aw-home-kpi-grid" aria-hidden="true">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="aw-skeleton aw-skeleton-kpi-card" />
+          {[0, 1, 2 ].map((i) => (
+            <div key={i} className="aw-skeleton bubble-card aw-skeleton-kpi-card" />
           ))}
         </div>
       )}
@@ -575,7 +581,13 @@ function ApprovalsPanel({ panel, onNavigate }) {
       actions={<span className="aw-count-pill">{items.length} waiting</span>}
     >
       {safePanel.loading && !items.length ? (
-        <p className="aw-muted">Loading approvals...</p>
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Loading approvals"
+          message="Fetching pending review items."
+          variant="workspace"
+        />
       ) : items.length ? (
         <ul className="aw-queue-list">
           {items.map((item) => (
@@ -616,7 +628,13 @@ function TeamLoadPanel({ panel, onNavigate }) {
   return (
     <PanelShell title="Team Load">
       {safePanel.loading && !rows.length ? (
-        <p className="aw-muted">Loading team workload...</p>
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Loading team workload"
+          message="Checking assignment load and follow-ups."
+          variant="workspace"
+        />
       ) : rows.length ? (
         <ul className="aw-home-list aw-home-list--team">
           {rows.map((row) => (
@@ -757,7 +775,13 @@ function ActivityPanel({ panel, onNavigate, formatRelativeTime, formatDateTime }
     >
       {safePanel.error && <InlineNotice tone="error" compact message={safePanel.error} />}
       {safePanel.loading && !items.length ? (
-        <p className="aw-muted">Loading activity...</p>
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Loading activity"
+          message="Fetching recent operations and audit signals."
+          variant="workspace"
+        />
       ) : items.length ? (
         <ul className="aw-activity-list">
           {items.map((item, index) => {

@@ -9,7 +9,7 @@ import {
   incrementRetryMetadata,
   useOnlineStatus,
 } from "@faako/offline-sync";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, NoticeBanner, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faPlus,
@@ -589,6 +589,7 @@ function AdminBookings() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [bookingQueueNotice, setBookingQueueNotice] = useState(null);
+  const [offlineNoticeDismissed, setOfflineNoticeDismissed] = useState(false);
   const [detailBooking, setDetailBooking] = useState(null);
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailExpenseDraft, setDetailExpenseDraft] = useState(() => buildDetailExpenseDraft());
@@ -646,6 +647,12 @@ function AdminBookings() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isOnline) {
+      setOfflineNoticeDismissed(false);
+    }
+  }, [isOnline]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -2199,6 +2206,7 @@ function AdminBookings() {
     editing,
     save,
     saveError,
+    setSaveError,
     saving,
     form,
     setForm,
@@ -2254,6 +2262,7 @@ function AdminBookings() {
                 title="Refresh bookings"
               >
                 <AppIcon icon={faRotateRight} />
+                Refresh
               </button>
               {canManageBookings ? (
                 <button
@@ -2264,34 +2273,52 @@ function AdminBookings() {
                   title="Create booking"
                 >
                   <AppIcon icon={faPlus} />
+                  Create booking
                 </button>
               ) : null}
             </>
           )}
         />
 
-        {loading && <p className="bookings-status">Loading bookings...</p>}
+        {loading && (
+          <AnimatedLoadingState
+            compact
+            className="glass-card bookings-loading-state admin-module-loading"
+            title="Loading bookings"
+            message="Preparing rental status, delivery, and expense data."
+            variant="dashboard"
+          />
+        )}
         {!loading && error && (
-          <div className="bookings-inline">
-            <p className="bookings-error">{error}</p>
-            <button type="button" className="bookings-secondary" onClick={fetchAll}>
-              <AppIcon icon={faRotateRight} /> Retry
-            </button>
-          </div>
+          <NoticeBanner
+            tone="error"
+            title="Bookings unavailable"
+            message={error}
+            className="bookings-inline"
+            onDismiss={() => setError("")}
+            action={(
+              <button type="button" className="bookings-secondary" onClick={fetchAll}>
+                <AppIcon icon={faRotateRight} /> Retry
+              </button>
+            )}
+          />
         )}
         {bookingQueueNotice ? (
-          <div
+          <NoticeBanner
+            tone={bookingQueueNotice.tone || "info"}
+            title={bookingQueueNotice.title}
+            message={bookingQueueNotice.message}
             className={`bookings-sync-banner is-${bookingQueueNotice.tone || "info"}`}
-            data-sync-state={bookingQueueNotice.status}
-          >
-            <strong>{bookingQueueNotice.title}</strong>
-            <span>{bookingQueueNotice.message}</span>
-          </div>
-        ) : !isOnline && canManageBookings ? (
-          <div className="bookings-sync-banner is-info" data-sync-state={SYNC_STATES.OFFLINE}>
-            <strong>Offline</strong>
-            <span>Booking actions can be saved locally. The server will confirm availability when sync runs.</span>
-          </div>
+            onDismiss={() => setBookingQueueNotice(null)}
+          />
+        ) : !isOnline && canManageBookings && !offlineNoticeDismissed ? (
+          <NoticeBanner
+            tone="info"
+            title="Offline"
+            message="Booking actions can be saved locally. The server will confirm availability when sync runs."
+            className="bookings-sync-banner is-info"
+            onDismiss={() => setOfflineNoticeDismissed(true)}
+          />
         ) : null}
 
         {!loading && !error && (
@@ -2763,6 +2790,7 @@ function AdminBookings() {
         setDetailExpenseDraft={setDetailExpenseDraft}
         detailExpenseSaving={detailExpenseSaving}
         detailExpenseError={detailExpenseError}
+        setDetailExpenseError={setDetailExpenseError}
         addDetailExpense={addDetailExpense}
         bookingLocked={isCompletedBooking(detailBooking)}
         formatDate={formatDate}

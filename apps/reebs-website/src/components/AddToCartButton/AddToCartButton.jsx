@@ -3,7 +3,12 @@ import "./AddToCartButton.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMinus, faPlus, faShoppingCart, faTrash } from "/src/icons/iconSet";
 import { useCart } from "/src/components/CartContext/CartContext";
-import { getCartItemKey, getCartItemMaxSelectableQuantity } from "/src/utils/cart";
+import {
+  getCartItemKey,
+  getCartItemMaxSelectableQuantity,
+  isRentalCartItem,
+  isRentalCartItemBookable,
+} from "/src/utils/cart";
 import { getCatalogItemDisplayName } from "/src/utils/itemMediaBackgrounds";
 
 function AddToCartButton({
@@ -24,13 +29,16 @@ function AddToCartButton({
         : "";
   const quantity = Number(item.quantity ?? item.stock ?? 0) || 0;
   const isUnavailable = statusValue === "unavailable";
+  const isRental = isRentalCartItem(item);
   const maxSelectable = getCartItemMaxSelectableQuantity(inCart || item);
   const maxedOut = inCart && (maxSelectable <= 0 || inCart.cartQuantity >= maxSelectable);
-  const canAdd = quantity > 0 && !isUnavailable;
+  const canAdd = isRental
+    ? isRentalCartItemBookable(item) && maxSelectable > 0
+    : quantity > 0 && !isUnavailable;
   const itemDisplayName = getCatalogItemDisplayName(item, "item");
   const buttonLabel = canAdd
     ? addLabel || "Add to cart"
-    : unavailableLabel || "Out of stock";
+    : unavailableLabel || (isRental ? "Check availability" : "Out of stock");
 
   const handleAdd = () => {
     if (canAdd) {
@@ -96,7 +104,7 @@ function AddToCartButton({
       onClick={handleAdd}
       disabled={!canAdd}
       aria-live="polite"
-      aria-label={canAdd ? "Add to cart" : "Out of stock"}
+      aria-label={buttonLabel}
     >
       <AppIcon icon={faShoppingCart} />
       <span>{buttonLabel}</span>

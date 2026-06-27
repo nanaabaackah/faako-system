@@ -38,14 +38,14 @@ export default function TablePagination({
         <div className="table-pagination-controls inventory-register-pagination-controls">
           <button type="button" onClick={onPrevious} disabled={safePageIndex === 0}>
             <AppIcon icon={faChevronLeft} size={12} />
-            <span className="sr-only">Previous page</span>
+            <span>Previous</span>
           </button>
           <span className="inventory-register-pagination-page">
             Page {displayPage} of {displayCount}
           </span>
           <button type="button" onClick={onNext} disabled={safePageIndex >= safePageCount - 1}>
             <AppIcon icon={faChevronRight} size={12} />
-            <span className="sr-only">Next page</span>
+            <span>Next</span>
           </button>
         </div>
       </div>

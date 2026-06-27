@@ -59,8 +59,58 @@ const DEFAULT_APPS = getReebsSidebarNavItems();
 
 const normalizePath = (pathname) => {
   if (!pathname) return "/admin";
-  const trimmed = pathname.replace(/\/+$/, "");
+  const [pathOnly = ""] = String(pathname).split(/[?#]/);
+  const trimmed = pathOnly.replace(/\/+$/, "");
   return trimmed || "/admin";
+};
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const routePatternMatches = (pattern, pathname) => {
+  const normalizedPattern = normalizePath(pattern);
+  const normalizedPathname = normalizePath(pathname);
+  if (!normalizedPattern.includes(":")) return normalizedPattern === normalizedPathname;
+
+  const regexSource = normalizedPattern
+    .split("/")
+    .map((segment) => (segment.startsWith(":") ? "[^/]+" : escapeRegExp(segment)))
+    .join("/");
+  return new RegExp(`^${regexSource}$`).test(normalizedPathname);
+};
+
+const getAppActiveScore = (app, pathname) => {
+  if (!app || app.external) return 0;
+  const normalizedPathname = normalizePath(pathname);
+  const appPath = normalizePath(app.path);
+  let score = 0;
+
+  if (appPath === normalizedPathname) {
+    score = Math.max(score, 100000 + appPath.length);
+  } else if (
+    appPath !== "/admin" &&
+    normalizedPathname.startsWith(`${appPath}/`)
+  ) {
+    score = Math.max(score, 50000 + appPath.length);
+  }
+
+  const matchPaths = Array.isArray(app.matchPaths) ? app.matchPaths : [];
+  matchPaths.forEach((matchPath) => {
+    const normalizedMatchPath = normalizePath(matchPath);
+    if (routePatternMatches(normalizedMatchPath, normalizedPathname)) {
+      score = Math.max(score, 80000 + normalizedMatchPath.length);
+      return;
+    }
+
+    if (
+      normalizedMatchPath !== "/admin" &&
+      !normalizedMatchPath.includes(":") &&
+      normalizedPathname.startsWith(`${normalizedMatchPath}/`)
+    ) {
+      score = Math.max(score, 40000 + normalizedMatchPath.length);
+    }
+  });
+
+  return score;
 };
 
 const sortPortalApps = (list = []) =>
@@ -519,19 +569,6 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     }
   }, [authReady, isAuthenticated, readStorageKey]);
 
-  const isActive = (app) => {
-    if (app.external) return false;
-    const matchPaths = app.matchPaths ?? [app.path];
-    return matchPaths.some((path) => {
-      if (!path) return false;
-      const normalized = path.replace(/\/+$/, "") || "/admin";
-      return (
-        normalized === normalizedPath ||
-        (normalized !== "/" && normalizedPath.startsWith(normalized))
-      );
-    });
-  };
-
   const resolvedApps = useMemo(
     () =>
       apps.map((app) => {
@@ -556,6 +593,26 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     () => sortPortalApps(resolvedApps.filter((app) => canSeeApp(app))),
     [isAuthenticated, resolvedApps, isWaterUser, userRole]
   );
+
+  const activeAppId = useMemo(() => {
+    let bestMatch = null;
+    let bestScore = 0;
+
+    visibleApps.forEach((app) => {
+      const score = getAppActiveScore(app, normalizedPath);
+      if (score > bestScore) {
+        bestMatch = app;
+        bestScore = score;
+      }
+    });
+
+    return bestMatch?.id || "";
+  }, [normalizedPath, visibleApps]);
+
+  const isActive = (app) => {
+    if (app.external || !activeAppId) return false;
+    return app.id === activeAppId;
+  };
 
   const moduleSearchResults = useMemo(() => {
     const term = navQuery.trim().toLowerCase();

@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 const DEFAULT_APP_KEY = "reebs-portal";
 const DEFAULT_RANGE = "7d";
+const RAILWAY_WEBHOOK_PATH = "/api/webhooks/railway";
 const APP_ACTIVITY_WEBHOOK_PATH = "/api/webhooks/app-activity";
 
 const RANGE_HOURS = {
@@ -131,6 +132,42 @@ export const getEventHeader = (event, key) => {
 
 export const getEventIpAddress = (event) =>
   normalizeOptionalString(getEventHeader(event, "x-forwarded-for").split(",")[0], 120);
+
+export const getRailwayWebhookSecret = () =>
+  normalizeString(process.env.RAILWAY_WEBHOOK_SECRET);
+
+export const extractRailwayWebhookSecret = (event = {}) => {
+  const authorization = getEventHeader(event, "authorization");
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch?.[1]) return bearerMatch[1].trim();
+
+  return normalizeString(
+    event.queryStringParameters?.secret
+      || getEventHeader(event, "x-faako-webhook-secret")
+      || getEventHeader(event, "x-railway-webhook-secret")
+      || getEventHeader(event, "x-webhook-secret")
+  );
+};
+
+export const getRailwayWebhookDiagnostics = ({
+  currentWindowEvents = 0,
+  latestEvent = null,
+} = {}) => ({
+  configured: Boolean(getRailwayWebhookSecret()),
+  endpoint: RAILWAY_WEBHOOK_PATH,
+  legacyEndpoint: "/api/railwayEvents",
+  secretInputs: [
+    "Authorization: Bearer <secret>",
+    "x-faako-webhook-secret",
+    "x-railway-webhook-secret",
+    "x-webhook-secret",
+    "?secret=<secret>",
+  ],
+  currentWindowEvents,
+  latestEventAt: latestEvent?.createdAt
+    ? new Date(latestEvent.createdAt).toISOString()
+    : null,
+});
 
 export const ensureExtendedAuditLogSchema = async (client) => {
   for (const statement of ensureAuditLogSchemaStatements) {
@@ -420,26 +457,93 @@ export const listAuditLogs = async (client, options = {}) => {
   return result.rows.map(serializeAuditRow);
 };
 
-export const buildRailwayAuditEvent = (payload = {}) => {
+export const unwrapRailwayWebhookPayload = (payload = {}) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+
+  const nestedCandidates = [
+    payload.payload,
+    payload.data,
+    payload.eventPayload,
+    payload.webhook,
+  ];
+  const usefulNested = nestedCandidates.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === "object" &&
+      !Array.isArray(candidate) &&
+      (
+        candidate.deployment ||
+        candidate.service ||
+        candidate.project ||
+        candidate.environment ||
+        candidate.alert ||
+        candidate.type ||
+        candidate.eventType ||
+        candidate.status
+      )
+  );
+
+  return usefulNested || payload;
+};
+
+export const getRailwayWebhookMetadata = (rawPayload = {}, payload = rawPayload) => {
+  if (payload === rawPayload) return rawPayload;
+  return {
+    event: payload,
+    envelope: rawPayload,
+  };
+};
+
+export const buildRailwayAuditEvent = (rawPayload = {}) => {
+  const payload = unwrapRailwayWebhookPayload(rawPayload);
   const eventType = normalizeOptionalString(
-    payload?.type || payload?.eventType || payload?.event || payload?.trigger || "event",
+    payload?.type
+      || payload?.eventType
+      || payload?.eventName
+      || payload?.event
+      || payload?.trigger
+      || rawPayload?.type
+      || "event",
     80
   ) || "event";
   const status = normalizeOptionalString(
-    payload?.status || payload?.deployment?.status || payload?.alert?.state || "received",
+    payload?.status
+      || payload?.deployment?.status
+      || payload?.deploymentStatus
+      || payload?.alert?.state
+      || rawPayload?.status
+      || "received",
     80
   ) || "received";
   const serviceName = normalizeOptionalString(
     payload?.service?.name
       || payload?.deployment?.service?.name
+      || payload?.serviceName
       || payload?.resource?.name
       || payload?.alert?.service?.name
       || payload?.project?.name,
     120
   );
+  const projectName = normalizeOptionalString(
+    payload?.project?.name
+      || payload?.deployment?.project?.name
+      || payload?.projectName,
+    120
+  );
+  const environmentName = normalizeOptionalString(
+    payload?.environment?.name
+      || payload?.deployment?.environment?.name
+      || payload?.environmentName,
+    80
+  );
   const eventId =
     normalizeOptionalString(
-      payload?.id || payload?.eventId || payload?.deliveryId || payload?.deployment?.id,
+      payload?.id
+        || payload?.eventId
+        || payload?.deliveryId
+        || payload?.deployment?.id
+        || payload?.deploymentId
+        || rawPayload?.id,
       160
     )
     || crypto.createHash("sha256").update(JSON.stringify(payload || {})).digest("hex");
@@ -451,19 +555,26 @@ export const buildRailwayAuditEvent = (payload = {}) => {
     : ["warning", "queued", "retry"].some((token) => combinedText.includes(token))
       ? "warning"
       : "info";
+  const summary = [
+    projectName || "Railway project",
+    serviceName ? `service ${serviceName}` : "",
+    environmentName ? `environment ${environmentName}` : "",
+    eventType,
+    status ? `(${status})` : "",
+  ].filter(Boolean).join(" ");
 
   return buildAuditEventData({
     action: `RAILWAY_${eventType.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`,
     targetType: "service",
-    targetId: serviceName || eventId,
+    targetId: serviceName || projectName || eventId,
     source: "railway",
     category: "incident",
     severity,
     status,
-    summary: [serviceName, eventType, status ? `(${status})` : ""].filter(Boolean).join(" "),
+    summary,
     actorType: "system",
     actorLabel: "Railway",
     externalRef: eventId,
-    metadata: payload,
+    metadata: getRailwayWebhookMetadata(rawPayload, payload),
   });
 };

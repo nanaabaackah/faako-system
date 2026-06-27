@@ -131,11 +131,11 @@ export const projectDetails = [
     eyebrow: 'Case study',
     title: 'Development Operations System (Dev ERP)',
     summary:
-      'A standalone internal operations portal that combines dashboard metrics, rent management, accounting, invoicing, appointments, reporting, user access, alerts, and system-health monitoring in one Dev ERP workspace.',
+      'A standalone internal operations portal that combines dashboard metrics, rent management, accounting, invoicing, proposals, Faako onboarding intake review, appointments, reporting, user access, alerts, and system-health monitoring in one Dev ERP workspace.',
     heroImage: '/imgs/mockups/dev/DEV_1.png',
     supportingImages: ['/imgs/mockups/dev/DEV_4.png', '/imgs/mockups/dev/DEV_2.png'],
     discoveryImage: '/imgs/mockups/dev/DEV_3.png',
-    pills: ['Dev ERP', 'React + Express', 'Prisma + PostgreSQL', 'Cookie sessions + CSRF', 'Calendar + alerts'],
+    pills: ['Dev ERP', 'React + Express', 'Prisma + PostgreSQL', 'Module registry', 'Cookie sessions + CSRF'],
     heroFacts: [
       { label: 'Deliverables', value: 'Internal Operations Portal' },
       { label: 'Stack', value: 'React/Vite, Express, Prisma, PostgreSQL' },
@@ -153,13 +153,13 @@ export const projectDetails = [
       { label: 'Tools', value: 'React/Vite, Express route slices, Prisma schema + migrations, PostgreSQL, Cloudflare API routing' },
     ],
     stats: [
-      { value: '12', label: 'Core app modules in main navigation' },
+      { value: 'Registry-driven', label: 'ERP module navigation and access metadata' },
       { value: 'Vertical slices', label: 'Auth, users, dashboard, jobs, productivity, security, and org scope' },
       { value: 'Cookie + CSRF', label: 'Session security model' },
       { value: 'Org-scoped', label: 'Organization hierarchy and capability-based access model' },
     ],
     challenges: [
-      'Operational data for rent, accounting, invoicing, appointments, reporting, and system status needed to live in one workspace without flattening user roles or organization boundaries.',
+      'Operational data for rent, accounting, invoicing, proposals, onboarding submissions, appointments, reporting, and system status needed to live in one workspace without flattening user roles or organization boundaries.',
       'The backend had to move toward focused vertical route slices while preserving secure session handling, CSRF checks, capability enforcement, and database isolation safeguards.',
       'Public appointment booking, Google Calendar sync, report delivery, email/SMS alerts, and system-health checks needed to coexist with a maintainable Express and Prisma architecture.',
     ],
@@ -330,6 +330,7 @@ export const projectDetails = [
           { title: 'Dashboard', detail: 'KPI, availability, site status, and operational health overview.' },
           { title: 'Rent', detail: 'Tenant records, rent payment history, balances, and rent-only user paths.' },
           { title: 'Accounting + Invoicing', detail: 'Revenue/expense entries, invoice records, line items, due dates, and payment state.' },
+          { title: 'Proposals + Intake', detail: 'Editable proposal canvas, secure client response links, and Faako onboarding submission review.' },
           { title: 'Appointments', detail: 'Manual + public appointment booking with Google Calendar sync support.' },
           { title: 'Admin modules', detail: 'Organizations, user control, reports, audit logs, settings, alerts, and system health.' },
         ],
@@ -341,6 +342,7 @@ export const projectDetails = [
         list: [
           'Session security with HttpOnly auth cookies and CSRF token validation.',
           'Capability middleware maps route groups to user module access before backend actions run.',
+          'Frontend module registries keep navigation, labels, grouping, state badges, and route metadata aligned while database-backed module toggles are planned.',
           'Organization scoping helpers block cross-organization reads and writes for local admins.',
           'Environment exposure tests keep browser-visible VITE variables intentionally allowlisted.',
           'Secret encryption supports Google Calendar OAuth tokens and hosted runtime safeguards.',
@@ -524,11 +526,11 @@ export const projectDetails = [
     eyebrow: 'Flagship case study',
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'A live React/Vite public website for a kids party shop and rental business, paired with a dedicated admin portal and portal-owned Express API handlers backend across POS orders, bookings, inventory, delivery, documents, accounting, maintenance, marketing, HR, and workforce management.',
+      'A live React/Vite public website for a kids party shop and rental business, paired with a dedicated admin portal and portal-owned Express API handlers backend across POS orders, bookings, CRM-backed planning requests, inventory, delivery, documents, accounting, maintenance, marketing, HR, and workforce management.',
     heroImage: '/imgs/mockups/reebs/REEBS_2.png',
     supportingImages: ['/imgs/mockups/reebs/REEBS_3.png', '/imgs/mockups/reebs/REEBS_7.png'],
     discoveryImage: '/imgs/mockups/reebs/REEBS_5.png',
-    pills: ['Live website', 'Portal ERP', 'Express API handlers', 'Inventory + Finance', 'Ops + HR'],
+    pills: ['Live website', 'Portal ERP', 'CRM lead intake', 'Inventory + Finance', 'Module registry'],
     heroFacts: [
       { label: 'Deliverables', value: 'Public Website + Admin Portal ERP' },
       { label: 'Stack', value: 'React/Vite, Express API handlers, PostgreSQL, Prisma, Shared Workspace Packages' },
@@ -541,7 +543,7 @@ export const projectDetails = [
       {
         label: 'Scope',
         value:
-          'Website pages, shop, rentals, cart, checkout, POS/order builder, bookings, orders, stock movement, invoicing, expenses, delivery, documents, maintenance, timesheets, roles, marketing, operations workflows',
+          'Website pages, shop, rentals, cart, checkout, contact requests, POS/order builder, bookings, orders, stock movement, invoicing, expenses, delivery, documents, maintenance, timesheets, roles, marketing, operations workflows',
       },
       { label: 'Stack', value: 'React + Vite, Express API handlers, PostgreSQL (Railway), Prisma schema and migrations, shared shell/runtime packages' },
     ],
@@ -549,19 +551,19 @@ export const projectDetails = [
       { value: '2 deploy targets', label: 'Public website and portal/backend split' },
       { value: '40+ functions', label: 'Portal-owned backend endpoints' },
       { value: '3 sales paths', label: 'Website checkout, staff POS orders, and rental bookings' },
-      { value: 'Integer cents', label: 'Financial accuracy across reports and invoices' },
+      { value: 'CRM-backed', label: 'Contact briefs, customer linking, and follow-up tasks' },
     ],
     challenges: [
       'The customer-facing website and internal ERP needed clearer ownership so public pages could stay lightweight while admin workflows, functions, and Prisma migrations lived in the portal app.',
         'Retail sales, staff-created POS orders, and rental reservations shared inventory but followed different workflows, creating overbooking risk and inconsistent stock state transitions.',
-      'Delivery, documents, accounting, marketing, maintenance, HR, timesheets, and newer operations workflows needed to stay visible in the portal without leaking admin concerns back into the public website.',
+      'Delivery, documents, accounting, CRM follow-up, marketing, maintenance, HR, timesheets, and newer operations workflows needed to stay visible in the portal without leaking admin concerns back into the public website.',
     ],
     storefrontShowcase: {
       label: '[Website + Portal ERP]',
       headline:
         'THE PUBLIC WEBSITE NOW HANDS OPERATIONAL WORK TO A DEDICATED PORTAL BACKEND.',
       paragraphs: [
-        'Customers move through shopping, rentals, booking, checkout, and support pages in the public website while staff and managers work from the portal admin workspace and POS/order builder.',
+        'Customers move through shopping, rentals, booking, checkout, and support/contact pages in the public website while staff and managers work from the portal admin workspace, CRM, and POS/order builder.',
         'Portal-owned Express API handlers write to shared order, booking, inventory, delivery, document, accounting, HR, and operations services, while shared organization utilities keep requests aligned across the split apps.',
       ],
       image: '/imgs/mockups/reebs/REEBS_1.png',
@@ -644,6 +646,18 @@ export const projectDetails = [
             label: 'Customer',
             tone: 'light',
             attributes: ['id: uuid', 'organizationId: fk', 'name: string', 'phone: string', 'address: json'],
+          },
+          {
+            id: 'contactRequest',
+            label: 'ContactRequest',
+            tone: 'light',
+            attributes: ['id: serial', 'customerId: fk', 'status: string', 'followUpDueAt: datetime'],
+          },
+          {
+            id: 'customerActivity',
+            label: 'CustomerActivity',
+            tone: 'light',
+            attributes: ['id: serial', 'customerId: fk', 'type: string', 'status: string', 'dueAt: datetime'],
           },
           {
             id: 'products',
@@ -736,6 +750,8 @@ export const projectDetails = [
           { from: 'user', to: 'timesheet', label: '1 -> many' },
           { from: 'customers', to: 'order', label: '1 -> many' },
           { from: 'customers', to: 'booking', label: '1 -> many' },
+          { from: 'customers', to: 'contactRequest', label: '1 -> many' },
+          { from: 'customers', to: 'customerActivity', label: '1 -> many' },
           { from: 'order', to: 'orderItem', label: '1 -> many' },
           { from: 'booking', to: 'bookingItem', label: '1 -> many' },
           { from: 'products', to: 'orderItem', label: '1 -> many' },
@@ -765,6 +781,20 @@ export const projectDetails = [
           { title: 'Checkout path', detail: 'Customer capture and order creation through the portal-owned createOrder function.' },
           { title: 'Booking intake', detail: 'Event details and rental items posted from the website into the bookings function.' },
           { title: 'Support content', detail: 'FAQ, contact, delivery, refund, privacy, and terms pages reduce pre-booking friction.' },
+          { title: 'CRM requests', detail: 'Contact briefs create CRM customer records, request rows, and follow-up activity for staff.' },
+        ],
+      },
+      {
+        id: 'crm-lead-flow',
+        title: 'CRM and Lead Follow-up Module',
+        image: '/imgs/mockups/reebs/REEBS_4.png',
+        summary:
+          'The contact form is no longer only an email path. Planning briefs are persisted into the portal CRM, linked to customers, and given follow-up activity so the team can track requests from intake to conversion.',
+        cards: [
+          { title: 'Customer linking', detail: 'Incoming briefs match or create CRM customers by email, phone, or normalized name.' },
+          { title: 'Request inbox foundation', detail: 'Each brief stores topic, date, venue, status, source, message, and follow-up due date.' },
+          { title: 'Activity timeline', detail: 'Customer detail now shows planning requests and follow-up tasks alongside orders and bookings.' },
+          { title: 'Email as notification', detail: 'Email alerts still go out, but the CRM record becomes the operational source of truth.' },
         ],
       },
       {
@@ -885,6 +915,8 @@ export const projectDetails = [
           'Functions layer covers auth, inventory, bookings, orders, delivery, documents, HR, marketing, maintenance, and financial services.',
           'Organization scoping supports multi-tenant-ready behavior and data isolation.',
           'WhatsApp and push-notification hooks keep managers informed on transactional events.',
+          'Module registry metadata drives admin navigation grouping and is ready for future database-backed module toggles.',
+          'Editable configuration is being moved gradually into settings/config modules, starting with finance and CRM foundations rather than hardcoded operational text.',
           'Prisma schema and migrations maintain consistent data contracts across releases.',
           'Public website and admin portal routes stay separated while sharing one operational source of truth through the backend.',
         ],

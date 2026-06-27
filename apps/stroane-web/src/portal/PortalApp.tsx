@@ -18,6 +18,9 @@ import CustomerDirectory from "./pages/CustomerDirectory";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
 import AdminPortalProfile from "./pages/AdminPortalProfile";
 import AdminPortalSignIn from "./pages/AdminPortalSignIn";
+import TeamManagement from "./pages/TeamManagement";
+import AuditLogManagement from "./pages/AuditLogManagement";
+import type { AdminRoleAction, AdminRoleModule } from "./api/adminSession";
 
 const StorefrontExternalRedirect: React.FC = () => {
   const location = useLocation();
@@ -34,6 +37,17 @@ const PortalLoginRoute: React.FC = () => (
   </AuthProvider>
 );
 
+const PortalModule: React.FC<{
+  moduleId: AdminRoleModule;
+  action?: AdminRoleAction;
+  fallbackPath?: string;
+  children: React.ReactNode;
+}> = ({ moduleId, action = "view", fallbackPath, children }) => (
+  <RequirePortalAccess moduleId={moduleId} action={action} fallbackPath={fallbackPath}>
+    {children}
+  </RequirePortalAccess>
+);
+
 const PortalApp: React.FC = () => (
   <AdminPortalProvider>
     <Routes>
@@ -43,19 +57,21 @@ const PortalApp: React.FC = () => (
       <Route element={<RequireAdminAuth />}>
         <Route element={<RequirePortalAccess />}>
           <Route path="/admin" element={<AdminPortalLayout />}>
-            <Route index element={<AdminPortalHome />} />
-            <Route path="profile" element={<AdminPortalProfile />} />
-            <Route path="inventory" element={<InventoryManagement />} />
-            <Route path="orders" element={<OrderManagement />} />
-            <Route path="receipts" element={<ReceiptManagement />} />
-            <Route path="accounting" element={<AccountingManagement />} />
-            <Route path="crm" element={<CustomerDirectory />} />
-            <Route path="directory" element={<CustomerDirectory />} />
-            <Route path="suppliers" element={<AdminPortalPlaceholder area="suppliers" />} />
-            <Route path="products" element={<AdminPortalPlaceholder area="products" />} />
-            <Route path="operations" element={<AdminPortalPlaceholder area="operations" />} />
-            <Route path="reports" element={<AdminPortalPlaceholder area="reports" />} />
-            <Route path="settings" element={<AdminPortalPlaceholder area="settings" />} />
+            <Route index element={<PortalModule moduleId="dashboard"><AdminPortalHome /></PortalModule>} />
+            <Route path="profile" element={<PortalModule moduleId="profile"><AdminPortalProfile /></PortalModule>} />
+            <Route path="inventory" element={<PortalModule moduleId="inventory"><InventoryManagement /></PortalModule>} />
+            <Route path="orders" element={<PortalModule moduleId="orders"><OrderManagement /></PortalModule>} />
+            <Route path="receipts" element={<PortalModule moduleId="receipts"><ReceiptManagement /></PortalModule>} />
+            <Route path="accounting" element={<PortalModule moduleId="accounting"><AccountingManagement /></PortalModule>} />
+            <Route path="crm" element={<PortalModule moduleId="crm"><CustomerDirectory /></PortalModule>} />
+            <Route path="directory" element={<PortalModule moduleId="crm"><CustomerDirectory /></PortalModule>} />
+            <Route path="team" element={<PortalModule moduleId="team" action="manage" fallbackPath="/admin"><TeamManagement /></PortalModule>} />
+            <Route path="audit-logs" element={<RequirePortalAccess allowedRoles={["ADMIN"]} fallbackPath="/admin"><AuditLogManagement /></RequirePortalAccess>} />
+            <Route path="suppliers" element={<PortalModule moduleId="inventory"><AdminPortalPlaceholder area="suppliers" /></PortalModule>} />
+            <Route path="products" element={<PortalModule moduleId="inventory"><AdminPortalPlaceholder area="products" /></PortalModule>} />
+            <Route path="operations" element={<PortalModule moduleId="orders"><AdminPortalPlaceholder area="operations" /></PortalModule>} />
+            <Route path="reports" element={<PortalModule moduleId="accounting"><AdminPortalPlaceholder area="reports" /></PortalModule>} />
+            <Route path="settings" element={<PortalModule moduleId="team" action="manage" fallbackPath="/admin"><AdminPortalPlaceholder area="settings" /></PortalModule>} />
           </Route>
         </Route>
       </Route>

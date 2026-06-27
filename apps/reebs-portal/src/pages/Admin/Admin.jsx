@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, MonthField, SelectField } from "@faako/ui";
 import "./Admin.css";
 import { Link, useLocation } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -1696,7 +1696,7 @@ function Admin() {
             disabled={clampedPage === 0}
           >
             <AppIcon icon={faChevronLeft} size={12} />
-            <span className="sr-only">Previous page</span>
+            <span>Previous</span>
           </button>
           <span className="inventory-register-pagination-page">
             Page {paginationDisplayPage} of {paginationDisplayCount}
@@ -1707,7 +1707,7 @@ function Admin() {
             disabled={clampedPage >= pageCount - 1}
           >
             <AppIcon icon={faChevronRight} size={12} />
-            <span className="sr-only">Next page</span>
+            <span>Next</span>
           </button>
         </div>
       </div>
@@ -3810,7 +3810,7 @@ function Admin() {
                   }}
                 >
                   <AppIcon icon={newItemOpen ? faXmark : faPlus} size={16} />
-                  <span className="sr-only">{newItemOpen ? "Close" : "Add items"}</span>
+                  <span>{newItemOpen ? "Close" : "Add items"}</span>
                 </button>
               )}
               <button
@@ -3825,7 +3825,7 @@ function Admin() {
                 }}
               >
                 <AppIcon icon={faFolderOpen} size={16} />
-                <span className="sr-only">Archived</span>
+                <span>Archived</span>
               </button>
               <button
                 type="button"
@@ -3838,7 +3838,7 @@ function Admin() {
                 }}
               >
                 <AppIcon icon={faTrash} size={16} />
-                <span className="sr-only">Recently deleted</span>
+                <span>Recently deleted</span>
               </button>
               <button
                 type="button"
@@ -3848,7 +3848,7 @@ function Admin() {
                 onClick={refreshInventorySurface}
               >
                 <AppIcon icon={faRotateRight} size={16} />
-                <span className="sr-only">Refresh</span>
+                <span>Refresh</span>
               </button>
               {isOwnerOrAdmin && (
                 <ModuleTopbarMenu
@@ -4059,9 +4059,19 @@ function Admin() {
               </div>
               <span className="admin-focus-count">{editRequests.length} waiting</span>
             </div>
-            {editRequestsLoading && <p className="admin-focus-muted">Loading edit requests...</p>}
+            {editRequestsLoading && (
+              <AnimatedLoadingState
+                compact
+                className="glass-card admin-module-loading"
+                title="Loading edit requests"
+                message="Fetching pending stock approval changes."
+                variant="dashboard"
+              />
+            )}
             {!editRequestsLoading && editRequestsError && (
-              <p className="admin-focus-error">{editRequestsError}</p>
+              <ERPFormNotice tone="danger" title="Edit requests unavailable" onDismiss={() => setEditRequestsError("")}>
+                {editRequestsError}
+              </ERPFormNotice>
             )}
             {!editRequestsLoading && !editRequestsError && editRequests.length === 0 && (
               <p className="admin-focus-muted">No staff edit requests waiting.</p>
@@ -4108,8 +4118,20 @@ function Admin() {
         <section>
           <div className="inventory-register-toolbar">
             <div className="inventory-register-head-status">
-              {loading && <span className="admin-status">Loading inventory...</span>}
-              {!loading && error && <span className="admin-error">{error}</span>}
+              {loading && (
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading inventory"
+                  message="Fetching stock, variants, and availability."
+                  variant="dashboard"
+                />
+              )}
+              {!loading && error && (
+                <ERPFormNotice tone="danger" title="Inventory unavailable" onDismiss={() => setError("")}>
+                  {error}
+                </ERPFormNotice>
+              )}
             </div>
             <div className="inventory-register-search-row">
               <div className="inventory-register-filter-controls">
@@ -4287,16 +4309,33 @@ function Admin() {
                 title="Clear selected items"
               >
                 <AppIcon icon={faXmark} size={14} />
+                Clear selected
               </button>
             </div>
           )}
 
-          {sourceCategoryError && <p className="admin-error">{sourceCategoryError}</p>}
+          {sourceCategoryError && (
+            <ERPFormNotice tone="danger" title="Category setup unavailable" onDismiss={() => setSourceCategoryError("")}>
+              {sourceCategoryError}
+            </ERPFormNotice>
+          )}
 
           {viewMode === "activity" && (
             <div className="stock-activity-grid">
-              {stockActivityError && <p className="admin-error">{stockActivityError}</p>}
-              {stockActivityLoading && <p className="admin-status">Loading movement history...</p>}
+              {stockActivityError && (
+                <ERPFormNotice tone="danger" title="Movement history unavailable" onDismiss={() => setStockActivityError("")}>
+                  {stockActivityError}
+                </ERPFormNotice>
+              )}
+              {stockActivityLoading && (
+                <AnimatedLoadingState
+                  compact
+                  className="glass-card admin-module-loading"
+                  title="Loading movement history"
+                  message="Fetching inventory activity and monthly totals."
+                  variant="dashboard"
+                />
+              )}
               {!stockActivityLoading && stockActivity.length === 0 && !stockActivityError && inventory.length === 0 && (
                 <p className="admin-empty">No items match the current filters.</p>
               )}
@@ -4354,7 +4393,7 @@ function Admin() {
                       disabled={clampedPage === 0}
                     >
                       <AppIcon icon={faChevronLeft} size={12} />
-                      <span className="sr-only">Previous page</span>
+                      <span>Previous</span>
                     </button>
                     <span className="inventory-register-pagination-page">
                       Page {paginationDisplayPage} of {paginationDisplayCount}
@@ -4365,7 +4404,7 @@ function Admin() {
                       disabled={clampedPage >= pageCount - 1}
                     >
                       <AppIcon icon={faChevronRight} size={12} />
-                      <span className="sr-only">Next page</span>
+                      <span>Next</span>
                     </button>
                   </div>
                 </div>
@@ -4535,7 +4574,7 @@ function Admin() {
                                 }}
                               >
                                 <AppIcon icon={faEllipsisHorizontal} size={14} />
-                                <span className="sr-only">Actions</span>
+                                <span>Actions</span>
                               </button>
                               <div
                                 className={`bookings-menu-list inventory-menu-list ${openMenuId === item.id ? "open" : ""}`}
@@ -4719,7 +4758,7 @@ function Admin() {
 	                            }}
 	                          >
 	                            <AppIcon icon={faEllipsisHorizontal} size={14} />
-                                <span className="sr-only">Actions</span>
+                                <span>Actions</span>
 	                          </button>
 	                          <div
 	                            className={`bookings-menu-list inventory-menu-list inventory-card-menu-list ${openMenuId === `card-${item.id}` ? "open" : ""}`}
@@ -4904,8 +4943,20 @@ function Admin() {
               </button>
             </header>
             <div className="admin-kpi-detail-body">
-              {archivedLoading && <p className="admin-status">Loading archived items...</p>}
-              {!archivedLoading && archivedError && <p className="admin-error">{archivedError}</p>}
+              {archivedLoading && (
+                <AnimatedLoadingState
+                  compact
+                  className="glass-card admin-module-loading"
+                  title="Loading archived items"
+                  message="Fetching archived inventory records."
+                  variant="detail"
+                />
+              )}
+              {!archivedLoading && archivedError && (
+                <ERPFormNotice tone="danger" title="Archived items unavailable" onDismiss={() => setArchivedError("")}>
+                  {archivedError}
+                </ERPFormNotice>
+              )}
               {!archivedLoading && !archivedError && (
                 <>
                   {archivedItems.length ? (
@@ -4952,8 +5003,20 @@ function Admin() {
               </button>
             </header>
             <div className="admin-kpi-detail-body">
-              {deletedLoading && <p className="admin-status">Loading deleted items...</p>}
-              {!deletedLoading && deletedError && <p className="admin-error">{deletedError}</p>}
+              {deletedLoading && (
+                <AnimatedLoadingState
+                  compact
+                  className="glass-card admin-module-loading"
+                  title="Loading deleted items"
+                  message="Fetching recently deleted inventory records."
+                  variant="detail"
+                />
+              )}
+              {!deletedLoading && deletedError && (
+                <ERPFormNotice tone="danger" title="Deleted items unavailable" onDismiss={() => setDeletedError("")}>
+                  {deletedError}
+                </ERPFormNotice>
+              )}
               {!deletedLoading && !deletedError && (
                 <>
                   {deletedItems.length ? (
@@ -5348,7 +5411,11 @@ function Admin() {
                   </button>
                 </div>
               </div>
-              {newItemError && <p className="admin-error">{newItemError}</p>}
+              {newItemError && (
+                <ERPFormNotice tone="danger" title="Items not created" onDismiss={() => setNewItemError("")}>
+                  {newItemError}
+                </ERPFormNotice>
+              )}
             </form>
           </div>
         </div>
@@ -5368,8 +5435,24 @@ function Admin() {
               </button>
             </header>
 
-            {activityDetail.loading && <p className="admin-status">Loading item movement...</p>}
-            {!activityDetail.loading && activityDetail.error && <p className="admin-error">{activityDetail.error}</p>}
+            {activityDetail.loading && (
+              <AnimatedLoadingState
+                compact
+                className="glass-card admin-module-loading"
+                title="Loading item movement"
+                message="Opening movement detail rows."
+                variant="detail"
+              />
+            )}
+            {!activityDetail.loading && activityDetail.error && (
+              <ERPFormNotice
+                tone="danger"
+                title="Movement detail unavailable"
+                onDismiss={() => setActivityDetail((prev) => (prev ? { ...prev, error: "" } : prev))}
+              >
+                {activityDetail.error}
+              </ERPFormNotice>
+            )}
             {!activityDetail.loading && !activityDetail.error && activityDetail.items.length === 0 && (
               <p className="admin-empty">No items recorded for this movement.</p>
             )}
@@ -6013,7 +6096,11 @@ function Admin() {
                 />
               </label>
 
-              {detailError && <p className="admin-error">{detailError}</p>}
+              {detailError && (
+                <ERPFormNotice tone="danger" title="Item not saved" onDismiss={() => setDetailError("")}>
+                  {detailError}
+                </ERPFormNotice>
+              )}
               <div className="admin-form-actions">
                 <button type="button" className="admin-secondary" onClick={closeItemDetails}>
                   Close
@@ -6141,10 +6228,9 @@ function Admin() {
               </label>
 
               {formState.type === "StockOut" && (
-                <label>
-                  Month sold
-                  <input
-                    type="month"
+                <div>
+                  <MonthField
+                    label="Month sold"
                     value={formState.soldMonth}
                     onChange={(event) =>
                       setFormState((prev) => ({ ...prev, soldMonth: event.target.value }))
@@ -6152,7 +6238,7 @@ function Admin() {
                     required
                   />
                   <small className="admin-form-hint">Choose the month the item was sold.</small>
-                </label>
+                </div>
               )}
 
               <details className="admin-form-optional">
@@ -6182,8 +6268,16 @@ function Admin() {
                 </label>
               </details>
 
-              {submitError && <p className="admin-error">{submitError}</p>}
-              {success && <p className="admin-success">{success}</p>}
+              {submitError && (
+                <ERPFormNotice tone="danger" title="Stock not updated" onDismiss={() => setSubmitError("")}>
+                  {submitError}
+                </ERPFormNotice>
+              )}
+              {success && (
+                <ERPFormNotice tone="success" title="Stock updated" onDismiss={() => setSuccess("")}>
+                  {success}
+                </ERPFormNotice>
+              )}
 
               <div className="admin-form-actions">
                 <button

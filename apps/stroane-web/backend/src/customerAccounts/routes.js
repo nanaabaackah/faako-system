@@ -671,7 +671,7 @@ export const createCustomerAccountRouter = (prisma) => {
 export const createAdminCustomerRouter = (prisma) => {
   const router = Router();
 
-  router.use(requireSiteUser(prisma, ["ADMIN", "VIEWER"]));
+  router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
 
   router.get(
     "/customers",
@@ -721,7 +721,7 @@ export const createAdminCustomerRouter = (prisma) => {
 
   router.post(
     "/customers",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "crm", "create"),
     asyncRoute(async (req, res) => {
       const payload = normalizeProfilePayload({
         ...req.body,
@@ -806,7 +806,7 @@ export const createAdminCustomerRouter = (prisma) => {
 
   router.patch(
     "/customers/:id",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "crm", "edit"),
     asyncRoute(async (req, res) => {
       const updates = {};
       if ("name" in req.body) updates.name = sanitizeText(req.body.name, 140);
@@ -849,7 +849,7 @@ export const createAdminCustomerRouter = (prisma) => {
 
   router.post(
     "/customers/:id/invite",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "crm", "edit"),
     asyncRoute(async (req, res) => {
       const invite = buildInviteData();
       const customer = await prisma.customerAccount.update({

@@ -50,6 +50,23 @@ const getAllowedOrigins = () => {
   return mergeAllowedOrigins(DEFAULT_ALLOWED_ORIGINS, configured);
 };
 
+const DEFAULT_ALLOW_HEADERS = [
+  "Content-Type",
+  "Authorization",
+  "X-Organization-Id",
+  "X-CSRF-Token",
+];
+
+const mergeAllowHeaders = (value) => {
+  const headers = new Set(DEFAULT_ALLOW_HEADERS);
+  String(value || "")
+    .split(",")
+    .map((header) => header.trim())
+    .filter(Boolean)
+    .forEach((header) => headers.add(header));
+  return Array.from(headers).join(", ");
+};
+
 export const isAllowedAppOrigin = (origin) => {
   return isAllowedOrigin(origin, getAllowedOrigins());
 };
@@ -63,11 +80,12 @@ export const buildResponseHeaders = (
   event,
   {
     methods = "GET,POST,OPTIONS",
-    allowHeaders = "Content-Type, Authorization, X-Organization-Id",
+    allowHeaders = DEFAULT_ALLOW_HEADERS.join(", "),
     cacheControl = "no-store, private",
     extraHeaders = {},
   } = {}
 ) => {
+  const normalizedAllowHeaders = mergeAllowHeaders(allowHeaders);
   const requestOrigin = normalizeOrigin(getHeaderValue(event, "origin"));
   const requestProtocol =
     String(getHeaderValue(event, "x-forwarded-proto") || getHeaderValue(event, "x-forwarded-protocol")).toLowerCase() === "https"
@@ -78,13 +96,13 @@ export const buildResponseHeaders = (
     origin: requestOrigin,
     allowedOrigins: getAllowedOrigins(),
     methods,
-    allowHeaders,
+    allowHeaders: normalizedAllowHeaders,
     requestProtocol,
     cacheControl,
     extraHeaders,
   });
 
-  headers["Access-Control-Allow-Headers"] = allowHeaders;
+  headers["Access-Control-Allow-Headers"] = normalizedAllowHeaders;
   headers["Access-Control-Allow-Methods"] = methods;
 
   return headers;

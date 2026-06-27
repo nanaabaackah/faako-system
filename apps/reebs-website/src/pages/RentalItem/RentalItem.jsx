@@ -23,8 +23,10 @@ import {
   getCatalogItemImage,
 } from "/src/utils/itemMediaBackgrounds";
 import {
+  getFrontendRentalAvailabilityLabel,
   getFrontendRentalCategory,
   getFrontendRentalDetailPath,
+  isFrontendRentalBookable,
   isFrontendRentalItem,
   matchesFrontendRentalDetailSlug,
   shouldExcludeFrontendRental,
@@ -69,14 +71,6 @@ const formatRentalPrice = (item, convertPrice, formatCurrency) => {
   const numericPrice = Number(priceValue);
   if (Number.isNaN(numericPrice)) return "Contact for price";
   return `${formatCurrency(convertPrice(numericPrice))} ${item.rate || ""}`.trim();
-};
-
-const formatStatus = (status, isActive) => {
-  if (typeof status === "boolean") return status ? "Available" : "Unavailable";
-  if (typeof isActive === "boolean") return isActive ? "Available" : "Unavailable";
-  if (!status) return "Available";
-  const lower = status.toString().toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
 };
 
 const formatAge = (age) => {
@@ -176,8 +170,11 @@ function RentalItem() {
     fetchInventoryWithCache({ signal: controller.signal })
       .then(({ items }) => {
         const rentalsOnly = (Array.isArray(items) ? items : []).filter((item) => {
-          const isActive = (item.status ?? item.isActive) !== false;
-          return isFrontendRentalItem(item) && isActive && !shouldExcludeFrontendRental(item);
+          return (
+            isFrontendRentalItem(item) &&
+            isFrontendRentalBookable(item) &&
+            !shouldExcludeFrontendRental(item)
+          );
         });
         if (!active) return;
         setRentals(rentalsOnly);
@@ -304,15 +301,8 @@ useEffect(() => {
     return picks.slice(0, maxItems);
   }, [rental, rentals]);
 
-  const statusValue =
-    typeof rental?.status === "string"
-      ? rental.status.toLowerCase()
-      : rental?.status === false
-        ? "unavailable"
-        : rental?.isActive === false
-          ? "unavailable"
-          : "available";
-  const isAvailable = statusValue === "available";
+  const isAvailable = isFrontendRentalBookable(displayRental || rental);
+  const availabilityLabel = getFrontendRentalAvailabilityLabel(displayRental || rental);
   const showBouncyTable = isBouncyCastleRental(rental);
   const bookingSlug = rentalPath(rental).split("/").filter(Boolean).pop();
   const selectedBouncySlug = selectedBouncyType ? slugifyRentalValue(selectedBouncyType.name) : "";
@@ -420,6 +410,7 @@ useEffect(() => {
       <SiteLoader
         label="Loading rental details"
         sublabel="Getting item photos, pricing, and booking info."
+        variant="detail"
       />
     );
   }
@@ -501,7 +492,7 @@ useEffect(() => {
                 <div>
                   <p className="price">{formatRentalPrice(displayRental, convertPrice, formatCurrency)}</p>
                   <p className="rent-meta">
-                    {displayRental.quantity ? `${displayRental.quantity} available` : "Availability upon request"}
+                    {availabilityLabel} confirmed after you pick an event date.
                   </p>
                 </div>
               </div>
@@ -509,7 +500,7 @@ useEffect(() => {
               <div className="rental-meta-grid">
                 <div className={isAvailable ? "status-available dark-card" : ""}>
                   <span className="rent-meta">Status</span>
-                  <strong>{formatStatus(rental.status, rental.isActive)}</strong>
+                  <strong>{availabilityLabel}</strong>
                 </div>
                 <div>
                   <span className="rent-meta">Age range</span>
@@ -543,7 +534,7 @@ useEffect(() => {
           </section>
 
           {showBouncyTable && (
-            <section className="rental-detail-card bouncy-card-section rental-item-bouncy" aria-labelledby="bouncy-table-heading">
+            <section className="rental-detail-card glass-card bouncy-card-section rental-item-bouncy" aria-labelledby="bouncy-table-heading">
               <div className="section-header rent-section-header">
                 <p className="kicker">Bouncy castles</p>
                 <h2 id="bouncy-table-heading">Choose the right size for your party</h2>

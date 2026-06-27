@@ -358,7 +358,7 @@ body.admin-theme.aw-theme.aw-home-bg .portal-app-shell {
 .aw-home-summary-grid {
   display: grid;
   gap: var(--aw-space-3);
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
   padding: var(--aw-space-5) 0;
 }
 

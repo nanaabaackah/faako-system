@@ -17,7 +17,7 @@ export default function ModuleTopbarMenu({
     <details className={`module-topbar-menu${className ? ` ${className}` : ""}`}>
       <summary className="admin-chip inventory-header-action module-topbar-menu__trigger" aria-label={label} title={label}>
         <AppIcon icon={faEllipsisHorizontal} size={16} />
-        <span className="sr-only">{label}</span>
+        <span>{label}</span>
       </summary>
       <div className="module-topbar-menu__panel" role="menu" aria-label={label}>
         <p className="module-topbar-menu__title">{title}</p>

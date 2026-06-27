@@ -43,9 +43,9 @@ const Shop = lazy(() => import("./pages/Shop/Shop"));
 function RouteFallback() {
   return (
     <SiteLoader
-      compact
       label="Loading page"
       sublabel="Setting up your next view."
+      variant="storefront"
     />
   );
 }

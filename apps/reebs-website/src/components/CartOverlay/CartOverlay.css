@@ -35,7 +35,7 @@
   transform: translateX(100%);
   box-shadow: -26px 0 54px rgba(var(--ink-rgb), 0.22);
   transition: transform 0.26s var(--ease-snap);
-  padding: clamp(1rem, 2vw, 1.2rem);
+  padding: clamp(3rem, 3vw, 1.5rem);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.9rem;
@@ -129,9 +129,10 @@
 }
 
 .cart-overlay .checkout-btn {
-  background: linear-gradient(135deg, rgba(var(--back-rgb), 0.96), rgba(var(--other-rgb), 0.92));
-  color: var(--light);
-  border-color: rgba(var(--back-rgb), 0.2);
+  background: linear-gradient(135deg, #fff5a8, #ffce52);
+  color: #24170d;
+  border-color: rgba(255, 255, 255, 0.64);
+  box-shadow: 0 16px 32px rgba(255, 202, 64, 0.24);
 }
 
 .close-cart,
@@ -164,6 +165,12 @@
 .cart-overlay .checkout-btn:focus-visible {
   transform: translateY(-1px);
   border-color: rgba(var(--back-rgb), 0.24);
+}
+
+.cart-overlay .checkout-btn:hover,
+.cart-overlay .checkout-btn:focus-visible {
+  background: linear-gradient(135deg, #fff9c6, #ffd868);
+  border-color: rgba(255, 255, 255, 0.84);
 }
 
 .cart-items {

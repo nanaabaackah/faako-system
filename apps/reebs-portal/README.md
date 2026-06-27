@@ -2,7 +2,7 @@
 
 Workspace package: `@faako/reebs-portal`
 
-Reebs Portal is the admin portal and API backend source for REEBS. It owns the operational frontend, Prisma-backed backend handlers, product and variant management, bookings, invoicing, delivery, accounting, website content, and the internal modules used by the REEBS stack.
+Reebs Portal is the admin portal and API backend source for REEBS. It owns the operational frontend, Prisma-backed backend handlers, product and variant management, CRM contact requests, bookings, invoicing, delivery, accounting, website content, and the internal modules used by the REEBS stack.
 
 ## What Lives Here
 
@@ -85,12 +85,16 @@ pnpm --filter @faako/reebs-portal run test:e2e
 - Offline booking queue support lives in `src/pages/AdminBookings/offlineBookingQueue.js` and is wired from `src/pages/AdminBookings/AdminBookings.jsx`. Use it by opening Bookings and creating, editing, or changing status while offline; the action stays local as pending sync until the bookings API endpoint accepts it online. No environment variables, setup steps, migrations, schema changes, route changes, payment changes, receipt changes, or inventory-reservation logic changes are required.
 - The registry uses shared helpers from `@faako/config`; it has no required environment variables, setup steps, migrations, database impact, billing behavior, SaaS plan gating, or access-control enforcement changes.
 - Optional Dev ERP activity forwarding is server-side only. Set `DEV_ERP_ACTIVITY_WEBHOOK_URL` to Dev ERP's `/api/webhooks/app-activity` endpoint and `DEV_ERP_ACTIVITY_WEBHOOK_SECRET` to the matching Dev ERP `APP_ACTIVITY_WEBHOOK_SECRET` to forward minimal activity summaries from REEBS audit writes. Forwarded events do not include raw order payloads, payment payloads, offline queue contents, or secret values.
+- Railway deployment and alert events can be ingested into Audit Logs through the server-only `/api/webhooks/railway` endpoint. Set `RAILWAY_WEBHOOK_SECRET` on the REEBS API service and send the secret with `Authorization: Bearer <secret>`, `x-faako-webhook-secret`, `x-railway-webhook-secret`, `x-webhook-secret`, or `?secret=<secret>`. The legacy `/api/railwayEvents` endpoint remains available for older setup notes.
 - `AppUpdateNotice` from `@faako/ui` is mounted in the portal, store-mode, and public app shell paths. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh when a newer deployed bundle exists without interrupting active POS carts, bookings, stock adjustments, offline queues, or admin edits.
+- `/api/contact` now persists public planning briefs into CRM before sending the notification email. It upserts/links a customer, stores a `contactRequest`, creates customer activity rows for the received brief and follow-up task, applies IP/email window rate limiting, and returns a request reference to the public form.
+- `/api/contactRequests` is an authenticated CRM endpoint for listing requests and updating request status. The CRM customer detail modal shows planning requests and follow-up activity alongside orders and bookings, with inline status updates for planning requests. Email is now a notification path; the CRM record is the operational source of truth for contact-form follow-up.
 - Known limitation: the registry now drives navigation metadata, but route guards and backend permissions remain manual and unchanged. Database-backed module toggles, org-level module config, permissions integration, SaaS plan gating, and visual grouped navigation remain future work.
+- Known limitation: module enable/disable controls are not database-backed yet. Payment/receipt wording, receipt terms, and organization settings should move into authenticated settings/config endpoints gradually, with audit logs and backend enforcement, before admins rely on them for live operations.
 - Known limitation: shell placeholder support for offline/sync/notifications/org switching is structural only; REEBS production notification/search behavior remains app-owned.
 - Known limitation: offline POS support queues order creation, manual payment support queues order payment recording, inventory support queues stock adjustments, and Bookings support queues booking create/edit/status actions only. These flows do not create final receipt numbers offline, permanently deduct or reserve stock before server sync, update balances offline, bypass backend validation, or change successful online POS/payment/inventory/booking behavior. Offline booking creation currently requires an existing selected customer; creating a new customer still needs a connection. The Sync Review panel is visibility/recovery tooling; retry still relies on the existing app sync paths and server validation.
 - Known limitation: order payment receipts and invoice document receipts remain separate concepts; payment provider confirmation, refund handling, and receipt delivery should be reviewed before shared extraction.
-- Testing notes: verify sidebar and bottom-nav link sets, hidden-module filtering in registry adapters, disabled-module visual state, Finance ownership for `/admin/accounting`, `/admin/expenses`, and `/admin/invoicing`, Bookings ownership for `/admin/rentals` and `/admin/schedule`, Settings ownership for `/admin/advanced`, `/admin/website-template`, `/admin/inventory/products`, and `/admin/inventory/templates`, REEBS order currency display and payment method labels, receipt share draft copy/mailto/WhatsApp text, online/offline indicator visibility, Admin Workspace Offline Sync review counts/retry/cancel/mark-resolved controls, Store Mode local draft save/restore/clear behavior, queued offline POS save/sync/needs-review behavior, manual payment draft restore/clear behavior, queued offline manual payment save/sync/needs-review behavior, queued offline inventory adjustment save/sync/needs-review behavior, queued offline booking create/edit/status save/sync/needs-review behavior, unchanged online booking creation/editing/status behavior, driver/customer behavior, water access, shell frame spacing, and legacy targets such as `/admin/customers` before future registry wiring.
+- Testing notes: verify `/api/contact` creates/links CRM customers and contact requests, CRM customer detail shows planning requests/follow-up activity, sidebar and bottom-nav link sets, hidden-module filtering in registry adapters, disabled-module visual state, Finance ownership for `/admin/accounting`, `/admin/expenses`, and `/admin/invoicing`, Bookings ownership for `/admin/rentals` and `/admin/schedule`, Settings ownership for `/admin/advanced`, `/admin/website-template`, `/admin/inventory/products`, and `/admin/inventory/templates`, REEBS order currency display and payment method labels, receipt share draft copy/mailto/WhatsApp text, online/offline indicator visibility, Admin Workspace Offline Sync review counts/retry/cancel/mark-resolved controls, Store Mode local draft save/restore/clear behavior, queued offline POS save/sync/needs-review behavior, manual payment draft restore/clear behavior, queued offline manual payment save/sync/needs-review behavior, queued offline inventory adjustment save/sync/needs-review behavior, queued offline booking create/edit/status save/sync/needs-review behavior, unchanged online booking creation/editing/status behavior, driver/customer behavior, water access, shell frame spacing, and legacy targets such as `/admin/customers` before future registry wiring.
 
 ## Current Access Model
 
@@ -174,6 +178,39 @@ The API service should run the Express adapter from the monorepo root with `RAIL
 - Workspace start script: `pnpm --filter @faako/reebs-portal run server:with-migrate`
 - Public API base: `https://api.reebspartythemes.com`
 - If Railway/Postgres returns `SELF_SIGNED_CERT_IN_CHAIN`, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` on the API service or provide `DATABASE_SSL_CA`.
+
+### Railway Audit Log Webhook
+
+Set `RAILWAY_WEBHOOK_SECRET` on the REEBS API Railway service, then configure the Railway project webhook to POST to:
+
+```text
+https://api.reebspartythemes.com/api/webhooks/railway
+```
+
+Prefer a secret header over a query string:
+
+```text
+Authorization: Bearer <RAILWAY_WEBHOOK_SECRET>
+```
+
+If the webhook sender cannot set `Authorization`, use one of:
+
+```text
+x-railway-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
+x-faako-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
+x-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
+```
+
+Manual smoke test:
+
+```bash
+curl -i -X POST "https://api.reebspartythemes.com/api/webhooks/railway" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RAILWAY_WEBHOOK_SECRET" \
+  --data '{"id":"manual-railway-test-001","type":"deployment","status":"success","project":{"name":"REEBS"},"service":{"name":"reebs-api"}}'
+```
+
+Expected response: `202 {"ok":true}`. Open Portal > Audit Logs and filter Source to Railway; the event should appear as an incident. Reusing the same `id` is intentionally deduped by `externalRef`, so change the test id for repeat smoke tests.
 
 ## More Detail
 

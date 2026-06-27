@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import "./AdminAccounting.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faWandMagicSparkles } from "/src/icons/iconSet";
@@ -1583,18 +1583,27 @@ function AdminAccounting() {
                   fetchData(windowKey);
                 }}>
                   <AppIcon icon={faRotateRight} />
+                  Refresh
                 </button>
               </div>
             </div>
           </div>
         </section>
 
-        {loading && <p className="accounting-status">Loading financial metrics…</p>}
+        {loading && (
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading financial metrics"
+            message="Reconciling orders, invoices, expenses, and cash flow."
+            variant="dashboard"
+          />
+        )}
         {!loading && isFetching && data && (
-          <p className="accounting-status">Refreshing calculations…</p>
+          <InlineNotice tone="loading" title="Refreshing calculations" message="Updating accounting totals." compact />
         )}
         {!loading && !error && !accountingConfigLoaded && (
-          <p className="accounting-status">Loading saved accounting settings…</p>
+          <InlineNotice tone="loading" title="Loading saved accounting settings" compact />
         )}
         {!loading && error && (
           <div className="accounting-inline">
@@ -1702,7 +1711,13 @@ function AdminAccounting() {
               </div>
 
               {importLoading && !importLoaded ? (
-                <p className="accounting-muted">Loading historical import batches…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading historical batches"
+                  message="Fetching imported sales and reconciliation rows."
+                  variant="dashboard"
+                />
               ) : selectedHistoricalYearImports.length ? (
                 <div className="accounting-table-shell admin-table-scroll" style={{ marginTop: "0.95rem" }}>
                   <table>
@@ -1793,9 +1808,15 @@ function AdminAccounting() {
                   </div>
                 </div>
                 {loading && !statementSummary ? (
-                  <p className="accounting-muted">Reconciling ledgers…</p>
+                  <AnimatedLoadingState
+                    compact
+                    className="admin-module-loading"
+                    title="Reconciling ledgers"
+                    message="Calculating revenue, COGS, expenses, and net profit."
+                    variant="dashboard"
+                  />
                 ) : error && !statementSummary ? (
-                  <p className="accounting-error">{error}</p>
+                  <InlineNotice tone="error" title="Financials unavailable" message={error} compact />
                 ) : statementSummary ? (
                   <div className="accounting-pnl">
                     <div className="accounting-pnl-row">
@@ -1855,9 +1876,15 @@ function AdminAccounting() {
                   </div>
                 </div>
                 {listError ? (
-                  <p className="accounting-error">{listError}</p>
+                  <InlineNotice tone="error" title="Activity unavailable" message={listError} compact />
                 ) : listLoading && !recentLinkedRows.length ? (
-                  <p className="accounting-muted">Loading linked activity…</p>
+                  <AnimatedLoadingState
+                    compact
+                    className="admin-module-loading"
+                    title="Loading linked activity"
+                    message="Fetching receipts, invoices, and expenses."
+                    variant="dashboard"
+                  />
                 ) : !listLoaded ? (
                   <p className="accounting-muted">Open the Activity tab to load detailed receipts, invoices, and expenses for this window.</p>
                 ) : recentLinkedRows.length === 0 ? (
@@ -2089,10 +2116,16 @@ function AdminAccounting() {
                     <p className="accounting-panel-sub">For {data.windowLabel || ""}</p>
                   </div>
                 </div>
-                {loading && !statementSummary ? (
-                  <p className="accounting-muted">Reconciling ledgers…</p>
+              {loading && !statementSummary ? (
+                  <AnimatedLoadingState
+                    compact
+                    className="admin-module-loading"
+                    title="Reconciling ledgers"
+                    message="Calculating sales, COGS, and expense movement."
+                    variant="dashboard"
+                  />
                 ) : error && !statementSummary ? (
-                  <p className="accounting-error">{error}</p>
+                  <InlineNotice tone="error" title="Financials unavailable" message={error} compact />
                 ) : statementSummary ? (
                   <div className="accounting-pnl">
                     <div className="accounting-pnl-row">
@@ -2487,9 +2520,15 @@ function AdminAccounting() {
                 <h3>Linked activity</h3>
                 <span>{data.windowLabel || ""}</span>
               </div>
-              {listError && <p className="accounting-error">{listError}</p>}
+              {listError && <InlineNotice tone="error" title="Activity unavailable" message={listError} compact />}
               {listLoading ? (
-                <p className="accounting-status">Loading receipts, invoices, and expenses…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading linked activity"
+                  message="Fetching receipts, invoices, and expenses."
+                  variant="dashboard"
+                />
               ) : (
                 <div className="admin-table-scroll">
                   <table>
@@ -2860,22 +2899,26 @@ function AdminAccounting() {
                       <input type="text" value={coaNewForm.accountName}
                         onChange={(e) => setCoaNewForm((p) => ({ ...p, accountName: e.target.value }))} />
                     </label>
-                    <label className="accounting-field">
-                      Type
-                      <select value={coaNewForm.accountType} onChange={(e) => {
+                    <SelectField
+                      fieldClassName="accounting-field"
+                      label="Type"
+                      value={coaNewForm.accountType}
+                      onChange={(e) => {
                         const t = e.target.value;
                         setCoaNewForm((p) => ({ ...p, accountType: t, normalBalance: NORMAL_BALANCE_FOR[t] || "DEBIT" }));
-                      }}>
+                      }}
+                    >
                         {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </label>
-                    <label className="accounting-field">
-                      Normal balance
-                      <select value={coaNewForm.normalBalance} onChange={(e) => setCoaNewForm((p) => ({ ...p, normalBalance: e.target.value }))}>
+                    </SelectField>
+                    <SelectField
+                      fieldClassName="accounting-field"
+                      label="Normal balance"
+                      value={coaNewForm.normalBalance}
+                      onChange={(e) => setCoaNewForm((p) => ({ ...p, normalBalance: e.target.value }))}
+                    >
                         <option value="DEBIT">DEBIT</option>
                         <option value="CREDIT">CREDIT</option>
-                      </select>
-                    </label>
+                    </SelectField>
                   </div>
                   {coaFormError && <InlineNotice tone="error" title="Error" message={coaFormError} compact />}
                   <button type="button" className="accounting-secondary" onClick={createCoaAccount} disabled={coaFormSaving}>
@@ -2887,7 +2930,13 @@ function AdminAccounting() {
               {coaError && <InlineNotice tone="error" title="Error" message={coaError} compact />}
 
               {coaLoading && !coaAccounts.length ? (
-                <p className="accounting-muted">Loading accounts…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading accounts"
+                  message="Fetching chart of accounts."
+                  variant="dashboard"
+                />
               ) : (
                 ACCOUNT_TYPES.map((type) => {
                   const group = coaAccounts.filter((a) => a.accountType === type);
@@ -2953,14 +3002,16 @@ function AdminAccounting() {
                   <p className="accounting-panel-sub">{journals.length} journals loaded</p>
                 </div>
                 <div className="accounting-panel-actions">
-                  <select
+                  <SelectField
+                    fieldClassName="accounting-filter-field"
+                    ariaLabel="Journal status"
                     value={journalsFilter}
                     onChange={(e) => setJournalsFilter(e.target.value)}
                   >
                     <option value="all">All</option>
                     <option value="draft">Draft</option>
                     <option value="posted">Posted</option>
-                  </select>
+                  </SelectField>
                   <button type="button" className="accounting-secondary" onClick={fetchJournals} disabled={journalsLoading}>
                     {journalsLoading ? "Loading…" : "Refresh"}
                   </button>
@@ -2970,7 +3021,13 @@ function AdminAccounting() {
               {journalsError && <InlineNotice tone="error" title="Error" message={journalsError} compact />}
 
               {journalsLoading && !journals.length ? (
-                <p className="accounting-muted">Loading journals…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading journals"
+                  message="Fetching journal entries."
+                  variant="dashboard"
+                />
               ) : (
                 <div className="accounting-table-shell admin-table-scroll">
                   <table>
@@ -3043,7 +3100,13 @@ function AdminAccounting() {
                                       </tbody>
                                     </table>
                                   ) : (
-                                    <p className="accounting-muted" style={{ padding: "0.5rem 0" }}>Loading lines…</p>
+                                    <AnimatedLoadingState
+                                      compact
+                                      className="admin-module-loading"
+                                      title="Loading lines"
+                                      message="Fetching journal line detail."
+                                      variant="detail"
+                                    />
                                   )}
                                 </td>
                               </tr>
@@ -3153,10 +3216,12 @@ function AdminAccounting() {
                       VAT paid to GRA
                       <input type="number" inputMode="decimal" value={importForm.vatPayablePaid} onChange={updateImportField("vatPayablePaid")} />
                     </label>
-                    <label className="accounting-field">
-                      GRA payment date
-                      <input type="date" value={importForm.graPaymentDate} onChange={updateImportField("graPaymentDate")} />
-                    </label>
+                    <DateField
+                      fieldClassName="accounting-field"
+                      label="GRA payment date"
+                      value={importForm.graPaymentDate}
+                      onChange={updateImportField("graPaymentDate")}
+                    />
                     <label className="accounting-field">
                       COGS
                       <input type="number" inputMode="decimal" value={importForm.cogsPesewas} onChange={updateImportField("cogsPesewas")} />
@@ -3258,7 +3323,13 @@ function AdminAccounting() {
               {importError && <InlineNotice tone="error" title="Error" message={importError} compact />}
 
               {importLoading && !importBatches.length ? (
-                <p className="accounting-muted">Loading historical import batches…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading historical batches"
+                  message="Fetching imported sales and reconciliation rows."
+                  variant="dashboard"
+                />
               ) : importBatches.length ? (
                 <div className="acct-import-grid">
                   {importBatches.map((batch) => (
@@ -3319,14 +3390,12 @@ function AdminAccounting() {
                   <p className="accounting-panel-sub">All posted journal entries up to and including the selected date.</p>
                 </div>
                 <div className="accounting-panel-actions">
-                  <label className="accounting-field">
-                    As at date
-                    <input
-                      type="date"
-                      value={tbAsOf}
-                      onChange={(e) => setTbAsOf(e.target.value)}
-                    />
-                  </label>
+                  <DateField
+                    fieldClassName="accounting-field accounting-filter-field"
+                    label="As at date"
+                    value={tbAsOf}
+                    onChange={(e) => setTbAsOf(e.target.value)}
+                  />
                   <button type="button" className="accounting-secondary" onClick={() => fetchTrialBalance(tbAsOf)} disabled={tbLoading}>
                     {tbLoading ? "Loading…" : "Load"}
                   </button>
@@ -3336,7 +3405,13 @@ function AdminAccounting() {
               {tbError && <InlineNotice tone="error" title="Error" message={tbError} compact />}
 
               {tbLoading && !trialBalance ? (
-                <p className="accounting-muted">Loading trial balance…</p>
+                <AnimatedLoadingState
+                  compact
+                  className="admin-module-loading"
+                  title="Loading trial balance"
+                  message="Calculating account balances."
+                  variant="dashboard"
+                />
               ) : trialBalance ? (
                 <>
                   <div

@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./AdminRentals.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import {
@@ -154,8 +153,10 @@ const getDocumentSourceLabel = (document) => {
 
 const getRentalHealth = (item, openMaintenanceCount = 0) => {
   if (openMaintenanceCount > 0) return "maintenance";
+  const statusText = normalizeStatus(item?.availability || item?.status || item?.condition || "");
+  if (/\b(maintenance|repair|broken|damaged|not working)\b/.test(statusText)) return "maintenance";
+  if (/\b(unavailable|out of service|offline|inactive|retired)\b/.test(statusText)) return "offline";
   if (item?.status === false || item?.isActive === false) return "offline";
-  if (getQuantity(item) <= 0) return "out";
   return "ready";
 };
 
@@ -626,7 +627,7 @@ function AdminRentals() {
       return;
     }
     if (!Number.isFinite(stockValue) || stockValue < 0) {
-      setDetailError("Stock must be zero or higher.");
+      setDetailError("Tracked units must be zero or higher.");
       return;
     }
     if (detailForm.reorderLevel !== "" && (!Number.isFinite(reorderLevelValue) || reorderLevelValue < 0)) {
@@ -856,8 +857,20 @@ function AdminRentals() {
           actions={headerActions}
         />
 
-        {error ? <InlineNotice tone="error" message={error} compact /> : null}
-        {notice ? <InlineNotice tone={noticeTone} message={notice} compact /> : null}
+        {error ? (
+          <ERPFormNotice tone="danger" title="Rentals unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        ) : null}
+        {notice ? (
+          <ERPFormNotice
+            tone={noticeTone === "error" ? "danger" : noticeTone}
+            title={noticeTone === "success" ? "Rental updated" : "Rental notice"}
+            onDismiss={() => setNotice("")}
+          >
+            {notice}
+          </ERPFormNotice>
+        ) : null}
 
         <section className="rentals-summary-grid">
           <article className="bubble-card rentals-summary-card">
@@ -868,7 +881,7 @@ function AdminRentals() {
           <article className="bubble-card rentals-summary-card">
             <p className="rentals-summary-label">Units on hand</p>
             <h3 className="rentals-summary-value">{globalSummary.totalUnits}</h3>
-            <p className="rentals-summary-sub">Current rental stock</p>
+            <p className="rentals-summary-sub">Tracked rental units</p>
           </article>
           <article className="bubble-card rentals-summary-card">
             <p className="rentals-summary-label">Upcoming bookings</p>
@@ -940,7 +953,7 @@ function AdminRentals() {
                   <th className="rentals-col-name">Item</th>
                   <th className="rentals-col-category">Category</th>
                   <th className="rentals-col-rate">Rate</th>
-                  <th className="rentals-col-stock">Stock</th>
+                  <th className="rentals-col-stock">Units</th>
                   <th className="rentals-col-bookings">Upcoming</th>
                   <th className="rentals-col-maintenance">Maint.</th>
                   <th className="rentals-col-documents">Docs</th>
@@ -951,7 +964,13 @@ function AdminRentals() {
                 {loading ? (
                   <tr>
                     <td colSpan={10} className="rentals-empty">
-                      Loading rental items...
+                      <AnimatedLoadingState
+                        compact
+                        className="rentals-loading-state admin-module-loading"
+                        title="Loading rental items"
+                        message="Checking availability, bookings, and maintenance."
+                        variant="dashboard"
+                      />
                     </td>
                   </tr>
                 ) : filteredRentals.length ? (
@@ -1103,12 +1122,16 @@ function AdminRentals() {
                 </div>
               </header>
 
-              {detailError ? <InlineNotice tone="error" message={detailError} compact /> : null}
+              {detailError ? (
+                <ERPFormNotice tone="danger" title="Rental not saved" onDismiss={() => setDetailError("")}>
+                  {detailError}
+                </ERPFormNotice>
+              ) : null}
 
               <div className="rentals-detail-view rentals-lightbox-body">
             <section className="rentals-detail-summary-grid">
               <article className="bubble-card rentals-summary-card">
-                <p className="rentals-summary-label">Stock</p>
+                <p className="rentals-summary-label">Units</p>
                 <h3 className="rentals-summary-value">{toNumber(detailForm.stock, 0)}</h3>
                 <p className="rentals-summary-sub">Units ready for rental</p>
               </article>
@@ -1192,7 +1215,7 @@ function AdminRentals() {
                     </label>
 
                     <label className="rentals-field">
-                      <span>Stock</span>
+                      <span>Tracked units</span>
                       <input
                         type="number"
                         min="0"

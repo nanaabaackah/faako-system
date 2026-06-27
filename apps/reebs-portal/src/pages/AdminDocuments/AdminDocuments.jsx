@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminDocuments.css";
 import { Link } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -24,6 +24,13 @@ const COMPANY = {
   email: "info@reebs.com",
   logo: "/imgs/brand/reebs_logo.png",
 };
+
+const DOCUMENT_TAB_OPTIONS = [
+  { value: "all", label: "All documents" },
+  { value: "receipts", label: "Receipts" },
+  { value: "invoices", label: "Invoices" },
+  { value: "uploads", label: "Uploads" },
+];
 
 const formatCurrency = (amount) => {
   try {
@@ -563,20 +570,14 @@ function AdminDocuments() {
         />
 
         <section className="documents-toolbar">
-          <div className="documents-tabs" role="tablist" aria-label="Document filter">
-            <button type="button" className={activeTab === "all" ? "is-active" : ""} onClick={() => setActiveTab("all")}>
-              All documents
-            </button>
-            <button type="button" className={activeTab === "receipts" ? "is-active" : ""} onClick={() => setActiveTab("receipts")}>
-              Receipts
-            </button>
-            <button type="button" className={activeTab === "invoices" ? "is-active" : ""} onClick={() => setActiveTab("invoices")}>
-              Invoices
-            </button>
-            <button type="button" className={activeTab === "uploads" ? "is-active" : ""} onClick={() => setActiveTab("uploads")}>
-              Uploads
-            </button>
-          </div>
+          <SelectField
+            fieldClassName="documents-tab-field"
+            label="Document type"
+            value={activeTab}
+            onChangeValue={(nextValue) => setActiveTab(String(nextValue))}
+            options={DOCUMENT_TAB_OPTIONS}
+            ariaLabel="Document filter"
+          />
           <SearchField
             className="documents-search"
             placeholder="Search by customer, reference, or file..."
@@ -601,9 +602,17 @@ function AdminDocuments() {
               <span>{documentsStats.visibleCount} showing</span>
             </div>
             {loading ? (
-              <p className="documents-muted">Loading documents...</p>
+              <AnimatedLoadingState
+                compact
+                className="admin-module-loading"
+                title="Loading documents"
+                message="Collecting receipts, invoices, and uploads."
+                variant="dashboard"
+              />
             ) : error ? (
-              <p className="documents-error">{error}</p>
+              <ERPFormNotice tone="danger" title="Documents unavailable" onDismiss={() => setError("")}>
+                {error}
+              </ERPFormNotice>
             ) : filteredDocs.length === 0 ? (
               <p className="documents-muted">No documents match this filter.</p>
             ) : (
@@ -693,7 +702,11 @@ function AdminDocuments() {
                   />
                   {uploadForm.file ? <span>{uploadForm.file.name}</span> : null}
                 </label>
-                {uploadError && <p className="documents-error">{uploadError}</p>}
+                {uploadError && (
+                  <ERPFormNotice tone="danger" title="Upload failed" onDismiss={() => setUploadError("")}>
+                    {uploadError}
+                  </ERPFormNotice>
+                )}
                 <button type="submit" className="documents-primary" disabled={uploading}>
                   <AppIcon icon={faCloudArrowUp} /> {uploading ? "Uploading..." : "Upload document"}
                 </button>

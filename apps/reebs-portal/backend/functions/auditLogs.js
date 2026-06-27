@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { listAuditLogs } from "./_shared/auditLog.js";
+import { getRailwayWebhookDiagnostics, listAuditLogs } from "./_shared/auditLog.js";
 import { requireAdmin, respond } from "./_shared/internalApi.js";
 
 const METHODS = "GET,OPTIONS";
@@ -37,6 +37,7 @@ export async function handler(event = {}) {
       q: event.queryStringParameters?.q,
       take: event.queryStringParameters?.take,
     });
+    const railwayEntries = entries.filter((entry) => entry.source === "railway");
 
     const summary = {
       total: entries.length,
@@ -60,6 +61,12 @@ export async function handler(event = {}) {
           category: String(event.queryStringParameters?.category || ""),
           severity: String(event.queryStringParameters?.severity || ""),
           q: String(event.queryStringParameters?.q || ""),
+        },
+        integrations: {
+          railwayWebhook: getRailwayWebhookDiagnostics({
+            currentWindowEvents: railwayEntries.length,
+            latestEvent: railwayEntries[0] || null,
+          }),
         },
       },
       { methods: METHODS }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DateField, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, DateField, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminMarketing.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -322,8 +322,16 @@ function AdminMarketing() {
           </div>
         </section>
 
-        {error && <p className="marketing-error">{error}</p>}
-        {status && <p className="marketing-success">{status}</p>}
+        {error && (
+          <ERPFormNotice tone="danger" title="Marketing unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
+        {status && (
+          <ERPFormNotice tone="success" title="Marketing updated" onDismiss={() => setStatus("")}>
+            {status}
+          </ERPFormNotice>
+        )}
 
         <div className="marketing-grid">
           <section className="admin-card marketing-panel">
@@ -455,6 +463,19 @@ function AdminMarketing() {
                   </tr>
                 </thead>
                 <tbody>
+                  {loading && (
+                    <tr>
+                      <td colSpan={9} className="marketing-empty">
+                        <AnimatedLoadingState
+                          compact
+                          className="admin-module-loading"
+                          title="Loading campaigns"
+                          message="Preparing promotions, segments, and usage counts."
+                          variant="dashboard"
+                        />
+                      </td>
+                    </tr>
+                  )}
                   {!loading && discounts.length === 0 && (
                     <tr>
                       <td colSpan={9} className="marketing-empty">

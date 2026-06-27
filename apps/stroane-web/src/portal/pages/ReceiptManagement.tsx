@@ -22,6 +22,7 @@ import {
 } from "@faako/ui";
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
+import { hasPortalPermission } from "../api/adminSession";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import { adminOrdersApi, type AdminOrder } from "../api/adminOrders";
 import {
@@ -102,7 +103,12 @@ const saveReceiptHtml = (receipt: AdminReceipt, html: string) => {
 
 const ReceiptManagement: React.FC = () => {
   const { session } = useAdminPortal();
-  const canManageReceipts = String(session?.role || "").toUpperCase() === "ADMIN";
+  const canManageReceipts =
+    hasPortalPermission(session, "receipts", "create") ||
+    hasPortalPermission(session, "receipts", "edit") ||
+    hasPortalPermission(session, "receipts", "delete") ||
+    hasPortalPermission(session, "receipts", "archive") ||
+    hasPortalPermission(session, "receipts", "manage");
   const [receipts, setReceipts] = useState<AdminReceipt[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [summary, setSummary] = useState<AdminReceiptSummary>(EMPTY_SUMMARY);

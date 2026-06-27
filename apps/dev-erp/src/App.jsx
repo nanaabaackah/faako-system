@@ -85,6 +85,7 @@ const GOOGLE_ANALYTICS_ENABLED =
 const RouteFallback = () => (
   <AnimatedLoadingState
     page
+    variant="dashboard"
     title="Loading Dev ERP"
     message="Preparing the next workspace view."
   />

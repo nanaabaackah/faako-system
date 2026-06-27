@@ -114,13 +114,21 @@ function ContactForm() {
         },
         body: JSON.stringify(payload),
       });
+      const responseBody = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error("We could not send your planning brief right now. Please try again or contact us on WhatsApp.");
+        throw new Error(
+          responseBody?.error
+            || "We could not send your planning brief right now. Please try again or contact us on WhatsApp."
+        );
       }
 
       setFormValues(createInitialValues(prefillEmail));
-      setSubmitSuccess("Your planning brief was sent. We will reply within one business day.");
+      setSubmitSuccess(
+        responseBody?.requestId
+          ? `Your planning brief was saved as request #${responseBody.requestId}. We will reply within one business day.`
+          : responseBody?.message || "Your planning brief was sent. We will reply within one business day."
+      );
       clearExpiringDraft(CONTACT_DRAFT_KEY);
     } catch (error) {
       setSubmitError(error?.message || "We could not send your planning brief right now.");

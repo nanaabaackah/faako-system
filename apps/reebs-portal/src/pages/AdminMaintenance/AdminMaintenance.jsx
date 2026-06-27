@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./AdminMaintenance.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faWrench, faPlus, faRotateRight } from "/src/icons/iconSet";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
@@ -237,8 +237,16 @@ function AdminMaintenance() {
           }
         />
 
-        {error && <p className="maintenance-error">{error}</p>}
-        {status && <p className="maintenance-success">{status}</p>}
+        {error && (
+          <ERPFormNotice tone="danger" title="Maintenance unavailable" onDismiss={() => setError("")}>
+            {error}
+          </ERPFormNotice>
+        )}
+        {status && (
+          <ERPFormNotice tone="success" title="Maintenance updated" onDismiss={() => setStatus("")}>
+            {status}
+          </ERPFormNotice>
+        )}
 
         <section className="maintenance-kpis">
           <div className="maintenance-kpi">
@@ -380,7 +388,15 @@ function AdminMaintenance() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="maintenance-empty">Loading maintenance logs...</td>
+                      <td colSpan={7} className="maintenance-empty">
+                        <AnimatedLoadingState
+                          compact
+                          className="admin-module-loading"
+                          title="Loading maintenance logs"
+                          message="Checking asset health and repair status."
+                          variant="dashboard"
+                        />
+                      </td>
                     </tr>
                   ) : filteredLogs.length === 0 ? (
                     <tr>

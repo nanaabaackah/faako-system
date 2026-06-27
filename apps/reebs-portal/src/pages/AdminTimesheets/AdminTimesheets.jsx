@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatedLoadingState, ERPFormNotice } from "@faako/ui";
 import "./AdminTimesheets.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -233,9 +234,17 @@ function AdminTimesheets() {
             </div>
           </div>
           {loading ? (
-            <p className="timesheet-muted">Loading shifts...</p>
+            <AnimatedLoadingState
+              compact
+              className="glass-card admin-module-loading"
+              title="Loading shifts"
+              message="Fetching attendance history and active clock state."
+              variant="dashboard"
+            />
           ) : error ? (
-            <p className="timesheet-error">{error}</p>
+            <ERPFormNotice tone="danger" title="Timesheets unavailable" onDismiss={() => setError("")}>
+              {error}
+            </ERPFormNotice>
           ) : history.length === 0 ? (
             <p className="timesheet-muted">No shifts logged yet.</p>
           ) : (

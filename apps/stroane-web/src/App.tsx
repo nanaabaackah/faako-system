@@ -78,6 +78,7 @@ const App: React.FC = () => {
         fallback={
           <AnimatedLoadingState
             page
+            variant="storefront"
             title="Loading Stroane"
             message="Preparing the next view."
           />

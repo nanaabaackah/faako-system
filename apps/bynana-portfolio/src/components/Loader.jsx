@@ -8,6 +8,7 @@ function Loader({ active = false }) {
     <AnimatedLoadingState
       page
       overlay
+      variant="portfolio"
       title="Loading By Nana"
       message="Preparing the next view."
     />

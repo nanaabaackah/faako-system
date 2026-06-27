@@ -41,19 +41,24 @@ export async function handler(event) {
     `);
     const columns = new Set(columnsResult.rows.map((row) => row.column_name));
     const hasColumn = (name) => columns.has(name);
-    const selectExpr = (columnName, presentExpr, fallbackExpr = `NULL AS "${columnName}"`) =>
+    const machineColumn = (columnName) => `m."${columnName}"`;
+    const selectExpr = (
+      columnName,
+      presentExpr = `${machineColumn(columnName)} AS "${columnName}"`,
+      fallbackExpr = `NULL AS "${columnName}"`
+    ) =>
       hasColumn(columnName) ? presentExpr : fallbackExpr;
     const availabilityExpr = hasColumn("availability")
-      ? "availability"
+      ? 'm."availability" AS availability'
       : hasColumn("status")
-        ? 'status AS availability'
+        ? 'm."status" AS availability'
         : "NULL AS availability";
     const imageExpr = hasColumn("image")
-      ? 'COALESCE(NULLIF(image, \'\'), NULLIF(p."imageUrl", \'\')) AS image'
+      ? 'COALESCE(NULLIF(m."image", \'\'), NULLIF(p."imageUrl", \'\')) AS image'
       : 'p."imageUrl" AS image';
     const productJoin = hasColumn("productId")
       ? `LEFT JOIN "product" p
-           ON p.id = "productId"${hasColumn("organizationId") ? ' AND p."organizationId" = "organizationId"' : ""}`
+           ON p.id = m."productId"${hasColumn("organizationId") ? ' AND p."organizationId" = m."organizationId"' : ""}`
       : 'LEFT JOIN "product" p ON 1 = 0';
     if (!hasColumn("organizationId")) {
       return {
@@ -63,30 +68,30 @@ export async function handler(event) {
       };
     }
     const orderBy = hasColumn("id")
-      ? "ORDER BY id ASC"
+      ? 'ORDER BY m."id" ASC'
       : hasColumn("name")
-        ? "ORDER BY name ASC"
+        ? 'ORDER BY m."name" ASC'
         : "";
 
     const result = await client.query(`
       SELECT
-        ${selectExpr("id", "id", "NULL AS id")},
-        ${selectExpr("name", "name", "NULL AS name")},
-        ${selectExpr("productId", '"productId"')},
-        ${selectExpr("quantity", "quantity")},
-        ${selectExpr("price", "price")},
-        ${selectExpr("rate", "rate")},
+        ${selectExpr("id")},
+        ${selectExpr("name")},
+        ${selectExpr("productId")},
+        ${selectExpr("quantity")},
+        ${selectExpr("price")},
+        ${selectExpr("rate")},
         ${availabilityExpr},
-        ${selectExpr("category", "category")},
+        ${selectExpr("category")},
         ${imageExpr},
-        ${selectExpr("page", "page")},
-        ${selectExpr("power", "power")},
-        ${selectExpr("footprint", "footprint")},
-        ${selectExpr("output", "output")},
-        ${selectExpr("notes", "notes")}
-      FROM "machines"
+        ${selectExpr("page")},
+        ${selectExpr("power")},
+        ${selectExpr("footprint")},
+        ${selectExpr("output")},
+        ${selectExpr("notes")}
+      FROM "machines" m
       ${productJoin}
-      WHERE "organizationId" = $1
+      WHERE m."organizationId" = $1
       ${orderBy}
     `, [organizationId]);
 

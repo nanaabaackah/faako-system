@@ -41,7 +41,7 @@ const projectHighlights = [
   {
     name: 'Kids Party Shop + Rental Portal ERP',
     stack: 'React/Vite · Express API · PostgreSQL · Prisma',
-    summary: 'Split public storefront and admin portal/backend for POS orders, bookings, inventory, finance, fulfillment, and staff operations.',
+    summary: 'Split public storefront and admin portal/backend for CRM contact requests, POS orders, bookings, inventory, finance, fulfillment, and staff operations.',
     image: '/imgs/projects/dashboard-case.png',
     href: '/projects/kids-party-shop-rental',
   },
@@ -56,7 +56,7 @@ const projectHighlights = [
   {
     name: 'Development Operations System',
     stack: 'React · Express · Prisma · PostgreSQL',
-    summary: 'Internal Dev ERP portal covering rent, accounting, invoicing, appointments, reporting, user access, alerts, and system health.',
+    summary: 'Internal Dev ERP portal covering registry-driven modules, proposals, rent, accounting, invoicing, appointments, reporting, user access, alerts, and system health.',
     image: '/imgs/10.png',
     href: '/projects/development-tracker',
   },

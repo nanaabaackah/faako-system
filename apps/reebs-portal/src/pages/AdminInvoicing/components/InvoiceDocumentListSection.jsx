@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import TablePagination from "../../../components/TablePagination/TablePagination";
 import { AppIcon } from "/src/components/Icon/Icon";
@@ -34,6 +34,7 @@ function InvoiceDocumentListSection({
 }) {
   const DocumentPill = DocumentPillComponent;
   const [page, setPage] = useState(0);
+  const [dismissedWorkspaceError, setDismissedWorkspaceError] = useState("");
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(visibleEntries.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
@@ -64,6 +65,12 @@ function InvoiceDocumentListSection({
   useEffect(() => {
     setPage(0);
   }, [visibleEntries.length]);
+
+  useEffect(() => {
+    setDismissedWorkspaceError("");
+  }, [workspaceError]);
+
+  const showWorkspaceError = workspaceError && dismissedWorkspaceError !== workspaceError;
 
   return (
     <>
@@ -127,9 +134,21 @@ function InvoiceDocumentListSection({
 
       <section className="invoice-hub-table" aria-label="Invoices and receipts">
         {ordersLoading || bookingsLoading || documentsLoading ? (
-          <p className="invoicing-muted">Loading documents...</p>
-        ) : workspaceError && !visibleEntries.length ? (
-          <p className="invoicing-error">{workspaceError}</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading documents"
+            message="Collecting receipts, invoices, and source records."
+            variant="dashboard"
+          />
+        ) : showWorkspaceError && !visibleEntries.length ? (
+          <ERPFormNotice
+            tone="danger"
+            title="Documents unavailable"
+            onDismiss={() => setDismissedWorkspaceError(workspaceError)}
+          >
+            {workspaceError}
+          </ERPFormNotice>
         ) : visibleEntries.length === 0 ? (
           <p className="invoicing-muted">No documents match this view.</p>
         ) : (

@@ -7,7 +7,7 @@ export default function CustomerArchiveButton({
   onArchive,
   isRemoving,
   className = "",
-  showLabel = false,
+  showLabel = true,
 }) {
   return (
     <button
@@ -22,7 +22,7 @@ export default function CustomerArchiveButton({
       title={`Archive ${customer.name || "customer"}`}
     >
       <AppIcon icon={faBoxArchive} />
-      {showLabel ? (isRemoving ? "Archiving..." : "Archive") : <span className="sr-only">Archive</span>}
+      <span>{showLabel ? (isRemoving ? "Archiving..." : "Archive") : "Archive"}</span>
     </button>
   );
 }

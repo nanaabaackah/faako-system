@@ -111,11 +111,6 @@ function About() {
                             We pair modern decor with dependable logistics so you can show up, smile, and soak
                             in every moment.
                         </p>
-                        <div className="about-tags" aria-label="What you can expect from us">
-                            {ABOUT_HERO_BADGES.map((item) => (
-                                <span key={item} className="about-pill">{item}</span>
-                            ))}
-                        </div>
                         <div className="hero-ctas" aria-label="About page actions">
                             <Link className="hero-btn hero-btn-primary" to="/Rentals">Browse rentals</Link>
                             <Link className="hero-btn hero-btn-ghost" to="/Contact">Plan with us</Link>
@@ -167,7 +162,7 @@ function About() {
                         <h2 id="mission-heading">Our mission & promise</h2>
                     </div>
                     <div className="about-grid">
-                        <div className="about-card glass-card">
+                        <div className="about-card bubble-card">
                             <h3>Memorable without the mayhem</h3>
                             <p>
                                 We design parties that feel intentional and immersive, then back them with
@@ -180,7 +175,7 @@ function About() {
                                 ))}
                             </ul>
                         </div>
-                        <div className="about-card glass-card about-highlight">
+                        <div className="about-card bubble-card about-highlight">
                             <h3>Local roots. Wide reach.</h3>
                             <p>
                                 We call Ghana home and proudly serve families, schools, and brands across
@@ -202,7 +197,7 @@ function About() {
                     </div>
                     <ul className="about-values-grid">
                         {ABOUT_VALUES.map((item) => (
-                            <li key={item.title} className="about-card glass-card">
+                            <li key={item.title} className="about-card bubble-card">
                                 <h3>{item.title}</h3>
                                 <p>{item.copy}</p>
                             </li>
@@ -221,7 +216,7 @@ function About() {
                             Call us
                         </a>
                         <a
-                            href="https://wa.me/233244238419"
+                            href="https://wa.me/233244781819"
                             className="cta-chip"
                             target="_blank"
                             rel="noopener noreferrer"

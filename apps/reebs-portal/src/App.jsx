@@ -1,8 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef } from "react";
-import { Helmet } from "react-helmet";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppBottomBar, AppUpdateNotice, ErpPageContent, ErpShellFrame, GoogleAnalyticsRouteTracker } from "@faako/ui";
-import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
+import { OfflineStatusBadge } from "@faako/offline-sync";
 import { getErpPageTitle } from "@faako/utils";
 import AuthProvider, { useAuth } from "./components/AuthContext/AuthContext";
 import { CartProvider } from "./components/CartContext/CartContext";
@@ -13,6 +12,7 @@ import SiteLoader from "./components/SiteLoader/SiteLoader";
 import Navbar from "./components/Navbar/Navbar";
 import CartOverlay from "./components/CartOverlay/CartOverlay";
 import PartyConfetti from "./components/PartyConfetti/PartyConfetti";
+import DocumentHead from "./components/DocumentHead/DocumentHead";
 import shellConfig from "./config/erpShell.js";
 import {
   ADMIN_PREFERENCES_CHANGE_EVENT,
@@ -76,9 +76,9 @@ const AdminInventoryTemplates = lazy(() => import("./pages/AdminInventorySetting
 function RouteFallback() {
   return (
     <SiteLoader
-      compact
       label="Loading page"
       sublabel="Setting up your portal view."
+      variant="portal"
     />
   );
 }
@@ -166,7 +166,9 @@ function AppRoutes() {
         path="/admin"
         element={
           <RequireAuth>
-            <AdminWorkspace section="home" />
+            <RequirePortalAccess access="standard">
+              <AdminWorkspace section="home" />
+            </RequirePortalAccess>
           </RequireAuth>
         }
       />
@@ -511,7 +513,6 @@ function AppLayout() {
   const pathname = location.pathname;
   const isAdminRoute = pathname.startsWith('/admin');
   const isStoreModeRoute = pathname === "/admin/store-mode";
-  const isOnline = useOnlineStatus();
 
   const pageTitle = useMemo(
     () => getErpPageTitle(pathname, shellConfig.brand.name, shellConfig.pageTitles, "/admin"),
@@ -605,9 +606,7 @@ function AppLayout() {
         <>
           {analyticsTracker}
           {updateNotice}
-          <Helmet>
-            <title>{pageTitle}</title>
-          </Helmet>
+          <DocumentHead title={pageTitle} />
           <RouteFallback />
         </>
       );
@@ -618,9 +617,7 @@ function AppLayout() {
         <>
           {analyticsTracker}
           {updateNotice}
-          <Helmet>
-            <title>{pageTitle}</title>
-          </Helmet>
+          <DocumentHead title={pageTitle} />
           {routes}
         </>
       );
@@ -631,9 +628,7 @@ function AppLayout() {
         <>
           {analyticsTracker}
           {updateNotice}
-          <Helmet>
-            <title>{pageTitle}</title>
-          </Helmet>
+          <DocumentHead title={pageTitle} />
           <div className="portal-app-shell portal-app-shell--store-mode">
             <div className="portal-app-content portal-app-content--store-mode portal-app-content--with-bottom-bar">
               <ErpPageContent as="div" className="portal-app-content__body">{routes}</ErpPageContent>
@@ -650,16 +645,12 @@ function AppLayout() {
       <>
         {analyticsTracker}
         {updateNotice}
-        <Helmet>
-          <title>{pageTitle}</title>
-        </Helmet>
+        <DocumentHead title={pageTitle} />
         <ErpShellFrame
           brand={shellConfig.brand}
           className="portal-app-shell"
           contentClassName="portal-app-content portal-app-content--with-bottom-bar"
           layout="overlay"
-          offline={!isOnline}
-          offlineIndicator={<OfflineStatusBadge online={isOnline} />}
           sidebar={(
             <Suspense fallback={null}>
               <PortalSidebar />
@@ -684,9 +675,7 @@ function AppLayout() {
     <>
       {analyticsTracker}
       {updateNotice}
-      <Helmet>
-        <title>{pageTitle}</title>
-      </Helmet>
+      <DocumentHead title={pageTitle} />
       <div className="site-shell">
         <div className="main portal-site-main" ref={shellScrollRef}>
           <PartyConfetti className="site-shell-confetti party-confetti-rentals" />

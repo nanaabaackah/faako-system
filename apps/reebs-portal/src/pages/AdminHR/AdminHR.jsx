@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminHR.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
@@ -218,9 +218,17 @@ function AdminHR() {
           </div>
 
           {loading ? (
-            <p className="hr-muted">Loading team directory...</p>
+            <AnimatedLoadingState
+              compact
+              className="glass-card admin-module-loading"
+              title="Loading team directory"
+              message="Fetching employee profiles and activity."
+              variant="dashboard"
+            />
           ) : error ? (
-            <p className="hr-error">{error}</p>
+            <ERPFormNotice tone="danger" title="Team unavailable" onDismiss={() => setError("")}>
+              {error}
+            </ERPFormNotice>
           ) : filteredEmployees.length === 0 ? (
             <p className="hr-muted">No employees match this filter.</p>
           ) : (
@@ -354,7 +362,11 @@ function AdminHR() {
                   onChange={(event) => setForm({ ...form, emergencyContactPhone: event.target.value })}
                 />
               </label>
-              {saveError && <p className="hr-error">{saveError}</p>}
+              {saveError && (
+                <ERPFormNotice tone="danger" title="Profile not saved" onDismiss={() => setSaveError("")}>
+                  {saveError}
+                </ERPFormNotice>
+              )}
               <div className="hr-form-actions">
                 <button type="button" className="bookings-secondary" onClick={closeEditor}>
                   Cancel

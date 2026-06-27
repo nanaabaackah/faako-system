@@ -1,4 +1,7 @@
 const normalizeRentalText = (value) => String(value || "").trim().toLowerCase();
+const RENTAL_UNAVAILABLE_PATTERN =
+  /\b(unavailable|out of service|out-of-service|maintenance|repair|broken|damaged|offline|inactive|retired|not working)\b/i;
+const RENTAL_DATE_HELD_PATTERN = /\b(booked|reserved|hold|pending)\b/i;
 
 const slugifyRentalValue = (value = "") => {
   if (value == null) return "";
@@ -72,6 +75,44 @@ const isFrontendRentalItem = (item = {}) => {
     : sku.startsWith("ren") || isKnownFrontendRentalCategory(item);
 };
 
+const isFrontendRentalBookable = (item = {}) => {
+  if (
+    item?.status === false ||
+    item?.isActive === false ||
+    item?.isWorking === false ||
+    item?.working === false
+  ) {
+    return false;
+  }
+
+  const statusText = [
+    item?.availability,
+    item?.status,
+    item?.condition,
+    item?.maintenanceStatus,
+    item?.workingStatus,
+  ]
+    .filter((value) => typeof value === "string")
+    .join(" ");
+
+  return !RENTAL_UNAVAILABLE_PATTERN.test(statusText);
+};
+
+const getFrontendRentalAvailabilityLabel = (item = {}) => {
+  if (!isFrontendRentalBookable(item)) return "Unavailable";
+
+  const statusText = [
+    item?.availability,
+    item?.status,
+    item?.condition,
+  ]
+    .filter((value) => typeof value === "string")
+    .join(" ");
+
+  if (RENTAL_DATE_HELD_PATTERN.test(statusText)) return "Check date";
+  return "Date availability";
+};
+
 const shouldExcludeFrontendRental = (item = {}) => {
   const source = normalizeRentalText(
     item?.sourceCategoryCode || item?.sourcecategorycode || ""
@@ -119,8 +160,10 @@ const matchesFrontendRentalDetailSlug = (item = {}, slug = "") => {
 
 export {
   getFrontendRentalCategory,
+  getFrontendRentalAvailabilityLabel,
   getFrontendRentalDetailPath,
   getFrontendRentalDetailSlug,
+  isFrontendRentalBookable,
   isFrontendRentalItem,
   matchesFrontendRentalDetailSlug,
   shouldExcludeFrontendRental,

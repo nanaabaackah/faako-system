@@ -1,3 +1,4 @@
+import { AnimatedLoadingState } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash } from "/src/icons/iconSet";
@@ -70,7 +71,13 @@ export default function WaterLedgersSection({
           </span>
         </div>
         {loading ? (
-          <p className="water-module-empty">Loading orders...</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading water orders"
+            message="Preparing order, stock, and payment ledgers."
+            variant="dashboard"
+          />
         ) : sales.length ? (
           <>
             <div className="water-module-orders-toolbar">
@@ -172,6 +179,7 @@ export default function WaterLedgersSection({
                               disabled={saving || loading}
                             >
                               <AppIcon icon={faTrash} />
+                              Archive
                             </button>
                           </td>
                         </tr>
@@ -223,7 +231,13 @@ export default function WaterLedgersSection({
           <span className="water-module-card-tag">Net movement {netMovement}</span>
         </div>
         {loading ? (
-          <p className="water-module-empty">Loading stock history...</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading stock history"
+            message="Fetching stock movement and restock values."
+            variant="dashboard"
+          />
         ) : stockTimeline.length ? (
           <div className="water-module-table-wrap water-module-table-wrap--stock">
             <table className="water-module-table water-module-table--stock">
@@ -289,6 +303,7 @@ export default function WaterLedgersSection({
                           disabled={saving || loading}
                         >
                           <AppIcon icon={faRotateRight} />
+                          Undo
                         </button>
                       </td>
                     </tr>
@@ -332,7 +347,13 @@ export default function WaterLedgersSection({
           </div>
         </div>
         {loading ? (
-          <p className="water-module-empty">Loading expenses...</p>
+          <AnimatedLoadingState
+            compact
+            className="glass-card admin-module-loading"
+            title="Loading water expenses"
+            message="Fetching expense ledger and totals."
+            variant="dashboard"
+          />
         ) : expenses.length ? (
           <div className="water-module-table-wrap">
             <table className="water-module-table water-module-table--expenses">
@@ -390,6 +411,7 @@ export default function WaterLedgersSection({
                           disabled={saving || loading}
                         >
                           <AppIcon icon={faTrash} />
+                          Archive
                         </button>
                       </td>
                     </tr>

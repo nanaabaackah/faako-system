@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveUserAccess, userHasPermission } from "./src/adminAuth.js";
 import { signToken } from "./src/auth.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
@@ -34,6 +35,46 @@ const createResponse = (resolve) => ({
   end() {
     return this;
   },
+});
+
+test("viewer role can view operational modules without edit or team access", () => {
+  const viewer = { role: "VIEWER" };
+  const access = resolveUserAccess(viewer);
+
+  assert.equal(access.role, "VIEWER");
+  assert.equal(userHasPermission(viewer, "dashboard", "view"), true);
+  assert.equal(userHasPermission(viewer, "orders", "view"), true);
+  assert.equal(userHasPermission(viewer, "orders", "edit"), false);
+  assert.equal(userHasPermission(viewer, "team", "view"), false);
+  assert.equal(userHasPermission(viewer, "team", "manage"), false);
+});
+
+test("admin and owner roles are elevated across modules", () => {
+  assert.equal(resolveUserAccess({ role: "ADMIN" }).isElevated, true);
+  assert.equal(resolveUserAccess({ role: "OWNER" }).isElevated, true);
+  assert.equal(userHasPermission({ role: "OWNER" }, "team", "manage"), true);
+  assert.equal(userHasPermission({ role: "ADMIN" }, "inventory", "archive"), true);
+});
+
+test("custom roles use configured permissions but never team permissions", () => {
+  const customUser = {
+    role: "CUSTOM",
+    customRole: {
+      key: "crm-helper",
+      name: "CRM helper",
+      isActive: true,
+      permissions: {
+        crm: { view: true, edit: true },
+        team: { view: true, manage: true },
+      },
+    },
+  };
+
+  assert.equal(userHasPermission(customUser, "crm", "view"), true);
+  assert.equal(userHasPermission(customUser, "crm", "edit"), true);
+  assert.equal(userHasPermission(customUser, "crm", "delete"), false);
+  assert.equal(userHasPermission(customUser, "team", "view"), false);
+  assert.equal(userHasPermission(customUser, "team", "manage"), false);
 });
 
 test("current user can update profile details and appearance preference", async () => {

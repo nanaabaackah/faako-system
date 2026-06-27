@@ -214,7 +214,7 @@ const HOME_PROJECTS = [
   {
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Live kids party shop and rental business website paired with a dedicated admin portal, POS/order builder, and Express API backend.',
+      'Live kids party shop and rental business website paired with a CRM-aware admin portal, POS/order builder, and Express API backend.',
     stack: 'React · Vite · Express API · PostgreSQL',
     category: 'Website + ERP Portal',
     href: '/projects/kids-party-shop-rental',
@@ -243,7 +243,7 @@ const HOME_PROJECTS = [
   {
     title: 'Development Operations System',
     summary:
-      'Dev ERP portal covering dashboard analytics, rent, accounting, invoicing, appointments, reporting, users, alerts, and system health.',
+      'Dev ERP portal covering registry-driven modules, proposals, dashboard analytics, rent, accounting, invoicing, appointments, reporting, users, alerts, and system health.',
     stack: 'React · Express · Prisma · PostgreSQL',
     category: 'Dev ERP',
     href: '/projects/development-tracker',

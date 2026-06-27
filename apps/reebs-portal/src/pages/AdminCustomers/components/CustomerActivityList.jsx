@@ -25,7 +25,7 @@ export default function CustomerActivityList({
                   <strong>{meta.title}</strong>
                   <p>{meta.subtitle}</p>
                 </div>
-                <span>{renderValue(item)}</span>
+                <div className="crm-detail-activity-value">{renderValue(item)}</div>
               </article>
             );
           })}

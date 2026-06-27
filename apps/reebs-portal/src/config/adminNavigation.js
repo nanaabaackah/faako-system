@@ -4,7 +4,7 @@ import {
   getModuleState,
   getModuleStatusLabel,
   getModuleVisibility,
-  getVisibleModules,
+  filterVisibleModules,
   isModuleEnabled,
   isModuleVisible,
 } from "@faako/config";
@@ -33,9 +33,10 @@ import {
 import { WEBSITE_URL } from "../utils/website.js";
 import { REEBS_ADMIN_MODULES } from "./adminModules.js";
 
-const STANDARD_NAV_ROLES = ["admin", "manager", "staff", "warehouse"];
-const PRIVILEGED_NAV_ROLES = ["admin", "manager"];
-const OWNER_ADMIN_NAV_ROLES = ["admin"];
+const STANDARD_NAV_ROLES = ["owner", "admin", "manager", "staff", "warehouse"];
+const PRIVILEGED_NAV_ROLES = ["owner", "admin", "manager"];
+const OWNER_ADMIN_NAV_ROLES = ["owner", "admin"];
+const WATER_NAV_ROLES = ["owner", "admin", "manager", "water"];
 
 const SIDEBAR_ICONS_BY_KEY = {
   "audit-log": faFileLines,
@@ -86,7 +87,7 @@ const getRolesForPermission = (requiredPermission) => {
     case "privileged":
       return PRIVILEGED_NAV_ROLES;
     case "water":
-      return PRIVILEGED_NAV_ROLES;
+      return WATER_NAV_ROLES;
     default:
       return undefined;
   }
@@ -117,13 +118,32 @@ const toSidebarItem = (module) => {
   };
 };
 
+const toSidebarChildModule = (child, parent) => ({
+  ...parent,
+  ...child,
+  group: child.group || parent.group,
+  status: child.status || parent.status,
+  state: child.state || parent.state,
+  visibility: child.visibility || parent.visibility,
+  requiredPermission: child.requiredPermission || parent.requiredPermission,
+  core: Boolean(child.core),
+  children: undefined,
+});
+
+const toSidebarItems = (module) => {
+  const items = module.sidebar === false ? [] : [toSidebarItem(module)];
+  const childItems = (Array.isArray(module.children) ? module.children : [])
+    .filter((child) => child.sidebar !== false && isModuleVisible(child))
+    .map((child) => toSidebarItem(toSidebarChildModule(child, module)));
+  return [...items, ...childItems];
+};
+
 export const getReebsSidebarNavItems = () =>
   // TODO: Pass database-backed module toggles, org-level module config,
-  // permissions integration, and SaaS plan gating into getVisibleModules
+  // permissions integration, and SaaS plan gating into filterVisibleModules
   // after those controls exist server-side.
-  getVisibleModules(REEBS_ADMIN_MODULES)
-    .filter((module) => module.sidebar !== false)
-    .map(toSidebarItem);
+  filterVisibleModules(REEBS_ADMIN_MODULES)
+    .flatMap(toSidebarItems);
 
 const buildBottomItem = (moduleKey, overrides = {}) => {
   const module = getModuleByKey(REEBS_ADMIN_MODULES, moduleKey);

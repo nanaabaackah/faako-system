@@ -356,11 +356,7 @@ const InventoryStockTable: React.FC<InventoryStockTableProps> = ({
         <tfoot className="admin-table-footer">
           <tr>
             <td className="admin-table-summary-cell is-empty" />
-            <td className="admin-table-summary-cell is-count">
-              <span className="admin-table-summary-value">
-                {paginatedInventory.length} records
-              </span>
-            </td>
+            <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />
             <td className="admin-table-summary-cell is-empty" />

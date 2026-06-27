@@ -106,13 +106,7 @@ function CartOverlay({ open, onClose }) {
       >
         <div className="cart-header">
           <div className="cart-header-copy">
-            <p className="cart-kicker">Bag</p>
             <h2 id="cart-title">Your Cart</h2>
-            <p className="cart-header-summary">
-              {itemCount > 0
-                ? `${itemCount} ${itemCount === 1 ? "item" : "items"} ready`
-                : "No items added yet"}
-            </p>
           </div>
           <div className="cart-header-actions">
             <button type="button" className="close-cart" onClick={handleClose} aria-label="Close cart">
@@ -273,8 +267,8 @@ function CartOverlay({ open, onClose }) {
                 </div>
               ) : null}
               <p className="cart-note">Taxes, pickup, and delivery timing are confirmed at checkout.</p>
-              <Link to="/cart" className="checkout-btn cart-primary-action" onClick={handleClose}>
-                Go to cart
+              <Link to="/checkout" className="checkout-btn cart-primary-action" onClick={handleClose}>
+                Checkout now
               </Link>
               <div className="foot-items">
                 <button type="button" className="clear-cart" onClick={clearCart}>

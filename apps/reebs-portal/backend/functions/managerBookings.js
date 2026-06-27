@@ -9,7 +9,7 @@ const allowedOrigin = MANAGER_ORIGIN || null;
 
 const corsHeaders = (extraAllow = "GET,OPTIONS") => ({
   ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Organization-Id, X-CSRF-Token",
   "Access-Control-Allow-Methods": extraAllow,
   "Vary": "Origin",
 });

@@ -1,12 +1,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
-import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
   ADMIN_FONT_SIZE_OPTIONS,
@@ -542,7 +541,15 @@ function AdminSettings({ profileOnly = false }) {
           <>
             <section className="glass-card settings-panel">
               <form className="settings-form" onSubmit={saveProfile}>
-                {profileLoading && <p className="settings-muted">Loading profile...</p>}
+                {profileLoading && (
+                  <AnimatedLoadingState
+                    compact
+                    className="glass-card admin-module-loading"
+                    title="Loading profile"
+                    message="Fetching profile, preferences, and notification settings."
+                    variant="detail"
+                  />
+                )}
                 <div className="settings-profile-media">
                   <div className="settings-profile-avatar" aria-hidden="true">
                     {profileForm.imageUrl ? (
@@ -576,12 +583,9 @@ function AdminSettings({ profileOnly = false }) {
                       JPG, PNG, WEBP, or GIF up to 2 MB. The image is cropped to a square avatar.
                     </p>
                     {profileImageError && (
-                      <InlineNotice
-                        tone="error"
-                        title="Photo not updated"
-                        message={profileImageError}
-                        compact
-                      />
+                      <ERPFormNotice tone="danger" title="Photo not updated" onDismiss={() => setProfileImageError("")}>
+                        {profileImageError}
+                      </ERPFormNotice>
                     )}
                   </div>
                 </div>
@@ -657,18 +661,14 @@ function AdminSettings({ profileOnly = false }) {
                   />
                 </label>
                 {profileError && (
-                  <InlineNotice
-                    tone="error"
-                    title="Profile not saved"
-                    message={profileError}
-                  />
+                  <ERPFormNotice tone="danger" title="Profile not saved" onDismiss={() => setProfileError("")}>
+                    {profileError}
+                  </ERPFormNotice>
                 )}
                 {profileStatus && (
-                  <InlineNotice
-                    tone="success"
-                    title="Profile saved"
-                    message={profileStatus}
-                  />
+                  <ERPFormNotice tone="success" title="Profile saved" onDismiss={() => setProfileStatus("")}>
+                    {profileStatus}
+                  </ERPFormNotice>
                 )}
                 <div className="settings-actions">
                   <button type="submit" className="settings-primary">Save profile</button>
@@ -728,11 +728,9 @@ function AdminSettings({ profileOnly = false }) {
                   These preferences are stored per user in this browser and apply across the admin system.
                 </p>
                 {preferencesStatus && (
-                  <InlineNotice
-                    tone="success"
-                    title="Preferences saved"
-                    message={preferencesStatus}
-                  />
+                  <ERPFormNotice tone="success" title="Preferences saved" onDismiss={() => setPreferencesStatus("")}>
+                    {preferencesStatus}
+                  </ERPFormNotice>
                 )}
                 <div className="settings-actions">
                   <button type="submit" className="settings-primary">Save preferences</button>
@@ -750,13 +748,19 @@ function AdminSettings({ profileOnly = false }) {
                 <p className="settings-muted">Admins can add staff and adjust roles.</p>
               </div>
             </div>
-            {usersLoading && <p className="settings-muted">Loading users...</p>}
-            {usersError && (
-              <InlineNotice
-                tone="error"
-                title="User update failed"
-                message={usersError}
+            {usersLoading && (
+              <AnimatedLoadingState
+                compact
+                className="glass-card admin-module-loading"
+                title="Loading users"
+                message="Fetching staff accounts and role assignments."
+                variant="dashboard"
               />
+            )}
+            {usersError && (
+              <ERPFormNotice tone="danger" title="User update failed" onDismiss={() => setUsersError("")}>
+                {usersError}
+              </ERPFormNotice>
             )}
             <div className="settings-users">
               <div className="settings-users-list">
@@ -819,11 +823,9 @@ function AdminSettings({ profileOnly = false }) {
                     />
                   </label>
                   {inviteStatus && (
-                    <InlineNotice
-                      tone="success"
-                      title="User added"
-                      message={inviteStatus}
-                    />
+                    <ERPFormNotice tone="success" title="User added" onDismiss={() => setInviteStatus("")}>
+                      {inviteStatus}
+                    </ERPFormNotice>
                   )}
                   <button type="submit" className="settings-primary">Add user</button>
                 </form>
@@ -906,11 +908,9 @@ function AdminSettings({ profileOnly = false }) {
                 />
               </label>
               {configStatus && (
-                <InlineNotice
-                  tone="success"
-                  title="Configuration saved"
-                  message={configStatus}
-                />
+                <ERPFormNotice tone="success" title="Configuration saved" onDismiss={() => setConfigStatus("")}>
+                  {configStatus}
+                </ERPFormNotice>
               )}
               <div className="settings-actions">
                 <button type="submit" className="settings-primary">Save configuration</button>

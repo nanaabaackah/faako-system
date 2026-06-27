@@ -522,7 +522,26 @@ model BusinessProfileContent {
 
 enum SiteRole {
   ADMIN
+  OWNER
   VIEWER
+  CUSTOM
+}
+
+model PortalRole {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  name        String
+  description String?
+  permissions Json
+  isSystem    Boolean    @default(false)
+  isActive    Boolean    @default(true)
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  users       SiteUser[]
+
+  @@index([isActive])
+  @@index([isSystem])
 }
 
 model SiteUser {
@@ -530,6 +549,8 @@ model SiteUser {
   username             String     @unique
   passwordHash         String
   role                 SiteRole   @default(VIEWER)
+  customRoleId         String?
+  customRole           PortalRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   isActive             Boolean    @default(true)
   firstName            String?
   lastName             String?
@@ -548,4 +569,5 @@ model SiteUser {
   createdCustomers     CustomerAccount[] @relation("CustomerCreatedBy")
 
   @@index([personalEmail])
+  @@index([customRoleId])
 }

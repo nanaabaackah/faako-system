@@ -134,6 +134,7 @@ export const buildSearchBlob = (customer) =>
     getSegmentLabel(customer.segment),
     customer.orders,
     customer.bookings,
+    customer.contactRequests,
     customer.ltv,
     formatDate(customer.lastTouch),
   ]

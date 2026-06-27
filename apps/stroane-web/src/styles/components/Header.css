@@ -101,6 +101,8 @@
   color: var(--color-text-primary) !important;
 }
 
+
+
 .navbar-links a,
 .navbar-links a:visited {
   display: inline-flex;
@@ -109,8 +111,8 @@
   text-decoration: none;
   text-shadow: var(--text-shadow-sm);
   color: var(--color-text-inverse);
+  font-size: calc(var(--font-size-base) + 3px);
   padding: 1rem;
-  font-size: calc(var(--font-size-base) + 5px);
   font-weight: 500;
   font-family: var(--font-family);
   white-space: nowrap;

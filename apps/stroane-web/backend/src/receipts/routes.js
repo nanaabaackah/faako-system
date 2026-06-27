@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncRoute } from "../apiResponse.js";
-import { requireAdminRole, requireSiteUser } from "../adminAuth.js";
+import { requireAdminRole, requireSiteUser, userHasPermission } from "../adminAuth.js";
 import { RECEIPT_EMAIL_STATUSES, sendReceiptEmail } from "./notifications.js";
 import { ensureReceiptForOrder, receiptInclude } from "./service.js";
 
@@ -232,7 +232,7 @@ const renderReceiptHtml = (receipt) => {
 export const createAdminReceiptRouter = (prisma) => {
   const router = Router();
 
-  router.use(requireSiteUser(prisma, ["ADMIN", "VIEWER"]));
+  router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
 
   router.get(
     "/receipts",
@@ -270,7 +270,7 @@ export const createAdminReceiptRouter = (prisma) => {
 
   router.post(
     "/receipts",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "receipts", "create"),
     asyncRoute(async (req, res) => {
       if (!prisma.commerceReceipt?.create) {
         return res.status(503).json({ error: "Receipt storage is not available." });
@@ -312,10 +312,12 @@ export const createAdminReceiptRouter = (prisma) => {
       });
       if (!receipt) return res.status(404).json({ error: "Receipt not found." });
 
-      await prisma.commerceReceipt.update({
-        where: { id: receipt.id },
-        data: { downloadedAt: new Date() },
-      });
+      if (userHasPermission(req.authUser, "receipts", "edit")) {
+        await prisma.commerceReceipt.update({
+          where: { id: receipt.id },
+          data: { downloadedAt: new Date() },
+        });
+      }
 
       const filename = `${receipt.receiptNumber || "stroane-receipt"}.html`;
       res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -326,7 +328,7 @@ export const createAdminReceiptRouter = (prisma) => {
 
   router.post(
     "/receipts/:id/resend",
-    requireAdminRole(prisma),
+    requireAdminRole(prisma, "receipts", "edit"),
     asyncRoute(async (req, res) => {
       const receipt = await prisma.commerceReceipt.findUnique({
         where: { id: String(req.params.id || "") },

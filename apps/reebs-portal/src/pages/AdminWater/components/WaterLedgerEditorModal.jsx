@@ -1,4 +1,4 @@
-import { DateField, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash, faXmark } from "/src/icons/iconSet";
 
@@ -379,7 +379,7 @@ export default function WaterLedgerEditorModal({
             </>
           ) : null}
 
-          {ledgerError ? <p className="water-module-feedback water-module-feedback--error">{ledgerError}</p> : null}
+          {ledgerError ? <InlineNotice tone="error" compact title="Ledger not saved" message={ledgerError} /> : null}
 
           <div className="water-order-modal-actions">
             {ledgerForm.type === "restock" || ledgerForm.type === "adjustment" ? (

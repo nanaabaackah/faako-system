@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo } from "react";
-import { Helmet } from "react-helmet";
 import { KpiCard } from "@faako/ui";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import "./OrderDetail.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import DocumentHead from "../../components/DocumentHead/DocumentHead";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import { useAuth } from "../../components/AuthContext/AuthContext";
@@ -195,10 +195,10 @@ export default function OrderDetail() {
 
   return (
     <div className="orders-page">
-      <Helmet>
-        <title>{order?.orderNumber ? `${order.orderNumber} | Orders` : "Order Detail"}</title>
-        <meta name="robots" content="noindex,nofollow" />
-      </Helmet>
+      <DocumentHead
+        title={order?.orderNumber ? `${order.orderNumber} | Orders` : "Order Detail"}
+        robots="noindex,nofollow"
+      />
       <div className="orders-shell">
         <AdminBreadcrumb
           items={[

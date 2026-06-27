@@ -226,30 +226,6 @@ const normalizeText = (value) => String(value || "").trim();
 
 const isValidEmail = (value) => EMAIL_PATTERN.test(normalizeText(value).toLowerCase());
 
-const parseJsonObject = (value) => {
-  if (!value) return {};
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-};
-
-const buildFormBody = (payload) => {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(payload)) {
-    if (value === null || typeof value === "undefined") continue;
-    if (typeof value === "object") {
-      params.set(key, JSON.stringify(value));
-    } else {
-      params.set(key, String(value));
-    }
-  }
-
-  return params;
-};
-
 const loadDraft = () => {
   if (typeof window === "undefined") return null;
 

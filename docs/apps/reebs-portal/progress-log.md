@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### CRM-backed contact request intake
+
+Date: 2026-06-25
+Feature/change name: CRM-backed contact request intake
+Apps affected: REEBS Website, REEBS Portal backend, REEBS Portal CRM
+What changed: Updated `/api/contact` so public planning briefs are persisted into CRM before email notification. The handler now validates and sanitizes the payload, applies an IP/email window rate limit, resolves the configured public organization, upserts or restores a CRM customer, creates a `contactRequest`, creates `customerActivity` rows for the received brief and follow-up task, and returns a request reference to the public contact form. Added authenticated `/api/contactRequests` list/status-update support. CRM customer detail now shows planning requests and follow-up activity alongside orders and bookings, with inline status updates for requests.
+Why it changed: Contact form submissions should be tracked as operational CRM work instead of existing only as email notifications.
+Files changed: apps/reebs-portal/backend/functions/contact.js, apps/reebs-portal/backend/functions/contactRequests.js, apps/reebs-portal/backend/functions/customers.js, apps/reebs-portal/backend/functions/_shared/crmContact.js, apps/reebs-portal/src/components/ContactForm/ContactForm.jsx, apps/reebs-website/src/components/ContactForm/ContactForm.jsx, apps/reebs-portal/src/pages/AdminCustomers/*, apps/reebs-portal/README.md, apps/reebs-website/README.md, docs/apps/reebs-portal/*, ByNana portfolio/project registry metadata.
+Data impact: Additive runtime table creation for `contactRequest` and `customerActivity` when the contact/customer handlers run. Existing customers may be updated only to fill missing contact fields, restore soft-deleted records, and mark new contact-form customers as prospects.
+Security impact: Positive. The endpoint keeps server-side validation/sanitization, rejects cross-site browser requests, adds request rate limiting, and stores minimal CRM metadata without exposing internal notes to the public form.
+Testing done: `node --check` passed for `contact.js`, `customers.js`, and `_shared/crmContact.js`. Targeted REEBS Website/Portal ESLint checks for contact/CRM files passed. ByNana content lint passed. `pnpm run project-registry:check` passed.
+Rollback notes: Revert the CRM helper, contact handler changes, customer API request/activity queries, CRM UI additions, contact form success-message changes, and docs/metadata updates. If tables were already created, preserve/export needed contact requests before dropping them in a separate reviewed migration.
+Next step: Add a dedicated CRM request inbox/filter view and then design database-backed module enablement/settings controls with audit logs.
+
 ### Customer CORS and water webhook hardening
 
 Date: 2026-06-16

@@ -162,6 +162,33 @@ const loadHandler = async (functionName) => {
   return handler;
 };
 
+const dispatchFunctionRequest = async (req, res, functionNameInput) => {
+  const functionName = String(functionNameInput || "").trim();
+  const event = createEvent(req, functionName);
+
+  try {
+    const handler = await loadHandler(functionName);
+    if (!handler) {
+      return sendJson(req, res, 404, {
+        error: "API function not found.",
+        functionName,
+      }, { functionName });
+    }
+
+    const result = await handler(event, {});
+    return sendFunctionResponse(res, result);
+  } catch (error) {
+    console.error("REEBS API function failed", {
+      functionName,
+      message: error?.message || String(error),
+      code: error?.code || undefined,
+    });
+    return sendJson(req, res, 500, {
+      error: "Unexpected API error.",
+    }, { functionName });
+  }
+};
+
 export const createReebsApiServer = () => {
   const app = express();
   app.disable("x-powered-by");
@@ -188,32 +215,13 @@ export const createReebsApiServer = () => {
     })
   );
 
-  app.all("/api/:functionName", async (req, res) => {
-    const functionName = String(req.params.functionName || "").trim();
-    const event = createEvent(req, functionName);
+  app.all("/api/webhooks/railway", (req, res) =>
+    dispatchFunctionRequest(req, res, "railwayEvents")
+  );
 
-    try {
-      const handler = await loadHandler(functionName);
-      if (!handler) {
-        return sendJson(req, res, 404, {
-          error: "API function not found.",
-          functionName,
-        }, { functionName });
-      }
-
-      const result = await handler(event, {});
-      return sendFunctionResponse(res, result);
-    } catch (error) {
-      console.error("REEBS API function failed", {
-        functionName,
-        message: error?.message || String(error),
-        code: error?.code || undefined,
-      });
-      return sendJson(req, res, 500, {
-        error: "Unexpected API error.",
-      }, { functionName });
-    }
-  });
+  app.all("/api/:functionName", (req, res) =>
+    dispatchFunctionRequest(req, res, req.params.functionName)
+  );
 
   app.use((req, res) =>
     sendJson(req, res, 404, {
