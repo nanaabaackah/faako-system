@@ -174,17 +174,17 @@ const AuditLogManagement: React.FC = () => {
       ) : null}
 
       <div className="stroane-audit__stats" aria-label="Audit log overview">
-        <article className="glass-card stroane-audit__stat">
+        <article className="bubble-card stroane-audit__stat">
           <span><HiOutlineClipboardList aria-hidden="true" /> Events</span>
           <strong>{summary.total.toLocaleString()}</strong>
           <small>{formatDateTime(summary.latestAt)}</small>
         </article>
-        <article className="glass-card stroane-audit__stat">
+        <article className="bubble-card stroane-audit__stat">
           <span><HiOutlineExclamation aria-hidden="true" /> Needs review</span>
           <strong>{issueCount.toLocaleString()}</strong>
           <small>{summary.errors} errors · {summary.warnings} warnings</small>
         </article>
-        <article className="glass-card stroane-audit__stat">
+        <article className="bubble-card stroane-audit__stat">
           <span><HiOutlineShieldCheck aria-hidden="true" /> Sources</span>
           <strong>{sourceCount.toLocaleString()}</strong>
           <small>{getTopSource(summary)}</small>
@@ -233,10 +233,10 @@ const AuditLogManagement: React.FC = () => {
           <thead>
             <tr>
               <th>Time</th>
-              <th>Source</th>
+              <th className="col-desktop">Source</th>
               <th>Event</th>
-              <th>Actor</th>
-              <th>Target</th>
+              <th className="col-desktop">Actor</th>
+              <th className="col-desktop">Target</th>
               <th>Severity</th>
             </tr>
           </thead>
@@ -261,7 +261,7 @@ const AuditLogManagement: React.FC = () => {
                     <td data-label="Time">
                       <span className="stroane-audit__date">{formatDateTime(entry.createdAt)}</span>
                     </td>
-                    <td data-label="Source">
+                    <td className="col-desktop" data-label="Source">
                       <ERPStatusBadge tone={getSourceTone(entry.source)}>
                         {formatLabel(entry.source)}
                       </ERPStatusBadge>
@@ -269,16 +269,14 @@ const AuditLogManagement: React.FC = () => {
                     <td data-label="Event">
                       <span className="stroane-audit__event">
                         <strong>{formatLabel(entry.action)}</strong>
-                        <small>{entry.summary}</small>
                       </span>
                     </td>
-                    <td data-label="Actor">
+                    <td className="col-desktop" data-label="Actor">
                       <span className="stroane-audit__truncate">{entry.actorName || "System"}</span>
                     </td>
-                    <td data-label="Target">
+                    <td className="col-desktop" data-label="Target">
                       <span className="stroane-audit__target">
-                        <strong>{entry.targetType ? formatLabel(entry.targetType) : "Record"}</strong>
-                        <small>{entry.targetId || "N/A"}</small>
+                        <strong>{entry.targetId || "N/A"}</strong>
                       </span>
                     </td>
                     <td data-label="Severity">

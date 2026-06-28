@@ -713,13 +713,13 @@ const OrderManagement: React.FC = () => {
           >
             Refresh
           </ERPSecondaryAction>
-          <ERPSecondaryAction
+          <ERPPrimaryAction
             icon={<HiOutlinePlus />}
             onClick={() => setManualOrderOpen(true)}
             disabled={!canManageOrders}
           >
             Manual order
-          </ERPSecondaryAction>
+          </ERPPrimaryAction>
         </div>
       </header>
 
@@ -983,11 +983,7 @@ const OrderManagement: React.FC = () => {
               <tfoot className="admin-table-footer">
                 <tr>
                   <td className="admin-table-summary-cell is-empty" />
-                  <td className="admin-table-summary-cell is-count">
-                    <span className="admin-table-summary-value">
-                      {paginatedOrders.length} orders
-                    </span>
-                  </td>
+                  <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
                   <td className="admin-table-summary-cell is-empty" />
