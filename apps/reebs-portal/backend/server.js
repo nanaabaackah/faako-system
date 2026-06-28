@@ -219,6 +219,10 @@ export const createReebsApiServer = () => {
     dispatchFunctionRequest(req, res, "railwayEvents")
   );
 
+  app.all("/api/webhook/railway", (req, res) =>
+    dispatchFunctionRequest(req, res, "railwayEvents")
+  );
+
   app.all("/api/:functionName", (req, res) =>
     dispatchFunctionRequest(req, res, req.params.functionName)
   );

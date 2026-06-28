@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { requireSiteUser } from "./src/adminAuth.js";
+import { signToken } from "./src/auth.js";
 import { listCatalogueProducts, listPersistedCatalogueProducts } from "./src/catalogue.js";
 import { createAdminProductRouter } from "./src/products/routes.js";
 import { toAdminProduct } from "./src/products/services.js";
@@ -83,6 +84,49 @@ test("admin middleware rejects product API requests without a bearer token", asy
   assert.equal(nextCalled, false);
   assert.equal(response.statusCode, 401);
   assert.deepEqual(response.body, { error: "Unauthorized" });
+});
+
+test("admin middleware authorizes with the current database role when token role is stale", async () => {
+  process.env.APP_AUTH_SECRET = "stale-role-test-secret";
+  const token = signToken({ id: "owner-1", username: "owner", role: "CUSTOMER" });
+  const middleware = requireSiteUser(
+    {
+      siteUser: {
+        findUnique: async (query) => {
+          assert.deepEqual(query.where, { id: "owner-1" });
+          return {
+            id: "owner-1",
+            username: "owner",
+            role: "OWNER",
+            isActive: true,
+            customRole: null,
+          };
+        },
+      },
+    },
+    ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]
+  );
+  const response = {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = payload;
+      return this;
+    },
+  };
+  let nextCalled = false;
+
+  await middleware({ headers: { authorization: `Bearer ${token}` } }, response, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body, null);
 });
 
 test("admin product router applies bearer auth before product routes", async () => {

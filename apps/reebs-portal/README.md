@@ -187,6 +187,12 @@ Set `RAILWAY_WEBHOOK_SECRET` on the REEBS API Railway service, then configure th
 https://api.reebspartythemes.com/api/webhooks/railway
 ```
 
+The compatibility alias below also works if a setup note accidentally used singular `webhook`, but keep the plural URL above as the canonical endpoint:
+
+```text
+https://api.reebspartythemes.com/api/webhook/railway
+```
+
 Prefer a secret header over a query string:
 
 ```text
@@ -200,6 +206,19 @@ x-railway-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
 x-faako-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
 x-webhook-secret: <RAILWAY_WEBHOOK_SECRET>
 ```
+
+If Railway's webhook test UI cannot send custom headers, use the server-only query-string fallback:
+
+```text
+https://api.reebspartythemes.com/api/webhooks/railway?secret=<RAILWAY_WEBHOOK_SECRET>
+```
+
+Status-code guide:
+
+- `202` means the event was accepted and written to Audit Logs.
+- `401` means the request reached the webhook but the secret was missing or did not exactly match `RAILWAY_WEBHOOK_SECRET` on the API service.
+- `403` usually means the request is hitting the wrong surface, proxy, or app instead of the API webhook. Confirm the URL is the REEBS API service/custom API domain and that `/health` reports `service: "reebs-api"`.
+- `503` means the API service is missing `RAILWAY_WEBHOOK_SECRET` or the database/SSL setup is unavailable.
 
 Manual smoke test:
 

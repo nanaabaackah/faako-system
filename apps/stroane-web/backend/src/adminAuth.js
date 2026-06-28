@@ -126,11 +126,7 @@ export const requireSiteUser = (prisma, allowedRoles = ["ADMIN", "OWNER"]) => as
   const payload = verifyToken(token);
   if (!payload?.id) return res.status(401).json({ error: "Unauthorized" });
 
-  const tokenRole = normalizeRole(payload.role);
   const allowedRoleSet = new Set(allowedRoles.map(normalizeRole));
-  if (!allowedRoleSet.has(tokenRole)) {
-    return res.status(403).json({ error: "Access denied" });
-  }
 
   try {
     const user = await prisma.siteUser.findUnique({
