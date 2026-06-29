@@ -378,7 +378,7 @@ const TeamManagement: React.FC = () => {
 
           <div className="stroane-team__role-fields">
             <ERPTextField
-              label="Role name"
+              label="Role Name"
               value={roleDraft.name}
               onChange={(event) => setRoleDraft((current) => ({ ...current, name: event.target.value }))}
               placeholder="Inventory coordinator"

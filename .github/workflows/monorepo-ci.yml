@@ -1,5 +1,9 @@
 name: Monorepo CI
 
+run-name: >
+
+  Stroane CI • ${{ github.event_name }} • ${{ github.ref_name }}
+
 on:
   pull_request:
     branches: [main, develop]
