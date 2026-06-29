@@ -28,10 +28,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @faako/stroane-web run db:generate
+      - name: Generate Prisma client
+        run: pnpm --filter @faako/stroane-web run db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
-      - run: pnpm --filter @faako/stroane-web exec prisma validate
-
+      - name: Validate Prisma schema
+        run: pnpm --filter @faako/stroane-web exec prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       - run: pnpm --filter @faako/stroane-web run lint
 
       - run: pnpm --filter @faako/stroane-web run test:backend
@@ -40,6 +45,7 @@ jobs:
         run: pnpm --filter @faako/stroane-web run build
         env:
           VITE_APP_SURFACE: storefront
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
           VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
           VITE_APP_ENV: staging
@@ -48,6 +54,7 @@ jobs:
         run: pnpm --filter @faako/stroane-web run build
         env:
           VITE_APP_SURFACE: portal
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
           VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
           VITE_APP_ENV: staging
