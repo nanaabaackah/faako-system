@@ -383,13 +383,6 @@ const TeamManagement: React.FC = () => {
               onChange={(event) => setRoleDraft((current) => ({ ...current, name: event.target.value }))}
               placeholder="Inventory coordinator"
             />
-            <ERPTextField
-              label="Role key"
-              value={roleDraft.key}
-              onChange={(event) => setRoleDraft((current) => ({ ...current, key: normalizeRoleKeyInput(event.target.value) }))}
-              placeholder="inventory-coordinator"
-              helperText="Optional. Used by the API and audit trails."
-            />
           </div>
           <ERPTextareaField
             label="Description"
@@ -426,7 +419,6 @@ const TeamManagement: React.FC = () => {
                 </div>
               </div>
             ))}
-            <p>Team access is reserved for Admin and Owner roles.</p>
           </div>
 
           <ERPPrimaryAction type="submit" icon={<HiOutlineShieldCheck aria-hidden="true" />} disabled={creatingRole}>
