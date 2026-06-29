@@ -528,7 +528,7 @@ export const createAuthRouter = (prisma) => {
   // PATCH /api/auth/users/:id — admin toggles active or changes role
   router.patch("/users/:id", requireRoleManager, async (req, res) => {
     const { id } = req.params;
-    const { isActive, role } = req.body || {};
+    const { isActive } = req.body || {};
 
     if (id === req.authUser.id) {
       return res.status(400).json({ error: "You cannot modify your own account" });
