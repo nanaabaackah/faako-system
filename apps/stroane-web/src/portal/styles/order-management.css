@@ -707,6 +707,10 @@
 }
 
 @media (max-width: 620px) {
+  .stroane-orders__col-customer,
+  .stroane-orders__col-total {
+    width: 45%;
+  }
   .stroane-orders__kpis {
     grid-template-columns: 1fr;
   }

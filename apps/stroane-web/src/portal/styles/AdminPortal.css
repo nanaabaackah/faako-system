@@ -1502,8 +1502,6 @@
   min-height: 40px;
   border: 1px solid var(--sys-border);
   border-radius: var(--radius-pill);
-  background: var(--sys-surface-strong);
-  color: var(--color-text-primary);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 850;
@@ -2264,6 +2262,11 @@
 }
 
 @media (max-width: 640px) {
+  .stroane-portal-overview__kpis-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .stroane-portal-overview__head {
     align-items: flex-start;
     flex-direction: column;
@@ -2391,5 +2394,11 @@
   .stroane-portal-overview__links a:nth-child(even) {
     padding-inline: 1rem;
     border-right: 0;
+  }
+
+  .stroane-audit__col-time,
+  .stroane-audit__col-event,
+  .stroane-audit__col-severity,{
+    width: 50%;
   }
 }
