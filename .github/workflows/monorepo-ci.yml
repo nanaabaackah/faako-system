@@ -1,0 +1,85 @@
+name: Monorepo CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      stroane: ${{ steps.filter.outputs.stroane }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            stroane:
+              - 'apps/stroane-web/**'
+            shared:
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/monorepo-ci.yml'
+
+  stroane-checks:
+    name: Stroane Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.stroane == 'true' || needs.detect-changes.outputs.shared == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @faako/stroane-web run db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Validate Prisma schema
+        run: pnpm --filter @faako/stroane-web exec prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Lint
+        run: pnpm --filter @faako/stroane-web run lint
+
+      - name: Backend tests
+        run: pnpm --filter @faako/stroane-web run test:backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Build storefront
+        run: pnpm --filter @faako/stroane-web run build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          VITE_APP_SURFACE: storefront
+          VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
+          VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
+          VITE_APP_ENV: staging
+
+      - name: Build portal
+        run: pnpm --filter @faako/stroane-web run build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          VITE_APP_SURFACE: portal
+          VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
+          VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
+          VITE_APP_ENV: staging
