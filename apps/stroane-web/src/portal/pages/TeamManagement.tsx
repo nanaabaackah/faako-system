@@ -318,17 +318,17 @@ const TeamManagement: React.FC = () => {
       ) : null}
 
       <div className="stroane-team__stats" aria-label="Team overview">
-        <article>
+        <article className="bubble-card">
           <span><HiOutlineUsers aria-hidden="true" /> Users</span>
           <strong>{users.length}</strong>
           <small>{activeUsers} active</small>
         </article>
-        <article>
+        <article className="bubble-card">
           <span><HiOutlineShieldCheck aria-hidden="true" /> Admins and owners</span>
           <strong>{elevatedUsers}</strong>
           <small>Full-access users</small>
         </article>
-        <article>
+        <article className="bubble-card">
           <span><HiOutlineKey aria-hidden="true" /> Custom roles</span>
           <strong>{customRoleCount}</strong>
           <small>Configurable access profiles</small>
@@ -378,7 +378,7 @@ const TeamManagement: React.FC = () => {
 
           <div className="stroane-team__role-fields">
             <ERPTextField
-              label="Role name"
+              label="Role Name"
               value={roleDraft.name}
               onChange={(event) => setRoleDraft((current) => ({ ...current, name: event.target.value }))}
               placeholder="Inventory coordinator"
