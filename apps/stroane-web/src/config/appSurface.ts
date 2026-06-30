@@ -1,7 +1,9 @@
 export type StroaneAppSurface = "storefront" | "portal" | "combined";
 
 const DEFAULT_STOREFRONT_BASE_URL = "https://stroanesolutions.com";
-const DEFAULT_PORTAL_BASE_URL = "https://portal.stroanesolutions.com";
+const DEFAULT_PORTAL_BASE_URL = 
+  import.meta.env.VITE_ADMIN_PORTAL_URL ??
+  "https://portal.stroanesolutions.com";
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
 
 const normalizeBaseUrl = (value: string | undefined, fallback: string) => {
