@@ -1744,7 +1744,6 @@
   min-height: 7rem;
   padding: 1rem;
   border: 1px solid var(--sys-border);
-  border-radius: var(--radius-lg);
   background: var(--sys-surface-strong);
 }
 
