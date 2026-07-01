@@ -190,52 +190,61 @@ const trustProxySetting = resolveTrustProxySetting(process.env);
 const PAYSTACK_WEBHOOK_PATH = "/api/paystack/webhook";
 const authRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "auth",
-  limit: 20,
-  windowMs: 10 * 60_000,
+  limit: 30,
+  windowMs: 15 * 60_000,
 });
+
 const customerAuthRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "customer-auth",
-  limit: 20,
-  windowMs: 10 * 60_000,
+  limit: 30,
+  windowMs: 15 * 60_000,
 });
+
 const inquiryRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "inquiry",
-  limit: 12,
-  windowMs: 10 * 60_000,
-});
-const checkoutRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "checkout",
-  limit: 20,
-  windowMs: 10 * 60_000,
-});
-const locationSearchRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "location-search",
-  limit: 45,
-  windowMs: 10 * 60_000,
-});
-const paymentInitRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-init",
-  limit: 12,
-  windowMs: 10 * 60_000,
-});
-const paymentVerifyRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-verify",
   limit: 30,
   windowMs: 10 * 60_000,
 });
-const webhookRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-webhook",
-  limit: 300,
-  windowMs: 60_000,
+
+const checkoutRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "checkout",
+  limit: 60,
+  windowMs: 10 * 60_000,
 });
-const adminRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "admin",
+
+const locationSearchRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "location-search",
   limit: 120,
   windowMs: 10 * 60_000,
 });
+
+const paymentInitRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-init",
+  limit: 30,
+  windowMs: 10 * 60_000,
+});
+
+const paymentVerifyRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-verify",
+  limit: 120,
+  windowMs: 10 * 60_000,
+});
+
+const webhookRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-webhook",
+  limit: 600,
+  windowMs: 60_000,
+});
+
+const adminRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "admin",
+  limit: 600,
+  windowMs: 60_000,
+});
+
 const inventoryAlertRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "inventory-alert",
-  limit: 20,
+  limit: 120,
   windowMs: 10 * 60_000,
 });
 
