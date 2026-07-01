@@ -97,7 +97,7 @@ git checks
 Once CI passes:
 
 ```bash
-git prmerge
+gh pr merge --squash --delete-branch
 ```
 
 Sync local develop.
