@@ -21,6 +21,7 @@ import AdminPortalSignIn from "./pages/AdminPortalSignIn";
 import TeamManagement from "./pages/TeamManagement";
 import AuditLogManagement from "./pages/AuditLogManagement";
 import type { AdminRoleAction, AdminRoleModule } from "./api/adminSession";
+import { AppBottomBar } from "@faako/ui"
 
 const StorefrontExternalRedirect: React.FC = () => {
   const location = useLocation();
@@ -77,6 +78,9 @@ const PortalApp: React.FC = () => (
       </Route>
       <Route path="*" element={<StorefrontExternalRedirect />} />
     </Routes>
+    <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
+      <AppBottomBar />
+    </div>
   </AdminPortalProvider>
 );
 
