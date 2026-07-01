@@ -1,7 +1,7 @@
 import "./styles/globals.css";
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
-import { AppBottomBar, AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
+import { AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { resolveAppSurface } from "./config/appSurface";
 import {
   hasStroaneAnalyticsConsent,
@@ -87,9 +87,6 @@ const App: React.FC = () => {
         <SurfaceApp />
       </Suspense>
 
-      <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
-        <AppBottomBar />
-      </div>
     </Router>
   );
 };

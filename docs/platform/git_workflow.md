@@ -1,313 +1,339 @@
 
-# Faako Git & GitHub Workflow
+# Git Workflow
 
-## Overview
-
-This repository uses Git Flow with protected branches and automated CI/CD.
-
-```
-feature/* → develop → main
-```
-
-- **feature/*** = Development
-- **develop** = Staging
-- **main** = Production
+This document describes the standard development and deployment workflow for the Stroane platform.
 
 ---
 
 # Branch Strategy
 
-## Start a new feature
+| Branch        | Purpose                          | Deployment                          |
+| ------------- | -------------------------------- | ----------------------------------- |
+| `main`      | Production                       | Automatically deploys to Production |
+| `develop`   | Staging                          | Automatically deploys to Staging    |
+| `feature/*` | New features, fixes, experiments | Local development only              |
 
-### Stroane
+---
+
+# Environment Mapping
+
+| Environment | Website                            | Portal                                    | API                                      | Database            |
+| ----------- | ---------------------------------- | ----------------------------------------- | ---------------------------------------- | ------------------- |
+| Development | localhost                          | localhost                                 | Local API                                | Development         |
+| Staging     | https://stage.stroanesolutions.com | https://portal-stage.stroanesolutions.com | https://api-staging.stroanesolutions.com | Stage Database      |
+| Production  | https://stroanesolutions.com       | https://portal.stroanesolutions.com       | https://api.stroanesolutions.com         | Production Database |
+
+---
+
+# Starting a Feature
+
+Always start from the latest develop branch.
 
 ```bash
-git stroane supplier-management
+git checkout develop
+git pull origin develop
 ```
 
-Creates:
+Create a feature branch.
 
+```bash
+git new stroane supplier-management
 ```
+
+Example:
+
+```text
 feature/stroane-supplier-management
 ```
 
-### REEBS
+---
+
+# Development
+
+Make your changes locally.
+
+Run the application.
 
 ```bash
-git reebbs payment-reminders
+pnpm run dev
 ```
 
-### Dev ERP
+Commit changes.
 
 ```bash
-git deverp deployment-dashboard
+git ship feat "add supplier management"
 ```
 
-### Faako Website
+Examples:
 
 ```bash
-git faako homepage-redesign
-```
+git ship feat "add purchase orders"
 
-### Portfolio
+git ship fix "correct inventory quantities"
 
-```bash
-git portfolio case-study
+git ship chore "update dependencies"
 ```
 
 ---
 
-# Commit & Push
+# Open a Pull Request
 
-## Feature
-
-```bash
-git feat stroane "add supplier management"
-```
-
-Produces:
-
-```
-feat(stroane): add supplier management
-```
-
-Automatically:
-
-- Stages files
-- Creates commit
-- Pushes current branch
-
----
-
-## Fix
-
-```bash
-git fix stroane "resolve authentication issue"
-```
-
-Produces:
-
-```
-fix(stroane): resolve authentication issue
-```
-
----
-
-## Chore
-
-```bash
-git chore ci "update monorepo workflow"
-```
-
-Produces:
-
-```
-chore(ci): update monorepo workflow
-```
-
----
-
-# Pull Requests
-
-Create a Pull Request to **develop**
+Create a PR to **develop**.
 
 ```bash
 git pr
 ```
 
-Watch GitHub Actions
+Watch GitHub Actions.
 
 ```bash
 git checks
 ```
 
-Merge the Pull Request
+---
+
+# Merge to Staging
+
+Once CI passes:
 
 ```bash
-git merge
+git prmerge
+```
+
+Sync local develop.
+
+```bash
+git checkout develop
+git pull origin develop
+```
+
+Cloudflare and Railway will automatically deploy:
+
+- stage.stroanesolutions.com
+- portal-stage.stroanesolutions.com
+- api-staging.stroanesolutions.com
+
+---
+
+# Test in Staging
+
+Before every release verify:
+
+## Storefront
+
+- Homepage
+- Search
+- Product catalogue
+- Cart
+- Checkout
+- Customer login
+
+## Portal
+
+- Admin login
+- Dashboard
+- Inventory
+- Catalogue
+- Customers
+- Orders
+
+## API
+
+Health endpoint
+
+```
+https://api-staging.stroanesolutions.com/health
 ```
 
 ---
 
-# Release
+# Release to Production
 
-Promote **develop** to **main**
+When staging has been approved:
 
 ```bash
 git release
 ```
 
----
-
-# Development Workflow
-
-## 1. Create feature branch
-
-```bash
-git stroane inventory-alerts
-```
-
-## 2. Build the feature
-
-Make your code changes.
-
-## 3. Commit
-
-```bash
-git feat stroane "add inventory alerts"
-```
-
-## 4. Open Pull Request
-
-```bash
-git pr
-```
-
-## 5. Watch CI
-
-```bash
-git checks
-```
-
-## 6. Merge into develop
-
-After CI passes:
-
-```bash
-git merge
-```
-
-## 7. Test on staging
-
-Verify:
-
-- Website
-- Portal
-- API
-- Database
-
-## 8. Release
-
-```bash
-git release
-```
-
----
-
-# CI (Continuous Integration)
-
-Every Pull Request automatically runs:
-
-- Install dependencies
-- Prisma validation
-- ESLint
-- Backend tests
-- Storefront build
-- Portal build
-
-A Pull Request cannot be merged until CI succeeds.
-
----
-
-# CD (Continuous Deployment)
-
-## Cloudflare Pages
-
-Production
-
-```
-main
-```
-
-Preview
+This creates a PR:
 
 ```
 develop
-feature/*
+      │
+      ▼
+     main
+```
+
+Review the Release PR.
+
+Merge it using GitHub (or GitHub CLI).
+
+Production automatically deploys:
+
+- stroanesolutions.com
+- portal.stroanesolutions.com
+- api.stroanesolutions.com
+
+---
+
+# After Release
+
+Sync local branches.
+
+```bash
+git checkout main
+git pull origin main
+
+git checkout develop
+git pull origin develop
 ```
 
 ---
 
-## Railway
+# Hotfixes
 
-Production
+If Production has a critical issue:
 
+Create a branch from **main**.
+
+```bash
+git checkout main
+git pull origin main
+
+git checkout -b hotfix/login-timeout
 ```
-main
-→ Production API
-→ Production Database
+
+After approval:
+
+Merge into:
+
+- main
+- develop
+
+so both remain synchronized.
+
+---
+
+# Database Changes
+
+Never apply migrations directly to Production.
+
+Workflow:
+
+1. Create migration locally
+2. Deploy migration to Stage
+3. Verify functionality
+4. Deploy migration to Production
+
+---
+
+# Seeding
+
+Development
+
+```bash
+pnpm run db:seed
 ```
 
 Staging
 
-```
-develop
-→ Stage API
-→ Stage Database
+```bash
+pnpm run db:seed:catalogue:stage
+pnpm run db:sync:inventory:stage
 ```
 
-Development
+Production
+
+Only after approval.
+
+---
+
+# Deployment Flow
 
 ```
 feature/*
-→ Local development or Dev API
-→ Dev Database
+      │
+      ▼
+ Pull Request
+      │
+      ▼
+ develop
+      │
+      ▼
+ Stage Deployment
+      │
+ Smoke Testing
+      │
+      ▼
+ Release PR
+      │
+      ▼
+ main
+      │
+      ▼
+ Production Deployment
 ```
 
 ---
 
-# Infrastructure
+# Rules
 
-## APIs
+✅ Never develop directly on `main`
 
-- Production API
-- Stage API
-- Dev API
+✅ Never develop directly on `develop`
 
-## Databases
+✅ Always use feature branches
 
-- Production Database
-- Stage Database
-- Dev Database
+✅ Every feature must pass CI
 
----
+✅ Test every release in Staging first
 
-# Environment Variables
+✅ Production data must never be used for testing
 
-Each environment uses the same variable names.
-
-Only the values change.
-
-Core variables include:
-
-- APP_ENV
-- NODE_ENV
-- DATABASE_URL
-- APP_AUTH_SECRET
-- JWT_SECRET
-- REFRESH_TOKEN_SECRET
-- AUTH_COOKIE_SECURE
-- AUTH_COOKIE_SAME_SITE
-- SESSION_COOKIE_SECURE
-- SESSION_COOKIE_SAME_SITE
-- CORS_ORIGINS
-- TRUST_PROXY_HOPS
+✅ Stage and Production databases remain completely separate
 
 ---
 
-# Long-term Goal
+# Quick Reference
 
-Eventually these Git aliases will become a dedicated **Faako CLI**.
-
-Example:
+## Start Feature
 
 ```bash
-faako new stroane supplier-management
-faako ship feat "add supplier management"
-faako release
-faako deploy stage
-faako deploy production
-faako status
+git checkout develop
+git pull origin develop
+git new stroane feature-name
 ```
 
-The CLI will manage Git, GitHub, Cloudflare, Railway and deployments from a single interface.
+## Commit
+
+```bash
+git ship feat "description"
+```
+
+## Create PR
+
+```bash
+git pr
+```
+
+## Watch CI
+
+```bash
+git checks
+```
+
+## Merge
+
+```bash
+git prmerge
+```
+
+## Release
+
+```bash
+git release
+```
+
+---
+
+_Last Updated: June 2026_
