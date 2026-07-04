@@ -17,6 +17,7 @@ import {
 } from "../adminAuth.js";
 
 const MAX_USERNAME_LEN = 50;
+const MIN_PASSWORD_LEN = 8;
 const MAX_PASSWORD_LEN = 100;
 const MAX_AVATAR_URL_LEN = 350000;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
@@ -227,6 +228,15 @@ const normalizeAvatarUrl = (value) => {
   return normalized;
 };
 
+const normalizeOptionalNewPassword = (value) => {
+  if (value === undefined || value === "") return undefined;
+  if (typeof value !== "string") throw new Error("New password must be 8-100 characters");
+  if (value.length < MIN_PASSWORD_LEN || value.length > MAX_PASSWORD_LEN) {
+    throw new Error("New password must be 8-100 characters");
+  }
+  return hashPassword(value);
+};
+
 const normalizeProfileUpdatePayload = (body = {}) => {
   const updates = {};
 
@@ -251,6 +261,10 @@ const normalizeProfileUpdatePayload = (body = {}) => {
   if ("avatarUrl" in body) updates.avatarUrl = normalizeAvatarUrl(body.avatarUrl);
   if ("appearancePreference" in body) {
     updates.appearancePreference = normalizeAppearancePreference(body.appearancePreference);
+  }
+  if ("newPassword" in body) {
+    const passwordHash = normalizeOptionalNewPassword(body.newPassword);
+    if (passwordHash) updates.passwordHash = passwordHash;
   }
 
   return updates;
@@ -441,7 +455,7 @@ export const createAuthRouter = (prisma) => {
       });
     }
 
-    if (typeof password !== "string" || password.length < 8 || password.length > MAX_PASSWORD_LEN) {
+    if (typeof password !== "string" || password.length < MIN_PASSWORD_LEN || password.length > MAX_PASSWORD_LEN) {
       return res.status(400).json({ error: "Password must be 8–100 characters" });
     }
 
@@ -630,6 +644,52 @@ export const createAuthRouter = (prisma) => {
       }
       console.error("Create role error:", toSafeAuthErrorLog(error));
       return res.status(500).json({ error: "Failed to create role" });
+    }
+  });
+
+  router.patch("/roles/:id", requireRoleManager, async (req, res) => {
+    const { id } = req.params;
+    const updates = {};
+
+    try {
+      if ("name" in req.body) updates.name = normalizeRoleName(req.body?.name);
+      if ("description" in req.body) updates.description = normalizeRoleDescription(req.body?.description);
+      if ("permissions" in req.body) updates.permissions = sanitizeCustomPermissions(req.body?.permissions || {});
+      if ("isActive" in req.body) {
+        if (typeof req.body.isActive !== "boolean") {
+          return res.status(400).json({ error: "Role status must be active or inactive." });
+        }
+        updates.isActive = req.body.isActive;
+      }
+    } catch (error) {
+      return res.status(400).json({ error: error.message || "Invalid role details" });
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No valid role fields to update" });
+    }
+
+    try {
+      const existing = await prisma.portalRole.findUnique({
+        where: { id },
+        select: { id: true, isSystem: true },
+      });
+      if (!existing) return res.status(404).json({ error: "Role not found" });
+      if (existing.isSystem) {
+        return res.status(400).json({ error: "System roles cannot be edited." });
+      }
+
+      const updated = await prisma.portalRole.update({
+        where: { id },
+        data: updates,
+      });
+      return res.json({ ok: true, role: toRoleDefinition(updated) });
+    } catch (error) {
+      if (error.code === "P2025") {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      console.error("Update role error:", toSafeAuthErrorLog(error));
+      return res.status(500).json({ error: "Failed to update role" });
     }
   });
 

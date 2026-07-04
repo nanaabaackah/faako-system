@@ -145,13 +145,18 @@ Cloudflare Pages should build two surfaces from this workspace:
 
 Storefront browsers do not fetch the lazy portal modules. Localhost keeps a combined compatibility mode when `VITE_APP_SURFACE` is blank so local development and Playwright can cover both surfaces.
 
+The staging pair follows the same split:
+
+- storefront: `https://stage.stroanesolutions.com` with `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+- portal: `https://portal-stage.stroanesolutions.com` with `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+
 Both storefront and portal shells mount `AppUpdateNotice` from `@faako/ui`. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it polls the root app shell for changed same-origin build assets, prompts users to refresh when a newer deployed bundle exists, and never auto-reloads an active cart, checkout form, inquiry, or portal edit.
 
 The private order module at `/admin/orders` lists storefront/manual orders, creates manual orders from active priced products, edits fulfillment metadata, initializes Paystack links, and refreshes Paystack status. This module is protected by backend `SiteUser` auth; order writes and Paystack actions require admin access.
 
 ## Internal Product And Media Operations
 
-Authenticated staff can see product, inventory, supplier, alert, and order signals on the `/admin` dashboard. Dashboard KPI cards open focused drilldown modals. The dedicated `/admin/inventory` module has stock value analytics, full-width table pagination, product management lightbox, movement recording, and autosave. The dedicated `/admin/orders` module handles current order operations. `/admin/audit-logs` is an Admin-only read-only audit console over existing inventory, order, payment, receipt, accounting, CRM, and team activity sources. `/admin/products` and `/admin/suppliers` remain placeholders while their module shape is rebuilt.
+Authenticated staff can see product, inventory, supplier, alert, and order signals on the `/admin` dashboard. Dashboard KPI cards open focused drilldown modals. The dedicated `/admin/inventory` module has stock value analytics, full-width table pagination, product management lightbox, movement recording, and autosave. The dedicated `/admin/orders` module handles current order operations. `/admin/accounting` combines revenue, receivables, stock value, paid expenses, unpaid expense liabilities, and exports; `/admin/expenses` records paid and unpaid expenses by class, payee, date, and due date. `/admin/audit-logs` is an Admin-only read-only audit console over existing inventory, order, payment, receipt, accounting, CRM, and team activity sources. `/admin/products` and `/admin/suppliers` remain placeholders while their module shape is rebuilt.
 
 Public catalogue APIs still return active published products. Product media currently accepts validated local `/imgs/products/` paths only; direct uploads and external media-provider wiring are intentionally deferred.
 
@@ -169,14 +174,17 @@ Stroane reuses the shared `@faako/security` API header baseline through `backend
 
 Route-specific rate limits are layered on top of the global API limiter for:
 
-- auth routes
+- global API reads and writes
+- staff login, plus normal staff session/profile/team routes
+- customer signup/login/password routes, plus normal customer session/profile/order routes
 - inquiry/contact submissions
 - checkout order creation
+- protected admin routes
 - Paystack payment initialization
 - Paystack return-page verification
 - Paystack webhooks
 
-These rate limits are in-memory and per Node process. Railway is the chosen production rate-limit layer for deployed checkout/inquiry/payment protection, so configure Railway/provider request controls before high-volume production checkout.
+The global limiter is method-aware so normal portal read chatter does not exhaust the same bucket as writes. Login, customer auth, checkout, payment, webhook, and admin routes keep separate buckets. These rate limits are in-memory and per Node process. Railway is the chosen production rate-limit layer for deployed checkout/inquiry/payment protection, so configure Railway/provider request controls before high-volume production checkout.
 
 Checkout/payment integrity rules:
 

@@ -522,7 +522,8 @@
 
 .stroane-inventory__col-price,
 .stroane-inventory__col-stock {
-  width: 10%;
+  width: 8%;
+  align-items: center;
 }
 
 .stroane-inventory__col-value {

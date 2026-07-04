@@ -23,6 +23,20 @@ Next step:
 
 ## Entries
 
+### Module run-through, finance handoff, and Projects Kanban
+
+Date: 2026-07-04
+Feature/change name: Module run-through, finance handoff, and Projects Kanban
+Apps affected: Dev ERP
+What changed: Rechecked Dev ERP AI/productivity fetch ownership, monitored-app coverage, frontend route access, backend capability mappings, and the Accounting/Invoicing boundary. Added a persisted Accounting-to-Invoicing handoff for manual revenue entries only, with invoice draft/paid invoice creation, a line item, aligned `AccountingEntry.invoiceNumber`, audit logging, and an Invoicing link in the Accounting UI. Added the authenticated Projects module with module registry/navigation access, `/api/projects` CRUD, Prisma `Project` persistence, personal/external project types, five Kanban stages, draggable cards, button-based stage movement, create/edit modal, admin org filtering, and focused access tests.
+Why it changed: Dev ERP needed a current module run-through, stronger communication between Accounting and Invoicing, and a project hub for both personal and external work.
+Files changed: apps/dev-erp/backend/server.js, apps/dev-erp/backend/auth/accessConfig.js, apps/dev-erp/backend/auth/accessConfig.test.js, apps/dev-erp/prisma/schema.prisma, apps/dev-erp/prisma/migrations/20260704000000_add_projects_module/migration.sql, apps/dev-erp/src/App.jsx, apps/dev-erp/src/app/navigation.js, apps/dev-erp/src/config/adminModules.js, apps/dev-erp/src/pages/Accounting/Accounting.jsx, apps/dev-erp/src/pages/Projects/*, apps/dev-erp/src/utils/moduleAccess.js, apps/dev-erp/src/utils/moduleAccess.test.js, apps/dev-erp/src/index.css, apps/dev-erp/README.md, docs/apps/dev-erp/implementation-notes.md, docs/apps/dev-erp/system-status.md, docs/apps/dev-erp/progress-log.md.
+Data impact: Additive Dev ERP migration for `Project` plus project enums and indexes. Existing accounting rows remain compatible. Future manual revenue invoice handoffs create `Invoice` and `InvoiceLineItem` records and update the source entry's `invoiceNumber`; expense entries are blocked from invoice creation.
+Security impact: Positive. Projects API is authenticated, organization-scoped, and protected by the `projects` capability. AI/productivity remains server-owned with auth/capability/CSRF/rate-limit/key-validation boundaries. The accounting invoice handoff preserves authenticated organization scoping and rejects unsupported entry types.
+Testing done: `node --check apps/dev-erp/backend/server.js`; `pnpm --filter @faako/dev-erp run db:generate`; focused backend/frontend tests for access, AI productivity, monitoring, and invoice payment summary passed; `pnpm run monitoring:check` passed with 10 registered app workspaces and 14 monitored app surfaces; `pnpm --filter @faako/dev-erp run lint`; `pnpm --filter @faako/dev-erp run build`; `pnpm --filter @faako/dev-erp run test` passed with 125 tests; `pnpm --filter @faako/dev-erp run typecheck`; affected-file `git diff --check`.
+Rollback notes: Revert the Projects route/nav/API/schema/migration/page/test changes and remove the Projects module from capability maps. Revert the Accounting invoice-handoff route/UI changes if Accounting should return to detached PDF composition. If project records or accounting-created invoice drafts exist after deployment, handle those records through a reviewed forward migration or operational cleanup rather than deleting data blindly.
+Next step: Apply the Dev ERP migration in the target environment, then smoke-test `/projects` drag/drop and restricted access plus Accounting revenue-to-invoice handoff on desktop and mobile.
+
 ### Project metadata and module-settings direction refresh
 
 Date: 2026-06-25

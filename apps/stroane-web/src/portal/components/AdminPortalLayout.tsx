@@ -4,6 +4,7 @@ import {
   HiOutlineCash,
   HiOutlineCog,
   HiOutlineClipboardList,
+  HiOutlineCreditCard,
   HiOutlineCube,
   HiOutlineDesktopComputer,
   HiOutlineDocumentText,
@@ -58,6 +59,7 @@ const PORTAL_ITEMS: ErpNavItem[] = [
   { id: "orders", label: "Orders", path: "/admin/orders", iconKey: "orders" },
   { id: "receipts", label: "Receipts", path: "/admin/receipts", iconKey: "receipts" },
   { id: "accounting", label: "Accounting", path: "/admin/accounting", iconKey: "accounting" },
+  { id: "expenses", label: "Expenses", path: "/admin/expenses", iconKey: "expenses" },
   { id: "crm", label: "CRM", path: "/admin/crm", iconKey: "crm" },
   { id: "inventory", label: "Inventory", path: "/admin/inventory", iconKey: "inventory" },
   { id: "audit-logs", label: "Audit Logs", path: "/admin/audit-logs", iconKey: "audit" },
@@ -77,6 +79,7 @@ const PORTAL_ITEM_MODULES: Record<string, AdminRoleModule> = {
   orders: "orders",
   receipts: "receipts",
   accounting: "accounting",
+  expenses: "accounting",
   crm: "crm",
   inventory: "inventory",
   team: "team",
@@ -96,6 +99,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/orders": "Orders",
   "/admin/receipts": "Receipts",
   "/admin/accounting": "Accounting",
+  "/admin/expenses": "Expenses",
   "/admin/audit-logs": "Audit Logs",
   "/admin/reports": "Module reset",
   "/admin/settings": "Module reset",
@@ -106,6 +110,7 @@ const renderPortalIcon = (iconKey?: string): ReactNode => {
   if (iconKey === "orders") return <HiOutlineShoppingBag />;
   if (iconKey === "receipts") return <HiOutlineDocumentText />;
   if (iconKey === "accounting") return <HiOutlineCash />;
+  if (iconKey === "expenses") return <HiOutlineCreditCard />;
   if (iconKey === "crm") return <HiOutlineUserGroup />;
   if (iconKey === "inventory") return <HiOutlineCube />;
   if (iconKey === "audit") return <HiOutlineClipboardList />;
@@ -137,6 +142,7 @@ const canAccessPortalItem = (
   item: ErpNavItem
 ) => {
   if (item.id === "audit-logs") return session?.role === "ADMIN";
+  if (item.id === "team") return session?.role === "ADMIN" || session?.role === "OWNER";
   return canAccessPortalModule(session, getPortalItemModule(item));
 };
 

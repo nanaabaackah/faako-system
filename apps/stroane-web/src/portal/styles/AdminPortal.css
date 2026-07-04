@@ -1839,8 +1839,12 @@
 
 .stroane-team__role-fields {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.stroane-team__role-fields .ui-erp-field-group:first-child {
+  min-width: 0;
 }
 
 .stroane-team__permission-matrix {
@@ -1912,6 +1916,86 @@
 }
 
 .stroane-team__permission-matrix p {
+  margin: 0;
+  color: var(--sys-muted);
+  font-size: var(--font-size-sm);
+}
+
+.stroane-team__role-builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.stroane-team__role-list {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--sys-border);
+}
+
+.stroane-team__role-list-head,
+.stroane-team__role-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.stroane-team__role-list-head {
+  color: var(--sys-muted);
+  font-size: var(--font-size-sm);
+}
+
+.stroane-team__role-list-head strong {
+  color: var(--sys-text);
+}
+
+.stroane-team__role-list article {
+  padding: 0.75rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--radius-md);
+  background: var(--sys-surface);
+}
+
+.stroane-team__role-list article.is-editing {
+  border-color: var(--sys-accent);
+  background: var(--sys-accent-soft);
+}
+
+.stroane-team__role-list article > span {
+  min-width: 0;
+}
+
+.stroane-team__role-list article > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.stroane-team__role-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.3rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--radius-pill);
+  padding: 0 0.75rem;
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.stroane-team__role-list button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stroane-team__role-list p {
   margin: 0;
   color: var(--sys-muted);
   font-size: var(--font-size-sm);
@@ -2236,6 +2320,8 @@
   }
 
   .stroane-team__role-fields,
+  .stroane-team__role-list-head,
+  .stroane-team__role-list article,
   .stroane-team__permission-head,
   .stroane-team__permission-row {
     grid-template-columns: 1fr;
@@ -2397,7 +2483,7 @@
 
   .stroane-audit__col-time,
   .stroane-audit__col-event,
-  .stroane-audit__col-severity,{
+  .stroane-audit__col-severity {
     width: 50%;
   }
 }

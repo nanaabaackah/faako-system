@@ -23,6 +23,129 @@ Next step:
 
 ## Entries
 
+### Accounting expense hub
+
+Date: 2026-07-04
+Feature/change name: Accounting expense hub
+What changed:
+- Added `/admin/expenses` as an accounting-permission module for recording paid expenses and unpaid expense liabilities by class, category, payee/supplier, date, due date, reference, and notes.
+- Added `GET /api/admin/accounting/expenses` and `POST /api/admin/accounting/expenses` over the existing accounting ledger.
+- Extended `AccountingLedgerEntry` with optional expense metadata fields: `expenseClass`, `counterparty`, `dueDate`, and `paymentStatus`.
+- Updated `/admin/accounting` to show expense exposure, unpaid expense liabilities, and an Expenses shortcut, while keeping paid expenses and unpaid liabilities connected to existing net-profit/net-position calculations.
+- Added backend regression coverage for unpaid expense creation and accounting overview totals.
+Why it changed: The client needs a clear place to record sales, operational, supplier, delivery, tax, payroll, rent, and other expenses, and needs unpaid expense obligations surfaced as liabilities in accounting.
+Files changed: apps/stroane-web/prisma/schema.prisma, apps/stroane-web/prisma/migrations/20260704000000_add_expense_metadata_to_ledger/migration.sql, apps/stroane-web/backend/src/accounting/routes.js, apps/stroane-web/backend/accounting.test.js, apps/stroane-web/src/portal/api/adminAccounting.ts, apps/stroane-web/src/portal/pages/AccountingManagement.tsx, apps/stroane-web/src/portal/pages/ExpenseManagement.tsx, apps/stroane-web/src/portal/PortalApp.tsx, apps/stroane-web/src/portal/components/AdminPortalLayout.tsx, apps/stroane-web/README.md, docs/apps/stroane-web/api.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/system-status.md.
+Data impact: Additive Prisma migration. Existing ledger rows remain valid; new expense rows use the same `AccountingLedgerEntry` table and add optional metadata only where available.
+Security impact: Neutral/positive. Expense reads stay behind `accounting.view`; expense creation requires `accounting.create`; `ADMIN` and `OWNER` remain elevated. Audit Logs remain `ADMIN`-only.
+Testing done: `node --check` passed for the accounting route and new accounting test. `pnpm --filter @faako/stroane-web exec node --test backend/accounting.test.js` passed with 2 tests. `pnpm --filter @faako/stroane-web run test:backend` passed with 65 tests. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning. `git diff --check` passed.
+Rollback notes: Revert the expense page/route/API changes, accounting summary additions, migration/schema additions, tests, and docs. If deployed data exists, preserve or export `AccountingLedgerEntry` rows with `source = manual_expense` before rollback.
+Next step: Deploy the migration before enabling `/admin/expenses` in staging/production, then browser-smoke paid and unpaid expense creation and confirm the accounting summary updates.
+
+### Custom role inventory request guards
+
+Date: 2026-07-04
+Feature/change name: Custom role inventory request guards
+What changed:
+- Changed portal session permission fallback so `CUSTOM` sessions without explicit permission payloads start from no module permissions instead of inheriting viewer inventory visibility.
+- Added defensive `inventory.view` guards to the inventory provider, cached snapshot load, server refresh, and order product loader.
+- Limited automatic queued inventory sync to roles with inventory write/manage permissions.
+- Kept background manual-order product loading failures out of the global `Orders action` banner; those failures now show beside the manual-order product picker.
+- Added backend regression coverage proving an `OWNER` can pass the `orders.edit` action middleware.
+Why it changed: Some custom-role or stale browser sessions could still trigger private product, supplier, inventory, movement, and alert requests even though the backend correctly returned `403 Forbidden`. The orders page also surfaced background product-loading failures as `Orders action` failures, which made an inventory/product denial look like the owner was blocked from the whole orders module.
+Files changed: apps/stroane-web/backend/auth.test.js, apps/stroane-web/src/portal/api/adminSession.ts, apps/stroane-web/src/portal/context/InventoryManagementContext.tsx, apps/stroane-web/src/portal/pages/OrderManagement.tsx, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md.
+Data impact: No schema or data migration.
+Security impact: Positive. Custom roles no longer get frontend fallback access to inventory data, and backend `inventory.view` enforcement remains the source of truth.
+Testing done: `pnpm --filter @faako/stroane-web exec node --test backend/auth.test.js` passed with 10 tests. `pnpm --filter @faako/stroane-web run test:backend` passed with 63 tests. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning. `git diff --check` passed.
+Rollback notes: Revert the custom-role fallback change and inventory/order loader guards. No data rollback is required.
+Next step: Browser-smoke `/admin`, `/admin/orders`, and `/admin/inventory` with a custom role that does not have `inventory.view`; those pages should not emit product/supplier/inventory/movement/alert 403s unless the user directly opens a protected inventory route.
+
+### Owner and admin team role editing
+
+Date: 2026-07-04
+Feature/change name: Owner and admin team role editing
+What changed:
+- Added custom-role editing to the `/admin/team` module so admins and owners can update a custom role's name, description, permissions, and active status.
+- Added `PATCH /api/auth/roles/:id` for custom role edits, while keeping system roles immutable.
+- Restricted team user/role management APIs and the team route/sidebar item to elevated `ADMIN`/`OWNER` roles only.
+- Added backend regression coverage proving owners can use team-management APIs, custom roles cannot, and admins can update sanitized custom role permissions.
+- Updated current API, architecture, implementation, security, and system-status docs so owner/admin parity applies across all portal modules and data, with Audit Logs called out as the exception.
+Why it changed: The team module needed a way to maintain existing custom roles after creation. Owners should have the same portal privileges as admins except for the Audit Logs module.
+Files changed: apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/backend/auth.test.js, apps/stroane-web/src/portal/api/adminSession.ts, apps/stroane-web/src/portal/components/AdminPortalLayout.tsx, apps/stroane-web/src/portal/PortalApp.tsx, apps/stroane-web/src/portal/pages/TeamManagement.tsx, apps/stroane-web/src/portal/styles/AdminPortal.css, docs/apps/stroane-web/api.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/portal-architecture.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/system-status.md.
+Data impact: No schema or migration. Custom role edits update existing `PortalRole` rows only.
+Security impact: Positive. Team management remains limited to elevated system roles, custom roles still cannot grant team permissions, system role definitions cannot be edited, and Audit Logs remain `ADMIN`-only.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec node --test backend/auth.test.js` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 62 tests. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning.
+Rollback notes: Revert the role update route/API method, Team page role editing controls, elevated route/sidebar guard changes, auth tests, and docs. No data rollback is required.
+Next step: Browser-smoke `/admin/team` with an admin account and an owner account, then confirm Audit Logs remain hidden from owners.
+
+### Portal role-aware dashboard loading
+
+Date: 2026-07-04
+Feature/change name: Portal role-aware dashboard loading
+What changed:
+- Updated the portal dashboard so it only fetches inventory, product, supplier, movement, and alert data when the current staff session has `inventory.view`.
+- Updated dashboard order requests and order analytics so they only run when the session has `orders.view`.
+- Added `inventory.view` checks to private product, supplier, inventory, movement, and inventory-alert read routes, while leaving writes on their stronger `inventory.create`/`inventory.edit` permissions.
+- Added backend regression coverage for custom roles with and without `inventory.view`.
+Why it changed: Custom staff roles that did not have inventory access were landing on `/admin` and the dashboard was still firing private inventory/product/supplier/alert/movement API requests, causing repeated 403 console errors and partially loaded content.
+Files changed: apps/stroane-web/backend/auth.test.js, apps/stroane-web/backend/src/inventory/routes.js, apps/stroane-web/backend/src/inventoryAlerts/routes.js, apps/stroane-web/backend/src/products/routes.js, apps/stroane-web/src/portal/pages/AdminPortalHome.tsx, docs/apps/stroane-web/api.md, docs/apps/stroane-web/progress-log.md.
+Data impact: No schema or data migration.
+Security impact: Positive. Backend read APIs now enforce module permissions for custom roles, and the dashboard avoids calling APIs the user cannot view.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec node --test backend/auth.test.js` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 59 tests. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning.
+Rollback notes: Revert the dashboard permission gates, route read-permission middleware changes, auth regression test, and docs. No data rollback is required.
+Next step: Smoke-test `/admin` with a custom role that has only dashboard/profile access, then with a custom role that includes `inventory.view`.
+
+### Portal profile password change
+
+Date: 2026-07-04
+Feature/change name: Portal profile password change
+What changed:
+- Added new/confirm password fields to the staff portal profile module.
+- Extended `PATCH /api/auth/me` so the authenticated staff user can optionally update their own password from profile; the backend validates the new password length, hashes it server-side, and keeps password fields out of the response/session payload.
+- Added backend regression coverage for a non-admin portal user changing only their own password.
+Why it changed: Staff users created with temporary/invited passwords need a self-service way to set their own password after signing in, without needing an admin to rotate it manually.
+Files changed: apps/stroane-web/backend/src/routes/auth.js, apps/stroane-web/backend/auth.test.js, apps/stroane-web/src/portal/api/adminSession.ts, apps/stroane-web/src/portal/pages/AdminPortalProfile.tsx, docs/apps/stroane-web/api.md, docs/apps/stroane-web/progress-log.md.
+Data impact: No schema migration. Successful password changes update only the current user's `SiteUser.passwordHash`.
+Security impact: Positive/neutral. Password changes require an authenticated staff session, hash the new password server-side, and do not expose password data in browser session storage or API responses. Existing HttpOnly staff cookie behavior remains unchanged.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec node --test backend/auth.test.js` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 58 tests. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning.
+Rollback notes: Revert the profile password fields, optional `newPassword` backend handling/test, and docs. Existing password hashes remain valid.
+Next step: Browser-smoke `/admin/profile` with a temporary-password user and confirm the new password works on the next login.
+
+### Customer profile password reset action
+
+Date: 2026-07-04
+Feature/change name: Customer profile password reset action
+What changed:
+- Added a password reset action to the signed-in customer profile card. It uses the authenticated customer's email and calls the existing secure password-reset request flow.
+- Added account-profile styling for the password row so the action fits the current profile form on desktop and mobile.
+- Added backend regression coverage proving each new reset request replaces the previous token, expired links are rejected, and successful resets clear reset metadata.
+- Replaced the password-reset email wrapper with a compact table-based email so the rendered email includes the visible reset action body, fallback reset URL, expiry copy, account-safety note, and local-test redirect notice in the message body.
+Why it changed: Signed-in customers should be able to request a reset-token email from their profile without signing out or finding the forgot-password page.
+Files changed: apps/stroane-web/src/frontend/pages/CustomerAccountPlaceholder.tsx, apps/stroane-web/src/frontend/styles/AccountPlaceholder.css, apps/stroane-web/backend/src/customerAccountNotifications.js, apps/stroane-web/backend/customer-account-notifications.test.js, apps/stroane-web/backend/customer-accounts.test.js, docs/apps/stroane-web/api.md, docs/apps/stroane-web/implementation-notes.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/progress-log.md.
+Data impact: No schema or data migration.
+Security impact: Positive. The flow reuses the backend `POST /api/customer/password/forgot` endpoint, which returns a generic response, sends the raw reset token only by email, stores only a SHA-256 hash, gives the link a one-hour expiry, and replaces older reset-token hashes whenever a new link is requested. The email now also makes the expiry/replacement behavior visible to the customer without exposing reset-token hashes in browser state or logs.
+Testing done: `git diff --check` passed. `pnpm --filter @faako/stroane-web exec node --test backend/customer-account-notifications.test.js` passed. `pnpm --filter @faako/stroane-web exec node --test backend/customer-accounts.test.js` passed. `pnpm --filter @faako/stroane-web run test:backend` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning.
+Rollback notes: Revert the customer profile button/styling, customer password-reset email template/test, and this log entry. No database rollback is required.
+Next step: Smoke-test `/account` with a signed-in staging customer and confirm the reset email is delivered to the current account email.
+
+### Staging docs and API rate-limit tuning
+
+Date: 2026-07-03
+Feature/change name: Staging docs and API rate-limit tuning
+What changed:
+- Documented the Stroane staging environment split: `stage.stroanesolutions.com`, `portal-stage.stroanesolutions.com`, and `api-staging.stroanesolutions.com`.
+- Aligned the backend server env loading with Prisma so `APP_ENV=staging` can load `.env.staging` during local API checks.
+- Added method-scoped API rate-limit middleware support, split the global API limiter into read/write buckets, separated narrow staff/customer auth limits from roomier authenticated staff/customer session traffic, and mounted the admin limiter once before the admin router stack so a single protected request does not consume multiple admin hits while passing unmatched routers.
+- Kept protected admin, inquiry, checkout, Paystack initialize, Paystack verify, Paystack webhook, and inventory-alert limits route-specific.
+- Fixed a responsive audit-table CSS selector typo that surfaced during the staging-readiness build.
+- Updated Stroane and platform security docs with the cross-app rate-limit audit summary.
+Why it changed: Staging needed a clear runbook, and normal Stroane portal/customer activity could exhaust broad low auth/global buckets or consume several admin hits per request before the intended route-specific admin limit was reached.
+Files changed: apps/stroane-web/backend/security.js, apps/stroane-web/backend/security.test.js, apps/stroane-web/backend/server.js, apps/stroane-web/src/portal/styles/AdminPortal.css, apps/stroane-web/README.md, docs/apps/stroane-web/api.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/progress-log.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/system-status.md, docs/platform/security-status.md.
+Data impact: No schema or data migration.
+Security impact: Positive. Login/signup/password/payment/write routes remain separately limited, while routine authenticated portal/customer reads no longer consume the narrow auth buckets. Limits are still in-memory per Node process; Railway/provider-level controls remain the production layer for deployed abuse protection.
+Testing done: `node --check apps/stroane-web/backend/security.js` passed. `node --check apps/stroane-web/backend/server.js` passed. `pnpm --filter @faako/stroane-web run test:backend` passed with 54 tests. `pnpm --filter @faako/stroane-web exec prisma validate` passed. `pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit --pretty false` passed. `pnpm --filter @faako/stroane-web run lint` passed. `pnpm --filter @faako/stroane-web run build` passed with only the existing Vite `NODE_ENV=production` env warning. `git diff --check` passed. Staging curl smoke passed for API health, catalogue products, storefront headers, portal login headers, and unauthenticated admin API rejection. Headless Chrome smoke passed for staging homepage, shop, and portal login with no captured page or console errors; the portal login page displayed the shared update-ready banner immediately.
+Rollback notes: Revert the security middleware/server wiring and documentation updates. No database rollback is required.
+Next step: Deploy the tuned API to staging, redeploy both Cloudflare Pages staging surfaces, then repeat the portal action flow that previously reached 429 after roughly 10 actions.
+
 ### Portal product creation and bulk table controls
 
 Date: 2026-06-18

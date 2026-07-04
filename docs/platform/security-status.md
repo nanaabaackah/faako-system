@@ -6,7 +6,7 @@ Summarize shared Faako security foundations, app adoption, current gaps, and rec
 
 ## Current Shared Foundations
 
-Date reviewed: 2026-06-16
+Date reviewed: 2026-07-03
 
 - `packages/security` provides shared security profile metadata, security header builders, CORS helper primitives, public-env key detection, and app-system validation.
 - `scripts/security-scan.mjs` checks tracked files for secret-like values, unsafe env files, private keys, and high-risk credentials.
@@ -16,15 +16,15 @@ Date reviewed: 2026-06-16
 
 ## App Adoption Notes
 
-- Stroane Web: shared API headers, CORS allowlist, explicit trusted proxy handling, in-memory API rate limiting, route-specific write/payment/admin limits, default write deny, server-side stock/price validation, signed Paystack webhook confirmation with transaction verification, protected admin routes backed by HttpOnly cookies with legacy bearer fallback, minimized provider metadata, sanitized route-level error logging for auth/commerce/payment paths, and Safari/iOS-safe shared form-control presentation.
-- Dev ERP: shared backend header helper adoption and app registry/monitoring checks exist; payment and invoice workflow security remains app-owned.
-- REEBS Portal: production-sensitive auth, payment, booking, inventory, offline queue, and API handler surfaces remain app-owned and should be reviewed separately before deeper shared security extraction. Customer API responses now use allowlisted response headers, and the water MoMo webhook requires header-based shared-secret delivery.
-- Faako ERP/Faako API: demo access is now backend-owned. The browser no longer generates/displays demo codes or stores demo bearer-style tokens; Faako API emails short-lived codes and stores only challenge hashes.
+- Stroane Web: shared API headers, CORS allowlist, explicit trusted proxy handling, method-aware in-memory API read/write limiting, separate staff/customer auth and session buckets, route-specific write/payment/admin limits, default write deny, server-side stock/price validation, signed Paystack webhook confirmation with transaction verification, protected admin routes backed by HttpOnly cookies with legacy bearer fallback, minimized provider metadata, sanitized route-level error logging for auth/commerce/payment paths, and Safari/iOS-safe shared form-control presentation.
+- Dev ERP: shared backend header helper adoption and app registry/monitoring checks exist; in-memory API/auth/public-booking/AI rate limits protect the Express API; payment and invoice workflow security remains app-owned.
+- REEBS Portal: production-sensitive auth, payment, booking, inventory, offline queue, and API handler surfaces remain app-owned and should be reviewed separately before deeper shared security extraction. The public contact handler uses a database-backed window limiter for IP/email submissions, customer API responses use allowlisted response headers, and the water MoMo webhook requires header-based shared-secret delivery.
+- Faako ERP/Faako API: demo access is backend-owned. The browser no longer generates/displays demo codes or stores demo bearer-style tokens; Faako API emails short-lived codes and stores only challenge hashes. Faako API signup/demo flows use focused IP/email/challenge limits.
 - Faako Website/Faako API/byNana Portfolio: public-site/API security posture should continue through app-system metadata, env scanning, and deployment-level header checks.
 
 ## Current Platform Gaps
 
-- Persistent/distributed rate limiting is not standardized yet; Stroane has selected Railway/provider controls for production checkout protection.
+- Persistent/distributed rate limiting is not standardized yet; REEBS contact intake has a database-backed window limiter, while Stroane and Dev ERP still rely on in-process middleware plus provider controls. Stroane has selected Railway/provider controls for production checkout protection.
 - Database least-privilege policy is app/provider-specific and not enforced by shared packages.
 - Postgres RLS is not enabled monorepo-wide. It should be introduced per app only after the runtime sets a trusted organization/user context per request, policies are covered by tests, and migrations have an explicit rollback plan.
 - Payment event logging and notification idempotency are not standardized yet.

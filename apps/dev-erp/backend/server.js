@@ -7323,15 +7323,481 @@ app.post(
     if (entry.source !== "MANUAL") {
       return res.status(400).json({ error: "Invoices can only be generated for manual entries." });
     }
-    const invoiceNumber = entry.invoiceNumber || buildInvoiceNumber(entry.id);
-    const updatedEntry = await prisma.accountingEntry.update({
-      where: { id: entry.id },
-      data: { invoiceNumber },
-      include: { organization: { select: { id: true, name: true, slug: true } } },
+    if (entry.type !== "REVENUE") {
+      return res.status(400).json({ error: "Invoices can only be created from revenue entries." });
+    }
+
+    if (entry.invoiceNumber) {
+      const existingInvoice = await prisma.invoice.findFirst({
+        where: {
+          organizationId: entry.organizationId,
+          invoiceNumber: entry.invoiceNumber,
+        },
+        include: {
+          organization: { select: { id: true, name: true, slug: true } },
+          lineItems: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+      if (existingInvoice) {
+        return res.json({
+          created: false,
+          invoiceNumber: existingInvoice.invoiceNumber,
+          invoice: serializeInvoice(existingInvoice),
+          entry: serializeAccountingEntry(entry),
+        });
+      }
+    }
+
+    let invoiceNumber = entry.invoiceNumber || buildInvoiceNumber(entry.id);
+    const existingNumber = await prisma.invoice.findFirst({
+      where: {
+        organizationId: entry.organizationId,
+        invoiceNumber,
+      },
+      select: { id: true },
     });
-    res.json({ invoiceNumber, entry: serializeAccountingEntry(updatedEntry) });
+    if (existingNumber) {
+      invoiceNumber = await buildNextInvoiceNumber(entry.organizationId);
+    }
+
+    const issueDate = new Date();
+    let dueDate = entry.dueAt ? new Date(entry.dueAt) : null;
+    if (!dueDate || Number.isNaN(dueDate.getTime()) || dueDate < issueDate) {
+      dueDate = new Date(issueDate);
+      dueDate.setDate(dueDate.getDate() + 14);
+    }
+
+    const amount = roundCurrencyAmount(
+      typeof entry.amount?.toNumber === "function" ? entry.amount.toNumber() : entry.amount
+    );
+    const parsedLineItems = parseInvoiceLineItems([
+      {
+        description: entry.serviceName,
+        quantity: 1,
+        unitPrice: amount,
+      },
+    ]);
+    if (parsedLineItems.error) {
+      return res.status(400).json({ error: parsedLineItems.error });
+    }
+
+    const totals = calculateInvoiceTotals({
+      lineItems: parsedLineItems.lineItems,
+      taxRate: 0,
+      discount: 0,
+    });
+    if (totals.error) {
+      return res.status(400).json({ error: totals.error });
+    }
+
+    const status = entry.status === "PAID" ? "PAID" : "DRAFT";
+    const paidAmount = status === "PAID" ? totals.total : 0;
+    const paidAt = status === "PAID" ? entry.paidAt || new Date() : null;
+
+    const { invoice, updatedEntry } = await prisma.$transaction(async (tx) => {
+      const createdInvoice = await tx.invoice.create({
+        data: {
+          organizationId: entry.organizationId,
+          invoiceNumber,
+          status,
+          currency: entry.currency,
+          issueDate,
+          dueDate,
+          paidAt,
+          clientName: entry.organization?.name || "Client",
+          clientEmail: null,
+          clientAddress: null,
+          notes: [
+            `Created from accounting entry #${entry.id}.`,
+            entry.detail ? `Entry detail: ${entry.detail}` : null,
+          ].filter(Boolean).join("\n"),
+          subtotal: toCurrencyDecimal(totals.subtotal),
+          taxRate: toCurrencyDecimal(totals.taxRate),
+          taxAmount: toCurrencyDecimal(totals.taxAmount),
+          discount: toCurrencyDecimal(totals.discount),
+          total: toCurrencyDecimal(totals.total),
+          paidAmount: toCurrencyDecimal(paidAmount),
+          lineItems: {
+            create: parsedLineItems.lineItems.map((lineItem) => ({
+              description: lineItem.description,
+              quantity: toCurrencyDecimal(lineItem.quantity),
+              unitPrice: toCurrencyDecimal(lineItem.unitPrice),
+              amount: toCurrencyDecimal(lineItem.amount),
+              sortOrder: lineItem.sortOrder,
+            })),
+          },
+        },
+        include: {
+          organization: { select: { id: true, name: true, slug: true } },
+          lineItems: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+
+      const nextEntry = await tx.accountingEntry.update({
+        where: { id: entry.id },
+        data: { invoiceNumber: createdInvoice.invoiceNumber },
+        include: { organization: { select: { id: true, name: true, slug: true } } },
+      });
+
+      return { invoice: createdInvoice, updatedEntry: nextEntry };
+    });
+
+    await writeAuditLog(
+      prisma,
+      {
+        userId: req.user?.userId,
+        organizationId: invoice.organizationId,
+        action: "INVOICE_CREATED_FROM_ACCOUNTING",
+        targetType: "invoice",
+        targetId: String(invoice.id),
+        source: "api",
+        category: "financial",
+        severity: "info",
+        status: "ok",
+        summary: `Created invoice ${invoice.invoiceNumber} from accounting entry #${entry.id}.`,
+        actorLabel: req.user?.fullName || req.user?.email || null,
+        requestId: String(req.headers["x-request-id"] || ""),
+        ipAddress: req.ip,
+        metadata: {
+          accountingEntryId: entry.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceStatus: invoice.status,
+        },
+      },
+      { environment: APP_ENV }
+    );
+
+    res.status(201).json({
+      created: true,
+      invoiceNumber: invoice.invoiceNumber,
+      invoice: serializeInvoice(invoice),
+      entry: serializeAccountingEntry(updatedEntry),
+    });
   }
 );
+
+const parseProjectId = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const normalizeProjectText = (value, { maxLength = 240, nullable = true } = {}) => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!normalized) return nullable ? null : "";
+  return normalized.slice(0, maxLength);
+};
+
+const parseProjectBudgetAmount = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") return { budgetAmount: null };
+  const budgetAmount = parsePositiveAmount(value, { allowZero: true });
+  if (budgetAmount === null) {
+    return { error: "budgetAmount must be 0 or greater." };
+  }
+  return { budgetAmount };
+};
+
+const resolveProjectOwnerId = async ({ ownerUserId, organizationId, fallbackUserId }) => {
+  const hasExplicitOwner = ownerUserId !== undefined;
+  if (hasExplicitOwner && (ownerUserId === null || ownerUserId === "")) {
+    return { ownerUserId: null };
+  }
+
+  const resolvedOwnerId = hasExplicitOwner ? Number(ownerUserId) : Number(fallbackUserId);
+  if (!Number.isInteger(resolvedOwnerId) || resolvedOwnerId <= 0) {
+    return { ownerUserId: null };
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: {
+      id: resolvedOwnerId,
+      organizationId,
+    },
+    select: { id: true },
+  });
+
+  if (!owner) {
+    return { error: "ownerUserId must belong to the selected organization." };
+  }
+
+  return { ownerUserId: owner.id };
+};
+
+app.get("/api/projects", authMiddleware, async (req, res) => {
+  const isAdmin = req.user?.roleName === "Admin";
+  const organizationScope = await resolveOrganizationReadScope({
+    user: req.user,
+    organizationParam: req.query?.organizationId,
+    requestedByAdmin: isAdmin,
+    ownAccessError: "You can only access projects for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
+  }
+
+  const stageParam = String(req.query?.stage || "").trim();
+  const stage =
+    stageParam && stageParam.toLowerCase() !== "all"
+      ? normalizeProjectStage(stageParam, "")
+      : null;
+  if (stageParam && stageParam.toLowerCase() !== "all" && !stage) {
+    return res.status(400).json({ error: "stage must be BACKLOG, SCOPING, ACTIVE, REVIEW, or DONE" });
+  }
+
+  const typeParam = String(req.query?.type || "").trim();
+  const projectType =
+    typeParam && typeParam.toLowerCase() !== "all"
+      ? normalizeProjectType(typeParam, "")
+      : null;
+  if (typeParam && typeParam.toLowerCase() !== "all" && !projectType) {
+    return res.status(400).json({ error: "type must be PERSONAL or EXTERNAL" });
+  }
+
+  const includeArchived = String(req.query?.includeArchived || "").toLowerCase() === "true";
+  const projects = await prisma.project.findMany({
+    where: {
+      ...organizationScope.organizationFilter,
+      ...(stage ? { stage } : {}),
+      ...(projectType ? { projectType } : {}),
+      ...(includeArchived ? {} : { archivedAt: null }),
+    },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      ownerUser: { select: { id: true, fullName: true, email: true } },
+    },
+    orderBy: [{ stage: "asc" }, { dueDate: "asc" }, { updatedAt: "desc" }],
+  });
+
+  res.json({
+    projects: projects.map(serializeProject),
+    stages: Array.from(PROJECT_STAGE_VALUES),
+  });
+});
+
+app.post("/api/projects", authMiddleware, async (req, res) => {
+  const organizationScope = await resolveOrganizationWriteScope({
+    user: req.user,
+    organizationId: req.body?.organizationId,
+    ownAccessError: "You can only create projects for your own organization.",
+  });
+  if (organizationScope.error) {
+    return res.status(organizationScope.status).json({ error: organizationScope.error });
+  }
+
+  const title = normalizeProjectText(req.body?.title, { maxLength: 180, nullable: false });
+  if (!title) {
+    return res.status(400).json({ error: "title is required" });
+  }
+
+  const projectType = normalizeProjectType(req.body?.projectType);
+  if (!projectType) {
+    return res.status(400).json({ error: "projectType must be PERSONAL or EXTERNAL" });
+  }
+  const stage = normalizeProjectStage(req.body?.stage);
+  if (!stage) {
+    return res.status(400).json({ error: "stage must be BACKLOG, SCOPING, ACTIVE, REVIEW, or DONE" });
+  }
+  const priority = normalizeProjectPriority(req.body?.priority);
+  if (!priority) {
+    return res.status(400).json({ error: "priority must be LOW, MEDIUM, HIGH, or URGENT" });
+  }
+
+  const parsedBudget = parseProjectBudgetAmount(req.body?.budgetAmount);
+  if (parsedBudget.error) {
+    return res.status(400).json({ error: parsedBudget.error });
+  }
+  const shouldResolveCurrency = Boolean(req.body?.currency) || parsedBudget.budgetAmount !== null;
+  const currency = shouldResolveCurrency ? normalizeAccountingCurrency(req.body?.currency || "CAD") : null;
+  if (shouldResolveCurrency && !currency) {
+    return res.status(400).json({ error: "currency must be CAD or GHS" });
+  }
+
+  const dueDate =
+    req.body?.dueDate === undefined || req.body?.dueDate === null || String(req.body?.dueDate).trim() === ""
+      ? null
+      : parseDateValue(req.body.dueDate);
+  if (req.body?.dueDate && !dueDate) {
+    return res.status(400).json({ error: "dueDate must be a valid date" });
+  }
+
+  const owner = await resolveProjectOwnerId({
+    ownerUserId: req.body?.ownerUserId,
+    organizationId: organizationScope.organizationId,
+    fallbackUserId: req.user?.userId,
+  });
+  if (owner.error) {
+    return res.status(400).json({ error: owner.error });
+  }
+
+  const project = await prisma.project.create({
+    data: {
+      organizationId: organizationScope.organizationId,
+      ownerUserId: owner.ownerUserId,
+      title,
+      clientName: normalizeProjectText(req.body?.clientName, { maxLength: 180 }),
+      projectType,
+      stage,
+      priority,
+      currency,
+      budgetAmount:
+        parsedBudget.budgetAmount === null ? null : toCurrencyDecimal(parsedBudget.budgetAmount),
+      dueDate,
+      description: normalizeProjectText(req.body?.description, { maxLength: 2000 }),
+      externalRef: normalizeProjectText(req.body?.externalRef, { maxLength: 160 }),
+    },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      ownerUser: { select: { id: true, fullName: true, email: true } },
+    },
+  });
+
+  res.status(201).json(serializeProject(project));
+});
+
+app.patch("/api/projects/:id", authMiddleware, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const projectId = parseProjectId(req.params.id);
+  if (!projectId) {
+    return res.status(400).json({ error: "Project id must be a valid number." });
+  }
+
+  const project = await prisma.project.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: projectId }
+      : { id: projectId, organizationId: req.user.organizationId },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      ownerUser: { select: { id: true, fullName: true, email: true } },
+    },
+  });
+
+  if (!project) {
+    return res.status(404).json({ error: "Project not found." });
+  }
+
+  const updateData = {};
+  if (req.body?.organizationId !== undefined) {
+    const organizationScope = await resolveOrganizationWriteScope({
+      user: req.user,
+      organizationId: req.body.organizationId,
+      ownAccessError: "You can only move projects within your own organization.",
+    });
+    if (organizationScope.error) {
+      return res.status(organizationScope.status).json({ error: organizationScope.error });
+    }
+    updateData.organizationId = organizationScope.organizationId;
+  }
+
+  if (req.body?.title !== undefined) {
+    const title = normalizeProjectText(req.body.title, { maxLength: 180, nullable: false });
+    if (!title) {
+      return res.status(400).json({ error: "title is required" });
+    }
+    updateData.title = title;
+  }
+
+  if (req.body?.clientName !== undefined) {
+    updateData.clientName = normalizeProjectText(req.body.clientName, { maxLength: 180 });
+  }
+
+  if (req.body?.projectType !== undefined) {
+    const projectType = normalizeProjectType(req.body.projectType, "");
+    if (!projectType) {
+      return res.status(400).json({ error: "projectType must be PERSONAL or EXTERNAL" });
+    }
+    updateData.projectType = projectType;
+  }
+
+  if (req.body?.stage !== undefined) {
+    const stage = normalizeProjectStage(req.body.stage, "");
+    if (!stage) {
+      return res.status(400).json({ error: "stage must be BACKLOG, SCOPING, ACTIVE, REVIEW, or DONE" });
+    }
+    updateData.stage = stage;
+  }
+
+  if (req.body?.priority !== undefined) {
+    const priority = normalizeProjectPriority(req.body.priority, "");
+    if (!priority) {
+      return res.status(400).json({ error: "priority must be LOW, MEDIUM, HIGH, or URGENT" });
+    }
+    updateData.priority = priority;
+  }
+
+  if (req.body?.currency !== undefined) {
+    if (req.body.currency === null || String(req.body.currency).trim() === "") {
+      updateData.currency = null;
+    } else {
+      const currency = normalizeAccountingCurrency(req.body.currency);
+      if (!currency) {
+        return res.status(400).json({ error: "currency must be CAD or GHS" });
+      }
+      updateData.currency = currency;
+    }
+  }
+
+  if (req.body?.budgetAmount !== undefined) {
+    const parsedBudget = parseProjectBudgetAmount(req.body.budgetAmount);
+    if (parsedBudget.error) {
+      return res.status(400).json({ error: parsedBudget.error });
+    }
+    updateData.budgetAmount =
+      parsedBudget.budgetAmount === null ? null : toCurrencyDecimal(parsedBudget.budgetAmount);
+    if (parsedBudget.budgetAmount !== null && !updateData.currency && !project.currency) {
+      updateData.currency = "CAD";
+    }
+  }
+
+  if (req.body?.dueDate !== undefined) {
+    if (req.body.dueDate === null || String(req.body.dueDate).trim() === "") {
+      updateData.dueDate = null;
+    } else {
+      const dueDate = parseDateValue(req.body.dueDate);
+      if (!dueDate) {
+        return res.status(400).json({ error: "dueDate must be a valid date" });
+      }
+      updateData.dueDate = dueDate;
+    }
+  }
+
+  if (req.body?.description !== undefined) {
+    updateData.description = normalizeProjectText(req.body.description, { maxLength: 2000 });
+  }
+
+  if (req.body?.externalRef !== undefined) {
+    updateData.externalRef = normalizeProjectText(req.body.externalRef, { maxLength: 160 });
+  }
+
+  if (req.body?.ownerUserId !== undefined) {
+    const owner = await resolveProjectOwnerId({
+      ownerUserId: req.body.ownerUserId,
+      organizationId: updateData.organizationId ?? project.organizationId,
+      fallbackUserId: null,
+    });
+    if (owner.error) {
+      return res.status(400).json({ error: owner.error });
+    }
+    updateData.ownerUserId = owner.ownerUserId;
+  }
+
+  if (req.body?.archived !== undefined) {
+    updateData.archivedAt = req.body.archived ? new Date() : null;
+  }
+  if (req.body?.archivedAt !== undefined) {
+    updateData.archivedAt = req.body.archivedAt ? parseDateValue(req.body.archivedAt) : null;
+  }
+
+  const updatedProject = await prisma.project.update({
+    where: { id: project.id },
+    data: updateData,
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      ownerUser: { select: { id: true, fullName: true, email: true } },
+    },
+  });
+
+  res.json(serializeProject(updatedProject));
+});
 
 const PROPOSAL_STATUSES = new Set([
   "draft",
@@ -9997,6 +10463,9 @@ const ACCOUNTING_TYPE_VALUES = new Set(["REVENUE", "EXPENSE"]);
 const ACCOUNTING_STATUS_VALUES = new Set(["PAID", "PENDING", "SCHEDULED", "OVERDUE"]);
 const ACCOUNTING_CURRENCY_VALUES = new Set(["CAD", "GHS"]);
 const ACCOUNTING_INTERVAL_VALUES = new Set(["MONTHLY", "QUARTERLY", "YEARLY"]);
+const PROJECT_TYPE_VALUES = new Set(["PERSONAL", "EXTERNAL"]);
+const PROJECT_STAGE_VALUES = new Set(["BACKLOG", "SCOPING", "ACTIVE", "REVIEW", "DONE"]);
+const PROJECT_PRIORITY_VALUES = new Set(["LOW", "MEDIUM", "HIGH", "URGENT"]);
 const INVOICE_STATUS_VALUES = new Set([
   "DRAFT",
   "QUOTATION",
@@ -10049,6 +10518,21 @@ const normalizeInvoiceStatus = (value) => {
 const normalizeAccountingCurrency = (value) => {
   const normalized = String(value || "").trim().toUpperCase();
   return ACCOUNTING_CURRENCY_VALUES.has(normalized) ? normalized : null;
+};
+
+const normalizeProjectType = (value, fallback = "PERSONAL") => {
+  const normalized = String(value || fallback).trim().toUpperCase();
+  return PROJECT_TYPE_VALUES.has(normalized) ? normalized : null;
+};
+
+const normalizeProjectStage = (value, fallback = "BACKLOG") => {
+  const normalized = String(value || fallback).trim().toUpperCase();
+  return PROJECT_STAGE_VALUES.has(normalized) ? normalized : null;
+};
+
+const normalizeProjectPriority = (value, fallback = "MEDIUM") => {
+  const normalized = String(value || fallback).trim().toUpperCase();
+  return PROJECT_PRIORITY_VALUES.has(normalized) ? normalized : null;
 };
 
 const normalizeRentTenantStatus = (value) => {
@@ -11785,6 +12269,44 @@ const serializeInvoice = (invoice) => ({
   createdAt: invoice.createdAt ? invoice.createdAt.toISOString() : null,
   updatedAt: invoice.updatedAt ? invoice.updatedAt.toISOString() : null,
   lineItems: Array.isArray(invoice.lineItems) ? invoice.lineItems.map(serializeInvoiceLineItem) : [],
+});
+
+const serializeProject = (project) => ({
+  id: project.id,
+  organizationId: project.organizationId,
+  organization: project.organization
+    ? {
+        id: project.organization.id,
+        name: project.organization.name,
+        slug: project.organization.slug,
+      }
+    : null,
+  ownerUserId: project.ownerUserId ?? null,
+  ownerUser: project.ownerUser
+    ? {
+        id: project.ownerUser.id,
+        fullName: project.ownerUser.fullName,
+        email: project.ownerUser.email,
+      }
+    : null,
+  title: project.title,
+  clientName: project.clientName ?? null,
+  projectType: project.projectType,
+  stage: project.stage,
+  priority: project.priority,
+  currency: project.currency ?? null,
+  budgetAmount:
+    project.budgetAmount === null || project.budgetAmount === undefined
+      ? null
+      : typeof project.budgetAmount?.toNumber === "function"
+        ? project.budgetAmount.toNumber()
+        : Number(project.budgetAmount),
+  dueDate: project.dueDate ? project.dueDate.toISOString() : null,
+  description: project.description ?? null,
+  externalRef: project.externalRef ?? null,
+  archivedAt: project.archivedAt ? project.archivedAt.toISOString() : null,
+  createdAt: project.createdAt ? project.createdAt.toISOString() : null,
+  updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
 });
 
 const serializeProductivityEntry = (entry) => ({
