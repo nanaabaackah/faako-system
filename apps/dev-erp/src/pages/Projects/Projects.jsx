@@ -391,7 +391,7 @@ export default function Projects() {
           { label: "External", value: summary.external, tone: "warning" },
           { label: "Due soon", value: summary.dueSoon, tone: summary.dueSoon ? "warning" : "success" },
         ].map((item) => (
-          <article className={`bubble-card panel projects-summary-card is-${item.tone}`} key={item.label}>
+          <article className={`panel projects-summary-card is-${item.tone}`} key={item.label}>
             <span className="kpi-label">{item.label}</span>
             <strong>{item.value}</strong>
           </article>
@@ -403,7 +403,7 @@ export default function Projects() {
           const stageProjects = projectsByStage[stage.key] || [];
           return (
             <article
-              className={`projects-column glass-card ${dragOverStage === stage.key ? " is-drag-over" : ""}`}
+              className={`projects-column${dragOverStage === stage.key ? " is-drag-over" : ""}`}
               key={stage.key}
               onDragOver={(event) => {
                 event.preventDefault();

@@ -7489,7 +7489,9 @@ const normalizeProjectText = (value, { maxLength = 240, nullable = true } = {}) 
 };
 
 const parseProjectBudgetAmount = (value) => {
-  if (value === undefined || value === null || String(value).trim() === "") return { budgetAmount: null };
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return { budgetAmount: null };
+  }
   const budgetAmount = parsePositiveAmount(value, { allowZero: true });
   if (budgetAmount === null) {
     return { error: "budgetAmount must be 0 or greater." };
