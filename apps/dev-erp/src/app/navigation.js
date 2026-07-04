@@ -7,10 +7,10 @@ import {
   Monitor,
   DocumentText,
   ClipboardTick,
+  TaskSquare,
   Profile2User,
   Setting2,
   Home2,
-  TaskSquare,
 } from "iconsax-react";
 import {
   getModuleBadges,
@@ -188,6 +188,8 @@ export const getTopbarLabel = (pathname) => {
   switch (pathname) {
     case "/dashboard":
       return "Dashboard";
+    case "/projects":
+      return "Projects";
     case "/accounting":
       return "Accounting";
     case "/projects":
@@ -232,6 +234,8 @@ export const getTitleForPath = (pathname) => {
       return "Dashboard | Dev";
     case "/login":
       return "Login | Dev";
+    case "/projects":
+      return "Projects | Dev";
     case "/setup-account":
       return "Set Up Account | Dev";
     case "/error":

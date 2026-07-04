@@ -55,6 +55,8 @@ export interface AccountingSummary {
   orderRevenue: number;
   manualIncome: number;
   expenses: number;
+  expenseLiabilities: number;
+  expenseExposure: number;
   costOfGoodsSold: number;
   grossProfit: number;
   netProfit: number;
@@ -75,6 +77,7 @@ export interface AccountingSummary {
   outstandingOrderCount: number;
   receiptCount: number;
   manualEntryCount: number;
+  expenseEntryCount: number;
   stockPricedItemCount: number;
   stockCostedItemCount: number;
   ordersWithKnownCost: number;
@@ -84,6 +87,7 @@ export interface AccountingSeriesPoint {
   period: string;
   revenue: number;
   expenses: number;
+  liabilities: number;
   net: number;
   orders: number;
   entries: number;
@@ -112,10 +116,14 @@ export interface AccountingLedgerEntry {
   id: string;
   entryType: AccountingEntryType;
   category: string;
+  expenseClass?: string;
+  counterparty?: string;
   description: string;
   amount: number;
   currency: string;
   entryDate: string;
+  dueDate?: string;
+  paymentStatus?: string;
   source: string;
   reference?: string;
   notes?: string;
@@ -151,6 +159,58 @@ export interface AccountingEntryCreatePayload {
   notes?: string;
 }
 
+export interface AccountingExpenseFilters extends AccountingOverviewFilters {
+  status?: "" | "all" | "paid" | "unpaid";
+  expenseClass?: string;
+}
+
+export interface AccountingExpenseEntry extends AccountingLedgerEntry {
+  expenseClass: string;
+  expenseClassLabel: string;
+  counterparty?: string;
+  paymentStatus: "paid" | "unpaid" | string;
+  dueDate?: string;
+}
+
+export interface AccountingExpenseSummary {
+  paidTotal: number;
+  unpaidTotal: number;
+  overdueTotal: number;
+  exposureTotal: number;
+  totalCount: number;
+  nextDueDate?: string;
+}
+
+export interface AccountingExpenseBreakdown {
+  expenseClass: string;
+  label: string;
+  paidTotal: number;
+  unpaidTotal: number;
+  total: number;
+  count: number;
+}
+
+export interface AccountingExpensesResponse {
+  range: AccountingOverview["range"];
+  expenses: AccountingExpenseEntry[];
+  summary: AccountingExpenseSummary;
+  breakdown: AccountingExpenseBreakdown[];
+}
+
+export interface AccountingExpenseCreatePayload {
+  expenseClass: string;
+  category: string;
+  counterparty?: string;
+  description: string;
+  amount: number | string;
+  currency?: string;
+  expenseDate: string;
+  dueDate?: string;
+  paymentStatus: "paid" | "unpaid";
+  reference?: string;
+  notes?: string;
+}
+
 export const adminAccountingApi = {
   async getOverview(session: AdminSession, filters: AccountingOverviewFilters = {}) {
     const response = await fetch(withQuery("/api/admin/accounting/overview", filters), {
@@ -168,6 +228,28 @@ export const adminAccountingApi = {
     return parseJsonResponse<{ entry: AccountingLedgerEntry }>(
       response,
       "Unable to save accounting entry."
+    );
+  },
+
+  async listExpenses(session: AdminSession, filters: AccountingExpenseFilters = {}) {
+    const response = await fetch(withQuery("/api/admin/accounting/expenses", filters), {
+      ...authRequest(session),
+    });
+    return parseJsonResponse<AccountingExpensesResponse>(
+      response,
+      "Unable to load expenses."
+    );
+  },
+
+  async createExpense(session: AdminSession, payload: AccountingExpenseCreatePayload) {
+    const response = await fetch(apiPath("/api/admin/accounting/expenses"), {
+      method: "POST",
+      ...jsonAuthRequest(session),
+      body: JSON.stringify(payload),
+    });
+    return parseJsonResponse<{ expense: AccountingExpenseEntry; entry: AccountingLedgerEntry }>(
+      response,
+      "Unable to save expense."
     );
   },
 };

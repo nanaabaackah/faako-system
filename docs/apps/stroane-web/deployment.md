@@ -33,6 +33,20 @@ Operational portal project environment variables:
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
+Staging storefront project environment variables:
+
+- `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+- `VITE_APP_SURFACE=storefront`
+- `VITE_STOREFRONT_BASE_URL=https://stage.stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal-stage.stroanesolutions.com`
+
+Staging operational portal project environment variables:
+
+- `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+- `VITE_APP_SURFACE=portal`
+- `VITE_STOREFRONT_BASE_URL=https://stage.stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal-stage.stroanesolutions.com`
+
 Cloudflare Pages bakes `VITE_*` values into the browser bundle at build time. After adding or changing `VITE_API_BASE_URL`, trigger a fresh Cloudflare Pages deploy before testing the live site.
 
 The storefront surface lazy-loads portal code only in localhost compatibility
@@ -58,7 +72,7 @@ API environment variables:
 
 - `DATABASE_URL=<Railway Postgres connection string>`
 - `NODE_ENV=production`
-- `APP_ENV=production`
+- `APP_ENV=production` for production, `APP_ENV=staging` for the staging API
 - `PORT=<provided by Railway>`
 - `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com`
 - `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
@@ -84,6 +98,8 @@ details or cron secrets to Cloudflare Pages.
 Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it. `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend.
 
 The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
+
+For staging, set `CORS_ORIGINS=https://stage.stroanesolutions.com,https://portal-stage.stroanesolutions.com`, keep Paystack live keys disabled, and use a staging-only database and signing secret. The API server and Prisma config both load `.env.staging` during local `APP_ENV=staging` checks; hosted Railway services should use Railway environment variables as the source of truth.
 
 Current staff auth stores only staff profile metadata in portal-origin
 `sessionStorage`; the credential is an HttpOnly staff cookie. Current customer
@@ -111,10 +127,13 @@ Current recommended DNS setup:
 - `stroanesolutions.com` -> Cloudflare Pages frontend
 - `www.stroanesolutions.com` -> Cloudflare Pages frontend
 - `portal.stroanesolutions.com` -> Cloudflare Pages operational portal project
+- `stage.stroanesolutions.com` -> Cloudflare Pages staging storefront project
+- `portal-stage.stroanesolutions.com` -> Cloudflare Pages staging operational portal project
 
 The public browser-facing API origin is:
 
 - `https://api.stroanesolutions.com`
+- Staging: `https://api-staging.stroanesolutions.com`
 
 Railway remains the backend/API host behind that custom domain.
 
@@ -126,6 +145,12 @@ After the API service deploys, test:
 - `https://api.stroanesolutions.com/api/catalogue/products`
 - `https://api.stroanesolutions.com/api/catalogue/categories`
 - `https://api.stroanesolutions.com/api/catalogue/products/<slug>`
+
+For staging, run the same public checks against:
+
+- `https://api-staging.stroanesolutions.com/health`
+- `https://api-staging.stroanesolutions.com/api/catalogue/products`
+- `https://api-staging.stroanesolutions.com/api/catalogue/categories`
 
 Protected dashboard data routes should be tested after authenticating with a backend `SiteUser` account, never from the public storefront bundle. Active portal modules read protected APIs for product, supplier, inventory, movement, alert, order, receipt, accounting, and customer signals:
 
@@ -158,6 +183,15 @@ After the API routes pass, authenticate with a private backend `SiteUser` accoun
 - `https://portal.stroanesolutions.com/admin/crm`
 - `https://portal.stroanesolutions.com/admin/products`
 - `https://portal.stroanesolutions.com/admin/operations`
+
+For staging, smoke test:
+
+- `https://stage.stroanesolutions.com/`
+- `https://stage.stroanesolutions.com/shop`
+- `https://portal-stage.stroanesolutions.com/login`
+- `https://portal-stage.stroanesolutions.com/admin`
+- `https://portal-stage.stroanesolutions.com/admin/inventory`
+- `https://portal-stage.stroanesolutions.com/admin/orders`
 
 Confirm `/admin` loads dashboard product/order/stock signals. Confirm `/admin/inventory`, `/admin/orders`, `/admin/receipts`, `/admin/accounting`, and `/admin/crm` render active modules. Confirm placeholder routes such as `/admin/products` and `/admin/operations` remain reset placeholders rather than old module workflows.
 

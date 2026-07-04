@@ -155,6 +155,50 @@ test("api rate limit middleware throttles repeated requests from the same client
   assert.ok(Number(limitedResponse.headers["Retry-After"]) >= 1);
 });
 
+test("api rate limit middleware can scope limits to specific methods", () => {
+  const middleware = createApiRateLimitMiddleware({
+    limit: 1,
+    windowMs: 60_000,
+    methods: ["POST"],
+  });
+  const response = createMockResponse();
+  let nextCalled = false;
+
+  middleware(
+    {
+      method: "GET",
+      ip: "203.0.113.10",
+      headers: {},
+    },
+    response,
+    () => {
+      nextCalled = true;
+    }
+  );
+
+  assert.equal(nextCalled, true);
+  assert.equal(response.statusCode, 200);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const postResponse = createMockResponse();
+    let postNextCalled = false;
+    middleware(
+      {
+        method: "POST",
+        ip: "203.0.113.10",
+        headers: {},
+      },
+      postResponse,
+      () => {
+        postNextCalled = true;
+      }
+    );
+
+    assert.equal(postNextCalled, attempt === 0);
+    assert.equal(postResponse.statusCode, attempt === 0 ? 200 : 429);
+  }
+});
+
 test("security headers middleware uses shared API header baseline", () => {
   const middleware = createSecurityHeadersMiddleware();
   const response = createMockResponse();

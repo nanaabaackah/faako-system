@@ -24,6 +24,20 @@ Next step:
 
 ## Entries
 
+### Stroane staging and rate-limit audit
+
+Date: 2026-07-03
+Change name: Stroane staging and rate-limit audit
+Apps/packages affected: Stroane Web, platform security docs
+What changed: Audited rate limiting across the monorepo and tuned Stroane's API limiter layering. Stroane now supports method-scoped API limiter buckets, separates global read/write traffic from narrow auth routes, keeps dedicated admin/customer/session/checkout/payment/webhook buckets, and mounts the admin limiter once before the admin router stack. Staging docs now describe the Stroane storefront, portal, API, Cloudflare, Railway, and database split. A responsive audit-table CSS selector typo surfaced by the build was also fixed.
+Why it changed: Stroane portal/customer usage could hit broad in-memory rate limits after normal repeated actions, even though route-specific admin limits had already been raised. Admin requests could also consume more than one admin-limit hit while passing unmatched routers. Staging needed a clear runbook before promotion.
+Files changed: Stroane backend security/server/tests and Stroane/platform docs.
+Data impact: No schema or data changes.
+Security impact: Positive. Sensitive auth/payment/write endpoints remain limited separately while normal authenticated app reads are less likely to exhaust narrow abuse-protection buckets. Persistent/provider-level rate limiting is still not standardized across the monorepo.
+Testing done: Stroane backend tests, syntax checks, Prisma validate, TypeScript, lint, build, whitespace check, staging curl smoke, and headless Chrome staging smoke passed. Build retained only the existing Vite env warning.
+Rollback notes: Revert the Stroane limiter wiring and docs. No database rollback is required.
+Next step: Deploy the tuned Stroane API to staging and repeat the action flow that previously produced 429s.
+
 ### REEBS CRM contact intake and project metadata refresh
 
 Date: 2026-06-25
