@@ -87,13 +87,24 @@ export const createApiRateLimitMiddleware = ({
   limit = 120,
   windowMs = 60_000,
   keyPrefix = "api",
+  methods = [],
   now = () => Date.now(),
 } = {}) => {
   const buckets = new Map();
+  const limitedMethods = new Set(
+    methods
+      .map((method) => String(method || "").trim().toUpperCase())
+      .filter(Boolean)
+  );
 
   return (req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (limitedMethods.size > 0 && !limitedMethods.has(method)) {
+      return next();
+    }
+
     const currentTime = Number(now());
-    const bucketKey = `${keyPrefix}:${req.method}:${getClientIp(req)}`;
+    const bucketKey = `${keyPrefix}:${method}:${getClientIp(req)}`;
     const activeWindowStart = currentTime - windowMs;
     const existing = (buckets.get(bucketKey) || []).filter(
       (timestamp) => timestamp > activeWindowStart

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   HiOutlineCash,
   HiOutlineChartBar,
@@ -48,6 +49,8 @@ const EMPTY_OVERVIEW: AccountingOverview = {
     orderRevenue: 0,
     manualIncome: 0,
     expenses: 0,
+    expenseLiabilities: 0,
+    expenseExposure: 0,
     costOfGoodsSold: 0,
     grossProfit: 0,
     netProfit: 0,
@@ -68,6 +71,7 @@ const EMPTY_OVERVIEW: AccountingOverview = {
     outstandingOrderCount: 0,
     receiptCount: 0,
     manualEntryCount: 0,
+    expenseEntryCount: 0,
     stockPricedItemCount: 0,
     stockCostedItemCount: 0,
     ordersWithKnownCost: 0,
@@ -192,7 +196,9 @@ const buildSummaryRows = (overview: AccountingOverview) => {
   return [
     ["Metric", "Value", "Plain English"],
     ["Revenue", summary.revenue, "Paid order revenue plus manual income entries."],
-    ["Expenses", summary.expenses, "Manual expense entries entered into accounting."],
+    ["Paid expenses", summary.expenses, "Expenses already paid and recorded in the ledger."],
+    ["Unpaid expense liabilities", summary.expenseLiabilities, "Expense obligations still marked unpaid."],
+    ["Expense exposure", summary.expenseExposure, "Paid expenses plus unpaid expense liabilities."],
     ["Gross profit", summary.grossProfit, "Revenue minus known product cost."],
     ["Net profit", summary.netProfit, "Gross profit minus expenses and adjustments."],
     ["Cash estimate", summary.cashEstimate, "Collected money minus manual expenses."],
@@ -281,6 +287,7 @@ const buildExcelHtml = (overview: AccountingOverview) => {
 
 const AccountingManagement: React.FC = () => {
   const { session } = useAdminPortal();
+  const navigate = useNavigate();
   const canManageAccounting =
     hasPortalPermission(session, "accounting", "create") ||
     hasPortalPermission(session, "accounting", "edit") ||
@@ -455,6 +462,13 @@ const AccountingManagement: React.FC = () => {
           >
             Add historical entry
           </ERPPrimaryAction>
+          <ERPSecondaryAction
+            type="button"
+            icon={<HiOutlineCreditCard />}
+            onClick={() => navigate("/admin/expenses")}
+          >
+            Expenses
+          </ERPSecondaryAction>
         </div>
       </header>
 
@@ -529,6 +543,14 @@ const AccountingManagement: React.FC = () => {
           <strong>{formatMoney(overview.summary.revenue, overview.summary.currency)}</strong>
           <small>{overview.summary.paidOrderCount} paid orders included.</small>
         </article>
+        <article className="bubble-card" data-tone="warning">
+          <HiOutlineCreditCard aria-hidden="true" />
+          <span>Expense exposure</span>
+          <strong>{formatMoney(overview.summary.expenseExposure, overview.summary.currency)}</strong>
+          <small>
+            {formatMoney(overview.summary.expenseLiabilities, overview.summary.currency)} unpaid.
+          </small>
+        </article>
         <article className="bubble-card" data-tone={overview.summary.netProfit >= 0 ? "success" : "warning"}>
           <HiOutlineChartBar aria-hidden="true" />
           <span>Net profit</span>
@@ -536,7 +558,7 @@ const AccountingManagement: React.FC = () => {
           <small>After known costs, expenses, and adjustments.</small>
         </article>
         <article className="bubble-card" data-tone="warning">
-          <HiOutlineCreditCard aria-hidden="true" />
+          <HiOutlineClipboardList aria-hidden="true" />
           <span>Receivables</span>
           <strong>{formatMoney(overview.summary.receivables, overview.summary.currency)}</strong>
           <small>{overview.summary.outstandingOrderCount} orders not yet paid.</small>
@@ -552,7 +574,7 @@ const AccountingManagement: React.FC = () => {
           </small>
         </article>
         <article className="bubble-card" data-tone="success">
-          <HiOutlineClipboardList aria-hidden="true" />
+          <HiOutlineCash aria-hidden="true" />
           <span>Collection rate</span>
           <strong>{formatPercent(overview.summary.collectionRate)}</strong>
           <small>{formatPercent(overview.summary.receiptCoverage)} receipt coverage.</small>
@@ -573,6 +595,10 @@ const AccountingManagement: React.FC = () => {
             <div>
               <dt>Liabilities</dt>
               <dd>{formatMoney(overview.summary.liabilityTotal, overview.summary.currency)}</dd>
+            </div>
+            <div>
+              <dt>Unpaid expenses</dt>
+              <dd>{formatMoney(overview.summary.expenseLiabilities, overview.summary.currency)}</dd>
             </div>
             <div>
               <dt>Owner equity</dt>
@@ -630,6 +656,9 @@ const AccountingManagement: React.FC = () => {
                   <small>
                     Revenue {formatMoney(point.revenue, overview.summary.currency)} · Expenses{" "}
                     {formatMoney(point.expenses, overview.summary.currency)}
+                    {point.liabilities ? (
+                      <> · Liabilities {formatMoney(point.liabilities, overview.summary.currency)}</>
+                    ) : null}
                   </small>
                 </div>
               ))

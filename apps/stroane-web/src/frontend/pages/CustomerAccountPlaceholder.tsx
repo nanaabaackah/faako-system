@@ -4,6 +4,7 @@ import {
   HiArrowRight,
   HiOutlineCalendar,
   HiOutlineCreditCard,
+  HiOutlineKey,
   HiOutlineLocationMarker,
   HiOutlineLogout,
   HiOutlineRefresh,
@@ -57,7 +58,7 @@ const formatDeliveryMethod = (value?: string) =>
   value === "pickup" ? "Pickup" : value === "delivery" ? "Delivery" : "Not recorded";
 
 const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) => {
-  const { user, loading, signOut, updateProfile, refreshProfile } = useAuth();
+  const { user, loading, signOut, updateProfile, refreshProfile, requestPasswordReset } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -69,6 +70,7 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<CustomerOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [passwordResetSending, setPasswordResetSending] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -162,6 +164,21 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
     navigate("/account", { replace: true });
   };
 
+  const handlePasswordResetRequest = async () => {
+    if (!user?.email) return;
+    setError("");
+    setNotice("");
+    setPasswordResetSending(true);
+    try {
+      const message = await requestPasswordReset({ email: user.email });
+      setNotice(message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send a reset link.");
+    } finally {
+      setPasswordResetSending(false);
+    }
+  };
+
   return (
     <Layout>
       <section className="customer-account-page">
@@ -190,7 +207,7 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
             </div>
           ) : (
             <div className="customer-account-grid">
-              <form className="customer-account-card" onSubmit={handleProfileSave} noValidate>
+              <form className="glass-card customer-account-card" onSubmit={handleProfileSave} noValidate>
                 <div className="customer-account-card__head">
                   <h2>Profile details</h2>
                   <button
@@ -209,6 +226,21 @@ const CustomerAccountPlaceholder: React.FC<{ area: CustomerArea }> = ({ area }) 
                   value={user.email}
                   disabled
                 />
+                <div className="customer-account-security">
+                  <div>
+                    <h3>Password</h3>
+                    <p>{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="customer-account-ghost"
+                    onClick={() => void handlePasswordResetRequest()}
+                    disabled={passwordResetSending}
+                  >
+                    <HiOutlineKey size={17} aria-hidden="true" />
+                    {passwordResetSending ? "Sending..." : "Send reset link"}
+                  </button>
+                </div>
                 <TextField
                   fieldClassName="customer-account-field"
                   label="Full name"
