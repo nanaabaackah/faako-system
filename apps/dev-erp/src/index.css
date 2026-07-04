@@ -2504,9 +2504,9 @@ body.nav-open .mobile-tabbar {
 
 .notice-link {
   display: inline-flex;
-  margin-left: 0.65rem;
-  color: currentColor;
+  margin-left: 0.7rem;
   font-weight: 800;
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
