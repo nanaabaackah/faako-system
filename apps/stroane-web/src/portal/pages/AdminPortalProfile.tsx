@@ -3,6 +3,7 @@ import {
   HiOutlineCamera,
   HiOutlineCheckCircle,
   HiOutlineDesktopComputer,
+  HiOutlineKey,
   HiOutlineMoon,
   HiOutlineSun,
   HiOutlineUserCircle,
@@ -26,6 +27,8 @@ import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/c
 import "../styles/AdminPortal.css";
 
 const MAX_AVATAR_FILE_BYTES = 350000;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 100;
 
 const APPEARANCE_OPTIONS: Array<{
   value: AdminAppearancePreference;
@@ -55,6 +58,8 @@ const APPEARANCE_OPTIONS: Array<{
 
 const emptyProfileForm = {
   username: "",
+  newPassword: "",
+  confirmNewPassword: "",
   firstName: "",
   lastName: "",
   personalEmail: "",
@@ -94,6 +99,8 @@ const AdminPortalProfile: React.FC = () => {
     if (!session) return;
     setForm({
       username: session.username || "",
+      newPassword: "",
+      confirmNewPassword: "",
       firstName: session.firstName || "",
       lastName: session.lastName || "",
       personalEmail: session.personalEmail || "",
@@ -161,6 +168,18 @@ const AdminPortalProfile: React.FC = () => {
       setError("Add a valid phone number.");
       return;
     }
+    const nextPassword = form.newPassword;
+    const hasPasswordChange = Boolean(nextPassword || form.confirmNewPassword);
+    if (hasPasswordChange) {
+      if (nextPassword.length < MIN_PASSWORD_LENGTH || nextPassword.length > MAX_PASSWORD_LENGTH) {
+        setError("New password must be 8-100 characters.");
+        return;
+      }
+      if (nextPassword !== form.confirmNewPassword) {
+        setError("Confirm password must match the new password.");
+        return;
+      }
+    }
 
     setSaving(true);
     const payload: AdminProfileUpdatePayload = {
@@ -175,10 +194,14 @@ const AdminPortalProfile: React.FC = () => {
       avatarUrl: form.avatarUrl,
       appearancePreference: form.appearancePreference,
     };
+    if (hasPasswordChange) payload.newPassword = nextPassword;
 
     try {
       await updateProfile(payload);
-      setMessage("Profile updated.");
+      if (hasPasswordChange) {
+        setForm((current) => ({ ...current, newPassword: "", confirmNewPassword: "" }));
+      }
+      setMessage(hasPasswordChange ? "Profile and password updated." : "Profile updated.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to update profile.");
     } finally {
@@ -311,6 +334,33 @@ const AdminPortalProfile: React.FC = () => {
                 value={form.bio}
                 onChange={(event) => updateField("bio", event.target.value)}
                 rows={4}
+              />
+            </div>
+          </section>
+
+          <section className="glass-card stroane-portal-profile__panel">
+            <div className="stroane-portal-profile__panel-head">
+              <span><HiOutlineKey aria-hidden="true" /> Password</span>
+              <h2>Portal access</h2>
+            </div>
+            <div className="stroane-portal-profile__fields">
+              <ERPTextField
+                label="New password"
+                type="password"
+                value={form.newPassword}
+                onChange={(event) => updateField("newPassword", event.target.value)}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                maxLength={MAX_PASSWORD_LENGTH}
+              />
+              <ERPTextField
+                label="Confirm new password"
+                type="password"
+                value={form.confirmNewPassword}
+                onChange={(event) => updateField("confirmNewPassword", event.target.value)}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                maxLength={MAX_PASSWORD_LENGTH}
               />
             </div>
           </section>

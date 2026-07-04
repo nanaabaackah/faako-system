@@ -64,7 +64,7 @@ The same Vite workspace can build two Cloudflare Pages surfaces:
 - Customer auth calls `/api/customer/*`, stores only a non-secret profile shell in `sessionStorage`, and relies on a separate HttpOnly customer cookie for private customer APIs.
 - Keep both staff and customer cookies host/scope limited. Introduce a parent-domain cookie or `SameSite=None` only after a dedicated CSRF and subdomain-risk review.
 - Frontend `RequireAdminAuth`, `RequirePortalAccess`, and customer account UI guards improve navigation only. Backend admin/customer authorization remains the security enforcement point.
-- `ADMIN` and `VIEWER` portal roles may read operational screens. Backend APIs continue to enforce admin-only writes.
+- `ADMIN` and `OWNER` are elevated across every portal module except Audit Logs, which remain `ADMIN`-only. `VIEWER` can read operational screens, and custom roles need explicit module/action grants. Backend APIs continue to enforce module write permissions.
 
 ## Shared Shell
 

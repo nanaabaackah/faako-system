@@ -14,6 +14,7 @@ import InventoryManagement from "./pages/InventoryManagement";
 import OrderManagement from "./pages/OrderManagement";
 import ReceiptManagement from "./pages/ReceiptManagement";
 import AccountingManagement from "./pages/AccountingManagement";
+import ExpenseManagement from "./pages/ExpenseManagement";
 import CustomerDirectory from "./pages/CustomerDirectory";
 import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
 import AdminPortalProfile from "./pages/AdminPortalProfile";
@@ -64,15 +65,16 @@ const PortalApp: React.FC = () => (
             <Route path="orders" element={<PortalModule moduleId="orders"><OrderManagement /></PortalModule>} />
             <Route path="receipts" element={<PortalModule moduleId="receipts"><ReceiptManagement /></PortalModule>} />
             <Route path="accounting" element={<PortalModule moduleId="accounting"><AccountingManagement /></PortalModule>} />
+            <Route path="expenses" element={<PortalModule moduleId="accounting"><ExpenseManagement /></PortalModule>} />
             <Route path="crm" element={<PortalModule moduleId="crm"><CustomerDirectory /></PortalModule>} />
             <Route path="directory" element={<PortalModule moduleId="crm"><CustomerDirectory /></PortalModule>} />
-            <Route path="team" element={<PortalModule moduleId="team" action="manage" fallbackPath="/admin"><TeamManagement /></PortalModule>} />
+            <Route path="team" element={<RequirePortalAccess allowedRoles={["ADMIN", "OWNER"]} fallbackPath="/admin"><TeamManagement /></RequirePortalAccess>} />
             <Route path="audit-logs" element={<RequirePortalAccess allowedRoles={["ADMIN"]} fallbackPath="/admin"><AuditLogManagement /></RequirePortalAccess>} />
             <Route path="suppliers" element={<PortalModule moduleId="inventory"><AdminPortalPlaceholder area="suppliers" /></PortalModule>} />
             <Route path="products" element={<PortalModule moduleId="inventory"><AdminPortalPlaceholder area="products" /></PortalModule>} />
             <Route path="operations" element={<PortalModule moduleId="orders"><AdminPortalPlaceholder area="operations" /></PortalModule>} />
             <Route path="reports" element={<PortalModule moduleId="accounting"><AdminPortalPlaceholder area="reports" /></PortalModule>} />
-            <Route path="settings" element={<PortalModule moduleId="team" action="manage" fallbackPath="/admin"><AdminPortalPlaceholder area="settings" /></PortalModule>} />
+            <Route path="settings" element={<RequirePortalAccess allowedRoles={["ADMIN", "OWNER"]} fallbackPath="/admin"><AdminPortalPlaceholder area="settings" /></RequirePortalAccess>} />
           </Route>
         </Route>
       </Route>

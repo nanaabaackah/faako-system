@@ -30,6 +30,15 @@ The route is rate-limited separately from checkout writes. If the location provi
 ## Current Private Endpoints
 
 - `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PATCH /api/auth/me`
+- `GET /api/auth/users`
+- `POST /api/auth/users`
+- `PATCH /api/auth/users/:id`
+- `GET /api/auth/roles`
+- `POST /api/auth/roles`
+- `PATCH /api/auth/roles/:id`
 - `GET /api/admin/suppliers`
 - `GET /api/admin/suppliers/:id`
 - `POST /api/admin/suppliers`
@@ -61,8 +70,53 @@ The route is rate-limited separately from checkout writes. If the location provi
 - `POST /api/admin/customers`
 - `PATCH /api/admin/customers/:id`
 - `POST /api/admin/customers/:id/invite`
+- `GET /api/admin/accounting/overview`
+- `POST /api/admin/accounting/entries`
+- `GET /api/admin/accounting/expenses`
+- `POST /api/admin/accounting/expenses`
 
-Private endpoints require backend `SiteUser` auth via the HttpOnly staff cookie, with legacy bearer fallback during transition. `ADMIN` and `VIEWER` can read protected product, supplier, inventory, movement, alert, order, and customer directory data where allowed; write/update routes require `ADMIN`. Public customer account endpoints use a separate HttpOnly customer cookie and never grant staff portal access.
+Private endpoints require backend `SiteUser` auth via the HttpOnly staff cookie, with legacy bearer fallback during transition. `ADMIN` and `OWNER` are elevated across portal modules. `VIEWER` has read access to operational modules, and `CUSTOM` roles must carry the matching module/action permission from their active custom role. Product, supplier, inventory, movement, and inventory-alert reads require `inventory.view`; their write/update routes require the relevant `inventory.create` or `inventory.edit` permission. Public customer account endpoints use a separate HttpOnly customer cookie and never grant staff portal access.
+
+## Staff Auth And Profile Endpoints
+
+- `POST /api/auth/login`
+  - Signs in an active `SiteUser`, sets the HttpOnly staff cookie, and returns non-secret profile metadata.
+- `POST /api/auth/logout`
+  - Clears the staff cookie.
+- `GET /api/auth/me`
+  - Returns the authenticated staff user's profile, role label, and resolved portal permissions.
+- `PATCH /api/auth/me`
+  - Updates only the authenticated staff user's own profile fields and appearance preference. It also accepts an optional `newPassword`, hashes it server-side into `SiteUser.passwordHash`, and never returns password material in the response. This lets users created with temporary/invited passwords change their own password from `/admin/profile`.
+
+## Staff Team And Role Endpoints
+
+Team management endpoints are limited to `ADMIN` and `OWNER`. `VIEWER` and `CUSTOM` users cannot create users, assign roles, list role definitions, create custom roles, or edit custom roles through these routes.
+
+- `GET /api/auth/users`
+  - Lists portal users with role metadata for `/admin/team`.
+- `POST /api/auth/users`
+  - Creates a portal user with a temporary password and a system or active custom role.
+- `PATCH /api/auth/users/:id`
+  - Updates another user's active status or assigned role. Users cannot modify their own account through this route.
+- `GET /api/auth/roles`
+  - Returns immutable system role definitions plus saved custom roles.
+- `POST /api/auth/roles`
+  - Creates an active custom role. Custom role permissions are sanitized so they cannot grant team management access.
+- `PATCH /api/auth/roles/:id`
+  - Edits a custom role's name, description, permissions, or active status. System roles cannot be edited, and custom role permissions are sanitized so they cannot grant team management access.
+
+## Accounting And Expense Endpoints
+
+Accounting endpoints are private staff routes. Reads require `accounting.view`; manual ledger and expense creation require `accounting.create`. `ADMIN` and `OWNER` are elevated.
+
+- `GET /api/admin/accounting/overview`
+  - Returns revenue, receivables, stock value, paid expenses, unpaid expense liabilities, net profit, net position, category movement, monthly movement, and ledger transactions for the requested period.
+- `POST /api/admin/accounting/entries`
+  - Creates a manual historical ledger entry such as income, expense, asset, liability, equity, or adjustment.
+- `GET /api/admin/accounting/expenses`
+  - Lists paid expense and unpaid expense-liability entries, with summary totals and class breakdowns for the Expenses module.
+- `POST /api/admin/accounting/expenses`
+  - Records a paid expense as an `EXPENSE` ledger entry or an unpaid obligation as a `LIABILITY` ledger entry. Expense metadata includes class, category, payee/supplier, payment state, due date, reference, and notes.
 
 ## Customer Account Endpoints
 
@@ -75,9 +129,9 @@ Customer email is the account identifier. The backend normalizes submitted email
 - `POST /api/customer/login`
   - Signs in an active customer with email/password and sets the customer HttpOnly cookie.
 - `POST /api/customer/password/forgot`
-  - Accepts an email address and returns a generic response. If an active account exists, stores a hashed reset token server-side and emails a reset link.
+  - Accepts an email address and returns a generic response. If an active account exists, generates a fresh reset token, replaces any previous reset-token hash, stores a one-hour expiry, and emails the new reset link.
 - `POST /api/customer/password/reset`
-  - Accepts a reset token and new password, verifies the stored token hash/expiry, enforces the strong password policy, hashes the new password server-side, clears reset token fields, and sets the customer HttpOnly cookie.
+  - Accepts a reset token and new password, verifies the stored token hash/expiry, rejects expired or replaced links, enforces the strong password policy, hashes the new password server-side, clears reset token fields, and sets the customer HttpOnly cookie.
 - `POST /api/customer/logout`
   - Clears the customer cookie.
 - `GET /api/customer/me`
@@ -95,9 +149,9 @@ Inventory-owner notifications are private operational workflows. They never run
 from public catalogue requests and never expose configured recipients publicly.
 
 - `GET /api/admin/inventory/alerts`
-  - `ADMIN` and `VIEWER` can review active alert counts, alert rows, and safe dispatch history.
+  - Requires `inventory.view`. Returns active alert counts, alert rows, and safe dispatch history.
 - `POST /api/admin/inventory/alerts/check`
-  - `ADMIN` only. Runs a manual inventory scan and grouped delivery attempt.
+  - Requires `inventory.edit`. Runs a manual inventory scan and grouped delivery attempt.
 - `POST /api/internal/inventory/alerts/check`
   - Internal scheduler route. Requires `Authorization: Bearer <STROANE_ALERT_CRON_SECRET>`.
 
@@ -149,7 +203,7 @@ Cloudflare Pages is the frontend host. Railway hosts the API and Postgres databa
 
 - Frontend route: `/admin`
 - Existing staff sessions from backend `POST /api/auth/login` are reused.
-- `ADMIN` and `VIEWER` can review dashboard product, supplier, inventory, movement, alert, order, and customer signals.
+- The dashboard only calls module APIs the current session can view. Inventory/product/supplier/movement/alert requests require `inventory.view`; order requests require `orders.view`.
 - Active module routes include inventory, orders, and CRM/directory. Supplier, product, operations, reports, and settings routes remain reset placeholders.
 - Initial supplier creation/editing and product-supplier linking remain backend foundations until focused module editors are rebuilt. Inventory product creation, product editing, product publishing, bulk product actions, and movement entry are active through `/admin/inventory`.
 - The public storefront does not read supplier notes, purchase notes, or internal movement history.
@@ -161,36 +215,36 @@ These routes are internal API foundations only. Do not expose supplier notes, co
 ### Suppliers
 
 - `GET /api/admin/suppliers?search=&status=&limit=`
-  - Returns supplier summaries, contact counts, linked product counts, and inventory item counts.
+  - Requires `inventory.view`. Returns supplier summaries, contact counts, linked product counts, and inventory item counts.
 - `GET /api/admin/suppliers/:id`
-  - Returns supplier detail, contacts, and product-supplier links for admin review.
+  - Requires `inventory.view`. Returns supplier detail, contacts, and product-supplier links for admin review.
 - `POST /api/admin/suppliers`
-  - Admin-only. Accepts `name`, optional `slug`, `status`, `email`, `phone`, `website`, `location`, `notes`, and up to 10 contacts.
+  - Requires `inventory.create`. Accepts `name`, optional `slug`, `status`, `email`, `phone`, `website`, `location`, `notes`, and up to 10 contacts.
 - `PATCH /api/admin/suppliers/:id`
-  - Admin-only. Updates safe supplier fields. If `contacts` is supplied, contacts are replaced as a lightweight foundation until a dedicated contact editor exists.
+  - Requires `inventory.edit`. Updates safe supplier fields. If `contacts` is supplied, contacts are replaced as a lightweight foundation until a dedicated contact editor exists.
 
 ### Inventory
 
 - `GET /api/admin/inventory?search=&stockStatus=&supplierId=&productSlug=&limit=`
-  - Returns inventory items with product/supplier summaries, available quantity, low-stock flag, and reorder flag.
+  - Requires `inventory.view`. Returns inventory items with product/supplier summaries, available quantity, low-stock flag, and reorder flag.
 - `GET /api/admin/inventory/:id`
-  - Returns one inventory item.
+  - Requires `inventory.view`. Returns one inventory item.
 - `PATCH /api/admin/inventory/:id`
-  - Admin-only. Updates stock metadata such as `quantityOnHand`, `stockQuantity`, `reservedQuantity`, `lowStockThreshold`, `reorderThreshold`, `stockStatus`, `inventoryTrackingEnabled`, `allowBackorder`, `isPurchasable`, `supplierId`, `sku`, `lastCountedAt`, and `notes`.
+  - Requires `inventory.edit`. Updates stock metadata such as `quantityOnHand`, `stockQuantity`, `reservedQuantity`, `lowStockThreshold`, `reorderThreshold`, `stockStatus`, `inventoryTrackingEnabled`, `allowBackorder`, `isPurchasable`, `supplierId`, `sku`, `lastCountedAt`, and `notes`.
 
 ### Inventory Movements
 
 - `GET /api/admin/inventory/movements?productSlug=&supplierId=&movementType=&limit=`
-  - Returns movement history.
+  - Requires `inventory.view`. Returns movement history.
 - `POST /api/admin/inventory/movements`
-  - Admin-only. Records a movement and updates the linked inventory item.
+  - Requires `inventory.edit`. Records a movement and updates the linked inventory item.
   - Supported `movementType` values: `RESTOCK`, `ADJUSTMENT`, `DAMAGE`, `MANUAL_CORRECTION`, `RESERVED`, `RELEASED`.
   - Records before/after quantity, before/after reserved quantity, notes, timestamps, and `createdBy` placeholders from the authenticated admin user.
 
 ### Product Inventory
 
 - `PATCH /api/admin/products/:id/inventory`
-  - Admin-only. Updates storefront-facing `CatalogueProduct` stock fields and syncs/creates an `InventoryItem` unless `syncInventoryItem=false`.
+  - Requires `inventory.edit`. Updates storefront-facing `CatalogueProduct` stock fields and syncs/creates an `InventoryItem` unless `syncInventoryItem=false`.
   - `:id` may be a catalogue product id or slug.
 
 ## Admin Product Data Foundation
@@ -198,21 +252,21 @@ These routes are internal API foundations only. Do not expose supplier notes, co
 There is no standalone `/admin/products` editor UI after the portal reset. Product list reads and product write actions remain wired to the `/admin/inventory` product management surface so staff can manage catalogue rows without code/seed edits. These routes are staff-auth protected and return private operational fields only to staff sessions:
 
 - `GET /api/admin/products?search=&publishingStatus=&categorySlug=&tag=&limit=`
-  - Returns product rows, publishing status, stock summary, private preferred-supplier summary, and active category options.
+  - Requires `inventory.view`. Returns product rows, publishing status, stock summary, private preferred-supplier summary, and active category options.
 - `GET /api/admin/products/:id`
-  - Returns one internal product record for the edit drawer.
+  - Requires `inventory.view`. Returns one internal product record for the edit drawer.
 - `POST /api/admin/products`
-  - Admin-only. Creates a catalogue product and a linked base inventory row in one transaction. Accepts catalogue fields such as name, SKU, price, currency, category, publishing status, featured flag, short description, plus initial stock fields such as quantity on hand, reserved quantity, thresholds, stock status, supplier, purchasable/backorder flags, tracking flag, and notes.
+  - Requires `inventory.create`. Creates a catalogue product and a linked base inventory row in one transaction. Accepts catalogue fields such as name, SKU, price, currency, category, publishing status, featured flag, short description, plus initial stock fields such as quantity on hand, reserved quantity, thresholds, stock status, supplier, purchasable/backorder flags, tracking flag, and notes.
 - `PATCH /api/admin/products/bulk`
-  - Admin-only. Applies safe bulk publishing actions to up to 100 selected products. Supported actions are archive, delete/delete listing, restore/activate, and draft. Delete listing is implemented as archive/unpublish rather than hard-delete so order, inventory, audit, and historical links remain intact.
+  - Requires `inventory.edit`. Applies safe bulk publishing actions to up to 100 selected products. Supported actions are archive, delete/delete listing, restore/activate, and draft. Delete listing is implemented as archive/unpublish rather than hard-delete so order, inventory, audit, and historical links remain intact.
 - `PATCH /api/admin/products/:id`
-  - Admin-only. Updates catalogue copy, slug, SKU, price, compare-at price, currency, category, and tags.
+  - Requires `inventory.edit`. Updates catalogue copy, slug, SKU, price, compare-at price, currency, category, and tags.
 - `PATCH /api/admin/products/:id/media`
-  - Admin-only. Updates thumbnail and gallery paths. Paths must resolve below `/imgs/products/`, use a supported image extension, and omit traversal segments, query strings, and fragments.
+  - Requires `inventory.edit`. Updates thumbnail and gallery paths. Paths must resolve below `/imgs/products/`, use a supported image extension, and omit traversal segments, query strings, and fragments.
 - `PATCH /api/admin/products/:id/publishing`
-  - Admin-only. Updates `draft`, `active`, or `archived` publishing state and featured status. Only `active` products remain public.
+  - Requires `inventory.edit`. Updates `draft`, `active`, or `archived` publishing state and featured status. Only `active` products remain public.
 - `PATCH /api/admin/products/:id/suppliers`
-  - Admin-only. Selects or clears a preferred supplier and stores the supplier product code and private supplier notes.
+  - Requires `inventory.edit`. Selects or clears a preferred supplier and stores the supplier product code and private supplier notes.
 
 Product creation, product updates, product publishing, and bulk product publishing actions append lightweight `InventoryAuditEntry` records. Public catalogue responses deliberately omit supplier references, supplier notes, internal cost fields, catalogue import/review metadata, draft products, and archived products. The server-side JSON-seed fallback passes through the same public mapper.
 
@@ -225,15 +279,15 @@ Media upload, external media hosting, category editing, automated stock reservat
 Customer directory routes are private CRM workflows and must not expose customer data on the storefront.
 
 - `GET /api/admin/customers?search=&status=&limit=`
-  - Returns customer directory rows, account status, linked-order counts, total spend, last order summary, and CRM summary KPIs.
+  - Requires `crm.view`. Returns customer directory rows, account status, linked-order counts, total spend, last order summary, and CRM summary KPIs.
 - `GET /api/admin/customers/:id`
-  - Returns one customer profile plus recent linked orders for staff review.
+  - Requires `crm.view`. Returns one customer profile plus recent linked orders for staff review.
 - `POST /api/admin/customers`
-  - Admin-only. Creates or updates a customer directory record and can generate a one-time account creation invite URL. The raw invite token is returned only in this response; the database stores a token hash.
+  - Requires `crm.create`. Creates or updates a customer directory record and can generate a one-time account creation invite URL. The raw invite token is returned only in this response; the database stores a token hash.
 - `PATCH /api/admin/customers/:id`
-  - Admin-only. Updates safe CRM/profile fields and account status.
+  - Requires `crm.edit`. Updates safe CRM/profile fields and account status.
 - `POST /api/admin/customers/:id/invite`
-  - Admin-only. Regenerates an invite token, stores only its hash, and returns a new account creation URL for copying/sharing.
+  - Requires `crm.edit`. Regenerates an invite token, stores only its hash, and returns a new account creation URL for copying/sharing.
 
 Customer CRM rows can link existing orders by normalized email. Account activation remains customer-controlled through `/api/customer/signup`; invite and checkout references are optional linking context rather than mandatory creation gates.
 
@@ -250,4 +304,4 @@ Customer CRM rows can link existing orders by normalized email. Account activati
 
 ## Rate Limit And Security Expectations
 
-Use route-specific backend protection plus Railway/provider-level request controls for deployed write routes. Inventory/supplier endpoints require backend admin auth and should log safely without exposing supplier cost details or customer data. The current implementation uses the existing in-process API/admin rate limit middleware; Railway/provider controls remain the production rate-limit layer.
+Use method-aware global backend protection plus route-specific limits for deployed write routes. Global read/write buckets protect the API baseline; staff login, customer signup/login/password, general staff/customer session routes, admin routes, inquiry, checkout, Paystack initialize, Paystack verify, Paystack webhook, and inventory alert routes use separate buckets so normal portal read chatter does not exhaust auth/payment limits. The admin limiter is mounted once before the admin router stack so one protected request does not consume a hit for each unmatched admin router. Inventory/supplier endpoints require backend admin auth and should log safely without exposing supplier cost details or customer data. The current implementation uses in-process rate limit middleware; Railway/provider controls remain the production rate-limit layer.

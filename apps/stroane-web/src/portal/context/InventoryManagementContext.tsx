@@ -237,6 +237,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     pollIntervalMs: 4000,
   });
 
+  const canViewInventory = hasPortalPermission(session, "inventory", "view");
   const canManageInventory =
     hasPortalPermission(session, "inventory", "create") ||
     hasPortalPermission(session, "inventory", "edit") ||
@@ -256,7 +257,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
 
   const fetchInventoryFromServer = useCallback(
     async (options: { throwOnPartial?: boolean } = {}) => {
-      if (!session) return;
+      if (!session || !canViewInventory) return;
       setLoadWarning("");
 
       const [inventoryResult, supplierResult, movementResult, alertResult, productResult] =
@@ -322,11 +323,11 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
       });
       if (snapshot) setCachedAt(snapshot.cachedAt);
     },
-    [session]
+    [canViewInventory, session]
   );
 
   const refreshInventory = useCallback(async () => {
-    if (!session) return;
+    if (!session || !canViewInventory) return;
     setRefreshing(true);
     setError("");
     try {
@@ -345,7 +346,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     } finally {
       setRefreshing(false);
     }
-  }, [fetchInventoryFromServer, isOnline, refreshQueue, session]);
+  }, [canViewInventory, fetchInventoryFromServer, isOnline, refreshQueue, session]);
 
   const applyInventoryItem = useCallback((item: InventoryItem) => {
     setInventory((current) => {
@@ -886,7 +887,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !canViewInventory) return;
     const snapshot = loadInventorySnapshot(session.username);
     if (snapshot) {
       applySnapshot(snapshot);
@@ -903,16 +904,16 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
         "You're offline and this device has no saved inventory view yet. Connect once to cache it."
       );
     }
-  }, [applySnapshot, isOnline, session]);
+  }, [applySnapshot, canViewInventory, isOnline, session]);
 
   useEffect(() => {
-    if (!session || !isOnline) return;
+    if (!session || !isOnline || !canViewInventory) return;
     setLoading(true);
     void fetchInventoryFromServer().finally(() => setLoading(false));
-  }, [fetchInventoryFromServer, isOnline, session]);
+  }, [canViewInventory, fetchInventoryFromServer, isOnline, session]);
 
   useEffect(() => {
-    if (!session || !isOnline) return;
+    if (!session || !isOnline || !canManageInventory) return;
     let cancelled = false;
 
     const syncPendingInventoryWork = async () => {
@@ -948,6 +949,7 @@ export const InventoryManagementProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [
     fetchInventoryFromServer,
+    canManageInventory,
     isOnline,
     processQueueItem,
     queueStorage,

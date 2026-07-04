@@ -177,7 +177,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                 className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
               >
-                <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
                 {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
               </a>
             ) : (
@@ -186,7 +186,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                 className={`nav-search-btn nav-cart-btn${isDark ? " nav-search-btn--dark" : ""}`}
                 aria-label={`View cart${totalCount ? `, ${totalCount} item${totalCount === 1 ? "" : "s"}` : ""}`}
               >
-                <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
                 {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
               </Link>
             )}
@@ -327,7 +327,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                    <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
                     <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
                   </a>
                 ) : (
@@ -336,7 +336,7 @@ const Header: React.FC<{ externalNavigationBaseUrl?: string }> = ({
                     className="mobile-nav-sheet__search"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                    <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
                     <span>Cart{totalCount ? ` (${totalCount})` : ""}</span>
                   </Link>
                 )}

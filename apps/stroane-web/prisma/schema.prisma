@@ -492,10 +492,14 @@ model AccountingLedgerEntry {
   id            String                    @id @default(cuid())
   entryType     AccountingLedgerEntryType
   category      String
+  expenseClass  String?
+  counterparty  String?
   description   String
   amount        Decimal                   @db.Decimal(12, 2)
   currency      String                    @default("GHS")
   entryDate     DateTime
+  dueDate       DateTime?
+  paymentStatus String?
   source        String                    @default("manual_lump_sum")
   reference     String?
   notes         String?
@@ -507,6 +511,9 @@ model AccountingLedgerEntry {
 
   @@index([entryType, entryDate])
   @@index([status, entryDate])
+  @@index([expenseClass])
+  @@index([paymentStatus])
+  @@index([dueDate])
   @@index([category])
   @@index([createdAt])
 }

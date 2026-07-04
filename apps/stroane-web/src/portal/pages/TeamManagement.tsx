@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  HiOutlineCheckCircle,
   HiOutlineKey,
+  HiOutlinePencilAlt,
   HiOutlineRefresh,
   HiOutlineShieldCheck,
   HiOutlineUserAdd,
   HiOutlineUsers,
+  HiOutlineXCircle,
 } from "react-icons/hi";
 import {
   ERPFormNotice,
@@ -112,10 +115,12 @@ const TeamManagement: React.FC = () => {
   const [roles, setRoles] = useState<AdminRoleDefinition[]>([]);
   const [userDraft, setUserDraft] = useState(EMPTY_USER_DRAFT);
   const [roleDraft, setRoleDraft] = useState(createEmptyRoleDraft);
+  const [editingRoleId, setEditingRoleId] = useState("");
   const [loading, setLoading] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [creatingRole, setCreatingRole] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState("");
+  const [updatingRoleId, setUpdatingRoleId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -136,6 +141,11 @@ const TeamManagement: React.FC = () => {
     [roles]
   );
   const activeRoles = useMemo(() => roles.filter((role) => role.isActive), [roles]);
+  const customRoles = useMemo(() => roles.filter((role) => !role.isSystem), [roles]);
+  const editingRole = useMemo(
+    () => roles.find((role) => role.id === editingRoleId && !role.isSystem) || null,
+    [editingRoleId, roles]
+  );
   const roleByKey = useMemo(
     () => new Map(activeRoles.map((role) => [role.key, role])),
     [activeRoles]
@@ -196,7 +206,9 @@ const TeamManagement: React.FC = () => {
     if (key && !ROLE_KEY_PATTERN.test(key)) {
       return "Role key must be 3-50 characters using lowercase letters, numbers, _ or -.";
     }
-    if (key && roleByKey.has(key)) return "That role key already exists.";
+    if (key && roles.some((role) => role.key === key && role.id !== editingRoleId)) {
+      return "That role key already exists.";
+    }
     return "";
   };
 
@@ -228,7 +240,7 @@ const TeamManagement: React.FC = () => {
     }
   };
 
-  const handleCreateRole = async (event: FormEvent) => {
+  const handleSaveRole = async (event: FormEvent) => {
     event.preventDefault();
     setNotice("");
     setError("");
@@ -241,19 +253,68 @@ const TeamManagement: React.FC = () => {
 
     setCreatingRole(true);
     try {
-      const role = await adminSessionApi.createRole({
-        key: normalizeRoleKeyInput(roleDraft.key) || undefined,
-        name: roleDraft.name.trim(),
-        description: roleDraft.description.trim() || undefined,
-        permissions: roleDraft.permissions,
-      });
+      const role = editingRole
+        ? await adminSessionApi.updateRole(editingRole.id, {
+            name: roleDraft.name.trim(),
+            description: roleDraft.description.trim() || undefined,
+            permissions: roleDraft.permissions,
+          })
+        : await adminSessionApi.createRole({
+            key: normalizeRoleKeyInput(roleDraft.key) || undefined,
+            name: roleDraft.name.trim(),
+            description: roleDraft.description.trim() || undefined,
+            permissions: roleDraft.permissions,
+          });
       setRoles((current) => [...current.filter((item) => item.id !== role.id), role]);
       setRoleDraft(createEmptyRoleDraft());
-      setNotice(`${role.name} is available for new and existing users.`);
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Unable to create portal role.");
+      setEditingRoleId("");
+      setNotice(
+        editingRole
+          ? `${role.name} was updated.`
+          : `${role.name} is available for new and existing users.`
+      );
+    } catch (roleError) {
+      setError(roleError instanceof Error ? roleError.message : "Unable to save portal role.");
     } finally {
       setCreatingRole(false);
+    }
+  };
+
+  const startEditingRole = (role: AdminRoleDefinition) => {
+    if (role.isSystem) return;
+    setNotice("");
+    setError("");
+    setEditingRoleId(role.id);
+    setRoleDraft({
+      key: role.key,
+      name: role.name,
+      description: role.description || "",
+      permissions: normalizeRolePermissions(role.permissions, "VIEWER"),
+    });
+  };
+
+  const cancelEditingRole = () => {
+    setEditingRoleId("");
+    setRoleDraft(createEmptyRoleDraft());
+  };
+
+  const updateRoleStatus = async (role: AdminRoleDefinition, isActive: boolean) => {
+    if (role.isSystem) return;
+    setNotice("");
+    setError("");
+    setUpdatingRoleId(role.id);
+    try {
+      const updated = await adminSessionApi.updateRole(role.id, { isActive });
+      setRoles((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      if (editingRoleId === updated.id) {
+        setEditingRoleId("");
+        setRoleDraft(createEmptyRoleDraft());
+      }
+      setNotice(`${updated.name} was ${updated.isActive ? "reactivated" : "deactivated"}.`);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Unable to update portal role.");
+    } finally {
+      setUpdatingRoleId("");
     }
   };
 
@@ -370,10 +431,10 @@ const TeamManagement: React.FC = () => {
           </ERPPrimaryAction>
         </form>
 
-        <form className="glass-card stroane-team__role-builder" onSubmit={handleCreateRole}>
+        <form className="glass-card stroane-team__role-builder" onSubmit={handleSaveRole}>
           <div className="stroane-team__section-head">
             <span><HiOutlineKey aria-hidden="true" /> Custom role</span>
-            <h2>Create role</h2>
+            <h2>{editingRole ? "Edit role" : "Create role"}</h2>
           </div>
 
           <div className="stroane-team__role-fields">
@@ -382,6 +443,13 @@ const TeamManagement: React.FC = () => {
               value={roleDraft.name}
               onChange={(event) => setRoleDraft((current) => ({ ...current, name: event.target.value }))}
               placeholder="Inventory coordinator"
+            />
+            <ERPTextField
+              label="Role key"
+              value={roleDraft.key}
+              onChange={(event) => setRoleDraft((current) => ({ ...current, key: event.target.value }))}
+              placeholder="inventory-coordinator"
+              disabled={Boolean(editingRole)}
             />
           </div>
           <ERPTextareaField
@@ -421,9 +489,64 @@ const TeamManagement: React.FC = () => {
             ))}
           </div>
 
-          <ERPPrimaryAction type="submit" icon={<HiOutlineShieldCheck aria-hidden="true" />} disabled={creatingRole}>
-            {creatingRole ? "Creating role" : "Create role"}
-          </ERPPrimaryAction>
+          <div className="stroane-team__role-builder-actions">
+            <ERPPrimaryAction type="submit" icon={<HiOutlineShieldCheck aria-hidden="true" />} disabled={creatingRole}>
+              {creatingRole ? (editingRole ? "Saving role" : "Creating role") : editingRole ? "Save role" : "Create role"}
+            </ERPPrimaryAction>
+            {editingRole ? (
+              <ERPSecondaryAction type="button" onClick={cancelEditingRole}>
+                Cancel
+              </ERPSecondaryAction>
+            ) : null}
+          </div>
+
+          <div className="stroane-team__role-list" aria-label="Custom roles">
+            <div className="stroane-team__role-list-head">
+              <strong>Existing custom roles</strong>
+              <span>{customRoles.length} saved</span>
+            </div>
+            {customRoles.length ? (
+              customRoles.map((role) => {
+                const isEditing = editingRoleId === role.id;
+                const isUpdating = updatingRoleId === role.id;
+                return (
+                  <article key={role.id} className={isEditing ? "is-editing" : ""}>
+                    <span>
+                      <strong>{role.name}</strong>
+                      <small>{role.description || role.key}</small>
+                    </span>
+                    <ERPStatusBadge tone={role.isActive ? "success" : "danger"}>
+                      {role.isActive ? "Active" : "Inactive"}
+                    </ERPStatusBadge>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => startEditingRole(role)}
+                        disabled={isUpdating}
+                      >
+                        <HiOutlinePencilAlt aria-hidden="true" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void updateRoleStatus(role, !role.isActive)}
+                        disabled={isUpdating}
+                      >
+                        {role.isActive ? (
+                          <HiOutlineXCircle aria-hidden="true" />
+                        ) : (
+                          <HiOutlineCheckCircle aria-hidden="true" />
+                        )}
+                        <span>{role.isActive ? "Deactivate" : "Reactivate"}</span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <p>No custom roles yet.</p>
+            )}
+          </div>
         </form>
       </div>
 

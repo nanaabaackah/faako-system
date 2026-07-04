@@ -26,6 +26,11 @@ test("module capability routes cover authenticated productivity surfaces", () =>
   assert.deepEqual(resolveModulesForPath("/api/ai/productivity-coach"), ["dashboard"]);
 });
 
+test("projects API is protected by the projects module", () => {
+  assert.deepEqual(resolveModulesForPath("/api/projects"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/42"), ["projects"]);
+});
+
 test("Faako onboarding API is protected by the onboarding module", () => {
   assert.deepEqual(resolveModulesForPath("/api/faako-onboarding"), ["faako-onboarding"]);
   assert.deepEqual(resolveModulesForPath("/api/faako-onboarding/request-1"), ["faako-onboarding"]);

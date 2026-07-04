@@ -254,6 +254,7 @@ const OrderManagement: React.FC = () => {
     hasPortalPermission(session, "orders", "delete") ||
     hasPortalPermission(session, "orders", "archive") ||
     hasPortalPermission(session, "orders", "manage");
+  const canViewInventory = hasPortalPermission(session, "inventory", "view");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [summary, setSummary] = useState<AdminOrderSummary>(EMPTY_SUMMARY);
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -266,6 +267,7 @@ const OrderManagement: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [productLoadError, setProductLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [paymentAction, setPaymentAction] = useState("");
   const [error, setError] = useState("");
@@ -402,10 +404,16 @@ const OrderManagement: React.FC = () => {
   }, [loadOrders, session]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !canViewInventory) {
+      setProducts([]);
+      setProductsLoading(false);
+      setProductLoadError("");
+      return;
+    }
     let cancelled = false;
     const loadProducts = async () => {
       setProductsLoading(true);
+      setProductLoadError("");
       try {
         const data = await adminProductsApi.listProducts(session, {
           limit: 250,
@@ -414,7 +422,10 @@ const OrderManagement: React.FC = () => {
         if (!cancelled) setProducts(data.products);
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Unable to load products.");
+          setProducts([]);
+          setProductLoadError(
+            loadError instanceof Error ? loadError.message : "Unable to load products."
+          );
         }
       } finally {
         if (!cancelled) setProductsLoading(false);
@@ -424,7 +435,7 @@ const OrderManagement: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [canViewInventory, session]);
 
   useEffect(() => {
     setPageIndex(0);
@@ -1383,7 +1394,12 @@ const OrderManagement: React.FC = () => {
                 Add line
               </ERPSecondaryAction>
             </header>
-            {!pricedProducts.length ? (
+            {productLoadError ? (
+              <ERPFormNotice tone="warning" title="Catalogue products">
+                {productLoadError}
+              </ERPFormNotice>
+            ) : null}
+            {!productLoadError && !pricedProducts.length ? (
               <ERPFormNotice tone="warning" title="No priced products">
                 Add prices to active catalogue products before creating manual orders.
               </ERPFormNotice>

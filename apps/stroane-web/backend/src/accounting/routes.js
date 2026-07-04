@@ -10,6 +10,30 @@ const ACCOUNTING_ENTRY_TYPES = new Set([
   "EQUITY",
   "ADJUSTMENT",
 ]);
+const EXPENSE_CLASSES = new Set([
+  "sales",
+  "operations",
+  "inventory",
+  "delivery",
+  "marketing",
+  "tax",
+  "payroll",
+  "rent",
+  "other",
+]);
+const EXPENSE_CLASS_LABELS = {
+  sales: "Sales expenses",
+  operations: "Operations",
+  inventory: "Inventory and suppliers",
+  delivery: "Delivery and logistics",
+  marketing: "Marketing",
+  tax: "Tax and compliance",
+  payroll: "Payroll and contractors",
+  rent: "Rent and utilities",
+  other: "Other expenses",
+};
+const EXPENSE_PAYMENT_STATUSES = new Set(["paid", "unpaid"]);
+const INACTIVE_ENTRY_STATUSES = ["void", "cancelled", "archived", "deleted"];
 
 const sanitizeText = (value = "", maxLength = 160) =>
   String(value || "")
@@ -120,10 +144,20 @@ const toAccountingEntry = (entry) => ({
   id: entry.id,
   entryType: String(entry.entryType || "").toLowerCase(),
   category: entry.category,
+  expenseClass: entry.expenseClass || "",
+  counterparty: entry.counterparty || "",
   description: entry.description,
   amount: toMoneyNumber(entry.amount),
   currency: entry.currency || "GHS",
   entryDate: toIsoString(entry.entryDate),
+  dueDate: toIsoString(entry.dueDate),
+  paymentStatus:
+    entry.paymentStatus ||
+    (String(entry.entryType || "").toUpperCase() === "LIABILITY"
+      ? "unpaid"
+      : String(entry.entryType || "").toUpperCase() === "EXPENSE"
+      ? "paid"
+      : ""),
   source: entry.source || "manual_lump_sum",
   reference: entry.reference || "",
   notes: entry.notes || "",
@@ -165,6 +199,7 @@ const createEmptySeriesBucket = (period) => ({
   period,
   revenue: 0,
   expenses: 0,
+  liabilities: 0,
   net: 0,
   orders: 0,
   entries: 0,
@@ -176,6 +211,14 @@ const addCategoryAmount = (map, category, amount) => {
 };
 
 const normalizeAccountingType = (value) => sanitizeText(value, 32).toUpperCase();
+const normalizeExpenseClass = (value) => {
+  const normalized = sanitizeText(value, 48).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return EXPENSE_CLASSES.has(normalized) ? normalized : "other";
+};
+const normalizeExpensePaymentStatus = (value) => {
+  const normalized = sanitizeText(value, 24).toLowerCase();
+  return EXPENSE_PAYMENT_STATUSES.has(normalized) ? normalized : "paid";
+};
 
 const buildAccountingOverview = async (prisma, query = {}) => {
   const range = buildDateRange(query);
@@ -244,7 +287,7 @@ const buildAccountingOverview = async (prisma, query = {}) => {
     entryModel
       ? entryModel.findMany({
           where: {
-            status: "active",
+            status: { notIn: INACTIVE_ENTRY_STATUSES },
             ...(dateFilter ? { entryDate: dateFilter } : {}),
           },
           orderBy: { entryDate: "desc" },
@@ -265,6 +308,8 @@ const buildAccountingOverview = async (prisma, query = {}) => {
   const manualTotals = {
     income: 0,
     expenses: 0,
+    expenseLiabilities: 0,
+    expenseEntries: 0,
     assets: 0,
     liabilities: 0,
     equity: 0,
@@ -302,16 +347,25 @@ const buildAccountingOverview = async (prisma, query = {}) => {
   manualEntries.forEach((entry) => {
     const amount = toMoneyNumber(entry.amount);
     const type = String(entry.entryType || "").toLowerCase();
+    const paymentStatus = String(entry.paymentStatus || "").toLowerCase();
+    const isExpenseLiability =
+      type === "liability" &&
+      (entry.source === "manual_expense" || paymentStatus === "unpaid");
+    const isExpenseEntry =
+      type === "expense" || isExpenseLiability || entry.source === "manual_expense";
     if (type === "income") manualTotals.income += amount;
     if (type === "expense") manualTotals.expenses += amount;
     if (type === "asset") manualTotals.assets += amount;
     if (type === "liability") manualTotals.liabilities += amount;
+    if (isExpenseLiability) manualTotals.expenseLiabilities += amount;
+    if (isExpenseEntry) manualTotals.expenseEntries += 1;
     if (type === "equity") manualTotals.equity += amount;
     if (type === "adjustment") manualTotals.adjustments += amount;
 
     const bucket = getSeriesBucket(entry.entryDate);
     if (type === "income") bucket.revenue = roundMoney(bucket.revenue + amount);
     if (type === "expense") bucket.expenses = roundMoney(bucket.expenses + amount);
+    if (isExpenseLiability) bucket.liabilities = roundMoney(bucket.liabilities + amount);
     bucket.entries += 1;
     addCategoryAmount(categoryMap, entry.category, type === "expense" ? -amount : amount);
   });
@@ -337,6 +391,8 @@ const buildAccountingOverview = async (prisma, query = {}) => {
   const totalOrderValue = orders.reduce((total, order) => total + toMoneyNumber(order.total), 0);
   const revenue = roundMoney(orderRevenue + manualTotals.income);
   const expenses = roundMoney(manualTotals.expenses);
+  const expenseLiabilities = roundMoney(manualTotals.expenseLiabilities);
+  const expenseExposure = roundMoney(expenses + expenseLiabilities);
   const costOfGoodsSold = roundMoney(orderCostKnown);
   const grossProfit = roundMoney(revenue - costOfGoodsSold);
   const netProfit = roundMoney(grossProfit - expenses + manualTotals.adjustments);
@@ -394,6 +450,8 @@ const buildAccountingOverview = async (prisma, query = {}) => {
       orderRevenue: roundMoney(orderRevenue),
       manualIncome: roundMoney(manualTotals.income),
       expenses,
+      expenseLiabilities,
+      expenseExposure,
       costOfGoodsSold,
       grossProfit,
       netProfit,
@@ -414,6 +472,7 @@ const buildAccountingOverview = async (prisma, query = {}) => {
       outstandingOrderCount: outstandingOrders.length,
       receiptCount: receipts.length,
       manualEntryCount: manualEntries.length,
+      expenseEntryCount: manualTotals.expenseEntries,
       stockPricedItemCount: stock.pricedItems,
       stockCostedItemCount: stock.costedItems,
       ordersWithKnownCost,
@@ -458,6 +517,132 @@ const parseEntryPayload = (body = {}) => {
   };
 };
 
+const getExpensePaymentStatus = (entry = {}) =>
+  entry.paymentStatus ||
+  (String(entry.entryType || "").toUpperCase() === "LIABILITY" ? "unpaid" : "paid");
+
+const toExpenseEntry = (entry) => ({
+  ...toAccountingEntry(entry),
+  expenseClass: entry.expenseClass || "other",
+  expenseClassLabel: EXPENSE_CLASS_LABELS[entry.expenseClass] || EXPENSE_CLASS_LABELS.other,
+  paymentStatus: getExpensePaymentStatus(entry),
+});
+
+const buildExpenseSummary = (entries = []) => {
+  const today = startOfDay(new Date());
+  return entries.reduce(
+    (summary, entry) => {
+      const amount = toMoneyNumber(entry.amount);
+      const paymentStatus = getExpensePaymentStatus(entry);
+      const dueDate = entry.dueDate ? new Date(entry.dueDate) : null;
+      summary.totalCount += 1;
+      if (paymentStatus === "unpaid") {
+        summary.unpaidTotal += amount;
+        if (dueDate && !Number.isNaN(dueDate.getTime())) {
+          if (!summary.nextDueDate || dueDate < new Date(summary.nextDueDate)) {
+            summary.nextDueDate = dueDate.toISOString();
+          }
+          if (dueDate < today) summary.overdueTotal += amount;
+        }
+      } else {
+        summary.paidTotal += amount;
+      }
+      summary.exposureTotal = roundMoney(summary.paidTotal + summary.unpaidTotal);
+      return summary;
+    },
+    {
+      paidTotal: 0,
+      unpaidTotal: 0,
+      overdueTotal: 0,
+      exposureTotal: 0,
+      totalCount: 0,
+      nextDueDate: "",
+    }
+  );
+};
+
+const buildExpenseBreakdown = (entries = []) => {
+  const map = new Map();
+  entries.forEach((entry) => {
+    const key = entry.expenseClass || "other";
+    const current = map.get(key) || {
+      expenseClass: key,
+      label: EXPENSE_CLASS_LABELS[key] || EXPENSE_CLASS_LABELS.other,
+      paidTotal: 0,
+      unpaidTotal: 0,
+      count: 0,
+    };
+    const amount = toMoneyNumber(entry.amount);
+    if (getExpensePaymentStatus(entry) === "unpaid") {
+      current.unpaidTotal = roundMoney(current.unpaidTotal + amount);
+    } else {
+      current.paidTotal = roundMoney(current.paidTotal + amount);
+    }
+    current.count += 1;
+    map.set(key, current);
+  });
+  return Array.from(map.values())
+    .map((item) => ({
+      ...item,
+      total: roundMoney(item.paidTotal + item.unpaidTotal),
+    }))
+    .sort((left, right) => right.total - left.total);
+};
+
+const buildExpenseWhere = (query = {}) => {
+  const range = buildDateRange(query);
+  const dateFilter = buildPrismaDateFilter(range);
+  const statusFilter = sanitizeText(query.status, 24).toLowerCase();
+  const expenseClass = sanitizeText(query.expenseClass, 48).toLowerCase();
+  const where = {
+    entryType: { in: ["EXPENSE", "LIABILITY"] },
+    status: { notIn: INACTIVE_ENTRY_STATUSES },
+    ...(dateFilter ? { entryDate: dateFilter } : {}),
+  };
+  if (EXPENSE_PAYMENT_STATUSES.has(statusFilter)) where.paymentStatus = statusFilter;
+  if (EXPENSE_CLASSES.has(expenseClass)) where.expenseClass = expenseClass;
+  return { range, where };
+};
+
+const parseExpensePayload = (body = {}) => {
+  const expenseClass = normalizeExpenseClass(body.expenseClass || body.category);
+  const paymentStatus = normalizeExpensePaymentStatus(body.paymentStatus);
+  const entryDate = parseDateValue(body.expenseDate || body.entryDate);
+  const dueDate = parseDateValue(body.dueDate);
+  const category =
+    sanitizeText(body.category, 80) || EXPENSE_CLASS_LABELS[expenseClass] || EXPENSE_CLASS_LABELS.other;
+  const description = sanitizeText(body.description, 160);
+  const amount = toMoneyNumber(body.amount);
+  const currency = sanitizeText(body.currency || "GHS", 3).toUpperCase();
+  const counterparty = sanitizeText(body.counterparty || body.vendor || body.payee, 120);
+
+  if (!category) throw createHttpError("Add an expense category.", 400);
+  if (!description) throw createHttpError("Add a short expense description.", 400);
+  if (!amount || amount <= 0) throw createHttpError("Enter an expense amount greater than zero.", 400);
+  if (!currency || currency.length !== 3) throw createHttpError("Use a 3-letter currency code.", 400);
+  if (!entryDate) throw createHttpError("Choose a valid expense date.", 400);
+  if (paymentStatus === "unpaid" && !dueDate) {
+    throw createHttpError("Choose a due date for unpaid expenses.", 400);
+  }
+
+  return {
+    entryType: paymentStatus === "unpaid" ? "LIABILITY" : "EXPENSE",
+    category,
+    expenseClass,
+    counterparty: counterparty || null,
+    description,
+    amount,
+    currency,
+    entryDate,
+    dueDate: dueDate || null,
+    paymentStatus,
+    status: paymentStatus,
+    source: "manual_expense",
+    reference: sanitizeText(body.reference, 120) || null,
+    notes: sanitizeText(body.notes, 800) || null,
+  };
+};
+
 export const createAdminAccountingRouter = (prisma) => {
   const router = Router();
 
@@ -488,6 +673,53 @@ export const createAdminAccountingRouter = (prisma) => {
         },
       });
       res.status(201).json({ entry: toAccountingEntry(entry) });
+    })
+  );
+
+  router.get(
+    "/accounting/expenses",
+    asyncRoute(async (req, res) => {
+      const entryModel = getEntryModel(prisma);
+      if (!entryModel) {
+        throw createHttpError("Accounting ledger migration has not been deployed yet.", 503);
+      }
+      const limit = Math.min(Math.max(Number(req.query.limit) || 300, 25), 1000);
+      const { range, where } = buildExpenseWhere(req.query);
+      const entries = await entryModel.findMany({
+        where,
+        orderBy: [{ dueDate: "asc" }, { entryDate: "desc" }],
+        take: limit,
+      });
+      res.json({
+        range: {
+          period: range.period,
+          from: toIsoString(range.from),
+          to: toIsoString(range.to),
+        },
+        expenses: entries.map(toExpenseEntry),
+        summary: buildExpenseSummary(entries),
+        breakdown: buildExpenseBreakdown(entries),
+      });
+    })
+  );
+
+  router.post(
+    "/accounting/expenses",
+    requireAdminRole(prisma, "accounting", "create"),
+    asyncRoute(async (req, res) => {
+      const entryModel = getEntryModel(prisma);
+      if (!entryModel) {
+        throw createHttpError("Accounting ledger migration has not been deployed yet.", 503);
+      }
+      const payload = parseExpensePayload(req.body);
+      const entry = await entryModel.create({
+        data: {
+          ...payload,
+          createdById: req.authUser?.id || null,
+          createdByName: req.authUser?.username || null,
+        },
+      });
+      res.status(201).json({ expense: toExpenseEntry(entry), entry: toAccountingEntry(entry) });
     })
   );
 

@@ -16,6 +16,7 @@ const userWithModules = (modules) => ({
 
 test("unrestricted users can reach any module route", () => {
   assert.equal(canAccessPath({ role: { name: "Admin" } }, "/proposals"), true);
+  assert.equal(canAccessPath({ role: { name: "Admin" } }, "/projects"), true);
   assert.equal(canAccessPath({ role: { name: "Admin" } }, "/audit-logs"), true);
 });
 
@@ -47,6 +48,7 @@ test("mixed rent roles default to rent while rent-only users keep dashboard land
 });
 
 test("route mapping covers legacy and nested module paths", () => {
+  assert.equal(getModuleKeyForPath("/projects/board"), "projects");
   assert.equal(getModuleKeyForPath("/proposals/123/preview"), "proposals");
   assert.equal(getModuleKeyForPath("/faako-onboarding/abc"), "faako-onboarding");
   assert.equal(getModuleKeyForPath("/users"), "user-control");

@@ -13,6 +13,9 @@ development mode. Vite loads `.env.development`, and the API loads
 `.env` fallback. Prisma commands with `APP_ENV=development` follow the same
 precedence. The backend resolves its env files from `apps/stroane-web` itself,
 so direct API launches are not dependent on the current shell directory.
+For non-development local checks, the backend and Prisma config load
+`.env.<APP_ENV>` when present; for example, `APP_ENV=staging node
+backend/server.js` loads `.env.staging` after `.env`.
 
 For the standard local setup, leave `VITE_API_BASE_URL=` blank in
 `.env.development`. Vite proxies same-origin `/api` requests to the local API on
@@ -47,6 +50,20 @@ Production Cloudflare Pages operational portal:
 - `VITE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `VITE_PORTAL_BASE_URL=https://portal.stroanesolutions.com`
 
+Staging Cloudflare Pages storefront:
+
+- `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+- `VITE_APP_SURFACE=storefront`
+- `VITE_STOREFRONT_BASE_URL=https://stage.stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal-stage.stroanesolutions.com`
+
+Staging Cloudflare Pages operational portal:
+
+- `VITE_API_BASE_URL=https://api-staging.stroanesolutions.com`
+- `VITE_APP_SURFACE=portal`
+- `VITE_STOREFRONT_BASE_URL=https://stage.stroanesolutions.com`
+- `VITE_PORTAL_BASE_URL=https://portal-stage.stroanesolutions.com`
+
 `VITE_*` values are compiled into each Cloudflare Pages bundle. Redeploy the
 affected project after any change.
 
@@ -54,8 +71,8 @@ Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service
 
 ## Backend/API
 
-- `NODE_ENV`: `development` or `production`.
-- `APP_ENV`: `development` or `production`; used by Prisma/env resolution.
+- `NODE_ENV`: usually `development` locally and `production` on hosted API services.
+- `APP_ENV`: `development`, `staging`, or `production`; used by Prisma/env resolution.
 - `PORT`: backend server port.
 - `CORS_ORIGINS`: comma-separated allowed browser origins.
 - `TRUST_PROXY_HOPS`: trusted proxy hop count, usually `1` on Railway after verification.
@@ -87,6 +104,19 @@ Production Railway API service:
 - `STROANE_STOREFRONT_BASE_URL=https://stroanesolutions.com`
 - `STROANE_LOCATION_SEARCH_ENABLED=true`
 - `STROANE_LOCATION_SEARCH_USER_AGENT="StroaneSolutions/1.0 (orders@stroanesolutions.com)"`
+
+Staging Railway API service:
+
+- `DATABASE_URL=<staging Railway Postgres connection string>`
+- `NODE_ENV=production`
+- `APP_ENV=staging`
+- `CORS_ORIGINS=https://stage.stroanesolutions.com,https://portal-stage.stroanesolutions.com`
+- `TRUST_PROXY_HOPS=1` after confirming Railway proxy behavior
+- `APP_AUTH_SECRET=<staging-only server secret>`
+- `STROANE_ADMIN_AUTH_COOKIE_SECURE=true`
+- `STROANE_CUSTOMER_AUTH_COOKIE_SECURE=true`
+- `STROANE_STOREFRONT_BASE_URL=https://stage.stroanesolutions.com`
+- `PAYSTACK_ALLOW_LIVE=false`
 
 Do not place `VITE_API_BASE_URL` in the Railway API service unless a future backend feature explicitly needs it. It belongs on the Cloudflare Pages frontend.
 

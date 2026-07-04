@@ -2502,6 +2502,15 @@ body.nav-open .mobile-tabbar {
   color: var(--info);
 }
 
+.notice-link {
+  display: inline-flex;
+  margin-left: 0.65rem;
+  color: currentColor;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .form-field {
   display: grid;
   gap: 0.35rem;

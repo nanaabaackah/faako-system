@@ -9,8 +9,8 @@ export const createAdminInventoryRouter = (prisma) => {
 
   router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
 
-  router.get("/suppliers", asyncRoute(controller.listSuppliers));
-  router.get("/suppliers/:id", asyncRoute(controller.getSupplier));
+  router.get("/suppliers", requireAdminRole(prisma, "inventory", "view"), asyncRoute(controller.listSuppliers));
+  router.get("/suppliers/:id", requireAdminRole(prisma, "inventory", "view"), asyncRoute(controller.getSupplier));
   router.post(
     "/suppliers",
     requireAdminRole(prisma, "inventory", "create"),
@@ -22,14 +22,18 @@ export const createAdminInventoryRouter = (prisma) => {
     asyncRoute(controller.updateSupplier)
   );
 
-  router.get("/inventory/movements", asyncRoute(controller.listInventoryMovements));
+  router.get(
+    "/inventory/movements",
+    requireAdminRole(prisma, "inventory", "view"),
+    asyncRoute(controller.listInventoryMovements)
+  );
   router.post(
     "/inventory/movements",
     requireAdminRole(prisma, "inventory", "edit"),
     asyncRoute(controller.createInventoryMovement)
   );
-  router.get("/inventory", asyncRoute(controller.listInventoryItems));
-  router.get("/inventory/:id", asyncRoute(controller.getInventoryItem));
+  router.get("/inventory", requireAdminRole(prisma, "inventory", "view"), asyncRoute(controller.listInventoryItems));
+  router.get("/inventory/:id", requireAdminRole(prisma, "inventory", "view"), asyncRoute(controller.getInventoryItem));
   router.patch(
     "/inventory/:id",
     requireAdminRole(prisma, "inventory", "edit"),

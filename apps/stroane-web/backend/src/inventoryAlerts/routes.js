@@ -30,7 +30,11 @@ export const createAdminInventoryAlertRouter = (prisma) => {
   const controller = createInventoryAlertController(prisma);
 
   router.use(requireSiteUser(prisma, ["ADMIN", "OWNER", "VIEWER", "CUSTOM"]));
-  router.get("/inventory/alerts", asyncRoute(controller.getSummary));
+  router.get(
+    "/inventory/alerts",
+    requireAdminRole(prisma, "inventory", "view"),
+    asyncRoute(controller.getSummary)
+  );
   router.post(
     "/inventory/alerts/check",
     requireAdminRole(prisma, "inventory", "edit"),

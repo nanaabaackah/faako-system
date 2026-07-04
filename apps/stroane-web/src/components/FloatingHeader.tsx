@@ -99,7 +99,7 @@ const FloatingHeader: React.FC = () => {
       className={`nav-search-btn nav-cart-btn${dark ? " nav-search-btn--dark" : ""}`}
       aria-label={cartAriaLabel}
     >
-      <HiOutlineShoppingCart size={18} aria-hidden="true" />
+      <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
       {totalCount ? <span className="nav-cart-btn__count">{totalCount}</span> : null}
     </Link>
   );
@@ -111,7 +111,7 @@ const FloatingHeader: React.FC = () => {
       aria-label={user ? `Open customer account (${user.name})` : "Open customer account"}
       title={user ? `Customer account — ${user.name}` : "Customer account"}
     >
-      <HiOutlineUser size={18} aria-hidden="true" />
+      <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
     </Link>
   );
 
@@ -344,7 +344,7 @@ const FloatingHeader: React.FC = () => {
                   aria-label={cartAriaLabel}
                   onClick={() => setMenuOpen(false)}
                 >
-                  <HiOutlineShoppingCart size={18} aria-hidden="true" />
+                  <HiOutlineShoppingCart className="nav-cart-icon" aria-hidden="true" />
                   <span>{totalCount ? `Cart (${totalCount})` : "Cart"}</span>
                 </Link>
                 <Link
@@ -352,7 +352,7 @@ const FloatingHeader: React.FC = () => {
                   className="mobile-nav-sheet__search"
                   onClick={() => setMenuOpen(false)}
                 >
-                  <HiOutlineUser size={18} aria-hidden="true" />
+                  <HiOutlineUser className="nav-auth-icon" aria-hidden="true" />
                   <span>{user ? "Customer account" : "Sign in"}</span>
                 </Link>
                 <Link
