@@ -1,0 +1,224 @@
+.projects-page {
+  gap: 1.15rem;
+}
+
+.projects-org-filter {
+  min-width: 220px;
+}
+
+.projects-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.projects-summary-card {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 106px;
+  align-content: center;
+}
+
+.projects-summary-card strong {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1;
+}
+
+.projects-summary-card.is-success {
+  border-color: color-mix(in oklab, var(--success), var(--border) 52%);
+}
+
+.projects-summary-card.is-warning {
+  border-color: color-mix(in oklab, var(--warning), var(--border) 52%);
+}
+
+.projects-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(230px, 1fr));
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+
+.projects-column {
+  display: grid;
+  gap: 0.85rem;
+  min-height: 520px;
+  min-width: 230px;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--card), var(--surface) 8%);
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.projects-column.is-drag-over {
+  border-color: color-mix(in oklab, var(--accent), var(--border) 30%);
+  background: color-mix(in oklab, var(--accent-soft), var(--card) 74%);
+}
+
+.projects-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 38px;
+}
+
+.projects-column__header h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.projects-column__cards {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.project-card {
+  display: grid;
+  gap: 0.7rem;
+  min-height: 212px;
+  padding: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--card), white 3%), var(--card));
+  box-shadow: 0 18px 36px color-mix(in oklab, var(--ink), transparent 91%);
+  cursor: grab;
+}
+
+.project-card:active {
+  cursor: grabbing;
+}
+
+.project-card.is-high,
+.project-card.is-urgent {
+  border-color: color-mix(in oklab, var(--warning), var(--border) 40%);
+}
+
+.project-card.is-urgent {
+  box-shadow: 0 18px 36px color-mix(in oklab, var(--danger), transparent 86%);
+}
+
+.project-card--empty {
+  min-height: 96px;
+  place-items: center;
+  border-style: dashed;
+  box-shadow: none;
+  cursor: default;
+}
+
+.project-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.project-card p {
+  margin: 0;
+}
+
+.project-card__topline,
+.project-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.project-card__meta {
+  display: grid;
+  gap: 0.32rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.project-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.project-priority {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.4rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--surface), var(--card) 45%);
+}
+
+.project-priority.is-high {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.project-priority.is-urgent {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.project-priority.is-low {
+  color: var(--info);
+  background: var(--info-soft);
+}
+
+.project-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.projects-modal {
+  width: min(980px, 100%);
+}
+
+@media (max-width: 1180px) {
+  .projects-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .projects-board {
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .projects-column {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .project-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .projects-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-org-filter {
+    width: 100%;
+  }
+
+  .project-card__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-card__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

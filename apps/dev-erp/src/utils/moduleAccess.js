@@ -5,6 +5,7 @@ const normalizeModuleName = (value) =>
 
 const ACTIVE_MODULE_KEYS = new Set([
   "dashboard",
+  "projects",
   "proposals",
   "faako-onboarding",
   "rent",
@@ -22,6 +23,7 @@ const ACTIVE_MODULE_KEYS = new Set([
 
 const MODULE_ROUTE_RULES = [
   { pattern: /^\/dashboard(?:\/|$)/, module: "dashboard" },
+  { pattern: /^\/projects(?:\/|$)/, module: "projects" },
   { pattern: /^\/proposals(?:\/|$)/, module: "proposals" },
   { pattern: /^\/faako-onboarding(?:\/|$)/, module: "faako-onboarding" },
   { pattern: /^\/rent(?:\/|$)/, module: "rent" },
@@ -40,6 +42,7 @@ const MODULE_ROUTE_RULES = [
 
 const MODULE_DEFAULT_PATHS = {
   dashboard: "/dashboard",
+  projects: "/projects",
   proposals: "/proposals",
   "faako-onboarding": "/faako-onboarding",
   rent: "/rent",

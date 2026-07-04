@@ -1,339 +1,213 @@
+# Faako Git Workflow
 
-# Git Workflow
+Use this terminal-first flow for every app in the Faako monorepo. The short path uses local Git aliases; the plain Git path is included when aliases are unavailable.
 
-This document describes the standard development and deployment workflow for the Stroane platform.
+## Branches
 
----
+| Branch | Purpose | Deploys |
+| --- | --- | --- |
+| `main` | Production | Production apps/APIs |
+| `develop` | Staging | Staging apps/APIs |
+| `feature/*` | Local feature/fix work | No automatic production deploy |
+| `hotfix/*` | Critical production fix | PR to `main`, then back to `develop` |
 
-# Branch Strategy
+Do not develop directly on `main` or `develop`.
 
-| Branch        | Purpose                          | Deployment                          |
-| ------------- | -------------------------------- | ----------------------------------- |
-| `main`      | Production                       | Automatically deploys to Production |
-| `develop`   | Staging                          | Automatically deploys to Staging    |
-| `feature/*` | New features, fixes, experiments | Local development only              |
+## Daily Feature Flow
 
----
-
-# Environment Mapping
-
-| Environment | Website                            | Portal                                    | API                                      | Database            |
-| ----------- | ---------------------------------- | ----------------------------------------- | ---------------------------------------- | ------------------- |
-| Development | localhost                          | localhost                                 | Local API                                | Development         |
-| Staging     | https://stage.stroanesolutions.com | https://portal-stage.stroanesolutions.com | https://api-staging.stroanesolutions.com | Stage Database      |
-| Production  | https://stroanesolutions.com       | https://portal.stroanesolutions.com       | https://api.stroanesolutions.com         | Production Database |
-
----
-
-# Starting a Feature
-
-Always start from the latest develop branch.
+Start from current staging:
 
 ```bash
 git checkout develop
-git pull origin develop
+git pull --ff-only origin develop
+git new faako short-feature-name
 ```
 
-Create a feature branch.
+Fallback without aliases:
 
 ```bash
-git new stroane supplier-management
+git checkout develop
+git pull --ff-only origin develop
+git checkout -b feature/faako-short-feature-name
 ```
 
-Example:
-
-```text
-feature/stroane-supplier-management
-```
-
----
-
-# Development
-
-Make your changes locally.
-
-Run the application.
+Work locally, then check exactly what changed:
 
 ```bash
-pnpm run dev
+git status --short
+pnpm run affected:apps
 ```
 
-Commit changes.
+Run targeted checks for changed apps/packages:
 
 ```bash
-git ship feat "add supplier management"
+pnpm --filter @faako/dev-erp run test
+pnpm --filter @faako/dev-erp run lint
+pnpm --filter @faako/dev-erp run typecheck
+pnpm --filter @faako/dev-erp run build
 ```
 
-Examples:
+Use the relevant workspace name for other apps, for example `@faako/stroane-web`, `@faako/faako-website`, `@faako/faako-api`, `@faako/reebs-portal`, or `@faako/bynana-portfolio`.
+
+Commit and push:
 
 ```bash
-git ship feat "add purchase orders"
-
-git ship fix "correct inventory quantities"
-
-git ship chore "update dependencies"
+git status --short
+git ship feat dev-erp "add projects module"
 ```
 
----
+Fallback without aliases:
 
-# Open a Pull Request
+```bash
+git add <files>
+git commit -m "feat(dev-erp): add projects module"
+git push -u origin HEAD
+```
 
-Create a PR to **develop**.
+Open the staging PR:
 
 ```bash
 git pr
-```
-
-Watch GitHub Actions.
-
-```bash
 git checks
 ```
 
----
+Fallback:
 
-# Merge to Staging
+```bash
+gh pr create --base develop --fill
+gh pr checks --watch
+```
 
-Once CI passes:
+## Merge to Staging
+
+After CI passes and the PR is reviewed:
 
 ```bash
 gh pr merge --squash --delete-branch
 ```
 
-Sync local develop.
+Then sync local staging:
 
 ```bash
 git checkout develop
-git pull origin develop
+git pull --ff-only origin develop
 ```
 
-Cloudflare and Railway will automatically deploy:
+Smoke-test the changed app on staging before releasing to production.
 
-- stage.stroanesolutions.com
-- portal-stage.stroanesolutions.com
-- api-staging.stroanesolutions.com
+## Release to Main
 
----
-
-# Test in Staging
-
-Before every release verify:
-
-## Storefront
-
-- Homepage
-- Search
-- Product catalogue
-- Cart
-- Checkout
-- Customer login
-
-## Portal
-
-- Admin login
-- Dashboard
-- Inventory
-- Catalogue
-- Customers
-- Orders
-
-## API
-
-Health endpoint
-
-```
-https://api-staging.stroanesolutions.com/health
-```
-
----
-
-# Release to Production
-
-When staging has been approved:
+Use this after a tested milestone, not after every tiny commit.
 
 ```bash
+git checkout develop
+git pull --ff-only origin develop
 git release
-```
-
-This creates a PR:
-
-```
-develop
-      │
-      ▼
-     main
-```
-
-Review the Release PR.
-
-Merge it using GitHub (or GitHub CLI).
-
-Production automatically deploys:
-
-- stroanesolutions.com
-- portal.stroanesolutions.com
-- api.stroanesolutions.com
-
----
-
-# After Release
-
-Sync local branches.
-
-```bash
-git checkout main
-git pull origin main
-
-git checkout develop
-git pull origin develop
-```
-
----
-
-# Hotfixes
-
-If Production has a critical issue:
-
-Create a branch from **main**.
-
-```bash
-git checkout main
-git pull origin main
-
-git checkout -b hotfix/login-timeout
-```
-
-After approval:
-
-Merge into:
-
-- main
-- develop
-
-so both remain synchronized.
-
----
-
-# Database Changes
-
-Never apply migrations directly to Production.
-
-Workflow:
-
-1. Create migration locally
-2. Deploy migration to Stage
-3. Verify functionality
-4. Deploy migration to Production
-
----
-
-# Seeding
-
-Development
-
-```bash
-pnpm run db:seed
-```
-
-Staging
-
-```bash
-pnpm run db:seed:catalogue:stage
-pnpm run db:sync:inventory:stage
-```
-
-Production
-
-Only after approval.
-
----
-
-# Deployment Flow
-
-```
-feature/*
-      │
-      ▼
- Pull Request
-      │
-      ▼
- develop
-      │
-      ▼
- Stage Deployment
-      │
- Smoke Testing
-      │
-      ▼
- Release PR
-      │
-      ▼
- main
-      │
-      ▼
- Production Deployment
-```
-
----
-
-# Rules
-
-✅ Never develop directly on `main`
-
-✅ Never develop directly on `develop`
-
-✅ Always use feature branches
-
-✅ Every feature must pass CI
-
-✅ Test every release in Staging first
-
-✅ Production data must never be used for testing
-
-✅ Stage and Production databases remain completely separate
-
----
-
-# Quick Reference
-
-## Start Feature
-
-```bash
-git checkout develop
-git pull origin develop
-git new stroane feature-name
-```
-
-## Commit
-
-```bash
-git ship feat "description"
-```
-
-## Create PR
-
-```bash
-git pr
-```
-
-## Watch CI
-
-```bash
 git checks
 ```
 
-## Merge
+Fallback:
 
 ```bash
-git prmerge
+git checkout develop
+git pull --ff-only origin develop
+gh pr create --base main --head develop --title "release: promote develop" --body "Promotes tested staging changes."
+gh pr checks --watch
 ```
 
-## Release
+Merge the release PR after checks and final approval:
 
 ```bash
+gh pr merge --squash
+```
+
+Sync both local branches:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git checkout develop
+git pull --ff-only origin develop
+```
+
+## Milestone Push Block
+
+After milestone changes, include this block in the final summary:
+
+```bash
+git status --short
+pnpm run affected:apps
+pnpm run monitoring:check
+pnpm --filter <changed-workspace> run test
+pnpm --filter <changed-workspace> run lint
+pnpm --filter <changed-workspace> run build
+git ship <type> <scope> "<message>"
+git pr
+git checks
+
+# After staging approval
+gh pr merge --squash --delete-branch
+git checkout develop
+git pull --ff-only origin develop
 git release
+git checks
+
+# After release approval
+gh pr merge --squash
+git checkout main
+git pull --ff-only origin main
+git checkout develop
+git pull --ff-only origin develop
 ```
 
----
+Use `type` values like `feat`, `fix`, `chore`, or `docs`. Use app scopes like `dev-erp`, `stroane-web`, `faako-api`, `faako-website`, `reebs-portal`, `bynana-portfolio`, or `shared`.
 
-_Last Updated: June 2026_
+## Database Changes
+
+For migrations:
+
+1. Create and test migrations locally.
+2. Commit the migration file with the feature.
+3. Apply to staging through the app's reviewed migration/predeploy command.
+4. Smoke-test staging data flows.
+5. Release to `main`.
+6. Apply production migrations only through the reviewed production migration/deploy path.
+
+Never point local development commands at production data.
+
+## Multi-App or Shared-Package Changes
+
+When a change touches shared packages or multiple apps, run broader checks before the staging PR:
+
+```bash
+pnpm run lint
+pnpm run test
+pnpm run build
+pnpm run monitoring:check
+```
+
+Add `pnpm run project-registry:check` when app/project registry metadata changes, and `pnpm run hosting:check` when deployment or hosting config changes.
+
+## Hotfix Flow
+
+Use only for production-critical fixes:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git checkout -b hotfix/short-fix-name
+```
+
+Open the hotfix PR to `main`, merge after checks, then immediately open a back-merge PR from `main` to `develop` so staging stays synchronized.
+
+## Rules
+
+- Keep feature branches small and named by app/scope.
+- Commit migrations, docs, and tests with the feature they support.
+- Prefer PRs to direct pushes for `develop` and `main`.
+- Run targeted checks before every PR.
+- Run broader checks before multi-app or shared-package releases.
+- Smoke-test staging before promoting `develop` to `main`.
+- Keep secrets out of commits and out of `VITE_*` variables.
+
+Last updated: July 2026

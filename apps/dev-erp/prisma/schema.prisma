@@ -29,6 +29,7 @@ model Organization {
   productivityTodos ProductivityTodo[]
   rentTenants RentTenant[]
   rentPayments RentPayment[]
+  projects Project[]
 
   @@index([parentOrganizationId])
 }
@@ -65,6 +66,7 @@ model User {
   updatedAt      DateTime      @updatedAt
   createdProposals Proposal[] @relation("ProposalCreatedBy")
   editedProposals Proposal[] @relation("ProposalLastEditedBy")
+  ownedProjects Project[] @relation("ProjectOwner")
   productivityEntries ProductivityEntry[]
   productivityTodos ProductivityTodo[]
   refreshTokens RefreshToken[]
@@ -322,6 +324,32 @@ model InvoiceLineItem {
   @@index([invoiceId, sortOrder])
 }
 
+model Project {
+  id             Int             @id @default(autoincrement())
+  organizationId Int
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  ownerUserId    Int?
+  ownerUser      User?           @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+  title          String
+  clientName     String?
+  projectType    ProjectType     @default(PERSONAL)
+  stage          ProjectStage    @default(BACKLOG)
+  priority       ProjectPriority @default(MEDIUM)
+  currency       CurrencyCode?
+  budgetAmount   Decimal?        @db.Decimal(14, 2)
+  dueDate        DateTime?       @db.Date
+  description    String?
+  externalRef    String?
+  archivedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, stage])
+  @@index([organizationId, projectType])
+  @@index([organizationId, dueDate])
+  @@index([ownerUserId])
+}
+
 model Proposal {
   id                  Int          @id @default(autoincrement())
   organizationId      Int
@@ -459,6 +487,26 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   VOID
+}
+
+enum ProjectType {
+  PERSONAL
+  EXTERNAL
+}
+
+enum ProjectStage {
+  BACKLOG
+  SCOPING
+  ACTIVE
+  REVIEW
+  DONE
+}
+
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum RentTenantStatus {

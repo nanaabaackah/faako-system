@@ -124,6 +124,7 @@ const Accounting = () => {
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
   const [actionNotice, setActionNotice] = useState("");
+  const [actionLink, setActionLink] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [invoiceComposer, setInvoiceComposer] = useState(null);
@@ -261,6 +262,7 @@ const Accounting = () => {
       }
       setError("");
       setActionNotice("");
+      setActionLink(null);
 
       try {
         const query = new URLSearchParams({ range: timeRange });
@@ -425,6 +427,7 @@ const Accounting = () => {
       resetFormState();
       loadEntries({ silent: true });
       setActionNotice(editingEntryId ? "Entry updated." : "Entry created.");
+      setActionLink(null);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -470,6 +473,7 @@ const Accounting = () => {
       setActionNotice("");
       await performEntryAction(`/api/accounting/entries/${entry.id}/mark-paid`);
       setActionNotice("Marked as paid.");
+      setActionLink(null);
       loadEntries({ silent: true });
     } catch (err) {
       setError(err.message);
@@ -483,6 +487,7 @@ const Accounting = () => {
       setActionNotice("");
       await performEntryAction(`/api/accounting/entries/${entry.id}/archive`);
       setActionNotice("Entry archived.");
+      setActionLink(null);
       loadEntries({ silent: true });
     } catch (err) {
       setError(err.message);
@@ -496,19 +501,22 @@ const Accounting = () => {
       setError("");
       setInvoiceError("");
       setActionNotice("");
+      setActionLink(null);
       setIsInvoicePreparing(true);
+      if (entry.type !== "REVENUE") {
+        throw new Error("Only revenue entries can create invoice drafts.");
+      }
       const payload = await performEntryAction(`/api/accounting/entries/${entry.id}/invoice`);
       const invoiceNumber = payload?.invoiceNumber || payload?.entry?.invoiceNumber;
       if (!invoiceNumber) {
         throw new Error("Unable to prepare invoice number.");
       }
-      const resolvedEntry = payload?.entry ? { ...entry, ...payload.entry } : entry;
-      setInvoiceComposer({
-        invoiceNumber,
-        entry: resolvedEntry,
-      });
-      setInvoiceForm(buildInvoiceFormFromEntry(resolvedEntry));
-      setActionNotice(`Invoice ${invoiceNumber} ready for PDF export.`);
+      setActionNotice(
+        payload?.created
+          ? `Invoice ${invoiceNumber} created in Invoicing.`
+          : `Invoice ${invoiceNumber} already exists in Invoicing.`
+      );
+      setActionLink({ to: "/invoicing", label: "Open Invoicing" });
       loadEntries({ silent: true });
     } catch (err) {
       setError(err.message);
@@ -549,6 +557,7 @@ const Accounting = () => {
         notes: invoiceForm.notes,
       });
       setActionNotice(`Invoice ${invoiceComposer.invoiceNumber} PDF downloaded.`);
+      setActionLink(null);
     } catch (downloadError) {
       setInvoiceError(downloadError.message || "Unable to create PDF.");
     } finally {
@@ -580,6 +589,7 @@ const Accounting = () => {
     const invoiceLabel = entry.invoiceNumber ? `Invoice ${entry.invoiceNumber}` : null;
     const organizationLabel = entry.organization?.name ? `Org: ${entry.organization.name}` : null;
     const canManage = entry.source === "MANUAL";
+    const canCreateInvoice = canManage && entry.type === "REVENUE";
     const openEntryEditor = () => {
       if (!canManage) return;
       handleEditEntry(entry);
@@ -636,9 +646,9 @@ const Accounting = () => {
               <button
                 type="button"
                 onClick={() => handleGenerateInvoice(entry)}
-                disabled={!canManage || isInvoicePreparing}
+                disabled={!canCreateInvoice || isInvoicePreparing}
               >
-                {isInvoicePreparing ? "Preparing invoice..." : "Create invoice PDF"}
+                {isInvoicePreparing ? "Preparing invoice..." : "Create invoice draft"}
               </button>
               <button
                 type="button"
@@ -734,7 +744,12 @@ const Accounting = () => {
 
       {actionNotice ? (
         <div className="notice is-success" role="status">
-          {actionNotice}
+          <span>{actionNotice}</span>
+          {actionLink ? (
+            <Link className="notice-link" to={actionLink.to}>
+              {actionLink.label}
+            </Link>
+          ) : null}
         </div>
       ) : null}
 
