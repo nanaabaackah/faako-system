@@ -44,7 +44,7 @@ import {
   type AdminOrderSummary,
 } from "../api/adminOrders";
 import { adminProductsApi, type AdminProduct } from "../api/adminProducts";
-import { getAdminSalutationName } from "../api/adminSession";
+import { getAdminSalutationName, hasPortalPermission } from "../api/adminSession";
 import { portalUrl } from "../../config/appSurface";
 import { useAdminPortal } from "../context/AdminPortalContext";
 import useSEOMeta from "../../hooks/useSEOMeta";
@@ -62,7 +62,9 @@ import {
   processQueuedPortalOverviewRefresh,
   queuePortalOverviewRefresh,
 } from "../offline/portalOfflineQueue";
-import BusinessAnalyticsSection from "../components/dashboard/BusinessAnalyticsSection";
+import BusinessAnalyticsSection, {
+  type BusinessAnalyticsItem,
+} from "../components/dashboard/BusinessAnalyticsSection";
 import "../styles/AdminPortal.css";
 
 const EMPTY_ALERT_SUMMARY: InventoryAlertSummary = {
@@ -250,6 +252,11 @@ type DashboardLinkItem = {
   href?: string;
 };
 
+type DashboardKpiItem = DashboardLinkItem & {
+  to: string;
+  drilldown?: DashboardDrilldown;
+};
+
 type DashboardDrilldownItem = {
   id: string;
   label: string;
@@ -322,6 +329,8 @@ const AdminPortalHome: React.FC = () => {
   const [resolvingQueueItemId, setResolvingQueueItemId] = useState("");
   const [stockAttentionFilter, setStockAttentionFilter] =
     useState<StockAttentionFilter>("all");
+  const canViewInventory = hasPortalPermission(session, "inventory", "view");
+  const canViewOrders = hasPortalPermission(session, "orders", "view");
 
   useSEOMeta({
     title: "Operations portal | Stroane",
@@ -331,12 +340,21 @@ const AdminPortalHome: React.FC = () => {
   });
 
   const applyOverviewSnapshot = useCallback((snapshot: PortalOverviewSnapshot) => {
-    setInventory(snapshot.inventory);
-    setSuppliers(snapshot.suppliers);
-    setMovements(snapshot.movements);
-    setProducts(snapshot.products);
-    setAlerts(snapshot.alerts);
-  }, []);
+    if (canViewInventory) {
+      setInventory(snapshot.inventory);
+      setSuppliers(snapshot.suppliers);
+      setMovements(snapshot.movements);
+      setProducts(snapshot.products);
+      setAlerts(snapshot.alerts);
+      return;
+    }
+
+    setInventory([]);
+    setSuppliers([]);
+    setMovements([]);
+    setProducts([]);
+    setAlerts(EMPTY_ALERT_SUMMARY);
+  }, [canViewInventory]);
 
   const fetchOverviewFromServer = useCallback(async (options: { throwOnPartial?: boolean } = {}) => {
     if (!session) return;
@@ -351,12 +369,24 @@ const AdminPortalHome: React.FC = () => {
       orderResult,
     ] =
       await Promise.allSettled([
-        adminInventoryApi.listInventory(session, { limit: 100 }),
-        adminInventoryApi.listSuppliers(session),
-        adminInventoryApi.listMovements(session, { limit: 8 }),
-        adminInventoryApi.getAlertSummary(session),
-        adminProductsApi.listProducts(session, { limit: 200 }),
-        adminOrdersApi.listOrders(session, { limit: 100 }),
+        canViewInventory
+          ? adminInventoryApi.listInventory(session, { limit: 100 })
+          : Promise.resolve([] as InventoryItem[]),
+        canViewInventory
+          ? adminInventoryApi.listSuppliers(session)
+          : Promise.resolve([] as SupplierSummary[]),
+        canViewInventory
+          ? adminInventoryApi.listMovements(session, { limit: 8 })
+          : Promise.resolve([] as InventoryMovement[]),
+        canViewInventory
+          ? adminInventoryApi.getAlertSummary(session)
+          : Promise.resolve(EMPTY_ALERT_SUMMARY),
+        canViewInventory
+          ? adminProductsApi.listProducts(session, { limit: 200 })
+          : Promise.resolve({ products: [] as AdminProduct[] }),
+        canViewOrders
+          ? adminOrdersApi.listOrders(session, { limit: 100 })
+          : Promise.resolve({ orders: [] as AdminOrder[], summary: EMPTY_ORDER_SUMMARY }),
       ]);
 
     const failedLoads = [
@@ -406,14 +436,16 @@ const AdminPortalHome: React.FC = () => {
       return;
     }
 
-    savePortalOverviewSnapshot(session, {
-      inventory: inventoryResult.value,
-      suppliers: supplierResult.value,
-      movements: movementResult.value,
-      alerts: alertResult.value,
-      products: productResult.value.products,
-    });
-  }, [session]);
+    if (canViewInventory) {
+      savePortalOverviewSnapshot(session, {
+        inventory: inventoryResult.value,
+        suppliers: supplierResult.value,
+        movements: movementResult.value,
+        alerts: alertResult.value,
+        products: productResult.value.products,
+      });
+    }
+  }, [canViewInventory, canViewOrders, session]);
 
   const refreshOverviewFromServer = useCallback(async () => {
     setLoading(true);
@@ -806,226 +838,250 @@ const AdminPortalHome: React.FC = () => {
   }, [inventory, orders, products]);
 
   const dashboardKpis = useMemo(
-    () => [
-      {
-        label: "Products",
-        value: summary.products,
-        detail: `${summary.activeProducts} live products`,
-        to: "/admin/products",
-        tone: "accent",
-        icon: <HiOutlineShoppingBag aria-hidden="true" />,
-        drilldown: {
-          title: "Catalogue products",
-          description: "Products currently known to the portal.",
-          items: drilldownLists.allProducts,
+    () => {
+      const items: DashboardKpiItem[] = [];
+
+      if (canViewInventory) {
+        items.push({
+          label: "Products",
+          value: summary.products,
+          detail: `${summary.activeProducts} live products`,
+          to: "/admin/products",
+          tone: "accent",
+          icon: <HiOutlineShoppingBag aria-hidden="true" />,
+          drilldown: {
+            title: "Catalogue products",
+            description: "Products currently known to the portal.",
+            items: drilldownLists.allProducts,
+          },
+        });
+      }
+
+      if (canViewOrders) {
+        items.push({
+          label: "Orders",
+          value: summary.orderCount,
+          detail: `${formatMoney(summary.paidRevenue)} captured`,
+          to: "/admin/orders",
+          tone: "accent",
+          icon: <HiOutlineClipboardList aria-hidden="true" />,
+          drilldown: {
+            title: "Recent orders",
+            description: "Storefront and manually created commerce orders.",
+            items: drilldownLists.orders,
+          },
+        });
+      }
+
+      if (canViewInventory) {
+        items.push({
+          label: "Available units",
+          value: summary.countedStockItems ? summary.availableUnits : 0,
+          detail: summary.countedStockItems
+            ? `${summary.countedStockItems} of ${summary.trackedItems} counts recorded`
+            : summary.trackedItems
+              ? `${summary.trackedItems} stock counts awaiting entry`
+              : "No inventory records yet",
+          to: "/admin/inventory",
+          tone: "success",
+          icon: <HiOutlineCheckCircle aria-hidden="true" />,
+          drilldown: {
+            title: "Available stock records",
+            description: "Inventory rows with confirmed quantities.",
+            items: drilldownLists.countedInventory,
+          },
         },
-      },
-      {
-        label: "Orders",
-        value: summary.orderCount,
-        detail: `${formatMoney(summary.paidRevenue)} captured`,
-        to: "/admin/orders",
-        tone: "accent",
-        icon: <HiOutlineClipboardList aria-hidden="true" />,
-        drilldown: {
-          title: "Recent orders",
-          description: "Storefront and manually created commerce orders.",
-          items: drilldownLists.orders,
+        {
+          label: "Reserved units",
+          value: summary.reservedUnits,
+          detail: "Held from available stock",
+          to: "/admin/inventory",
+          tone: "neutral",
+          icon: <HiOutlineLockClosed aria-hidden="true" />,
+          drilldown: {
+            title: "Reserved stock",
+            description: "Inventory rows holding reserved units.",
+            items: drilldownLists.reservedInventory,
+          },
         },
-      },
-      {
-        label: "Available units",
-        value: summary.countedStockItems ? summary.availableUnits : 0,
-        detail: summary.countedStockItems
-          ? `${summary.countedStockItems} of ${summary.trackedItems} counts recorded`
-          : summary.trackedItems
-            ? `${summary.trackedItems} stock counts awaiting entry`
-            : "No inventory records yet",
-        to: "/admin/inventory",
-        tone: "success",
-        icon: <HiOutlineCheckCircle aria-hidden="true" />,
-        drilldown: {
-          title: "Available stock records",
-          description: "Inventory rows with confirmed quantities.",
-          items: drilldownLists.countedInventory,
+        {
+          label: "Low stock",
+          value: summary.lowStockItems,
+          detail: "Reorder needed soon",
+          to: "/admin/inventory",
+          tone: summary.lowStockItems ? "warning" : "success",
+          icon: <HiOutlineExclamation aria-hidden="true" />,
+          drilldown: {
+            title: "Low stock",
+            description: "Products that need reorder planning before they block sales.",
+            items: drilldownLists.lowStockInventory,
+          },
         },
-      },
-      {
-        label: "Reserved units",
-        value: summary.reservedUnits,
-        detail: "Held from available stock",
-        to: "/admin/inventory",
-        tone: "neutral",
-        icon: <HiOutlineLockClosed aria-hidden="true" />,
-        drilldown: {
-          title: "Reserved stock",
-          description: "Inventory rows holding reserved units.",
-          items: drilldownLists.reservedInventory,
-        },
-      },
-      {
-        label: "Low stock",
-        value: summary.lowStockItems,
-        detail: "Reorder needed soon",
-        to: "/admin/inventory",
-        tone: summary.lowStockItems ? "warning" : "success",
-        icon: <HiOutlineExclamation aria-hidden="true" />,
-        drilldown: {
-          title: "Low stock",
-          description: "Products that need reorder planning before they block sales.",
-          items: drilldownLists.lowStockInventory,
-        },
-      },
-      {
-        label: "Out of stock",
-        value: summary.outOfStockItems,
-        detail: summary.outOfStockItems ? "Restock required" : "No blocked stock",
-        to: "/admin/inventory",
-        tone: summary.outOfStockItems ? "danger" : "success",
-        icon: <HiOutlineXCircle aria-hidden="true" />,
-        drilldown: {
-          title: "Out of stock",
-          description: "Products currently blocked by unavailable stock.",
-          items: drilldownLists.outOfStockInventory,
-        },
-      },
-    ],
-    [drilldownLists, summary]
+        {
+          label: "Out of stock",
+          value: summary.outOfStockItems,
+          detail: summary.outOfStockItems ? "Restock required" : "No blocked stock",
+          to: "/admin/inventory",
+          tone: summary.outOfStockItems ? "danger" : "success",
+          icon: <HiOutlineXCircle aria-hidden="true" />,
+          drilldown: {
+            title: "Out of stock",
+            description: "Products currently blocked by unavailable stock.",
+            items: drilldownLists.outOfStockInventory,
+          },
+        });
+      }
+
+      return items;
+    },
+    [canViewInventory, canViewOrders, drilldownLists, summary]
   );
 
   const businessAnalytics = useMemo(
-    () => [
-      {
-        label: "Paid revenue",
-        value: formatMoney(summary.paidRevenue),
-        detail: `${summary.paidOrders} paid order${summary.paidOrders === 1 ? "" : "s"}`,
-        to: "/admin/orders",
-        tone: "success",
-        icon: <HiOutlineCash aria-hidden="true" />,
-        drilldown: {
-          title: "Paid orders",
-          description: "Orders that have been verified as paid.",
-          items: drilldownLists.paidOrders,
+    () => {
+      const items: BusinessAnalyticsItem[] = [];
+
+      if (canViewOrders) {
+        items.push({
+          label: "Paid revenue",
+          value: formatMoney(summary.paidRevenue),
+          detail: `${summary.paidOrders} paid order${summary.paidOrders === 1 ? "" : "s"}`,
+          to: "/admin/orders",
+          tone: "success",
+          icon: <HiOutlineCash aria-hidden="true" />,
+          drilldown: {
+            title: "Paid orders",
+            description: "Orders that have been verified as paid.",
+            items: drilldownLists.paidOrders,
+          },
         },
-      },
-      {
-        label: "Receivables",
-        value: formatMoney(summary.outstandingRevenue),
-        detail: `${summary.pendingPaymentOrders} payment pending`,
-        to: "/admin/orders",
-        tone: summary.outstandingRevenue ? "warning" : "success",
-        icon: <HiOutlineClipboardList aria-hidden="true" />,
-        drilldown: {
-          title: "Outstanding orders",
-          description: "Orders still waiting for payment confirmation.",
-          items: drilldownLists.pendingOrders,
+        {
+          label: "Receivables",
+          value: formatMoney(summary.outstandingRevenue),
+          detail: `${summary.pendingPaymentOrders} payment pending`,
+          to: "/admin/orders",
+          tone: summary.outstandingRevenue ? "warning" : "success",
+          icon: <HiOutlineClipboardList aria-hidden="true" />,
+          drilldown: {
+            title: "Outstanding orders",
+            description: "Orders still waiting for payment confirmation.",
+            items: drilldownLists.pendingOrders,
+          },
         },
-      },
-      {
-        label: "Collection rate",
-        value: `${summary.paymentCollectionRate}%`,
-        detail: `${formatMoney(summary.averageOrderValue)} average order value`,
-        to: "/admin/orders",
-        tone: summary.paymentCollectionRate >= 80 ? "success" : "warning",
-        icon: <HiOutlineChartBar aria-hidden="true" />,
-        drilldown: {
-          title: "Payment issues",
-          description: "Orders with failed or abandoned payment states.",
-          items: drilldownLists.failedOrders,
+        {
+          label: "Collection rate",
+          value: `${summary.paymentCollectionRate}%`,
+          detail: `${formatMoney(summary.averageOrderValue)} average order value`,
+          to: "/admin/orders",
+          tone: summary.paymentCollectionRate >= 80 ? "success" : "warning",
+          icon: <HiOutlineChartBar aria-hidden="true" />,
+          drilldown: {
+            title: "Payment issues",
+            description: "Orders with failed or abandoned payment states.",
+            items: drilldownLists.failedOrders,
+          },
+        });
+      }
+
+      if (canViewInventory) {
+        items.push({
+          label: "Stock retail value",
+          value: formatMoney(summary.stockRetailValue),
+          detail: `${summary.pricedStockItems} priced stock record${
+            summary.pricedStockItems === 1 ? "" : "s"
+          }`,
+          to: "/admin/inventory",
+          tone: "accent",
+          icon: <HiOutlineCash aria-hidden="true" />,
+          drilldown: {
+            title: "Priced stock records",
+            description: "Inventory rows that can contribute to stock value.",
+            items: drilldownLists.valuedInventory,
+          },
         },
-      },
-      {
-        label: "Stock retail value",
-        value: formatMoney(summary.stockRetailValue),
-        detail: `${summary.pricedStockItems} priced stock record${
-          summary.pricedStockItems === 1 ? "" : "s"
-        }`,
-        to: "/admin/inventory",
-        tone: "accent",
-        icon: <HiOutlineCash aria-hidden="true" />,
-        drilldown: {
-          title: "Priced stock records",
-          description: "Inventory rows that can contribute to stock value.",
-          items: drilldownLists.valuedInventory,
+        {
+          label: "Revenue-ready stock",
+          value: formatMoney(summary.activeStockRetailValue),
+          detail: `${summary.revenueReadyUnits} active priced unit${
+            summary.revenueReadyUnits === 1 ? "" : "s"
+          }`,
+          to: "/admin/inventory",
+          tone: "success",
+          icon: <HiOutlineChartBar aria-hidden="true" />,
+          drilldown: {
+            title: "Revenue-ready stock",
+            description: "Active priced inventory that can support storefront sales.",
+            items: drilldownLists.valuedInventory,
+          },
         },
-      },
-      {
-        label: "Revenue-ready stock",
-        value: formatMoney(summary.activeStockRetailValue),
-        detail: `${summary.revenueReadyUnits} active priced unit${
-          summary.revenueReadyUnits === 1 ? "" : "s"
-        }`,
-        to: "/admin/inventory",
-        tone: "success",
-        icon: <HiOutlineChartBar aria-hidden="true" />,
-        drilldown: {
-          title: "Revenue-ready stock",
-          description: "Active priced inventory that can support storefront sales.",
-          items: drilldownLists.valuedInventory,
+        {
+          label: "Stock risk value",
+          value: formatMoney(summary.atRiskStockRetailValue),
+          detail: "Priced value tied to attention items",
+          to: "/admin/inventory",
+          tone: summary.atRiskStockRetailValue ? "warning" : "success",
+          icon: <HiOutlineExclamation aria-hidden="true" />,
+          drilldown: {
+            title: "Stock value at risk",
+            description: "Attention stock records with priced available units.",
+            items: [...drilldownLists.lowStockInventory, ...drilldownLists.outOfStockInventory],
+          },
         },
-      },
-      {
-        label: "Stock risk value",
-        value: formatMoney(summary.atRiskStockRetailValue),
-        detail: "Priced value tied to attention items",
-        to: "/admin/inventory",
-        tone: summary.atRiskStockRetailValue ? "warning" : "success",
-        icon: <HiOutlineExclamation aria-hidden="true" />,
-        drilldown: {
-          title: "Stock value at risk",
-          description: "Attention stock records with priced available units.",
-          items: [...drilldownLists.lowStockInventory, ...drilldownLists.outOfStockInventory],
+        {
+          label: "Priced catalogue",
+          value: `${summary.pricingCoverage}%`,
+          detail: "Products with a storefront price",
+          to: "/admin/products",
+          tone: summary.pricedProducts === summary.products ? "success" : "warning",
+          icon: <HiOutlineShoppingBag aria-hidden="true" />,
+          drilldown: {
+            title: "Products missing prices",
+            description: "Products that will stay hidden from purchase flow until priced.",
+            items: drilldownLists.unpricedProducts,
+          },
         },
-      },
-      {
-        label: "Priced catalogue",
-        value: `${summary.pricingCoverage}%`,
-        detail: "Products with a storefront price",
-        to: "/admin/products",
-        tone: summary.pricedProducts === summary.products ? "success" : "warning",
-        icon: <HiOutlineShoppingBag aria-hidden="true" />,
-        drilldown: {
-          title: "Products missing prices",
-          description: "Products that will stay hidden from purchase flow until priced.",
-          items: drilldownLists.unpricedProducts,
-        },
-      },
-      {
-        label: "Supplier cover",
-        value: `${calculatePercentage(summary.linkedProducts, summary.products)}%`,
-        detail: `${summary.linkedProducts} of ${summary.products} products linked`,
-        to: "/admin/suppliers",
-        tone: summary.linkedProducts === summary.products ? "success" : "neutral",
-        icon: <HiOutlineOfficeBuilding aria-hidden="true" />,
-        drilldown: {
-          title: "Supplier coverage gaps",
-          description: "Products without a preferred or linked supplier.",
-          items: drilldownLists.supplierGapProducts,
-        },
-      },
-    ],
-    [drilldownLists, summary]
+        {
+          label: "Supplier cover",
+          value: `${calculatePercentage(summary.linkedProducts, summary.products)}%`,
+          detail: `${summary.linkedProducts} of ${summary.products} products linked`,
+          to: "/admin/suppliers",
+          tone: summary.linkedProducts === summary.products ? "success" : "neutral",
+          icon: <HiOutlineOfficeBuilding aria-hidden="true" />,
+          drilldown: {
+            title: "Supplier coverage gaps",
+            description: "Products without a preferred or linked supplier.",
+            items: drilldownLists.supplierGapProducts,
+          },
+        });
+      }
+
+      return items;
+    },
+    [canViewInventory, canViewOrders, drilldownLists, summary]
   );
 
   const readiness = useMemo(
-    () => [
-      {
-        label: "Live catalogue",
-        value: calculatePercentage(summary.activeProducts, summary.products),
-        detail: `${summary.activeProducts} of ${summary.products} products active`,
-      },
-      {
-        label: "Stock tracking",
-        value: calculatePercentage(summary.trackedItems, summary.products),
-        detail: `${summary.trackedItems} of ${summary.products} products tracked`,
-      },
-      {
-        label: "Supplier coverage",
-        value: calculatePercentage(summary.linkedProducts, summary.products),
-        detail: `${summary.linkedProducts} of ${summary.products} products linked`,
-      },
-    ],
-    [summary]
+    () =>
+      canViewInventory
+        ? [
+            {
+              label: "Live catalogue",
+              value: calculatePercentage(summary.activeProducts, summary.products),
+              detail: `${summary.activeProducts} of ${summary.products} products active`,
+            },
+            {
+              label: "Stock tracking",
+              value: calculatePercentage(summary.trackedItems, summary.products),
+              detail: `${summary.trackedItems} of ${summary.products} products tracked`,
+            },
+            {
+              label: "Supplier coverage",
+              value: calculatePercentage(summary.linkedProducts, summary.products),
+              detail: `${summary.linkedProducts} of ${summary.products} products linked`,
+            },
+          ]
+        : [],
+    [canViewInventory, summary]
   );
 
   const pendingSyncCount = Number(queueCounts?.reviewable || 0);
@@ -1049,7 +1105,7 @@ const AdminPortalHome: React.FC = () => {
   const actionItems = useMemo<DashboardLinkItem[]>(() => {
     const items: DashboardLinkItem[] = [];
 
-    if (summary.outOfStockItems) {
+    if (canViewInventory && summary.outOfStockItems) {
       items.push({
         label: "Restock blocked products",
         value: summary.outOfStockItems,
@@ -1060,7 +1116,7 @@ const AdminPortalHome: React.FC = () => {
       });
     }
 
-    if (summary.lowStockItems) {
+    if (canViewInventory && summary.lowStockItems) {
       items.push({
         label: "Plan supplier reorder",
         value: summary.lowStockItems,
@@ -1071,7 +1127,7 @@ const AdminPortalHome: React.FC = () => {
       });
     }
 
-    if (summary.unconfirmedStockItems) {
+    if (canViewInventory && summary.unconfirmedStockItems) {
       items.push({
         label: "Confirm stock counts",
         value: summary.unconfirmedStockItems,
@@ -1082,7 +1138,7 @@ const AdminPortalHome: React.FC = () => {
       });
     }
 
-    if (summary.products > summary.linkedProducts) {
+    if (canViewInventory && summary.products > summary.linkedProducts) {
       items.push({
         label: "Link supplier coverage",
         value: summary.products - summary.linkedProducts,
@@ -1093,7 +1149,7 @@ const AdminPortalHome: React.FC = () => {
       });
     }
 
-    if (summary.draftProducts) {
+    if (canViewInventory && summary.draftProducts) {
       items.push({
         label: "Review draft products",
         value: summary.draftProducts,
@@ -1117,6 +1173,7 @@ const AdminPortalHome: React.FC = () => {
 
     return items.slice(0, 5);
   }, [
+    canViewInventory,
     pendingSyncCount,
     summary.draftProducts,
     summary.linkedProducts,
@@ -1160,83 +1217,88 @@ const AdminPortalHome: React.FC = () => {
         </ERPFormNotice>
       ) : null}
 
-      <BusinessAnalyticsSection
-        items={businessAnalytics}
-        onSelect={(item) => {
-          if (item.drilldown) setDrilldown(item.drilldown as DashboardDrilldown);
-        }}
-      />
+      {businessAnalytics.length ? (
+        <BusinessAnalyticsSection
+          items={businessAnalytics}
+          onSelect={(item) => {
+            if (item.drilldown) setDrilldown(item.drilldown as DashboardDrilldown);
+          }}
+        />
+      ) : null}
 
-      <section className="glass-card stroane-portal-overview__kpis" aria-label="Operations key performance indicators">
-        
+      {dashboardKpis.length ? (
+        <section className="glass-card stroane-portal-overview__kpis" aria-label="Operations key performance indicators">
           <header>
-            <span>Inventory analytics</span>
-            <h2 id="stroane-business-title">Product and stock health</h2>
+            <span>{canViewInventory ? "Inventory analytics" : "Operations analytics"}</span>
+            <h2 id="stroane-business-title">{canViewInventory ? "Product and stock health" : "Portal activity"}</h2>
           </header>
           <div className="stroane-portal-overview__kpis-grid">
-          {dashboardKpis.map((kpi) => {
-            const content = (
-              <>
-                <span>{kpi.icon}</span>
-                <small>{kpi.label}</small>
-                <strong>{kpi.value}</strong>
-                <em>{kpi.detail}</em>
-              </>
-            );
+            {dashboardKpis.map((kpi) => {
+              const content = (
+                <>
+                  <span>{kpi.icon}</span>
+                  <small>{kpi.label}</small>
+                  <strong>{kpi.value}</strong>
+                  <em>{kpi.detail}</em>
+                </>
+              );
 
-            return kpi.drilldown ? (
-              <button
-                key={kpi.label}
-                type="button"
-                className="bubble-card stroane-portal-overview__kpi-card"
-                data-tone={kpi.tone}
-                onClick={() => setDrilldown(kpi.drilldown)}
-              >
-                {content}
-              </button>
-            ) : (
-              <Link
-                key={kpi.label}
-                to={kpi.to}
-                className="bubble-card stroane-portal-overview__kpi-card"
-                data-tone={kpi.tone}
-              >
-                {content}
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+              return kpi.drilldown ? (
+                <button
+                  key={kpi.label}
+                  type="button"
+                  className="bubble-card stroane-portal-overview__kpi-card"
+                  data-tone={kpi.tone}
+                  onClick={() => setDrilldown(kpi.drilldown)}
+                >
+                  {content}
+                </button>
+              ) : (
+                <Link
+                  key={kpi.label}
+                  to={kpi.to}
+                  className="bubble-card stroane-portal-overview__kpi-card"
+                  data-tone={kpi.tone}
+                >
+                  {content}
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
-      <section
-        className="glass-card stroane-portal-overview__readiness"
-        aria-labelledby="stroane-readiness-title"
-      >
-        <header>
-          <span>Operational readiness</span>
-          <h2 id="stroane-readiness-title">Catalogue coverage</h2>
-        </header>
-        <div>
-          {readiness.map((item) => (
-            <article key={item.label}>
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.value}%</small>
-              </span>
-              <i
-                role="progressbar"
-                aria-label={item.label}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={item.value}
-              >
-                <b style={{ width: `${item.value}%` }} />
-              </i>
-              <small>{item.detail}</small>
-            </article>
-          ))}
-        </div>
-      </section>
+      {readiness.length ? (
+        <section
+          className="glass-card stroane-portal-overview__readiness"
+          aria-labelledby="stroane-readiness-title"
+        >
+          <header>
+            <span>Operational readiness</span>
+            <h2 id="stroane-readiness-title">Catalogue coverage</h2>
+          </header>
+          <div>
+            {readiness.map((item) => (
+              <article key={item.label}>
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.value}%</small>
+                </span>
+                <i
+                  role="progressbar"
+                  aria-label={item.label}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={item.value}
+                >
+                  <b style={{ width: `${item.value}%` }} />
+                </i>
+                <small>{item.detail}</small>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section
         className="glass-card stroane-portal-overview__action-panel"
@@ -1295,98 +1357,100 @@ const AdminPortalHome: React.FC = () => {
         )}
       </section>
 
-      <div className="stroane-portal-overview__grid">
-        <section className="glass-card stroane-portal-overview__panel">
-          <div className="stroane-portal-overview__panel-head">
-            <div>
-              <span><HiOutlineBell aria-hidden="true" /> Stock attention</span>
-              <h2>{alerts.counts.total || baseAttentionItems.length} item(s) need a closer look</h2>
+      {canViewInventory ? (
+        <div className="stroane-portal-overview__grid">
+          <section className="glass-card stroane-portal-overview__panel">
+            <div className="stroane-portal-overview__panel-head">
+              <div>
+                <span><HiOutlineBell aria-hidden="true" /> Stock attention</span>
+                <h2>{alerts.counts.total || baseAttentionItems.length} item(s) need a closer look</h2>
+              </div>
+              <Link to="/admin/inventory">Open inventory</Link>
             </div>
-            <Link to="/admin/inventory">Open inventory</Link>
-          </div>
-          <div className="stroane-portal-overview__stock-filters" role="group" aria-label="Stock attention filters">
-            {stockAttentionFilters.map((filter) => (
-              <button
-                key={filter.id}
-                type="button"
-                className={filter.id === stockAttentionFilter ? "is-active" : ""}
-                aria-pressed={filter.id === stockAttentionFilter}
-                onClick={() => setStockAttentionFilter(filter.id)}
-              >
-                <span>{filter.label}</span>
-                <strong>{filter.count}</strong>
-              </button>
-            ))}
-          </div>
-          {attentionItems.length ? (
-            <div className="stroane-portal-overview__attention-list">
-              {attentionItems.map((item) => {
-                const stockStatus = getInventoryStockStatus(item);
-                const availableQuantity = getInventoryAvailableQuantity(item);
-
-                return (
-                  <Link key={item.id} to="/admin/inventory">
-                    <span>
-                      <strong>{getProductName(item)}</strong>
-                      <small>{item.sku || item.productSlug}</small>
-                    </span>
-                    <span>
-                      <ERPStatusBadge tone={getStockTone(item)}>
-                        {formatStockStatusLabel(stockStatus)}
-                      </ERPStatusBadge>
-                      <small>
-                        {availableQuantity === null
-                          ? "Quantity not set"
-                          : `${availableQuantity} available`}
-                      </small>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="stroane-portal-overview__empty">
-              {loading
-                ? "Checking inventory signals..."
-                : stockAttentionFilter === "all"
-                  ? "No tracked stock warnings right now."
-                  : "No matching stock warnings right now."}
-            </p>
-          )}
-        </section>
-
-        <section className="glass-card stroane-portal-overview__panel">
-          <div className="stroane-portal-overview__panel-head">
-            <div>
-              <span><HiOutlineClipboardList aria-hidden="true" /> Recent activity</span>
-              <h2>Latest inventory movements</h2>
-            </div>
-            <Link to="/admin/inventory">Open inventory</Link>
-          </div>
-          {movements.length ? (
-            <div className="stroane-portal-overview__activity-list">
-              {movements.slice(0, 6).map((movement) => (
-                <div key={movement.id}>
-                  <span>
-                    <strong>{formatLabel(movement.productSlug)}</strong>
-                    <small>{formatDateTime(movement.createdAt)}</small>
-                  </span>
-                  <span>
-                    <ERPStatusBadge tone={movement.quantityDelta < 0 ? "warning" : "success"}>
-                      {formatLabel(movement.movementType)}
-                    </ERPStatusBadge>
-                    <small>{movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta} units</small>
-                  </span>
-                </div>
+            <div className="stroane-portal-overview__stock-filters" role="group" aria-label="Stock attention filters">
+              {stockAttentionFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  className={filter.id === stockAttentionFilter ? "is-active" : ""}
+                  aria-pressed={filter.id === stockAttentionFilter}
+                  onClick={() => setStockAttentionFilter(filter.id)}
+                >
+                  <span>{filter.label}</span>
+                  <strong>{filter.count}</strong>
+                </button>
               ))}
             </div>
-          ) : (
-            <p className="stroane-portal-overview__empty">
-              {loading ? "Loading recent movements..." : "No inventory movements have been recorded yet."}
-            </p>
-          )}
-        </section>
-      </div>
+            {attentionItems.length ? (
+              <div className="stroane-portal-overview__attention-list">
+                {attentionItems.map((item) => {
+                  const stockStatus = getInventoryStockStatus(item);
+                  const availableQuantity = getInventoryAvailableQuantity(item);
+
+                  return (
+                    <Link key={item.id} to="/admin/inventory">
+                      <span>
+                        <strong>{getProductName(item)}</strong>
+                        <small>{item.sku || item.productSlug}</small>
+                      </span>
+                      <span>
+                        <ERPStatusBadge tone={getStockTone(item)}>
+                          {formatStockStatusLabel(stockStatus)}
+                        </ERPStatusBadge>
+                        <small>
+                          {availableQuantity === null
+                            ? "Quantity not set"
+                            : `${availableQuantity} available`}
+                        </small>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="stroane-portal-overview__empty">
+                {loading
+                  ? "Checking inventory signals..."
+                  : stockAttentionFilter === "all"
+                    ? "No tracked stock warnings right now."
+                    : "No matching stock warnings right now."}
+              </p>
+            )}
+          </section>
+
+          <section className="glass-card stroane-portal-overview__panel">
+            <div className="stroane-portal-overview__panel-head">
+              <div>
+                <span><HiOutlineClipboardList aria-hidden="true" /> Recent activity</span>
+                <h2>Latest inventory movements</h2>
+              </div>
+              <Link to="/admin/inventory">Open inventory</Link>
+            </div>
+            {movements.length ? (
+              <div className="stroane-portal-overview__activity-list">
+                {movements.slice(0, 6).map((movement) => (
+                  <div key={movement.id}>
+                    <span>
+                      <strong>{formatLabel(movement.productSlug)}</strong>
+                      <small>{formatDateTime(movement.createdAt)}</small>
+                    </span>
+                    <span>
+                      <ERPStatusBadge tone={movement.quantityDelta < 0 ? "warning" : "success"}>
+                        {formatLabel(movement.movementType)}
+                      </ERPStatusBadge>
+                      <small>{movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta} units</small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="stroane-portal-overview__empty">
+                {loading ? "Loading recent movements..." : "No inventory movements have been recorded yet."}
+              </p>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       <section
         className={`glass-card stroane-portal-overview__sync-panel is-${queueStatus}`}

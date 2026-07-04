@@ -66,13 +66,6 @@ import { createAdminAccountingRouter } from "./src/accounting/routes.js";
 import { createAdminAuditLogRouter } from "./src/auditLogs/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
 
-const appDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-dotenv.config({ path: path.join(appDirectory, ".env") });
-if (process.env.APP_ENV === "development") {
-  dotenv.config({ path: path.join(appDirectory, ".env.development"), override: true });
-}
-
 const { PrismaClient } = prismaPkg;
 
 const normalizeEnvironmentName = (value) => {
@@ -82,9 +75,23 @@ const normalizeEnvironmentName = (value) => {
   return normalized;
 };
 
+const appDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+dotenv.config({ path: path.join(appDirectory, ".env") });
 const runtimeEnvironment = normalizeEnvironmentName(
   process.env.APP_ENV || process.env.NODE_ENV || "development"
 );
+const runtimeEnvFile = path.join(appDirectory, `.env.${runtimeEnvironment}`);
+const runtimeEnvResult = dotenv.config({ path: runtimeEnvFile, override: true });
+const runtimeEnvErrorCode =
+  runtimeEnvResult.error && "code" in runtimeEnvResult.error
+    ? runtimeEnvResult.error.code
+    : undefined;
+
+if (runtimeEnvResult.error && runtimeEnvErrorCode !== "ENOENT") {
+  throw runtimeEnvResult.error;
+}
+
 const APP_ACTIVITY_WEBHOOK_PATH = "/api/webhooks/app-activity";
 
 const sanitizeActivityText = (value, maxLength = 240) =>
@@ -188,54 +195,89 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const trustProxySetting = resolveTrustProxySetting(process.env);
 const PAYSTACK_WEBHOOK_PATH = "/api/paystack/webhook";
+const apiReadRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "api-read",
+  limit: 900,
+  windowMs: 60_000,
+  methods: ["GET", "HEAD"],
+});
+
+const apiWriteRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "api-write",
+  limit: 240,
+  windowMs: 60_000,
+  methods: ["POST", "PUT", "PATCH", "DELETE"],
+});
+
 const authRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "auth",
-  limit: 20,
-  windowMs: 10 * 60_000,
+  limit: 30,
+  windowMs: 15 * 60_000,
 });
+
+const staffSessionRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "staff-session",
+  limit: 360,
+  windowMs: 60_000,
+});
+
 const customerAuthRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "customer-auth",
-  limit: 20,
-  windowMs: 10 * 60_000,
+  limit: 30,
+  windowMs: 15 * 60_000,
 });
+
+const customerSessionRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "customer-session",
+  limit: 240,
+  windowMs: 60_000,
+});
+
 const inquiryRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "inquiry",
-  limit: 12,
-  windowMs: 10 * 60_000,
-});
-const checkoutRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "checkout",
-  limit: 20,
-  windowMs: 10 * 60_000,
-});
-const locationSearchRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "location-search",
-  limit: 45,
-  windowMs: 10 * 60_000,
-});
-const paymentInitRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-init",
-  limit: 12,
-  windowMs: 10 * 60_000,
-});
-const paymentVerifyRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-verify",
   limit: 30,
   windowMs: 10 * 60_000,
 });
-const webhookRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "paystack-webhook",
-  limit: 300,
-  windowMs: 60_000,
+
+const checkoutRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "checkout",
+  limit: 60,
+  windowMs: 10 * 60_000,
 });
-const adminRateLimit = createApiRateLimitMiddleware({
-  keyPrefix: "admin",
+
+const locationSearchRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "location-search",
   limit: 120,
   windowMs: 10 * 60_000,
 });
+
+const paymentInitRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-init",
+  limit: 30,
+  windowMs: 10 * 60_000,
+});
+
+const paymentVerifyRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-verify",
+  limit: 120,
+  windowMs: 10 * 60_000,
+});
+
+const webhookRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "paystack-webhook",
+  limit: 600,
+  windowMs: 60_000,
+});
+
+const adminRateLimit = createApiRateLimitMiddleware({
+  keyPrefix: "admin",
+  limit: 600,
+  windowMs: 60_000,
+});
+
 const inventoryAlertRateLimit = createApiRateLimitMiddleware({
   keyPrefix: "inventory-alert",
-  limit: 20,
+  limit: 120,
   windowMs: 10 * 60_000,
 });
 
@@ -447,19 +489,25 @@ app.use(
     },
   })
 );
-app.use("/api", createApiRateLimitMiddleware({ keyPrefix: "api" }));
+app.use("/api", apiReadRateLimit);
+app.use("/api", apiWriteRateLimit);
 
 // Auth routes — registered before the default-deny middleware so POST/PATCH are allowed
-app.use("/api/auth", authRateLimit, createAuthRouter(prisma));
-app.use("/api/customer", customerAuthRateLimit, createCustomerAccountRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminCustomerRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminOrderRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminReceiptRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminAccountingRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminAuditLogRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminProductRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminInventoryAlertRouter(prisma));
-app.use("/api/admin", adminRateLimit, createAdminInventoryRouter(prisma));
+app.use("/api/auth/login", authRateLimit);
+app.use("/api/auth", staffSessionRateLimit, createAuthRouter(prisma));
+app.use("/api/customer/signup", customerAuthRateLimit);
+app.use("/api/customer/login", customerAuthRateLimit);
+app.use("/api/customer/password", customerAuthRateLimit);
+app.use("/api/customer", customerSessionRateLimit, createCustomerAccountRouter(prisma));
+app.use("/api/admin", adminRateLimit);
+app.use("/api/admin", createAdminCustomerRouter(prisma));
+app.use("/api/admin", createAdminOrderRouter(prisma));
+app.use("/api/admin", createAdminReceiptRouter(prisma));
+app.use("/api/admin", createAdminAccountingRouter(prisma));
+app.use("/api/admin", createAdminAuditLogRouter(prisma));
+app.use("/api/admin", createAdminProductRouter(prisma));
+app.use("/api/admin", createAdminInventoryAlertRouter(prisma));
+app.use("/api/admin", createAdminInventoryRouter(prisma));
 app.use(
   "/api/internal/inventory/alerts",
   inventoryAlertRateLimit,

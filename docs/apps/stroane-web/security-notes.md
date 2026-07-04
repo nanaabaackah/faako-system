@@ -6,7 +6,7 @@ Track Stroane-specific security posture, hardening work, and production-readines
 
 ## Current Security Posture
 
-Date reviewed: 2026-06-17
+Date reviewed: 2026-07-03
 
 Stroane Web is now a customer-facing commerce app with product, inquiry, order, payment, and notification data. Treat checkout, product availability, customer contact details, database access, payment references, and deployment configuration as production-sensitive.
 
@@ -23,16 +23,16 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - `TRUST_PROXY_HOPS` must be explicit before Express trusts proxy-derived client IPs.
 - JSON request bodies are limited to `1mb`.
 - Paystack webhook raw-body capture is limited to `/api/paystack/webhook`.
-- Global API rate limiting remains in place, with tighter route-specific limits for auth, inquiry, checkout, Paystack initialization, Paystack verification, and Paystack webhook routes.
+- Global API rate limiting remains in place with method-aware read/write buckets. Tighter route-specific limits cover staff login, customer signup/login/password, staff/customer session routes, inquiry, checkout, protected admin APIs, Paystack initialization, Paystack verification, Paystack webhook routes, and inventory alert checks. The protected admin limiter is mounted once before the admin router stack to avoid multiplying hits across unmatched routers.
 - Unknown API write routes still hit the default deny middleware.
 - Product price, currency, stock status, purchasability, and quantity are validated server-side before order creation and again before Paystack payment initialization.
 - Paystack paid status is trusted only from signed webhook confirmation followed by server-side Paystack transaction verification with reference, amount, and currency checks.
 - Paystack metadata sent to the provider is minimized to order number/source; raw internal order IDs and customer phone are not sent as custom metadata.
-- Protected admin routes require backend `SiteUser` auth. The portal now uses an HttpOnly admin session cookie with a legacy bearer fallback for transition scripts/tests; `VIEWER` can read protected admin data where allowed, while `ADMIN` can update protected operations fields.
+- Protected admin routes require backend `SiteUser` auth. The portal now uses an HttpOnly admin session cookie with a legacy bearer fallback for transition scripts/tests; `ADMIN` and `OWNER` remain elevated across the portal except for Audit Logs, which are `ADMIN`-only. `VIEWER` can read protected operational modules, and `CUSTOM` roles require active module/action permissions. Frontend session normalization treats missing custom-role permission payloads as empty except profile access. Product, supplier, inventory, movement, and inventory-alert reads enforce `inventory.view`; related writes enforce `inventory.create` or `inventory.edit`. Team user management and custom-role create/edit/deactivate routes are restricted to `ADMIN`/`OWNER`, and custom-role permissions are sanitized so they cannot grant team access.
 - Customer account routes use a separate HttpOnly customer auth cookie and token audience from staff auth. Customer profile and order-history reads are always filtered by the authenticated customer context.
 - Customer email is the main customer identifier. Storefront and CRM creation paths normalize submitted email addresses to lowercase and lookup existing records case-insensitively before create/update.
-- Customer signup is open to storefront customers. Signup and password-reset completion enforce the strong password policy on both frontend and backend. Invite and checkout references are optional server-side linking context; invite and password-reset tokens are stored as SHA-256 hashes, reset request responses are generic, and raw reset links are sent only by email.
-- Customer auth routes are rate-limited and state-changing customer requests require the storefront client header in addition to SameSite cookies. Do not broaden customer cookie scope or change to `SameSite=None` without adding a dedicated CSRF token flow.
+- Customer signup is open to storefront customers. Signup and password-reset completion enforce the strong password policy on both frontend and backend. Invite and checkout references are optional server-side linking context; invite and password-reset tokens are stored as SHA-256 hashes, reset request responses are generic, and raw reset links are sent only by email. Password reset links expire after one hour, and every new reset request replaces the previous stored reset-token hash so older links stop working.
+- Customer auth routes are rate-limited separately from normal customer profile/order reads. State-changing customer requests require the storefront client header in addition to SameSite cookies. Do not broaden customer cookie scope or change to `SameSite=None` without adding a dedicated CSRF token flow.
 - Delivery address search is proxied through `GET /api/location/search` and rate-limited server-side. The browser does not receive provider endpoint configuration, provider keys, or server-side request headers; it receives only normalized location suggestions for the customer's typed query.
 - Payment references returned to admin UI are masked, and payment status is not manually editable.
 - Auth, catalogue, inquiry, order creation, Paystack initialization, Paystack callback verification, and unhandled backend error logs now use sanitized message/status output instead of dumping raw error/provider objects.
@@ -69,10 +69,10 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Backend `SiteUser` access should remain private and seeded as one `ADMIN` and one `VIEWER` account until a proper admin surface is approved.
 - `APP_AUTH_SECRET` is required for backend `SiteUser` token signing and must remain server-side.
 - Frontend `/admin/*` guards are a navigation boundary only. Protected admin APIs remain responsible for authorization. The portal stores profile metadata in `sessionStorage`, while the auth credential lives in an HttpOnly cookie. Do not widen the cookie domain or switch to `SameSite=None` without a dedicated CSRF/subdomain-risk review.
-- Rate limiting is in-memory and per Node process. Railway/provider-level rate controls are the chosen production layer before high-volume production checkout.
+- Rate limiting is in-memory and per Node process. The app now separates global read/write, staff auth/session, customer auth/session, admin, checkout, inquiry, payment, webhook, and internal alert buckets so routine portal/customer traffic does not consume the narrow auth buckets or multiply admin hits across the router stack. Railway/provider-level rate controls are still the chosen production layer before high-volume production checkout.
 - There is no dedicated payment event table or notification log yet.
 - Webhook replay/idempotency is order-level only: already-finalized paid orders short-circuit duplicate paid transitions, and email sends are reduced with `customerNotificationSentAt`. This should be strengthened with a payment event log and notification log before automated fulfillment.
-- The private order module is active for order review, manual order creation, fulfillment metadata, Paystack initialization, and Paystack status refresh. The private accounting module is active for protected financial analytics and manual historical entries; writes require `ADMIN`. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
+- The private order module is active for order review, manual order creation, fulfillment metadata, Paystack initialization, and Paystack status refresh. The private accounting module is active for protected financial analytics and manual historical entries; writes require the relevant module action permission, with `ADMIN` and `OWNER` elevated. `statusUpdatedAt` and `statusUpdatedById` remain lightweight schema placeholders only.
 - Railway Postgres least-privilege runtime/migration roles are documented but not implemented in app code.
 - Centralized redacted logging is still future work. Route-level auth/payment/catalogue/order errors are now sanitized, but future logging should still avoid request bodies, provider payloads, secrets, card/MoMo details, or full customer records.
 - Backend maintenance/read-only enforcement remains future work.

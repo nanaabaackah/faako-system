@@ -7,6 +7,7 @@ import {
   Monitor,
   DocumentText,
   ClipboardTick,
+  TaskSquare,
   Profile2User,
   Setting2,
   Home2,
@@ -27,6 +28,7 @@ import { getAggregateSiteStatus } from "../utils/siteStatus.js";
 
 const NAV_ITEM_ORDER = [
   "dashboard",
+  "projects",
   "proposals",
   "faako-onboarding",
   "rent",
@@ -49,6 +51,7 @@ const ICONS_BY_MODULE_KEY = {
   customers: Buildings2,
   dashboard: Category,
   "faako-onboarding": ClipboardTick,
+  projects: TaskSquare,
   proposals: DocumentText,
   invoicing: ReceiptItem,
   profile: Profile2User,
@@ -96,8 +99,8 @@ const buildRegistryNavItem = (moduleKey, overrides = {}) => {
 
 const MOBILE_TAB_ITEMS = [
   buildRegistryNavItem("dashboard", { label: "Home", Icon: Home2 }),
+  buildRegistryNavItem("projects", { label: "Projects", Icon: TaskSquare }),
   buildRegistryNavItem("accounting", { label: "Finance", Icon: WalletMoney }),
-  buildRegistryNavItem("users", { label: "User Control", Icon: Profile2User }),
   buildRegistryNavItem("bookings", { label: "Appointments", Icon: CalendarTick }),
   buildRegistryNavItem("settings", { label: "Settings", Icon: Setting2 }),
 ].filter(Boolean);
@@ -179,11 +182,14 @@ export const getVisibleMobileTabItems = (user) => {
 
 export const getTopbarLabel = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment";
+  if (pathname.startsWith("/projects")) return "Projects";
   if (pathname.startsWith("/proposals")) return "Proposals";
   if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding";
   switch (pathname) {
     case "/dashboard":
       return "Dashboard";
+    case "/projects":
+      return "Projects";
     case "/accounting":
       return "Accounting";
     case "/rent":
@@ -217,6 +223,7 @@ export const getTopbarLabel = (pathname) => {
 
 export const getTitleForPath = (pathname) => {
   if (pathname.startsWith("/book")) return "Appointment | Dev";
+  if (pathname.startsWith("/projects")) return "Projects | Dev";
   if (pathname.startsWith("/proposals")) return "Proposals | Dev";
   if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding | Dev";
   switch (pathname) {
@@ -225,6 +232,8 @@ export const getTitleForPath = (pathname) => {
       return "Dashboard | Dev";
     case "/login":
       return "Login | Dev";
+    case "/projects":
+      return "Projects | Dev";
     case "/setup-account":
       return "Set Up Account | Dev";
     case "/error":

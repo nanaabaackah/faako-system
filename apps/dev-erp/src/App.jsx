@@ -56,6 +56,7 @@ import {
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const Projects = lazy(() => import("./pages/Projects/Projects"));
 const Bookings = lazy(() => import("./pages/Bookings/Bookings"));
 const PublicBooking = lazy(() => import("./pages/PublicBooking/PublicBooking"));
 const Organizations = lazy(() => import("./pages/Organizations/Organizations"));
@@ -619,6 +620,14 @@ function App() {
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <DashboardLanding currentUser={currentUser} />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <Projects />
             </ShellPage>
           }
         />

@@ -119,8 +119,16 @@ export interface AdminCreateRolePayload {
   permissions: AdminRolePermissions;
 }
 
+export interface AdminUpdateRolePayload {
+  name?: string;
+  description?: string;
+  permissions?: AdminRolePermissions;
+  isActive?: boolean;
+}
+
 export interface AdminProfileUpdatePayload {
   username?: string;
+  newPassword?: string;
   firstName?: string;
   lastName?: string;
   personalEmail?: string;
@@ -178,8 +186,11 @@ const createViewerPermissions = (): AdminRolePermissions => {
   return permissions;
 };
 
-export const getFallbackRolePermissions = (role: AdminRole): AdminRolePermissions =>
-  role === "ADMIN" || role === "OWNER" ? createFullPermissions() : createViewerPermissions();
+export const getFallbackRolePermissions = (role: AdminRole): AdminRolePermissions => {
+  if (role === "ADMIN" || role === "OWNER") return createFullPermissions();
+  if (role === "VIEWER") return createViewerPermissions();
+  return createEmptyPermissions();
+};
 
 export const normalizeRolePermissions = (
   candidate: unknown,
@@ -388,6 +399,22 @@ export const adminSessionApi = {
     );
     const role = normalizeRoleDefinition(data.role);
     if (!role) throw new Error("Unable to create portal role.");
+    return role;
+  },
+
+  async updateRole(id: string, payload: AdminUpdateRolePayload): Promise<AdminRoleDefinition> {
+    const response = await fetch(apiPath(`/api/auth/roles/${encodeURIComponent(id)}`), {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonResponse<{ ok: boolean; role: AdminRoleDefinition }>(
+      response,
+      "Unable to update portal role."
+    );
+    const role = normalizeRoleDefinition(data.role);
+    if (!role) throw new Error("Unable to update portal role.");
     return role;
   },
 

@@ -40,6 +40,16 @@ export const DEV_ERP_ADMIN_MODULES = [
     requiredPermission: "dashboard",
   },
   {
+    key: "projects",
+    label: "Projects",
+    ...DEFAULT_MODULE_STATE,
+    path: "/projects",
+    group: ERP_MODULE_GROUPS.OPERATIONS,
+    status: ERP_MODULE_STATUSES.IN_PROGRESS,
+    core: false,
+    requiredPermission: "projects",
+  },
+  {
     key: "proposals",
     label: "Proposals",
     ...DEFAULT_MODULE_STATE,

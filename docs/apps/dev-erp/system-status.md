@@ -2,7 +2,7 @@
 
 ## App purpose
 
-Dev ERP is a fully live operational ERP with a Vite frontend, Express backend, and Prisma database for organizations, dashboards, rent management, accounting, invoicing, appointments, reporting, user access, alerts, email workflows, AI/productivity endpoints, and integrations.
+Dev ERP is a fully live operational ERP with a Vite frontend, Express backend, and Prisma database for organizations, projects, dashboards, rent management, accounting, invoicing, appointments, reporting, user access, alerts, email workflows, AI/productivity endpoints, and integrations.
 
 ## Current status
 
@@ -19,12 +19,15 @@ Fully live system with real operational data. Treat all changes as production-se
 - Additive invoice `paidAmount`, derived balance-due, and manual partial-payment presentation.
 - GHS display currency normalization for financial figures, with optional backend currency API hydration through `CURRENCY_API_URL`/`CURRENCY_API_KEY` and non-secret fallback rates through `CAD_TO_GHS_RATE`/`VITE_CAD_TO_GHS_RATE`. Persisted source currencies remain unchanged.
 - Registry-complete site/API monitoring with bounded concurrent fetches. API surfaces, including the Dev ERP Railway/custom API host, render in System Status only; website and portal page health excludes API/internal surfaces. Optional internal apps remain visible as `Not configured` until hosted URLs exist.
+- Projects module for org-scoped personal and external project management, with a Kanban board, drag/drop stage movement, button-based stage movement, and authenticated `/api/projects` CRUD.
+- Accounting-to-Invoicing handoff for manual revenue entries. Accounting creates persisted invoice drafts/paid invoices and line items; expense entries remain payables and cannot create invoices.
 - Standalone Reports, System Health, and Audit Logs Insights modules. Reports manages scheduled email workflows; Audit Logs owns event filtering, analytics, incidents, CSV export, Railway webhook diagnostics, terminal-style live log streams, and the legacy `/api/reports/summary` compatibility alias capability.
+- Productivity Coach AI fetches remain backend-only through `/api/ai/productivity-coach`, with auth, Dashboard capability, CSRF, AI rate limit, server-side key checks, prompt validation, timeout handling, and sanitized errors.
 - Shared `AppUpdateNotice` in the app shell prompts for a user-controlled refresh when a newer deployed frontend bundle exists. It must not replace backend maintenance/read-only controls for migrations or risky live-data work.
 
 ## In-progress modules/features
 
-- Operational dashboards, rent, accounting, invoicing, appointments, reports, user access, alerts, and integration refinements.
+- Operational dashboards, projects, rent, accounting, invoicing, appointments, reports, user access, alerts, and integration refinements.
 - Shared shell and form styling alignment with other ERP-style apps.
 - Backend route hardening and deployment readiness.
 - Paystack invoice/payment foundation planning. Current work is config/documentation only and does not generate payment links, verify webhooks, create receipts, or mutate payment/invoice records.
