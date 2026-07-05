@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   FAAKO_ONBOARDING_STATUS_OPTIONS,
+  buildConvertedProjectPayload,
+  buildUpdatePatch,
   buildWizardSections,
   serializeFaakoOnboardingSubmission,
 } from "./faakoOnboarding.routes.js";
@@ -117,4 +119,47 @@ test("serializeFaakoOnboardingSubmission exposes detail metadata for Dev ERP", (
     false,
   );
   assert.equal(submission.activityTimeline[0].type, "status_changed");
+});
+
+test("buildUpdatePatch persists status changes and conversion project activity", () => {
+  const patch = buildUpdatePatch({
+    body: { status: "CONVERTED" },
+    existingRow: sampleRow,
+    columns: new Set(["status", "activityTimeline", "managementUpdatedAt", "managementUpdatedBy", "updatedAt"]),
+    user: { fullName: "Ops Admin" },
+    extraTimelineEntries: [
+      {
+        type: "project_created",
+        label: "Project created",
+        note: "Aba Creative Studio - Growth setup (#42)",
+      },
+    ],
+  });
+
+  assert.deepEqual(patch.changedFields, ["status", "project"]);
+  assert.equal(patch.values[0], "CONVERTED");
+  assert.equal(patch.updates.some((update) => update === "\"status\" = $1"), true);
+  const timeline = JSON.parse(patch.values[1]);
+  const conversionEntries = timeline.slice(-2);
+  assert.equal(conversionEntries[0].type, "status_changed");
+  assert.equal(conversionEntries[0].to, "Converted");
+  assert.equal(conversionEntries[1].type, "project_created");
+  assert.equal(conversionEntries[1].note, "Aba Creative Studio - Growth setup (#42)");
+});
+
+test("buildConvertedProjectPayload maps converted submissions into external projects", () => {
+  const payload = buildConvertedProjectPayload(sampleRow, { organizationId: 7, ownerUserId: 3 });
+
+  assert.equal(payload.organizationId, 7);
+  assert.equal(payload.ownerUserId, 3);
+  assert.equal(payload.title, "Aba Creative Studio - Growth setup");
+  assert.equal(payload.clientName, "Aba Creative Studio");
+  assert.equal(payload.projectType, "EXTERNAL");
+  assert.equal(payload.stage, "ACTIVE");
+  assert.equal(payload.priority, "HIGH");
+  assert.equal(payload.currency, "GHS");
+  assert.equal(payload.externalRef, "faako-onboarding:signup-1");
+  assert.match(payload.description, /Contact: Nana Aba <hello@example.com>/);
+  assert.match(payload.description, /Requested modules: website, portal/);
+  assert.match(payload.description, /Setup checklist: Discovery call/);
 });
