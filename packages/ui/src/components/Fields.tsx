@@ -4,6 +4,7 @@ import {
   forwardRef,
   isValidElement,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -18,6 +19,9 @@ import type { SelectOption } from "@faako/types";
 
 const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
+
+const joinDescribedBy = (...values: Array<string | false | null | undefined>) =>
+  values.filter(Boolean).join(" ") || undefined;
 
 const SearchGlyph = () => (
   <svg viewBox="0 0 20 20" fill="none" focusable="false" aria-hidden="true">
@@ -176,26 +180,67 @@ function FieldShell({
   label,
   hint = "",
   error = "",
+  required = false,
   className = "",
   as = "label",
+  htmlFor,
+  hintId,
+  errorId,
   children,
 }: {
   label?: ReactNode;
   hint?: ReactNode;
   error?: ReactNode;
+  required?: boolean;
   className?: string;
   as?: "label" | "div";
+  htmlFor?: string;
+  hintId?: string;
+  errorId?: string;
   children: ReactNode;
 }) {
   const Wrapper = as;
   return (
-    <Wrapper className={joinClasses("ui-field", error && "is-error", className)}>
-      {label ? <span className="ui-field__label">{label}</span> : null}
+    <Wrapper
+      className={joinClasses("ui-field", error && "is-error", className)}
+      {...(as === "label" && htmlFor ? { htmlFor } : {})}
+    >
+      {label ? (
+        as === "div" && htmlFor ? (
+          <label className="ui-field__label" htmlFor={htmlFor}>
+            {label}
+            {required ? (
+              <>
+                <span className="ui-field__required" aria-hidden="true">
+                  *
+                </span>
+                <span className="sr-only">required</span>
+              </>
+            ) : null}
+          </label>
+        ) : (
+          <span className="ui-field__label">
+            {label}
+            {required ? (
+              <>
+                <span className="ui-field__required" aria-hidden="true">
+                  *
+                </span>
+                <span className="sr-only">required</span>
+              </>
+            ) : null}
+          </span>
+        )
+      ) : null}
       {children}
       {error ? (
-        <span className="ui-field__message ui-field__message--error">{error}</span>
+        <span className="ui-field__message ui-field__message--error" id={errorId}>
+          {error}
+        </span>
       ) : hint ? (
-        <span className="ui-field__message">{hint}</span>
+        <span className="ui-field__message" id={hintId}>
+          {hint}
+        </span>
       ) : null}
     </Wrapper>
   );
@@ -233,13 +278,47 @@ export const TextField = forwardRef<
     suffix?: ReactNode;
   }
 >(function TextField(
-  { label, hint, error, fieldClassName = "", inputClassName = "", prefix, suffix, ...props },
+  {
+    label,
+    hint,
+    error,
+    fieldClassName = "",
+    inputClassName = "",
+    prefix,
+    suffix,
+    id,
+    required,
+    "aria-describedby": ariaDescribedBy,
+    ...props
+  },
   ref,
 ) {
+  const generatedId = useId();
+  const fieldId = id || generatedId;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const errorId = error ? `${fieldId}-error` : undefined;
+
   return (
-    <FieldShell label={label} hint={hint} error={error} className={fieldClassName}>
+    <FieldShell
+      label={label}
+      hint={hint}
+      error={error}
+      required={Boolean(required)}
+      htmlFor={fieldId}
+      hintId={hintId}
+      errorId={errorId}
+      className={fieldClassName}
+    >
       <FieldControl prefix={prefix} suffix={suffix}>
-        <input ref={ref} className={joinClasses("ui-field__input", inputClassName)} {...props} />
+        <input
+          ref={ref}
+          id={fieldId}
+          className={joinClasses("ui-field__input", inputClassName)}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
+          {...props}
+        />
       </FieldControl>
     </FieldShell>
   );
@@ -255,13 +334,45 @@ export const TextareaField = forwardRef<
     inputClassName?: string;
   }
 >(function TextareaField(
-  { label, hint, error, fieldClassName = "", inputClassName = "", ...props },
+  {
+    label,
+    hint,
+    error,
+    fieldClassName = "",
+    inputClassName = "",
+    id,
+    required,
+    "aria-describedby": ariaDescribedBy,
+    ...props
+  },
   ref,
 ) {
+  const generatedId = useId();
+  const fieldId = id || generatedId;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const errorId = error ? `${fieldId}-error` : undefined;
+
   return (
-    <FieldShell label={label} hint={hint} error={error} className={fieldClassName}>
+    <FieldShell
+      label={label}
+      hint={hint}
+      error={error}
+      required={Boolean(required)}
+      htmlFor={fieldId}
+      hintId={hintId}
+      errorId={errorId}
+      className={fieldClassName}
+    >
       <FieldControl>
-        <textarea ref={ref} className={joinClasses("ui-field__input ui-field__textarea", inputClassName)} {...props} />
+        <textarea
+          ref={ref}
+          id={fieldId}
+          className={joinClasses("ui-field__input ui-field__textarea", inputClassName)}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
+          {...props}
+        />
       </FieldControl>
     </FieldShell>
   );
@@ -303,10 +414,16 @@ export const SelectField = forwardRef<
     required = false,
     ariaLabel,
     id,
+    "aria-describedby": ariaDescribedBy,
     className = "",
   },
   ref,
 ) {
+  const generatedId = useId();
+  const fieldId = id || generatedId;
+  const triggerId = `${fieldId}-trigger`;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const errorId = error ? `${fieldId}-error` : undefined;
   const inputRef = useRef<HTMLSelectElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -446,18 +563,24 @@ export const SelectField = forwardRef<
       label={label}
       hint={hint}
       error={error}
+      required={required}
+      htmlFor={triggerId}
+      hintId={hintId}
+      errorId={errorId}
       as="div"
       className={joinClasses(fieldClassName, className, "ui-dropdown-field", open && "is-open")}
     >
       <div className="ui-dropdown-field__shell">
         <select
           ref={assignInputRef}
-          id={id}
+          id={fieldId}
           name={name}
           value={multiple ? selectedValues : selectedValue}
           multiple={multiple}
           required={required}
           disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           tabIndex={-1}
           aria-hidden="true"
           className="ui-dropdown-field__native"
@@ -471,6 +594,7 @@ export const SelectField = forwardRef<
         </select>
         <button
           ref={triggerRef}
+          id={triggerId}
           type="button"
           className={joinClasses(
             "ui-dropdown-field__trigger",
@@ -486,6 +610,8 @@ export const SelectField = forwardRef<
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
         >
           <span className="ui-dropdown-field__value">
@@ -595,9 +721,15 @@ export const DateField = forwardRef<
     id,
     className = "",
     onBlur,
+    "aria-describedby": ariaDescribedBy,
   },
   ref,
 ) {
+  const generatedId = useId();
+  const fieldId = id || generatedId;
+  const triggerId = `${fieldId}-trigger`;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const errorId = error ? `${fieldId}-error` : undefined;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -715,13 +847,17 @@ export const DateField = forwardRef<
       label={label}
       hint={hint}
       error={error}
+      required={required}
+      htmlFor={triggerId}
+      hintId={hintId}
+      errorId={errorId}
       as="div"
       className={joinClasses(fieldClassName, className, "ui-date-field", open && "is-open")}
     >
       <div className="ui-date-field__shell">
         <input
           ref={assignInputRef}
-          id={id}
+          id={fieldId}
           type="date"
           name={name}
           value={value}
@@ -729,6 +865,8 @@ export const DateField = forwardRef<
           max={max}
           required={required}
           disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           tabIndex={-1}
           aria-hidden="true"
           className="ui-date-field__native"
@@ -738,6 +876,7 @@ export const DateField = forwardRef<
         />
         <button
           ref={triggerRef}
+          id={triggerId}
           type="button"
           className={joinClasses(
             "ui-date-field__trigger",
@@ -753,6 +892,8 @@ export const DateField = forwardRef<
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
         >
           <span className="ui-date-field__value">{displayValue || placeholder}</span>
@@ -889,9 +1030,15 @@ export const MonthField = forwardRef<
     id,
     className = "",
     onBlur,
+    "aria-describedby": ariaDescribedBy,
   },
   ref,
 ) {
+  const generatedId = useId();
+  const fieldId = id || generatedId;
+  const triggerId = `${fieldId}-trigger`;
+  const hintId = hint ? `${fieldId}-hint` : undefined;
+  const errorId = error ? `${fieldId}-error` : undefined;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -996,13 +1143,17 @@ export const MonthField = forwardRef<
       label={label}
       hint={hint}
       error={error}
+      required={required}
+      htmlFor={triggerId}
+      hintId={hintId}
+      errorId={errorId}
       as="div"
       className={joinClasses(fieldClassName, className, "ui-date-field", "ui-month-field", open && "is-open")}
     >
       <div className="ui-date-field__shell">
         <input
           ref={assignInputRef}
-          id={id}
+          id={fieldId}
           type="month"
           name={name}
           value={value}
@@ -1010,6 +1161,8 @@ export const MonthField = forwardRef<
           max={max}
           required={required}
           disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           tabIndex={-1}
           aria-hidden="true"
           className="ui-date-field__native"
@@ -1019,6 +1172,7 @@ export const MonthField = forwardRef<
         />
         <button
           ref={triggerRef}
+          id={triggerId}
           type="button"
           className={joinClasses(
             "ui-date-field__trigger",
@@ -1034,6 +1188,8 @@ export const MonthField = forwardRef<
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
         >
           <span className="ui-date-field__value">{displayValue || placeholder}</span>

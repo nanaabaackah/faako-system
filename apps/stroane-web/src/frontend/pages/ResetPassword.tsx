@@ -9,6 +9,11 @@ import PasswordRequirementList from "../components/auth/PasswordRequirementList"
 import { getPasswordValidationMessage } from "../../utils/passwordRequirements";
 import "../styles/Auth.css";
 
+type ResetFieldErrors = Partial<Record<"password" | "confirmPassword", string>>;
+
+const getFirstFieldError = (errors: ResetFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
+
 const ResetPassword: React.FC = () => {
   const { resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -17,6 +22,7 @@ const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ResetFieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
@@ -35,15 +41,16 @@ const ResetPassword: React.FC = () => {
       return;
     }
     const passwordMessage = getPasswordValidationMessage(password);
-    if (passwordMessage) {
-      setError(passwordMessage);
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    const nextErrors: ResetFieldErrors = {};
+    if (passwordMessage) nextErrors.password = passwordMessage;
+    if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match.";
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError(getFirstFieldError(nextErrors));
       return;
     }
 
+    setFieldErrors({});
     setLoading(true);
     try {
       await resetPassword({ token, password });
@@ -98,9 +105,16 @@ const ResetPassword: React.FC = () => {
                 onChange={(event) => {
                   setPassword(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.password) return current;
+                    const next = { ...current };
+                    delete next.password;
+                    return next;
+                  });
                 }}
                 autoComplete="new-password"
                 aria-describedby="reset-password-requirements"
+                error={fieldErrors.password}
                 required
               />
               <PasswordRequirementList
@@ -115,8 +129,15 @@ const ResetPassword: React.FC = () => {
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.confirmPassword) return current;
+                    const next = { ...current };
+                    delete next.confirmPassword;
+                    return next;
+                  });
                 }}
                 autoComplete="new-password"
+                error={fieldErrors.confirmPassword}
                 required
               />
 

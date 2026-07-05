@@ -18,6 +18,11 @@ const getCustomerRedirect = (state: unknown) => {
     : "/account";
 };
 
+type SignInFieldErrors = Partial<Record<"identifier" | "password", string>>;
+
+const getFirstFieldError = (errors: SignInFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
+
 const SignIn: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
@@ -27,6 +32,7 @@ const SignIn: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SignInFieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
@@ -39,17 +45,25 @@ const SignIn: React.FC = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!isLikelyEmail(identifier)) {
-      setError("Add a valid email address.");
-      return;
+    const nextErrors: SignInFieldErrors = {};
+    const normalizedEmail = identifier.trim().toLowerCase();
+
+    if (!isLikelyEmail(normalizedEmail)) {
+      nextErrors.identifier = "Add a valid email address.";
     }
     if (!password) {
-      setError("Add your password.");
+      nextErrors.password = "Add your password.";
+    }
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError(getFirstFieldError(nextErrors));
       return;
     }
+    setFieldErrors({});
     setLoading(true);
     try {
-      await signIn(identifier, password);
+      await signIn(normalizedEmail, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
@@ -96,8 +110,15 @@ const SignIn: React.FC = () => {
                 onChange={(e) => {
                   setIdentifier(e.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.identifier) return current;
+                    const next = { ...current };
+                    delete next.identifier;
+                    return next;
+                  });
                 }}
                 autoComplete="email"
+                error={fieldErrors.identifier}
                 required
               />
 
@@ -109,8 +130,15 @@ const SignIn: React.FC = () => {
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.password) return current;
+                    const next = { ...current };
+                    delete next.password;
+                    return next;
+                  });
                 }}
                 autoComplete="current-password"
+                error={fieldErrors.password}
                 required
               />
 

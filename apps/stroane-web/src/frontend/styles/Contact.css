@@ -128,9 +128,17 @@
 }
 
 .contact-field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-secondary);
+}
+
+.contact-field__required {
+  color: var(--color-danger);
+  font-weight: 900;
 }
 
 .contact-field input,
@@ -159,6 +167,19 @@
 .contact-field textarea:focus {
   border-color: var(--color-primary-border-hover);
   box-shadow: 0 0 0 3px var(--color-primary-tint);
+}
+
+.contact-field.is-error input,
+.contact-field.is-error textarea {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 14%, transparent);
+}
+
+.contact-field__error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 760;
+  line-height: 1.35;
 }
 
 .contact-form__trap {
