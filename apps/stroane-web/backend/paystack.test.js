@@ -46,8 +46,16 @@ test("Paystack transaction statuses map to internal payment states", () => {
 
 test("Paystack callback URL defaults to the local checkout return page", () => {
   const previousCallbackUrl = process.env.PAYSTACK_CALLBACK_URL;
+  const previousAppEnv = process.env.APP_ENV;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousStorefrontBaseUrl = process.env.STROANE_STOREFRONT_BASE_URL;
+  const previousPublicWebsiteUrl = process.env.VITE_PUBLIC_WEBSITE_URL;
 
   try {
+    delete process.env.APP_ENV;
+    process.env.NODE_ENV = "development";
+    delete process.env.STROANE_STOREFRONT_BASE_URL;
+    delete process.env.VITE_PUBLIC_WEBSITE_URL;
     delete process.env.PAYSTACK_CALLBACK_URL;
     assert.equal(getPaystackCallbackUrl(), "http://localhost:5175/checkout/return");
 
@@ -58,6 +66,84 @@ test("Paystack callback URL defaults to the local checkout return page", () => {
       delete process.env.PAYSTACK_CALLBACK_URL;
     } else {
       process.env.PAYSTACK_CALLBACK_URL = previousCallbackUrl;
+    }
+
+    if (previousAppEnv === undefined) {
+      delete process.env.APP_ENV;
+    } else {
+      process.env.APP_ENV = previousAppEnv;
+    }
+
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+
+    if (previousStorefrontBaseUrl === undefined) {
+      delete process.env.STROANE_STOREFRONT_BASE_URL;
+    } else {
+      process.env.STROANE_STOREFRONT_BASE_URL = previousStorefrontBaseUrl;
+    }
+
+    if (previousPublicWebsiteUrl === undefined) {
+      delete process.env.VITE_PUBLIC_WEBSITE_URL;
+    } else {
+      process.env.VITE_PUBLIC_WEBSITE_URL = previousPublicWebsiteUrl;
+    }
+  }
+});
+
+test("Paystack callback URL stays on staging when APP_ENV is staging", () => {
+  const previousCallbackUrl = process.env.PAYSTACK_CALLBACK_URL;
+  const previousAppEnv = process.env.APP_ENV;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousStorefrontBaseUrl = process.env.STROANE_STOREFRONT_BASE_URL;
+  const previousPublicWebsiteUrl = process.env.VITE_PUBLIC_WEBSITE_URL;
+
+  try {
+    process.env.APP_ENV = "staging";
+    process.env.NODE_ENV = "production";
+    delete process.env.STROANE_STOREFRONT_BASE_URL;
+    process.env.VITE_PUBLIC_WEBSITE_URL = "https://stage.stroanesolutions.com";
+
+    process.env.PAYSTACK_CALLBACK_URL = "https://stroanesolutions.com/checkout/return";
+    assert.equal(getPaystackCallbackUrl(), "https://stage.stroanesolutions.com/checkout/return");
+
+    process.env.PAYSTACK_CALLBACK_URL = "https://stage.stroanesolutions.com/checkout/return";
+    assert.equal(getPaystackCallbackUrl(), "https://stage.stroanesolutions.com/checkout/return");
+
+    delete process.env.PAYSTACK_CALLBACK_URL;
+    assert.equal(getPaystackCallbackUrl(), "https://stage.stroanesolutions.com/checkout/return");
+  } finally {
+    if (previousCallbackUrl === undefined) {
+      delete process.env.PAYSTACK_CALLBACK_URL;
+    } else {
+      process.env.PAYSTACK_CALLBACK_URL = previousCallbackUrl;
+    }
+
+    if (previousAppEnv === undefined) {
+      delete process.env.APP_ENV;
+    } else {
+      process.env.APP_ENV = previousAppEnv;
+    }
+
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+
+    if (previousStorefrontBaseUrl === undefined) {
+      delete process.env.STROANE_STOREFRONT_BASE_URL;
+    } else {
+      process.env.STROANE_STOREFRONT_BASE_URL = previousStorefrontBaseUrl;
+    }
+
+    if (previousPublicWebsiteUrl === undefined) {
+      delete process.env.VITE_PUBLIC_WEBSITE_URL;
+    } else {
+      process.env.VITE_PUBLIC_WEBSITE_URL = previousPublicWebsiteUrl;
     }
   }
 });
