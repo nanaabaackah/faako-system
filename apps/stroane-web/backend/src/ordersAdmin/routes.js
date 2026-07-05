@@ -7,6 +7,7 @@ import {
   toPublicCommerceOrder,
   validateCommerceOrderPaymentReadiness,
 } from "../orders.js";
+import { reduceInventoryForPaidOrder } from "../orderInventory.js";
 import {
   PAYMENT_STATUSES,
   buildOrderPaymentAmount,
@@ -159,6 +160,23 @@ const sendAdminPaidReceipt = async (prisma, order) => {
       error: sanitizeText(error?.message || "Unable to send receipt.", 240),
     });
     return null;
+  }
+};
+
+const syncAdminPaidOrderInventory = async (prisma, order, authUser) => {
+  try {
+    return await reduceInventoryForPaidOrder(prisma, order, {
+      source: "admin_status_refresh",
+      createdById: authUser?.id || null,
+      createdByName: authUser?.username || "Stroane admin payment sync",
+    });
+  } catch (error) {
+    console.warn("Stroane admin paid order inventory sync failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: sanitizeText(error?.message || "Unable to sync paid order inventory.", 240),
+    });
+    return { status: "failed", appliedCount: 0, skippedCount: 0 };
   }
 };
 
@@ -388,7 +406,11 @@ export const createAdminOrderRouter = (prisma) => {
         },
         include: { items: true },
       });
-      if (paid) await sendAdminPaidReceipt(prisma, updatedOrder);
+      let inventorySync = null;
+      if (paid) {
+        inventorySync = await syncAdminPaidOrderInventory(prisma, updatedOrder, req.authUser);
+        await sendAdminPaidReceipt(prisma, updatedOrder);
+      }
 
       res.json({
         order: toAdminOrder(updatedOrder),
@@ -399,6 +421,7 @@ export const createAdminOrderRouter = (prisma) => {
           amountMatches,
           currencyMatches,
         },
+        inventorySync,
       });
     })
   );
