@@ -46,9 +46,65 @@ export const isPaystackTestMode = () => getPaystackSecretKey().startsWith("sk_te
 export const getPaystackCurrency = (fallbackCurrency = "GHS") =>
   sanitizeText(process.env.PAYSTACK_CURRENCY, 12) || fallbackCurrency || "GHS";
 
-export const getPaystackCallbackUrl = () =>
-  sanitizeText(process.env.PAYSTACK_CALLBACK_URL, 500) ||
-  "http://localhost:5175/checkout/return";
+const normalizeEnvironmentName = (value = "") => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || normalized === "dev") return "development";
+  if (normalized === "prod") return "production";
+  if (normalized === "stage") return "staging";
+  return normalized;
+};
+
+const normalizeBaseUrl = (value = "") => sanitizeText(value, 500).replace(/\/+$/, "");
+
+const buildCheckoutReturnUrl = (baseUrl) => {
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) return "";
+
+  try {
+    return new URL("/checkout/return", normalizedBaseUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const getConfiguredStorefrontReturnUrl = () =>
+  buildCheckoutReturnUrl(
+    process.env.STROANE_STOREFRONT_BASE_URL ||
+      process.env.VITE_PUBLIC_WEBSITE_URL ||
+      process.env.VITE_STOREFRONT_BASE_URL
+  );
+
+const getDefaultStorefrontReturnUrl = () => {
+  const environment = normalizeEnvironmentName(process.env.APP_ENV || process.env.NODE_ENV);
+  if (environment === "production") return "https://stroanesolutions.com/checkout/return";
+  if (environment === "staging") return "https://stage.stroanesolutions.com/checkout/return";
+  return "http://localhost:5175/checkout/return";
+};
+
+const isProductionStorefrontCallback = (value = "") => {
+  try {
+    const url = new URL(value);
+    return ["stroanesolutions.com", "www.stroanesolutions.com"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
+export const getPaystackCallbackUrl = () => {
+  const environment = normalizeEnvironmentName(process.env.APP_ENV || process.env.NODE_ENV);
+  const configuredCallbackUrl = sanitizeText(process.env.PAYSTACK_CALLBACK_URL, 500);
+  const storefrontReturnUrl = getConfiguredStorefrontReturnUrl() || getDefaultStorefrontReturnUrl();
+
+  if (
+    environment === "staging" &&
+    configuredCallbackUrl &&
+    isProductionStorefrontCallback(configuredCallbackUrl)
+  ) {
+    return storefrontReturnUrl;
+  }
+
+  return configuredCallbackUrl || storefrontReturnUrl;
+};
 
 export const buildPaystackReference = (order) =>
   `${order.orderNumber}-${Date.now()}`.replace(/[^a-zA-Z0-9._=-]/g, "-").slice(0, 100);

@@ -48,6 +48,7 @@ import {
   sendCustomerOrderEmail,
 } from "./src/orderNotifications.js";
 import { searchDeliveryLocations } from "./src/locationSearch.js";
+import { reduceInventoryForPaidOrder } from "./src/orderInventory.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
 import {
   createAdminInventoryAlertRouter,
@@ -430,6 +431,53 @@ const sendPaidOrderReceipt = async (order, options = {}) => {
       error: sanitizeNotificationError(error?.message || "Unable to send receipt."),
     });
     return { receipt: null, status: "failed", reason: "receipt_email_failed", sent: false };
+  }
+};
+
+const syncPaidOrderInventory = async (order, { source = "payment" } = {}) => {
+  try {
+    const result = await reduceInventoryForPaidOrder(prisma, order, { source });
+    if (result.appliedCount || result.skippedCount) {
+      void emitAppActivityEvent({
+        action: "commerce_order_inventory_synced",
+        category: "inventory",
+        severity: result.appliedCount ? "info" : "warning",
+        status: result.appliedCount ? "ok" : "skipped",
+        targetId: order.id,
+        summary: `Inventory sync ${result.status} for Stroane order ${order.orderNumber}.`,
+        requestId: `${source}:${order.paymentReference || order.id}`,
+        metadata: {
+          orderNumber: order.orderNumber,
+          appliedCount: result.appliedCount,
+          skippedCount: result.skippedCount,
+          skipped: result.skipped,
+        },
+      });
+    }
+    return result;
+  } catch (error) {
+    const message = sanitizeNotificationError(
+      error?.message || "Unable to sync paid order inventory."
+    );
+    console.warn("Stroane paid order inventory sync failed", {
+      orderId: order?.id,
+      orderNumber: order?.orderNumber,
+      error: message,
+    });
+    void emitAppActivityEvent({
+      action: "commerce_order_inventory_sync_failed",
+      category: "inventory",
+      severity: "warning",
+      status: "failed",
+      targetId: order?.id,
+      summary: `Inventory sync failed for Stroane order ${order?.orderNumber || order?.id}.`,
+      requestId: `${source}:${order?.paymentReference || order?.id || Date.now()}`,
+      metadata: {
+        orderNumber: order?.orderNumber,
+        error: message,
+      },
+    });
+    return { status: "failed", appliedCount: 0, skippedCount: 0, error: message };
   }
 };
 
@@ -904,6 +952,7 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
     const now = new Date();
 
     if (alreadyPaid) {
+      await syncPaidOrderInventory(order, { source: "paystack_webhook_retry" });
       if (!order.customerNotificationSentAt) {
         await sendPaymentConfirmedNotification(order);
       }
@@ -1055,6 +1104,7 @@ app.post(PAYSTACK_WEBHOOK_PATH, webhookRateLimit, async (req, res) => {
     });
 
     if (nextPaymentStatus === PAYMENT_STATUSES.PAID) {
+      await syncPaidOrderInventory(updatedOrder, { source: "paystack_webhook" });
       await sendPaymentConfirmedNotification(updatedOrder);
       await sendPaidOrderReceipt(updatedOrder);
     }
@@ -1100,6 +1150,7 @@ app.post("/api/paystack/verify", paymentVerifyRateLimit, async (req, res) => {
       order.paymentStatus === PAYMENT_STATUSES.PAID &&
       order.paymentConfirmationSource === "webhook"
     ) {
+      await syncPaidOrderInventory(order, { source: "paystack_callback_paid_check" });
       return res.json({
         order: toPublicCommerceOrder(order),
         payment: {

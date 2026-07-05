@@ -510,7 +510,7 @@ const buildInventoryUpdateData = (existing, patch) => {
   return next;
 };
 
-const syncProductStockFromInventory = async (tx, item, updates) => {
+export const syncProductStockFromInventory = async (tx, item, updates) => {
   if (!item.productSlug || item.variantId) return;
 
   const data = {
