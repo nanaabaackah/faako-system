@@ -13,6 +13,8 @@ const MAX_EMAIL_LENGTH = 120;
 const MAX_PHONE_LENGTH = 25;
 const MAX_LOCATION_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 1500;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9][0-9\s().-]{6,}$/;
 
 const createInitialValues = (prefillEmail = "") => ({
   name: "",
@@ -27,6 +29,37 @@ const createInitialValues = (prefillEmail = "") => ({
 
 const clampValue = (value, maxLength) => String(value || "").slice(0, maxLength);
 
+const isReasonableName = (value) => {
+  const normalized = String(value || "").trim();
+  return normalized.length >= 2 && /[A-Za-z]/.test(normalized) && !/[@:/\\]/.test(normalized);
+};
+
+const validateContactForm = (values) => {
+  const errors = {};
+  if (!isReasonableName(values.name)) errors.name = "Enter your full name.";
+  if (!EMAIL_PATTERN.test(String(values.email || "").trim().toLowerCase())) {
+    errors.email = "Enter a valid email address.";
+  }
+  if (!PHONE_PATTERN.test(String(values.phone || "").trim())) {
+    errors.phone = "Enter a valid phone or WhatsApp number.";
+  }
+  if (!values.topic) errors.topic = "Choose the service you need.";
+  if (!values.eventDate) errors.eventDate = "Choose the event date.";
+  if (String(values.message || "").trim().length < 12) {
+    errors.message = "Tell us a little more about the event.";
+  }
+  return errors;
+};
+
+function RequiredMark() {
+  return (
+    <>
+      <span className="form-required-mark" aria-hidden="true">*</span>
+      <span className="sr-only">required</span>
+    </>
+  );
+}
+
 function ContactForm() {
   const location = useLocation();
   const prefillEmail = useMemo(() => {
@@ -38,6 +71,7 @@ function ContactForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     const savedDraft = loadExpiringDraft(CONTACT_DRAFT_KEY);
@@ -72,15 +106,23 @@ function ContactForm() {
     const nextValue = maxLength ? clampValue(event.target.value, maxLength) : event.target.value;
     if (submitError) setSubmitError("");
     if (submitSuccess) setSubmitSuccess("");
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
     setFormValues((prev) => ({ ...prev, [field]: nextValue }));
   };
 
+  const fieldError = (field) => fieldErrors[field] || "";
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
-
-    if (!form.checkValidity()) {
-      form.reportValidity();
+    const nextFieldErrors = validateContactForm(formValues);
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
+      setSubmitError(Object.values(nextFieldErrors)[0]);
       return;
     }
 
@@ -124,6 +166,7 @@ function ContactForm() {
       }
 
       setFormValues(createInitialValues(prefillEmail));
+      setFieldErrors({});
       setSubmitSuccess(
         responseBody?.requestId
           ? `Your planning brief was saved as request #${responseBody.requestId}. We will reply within one business day.`
@@ -145,6 +188,7 @@ function ContactForm() {
       acceptCharset="UTF-8"
       onSubmit={handleSubmit}
       aria-busy={submitting}
+      noValidate
     >
       <p className="hidden">
         <label>
@@ -173,8 +217,8 @@ function ContactForm() {
           <p>Share the best contact details so we can reply with the right options quickly.</p>
         </div>
         <div className="contact-form-grid form-section-grid">
-          <div className="form-group">
-            <label htmlFor="contact-name">Name</label>
+          <div className={`form-group ${fieldError("name") ? "is-error" : ""}`}>
+            <label htmlFor="contact-name">Name <RequiredMark /></label>
             <input
               id="contact-name"
               type="text"
@@ -186,10 +230,13 @@ function ContactForm() {
               minLength={2}
               maxLength={MAX_NAME_LENGTH}
               required
+              aria-invalid={fieldError("name") ? "true" : undefined}
+              aria-describedby={fieldError("name") ? "contact-name-error" : undefined}
             />
+            {fieldError("name") ? <small className="form-field-error" id="contact-name-error">{fieldError("name")}</small> : null}
           </div>
-          <div className="form-group">
-            <label htmlFor="contact-email">Email</label>
+          <div className={`form-group ${fieldError("email") ? "is-error" : ""}`}>
+            <label htmlFor="contact-email">Email <RequiredMark /></label>
             <input
               id="contact-email"
               type="email"
@@ -200,10 +247,13 @@ function ContactForm() {
               onChange={updateField("email", MAX_EMAIL_LENGTH)}
               maxLength={MAX_EMAIL_LENGTH}
               required
+              aria-invalid={fieldError("email") ? "true" : undefined}
+              aria-describedby={fieldError("email") ? "contact-email-error" : undefined}
             />
+            {fieldError("email") ? <small className="form-field-error" id="contact-email-error">{fieldError("email")}</small> : null}
           </div>
-          <div className="form-group">
-            <label htmlFor="contact-phone">Phone number</label>
+          <div className={`form-group ${fieldError("phone") ? "is-error" : ""}`}>
+            <label htmlFor="contact-phone">Phone number <RequiredMark /></label>
             <input
               id="contact-phone"
               type="tel"
@@ -215,10 +265,12 @@ function ContactForm() {
               value={formValues.phone}
               onChange={updateField("phone", MAX_PHONE_LENGTH)}
               maxLength={MAX_PHONE_LENGTH}
-              aria-describedby="contact-phone-hint"
+              aria-invalid={fieldError("phone") ? "true" : undefined}
+              aria-describedby={fieldError("phone") ? "contact-phone-error contact-phone-hint" : "contact-phone-hint"}
               required
             />
             <small className="hint" id="contact-phone-hint">WhatsApp or mobile preferred.</small>
+            {fieldError("phone") ? <small className="form-field-error" id="contact-phone-error">{fieldError("phone")}</small> : null}
           </div>
         </div>
       </section>
@@ -230,9 +282,9 @@ function ContactForm() {
           <p>Give us the service, date, and location so we can match availability properly.</p>
         </div>
         <div className="contact-form-grid form-section-grid">
-          <div className="form-group">
-            <label htmlFor="contact-topic">What do you need?</label>
-            <SelectField id="contact-topic" name="topic" value={formValues.topic} onChange={updateField("topic")} required>
+          <div className={`form-group ${fieldError("topic") ? "is-error" : ""}`}>
+            <label htmlFor="contact-topic-trigger">What do you need? <RequiredMark /></label>
+            <SelectField id="contact-topic" name="topic" value={formValues.topic} onChange={updateField("topic")} required error={fieldError("topic")}>
               <option value="" disabled>Select a service</option>
               <option value="rentals">Party rentals</option>
               <option value="full-setup">Full setup / styling</option>
@@ -241,8 +293,8 @@ function ContactForm() {
               <option value="other">Other</option>
             </SelectField>
           </div>
-          <div className="form-group">
-            <label htmlFor="contact-event-date">Event date</label>
+          <div className={`form-group ${fieldError("eventDate") ? "is-error" : ""}`}>
+            <label htmlFor="contact-event-date-trigger">Event date <RequiredMark /></label>
             <DateField
               id="contact-event-date"
               name="eventDate"
@@ -250,6 +302,7 @@ function ContactForm() {
               value={formValues.eventDate}
               onChange={updateField("eventDate")}
               required
+              error={fieldError("eventDate")}
             />
           </div>
           <div className="form-group">
@@ -275,8 +328,8 @@ function ContactForm() {
           <p>Tell us the vibe, headcount, and must-haves so we can respond with focused options.</p>
         </div>
         <div className="contact-form-grid form-section-grid">
-          <div className="form-group full-width">
-            <label htmlFor="contact-message">Tell us more</label>
+          <div className={`form-group full-width ${fieldError("message") ? "is-error" : ""}`}>
+            <label htmlFor="contact-message">Tell us more <RequiredMark /></label>
             <textarea
               id="contact-message"
               name="message"
@@ -287,7 +340,10 @@ function ContactForm() {
               maxLength={MAX_MESSAGE_LENGTH}
               minLength={12}
               required
+              aria-invalid={fieldError("message") ? "true" : undefined}
+              aria-describedby={fieldError("message") ? "contact-message-error" : undefined}
             />
+            {fieldError("message") ? <small className="form-field-error" id="contact-message-error">{fieldError("message")}</small> : null}
           </div>
         </div>
       </section>

@@ -268,6 +268,20 @@
   text-transform: uppercase;
 }
 
+.contact-form__required {
+  color: #b42318;
+  font-weight: 900;
+  margin-left: 0.18rem;
+}
+
+.contact-form__field-error {
+  color: #b42318;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .contact-form__field input,
 .contact-form__field textarea {
   width: 100%;
@@ -285,6 +299,12 @@
   border-color: color-mix(in srgb, var(--text-1) 40%, transparent);
   background-color: color-mix(in srgb, var(--surface-2) 82%, transparent);
   outline: none;
+}
+
+.contact-form__field.is-error input,
+.contact-form__field.is-error textarea {
+  border-color: #b42318;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
 }
 
 .contact-form__field textarea {

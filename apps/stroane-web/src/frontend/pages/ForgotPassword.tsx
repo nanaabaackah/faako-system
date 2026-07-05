@@ -8,11 +8,14 @@ import { useAuth } from "../../context/AuthContext";
 import { isLikelyEmail } from "../../utils/contactValidation";
 import "../styles/Auth.css";
 
+type ForgotFieldErrors = Partial<Record<"email", string>>;
+
 const ForgotPassword: React.FC = () => {
   const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ForgotFieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
@@ -27,14 +30,17 @@ const ForgotPassword: React.FC = () => {
     setError("");
     setMessage("");
 
-    if (!isLikelyEmail(email)) {
-      setError("Add a valid email address.");
+    if (!isLikelyEmail(email.trim().toLowerCase())) {
+      const nextErrors = { email: "Add a valid email address." };
+      setFieldErrors(nextErrors);
+      setError(nextErrors.email);
       return;
     }
 
+    setFieldErrors({});
     setLoading(true);
     try {
-      const nextMessage = await requestPasswordReset({ email });
+      const nextMessage = await requestPasswordReset({ email: email.trim().toLowerCase() });
       setMessage(nextMessage);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not request a password reset.");
@@ -82,8 +88,15 @@ const ForgotPassword: React.FC = () => {
                   setEmail(event.target.value);
                   setError("");
                   setMessage("");
+                  setFieldErrors((current) => {
+                    if (!current.email) return current;
+                    const next = { ...current };
+                    delete next.email;
+                    return next;
+                  });
                 }}
                 autoComplete="email"
+                error={fieldErrors.email}
                 required
               />
 

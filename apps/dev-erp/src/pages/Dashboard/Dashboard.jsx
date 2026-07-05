@@ -53,6 +53,52 @@ const BOOKING_STATUS_OPTIONS = [
   { value: "TENTATIVE", label: "Tentative" },
   { value: "CANCELED", label: "Canceled" },
 ];
+const MONITORING_PREVIEW_LIMIT = 3;
+
+const getMonitoringIssuePriority = (status) => {
+  if (status === "offline" || status === "error" || status === "suspended") return 0;
+  if (status === "degraded" || status === "warning" || status === "pending") return 1;
+  if (status === "not_configured" || status === "unknown" || !status) return 2;
+  return 3;
+};
+
+const buildMonitoringStatusExplanation = (status) => {
+  switch (status) {
+    case "ok":
+    case "online":
+      return "Responding normally. Dependent modules should be able to refresh from this surface.";
+    case "degraded":
+    case "warning":
+      return "Part of the check is unstable. Data may refresh slowly or only partially.";
+    case "offline":
+    case "error":
+      return "This check is failing. Features that rely on it may show stale or missing data.";
+    case "not_configured":
+      return "Monitoring is missing a URL or connection value, so health cannot be confirmed.";
+    default:
+      return "The latest health signal is unclear. Re-run monitoring or inspect the service logs.";
+  }
+};
+
+const buildMonitoringNextStep = (status, note = "") => {
+  switch (status) {
+    case "ok":
+    case "online":
+      return "Keep monitoring";
+    case "degraded":
+    case "warning":
+      return "Check latency, recent deploys, and partial route failures";
+    case "offline":
+    case "error":
+      return note?.toLowerCase().includes("db")
+        ? "Verify database credentials, network access, and migrations"
+        : "Open the service health URL and review deployment logs";
+    case "not_configured":
+      return "Add the missing URL or environment value";
+    default:
+      return "Refresh monitoring and inspect logs";
+  }
+};
 
 const DEFAULT_SLOT_FORM = {
   title: "",
@@ -938,58 +984,148 @@ const Dashboard = () => {
   const serviceHealthPercent = formatPercent(healthyServices, totalServices);
   const siteHealthPercent = formatPercent(onlineSites, totalSites);
   const pageHealthPercent = formatPercent(onlinePages, totalPages);
-  const systemMonitorEntries = systemEntries.map((entry, index) => {
-    const score = getMonitoringHealthScore(entry.status);
-    return {
-      ...entry,
-      score,
-      tone: getMonitoringTone(entry.status),
-      sparkline: buildMonitoringSparklineValues({
-        status: entry.status,
-        score,
-        seed: index + entry.label.length,
-      }),
-    };
-  });
-  const snapshotCards = [
+  const affectedSystemEntries = systemEntries
+    .filter((entry) => entry.status && !isHealthyStatus(entry.status))
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      status: entry.status,
+      detail: entry.note,
+    }))
+    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
+  const affectedSiteEntries = siteOverview
+    .filter((site) => site.aggregateStatus === "offline" || site.aggregateStatus === "degraded")
+    .map((site) => ({
+      id: site.id,
+      label: site.title,
+      status: site.aggregateStatus,
+      detail: `${site.summary.online}/${site.summary.configured || site.summary.total} checks online`,
+    }))
+    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
+  const siteConfigurationGaps = siteOverview
+    .filter((site) => site.aggregateStatus === "not_configured")
+    .map((site) => ({
+      id: site.id,
+      label: site.title,
+      status: "not_configured",
+      detail: "No monitored URL configured",
+    }));
+  const pageIssueEntries = siteOverview
+    .flatMap((site) =>
+      (site.pages || [])
+        .filter((page) => page.status && !isHealthyStatus(page.status) && page.status !== "not_configured")
+        .map((page, index) => ({
+          id: `${site.id}-page-${page.path || page.label || index}`,
+          label: page.label || page.path || page.url || "Endpoint",
+          status: page.status,
+          detail: `${site.title}${page.path ? ` - ${page.path}` : ""}`,
+        }))
+    )
+    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
+  const pageConfigurationGaps = siteOverview.flatMap((site) =>
+    (site.pages || [])
+      .filter((page) => page.status === "not_configured")
+      .map((page, index) => ({
+        id: `${site.id}-missing-${page.path || page.label || index}`,
+        label: page.label || page.path || "Endpoint",
+        status: "not_configured",
+        detail: `${site.title}${page.path ? ` - ${page.path}` : ""}`,
+      }))
+  );
+  const surfaceIssueEntries = [...affectedSiteEntries, ...siteConfigurationGaps];
+  const pageOperationalIssues = [...pageIssueEntries, ...pageConfigurationGaps];
+  const systemDiagnosisRows = systemEntries
+    .map((entry) => {
+      const status = entry.status || "unknown";
+      return {
+        ...entry,
+        status,
+        tone: getMonitoringTone(status),
+        explanation: buildMonitoringStatusExplanation(status),
+        nextStep: buildMonitoringNextStep(status, entry.note),
+      };
+    })
+    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
+  const operationalSnapshotCards = [
     {
       id: "services",
-      label: "Services healthy",
-      value: `${serviceHealthPercent}%`,
-      detail: formatRatio(healthyServices, totalServices),
-      helper: `${totalServices} services tracked`,
+      label: "Service layer",
       status: healthyServices === totalServices ? "online" : healthyServices ? "degraded" : "offline",
-      score: serviceHealthPercent,
-      seed: 2,
+      headline: affectedSystemEntries.length
+        ? `${affectedSystemEntries.length} service${affectedSystemEntries.length === 1 ? "" : "s"} need attention`
+        : "All API and database checks are healthy",
+      summary: affectedSystemEntries.length
+        ? "A failing API or database can block dashboards, accounting, invoicing, and monitored app refreshes."
+        : "Core APIs and databases are responding normally.",
+      primaryMetric: `${serviceHealthPercent}% healthy`,
+      secondaryMetric: `${formatRatio(healthyServices, totalServices)} services`,
+      issues: affectedSystemEntries,
+      nextStep: affectedSystemEntries.length
+        ? buildMonitoringNextStep(affectedSystemEntries[0].status, affectedSystemEntries[0].detail)
+        : "No service action needed",
     },
     {
       id: "surfaces",
-      label: "Surfaces online",
-      value: `${siteHealthPercent}%`,
-      detail: formatRatio(onlineSites, totalSites),
-      helper: `${notConfiguredSites} optional unconfigured`,
-      status: onlineSites === totalSites ? "online" : onlineSites ? "degraded" : "offline",
-      score: siteHealthPercent,
-      seed: 7,
+      label: "App surfaces",
+      status: affectedSiteEntries.length
+        ? affectedSiteEntries.some((site) => site.status === "offline")
+          ? "offline"
+          : "degraded"
+        : siteConfigurationGaps.length
+          ? "not_configured"
+          : "online",
+      headline: affectedSiteEntries.length
+        ? `${affectedSiteEntries.length} app surface${affectedSiteEntries.length === 1 ? "" : "s"} affected`
+        : siteConfigurationGaps.length
+          ? `${siteConfigurationGaps.length} app surface${siteConfigurationGaps.length === 1 ? "" : "s"} not monitored`
+          : "All configured app surfaces are online",
+      summary: affectedSiteEntries.length
+        ? "The named app is not consistently reachable, so user-facing workflows may be affected."
+        : siteConfigurationGaps.length
+          ? "Monitoring cannot confirm every optional app surface yet because a URL is missing."
+          : "Configured apps are reachable from the monitor.",
+      primaryMetric: `${siteHealthPercent}% online`,
+      secondaryMetric: `${formatRatio(onlineSites, totalSites)} surfaces`,
+      issues: surfaceIssueEntries,
+      nextStep: affectedSiteEntries.length
+        ? buildMonitoringNextStep(affectedSiteEntries[0].status)
+        : siteConfigurationGaps.length
+          ? "Add missing surface URLs"
+          : "No app action needed",
     },
     {
       id: "pages",
-      label: "Pages online",
-      value: `${pageHealthPercent}%`,
-      detail: formatRatio(onlinePages, totalPages),
-      helper: `${totalPages} configured pages`,
-      status: onlinePages === totalPages ? "online" : onlinePages ? "degraded" : "offline",
-      score: pageHealthPercent,
-      seed: 11,
+      label: "Page checks",
+      status: pageIssueEntries.length
+        ? pageIssueEntries.some((page) => page.status === "offline" || page.status === "error")
+          ? "offline"
+          : "degraded"
+        : pageConfigurationGaps.length
+          ? "not_configured"
+          : "online",
+      headline: pageIssueEntries.length
+        ? `${pageIssueEntries.length} route${pageIssueEntries.length === 1 ? "" : "s"} failing checks`
+        : pageConfigurationGaps.length
+          ? `${pageConfigurationGaps.length} route${pageConfigurationGaps.length === 1 ? "" : "s"} missing URLs`
+          : "All configured routes are online",
+      summary: pageIssueEntries.length
+        ? "These are the specific routes to open first when an app looks unhealthy."
+        : pageConfigurationGaps.length
+          ? "The monitor is missing some optional route URLs, so those checks are invisible."
+          : "Every configured route returned a healthy signal.",
+      primaryMetric: `${pageHealthPercent}% online`,
+      secondaryMetric: `${formatRatio(onlinePages, totalPages)} pages`,
+      issues: pageOperationalIssues,
+      nextStep: pageIssueEntries.length
+        ? buildMonitoringNextStep(pageIssueEntries[0].status)
+        : pageConfigurationGaps.length
+          ? "Fill in missing route URLs"
+          : "No route action needed",
     },
   ].map((card) => ({
     ...card,
     tone: getMonitoringTone(card.status),
-    sparkline: buildMonitoringSparklineValues({
-      status: card.status,
-      score: card.score,
-      seed: card.seed,
-    }),
+    hiddenIssueCount: Math.max(card.issues.length - MONITORING_PREVIEW_LIMIT, 0),
   }));
   const accountingNetTotals = useMemo(() => {
     if (!accountingSummary) return null;
@@ -1618,39 +1754,47 @@ const Dashboard = () => {
               <div className="panel-header">
                 <div>
                   <h3>Operational snapshot</h3>
-                  <p className="muted">Live health ratios with recent signal shape.</p>
+                  <p className="muted">What is affected, where to look, and what to check first.</p>
                 </div>
               </div>
-              <div className="monitoring-card-grid">
-                {snapshotCards.map((card) => (
-                  <article className={`bubble-card monitoring-card is-${card.tone}`} key={card.id}>
-                    <div className="monitoring-card__header">
-                      <div className="monitoring-card__title">
+              <div className="dashboard-health-grid">
+                {operationalSnapshotCards.map((card) => (
+                  <article className={`dashboard-health-card is-${card.tone}`} key={card.id}>
+                    <div className="dashboard-health-card__header">
+                      <div>
                         <span className="kpi-label">{card.label}</span>
-                        <strong>{card.detail}</strong>
+                        <strong>{card.headline}</strong>
                       </div>
                       {renderStatusPill(card.status)}
                     </div>
-                    <div className="monitoring-card__metric">
-                      <strong>{card.value}</strong>
-                      <span>uptime</span>
+                    <p className="dashboard-health-card__summary">{card.summary}</p>
+                    <div className="dashboard-health-card__metrics">
+                      <span>{card.primaryMetric}</span>
+                      <span>{card.secondaryMetric}</span>
                     </div>
-                    <div
-                      className="monitoring-card__rail"
-                      style={{ "--monitoring-score": `${card.score}%` }}
-                      aria-hidden="true"
-                    >
-                      <span />
-                    </div>
-                    <div className="monitoring-card__spark">
-                      <MonitoringSparkline
-                        values={card.sparkline}
-                        status={card.status}
-                        label={`${card.label} sparkline`}
-                      />
-                    </div>
-                    <div className="monitoring-card__footer">
-                      <span className="muted">{card.helper}</span>
+                    {card.issues.length ? (
+                      <ul className="dashboard-health-card__issues">
+                        {card.issues.slice(0, MONITORING_PREVIEW_LIMIT).map((issue) => (
+                          <li key={issue.id}>
+                            <div>
+                              <strong>{issue.label}</strong>
+                              <span>{issue.detail}</span>
+                            </div>
+                            {renderStatusPill(issue.status)}
+                          </li>
+                        ))}
+                        {card.hiddenIssueCount ? (
+                          <li className="dashboard-health-card__more">
+                            +{card.hiddenIssueCount} more check{card.hiddenIssueCount === 1 ? "" : "s"}
+                          </li>
+                        ) : null}
+                      </ul>
+                    ) : (
+                      <p className="dashboard-health-card__empty">No issues in this group.</p>
+                    )}
+                    <div className="dashboard-health-card__next">
+                      <span>Next check</span>
+                      <strong>{card.nextStep}</strong>
                     </div>
                   </article>
                 ))}
@@ -1684,29 +1828,24 @@ const Dashboard = () => {
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
-                  <p className="muted">APIs and databases by current health signal.</p>
+                  <p className="muted">APIs and databases with the reason each state matters.</p>
                 </div>
               </div>
-              <div className="monitoring-card-grid">
-                {systemMonitorEntries.map((row) => (
-                  <article className={`bubble-card monitoring-card is-${row.tone}`} key={row.id}>
-                    <div className="monitoring-card__header">
-                      <div className="monitoring-card__title">
+              <div className="dashboard-diagnosis-list">
+                {systemDiagnosisRows.map((row) => (
+                  <article className={`dashboard-diagnosis-row is-${row.tone}`} key={row.id}>
+                    <span className="dashboard-diagnosis-row__marker" aria-hidden="true" />
+                    <div className="dashboard-diagnosis-row__main">
+                      <div className="dashboard-diagnosis-row__title">
                         <strong>{row.label}</strong>
-                        <span className="muted">{row.note}</span>
+                        {renderStatusPill(row.status)}
                       </div>
-                      {renderStatusPill(row.status)}
+                      <span className="muted">{row.note}</span>
+                      <p>{row.explanation}</p>
                     </div>
-                    <div className="monitoring-card__metric">
-                      <strong>{row.score}</strong>
-                      <span>score</span>
-                    </div>
-                    <div className="monitoring-card__spark">
-                      <MonitoringSparkline
-                        values={row.sparkline}
-                        status={row.status}
-                        label={`${row.label} health sparkline`}
-                      />
+                    <div className="dashboard-diagnosis-row__next">
+                      <span>Next check</span>
+                      <strong>{row.nextStep}</strong>
                     </div>
                   </article>
                 ))}

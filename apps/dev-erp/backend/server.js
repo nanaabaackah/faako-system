@@ -9568,6 +9568,11 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
         error: "status must be DRAFT, QUOTATION, SENT, ACCEPTED, DECLINED, PAID, OVERDUE, or VOID",
       });
     }
+    if (status === "PAID" && req.body?.paidAmount === undefined) {
+      return res.status(400).json({
+        error: "Use the invoice payment endpoint to record payments.",
+      });
+    }
     updateData.status = status;
   }
 
@@ -9705,12 +9710,13 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   const nextTotal = Number(updateData.total ?? invoice.total);
   let nextPaidAmount = Number(updateData.paidAmount ?? invoice.paidAmount ?? 0);
   let nextStatus = updateData.status ?? invoice.status;
-  if (nextStatus === "PAID" && req.body?.paidAmount === undefined && nextPaidAmount < nextTotal) {
-    nextPaidAmount = nextTotal;
-    updateData.paidAmount = toCurrencyDecimal(nextPaidAmount);
-  }
   if (nextStatus === "PAID" && nextPaidAmount < nextTotal) {
-    return res.status(400).json({ error: "paidAmount must cover the invoice total when status is PAID." });
+    if (req.body?.status === undefined && invoice.status === "PAID") {
+      nextStatus = "SENT";
+      updateData.status = "SENT";
+    } else {
+      return res.status(400).json({ error: "paidAmount must cover the invoice total when status is PAID." });
+    }
   }
   if (nextPaidAmount > 0 && nextPaidAmount >= nextTotal) {
     nextStatus = "PAID";
@@ -9770,6 +9776,189 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   });
 
   res.json(serializeInvoice(updatedInvoice));
+});
+
+app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) {
+    return res.status(400).json({ error: "Invoice id must be a valid number." });
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId }
+      : { id: invoiceId, organizationId: req.user.organizationId },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  if (!invoice) {
+    return res.status(404).json({ error: "Invoice not found." });
+  }
+
+  if (["VOID", "DECLINED", "QUOTATION"].includes(invoice.status)) {
+    return res.status(400).json({
+      error: "Payments can only be recorded for active invoices.",
+    });
+  }
+
+  const parsedPaymentAmount = parseInvoicePaidAmount(req.body?.amount);
+  if (parsedPaymentAmount.error) {
+    return res.status(400).json({ error: parsedPaymentAmount.error.replace("paidAmount", "amount") });
+  }
+  const paymentAmount = parsedPaymentAmount.paidAmount;
+  if (paymentAmount <= 0) {
+    return res.status(400).json({ error: "amount must be greater than 0." });
+  }
+
+  let paidAt = parseDateValue(req.body?.paidAt);
+  if (req.body?.paidAt && !paidAt) {
+    return res.status(400).json({ error: "paidAt must be a valid date." });
+  }
+  paidAt = paidAt || new Date();
+
+  const paymentNote =
+    typeof req.body?.note === "string" && req.body.note.trim()
+      ? req.body.note.trim().slice(0, 500)
+      : null;
+  const total = roundCurrencyAmount(invoice.total);
+  const previousPaidAmount = roundCurrencyAmount(invoice.paidAmount ?? 0);
+  const currentPaymentSummary = buildInvoicePaymentSummary({
+    total,
+    paidAmount: previousPaidAmount,
+  });
+  const balanceDue = roundCurrencyAmount(currentPaymentSummary.balanceDue);
+
+  if (balanceDue <= 0) {
+    return res.status(400).json({ error: "Invoice is already paid." });
+  }
+  if (paymentAmount > balanceDue + 0.005) {
+    return res.status(400).json({
+      error: `Payment cannot exceed the current balance due of ${invoice.currency} ${balanceDue.toFixed(2)}.`,
+    });
+  }
+
+  const nextPaidAmount = roundCurrencyAmount(previousPaidAmount + paymentAmount);
+  const nextPaymentSummary = buildInvoicePaymentSummary({ total, paidAmount: nextPaidAmount });
+  const isSettled =
+    nextPaymentSummary.paymentStatus === "paid" || nextPaymentSummary.paymentStatus === "overpaid";
+  const nextStatus = isSettled
+    ? "PAID"
+    : invoice.status === "DRAFT"
+      ? "SENT"
+      : invoice.status;
+  const accountingDetail = [
+    `Payment recorded from Invoicing for invoice ${invoice.invoiceNumber}.`,
+    `Client: ${invoice.clientName}.`,
+    `Invoice total: ${invoice.currency} ${total.toFixed(2)}.`,
+    `Cumulative paid: ${invoice.currency} ${nextPaidAmount.toFixed(2)}.`,
+    `Balance due: ${invoice.currency} ${nextPaymentSummary.balanceDue.toFixed(2)}.`,
+    paymentNote ? `Note: ${paymentNote}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const { updatedInvoice, accountingEntry } = await prisma.$transaction(async (tx) => {
+    const nextInvoice = await tx.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        paidAmount: toCurrencyDecimal(nextPaidAmount),
+        status: nextStatus,
+        paidAt: isSettled ? paidAt : null,
+      },
+      include: {
+        organization: { select: { id: true, name: true, slug: true } },
+        lineItems: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+
+    const existingEntry = await tx.accountingEntry.findFirst({
+      where: {
+        organizationId: invoice.organizationId,
+        invoiceNumber: invoice.invoiceNumber,
+        type: "REVENUE",
+        source: "MANUAL",
+        archivedAt: null,
+      },
+      orderBy: { id: "asc" },
+    });
+
+    const accountingData = {
+      organizationId: invoice.organizationId,
+      type: "REVENUE",
+      status: "PAID",
+      source: "MANUAL",
+      sourceRef: `invoice:${invoice.id}:payments`,
+      recurringInterval: null,
+      invoiceNumber: invoice.invoiceNumber,
+      archivedAt: null,
+      currency: invoice.currency,
+      amount: toCurrencyDecimal(nextPaidAmount),
+      serviceName: `Invoice payment - ${invoice.invoiceNumber}`,
+      detail: accountingDetail,
+      paidAt,
+      dueAt: null,
+    };
+
+    const nextAccountingEntry = existingEntry
+      ? await tx.accountingEntry.update({
+          where: { id: existingEntry.id },
+          data: {
+            ...accountingData,
+            sourceRef: existingEntry.sourceRef || accountingData.sourceRef,
+            recurringInterval: existingEntry.recurringInterval ?? null,
+            serviceName: existingEntry.serviceName || accountingData.serviceName,
+          },
+          include: { organization: { select: { id: true, name: true, slug: true } } },
+        })
+      : await tx.accountingEntry.create({
+          data: accountingData,
+          include: { organization: { select: { id: true, name: true, slug: true } } },
+        });
+
+    return { updatedInvoice: nextInvoice, accountingEntry: nextAccountingEntry };
+  });
+
+  await writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: updatedInvoice.organizationId,
+      action: "INVOICE_PAYMENT_RECORDED",
+      targetType: "invoice",
+      targetId: String(updatedInvoice.id),
+      source: "api",
+      category: "financial",
+      severity: "info",
+      status: "ok",
+      summary: `Recorded ${updatedInvoice.currency} ${paymentAmount.toFixed(2)} payment for invoice ${updatedInvoice.invoiceNumber}.`,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata: {
+        invoiceNumber: updatedInvoice.invoiceNumber,
+        paymentAmount,
+        paidAmount: nextPaidAmount,
+        balanceDue: nextPaymentSummary.balanceDue,
+        invoiceStatus: updatedInvoice.status,
+        accountingEntryId: accountingEntry.id,
+      },
+    },
+    { environment: APP_ENV }
+  );
+
+  res.json({
+    invoice: serializeInvoice(updatedInvoice),
+    accountingEntry: serializeAccountingEntry(accountingEntry),
+    payment: {
+      amount: paymentAmount,
+      paidAt: paidAt.toISOString(),
+      note: paymentNote,
+    },
+  });
 });
 
 const INVOICE_VIEW_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;

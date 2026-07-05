@@ -2239,9 +2239,17 @@
 }
 
 .stroane-portal-login__form span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 750;
+}
+
+.stroane-portal-login__required {
+  color: var(--color-danger);
+  font-weight: 900;
 }
 
 .stroane-portal-login__form input {
@@ -2262,6 +2270,18 @@
 .stroane-portal-login__form input:focus-visible {
   border-color: var(--color-primary-border-hover);
   box-shadow: 0 0 0 3px var(--color-primary-tint);
+}
+
+.stroane-portal-login__form label.is-error input {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 16%, transparent);
+}
+
+.stroane-portal-login__field-error {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 760;
+  line-height: 1.35;
 }
 
 .stroane-portal-login__form button,
