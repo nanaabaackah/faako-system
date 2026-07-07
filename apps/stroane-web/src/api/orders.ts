@@ -37,6 +37,8 @@ export interface DeliveryLocation {
   latitude?: number | null;
   longitude?: number | null;
   mapUrl?: string;
+  mainText?: string;
+  secondaryText?: string;
 }
 
 export interface CheckoutOrderItemPayload {
@@ -118,10 +120,11 @@ export interface PaystackVerifyResponse {
 export const orderApi = {
   async searchDeliveryLocations(
     query: string,
-    options: { signal?: AbortSignal; limit?: number } = {}
+    options: { signal?: AbortSignal; limit?: number; sessionToken?: string } = {}
   ): Promise<DeliveryLocation[]> {
     const params = new URLSearchParams({ q: query });
     if (options.limit) params.set("limit", String(options.limit));
+    if (options.sessionToken) params.set("sessionToken", options.sessionToken);
     const response = await fetch(apiPath(`/api/location/search?${params.toString()}`), {
       signal: options.signal,
     });
@@ -130,6 +133,26 @@ export const orderApi = {
       "Unable to search delivery locations."
     );
     return Array.isArray(body.locations) ? body.locations : [];
+  },
+
+  async getDeliveryLocationDetails(
+    placeId: string,
+    options: { signal?: AbortSignal; sessionToken?: string } = {}
+  ): Promise<DeliveryLocation> {
+    const params = new URLSearchParams();
+    if (options.sessionToken) params.set("sessionToken", options.sessionToken);
+    const query = params.toString();
+    const response = await fetch(
+      apiPath(
+        `/api/location/details/${encodeURIComponent(placeId)}${query ? `?${query}` : ""}`
+      ),
+      { signal: options.signal }
+    );
+    const body = await parseJsonResponse<{ location: DeliveryLocation }>(
+      response,
+      "Unable to load delivery address details."
+    );
+    return body.location;
   },
 
   async createOrder(payload: CheckoutOrderPayload): Promise<CheckoutOrderResponse> {

@@ -133,6 +133,9 @@ const formatLabel = (value = "") =>
 const formatDeliveryMethod = (value?: string | null) =>
   value ? formatLabel(value) : "Method not set";
 
+const getFulfillmentMethodLabel = (order: AdminOrder | null) =>
+  order?.deliveryMethod === "pickup" ? "Pickup" : "Delivery";
+
 const formatDateTime = (value?: string | null) => {
   if (!value) return "Not recorded";
   const date = new Date(value);
@@ -246,6 +249,42 @@ const getOrderMapUrls = (order: AdminOrder | null) => {
   };
 };
 
+const splitCustomerFulfillmentNotes = (notes?: string) => {
+  const lines = String(notes || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  let pickupWindow = "";
+  const customerNotes = lines.filter((line) => {
+    const match = line.match(/^Pickup window:\s*(.+?\.?)$/i);
+    if (match) {
+      pickupWindow = match[1].replace(/\.$/, "");
+      return false;
+    }
+    return true;
+  });
+
+  return {
+    customerNotes: customerNotes.join("\n"),
+    pickupWindow,
+  };
+};
+
+const getCustomerFulfillmentLocation = (order: AdminOrder) => {
+  const savedAddress = order.customer.deliveryAddress || "";
+  const selectedAddress = order.deliveryLocation?.address || "";
+  const selectedLabel = order.deliveryLocation?.label || "";
+  const primary = selectedLabel || selectedAddress || savedAddress || "Not recorded";
+  const secondary =
+    selectedAddress && selectedAddress !== primary
+      ? selectedAddress
+      : savedAddress && savedAddress !== primary
+        ? savedAddress
+        : "";
+
+  return { primary, secondary };
+};
+
 const OrderManagement: React.FC = () => {
   const { session } = useAdminPortal();
   const canManageOrders =
@@ -320,6 +359,14 @@ const OrderManagement: React.FC = () => {
   const canGoPreviousOrder = selectedOrderIndex > 0;
   const canGoNextOrder = selectedOrderIndex >= 0 && selectedOrderIndex < orders.length - 1;
   const selectedOrderMap = useMemo(() => getOrderMapUrls(selectedOrder), [selectedOrder]);
+  const selectedOrderFulfillment = useMemo(() => {
+    if (!selectedOrder) return null;
+    return {
+      ...getCustomerFulfillmentLocation(selectedOrder),
+      ...splitCustomerFulfillmentNotes(selectedOrder.customer.deliveryNotes),
+      methodLabel: getFulfillmentMethodLabel(selectedOrder),
+    };
+  }, [selectedOrder]);
 
   const pageCount = Math.max(1, Math.ceil(orders.length / ORDER_PAGE_SIZE));
   const clampedPageIndex = Math.min(pageIndex, pageCount - 1);
@@ -1095,8 +1142,51 @@ const OrderManagement: React.FC = () => {
                 </span>
                 <span>{selectedOrder.customer.email}</span>
                 <span>{selectedOrder.customer.phone}</span>
-                <p>{selectedOrder.customer.deliveryAddress}</p>
               </div>
+
+              {selectedOrderFulfillment ? (
+                <section
+                  className="stroane-orders__fulfillment-summary"
+                  aria-label={`${selectedOrderFulfillment.methodLabel} details from customer checkout`}
+                >
+                  <header>
+                    <span>{selectedOrderFulfillment.methodLabel} details</span>
+                    <ERPStatusBadge tone="info">From checkout</ERPStatusBadge>
+                  </header>
+                  <div className="stroane-orders__fulfillment-facts">
+                    <span>
+                      <small>
+                        {selectedOrder.deliveryMethod === "pickup"
+                          ? "Pickup location"
+                          : "Delivery address"}
+                      </small>
+                      <strong>{selectedOrderFulfillment.primary}</strong>
+                      {selectedOrderFulfillment.secondary ? (
+                        <em>{selectedOrderFulfillment.secondary}</em>
+                      ) : null}
+                    </span>
+                    <span>
+                      <small>
+                        {selectedOrder.deliveryMethod === "pickup"
+                          ? "Pickup date / window"
+                          : "Requested date"}
+                      </small>
+                      <strong>{formatDateTime(selectedOrder.expectedDeliveryDate)}</strong>
+                      {selectedOrderFulfillment.pickupWindow ? (
+                        <em>{selectedOrderFulfillment.pickupWindow}</em>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="stroane-orders__fulfillment-notes">
+                    <small>
+                      {selectedOrder.deliveryMethod === "pickup"
+                        ? "Pickup notes from customer"
+                        : "Delivery notes from customer"}
+                    </small>
+                    <p>{selectedOrderFulfillment.customerNotes || "No customer notes provided."}</p>
+                  </div>
+                </section>
+              ) : null}
 
               {selectedOrderMap.embedUrl ? (
                 <div className="stroane-orders__delivery-map">
@@ -1251,7 +1341,7 @@ const OrderManagement: React.FC = () => {
                 />
               </div>
               <ERPTextareaField
-                label="Delivery notes"
+                label="Staff fulfillment notes"
                 value={orderDraft.adminDeliveryNotes}
                 onChange={(event) =>
                   setOrderDraft((current) => ({

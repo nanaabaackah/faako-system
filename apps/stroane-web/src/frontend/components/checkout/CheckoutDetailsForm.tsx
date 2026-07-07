@@ -224,8 +224,10 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
                     className="checkout-address-suggestion"
                     onClick={() => onDeliveryLocationSelect(location)}
                   >
-                    <strong>{location.label}</strong>
-                    {location.provider ? <small>{location.provider}</small> : null}
+                    <strong>{location.mainText || location.label}</strong>
+                    <small>
+                      {[location.secondaryText, location.provider].filter(Boolean).join(" · ")}
+                    </small>
                   </button>
                 ))}
               </div>

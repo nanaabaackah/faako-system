@@ -80,6 +80,8 @@ model SignupRequest {
   activityTimeline     Json?
   emailDelivery        Json?
   pdfSummary           Json?
+  archivedAt           DateTime?
+  archivedBy           String?
   managementUpdatedAt  DateTime?
   managementUpdatedBy  String?
 
