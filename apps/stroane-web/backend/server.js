@@ -47,7 +47,11 @@ import {
   ORDER_NOTIFICATION_TYPES,
   sendCustomerOrderEmail,
 } from "./src/orderNotifications.js";
+<<<<<<< HEAD
 import { getDeliveryLocationDetails, searchDeliveryLocations } from "./src/locationSearch.js";
+=======
+import { searchDeliveryLocations } from "./src/locationSearch.js";
+>>>>>>> origin/main
 import { reduceInventoryForPaidOrder } from "./src/orderInventory.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
 import {

@@ -571,6 +571,7 @@ export default function FaakoOnboarding() {
           current.map((item) => (item.id === submission.id ? { ...item, ...submission } : item))
         );
       }
+<<<<<<< HEAD
       if (payload?.project?.created) {
         setNotice("Faako onboarding submission updated. A project was created for the converted submission.");
       } else if (payload?.project?.error) {
@@ -580,6 +581,20 @@ export default function FaakoOnboarding() {
       }
       setError("");
       await loadSubmissions();
+=======
+      setError("");
+      await loadSubmissions();
+      const project = payload?.project || null;
+      if (project) {
+        setNotice(
+          payload?.projectCreated
+            ? `Faako onboarding submission updated. Project "${project.title}" was created.`
+            : `Faako onboarding submission updated. Linked to project "${project.title}".`
+        );
+      } else {
+        setNotice("Faako onboarding submission updated.");
+      }
+>>>>>>> origin/main
     } catch (saveError) {
       setError(saveError.message || "Unable to update Faako onboarding submission.");
     } finally {

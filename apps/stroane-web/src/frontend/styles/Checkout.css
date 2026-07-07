@@ -168,6 +168,30 @@
   box-shadow: 0 0 0 3px var(--color-primary-tint);
 }
 
+.checkout-field.is-error .ui-field__input,
+.checkout-field.is-error .ui-field__textarea,
+.checkout-field.is-error .ui-dropdown-field__trigger,
+.checkout-field.is-error .ui-date-field__trigger,
+.checkout-field.is-error input,
+.checkout-field.is-error textarea,
+.checkout-pickup-spots.is-error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 14%, transparent);
+}
+
+.checkout-field .ui-field__required,
+.checkout-field-error,
+.checkout-field .ui-field__message--error {
+  color: var(--color-danger);
+}
+
+.checkout-field-error {
+  margin: -0.25rem 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: 760;
+  line-height: 1.35;
+}
+
 .checkout-field--full {
   margin-bottom: 1rem;
 }

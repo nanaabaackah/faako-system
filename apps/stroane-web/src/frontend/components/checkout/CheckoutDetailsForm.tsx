@@ -5,6 +5,9 @@ import type { CheckoutFulfillmentMethod, DeliveryLocation } from "../../../api/o
 import { PHONE_INPUT_PATTERN } from "../../../utils/contactValidation";
 
 type PreferredContactMethod = "email" | "phone" | "whatsapp";
+type CheckoutFieldErrors = Partial<
+  Record<"name" | "email" | "phone" | "address" | "pickupSpotId" | "pickupDate" | "pickupTime", string>
+>;
 
 interface PickupSpot {
   id: string;
@@ -40,6 +43,7 @@ interface CheckoutDetailsFormProps {
   preferredContactMethod: PreferredContactMethod;
   notice: string;
   error: string;
+  fieldErrors: CheckoutFieldErrors;
   reviewing: boolean;
   submitting: boolean;
   hasLines: boolean;
@@ -85,6 +89,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
   preferredContactMethod,
   notice,
   error,
+  fieldErrors,
   reviewing,
   submitting,
   hasLines,
@@ -116,6 +121,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           autoComplete="name"
+          error={fieldErrors.name}
           required
         />
         <TextField
@@ -125,6 +131,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
           value={email}
           onChange={(event) => onEmailChange(event.target.value)}
           autoComplete="email"
+          error={fieldErrors.email}
           required
         />
       </div>
@@ -141,6 +148,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
           pattern={PHONE_INPUT_PATTERN}
           placeholder="+233..."
           title="Use a valid phone number, for example +233 24 331 6192."
+          error={fieldErrors.phone}
           required
         />
         <TextField
@@ -198,6 +206,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
               onChange={(event) => onAddressChange(event.target.value)}
               autoComplete="street-address"
               placeholder="Search your delivery address"
+              error={fieldErrors.address}
               required
             />
             {deliveryLocation ? (
@@ -235,7 +244,13 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
           </div>
         ) : (
           <>
-            <div className="checkout-pickup-spots" role="radiogroup" aria-label="Pickup spot">
+            <div
+              className={`checkout-pickup-spots ${fieldErrors.pickupSpotId ? "is-error" : ""}`}
+              role="radiogroup"
+              aria-label="Pickup spot"
+              aria-invalid={fieldErrors.pickupSpotId ? "true" : undefined}
+              aria-describedby={fieldErrors.pickupSpotId ? "checkout-pickup-spot-error" : undefined}
+            >
               {pickupSpots.map((spot) => (
                 <button
                   key={spot.id}
@@ -251,6 +266,11 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
                 </button>
               ))}
             </div>
+            {fieldErrors.pickupSpotId ? (
+              <p className="checkout-field-error" id="checkout-pickup-spot-error">
+                {fieldErrors.pickupSpotId}
+              </p>
+            ) : null}
             <div className="checkout-form__row checkout-form__row--compact">
               <DateField
                 fieldClassName="checkout-field"
@@ -260,6 +280,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
                 onChangeValue={onPickupDateChange}
                 isDateDisabled={(date) => date.getDay() === 0}
                 hint="Pickup is available Monday to Saturday."
+                error={fieldErrors.pickupDate}
                 required
               />
               <SelectField
@@ -269,6 +290,7 @@ const CheckoutDetailsForm: React.FC<CheckoutDetailsFormProps> = ({
                 onChangeValue={(value) => onPickupTimeChange(getSelectValue(value))}
                 options={pickupWindows}
                 placeholder="Select pickup window"
+                error={fieldErrors.pickupTime}
                 required
               />
             </div>

@@ -60,6 +60,10 @@ const PICKUP_WINDOWS = [
   },
 ];
 
+type CheckoutFieldErrors = Partial<
+  Record<"name" | "email" | "phone" | "address" | "pickupSpotId" | "pickupDate" | "pickupTime", string>
+>;
+
 const getTodayInputValue = () => new Date().toISOString().slice(0, 10);
 
 const parseDateInput = (value: string) => {
@@ -72,6 +76,7 @@ const parseDateInput = (value: string) => {
 
 const isSundayPickupDate = (value: string) => parseDateInput(value)?.getDay() === 0;
 
+<<<<<<< HEAD
 const createDeliverySessionToken = () => {
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
@@ -79,6 +84,16 @@ const createDeliverySessionToken = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
+=======
+const isReasonableName = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+};
+
+const getFirstFieldError = (errors: CheckoutFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
+
+>>>>>>> origin/main
 const Checkout: React.FC = () => {
   const { products: catalogueProducts, loading, notice } = useCatalogueData();
   const { cart, updateQuantity, remove, clear } = useCart();
@@ -105,6 +120,7 @@ const Checkout: React.FC = () => {
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [website, setWebsite] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<CheckoutOrderResponse | null>(null);
@@ -233,34 +249,79 @@ const Checkout: React.FC = () => {
   }, [address, deliveryLocation, deliverySessionToken, fulfillmentMethod]);
 
   const validateDetails = () => {
-    if (!lines.length) return "Your basket is empty.";
+    const nextFieldErrors: CheckoutFieldErrors = {};
+    if (!lines.length) return { message: "Your basket is empty.", fieldErrors: nextFieldErrors };
     if (unavailableLines.length) {
-      return "Remove unavailable or unpriced items before checkout.";
+      return {
+        message: "Remove unavailable or unpriced items before checkout.",
+        fieldErrors: nextFieldErrors,
+      };
     }
-    if (!name.trim()) return "Add your full name.";
-    if (!isLikelyEmail(email)) return "Add a valid email address.";
-    if (!isLikelyPhone(phone)) return "Add a valid phone number.";
-    if (fulfillmentMethod === "delivery" && !address.trim()) return "Add a delivery address.";
-    if (fulfillmentMethod === "delivery" && !deliveryLocation) {
-      return "Select a delivery address from the GPS results.";
+    if (!name.trim()) {
+      nextFieldErrors.name = "Add your full name.";
+    } else if (!isReasonableName(name)) {
+      nextFieldErrors.name = "Use your real name using letters, spaces, hyphens, or apostrophes.";
     }
-    if (fulfillmentMethod === "pickup" && !pickupSpotId) return "Choose a pickup spot.";
-    if (fulfillmentMethod === "pickup" && !pickupDate) return "Choose a pickup date.";
-    if (fulfillmentMethod === "pickup" && isSundayPickupDate(pickupDate)) {
-      return "Sunday pickups are not available. Choose Monday to Saturday.";
+    if (!isLikelyEmail(email.trim().toLowerCase())) {
+      nextFieldErrors.email = "Add a valid email address.";
     }
-    if (fulfillmentMethod === "pickup" && !pickupTime) return "Choose a pickup window.";
-    if (fulfillmentMethod === "pickup" && !pickupWindowValues.has(pickupTime)) {
-      return "Choose a pickup window between 10:00 AM and 7:00 PM.";
+    if (!isLikelyPhone(phone)) {
+      nextFieldErrors.phone = "Add a valid phone number.";
     }
-    if (website.trim()) return "The checkout request could not be submitted.";
-    return "";
+    if (fulfillmentMethod === "delivery" && !address.trim()) {
+      nextFieldErrors.address = "Add a delivery address.";
+    } else if (fulfillmentMethod === "delivery" && !deliveryLocation) {
+      nextFieldErrors.address = "Select a delivery address from the GPS results.";
+    }
+    if (fulfillmentMethod === "pickup" && !pickupSpotId) {
+      nextFieldErrors.pickupSpotId = "Choose a pickup spot.";
+    }
+    if (fulfillmentMethod === "pickup" && !pickupDate) {
+      nextFieldErrors.pickupDate = "Choose a pickup date.";
+    } else if (fulfillmentMethod === "pickup" && isSundayPickupDate(pickupDate)) {
+      nextFieldErrors.pickupDate = "Sunday pickups are not available. Choose Monday to Saturday.";
+    }
+    if (fulfillmentMethod === "pickup" && !pickupTime) {
+      nextFieldErrors.pickupTime = "Choose a pickup window.";
+    } else if (fulfillmentMethod === "pickup" && !pickupWindowValues.has(pickupTime)) {
+      nextFieldErrors.pickupTime = "Choose a pickup window between 10:00 AM and 7:00 PM.";
+    }
+    if (Object.keys(nextFieldErrors).length) {
+      return { message: getFirstFieldError(nextFieldErrors), fieldErrors: nextFieldErrors };
+    }
+    if (website.trim()) {
+      return {
+        message: "The checkout request could not be submitted.",
+        fieldErrors: nextFieldErrors,
+      };
+    }
+    return { message: "", fieldErrors: nextFieldErrors };
   };
 
-  const markDetailsChanged = () => setReviewing(false);
+  const clearFieldError = (field: keyof CheckoutFieldErrors) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const markDetailsChanged = () => {
+    setReviewing(false);
+    setError("");
+  };
 
   const updateFulfillmentMethod = (method: CheckoutFulfillmentMethod) => {
     setFulfillmentMethod(method);
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.address;
+      delete next.pickupSpotId;
+      delete next.pickupDate;
+      delete next.pickupTime;
+      return next;
+    });
     markDetailsChanged();
   };
 
@@ -295,12 +356,14 @@ const Checkout: React.FC = () => {
     event.preventDefault();
     setError("");
 
-    const validationMessage = validateDetails();
-    if (validationMessage) {
-      setError(validationMessage);
+    const validation = validateDetails();
+    if (validation.message) {
+      setFieldErrors(validation.fieldErrors);
+      setError(validation.message);
       setReviewing(false);
       return;
     }
+    setFieldErrors({});
 
     if (!reviewing) {
       setReviewing(true);
@@ -311,11 +374,11 @@ const Checkout: React.FC = () => {
     try {
       const response = await orderApi.createOrder({
         customer: {
-          name,
-          email,
-          phone,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
           preferredContactMethod,
-          businessName,
+          businessName: businessName.trim(),
           deliveryAddress: fulfillmentAddress,
           deliveryNotes,
         },
@@ -413,6 +476,7 @@ const Checkout: React.FC = () => {
                 preferredContactMethod={preferredContactMethod}
                 notice={notice}
                 error={error}
+                fieldErrors={fieldErrors}
                 reviewing={reviewing}
                 submitting={submitting}
                 hasLines={Boolean(lines.length)}
@@ -420,14 +484,17 @@ const Checkout: React.FC = () => {
                 onEdit={() => setReviewing(false)}
                 onNameChange={(value) => {
                   setName(value);
+                  clearFieldError("name");
                   markDetailsChanged();
                 }}
                 onEmailChange={(value) => {
                   setEmail(value);
+                  clearFieldError("email");
                   markDetailsChanged();
                 }}
                 onPhoneChange={(value) => {
                   setPhone(value);
+                  clearFieldError("phone");
                   markDetailsChanged();
                 }}
                 onBusinessNameChange={(value) => {
@@ -438,19 +505,33 @@ const Checkout: React.FC = () => {
                 onAddressChange={(value) => {
                   setAddress(value);
                   setDeliveryLocation(null);
+                  clearFieldError("address");
                   markDetailsChanged();
                 }}
+<<<<<<< HEAD
                 onDeliveryLocationSelect={(location) => void handleDeliveryLocationSelect(location)}
+=======
+                onDeliveryLocationSelect={(location) => {
+                  setDeliveryLocation(location);
+                  setAddress(location.address || location.label);
+                  setDeliveryLocationResults([]);
+                  clearFieldError("address");
+                  markDetailsChanged();
+                }}
+>>>>>>> origin/main
                 onPickupSpotChange={(value) => {
                   setPickupSpotId(value);
+                  clearFieldError("pickupSpotId");
                   markDetailsChanged();
                 }}
                 onPickupDateChange={(value) => {
                   setPickupDate(value);
+                  clearFieldError("pickupDate");
                   markDetailsChanged();
                 }}
                 onPickupTimeChange={(value) => {
                   setPickupTime(value);
+                  clearFieldError("pickupTime");
                   markDetailsChanged();
                 }}
                 onDeliveryNotesChange={(value) => {

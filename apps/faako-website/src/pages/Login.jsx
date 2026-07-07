@@ -18,11 +18,60 @@ import {
 } from "@fortawesome/free-brands-svg-icons";
 import "../styles/pages/Auth.css";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const RequiredMark = () => (
+  <>
+    <span className="signup-required-mark" aria-hidden="true">
+      *
+    </span>
+    <span className="sr-only">required</span>
+  </>
+);
+
+const getFirstFieldError = (errors) => Object.values(errors).find(Boolean) || "";
+
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [status, setStatus] = useState("");
+
+  const fieldError = (field) => fieldErrors[field] || "";
+
+  const clearFieldError = (field) => {
+    setStatus("");
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    const nextErrors = {};
+
+    if (!email) {
+      nextErrors.email = "Enter your email address.";
+    } else if (!EMAIL_PATTERN.test(email)) {
+      nextErrors.email = "Use a valid email address.";
+    }
+    if (!password) {
+      nextErrors.password = "Enter your password.";
+    }
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setStatus(getFirstFieldError(nextErrors));
+      return;
+    }
+
+    setFieldErrors({});
+    setStatus("");
   };
 
   return (
@@ -62,6 +111,7 @@ export default function Login() {
           data-scroll
           style={{ "--delay": "120ms" }}
           onSubmit={handleSubmit}
+          noValidate
         >
           <div className="login-card-badge" aria-hidden="true">
             <FontAwesomeIcon icon={faRightToBracket} />
@@ -74,39 +124,77 @@ export default function Login() {
             </p>
           </div>
 
-          <label className="login-field">
-            <span className="login-field-icon">
-              <FontAwesomeIcon icon={faEnvelope} />
+          <label className={`login-field ${fieldError("email") ? "is-error" : ""}`}>
+            <span className="login-field-label">
+              Email address
+              <RequiredMark />
             </span>
-            <input
-              name="email"
-              type="email"
-              placeholder="you@company.com"
-              autoComplete="email"
-              required
-            />
+            <span className="login-field-control">
+              <span className="login-field-icon">
+                <FontAwesomeIcon icon={faEnvelope} />
+              </span>
+              <input
+                name="email"
+                type="email"
+                placeholder="you@company.com"
+                autoComplete="email"
+                onChange={() => clearFieldError("email")}
+                aria-invalid={fieldError("email") ? "true" : undefined}
+                aria-describedby={fieldError("email") ? "login-email-error" : undefined}
+                required
+              />
+            </span>
+            {fieldError("email") ? (
+              <span className="signup-field-error" id="login-email-error">
+                {fieldError("email")}
+              </span>
+            ) : null}
           </label>
 
-          <label className="login-field login-field--password">
-            <span className="login-field-icon">
-              <FontAwesomeIcon icon={faLock} />
+          <label
+            className={`login-field login-field--password ${
+              fieldError("password") ? "is-error" : ""
+            }`}
+          >
+            <span className="login-field-label">
+              Password
+              <RequiredMark />
             </span>
-            <input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-            />
-            <button
-              type="button"
-              className="login-field-toggle"
-              onClick={() => setShowPassword((current) => !current)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
-            </button>
+            <span className="login-field-control">
+              <span className="login-field-icon">
+                <FontAwesomeIcon icon={faLock} />
+              </span>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                onChange={() => clearFieldError("password")}
+                aria-invalid={fieldError("password") ? "true" : undefined}
+                aria-describedby={fieldError("password") ? "login-password-error" : undefined}
+                required
+              />
+              <button
+                type="button"
+                className="login-field-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+              </button>
+            </span>
+            {fieldError("password") ? (
+              <span className="signup-field-error" id="login-password-error">
+                {fieldError("password")}
+              </span>
+            ) : null}
           </label>
+
+          {status ? (
+            <p className="signup-field-error" role="alert">
+              {status}
+            </p>
+          ) : null}
 
           <div className="auth-actions login-actions-row">
             <Link to="/forgot-password" className="text-link">

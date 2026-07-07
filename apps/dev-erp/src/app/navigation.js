@@ -11,6 +11,7 @@ import {
   Profile2User,
   Setting2,
   Home2,
+  TaskSquare,
 } from "iconsax-react";
 import {
   getModuleBadges,
@@ -192,6 +193,8 @@ export const getTopbarLabel = (pathname) => {
       return "Projects";
     case "/accounting":
       return "Accounting";
+    case "/projects":
+      return "Projects";
     case "/rent":
       return "Rent";
     case "/bookings":
@@ -250,6 +253,8 @@ export const getTitleForPath = (pathname) => {
       return "Reports | Dev";
     case "/accounting":
       return "Accounting | Dev";
+    case "/projects":
+      return "Projects | Dev";
     case "/rent":
       return "Rent | Dev";
     case "/proposals":

@@ -4,7 +4,7 @@ import {
   calculateBalanceDueMajor,
   calculateFinanceStatusFromMajor,
 } from "@faako/finance";
-import { FiDownload, FiMail, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiCreditCard, FiDownload, FiEdit3, FiMail, FiPlus, FiSlash, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
@@ -29,6 +29,9 @@ const INVOICE_STATUS_OPTIONS = [
 ];
 
 const FILTER_STATUS_OPTIONS = [{ value: "all", label: "All" }, ...INVOICE_STATUS_OPTIONS];
+const FORM_STATUS_OPTIONS = INVOICE_STATUS_OPTIONS.filter(
+  (option) => !["PAID", "VOID"].includes(option.value)
+);
 
 const STATUS_TONE = {
   DRAFT: "info",
@@ -214,7 +217,6 @@ const buildInvoiceForm = ({ organizationId = "", invoice = null } = {}) => ({
   notes: typeof invoice?.notes === "string" && invoice.notes.trim() ? invoice.notes : buildInvoiceNotes(),
   taxRate: invoice?.taxRate !== undefined ? String(invoice.taxRate) : "0",
   discount: invoice?.discount !== undefined ? String(invoice.discount) : "0",
-  paidAmount: invoice?.paidAmount !== undefined ? String(invoice.paidAmount) : "0",
   lineItems:
     Array.isArray(invoice?.lineItems) && invoice.lineItems.length
       ? buildFormLineItems(invoice.lineItems)
@@ -233,6 +235,24 @@ const getInvoicePaymentSummary = (invoice = {}) => {
     paymentStatus:
       invoice?.paymentStatus || calculateFinanceStatusFromMajor({ total, paid: paidAmount }),
   };
+};
+
+const buildPaymentForm = (invoice = null) => {
+  const payment = getInvoicePaymentSummary(invoice || {});
+  const amount = payment.balanceDue > 0 ? payment.balanceDue.toFixed(2) : "";
+  return {
+    amount,
+    paidAt: buildTodayDate(),
+    note: "",
+  };
+};
+
+const canRecordInvoicePayment = (invoice = {}) => {
+  const payment = getInvoicePaymentSummary(invoice);
+  return (
+    payment.balanceDue > 0 &&
+    !["PAID", "VOID", "DECLINED", "QUOTATION"].includes(invoice?.status)
+  );
 };
 
 const Invoicing = () => {
@@ -265,6 +285,10 @@ const Invoicing = () => {
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isSendingQuotation, setIsSendingQuotation] = useState(false);
   const [isRespondingToQuote, setIsRespondingToQuote] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState(null);
+  const [paymentForm, setPaymentForm] = useState(() => buildPaymentForm());
+  const [paymentError, setPaymentError] = useState("");
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
@@ -333,12 +357,12 @@ const Invoicing = () => {
   }, [notice]);
 
   useEffect(() => {
-    if (!showForm && !selectedInvoice) return undefined;
+    if (!showForm && !selectedInvoice && !paymentInvoice) return undefined;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showForm, selectedInvoice]);
+  }, [paymentInvoice, showForm, selectedInvoice]);
 
   const invoiceTotals = useMemo(
     () =>
@@ -384,21 +408,10 @@ const Invoicing = () => {
     () => getInvoicePaymentSummary(selectedInvoice || {}),
     [selectedInvoice]
   );
-  const formPayment = useMemo(() => {
-    const paidAmount = Number(formState.paidAmount || 0);
-    const normalizedPaidAmount = Number.isFinite(paidAmount) ? paidAmount : 0;
-    return {
-      paidAmount: normalizedPaidAmount,
-      balanceDue: calculateBalanceDueMajor({
-        total: invoiceTotals.total,
-        paid: normalizedPaidAmount,
-      }),
-      paymentStatus: calculateFinanceStatusFromMajor({
-        total: invoiceTotals.total,
-        paid: normalizedPaidAmount,
-      }),
-    };
-  }, [formState.paidAmount, invoiceTotals.total]);
+  const paymentInvoiceSummary = useMemo(
+    () => getInvoicePaymentSummary(paymentInvoice || {}),
+    [paymentInvoice]
+  );
 
   const formItemTotals = useMemo(() => {
     let regularSubtotal = 0;
@@ -431,18 +444,19 @@ const Invoicing = () => {
     };
 
     invoices.forEach((invoice) => {
-      const amount = Number(invoice.total || 0);
-      const displayAmount = convertAmountToDisplayGhs(amount, invoice.currency);
+      const payment = getInvoicePaymentSummary(invoice);
+      const displayPaidAmount = convertAmountToDisplayGhs(payment.paidAmount, invoice.currency);
+      const displayBalanceDue = convertAmountToDisplayGhs(payment.balanceDue, invoice.currency);
 
       if (invoice.status === "OVERDUE") {
         base.overdueCount += 1;
       }
       if (invoice.status === "PAID") {
         base.paidCount += 1;
-        base.paidTotalGhs += displayAmount;
+        base.paidTotalGhs += displayPaidAmount;
       } else if (invoice.status !== "VOID") {
         base.openCount += 1;
-        base.openTotalGhs += displayAmount;
+        base.openTotalGhs += displayBalanceDue;
       }
     });
 
@@ -490,8 +504,27 @@ const Invoicing = () => {
     openEditModal(invoiceToEdit);
   };
 
+  const openPaymentModal = (invoice) => {
+    if (!invoice || !isAdmin || !canRecordInvoicePayment(invoice)) return;
+    setPaymentInvoice(invoice);
+    setPaymentForm(buildPaymentForm(invoice));
+    setPaymentError("");
+    setSelectedInvoice(null);
+  };
+
+  const closePaymentModal = () => {
+    if (isRecordingPayment) return;
+    setPaymentInvoice(null);
+    setPaymentForm(buildPaymentForm());
+    setPaymentError("");
+  };
+
   const updateFormField = (field, value) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updatePaymentField = (field, value) => {
+    setPaymentForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateLineItem = (lineId, field, value) => {
@@ -595,15 +628,9 @@ const Invoicing = () => {
       setFormError("Add at least one valid line item.");
       return;
     }
-    const paidAmount = Number(formState.paidAmount || 0);
-    if (!Number.isFinite(paidAmount) || paidAmount < 0) {
-      setFormError("Payment received must be 0 or greater.");
-      return;
-    }
-
     const payload = {
       invoiceNumber: formState.invoiceNumber.trim() || undefined,
-      status: formState.status,
+      status: ["PAID", "VOID"].includes(formState.status) ? undefined : formState.status,
       currency: formState.currency,
       issueDate: formState.issueDate,
       dueDate: formState.dueDate || null,
@@ -613,7 +640,6 @@ const Invoicing = () => {
       notes: formState.notes.trim() || null,
       taxRate: Number(formState.taxRate || 0),
       discount: Number(formState.discount || 0),
-      paidAmount,
       lineItems: formState.lineItems.map((lineItem) => ({
         description: serializeLineItemDescription(lineItem),
         quantity: Number(lineItem.quantity || 0),
@@ -648,14 +674,75 @@ const Invoicing = () => {
   const handleStatusChange = async (invoice, nextStatus) => {
     try {
       setError("");
-      await apiPatch(`/api/invoices/${invoice.id}`, { status: nextStatus }, {
+      const payload = await apiPatch(`/api/invoices/${invoice.id}`, { status: nextStatus }, {
         fallbackMessage: "Unable to update invoice status",
       });
+      const nextInvoice = payload?.id ? payload : { ...invoice, status: nextStatus };
 
+      setInvoices((prev) =>
+        prev.map((existingInvoice) =>
+          existingInvoice.id === nextInvoice.id ? nextInvoice : existingInvoice
+        )
+      );
+      setSelectedInvoice((prev) => (prev?.id === nextInvoice.id ? nextInvoice : prev));
       await loadInvoices({ silent: true });
       setNotice(`Invoice ${invoice.invoiceNumber} marked ${nextStatus.toLowerCase()}.`);
     } catch (statusError) {
       setError(statusError.message || "Unable to update invoice status");
+    }
+  };
+
+  const handleRecordPayment = async (event) => {
+    event.preventDefault();
+    if (!paymentInvoice) return;
+
+    const amount = Number(paymentForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPaymentError("Enter a payment amount greater than 0.");
+      return;
+    }
+    if (amount > paymentInvoiceSummary.balanceDue + 0.005) {
+      setPaymentError(
+        `Payment cannot exceed the balance due of ${formatAmount(
+          paymentInvoiceSummary.balanceDue,
+          paymentInvoice.currency
+        )}.`
+      );
+      return;
+    }
+    if (!paymentForm.paidAt) {
+      setPaymentError("Payment date is required.");
+      return;
+    }
+
+    setIsRecordingPayment(true);
+    setPaymentError("");
+    setError("");
+    try {
+      const payload = await apiPost(
+        `/api/invoices/${paymentInvoice.id}/payments`,
+        {
+          amount,
+          paidAt: paymentForm.paidAt,
+          note: paymentForm.note.trim() || null,
+        },
+        { fallbackMessage: "Unable to record invoice payment" }
+      );
+      const nextInvoice = payload?.invoice || null;
+      if (nextInvoice?.id) {
+        setInvoices((prev) =>
+          prev.map((invoice) => (invoice.id === nextInvoice.id ? nextInvoice : invoice))
+        );
+      }
+      setPaymentInvoice(null);
+      setPaymentForm(buildPaymentForm());
+      setPaymentError("");
+      await loadInvoices({ silent: true });
+      setNotice(`Payment recorded for invoice ${paymentInvoice.invoiceNumber}.`);
+    } catch (paymentSaveError) {
+      setPaymentError(paymentSaveError.message || "Unable to record invoice payment.");
+    } finally {
+      setIsRecordingPayment(false);
     }
   };
 
@@ -950,43 +1037,46 @@ const Invoicing = () => {
                         {FINANCE_STATUS_LABELS[payment.paymentStatus] || payment.paymentStatus}
                       </span>
                     </div>
-                  <div className="row-actions invoice-ledger-actions">
-                    {isAdmin ? (
-                      <button
-                        className="text-button"
+	                  <div className="row-actions invoice-ledger-actions">
+	                    {isAdmin ? (
+	                      <button
+	                        className="text-button"
+	                        type="button"
+	                        onClick={(event) => {
+	                          event.stopPropagation();
+	                          openEditModal(invoice);
+	                        }}
+	                      >
+	                        <FiEdit3 aria-hidden="true" />
+	                        <span>Edit</span>
+	                      </button>
+	                    ) : null}
+	                    {isAdmin && canRecordInvoicePayment(invoice) ? (
+	                      <button
+	                        className="text-button"
+	                        type="button"
+	                        onClick={(event) => {
+	                          event.stopPropagation();
+	                          openPaymentModal(invoice);
+	                        }}
+	                      >
+	                        <FiCreditCard aria-hidden="true" />
+	                        <span>Record payment</span>
+	                      </button>
+	                    ) : null}
+	                    {isAdmin && invoice.status !== "VOID" ? (
+	                      <button
+	                        className="text-button"
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          openEditModal(invoice);
-                        }}
-                      >
-                        Edit
-                      </button>
-                    ) : null}
-                    {isAdmin && invoice.status !== "PAID" && invoice.status !== "VOID" ? (
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleStatusChange(invoice, "PAID");
-                        }}
-                      >
-                        Mark paid
-                      </button>
-                    ) : null}
-                    {isAdmin && invoice.status !== "VOID" ? (
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleStatusChange(invoice, "VOID");
-                        }}
-                      >
-                        Void
-                      </button>
-                    ) : null}
+	                          handleStatusChange(invoice, "VOID");
+	                        }}
+	                      >
+	                        <FiSlash aria-hidden="true" />
+	                        <span>Void</span>
+	                      </button>
+	                    ) : null}
                     <button
                       className="icon-button"
                       type="button"
@@ -1203,19 +1293,40 @@ const Invoicing = () => {
 
                 <section className="invoice-preview-card invoice-preview-card--actions">
                   <div className="invoice-preview-actions">
-                    {isAdmin ? (
-                      <button
-                        className="button button-plain"
-                        type="button"
-                        onClick={openEditFromInvoiceModal}
-                      >
-                        Edit invoice
-                      </button>
-                    ) : null}
-                    {isAdmin && selectedInvoice.status === "DRAFT" ? (
-                      <button
-                        className="button button-plain"
-                        type="button"
+	                    {isAdmin ? (
+	                      <button
+	                        className="button button-plain"
+	                        type="button"
+	                        onClick={openEditFromInvoiceModal}
+	                      >
+	                        <FiEdit3 aria-hidden="true" />
+	                        <span>Edit invoice</span>
+	                      </button>
+	                    ) : null}
+	                    {isAdmin && canRecordInvoicePayment(selectedInvoice) ? (
+	                      <button
+	                        className="button button-plain"
+	                        type="button"
+	                        onClick={() => openPaymentModal(selectedInvoice)}
+	                      >
+	                        <FiCreditCard aria-hidden="true" />
+	                        <span>Record payment</span>
+	                      </button>
+	                    ) : null}
+	                    {isAdmin && selectedInvoice.status !== "VOID" ? (
+	                      <button
+	                        className="button button-ghost"
+	                        type="button"
+	                        onClick={() => handleStatusChange(selectedInvoice, "VOID")}
+	                      >
+	                        <FiSlash aria-hidden="true" />
+	                        <span>Void invoice</span>
+	                      </button>
+	                    ) : null}
+	                    {isAdmin && selectedInvoice.status === "DRAFT" ? (
+	                      <button
+	                        className="button button-plain"
+	                        type="button"
                         onClick={handleSendInvoice}
                         disabled={isSendingInvoice || !selectedInvoice.clientEmail}
                       >
@@ -1271,11 +1382,117 @@ const Invoicing = () => {
             </div>
           </div>
         </div>
-      ) : null}
+	      ) : null}
 
-      {showForm ? (
-        <div className="modal-backdrop" role="presentation">
-          <button
+	      {paymentInvoice ? (
+	        <div className="modal-backdrop" role="presentation">
+	          <button
+	            className="modal-dismiss"
+	            type="button"
+	            aria-label="Close payment form"
+	            onClick={closePaymentModal}
+	          />
+	          <div
+	            className="modal-card invoice-payment-modal"
+	            role="dialog"
+	            aria-modal="true"
+	            aria-labelledby="invoice-payment-title"
+	          >
+	            <div className="modal-header">
+	              <div>
+	                <p className="eyebrow">Invoice payment</p>
+	                <h3 id="invoice-payment-title">Record payment</h3>
+	                <p className="muted">
+	                  {paymentInvoice.invoiceNumber} for {paymentInvoice.clientName}
+	                </p>
+	              </div>
+	              <button
+	                className="button button-ghost"
+	                type="button"
+	                onClick={closePaymentModal}
+	                disabled={isRecordingPayment}
+	              >
+	                Close
+	              </button>
+	            </div>
+
+	            {paymentError ? <div className="notice is-error">{paymentError}</div> : null}
+
+	            <form className="stack" onSubmit={handleRecordPayment}>
+	              <div className="invoice-payment-summary">
+	                <div>
+	                  <span>Total</span>
+	                  <strong>{formatAmount(paymentInvoice.total, paymentInvoice.currency)}</strong>
+	                </div>
+	                <div>
+	                  <span>Received</span>
+	                  <strong>
+	                    {formatAmount(paymentInvoiceSummary.paidAmount, paymentInvoice.currency)}
+	                  </strong>
+	                </div>
+	                <div>
+	                  <span>Balance due</span>
+	                  <strong>
+	                    {formatAmount(paymentInvoiceSummary.balanceDue, paymentInvoice.currency)}
+	                  </strong>
+	                </div>
+	              </div>
+
+	              <div className="invoice-grid">
+	                <label className="form-field">
+	                  <span>Payment amount</span>
+	                  <input
+	                    className="input"
+	                    type="number"
+	                    min="0.01"
+	                    step="0.01"
+	                    max={paymentInvoiceSummary.balanceDue || undefined}
+	                    value={paymentForm.amount}
+	                    onChange={(event) => updatePaymentField("amount", event.target.value)}
+	                    required
+	                  />
+	                </label>
+	                <DateField
+	                  fieldClassName="form-field"
+	                  label="Payment date"
+	                  value={paymentForm.paidAt}
+	                  onChange={(event) => updatePaymentField("paidAt", event.target.value)}
+	                  required
+	                />
+	              </div>
+
+	              <label className="form-field">
+	                <span>Payment note</span>
+	                <textarea
+	                  className="input"
+	                  value={paymentForm.note}
+	                  onChange={(event) => updatePaymentField("note", event.target.value)}
+	                  placeholder="Optional reference, channel, or note"
+	                />
+	              </label>
+
+	              <div className="header-actions">
+	                <button
+	                  className="button button-ghost"
+	                  type="button"
+	                  onClick={closePaymentModal}
+	                  disabled={isRecordingPayment}
+	                >
+	                  Cancel
+	                </button>
+	                <button className="button button-primary" type="submit" disabled={isRecordingPayment}>
+	                  <FiCreditCard aria-hidden="true" />
+	                  <span>{isRecordingPayment ? "Recording..." : "Record payment"}</span>
+	                </button>
+	              </div>
+	            </form>
+	          </div>
+	        </div>
+	      ) : null}
+
+	      {showForm ? (
+	        <div className="modal-backdrop" role="presentation">
+	          <button
             className="modal-dismiss"
             type="button"
             aria-label="Close invoice form"
@@ -1332,7 +1549,12 @@ const Invoicing = () => {
                       value={formState.status}
                       onChange={(event) => updateFormField("status", event.target.value)}
                     >
-                      {INVOICE_STATUS_OPTIONS.map((option) => (
+                      {["PAID", "VOID"].includes(formState.status) ? (
+                        <option value={formState.status} disabled>
+                          {formState.status === "PAID" ? "Paid (from payments)" : "Void (from action)"}
+                        </option>
+                      ) : null}
+                      {FORM_STATUS_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -1513,17 +1735,6 @@ const Invoicing = () => {
                     onChange={(event) => updateFormField("discount", event.target.value)}
                   />
                 </label>
-                <label className="form-field">
-                  <span>Payment received</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formState.paidAmount}
-                    onChange={(event) => updateFormField("paidAmount", event.target.value)}
-                  />
-                </label>
               </div>
 
               <label className="form-field">
@@ -1558,14 +1769,6 @@ const Invoicing = () => {
                 <div className="invoice-summary__row is-total">
                   <span>Total</span>
                   <span>{formatAmount(invoiceTotals.total, formState.currency)}</span>
-                </div>
-                <div className="invoice-summary__row">
-                  <span>Payment received</span>
-                  <span>{formatAmount(formPayment.paidAmount, formState.currency)}</span>
-                </div>
-                <div className="invoice-summary__row is-total">
-                  <span>Balance due</span>
-                  <span>{formatAmount(formPayment.balanceDue, formState.currency)}</span>
                 </div>
               </div>
 
