@@ -68,6 +68,8 @@ const sampleRow = {
     fileName: "faako-client-setup-aba-creative-studio.pdf",
     generatedAt: "2026-06-18T09:05:00.000Z",
   },
+  archivedAt: null,
+  archivedBy: null,
 };
 
 test("Faako onboarding status options cover the internal workflow", () => {
@@ -107,6 +109,8 @@ test("serializeFaakoOnboardingSubmission exposes detail metadata for Dev ERP", (
   assert.equal(submission.phone, "N/A");
   assert.equal(submission.status.label, "Proposal Sent");
   assert.equal(submission.assignedOwner, "admin@example.com");
+  assert.equal(submission.archivedAt, null);
+  assert.equal(submission.archivedBy, "");
   assert.equal(submission.emailDelivery.status, "sent");
   assert.equal(submission.pdfSummary.stored, false);
   assert.equal(submission.wizardSections.some((section) => section.key === "website"), false);
@@ -117,4 +121,15 @@ test("serializeFaakoOnboardingSubmission exposes detail metadata for Dev ERP", (
     false,
   );
   assert.equal(submission.activityTimeline[0].type, "status_changed");
+});
+
+test("serializeFaakoOnboardingSubmission exposes archive metadata", () => {
+  const submission = serializeFaakoOnboardingSubmission({
+    ...sampleRow,
+    archivedAt: new Date("2026-06-18T11:00:00.000Z"),
+    archivedBy: "Admin User",
+  });
+
+  assert.equal(submission.archivedAt, "2026-06-18T11:00:00.000Z");
+  assert.equal(submission.archivedBy, "Admin User");
 });

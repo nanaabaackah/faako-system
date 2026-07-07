@@ -6902,6 +6902,97 @@ app.post("/api/rent/monthly-updates/send", authMiddleware, requireAdmin, async (
   res.json(result);
 });
 
+const ACTIVE_INVOICE_RECEIVABLE_STATUSES = new Set(["SENT", "ACCEPTED", "OVERDUE", "PAID"]);
+
+const resolveAccountingAmount = (value) =>
+  typeof value?.toNumber === "function" ? value.toNumber() : Number(value ?? 0);
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const isWithinAccountingPaidWindow = (date, { start, end }) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+  return date >= start && date <= end;
+};
+
+const isWithinAccountingOpenWindow = (date, { start }) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+  return date >= start;
+};
+
+const buildInvoiceAccountingEntries = (invoices = [], { start, end }) => {
+  const now = new Date();
+  return invoices.flatMap((invoice) => {
+    const total = roundCurrencyAmount(resolveAccountingAmount(invoice.total));
+    const paidAmount = roundCurrencyAmount(resolveAccountingAmount(invoice.paidAmount));
+    const paymentSummary = buildInvoicePaymentSummary({ total, paidAmount });
+    const paymentDate = invoice.paidAt || invoice.updatedAt || invoice.createdAt || invoice.issueDate;
+    const dueDate = invoice.dueDate || invoice.issueDate || invoice.createdAt;
+    const detailParts = [
+      invoice.clientName ? `Client: ${invoice.clientName}` : null,
+      `Invoice status: ${invoice.status}`,
+      `Payment status: ${paymentSummary.paymentStatus}`,
+    ].filter(Boolean);
+    const baseEntry = {
+      organization: invoice.organization
+        ? {
+            id: invoice.organization.id,
+            name: invoice.organization.name,
+            slug: invoice.organization.slug,
+          }
+        : null,
+      type: "REVENUE",
+      currency: invoice.currency,
+      recurringInterval: null,
+      invoiceNumber: invoice.invoiceNumber,
+      archivedAt: null,
+      createdAt: toIsoOrNull(invoice.createdAt),
+      updatedAt: toIsoOrNull(invoice.updatedAt),
+    };
+
+    const rows = [];
+    if (paidAmount > 0 && isWithinAccountingPaidWindow(paymentDate, { start, end })) {
+      rows.push({
+        ...baseEntry,
+        id: `invoice-payment-${invoice.id}`,
+        source: "INVOICE_PAYMENT",
+        sourceRef: `invoice:${invoice.id}:payment`,
+        status: "PAID",
+        amount: paidAmount,
+        serviceName: `Invoice ${invoice.invoiceNumber} payment`,
+        detail: detailParts.join(" • "),
+        paidAt: toIsoOrNull(paymentDate),
+        dueAt: null,
+      });
+    }
+
+    if (
+      ACTIVE_INVOICE_RECEIVABLE_STATUSES.has(invoice.status) &&
+      paymentSummary.balanceDue > 0 &&
+      isWithinAccountingOpenWindow(dueDate, { start })
+    ) {
+      const isOverdue = invoice.status === "OVERDUE" || (dueDate && dueDate < now);
+      rows.push({
+        ...baseEntry,
+        id: `invoice-receivable-${invoice.id}`,
+        source: "INVOICE_RECEIVABLE",
+        sourceRef: `invoice:${invoice.id}:receivable`,
+        status: isOverdue ? "OVERDUE" : "PENDING",
+        amount: paymentSummary.balanceDue,
+        serviceName: `Invoice ${invoice.invoiceNumber} receivable`,
+        detail: detailParts.join(" • "),
+        paidAt: null,
+        dueAt: toIsoOrNull(dueDate),
+      });
+    }
+
+    return rows;
+  });
+};
+
 app.get("/api/public/trust-stats", async (req, res) => {
   const now = Date.now();
   if (trustStatsCache.data && now - trustStatsCache.checkedAt < TRUST_STATS_CACHE_TTL_MS) {
@@ -6981,17 +7072,36 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
   }
   const { organizationFilter, includeAllOrganizations, selectedOrganization } = organizationScope;
 
-  const rawEntries = await prisma.accountingEntry.findMany({
-    where: {
-      ...organizationFilter,
-      ...(includeArchived ? {} : { archivedAt: null }),
-    },
-    include: { organization: { select: { id: true, name: true, slug: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const [rawEntries, invoices, faakoResult] = await Promise.all([
+    prisma.accountingEntry.findMany({
+      where: {
+        ...organizationFilter,
+        ...(includeArchived ? {} : { archivedAt: null }),
+      },
+      include: { organization: { select: { id: true, name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.invoice.findMany({
+      where: organizationFilter,
+      include: { organization: { select: { id: true, name: true, slug: true } } },
+      orderBy: [{ paidAt: "desc" }, { dueDate: "asc" }, { issueDate: "desc" }],
+    }),
+    fetchFaakoSubscriptionEntries({ start, end }),
+  ]);
+
+  const invoiceNumbers = new Set(
+    invoices.map((invoice) => String(invoice.invoiceNumber || "").trim()).filter(Boolean)
+  );
 
   const manualEntries = rawEntries
     .filter((entry) => {
+      if (
+        entry.type === "REVENUE" &&
+        entry.invoiceNumber &&
+        invoiceNumbers.has(String(entry.invoiceNumber).trim())
+      ) {
+        return false;
+      }
       const entryDate = resolveAccountingEntryDate(entry);
       if (!entryDate || Number.isNaN(entryDate.getTime())) return false;
       if (entry.status === "PAID") {
@@ -7001,7 +7111,7 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
     })
     .map(serializeAccountingEntry);
 
-  const faakoResult = await fetchFaakoSubscriptionEntries({ start, end });
+  const invoiceEntries = buildInvoiceAccountingEntries(invoices, { start, end });
   let faakoEntries = faakoResult.entries;
   let faakoOrganization = null;
   if (faakoEntries.length) {
@@ -7032,7 +7142,7 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
     return entry.dueAt || entry.createdAt;
   };
 
-  const entries = [...manualEntries, ...faakoEntries].sort((a, b) => {
+  const entries = [...manualEntries, ...invoiceEntries, ...faakoEntries].sort((a, b) => {
     const aDate = new Date(resolveSortDate(a));
     const bDate = new Date(resolveSortDate(b));
     return bDate - aDate;
@@ -7041,6 +7151,11 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
   res.json({
     entries,
     faakoStatus: faakoResult.status,
+    sourceCounts: {
+      manual: manualEntries.length,
+      invoice: invoiceEntries.length,
+      faako: faakoEntries.length,
+    },
     window: {
       start: start.toISOString(),
       end: end.toISOString(),
@@ -11918,6 +12033,7 @@ const buildRentMissedMonths = ({
   const missedMonths = [];
   const startMonthIndex = getUtcMonthIndex(toUtcStartOfDay(leaseStartDate));
   const endMonthIndex = getUtcMonthIndex(effectiveEnd);
+  let unappliedPaidToDate = sumRentPaymentsToDate(payments, asOfDate);
 
   for (let monthIndex = startMonthIndex; monthIndex <= endMonthIndex; monthIndex += 1) {
     const monthRange = getMonthRangeForUtcIndex(monthIndex);
@@ -11932,7 +12048,12 @@ const buildRentMissedMonths = ({
       continue;
     }
 
-    const paidForMonth = sumRentPaymentsInWindow(payments, monthRange.start, monthRange.end);
+    const paidForMonth = roundCurrencyAmount(
+      Math.min(normalizedMonthlyRent, Math.max(unappliedPaidToDate, 0))
+    );
+    unappliedPaidToDate = roundCurrencyAmount(
+      Math.max(unappliedPaidToDate - paidForMonth, 0)
+    );
     const amountOutstanding = roundCurrencyAmount(
       Math.max(normalizedMonthlyRent - paidForMonth, 0)
     );

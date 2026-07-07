@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatedLoadingState, DateField, ERPModal, ERPTable, SelectField, TextareaField } from "@faako/ui";
-import { apiGet, apiPatch } from "../../api/client";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
 import "./FaakoOnboarding.css";
 
@@ -63,6 +63,8 @@ const normalizeOptions = (options = [], includeAllLabel = "") => {
 const formatList = (items = []) =>
   Array.isArray(items) && items.length ? items.join(", ") : "N/A";
 
+const getSelectValue = (value) => (Array.isArray(value) ? value[0] || "" : value);
+
 const getEmailDeliveryLabel = (emailDelivery) => {
   const status = String(emailDelivery?.status || "").trim();
   if (!status) return "Not recorded";
@@ -88,7 +90,7 @@ function SummaryCard({ label, value, note }) {
   );
 }
 
-function SubmissionTable({ submissions, selectedId, loading, onSelect }) {
+function SubmissionTable({ submissions, selectedId, loading, archivingId, onSelect, onArchive }) {
   const columns = useMemo(
     () => [
       {
@@ -162,8 +164,32 @@ function SubmissionTable({ submissions, selectedId, loading, onSelect }) {
         mobileLabel: "Email",
         render: (submission) => getEmailDeliveryLabel(submission.emailDelivery),
       },
+      {
+        id: "actions",
+        header: "Actions",
+        mobileLabel: "Actions",
+        width: "8rem",
+        render: (submission) => (
+          <div className="faako-table-actions">
+            <button
+              className="button button-ghost faako-archive-button"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onArchive(submission);
+              }}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+              }}
+              disabled={archivingId === submission.id}
+            >
+              {archivingId === submission.id ? "Archiving..." : "Archive"}
+            </button>
+          </div>
+        ),
+      },
     ],
-    []
+    [archivingId, onArchive]
   );
 
   return (
@@ -332,7 +358,9 @@ function DetailPanel({
   submission,
   statusOptions,
   onSave,
+  onArchive,
   saving,
+  archiving,
 }) {
   const [draft, setDraft] = useState({
     status: "",
@@ -394,7 +422,7 @@ function DetailPanel({
             label="Status"
             value={draft.status}
             options={statusOptions}
-            onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}
+            onChangeValue={(value) => setDraft((current) => ({ ...current, status: getSelectValue(value) }))}
           />
           <TextareaField
             label="Internal notes"
@@ -403,9 +431,19 @@ function DetailPanel({
             onChange={(event) => setDraft((current) => ({ ...current, internalNotes: event.target.value }))}
             placeholder="Add handoff notes, follow-up decisions, or proposal next steps."
           />
-          <button className="button button-primary" type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Save updates"}
-          </button>
+          <div className="faako-management-actions">
+            <button className="button button-primary" type="submit" disabled={saving || archiving}>
+              {saving ? "Saving..." : "Save updates"}
+            </button>
+            <button
+              className="button button-ghost faako-archive-button"
+              type="button"
+              onClick={() => onArchive(submission)}
+              disabled={saving || archiving}
+            >
+              {archiving ? "Archiving..." : "Archive submission"}
+            </button>
+          </div>
         </form>
       </section>
 
@@ -436,6 +474,7 @@ export default function FaakoOnboarding() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [archivingId, setArchivingId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -532,14 +571,53 @@ export default function FaakoOnboarding() {
           current.map((item) => (item.id === submission.id ? { ...item, ...submission } : item))
         );
       }
-      setNotice("Faako onboarding submission updated.");
+      if (payload?.project?.created) {
+        setNotice("Faako onboarding submission updated. A project was created for the converted submission.");
+      } else if (payload?.project?.error) {
+        setNotice("Faako onboarding submission updated, but the converted project could not be created.");
+      } else {
+        setNotice("Faako onboarding submission updated.");
+      }
       setError("");
+      await loadSubmissions();
     } catch (saveError) {
       setError(saveError.message || "Unable to update Faako onboarding submission.");
     } finally {
       setSaving(false);
     }
   };
+
+  const handleArchiveSubmission = useCallback(async (submission) => {
+    const id = submission?.id;
+    if (!id) return;
+    const submissionLabel = submission.companyName || "this submission";
+    const shouldArchive = window.confirm(
+      `Archive ${submissionLabel}? It will be hidden from the active submissions list.`
+    );
+    if (!shouldArchive) return;
+
+    setArchivingId(id);
+    setError("");
+    setNotice("");
+    try {
+      await apiPost(`/api/faako-onboarding/${encodeURIComponent(id)}/archive`, {}, {
+        fallbackMessage: "Unable to archive Faako onboarding submission.",
+      });
+      setSubmissions((current) => current.filter((item) => item.id !== id));
+      if (selectedId === id) {
+        setIsDetailOpen(false);
+        setSelectedId("");
+        setSelectedSubmission(null);
+        setDetailLoading(false);
+      }
+      await loadSubmissions();
+      setNotice("Faako onboarding submission archived.");
+    } catch (archiveError) {
+      setError(archiveError.message || "Unable to archive Faako onboarding submission.");
+    } finally {
+      setArchivingId("");
+    }
+  }, [loadSubmissions, selectedId]);
 
   const reviewedCount = Number(summary.byStatus?.REVIEWED || 0) + Number(summary.byStatus?.CONTACTED || 0);
   const convertedCount = Number(summary.byStatus?.CONVERTED || 0);
@@ -576,13 +654,13 @@ export default function FaakoOnboarding() {
             label="Status"
             value={filters.status}
             options={statusFilterOptions}
-            onChange={(event) => handleFilterChange("status", event.target.value)}
+            onChangeValue={(value) => handleFilterChange("status", getSelectValue(value))}
           />
           <SelectField
             label="Package"
             value={filters.package}
             options={packageOptions}
-            onChange={(event) => handleFilterChange("package", event.target.value)}
+            onChangeValue={(value) => handleFilterChange("package", getSelectValue(value))}
           />
           <SelectField
             label="Selected modules"
@@ -590,7 +668,7 @@ export default function FaakoOnboarding() {
             value={filters.modules}
             options={moduleOptions}
             placeholder="Any module"
-            onChange={(event) => handleFilterChange("modules", event.target.value)}
+            onChangeValue={(value) => handleFilterChange("modules", Array.isArray(value) ? value : [value].filter(Boolean))}
           />
           <DateField
             fieldClassName="field"
@@ -626,7 +704,9 @@ export default function FaakoOnboarding() {
           submissions={submissions}
           selectedId={selectedId}
           loading={loading}
+          archivingId={archivingId}
           onSelect={handleSelectSubmission}
+          onArchive={handleArchiveSubmission}
         />
       </section>
 
@@ -652,7 +732,9 @@ export default function FaakoOnboarding() {
             statusOptions={statusOptions}
             ownerOptions={ownerOptions}
             onSave={handleSave}
+            onArchive={handleArchiveSubmission}
             saving={saving}
+            archiving={archivingId === selectedSubmission?.id}
           />
         )}
       </ERPModal>
