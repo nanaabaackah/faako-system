@@ -54,6 +54,52 @@ const BOOKING_STATUS_OPTIONS = [
   { value: "TENTATIVE", label: "Tentative" },
   { value: "CANCELED", label: "Canceled" },
 ];
+const MONITORING_PREVIEW_LIMIT = 3;
+
+const getMonitoringIssuePriority = (status) => {
+  if (status === "offline" || status === "error" || status === "suspended") return 0;
+  if (status === "degraded" || status === "warning" || status === "pending") return 1;
+  if (status === "not_configured" || status === "unknown" || !status) return 2;
+  return 3;
+};
+
+const buildMonitoringStatusExplanation = (status) => {
+  switch (status) {
+    case "ok":
+    case "online":
+      return "Responding normally. Dependent modules should be able to refresh from this surface.";
+    case "degraded":
+    case "warning":
+      return "Part of the check is unstable. Data may refresh slowly or only partially.";
+    case "offline":
+    case "error":
+      return "This check is failing. Features that rely on it may show stale or missing data.";
+    case "not_configured":
+      return "Monitoring is missing a URL or connection value, so health cannot be confirmed.";
+    default:
+      return "The latest health signal is unclear. Re-run monitoring or inspect the service logs.";
+  }
+};
+
+const buildMonitoringNextStep = (status, note = "") => {
+  switch (status) {
+    case "ok":
+    case "online":
+      return "Keep monitoring";
+    case "degraded":
+    case "warning":
+      return "Check latency, recent deploys, and partial route failures";
+    case "offline":
+    case "error":
+      return note?.toLowerCase().includes("db")
+        ? "Verify database credentials, network access, and migrations"
+        : "Open the service health URL and review deployment logs";
+    case "not_configured":
+      return "Add the missing URL or environment value";
+    default:
+      return "Refresh monitoring and inspect logs";
+  }
+};
 
 const DEFAULT_SLOT_FORM = {
   title: "",

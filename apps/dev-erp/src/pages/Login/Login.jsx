@@ -5,10 +5,24 @@ import { clearAuthStore, setAuthenticatedUser } from "../../auth/authStore";
 import ThemeToggle from "../../components/ThemeToggle";
 import "./Login.css";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const RequiredMark = () => (
+  <>
+    <span className="form-field-required" aria-hidden="true">
+      *
+    </span>
+    <span className="sr-only">required</span>
+  </>
+);
+
+const getFirstFieldError = (errors) => Object.values(errors).find(Boolean) || "";
+
 const Login = ({ theme, onToggleTheme }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
@@ -16,13 +30,61 @@ const Login = ({ theme, onToggleTheme }) => {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [forgotStatus, setForgotStatus] = useState('');
   const [forgotError, setForgotError] = useState('');
+  const [forgotFieldErrors, setForgotFieldErrors] = useState({});
+
+  const fieldError = (field) => fieldErrors[field] || "";
+  const forgotFieldError = (field) => forgotFieldErrors[field] || "";
+
+  const updateLoginField = (field, value, setter) => {
+    setter(value);
+    setError("");
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateLogin = () => {
+    const nextErrors = {};
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      nextErrors.email = "Enter your email address.";
+    } else if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      nextErrors.email = "Use a valid email address.";
+    }
+    if (!password) {
+      nextErrors.password = "Enter your password.";
+    }
+    return nextErrors;
+  };
+
+  const validateForgotPassword = () => {
+    const nextErrors = {};
+    const trimmedEmail = forgotEmail.trim();
+    if (!trimmedEmail) {
+      nextErrors.email = "Enter the email you used to register.";
+    } else if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      nextErrors.email = "Use a valid email address.";
+    }
+    return nextErrors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
+    const nextErrors = validateLogin();
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError(getFirstFieldError(nextErrors));
+      return;
+    }
+    setFieldErrors({});
+
     try {
-      const data = await apiPost("/api/auth/login", { email, password }, {
+      const data = await apiPost("/api/auth/login", { email: email.trim(), password }, {
         fallbackMessage: "Login failed",
       });
 
@@ -50,10 +112,14 @@ const Login = ({ theme, onToggleTheme }) => {
   const handleForgotSubmit = async (event) => {
     event.preventDefault();
     const trimmedEmail = forgotEmail.trim();
-    if (!trimmedEmail) {
-      setForgotError("Please provide the email you used to register.");
+
+    const nextErrors = validateForgotPassword();
+    if (Object.keys(nextErrors).length) {
+      setForgotFieldErrors(nextErrors);
+      setForgotError(getFirstFieldError(nextErrors));
       return;
     }
+    setForgotFieldErrors({});
     setIsSendingReset(true);
     setForgotError("");
     setForgotStatus("");
@@ -111,30 +177,51 @@ const Login = ({ theme, onToggleTheme }) => {
               {error}
             </div>
           ) : null}
-          <form onSubmit={handleSubmit} className="auth-form">
-            <label className="form-field" htmlFor="loginEmail">
-              <span>Email address</span>
+          <form onSubmit={handleSubmit} className="auth-form" noValidate>
+            <label
+              className={`form-field ${fieldError("email") ? "is-error" : ""}`}
+              htmlFor="loginEmail"
+            >
+              <span className="form-field-label">
+                Email address
+                <RequiredMark />
+              </span>
               <input
                 id="loginEmail"
                 className="input"
                 type="email"
                 placeholder="name@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => updateLoginField("email", e.target.value, setEmail)}
+                aria-invalid={fieldError("email") ? "true" : undefined}
+                aria-describedby={fieldError("email") ? "loginEmail-error" : undefined}
                 required
               />
+              {fieldError("email") ? (
+                <span className="form-field-error" id="loginEmail-error">
+                  {fieldError("email")}
+                </span>
+              ) : null}
             </label>
 
-            <label className="form-field" htmlFor="loginPassword">
-              <span>Password</span>
-              <div className="input-group">
+            <label
+              className={`form-field ${fieldError("password") ? "is-error" : ""}`}
+              htmlFor="loginPassword"
+            >
+              <span className="form-field-label">
+                Password
+                <RequiredMark />
+              </span>
+              <div className={`input-group ${fieldError("password") ? "is-error" : ""}`}>
                 <input
                   id="loginPassword"
                   className="input"
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => updateLoginField("password", e.target.value, setPassword)}
+                  aria-invalid={fieldError("password") ? "true" : undefined}
+                  aria-describedby={fieldError("password") ? "loginPassword-error" : undefined}
                   required
                 />
                 <button
@@ -145,6 +232,11 @@ const Login = ({ theme, onToggleTheme }) => {
                   {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
+              {fieldError("password") ? (
+                <span className="form-field-error" id="loginPassword-error">
+                  {fieldError("password")}
+                </span>
+              ) : null}
             </label>
 
             <button className="button button-primary auth-submit" type="submit">
@@ -159,13 +251,14 @@ const Login = ({ theme, onToggleTheme }) => {
                 setForgotMode((prev) => !prev);
                 setForgotStatus("");
                 setForgotError("");
+                setForgotFieldErrors({});
               }}
             >
               {forgotMode ? "Back to sign in" : "Forgot password?"}
             </button>
           </div>
           {forgotMode ? (
-            <form className="auth-forgot" onSubmit={handleForgotSubmit}>
+            <form className="auth-forgot" onSubmit={handleForgotSubmit} noValidate>
               <p className="muted">
                 Enter the email you use for this dashboard and we will send recovery steps.
               </p>
@@ -175,17 +268,39 @@ const Login = ({ theme, onToggleTheme }) => {
                   {forgotError}
                 </div>
               ) : null}
-              <label className="form-field" htmlFor="forgotEmail">
-                <span>Email address</span>
+              <label
+                className={`form-field ${forgotFieldError("email") ? "is-error" : ""}`}
+                htmlFor="forgotEmail"
+              >
+                <span className="form-field-label">
+                  Email address
+                  <RequiredMark />
+                </span>
                 <input
                   id="forgotEmail"
                   className="input"
                   type="email"
                   placeholder="name@example.com"
                   value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    setForgotError("");
+                    setForgotFieldErrors((current) => {
+                      if (!current.email) return current;
+                      const next = { ...current };
+                      delete next.email;
+                      return next;
+                    });
+                  }}
+                  aria-invalid={forgotFieldError("email") ? "true" : undefined}
+                  aria-describedby={forgotFieldError("email") ? "forgotEmail-error" : undefined}
                   required
                 />
+                {forgotFieldError("email") ? (
+                  <span className="form-field-error" id="forgotEmail-error">
+                    {forgotFieldError("email")}
+                  </span>
+                ) : null}
               </label>
               <button
                 className="button button-ghost auth-submit"

@@ -1014,6 +1014,32 @@
     grid-template-columns: 1fr;
   }
 
+  .dashboard-health-card__header,
+  .dashboard-diagnosis-row__title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-health-card__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-health-card__issues li {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-diagnosis-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-diagnosis-row__marker {
+    display: none;
+  }
+
+  .dashboard-diagnosis-row__next {
+    grid-column: auto;
+  }
+
   .slot-modal {
     padding-left: 0.75rem;
     padding-right: 0.75rem;

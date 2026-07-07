@@ -352,6 +352,19 @@
   font-weight: 750;
 }
 
+.product-inquiry-form__required {
+  color: var(--color-danger);
+  font-weight: 900;
+  margin-left: 0.18rem;
+}
+
+.product-inquiry-form__field-error {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .product-inquiry-form__field--full {
   grid-column: 1 / -1;
 }
@@ -373,6 +386,12 @@
 .product-inquiry-form__field textarea:focus {
   border-color: var(--color-primary-border-hover);
   box-shadow: 0 0 0 3px var(--color-primary-tint);
+}
+
+.product-inquiry-form__field.is-error input,
+.product-inquiry-form__field.is-error textarea {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 16%, transparent);
 }
 
 .product-inquiry-form__trap {

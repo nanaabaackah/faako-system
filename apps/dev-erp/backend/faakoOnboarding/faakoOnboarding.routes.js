@@ -3,6 +3,11 @@ import express from "express";
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 250;
 const N_A = "N/A";
+const CONVERTED_STATUS = "CONVERTED";
+const PROJECT_EXTERNAL_REF_PREFIX = "faako-onboarding";
+const PROJECT_DESCRIPTION_MAX_LENGTH = 2000;
+const PROJECT_TITLE_MAX_LENGTH = 180;
+const PROJECT_CURRENCY_VALUES = new Set(["CAD", "GHS"]);
 
 export const FAAKO_ONBOARDING_STATUS_OPTIONS = [
   { value: "NEW", label: "New" },
@@ -222,6 +227,11 @@ const normalizeStatus = (value) => {
   return STATUS_VALUE_SET.has(normalized) ? normalized : "";
 };
 
+const normalizeProjectCurrency = (value) => {
+  const normalized = normalizeText(value, 20).toUpperCase();
+  return PROJECT_CURRENCY_VALUES.has(normalized) ? normalized : null;
+};
+
 const normalizeArray = (value) => {
   if (Array.isArray(value)) return value.map((item) => normalizeText(item, 240)).filter(Boolean);
   if (!value) return [];
@@ -397,6 +407,213 @@ const buildActivityTimeline = (row) => {
     });
   }
   return timeline.sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());
+};
+
+const formatDescriptionList = (items = []) =>
+  Array.isArray(items) && items.length ? items.join(", ") : "";
+
+const getDescriptionValue = (value, maxLength = 500) => {
+  const normalized = normalizeText(value, maxLength);
+  return normalized && normalized !== N_A ? normalized : "";
+};
+
+const buildConvertedProjectExternalRef = (row) =>
+  normalizeText(`${PROJECT_EXTERNAL_REF_PREFIX}:${row.id}`, 160);
+
+const getConvertedProjectClientName = (row) =>
+  getDescriptionValue(row.companyName, 180) ||
+  getDescriptionValue(row.contactName, 180) ||
+  getDescriptionValue(row.email, 180) ||
+  "Faako client";
+
+const getConvertedProjectPriority = (row) => {
+  const timeline = normalizeText(row.timelinePreference, 160).toLowerCase();
+  if (/\b(asap|urgent|immediate|this week|today|tomorrow|rush)\b/.test(timeline)) return "URGENT";
+  if (/\b(soon|this month|2 weeks|two weeks)\b/.test(timeline)) return "HIGH";
+  return "MEDIUM";
+};
+
+const buildConvertedProjectTitle = (row) => {
+  const clientName = getConvertedProjectClientName(row);
+  const packageTier = getDescriptionValue(row.packageTier, 80);
+  const suffix = packageTier ? `${packageTier} setup` : "client setup";
+  return normalizeText(`${clientName} - ${suffix}`, PROJECT_TITLE_MAX_LENGTH);
+};
+
+const buildConvertedProjectDescription = (row) => {
+  const intake = normalizeJson(row.onboardingIntake, {}) || {};
+  const formLabel =
+    getDescriptionValue(intake?.meta?.formLabel || row.formLabel, 120) ||
+    getDescriptionValue(row.source, 120) ||
+    "Faako form submission";
+  const contactName = getDescriptionValue(row.contactName, 160);
+  const email = getDescriptionValue(row.email, 254);
+  const contact = [contactName, email ? `<${email}>` : ""].filter(Boolean).join(" ");
+  const requestedModules = formatDescriptionList(normalizeArray(row.requestedModules));
+  const setupChecklist = formatDescriptionList(normalizeArray(normalizeJson(row.setupChecklist, row.setupChecklist)));
+  const wizardFields = buildWizardSections(intake)
+    .flatMap((section) =>
+      section.fields.map((field) => ({
+        section: section.title,
+        label: field.label,
+        value: field.value,
+      }))
+    )
+    .filter((field) => getDescriptionValue(field.value, 500))
+    .slice(0, 10);
+
+  const lines = [
+    `Created from Faako form submission ${row.id}.`,
+    `Form: ${formLabel}`,
+    contact ? `Contact: ${contact}` : "",
+    getDescriptionValue(row.phone, 80) ? `Phone: ${getDescriptionValue(row.phone, 80)}` : "",
+    getDescriptionValue(row.packageTier, 120) ? `Package: ${getDescriptionValue(row.packageTier, 120)}` : "",
+    requestedModules ? `Requested modules: ${requestedModules}` : "",
+    setupChecklist ? `Setup checklist: ${setupChecklist}` : "",
+    getDescriptionValue(row.businessType, 160) ? `Business type: ${getDescriptionValue(row.businessType, 160)}` : "",
+    getDescriptionValue(row.timelinePreference, 160) ? `Timeline: ${getDescriptionValue(row.timelinePreference, 160)}` : "",
+    getDescriptionValue(row.websiteUrl, 500) ? `Website: ${getDescriptionValue(row.websiteUrl, 500)}` : "",
+    getDescriptionValue(row.currentWorkflow, 500) ? `Current workflow: ${getDescriptionValue(row.currentWorkflow, 500)}` : "",
+    getDescriptionValue(row.projectDetails, 700) ? `Project details: ${getDescriptionValue(row.projectDetails, 700)}` : "",
+    getDescriptionValue(row.painPoints, 700) ? `Pain points: ${getDescriptionValue(row.painPoints, 700)}` : "",
+    getDescriptionValue(row.additionalNotes, 900) ? `Additional notes: ${getDescriptionValue(row.additionalNotes, 900)}` : "",
+  ].filter(Boolean);
+
+  if (wizardFields.length) {
+    lines.push(
+      "Submitted answers:",
+      ...wizardFields.map((field) => `${field.section} - ${field.label}: ${field.value}`)
+    );
+  }
+
+  return normalizeText(lines.join("\n"), PROJECT_DESCRIPTION_MAX_LENGTH) || null;
+};
+
+export const buildConvertedProjectPayload = (row, { organizationId, ownerUserId = null } = {}) => ({
+  organizationId,
+  ownerUserId,
+  title: buildConvertedProjectTitle(row),
+  clientName: getConvertedProjectClientName(row),
+  projectType: "EXTERNAL",
+  stage: "ACTIVE",
+  priority: getConvertedProjectPriority(row),
+  currency: normalizeProjectCurrency(row.currency),
+  budgetAmount: null,
+  dueDate: null,
+  description: buildConvertedProjectDescription(row),
+  externalRef: buildConvertedProjectExternalRef(row),
+});
+
+const serializeConvertedProject = (project) =>
+  project
+    ? {
+        id: project.id,
+        organizationId: project.organizationId,
+        organization: project.organization
+          ? {
+              id: project.organization.id,
+              name: project.organization.name,
+              slug: project.organization.slug,
+            }
+          : null,
+        ownerUserId: project.ownerUserId ?? null,
+        ownerUser: project.ownerUser
+          ? {
+              id: project.ownerUser.id,
+              fullName: project.ownerUser.fullName,
+              email: project.ownerUser.email,
+            }
+          : null,
+        title: project.title,
+        clientName: project.clientName ?? null,
+        projectType: project.projectType,
+        stage: project.stage,
+        priority: project.priority,
+        currency: project.currency ?? null,
+        budgetAmount:
+          project.budgetAmount === null || project.budgetAmount === undefined
+            ? null
+            : typeof project.budgetAmount?.toNumber === "function"
+              ? project.budgetAmount.toNumber()
+              : Number(project.budgetAmount),
+        dueDate: project.dueDate ? project.dueDate.toISOString() : null,
+        description: project.description ?? null,
+        externalRef: project.externalRef ?? null,
+        archivedAt: project.archivedAt ? project.archivedAt.toISOString() : null,
+        createdAt: project.createdAt ? project.createdAt.toISOString() : null,
+        updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
+      }
+    : null;
+
+const resolveConvertedProjectOwnerId = async ({ prisma, row, user, organizationId }) => {
+  if (!prisma?.user?.findFirst) return null;
+
+  const assignedOwner = normalizeText(row.assignedOwner, 160);
+  if (assignedOwner) {
+    const owner = await prisma.user.findFirst({
+      where: {
+        email: assignedOwner,
+        organizationId,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    if (owner) return owner.id;
+  }
+
+  const fallbackOwnerId = Number(user?.userId);
+  if (!Number.isInteger(fallbackOwnerId) || fallbackOwnerId <= 0) return null;
+  const fallbackOwner = await prisma.user.findFirst({
+    where: {
+      id: fallbackOwnerId,
+      organizationId,
+      status: "ACTIVE",
+    },
+    select: { id: true },
+  });
+  return fallbackOwner?.id ?? null;
+};
+
+const ensureProjectForConvertedSubmission = async ({ prisma, row, user }) => {
+  if (!prisma?.project?.findFirst || !prisma?.project?.create) {
+    return { errorStatus: 503, error: "Project workspace is not available." };
+  }
+
+  const organizationId = Number(user?.organizationId);
+  if (!Number.isInteger(organizationId) || organizationId <= 0) {
+    return {
+      errorStatus: 400,
+      error: "Converted submissions need an organization scope before a project can be created.",
+    };
+  }
+
+  const include = {
+    organization: { select: { id: true, name: true, slug: true } },
+    ownerUser: { select: { id: true, fullName: true, email: true } },
+  };
+  const externalRef = buildConvertedProjectExternalRef(row);
+  const existingProject = await prisma.project.findFirst({
+    where: { organizationId, externalRef },
+    include,
+  });
+
+  if (existingProject) {
+    return {
+      created: false,
+      project: serializeConvertedProject(existingProject),
+    };
+  }
+
+  const ownerUserId = await resolveConvertedProjectOwnerId({ prisma, row, user, organizationId });
+  const project = await prisma.project.create({
+    data: buildConvertedProjectPayload(row, { organizationId, ownerUserId }),
+    include,
+  });
+
+  return {
+    created: true,
+    project: serializeConvertedProject(project),
+  };
 };
 
 export const serializeFaakoOnboardingSubmission = (row, { includeDetail = false } = {}) => {
@@ -627,7 +844,7 @@ const findSubmissionRow = async ({ faakoPool, table, columns, id }) => {
   return result.rows[0] || null;
 };
 
-const buildUpdatePatch = ({ body, existingRow, columns, user }) => {
+export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimelineEntries = [] }) => {
   const updates = [];
   const values = [];
   const timeline = normalizeTimeline(existingRow.activityTimeline);
@@ -692,6 +909,24 @@ const buildUpdatePatch = ({ body, existingRow, columns, user }) => {
         by: actor,
       });
     }
+  }
+
+  const normalizedExtraTimelineEntries = Array.isArray(extraTimelineEntries)
+    ? extraTimelineEntries.filter((entry) => entry && typeof entry === "object")
+    : [];
+  normalizedExtraTimelineEntries.forEach((entry) => {
+    timeline.push({
+      type: normalizeText(entry.type, 80) || "activity",
+      label: normalizeText(entry.label, 160) || "Activity",
+      at: toIso(entry.at) || now,
+      by: normalizeText(entry.by, 160) || actor,
+      from: entry.from === undefined || entry.from === null ? null : normalizeText(entry.from, 240),
+      to: entry.to === undefined || entry.to === null ? null : normalizeText(entry.to, 240),
+      note: normalizeText(entry.note, 500) || null,
+    });
+  });
+  if (normalizedExtraTimelineEntries.length && !changedFields.includes("project")) {
+    changedFields.push("project");
   }
 
   if (changedFields.length && columns.has("activityTimeline")) {
@@ -982,18 +1217,54 @@ export const registerFaakoOnboardingRoutes = (app, {
     const existingRow = await findSubmissionRow({ faakoPool, table, columns: table.columns, id });
     if (!existingRow) return res.status(404).json({ error: "Faako onboarding submission not found." });
 
-    const patch = buildUpdatePatch({
-      body: req.body || {},
+    const body = req.body || {};
+    const validationPatch = buildUpdatePatch({
+      body,
       existingRow,
       columns: table.columns,
       user: req.user,
     });
+    if (validationPatch.error) return res.status(validationPatch.errorStatus).json({ error: validationPatch.error });
+
+    const statusRequested = Object.prototype.hasOwnProperty.call(body, "status");
+    const requestedStatus = statusRequested ? normalizeStatus(body.status) : "";
+    const currentStatus = buildStatusMeta(existingRow.status).value;
+    let projectResult = null;
+    let extraTimelineEntries = [];
+
+    if (requestedStatus === CONVERTED_STATUS) {
+      projectResult = await ensureProjectForConvertedSubmission({ prisma, row: existingRow, user: req.user });
+      if (projectResult.error) {
+        return res.status(projectResult.errorStatus).json({ error: projectResult.error });
+      }
+      if (projectResult.project && (projectResult.created || currentStatus !== CONVERTED_STATUS)) {
+        extraTimelineEntries = [
+          {
+            type: projectResult.created ? "project_created" : "project_linked",
+            label: projectResult.created ? "Project created" : "Project linked",
+            note: `${projectResult.project.title} (#${projectResult.project.id})`,
+          },
+        ];
+      }
+    }
+
+    const patch = extraTimelineEntries.length
+      ? buildUpdatePatch({
+          body,
+          existingRow,
+          columns: table.columns,
+          user: req.user,
+          extraTimelineEntries,
+        })
+      : validationPatch;
     if (patch.error) return res.status(patch.errorStatus).json({ error: patch.error });
 
-    if (!patch.changedFields.length) {
+    if (!patch.changedFields.length || !patch.updates.length) {
       return res.json({
         submission: serializeFaakoOnboardingSubmission(existingRow, { includeDetail: true }),
-        changedFields: [],
+        changedFields: patch.changedFields,
+        project: projectResult?.project || null,
+        projectCreated: Boolean(projectResult?.created),
       });
     }
 

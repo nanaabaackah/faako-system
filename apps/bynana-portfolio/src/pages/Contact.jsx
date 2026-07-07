@@ -12,6 +12,7 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const LAST_SUBMISSION_KEY = 'bynana-contact-last-submission';
 const CONTACT_SUBMIT_ENDPOINT = import.meta.env.VITE_CONTACT_SUBMIT_ENDPOINT || '';
 const CONTACT_EMAIL = 'nanaabaackah@gmail.com';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const contactLinks = [
   {
@@ -83,6 +84,35 @@ const buildInitialFormState = (subjectTag) => ({
   message: '',
 });
 
+const isReasonableName = (value) => {
+  const normalized = String(value || '').trim();
+  return normalized.length >= 2 && /[A-Za-z]/.test(normalized) && !/[@:/\\]/.test(normalized);
+};
+
+const validateContactForm = (values) => {
+  const errors = {};
+  if (!isReasonableName(values.name)) errors.name = 'Enter your name.';
+  if (!EMAIL_PATTERN.test(String(values.email || '').trim().toLowerCase())) {
+    errors.email = 'Enter a valid email address.';
+  }
+  if (String(values.subject || '').trim().length < 3) {
+    errors.subject = 'Add a short subject.';
+  }
+  if (String(values.message || '').trim().length < 12) {
+    errors.message = 'Tell me a little more about the project.';
+  }
+  return errors;
+};
+
+function RequiredMark() {
+  return (
+    <>
+      <span className="contact-form__required" aria-hidden="true">*</span>
+      <span className="sr-only">required</span>
+    </>
+  );
+}
+
 const ContactForm = ({
   formState,
   onChange,
@@ -91,6 +121,7 @@ const ContactForm = ({
   status,
   subjectTag,
   onReset,
+  fieldErrors = {},
 }) => {
   if (status.state === 'success') {
     return (
@@ -109,9 +140,10 @@ const ContactForm = ({
       name="contact"
       method="POST"
       className="contact-card contact-form ui-panel"
-      aria-labelledby="contact-form-heading"
-      onSubmit={onSubmit}
-    >
+	      aria-labelledby="contact-form-heading"
+	      onSubmit={onSubmit}
+	      noValidate
+	    >
       <input type="hidden" name="form-name" value="contact" />
       <input type="hidden" name="subjectTag" value={subjectTag} />
       <p className="sr-only">
@@ -120,8 +152,8 @@ const ContactForm = ({
       </p>
 
       <div className="contact-form__row">
-        <label className="contact-form__field" htmlFor="fname">
-          <span>Name</span>
+        <label className={`contact-form__field ${fieldErrors.name ? 'is-error' : ''}`} htmlFor="fname">
+          <span>Name <RequiredMark /></span>
           <input
             type="text"
             id="fname"
@@ -131,11 +163,14 @@ const ContactForm = ({
             value={formState.name}
             onChange={onChange}
             required
+            aria-invalid={fieldErrors.name ? 'true' : undefined}
+            aria-describedby={fieldErrors.name ? 'fname-error' : undefined}
           />
+          {fieldErrors.name ? <span className="contact-form__field-error" id="fname-error">{fieldErrors.name}</span> : null}
         </label>
 
-        <label className="contact-form__field" htmlFor="email">
-          <span>Email</span>
+        <label className={`contact-form__field ${fieldErrors.email ? 'is-error' : ''}`} htmlFor="email">
+          <span>Email <RequiredMark /></span>
           <input
             type="email"
             id="email"
@@ -145,12 +180,15 @@ const ContactForm = ({
             value={formState.email}
             onChange={onChange}
             required
+            aria-invalid={fieldErrors.email ? 'true' : undefined}
+            aria-describedby={fieldErrors.email ? 'email-error' : undefined}
           />
+          {fieldErrors.email ? <span className="contact-form__field-error" id="email-error">{fieldErrors.email}</span> : null}
         </label>
       </div>
 
-      <label className="contact-form__field" htmlFor="subject">
-        <span>Subject</span>
+      <label className={`contact-form__field ${fieldErrors.subject ? 'is-error' : ''}`} htmlFor="subject">
+        <span>Subject <RequiredMark /></span>
         <input
           type="text"
           id="subject"
@@ -159,12 +197,15 @@ const ContactForm = ({
           value={formState.subject}
           onChange={onChange}
           required
+          aria-invalid={fieldErrors.subject ? 'true' : undefined}
+          aria-describedby={fieldErrors.subject ? 'subject-error' : undefined}
         />
+        {fieldErrors.subject ? <span className="contact-form__field-error" id="subject-error">{fieldErrors.subject}</span> : null}
         {subjectTag && <span className="contact-form__hint">Tag: {subjectTag}</span>}
       </label>
 
-      <label className="contact-form__field" htmlFor="message">
-        <span>Message</span>
+      <label className={`contact-form__field ${fieldErrors.message ? 'is-error' : ''}`} htmlFor="message">
+        <span>Message <RequiredMark /></span>
         <textarea
           id="message"
           name="message"
@@ -173,7 +214,10 @@ const ContactForm = ({
           value={formState.message}
           onChange={onChange}
           required
+          aria-invalid={fieldErrors.message ? 'true' : undefined}
+          aria-describedby={fieldErrors.message ? 'message-error' : undefined}
         ></textarea>
+        {fieldErrors.message ? <span className="contact-form__field-error" id="message-error">{fieldErrors.message}</span> : null}
       </label>
 
       {status.state === 'error' && (
@@ -199,6 +243,7 @@ const ContactContent = ({
   status,
   subjectTag,
   onReset,
+  fieldErrors,
 }) => {
   const localTime = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
@@ -306,10 +351,11 @@ const ContactContent = ({
               onChange={onFormChange}
               onSubmit={onFormSubmit}
               isSubmitting={isSubmitting}
-              status={status}
-              subjectTag={subjectTag}
-              onReset={onReset}
-            />
+	              status={status}
+	              subjectTag={subjectTag}
+	              onReset={onReset}
+	              fieldErrors={fieldErrors}
+	            />
           </div>
         </div>
       </section>
@@ -330,6 +376,7 @@ function Contact({ embedded = false, sectionId }) {
   const [formState, setFormState] = useState(() => buildInitialFormState(subjectTag));
   const [formStatus, setFormStatus] = useState({ state: 'idle', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (!subjectTag) return;
@@ -345,17 +392,31 @@ function Contact({ embedded = false, sectionId }) {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    setFieldErrors((current) => {
+      if (!current[name]) return current;
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
   const resetForm = () => {
     setFormState(buildInitialFormState(subjectTag));
     setFormStatus({ state: 'idle', message: '' });
+    setFieldErrors({});
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isSubmitting) return;
+
+    const nextFieldErrors = validateContactForm(formState);
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
+      setFormStatus({ state: 'error', message: Object.values(nextFieldErrors)[0] });
+      return;
+    }
 
     const lastSubmission = getLastSubmission();
     const now = Date.now();
@@ -420,8 +481,9 @@ function Contact({ embedded = false, sectionId }) {
         message: CONTACT_SUBMIT_ENDPOINT
           ? "Thanks! Your note is on its way. I'll reply within one business day."
           : "Your email draft is ready. Send it from your mail app and I'll reply within one business day.",
-      });
-      setFormState(buildInitialFormState(subjectTag));
+	      });
+	      setFormState(buildInitialFormState(subjectTag));
+	      setFieldErrors({});
     } catch (error) {
       setFormStatus({
         state: 'error',
@@ -455,6 +517,7 @@ function Contact({ embedded = false, sectionId }) {
           status={formStatus}
           subjectTag={subjectTag}
           onReset={resetForm}
+          fieldErrors={fieldErrors}
         />
 
       </WrapperTag>

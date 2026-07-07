@@ -12,6 +12,7 @@ import "../styles/pages/Auth.css";
 const SIGNUP_DRAFT_STORAGE_KEY = "faako-onboarding-intake-draft-v1";
 const HONEYPOT_FIELD_NAME = "companyFax";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9][0-9\s().-]{6,}$/;
 const LEGACY_NETLIFY_FUNCTIONS_PATH = "/.netlify/functions";
 
 const normalizeConfiguredApiBaseUrl = (value) => {
@@ -226,6 +227,25 @@ const normalizeText = (value) => String(value || "").trim();
 
 const isValidEmail = (value) => EMAIL_PATTERN.test(normalizeText(value).toLowerCase());
 
+const isValidOptionalEmail = (value) => {
+  const normalized = normalizeText(value);
+  return !normalized || isValidEmail(normalized);
+};
+
+const isValidPhone = (value) => PHONE_PATTERN.test(normalizeText(value));
+
+const isValidOptionalPhone = (value) => {
+  const normalized = normalizeText(value);
+  return !normalized || isValidPhone(normalized);
+};
+
+const isReasonableName = (value) => {
+  const normalized = normalizeText(value);
+  return normalized.length >= 2 && /[A-Za-z]/.test(normalized) && !/[@:/\\]/.test(normalized);
+};
+
+const getFirstFieldError = (errors) => Object.values(errors).find(Boolean) || "";
+
 const loadDraft = () => {
   if (typeof window === "undefined") return null;
 
@@ -425,39 +445,69 @@ const buildReviewSections = (values) => [
   },
 ];
 
-const validateStep = (stepId, values) => {
+const getStepFieldErrors = (stepId, values) => {
+  const errors = {};
+
   if (stepId === "company") {
-    if (!normalizeText(values.company.businessName)) return "Enter the business name.";
-    if (!isValidEmail(values.company.mainEmail)) return "Enter a valid main business email.";
+    if (!normalizeText(values.company.businessName)) errors["company.businessName"] = "Enter the business name.";
+    if (!isValidEmail(values.company.mainEmail)) errors["company.mainEmail"] = "Enter a valid main business email.";
+    if (!isValidOptionalPhone(values.company.mainPhone)) errors["company.mainPhone"] = "Enter a valid phone number.";
   }
   if (stepId === "contact") {
-    if (!normalizeText(values.contact.name)) return "Enter the primary contact name.";
-    if (!isValidEmail(values.contact.email)) return "Enter a valid primary contact email.";
+    if (!isReasonableName(values.contact.name)) errors["contact.name"] = "Enter the primary contact name.";
+    if (!isValidEmail(values.contact.email)) errors["contact.email"] = "Enter a valid primary contact email.";
+    if (!isValidOptionalPhone(values.contact.phoneWhatsapp)) errors["contact.phoneWhatsapp"] = "Enter a valid phone or WhatsApp number.";
   }
   if (stepId === "operations") {
-    if (!normalizeText(values.operations.offerings)) return "Tell us what the business sells or provides.";
-    if (!normalizeText(values.operations.workflowProblems)) return "Add the current workflow problems.";
+    if (!normalizeText(values.operations.offerings)) {
+      errors["operations.offerings"] = "Tell us what the business sells or provides.";
+    }
+    if (!normalizeText(values.operations.workflowProblems)) {
+      errors["operations.workflowProblems"] = "Add the current workflow problems.";
+    }
   }
   if (stepId === "modules" && values.modules.selected.length === 0) {
-    return "Select at least one app or module.";
+    errors["modules.selected"] = "Select at least one app or module.";
   }
   if (stepId === "payments" && values.payments.methods.length === 0) {
-    return "Select at least one payment method or choose Manual.";
+    errors["payments.methods"] = "Select at least one payment method or choose Manual.";
+  }
+  if (stepId === "payments" && !isValidOptionalEmail(values.payments.providerBusinessEmail)) {
+    errors["payments.providerBusinessEmail"] = "Enter a valid payment provider email.";
   }
   if (
     stepId === "communications" &&
     values.communications.customerNotificationChannels.length === 0
   ) {
-    return "Select at least one customer notification channel.";
+    errors["communications.customerNotificationChannels"] = "Select at least one customer notification channel.";
   }
-  if (stepId === "admins" && values.admins.ownerEmail && !isValidEmail(values.admins.ownerEmail)) {
-    return "Enter a valid owner/admin email.";
+  if (stepId === "communications") {
+    if (!isValidOptionalEmail(values.communications.mainBusinessEmail)) {
+      errors["communications.mainBusinessEmail"] = "Enter a valid main business email.";
+    }
+    if (!isValidOptionalEmail(values.communications.preferredSendingEmail)) {
+      errors["communications.preferredSendingEmail"] = "Enter a valid sending email.";
+    }
+    if (!isValidOptionalEmail(values.communications.supportEmail)) {
+      errors["communications.supportEmail"] = "Enter a valid support email.";
+    }
+    if (!isValidOptionalPhone(values.communications.whatsappNumber)) {
+      errors["communications.whatsappNumber"] = "Enter a valid WhatsApp number.";
+    }
+  }
+  if (stepId === "admins") {
+    if (values.admins.ownerName && !isReasonableName(values.admins.ownerName)) {
+      errors["admins.ownerName"] = "Enter a valid owner/admin name.";
+    }
+    if (values.admins.ownerEmail && !isValidEmail(values.admins.ownerEmail)) {
+      errors["admins.ownerEmail"] = "Enter a valid owner/admin email.";
+    }
   }
   if (stepId === "security" && !values.security.consent) {
-    return "Confirm that Faako will review setup and security before launch.";
+    errors["security.consent"] = "Confirm that Faako will review setup and security before launch.";
   }
 
-  return "";
+  return errors;
 };
 
 const buildPayload = (values, honeypotValue) => {
@@ -502,58 +552,135 @@ const buildPayload = (values, honeypotValue) => {
   };
 };
 
-function TextField({ label, path, values, onChange, required = false, type = "text", placeholder = "", autoComplete = "" }) {
+const getFieldId = (path) => `signup-${path.replace(/[^a-z0-9]+/gi, "-")}`;
+
+function RequiredMark() {
   return (
-    <label>
-      {label}
+    <>
+      <span className="signup-required-mark" aria-hidden="true">*</span>
+      <span className="sr-only">required</span>
+    </>
+  );
+}
+
+function TextField({
+  label,
+  path,
+  values,
+  onChange,
+  required = false,
+  type = "text",
+  placeholder = "",
+  autoComplete = "",
+  error = "",
+}) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
+  return (
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
       <input
+        id={fieldId}
         type={type}
         value={getField(values, path)}
         onChange={(event) => onChange(path, event.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
         required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
       />
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function TextAreaField({ label, path, values, onChange, required = false, placeholder = "", rows = 4 }) {
+function TextAreaField({
+  label,
+  path,
+  values,
+  onChange,
+  required = false,
+  placeholder = "",
+  rows = 4,
+  error = "",
+}) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
   return (
-    <label>
-      {label}
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
       <textarea
+        id={fieldId}
         value={getField(values, path)}
         onChange={(event) => onChange(path, event.target.value)}
         placeholder={placeholder}
         rows={rows}
         required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
       />
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function SelectField({ label, path, values, onChange, options }) {
+function SelectField({ label, path, values, onChange, options, required = false, error = "" }) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
   return (
-    <label>
-      {label}
-      <select value={getField(values, path)} onChange={(event) => onChange(path, event.target.value)}>
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
+      <select
+        id={fieldId}
+        value={getField(values, path)}
+        onChange={(event) => onChange(path, event.target.value)}
+        required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
+      >
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
         ))}
       </select>
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function CheckboxGrid({ legend, help, options, values, path, onToggle }) {
+function CheckboxGrid({ legend, help, options, values, path, onToggle, required = false, error = "" }) {
   const selected = getField(values, path);
+  const errorId = error ? `${getFieldId(path)}-error` : undefined;
 
   return (
-    <fieldset className="signup-choice-group">
-      <legend>{legend}</legend>
+    <fieldset className={`signup-choice-group ${error ? "is-error" : ""}`} aria-describedby={errorId}>
+      <legend>
+        {legend}
+        {required ? <RequiredMark /> : null}
+      </legend>
       {help ? <p className="signup-help-text">{help}</p> : null}
       <div className="signup-chip-grid signup-chip-grid--wide">
         {options.map((option) => {
@@ -572,6 +699,11 @@ function CheckboxGrid({ legend, help, options, values, path, onToggle }) {
           );
         })}
       </div>
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </fieldset>
   );
 }
@@ -581,6 +713,7 @@ export default function Signup() {
   const [values, setValues] = useState(initialValues);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [status, setStatus] = useState({ state: "idle", message: "" });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [honeypotValue, setHoneypotValue] = useState("");
   const [draftStatus, setDraftStatus] = useState(
     "Draft saves automatically on this device."
@@ -590,6 +723,7 @@ export default function Signup() {
 
   const activeStep = WIZARD_STEPS[activeStepIndex];
   const reviewSections = useMemo(() => buildReviewSections(values), [values]);
+  const fieldError = (path) => fieldErrors[path] || "";
 
   useEffect(() => {
     const saved = saveDraft(values);
@@ -604,6 +738,12 @@ export default function Signup() {
     setStatus((current) =>
       current.state === "loading" ? current : { state: "idle", message: "" }
     );
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
     setValues((current) => setNestedValue(current, path, value));
   };
 
@@ -611,6 +751,12 @@ export default function Signup() {
     setStatus((current) =>
       current.state === "loading" ? current : { state: "idle", message: "" }
     );
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
     setValues((current) => toggleListValue(current, path, value));
   };
 
@@ -621,28 +767,35 @@ export default function Signup() {
     }
 
     for (let cursor = 0; cursor < index; cursor += 1) {
-      const error = validateStep(WIZARD_STEPS[cursor].id, values);
+      const errors = getStepFieldErrors(WIZARD_STEPS[cursor].id, values);
+      const error = getFirstFieldError(errors);
       if (error) {
         setActiveStepIndex(cursor);
+        setFieldErrors(errors);
         setStatus({ state: "error", message: error });
         return;
       }
     }
 
+    setFieldErrors({});
     setActiveStepIndex(index);
   };
 
   const goNext = () => {
-    const error = validateStep(activeStep.id, values);
+    const errors = getStepFieldErrors(activeStep.id, values);
+    const error = getFirstFieldError(errors);
     if (error) {
+      setFieldErrors(errors);
       setStatus({ state: "error", message: error });
       return;
     }
+    setFieldErrors({});
     setStatus({ state: "idle", message: "" });
     setActiveStepIndex((current) => Math.min(current + 1, WIZARD_STEPS.length - 1));
   };
 
   const goBack = () => {
+    setFieldErrors({});
     setStatus({ state: "idle", message: "" });
     setActiveStepIndex((current) => Math.max(current - 1, 0));
   };
@@ -654,9 +807,11 @@ export default function Signup() {
 
     for (const step of WIZARD_STEPS) {
       if (step.id === "review") continue;
-      const error = validateStep(step.id, values);
+      const errors = getStepFieldErrors(step.id, values);
+      const error = getFirstFieldError(errors);
       if (error) {
         setActiveStepIndex(WIZARD_STEPS.findIndex((item) => item.id === step.id));
+        setFieldErrors(errors);
         setStatus({ state: "error", message: error });
         return;
       }
@@ -711,6 +866,7 @@ export default function Signup() {
 
       clearDraft();
       setValues(deepClone(DEFAULT_VALUES));
+      setFieldErrors({});
       setHoneypotValue("");
       submissionKeyRef.current = createSubmissionIdempotencyKey();
       setActiveStepIndex(0);
@@ -826,7 +982,7 @@ export default function Signup() {
                 {activeStep.id === "company" ? (
                   <section className="signup-section">
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Business name" path="company.businessName" values={values} onChange={updateField} required />
+                      <TextField label="Business name" path="company.businessName" values={values} onChange={updateField} required error={fieldError("company.businessName")} />
                       <TextField label="Legal business name if different" path="company.legalBusinessName" values={values} onChange={updateField} />
                     </div>
                     <div className="signup-grid signup-grid--two">
@@ -839,8 +995,8 @@ export default function Signup() {
                     </div>
                     <TextAreaField label="Business address" path="company.address" values={values} onChange={updateField} rows={3} />
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Main phone" path="company.mainPhone" values={values} onChange={updateField} type="tel" />
-                      <TextField label="Main email" path="company.mainEmail" values={values} onChange={updateField} type="email" required />
+                      <TextField label="Main phone" path="company.mainPhone" values={values} onChange={updateField} type="tel" error={fieldError("company.mainPhone")} />
+                      <TextField label="Main email" path="company.mainEmail" values={values} onChange={updateField} type="email" required error={fieldError("company.mainEmail")} />
                     </div>
                     <div className="signup-grid signup-grid--two">
                       <TextField label="Website/domain if any" path="company.websiteDomain" values={values} onChange={updateField} placeholder="example.com" />
@@ -856,12 +1012,12 @@ export default function Signup() {
                 {activeStep.id === "contact" ? (
                   <section className="signup-section">
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Contact name" path="contact.name" values={values} onChange={updateField} required />
+                      <TextField label="Contact name" path="contact.name" values={values} onChange={updateField} required error={fieldError("contact.name")} />
                       <TextField label="Role/title" path="contact.roleTitle" values={values} onChange={updateField} />
                     </div>
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Email" path="contact.email" values={values} onChange={updateField} type="email" required />
-                      <TextField label="Phone / WhatsApp" path="contact.phoneWhatsapp" values={values} onChange={updateField} type="tel" />
+                      <TextField label="Email" path="contact.email" values={values} onChange={updateField} type="email" required error={fieldError("contact.email")} />
+                      <TextField label="Phone / WhatsApp" path="contact.phoneWhatsapp" values={values} onChange={updateField} type="tel" error={fieldError("contact.phoneWhatsapp")} />
                     </div>
                     <SelectField label="Preferred contact method" path="contact.preferredContactMethod" values={values} onChange={updateField} options={["WhatsApp", "Phone", "Email", "SMS"]} />
                   </section>
@@ -869,13 +1025,13 @@ export default function Signup() {
 
                 {activeStep.id === "operations" ? (
                   <section className="signup-section">
-                    <TextAreaField label="What does the business sell or provide?" path="operations.offerings" values={values} onChange={updateField} required placeholder="Products, services, rentals, bookings, consulting..." />
+                    <TextAreaField label="What does the business sell or provide?" path="operations.offerings" values={values} onChange={updateField} required error={fieldError("operations.offerings")} placeholder="Products, services, rentals, bookings, consulting..." />
                     <div className="signup-grid signup-grid--two">
                       <TextField label="Number of staff/users" path="operations.staffCount" values={values} onChange={updateField} placeholder="e.g. 8" />
                       <TextField label="Branches/locations" path="operations.branchCount" values={values} onChange={updateField} placeholder="e.g. 1 branch" />
                     </div>
                     <TextAreaField label="Current tools used" path="operations.currentTools" values={values} onChange={updateField} placeholder="Excel, WhatsApp, paper records, Shopify, POS app..." />
-                    <TextAreaField label="Current workflow problems" path="operations.workflowProblems" values={values} onChange={updateField} required placeholder="What is slow, manual, or hard to track today?" />
+                    <TextAreaField label="Current workflow problems" path="operations.workflowProblems" values={values} onChange={updateField} required error={fieldError("operations.workflowProblems")} placeholder="What is slow, manual, or hard to track today?" />
                     <div className="signup-grid signup-grid--two">
                       <SelectField label="Expected launch timeline" path="operations.launchTimeline" values={values} onChange={updateField} options={["Immediately", "Within 30 days", "1-3 months", "3+ months", "Not sure"]} />
                       <TextField label="Priority goals" path="operations.priorityGoals" values={values} onChange={updateField} placeholder="Sales, orders, payments, visibility..." />
@@ -885,7 +1041,7 @@ export default function Signup() {
 
                 {activeStep.id === "modules" ? (
                   <section className="signup-section">
-                    <CheckboxGrid legend="Required apps / modules" help="Select everything you expect Faako to plan for." options={MODULE_OPTIONS} values={values} path="modules.selected" onToggle={toggleFieldValue} />
+                    <CheckboxGrid legend="Required apps / modules" help="Select everything you expect Faako to plan for." options={MODULE_OPTIONS} values={values} path="modules.selected" onToggle={toggleFieldValue} required error={fieldError("modules.selected")} />
                     <TextAreaField label="Custom module notes" path="modules.customNotes" values={values} onChange={updateField} placeholder="Any custom reports, special workflows, or future tools?" />
                   </section>
                 ) : null}
@@ -899,10 +1055,10 @@ export default function Signup() {
                       <SelectField label="Will accept online payments?" path="payments.acceptsOnlinePayments" values={values} onChange={updateField} options={YES_NO_UNSURE} />
                       <SelectField label="Preferred provider" path="payments.preferredProvider" values={values} onChange={updateField} options={PAYMENT_PROVIDER_OPTIONS} />
                     </div>
-                    <CheckboxGrid legend="Payment methods needed" options={PAYMENT_METHOD_OPTIONS} values={values} path="payments.methods" onToggle={toggleFieldValue} />
+                    <CheckboxGrid legend="Payment methods needed" options={PAYMENT_METHOD_OPTIONS} values={values} path="payments.methods" onToggle={toggleFieldValue} required error={fieldError("payments.methods")} />
                     <div className="signup-grid signup-grid--two">
                       <SelectField label="Paystack account status" path="payments.paystackAccountStatus" values={values} onChange={updateField} options={["Not started", "Pending", "Active", "Not sure"]} />
-                      <TextField label="Business email for payment provider" path="payments.providerBusinessEmail" values={values} onChange={updateField} type="email" />
+                      <TextField label="Business email for payment provider" path="payments.providerBusinessEmail" values={values} onChange={updateField} type="email" error={fieldError("payments.providerBusinessEmail")} />
                     </div>
                     <div className="signup-grid signup-grid--two">
                       <TextField label="Settlement country" path="payments.settlementCountry" values={values} onChange={updateField} />
@@ -916,11 +1072,11 @@ export default function Signup() {
                 {activeStep.id === "communications" ? (
                   <section className="signup-section">
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Main business email" path="communications.mainBusinessEmail" values={values} onChange={updateField} type="email" />
-                      <TextField label="Preferred sending email" path="communications.preferredSendingEmail" values={values} onChange={updateField} type="email" />
+                      <TextField label="Main business email" path="communications.mainBusinessEmail" values={values} onChange={updateField} type="email" error={fieldError("communications.mainBusinessEmail")} />
+                      <TextField label="Preferred sending email" path="communications.preferredSendingEmail" values={values} onChange={updateField} type="email" error={fieldError("communications.preferredSendingEmail")} />
                     </div>
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Support email" path="communications.supportEmail" values={values} onChange={updateField} type="email" />
+                      <TextField label="Support email" path="communications.supportEmail" values={values} onChange={updateField} type="email" error={fieldError("communications.supportEmail")} />
                       <SelectField label="Existing email provider" path="communications.existingEmailProvider" values={values} onChange={updateField} options={["Google Workspace", "Zoho", "Hostinger", "Microsoft 365", "Other", "Not sure"]} />
                     </div>
                     <div className="signup-grid signup-grid--two">
@@ -928,11 +1084,11 @@ export default function Signup() {
                       <SelectField label="SMS needed?" path="communications.smsNeeded" values={values} onChange={updateField} options={YES_NO_UNSURE} />
                     </div>
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="WhatsApp business number" path="communications.whatsappNumber" values={values} onChange={updateField} type="tel" />
+                      <TextField label="WhatsApp business number" path="communications.whatsappNumber" values={values} onChange={updateField} type="tel" error={fieldError("communications.whatsappNumber")} />
                       <TextField label="WhatsApp display name" path="communications.whatsappDisplayName" values={values} onChange={updateField} />
                     </div>
                     <TextField label="WhatsApp business category" path="communications.whatsappCategory" values={values} onChange={updateField} />
-                    <CheckboxGrid legend="Preferred customer notification channels" options={NOTIFICATION_CHANNEL_OPTIONS} values={values} path="communications.customerNotificationChannels" onToggle={toggleFieldValue} />
+                    <CheckboxGrid legend="Preferred customer notification channels" options={NOTIFICATION_CHANNEL_OPTIONS} values={values} path="communications.customerNotificationChannels" onToggle={toggleFieldValue} required error={fieldError("communications.customerNotificationChannels")} />
                     <CheckboxGrid legend="Notification types wanted" options={NOTIFICATION_TYPE_OPTIONS} values={values} path="communications.notificationTypes" onToggle={toggleFieldValue} />
                   </section>
                 ) : null}
@@ -961,8 +1117,8 @@ export default function Signup() {
                       This plans account setup only. Faako will create live users later through a reviewed admin process.
                     </p>
                     <div className="signup-grid signup-grid--two">
-                      <TextField label="Owner/admin name" path="admins.ownerName" values={values} onChange={updateField} />
-                      <TextField label="Owner/admin email" path="admins.ownerEmail" values={values} onChange={updateField} type="email" />
+                      <TextField label="Owner/admin name" path="admins.ownerName" values={values} onChange={updateField} error={fieldError("admins.ownerName")} />
+                      <TextField label="Owner/admin email" path="admins.ownerEmail" values={values} onChange={updateField} type="email" error={fieldError("admins.ownerEmail")} />
                     </div>
                     <TextField label="Number of staff accounts needed" path="admins.staffAccountsNeeded" values={values} onChange={updateField} />
                     <CheckboxGrid legend="Roles needed" options={ADMIN_ROLE_OPTIONS} values={values} path="admins.rolesNeeded" onToggle={toggleFieldValue} />
@@ -984,14 +1140,21 @@ export default function Signup() {
                     <p className="signup-secure-note">
                       Final security, payment, email, and integration setup will be reviewed by Faako before launch.
                     </p>
-                    <label className={`signup-chip signup-consent ${values.security.consent ? "is-selected" : ""}`}>
+                    <label className={`signup-chip signup-consent ${values.security.consent ? "is-selected" : ""} ${fieldError("security.consent") ? "is-error" : ""}`}>
                       <input
                         type="checkbox"
                         checked={values.security.consent}
                         onChange={(event) => updateField("security.consent", event.target.checked)}
+                        aria-invalid={fieldError("security.consent") ? "true" : undefined}
+                        aria-describedby={fieldError("security.consent") ? "signup-security-consent-error" : undefined}
                       />
                       <span>I understand Faako will review setup and security before launch.</span>
                     </label>
+                    {fieldError("security.consent") ? (
+                      <span className="signup-field-error" id="signup-security-consent-error">
+                        {fieldError("security.consent")}
+                      </span>
+                    ) : null}
                   </section>
                 ) : null}
 
