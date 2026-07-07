@@ -125,6 +125,79 @@ const DEFAULT_DAILY_WEATHER = {
   updatedAt: null,
 };
 
+const MONITOR_STATUS_SEVERITY = {
+  offline: 4,
+  error: 4,
+  suspended: 4,
+  degraded: 3,
+  warning: 3,
+  pending: 2,
+  not_configured: 1,
+  unknown: 1,
+};
+
+const pluralize = (count, singular, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const getMonitorSeverity = (status) => {
+  if (isHealthyStatus(status)) return 0;
+  return MONITOR_STATUS_SEVERITY[status] ?? 1;
+};
+
+const getAggregateMonitorStatus = (healthyCount, totalCount) => {
+  if (!totalCount) return "unknown";
+  if (healthyCount === totalCount) return "online";
+  return healthyCount ? "degraded" : "offline";
+};
+
+const getMonitorIssueReason = ({ status, subject = "This check", note = "" }) => {
+  if (status === "offline" || status === "error") {
+    return `${subject} is not responding to the latest health check.`;
+  }
+  if (status === "degraded" || status === "warning") {
+    return `${subject} is responding, but at least one check is degraded.`;
+  }
+  if (status === "not_configured") {
+    return `${subject} is missing a URL, so monitoring cannot verify it.`;
+  }
+  if (status === "unknown") {
+    return `${subject} did not return a usable health signal.`;
+  }
+  if (status === "pending") {
+    return `${subject} is still waiting for a completed signal.`;
+  }
+  if (status === "suspended") {
+    return `${subject} is suspended and needs review.`;
+  }
+  return note || `${subject} is healthy.`;
+};
+
+const summarizeAffectedPages = (pages = []) => {
+  const affectedPages = pages.filter((page) => page?.status && !isHealthyStatus(page.status));
+  if (!affectedPages.length) return "";
+
+  const pageLabels = affectedPages.slice(0, 3).map((page) => {
+    const label = page.label || page.path || "Endpoint";
+    return `${label} ${formatStatusLabel(page.status).toLowerCase()}`;
+  });
+  const overflow =
+    affectedPages.length > pageLabels.length
+      ? ` +${affectedPages.length - pageLabels.length} more`
+      : "";
+
+  return `${pluralize(affectedPages.length, "endpoint")} affected: ${pageLabels.join(", ")}${overflow}`;
+};
+
+const buildPageStatusDetail = (page) => {
+  if (isHealthyStatus(page?.status)) return page?.url || page?.path || "Responding normally.";
+  if (page?.status === "not_configured") return page?.path || "URL missing.";
+  return (
+    page?.url ||
+    page?.path ||
+    getMonitorIssueReason({ status: page?.status, subject: "Endpoint" })
+  );
+};
+
 const getTemperatureUnitSymbol = (unit) => {
   if (String(unit || "").toUpperCase() === "CELSIUS") return "C";
   return "F";
@@ -866,6 +939,9 @@ const Dashboard = () => {
         },
       ].filter((surface) => surface.status);
   const lastSyncedLabel = kpiData?.lastSyncedAt ? formatDateTime(kpiData.lastSyncedAt) : "N/A";
+  const statusCheckedLabel = kpiData?.siteStatus?.checkedAt
+    ? formatDateTime(kpiData.siteStatus.checkedAt)
+    : "Not checked yet";
   const systemEntries = [
     ...apiSurfaces.map((surface) => ({
       id: surface.id,
@@ -945,58 +1021,109 @@ const Dashboard = () => {
   const serviceHealthPercent = formatPercent(healthyServices, totalServices);
   const siteHealthPercent = formatPercent(onlineSites, totalSites);
   const pageHealthPercent = formatPercent(onlinePages, totalPages);
-  const systemMonitorEntries = systemEntries.map((entry, index) => {
-    const score = getMonitoringHealthScore(entry.status);
-    return {
+  const systemMonitorEntries = systemEntries
+    .map((entry) => ({
       ...entry,
-      score,
-      tone: getMonitoringTone(entry.status),
-      sparkline: buildMonitoringSparklineValues({
+      severity: getMonitorSeverity(entry.status),
+      tone: getStatusTone(entry.status),
+      issueReason: getMonitorIssueReason({
         status: entry.status,
-        score,
-        seed: index + entry.label.length,
+        subject: entry.label,
+        note: entry.note,
       }),
-    };
-  });
-  const snapshotCards = [
+    }))
+    .sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
+  const siteIssueRows = siteOverview
+    .filter((site) => site.aggregateStatus && !isHealthyStatus(site.aggregateStatus))
+    .map((site) => ({
+      id: `site-${site.id}`,
+      label: site.title,
+      status: site.aggregateStatus,
+      note:
+        summarizeAffectedPages(site.pages) ||
+        getMonitorIssueReason({ status: site.aggregateStatus, subject: site.title }),
+      severity: getMonitorSeverity(site.aggregateStatus),
+      tone: getStatusTone(site.aggregateStatus),
+    }));
+  const operationalIssues = [
+    ...systemMonitorEntries
+      .filter((entry) => entry.severity > 0)
+      .map((entry) => ({
+        id: `system-${entry.id}`,
+        label: entry.label,
+        status: entry.status,
+        note: entry.issueReason,
+        detail: entry.note,
+        severity: entry.severity,
+        tone: entry.tone,
+      })),
+    ...siteIssueRows.map((site) => ({
+      ...site,
+      detail: "Website or portal surface",
+    })),
+  ].sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
+  const criticalIssueCount = operationalIssues.filter((issue) => issue.severity >= 4).length;
+  const degradedIssueCount = operationalIssues.filter((issue) => issue.severity === 3).length;
+  const monitoringGapCount = operationalIssues.filter(
+    (issue) => issue.severity > 0 && issue.severity < 3
+  ).length;
+  const operationalTone = criticalIssueCount
+    ? "danger"
+    : degradedIssueCount
+      ? "warning"
+      : monitoringGapCount
+        ? "info"
+        : "success";
+  const operationalStatus = criticalIssueCount
+    ? "offline"
+    : degradedIssueCount
+      ? "degraded"
+      : monitoringGapCount
+        ? "unknown"
+        : "online";
+  const operationalHeadline = criticalIssueCount
+    ? `${pluralize(criticalIssueCount, "outage")} ${
+        criticalIssueCount === 1 ? "needs" : "need"
+      } attention`
+    : degradedIssueCount
+      ? `${pluralize(degradedIssueCount, "degraded area")} ${
+          degradedIssueCount === 1 ? "needs" : "need"
+        } review`
+      : monitoringGapCount
+        ? `${pluralize(monitoringGapCount, "monitoring gap")} to complete`
+        : "All monitored systems are healthy";
+  const operationalDetail = criticalIssueCount
+    ? "Start with the unavailable service or endpoint listed first."
+    : degradedIssueCount
+      ? "No full outage detected, but degraded checks should be reviewed."
+      : monitoringGapCount
+        ? "Configured checks are responding, but some URLs or signals are missing."
+        : "Services, website surfaces, and configured pages are responding.";
+  const operationalSummaryCards = [
     {
       id: "services",
-      label: "Services healthy",
-      value: `${serviceHealthPercent}%`,
-      detail: formatRatio(healthyServices, totalServices),
-      helper: `${totalServices} services tracked`,
-      status: healthyServices === totalServices ? "online" : healthyServices ? "degraded" : "offline",
-      score: serviceHealthPercent,
-      seed: 2,
+      label: "Services",
+      value: formatRatio(healthyServices, totalServices),
+      detail: `${serviceHealthPercent}% healthy`,
+      status: getAggregateMonitorStatus(healthyServices, totalServices),
     },
     {
       id: "surfaces",
-      label: "Surfaces online",
-      value: `${siteHealthPercent}%`,
-      detail: formatRatio(onlineSites, totalSites),
-      helper: `${notConfiguredSites} optional unconfigured`,
-      status: onlineSites === totalSites ? "online" : onlineSites ? "degraded" : "offline",
-      score: siteHealthPercent,
-      seed: 7,
+      label: "Surfaces",
+      value: formatRatio(onlineSites, totalSites),
+      detail: `${siteHealthPercent}% online`,
+      status: getAggregateMonitorStatus(onlineSites, totalSites),
     },
     {
       id: "pages",
-      label: "Pages online",
-      value: `${pageHealthPercent}%`,
-      detail: formatRatio(onlinePages, totalPages),
-      helper: `${totalPages} configured pages`,
-      status: onlinePages === totalPages ? "online" : onlinePages ? "degraded" : "offline",
-      score: pageHealthPercent,
-      seed: 11,
+      label: "Pages",
+      value: formatRatio(onlinePages, totalPages),
+      detail: `${pageHealthPercent}% online`,
+      status: getAggregateMonitorStatus(onlinePages, totalPages),
     },
   ].map((card) => ({
     ...card,
-    tone: getMonitoringTone(card.status),
-    sparkline: buildMonitoringSparklineValues({
-      status: card.status,
-      score: card.score,
-      seed: card.seed,
-    }),
+    tone: getStatusTone(card.status),
   }));
   const accountingNetTotals = useMemo(() => {
     if (!accountingSummary) return null;
@@ -1031,24 +1158,7 @@ const Dashboard = () => {
       ? `Feels like ${formatTemperatureValue(dailyWeather.feelsLike, dailyWeather.temperatureUnit)}`
       : dailyWeather.warning || "Current forecast";
 
-  const attentionItems = [
-    ...systemEntries
-      .filter((entry) => entry.status && !isHealthyStatus(entry.status))
-      .map((entry) => ({
-        id: `system-${entry.id}`,
-        label: entry.label,
-        status: entry.status,
-        note: entry.note,
-      })),
-    ...siteOverview
-      .filter((site) => site.aggregateStatus === "offline" || site.aggregateStatus === "degraded")
-      .map((site) => ({
-        id: `site-${site.id}`,
-        label: site.title,
-        status: site.aggregateStatus,
-        note: `${site.pages.length} pages tracked`,
-      })),
-  ];
+  const attentionItems = operationalIssues.slice(0, 5);
 
   const baseTimelineEvents = [
     kpiData?.lastSyncedAt
@@ -1627,46 +1737,60 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel panel-span-3">
+            <article className={`panel panel-span-3 dashboard-operations-brief is-${operationalTone}`}>
               <div className="panel-header">
                 <div>
                   <h3>Operational snapshot</h3>
-                  <p className="muted">Live health ratios with recent signal shape.</p>
+                  <p className="muted">Last health check {statusCheckedLabel}</p>
                 </div>
+                {renderStatusPill(operationalStatus)}
               </div>
-              <div className="monitoring-card-grid">
-                {snapshotCards.map((card) => (
-                  <article className={`bubble-card monitoring-card is-${card.tone}`} key={card.id}>
-                    <div className="monitoring-card__header">
-                      <div className="monitoring-card__title">
-                        <span className="kpi-label">{card.label}</span>
-                        <strong>{card.detail}</strong>
+              <div className="dashboard-operations-brief__body">
+                <div className="dashboard-operations-brief__summary">
+                  <span className="kpi-label">Current read</span>
+                  <strong>{operationalHeadline}</strong>
+                  <p>{operationalDetail}</p>
+                  <div className="dashboard-operations-brief__metrics">
+                    {operationalSummaryCards.map((card) => (
+                      <div className={`dashboard-operations-metric is-${card.tone}`} key={card.id}>
+                        <span>{card.label}</span>
+                        <strong>{card.value}</strong>
+                        <small>{card.detail}</small>
                       </div>
-                      {renderStatusPill(card.status)}
+                    ))}
+                  </div>
+                </div>
+                <div className="dashboard-operations-brief__issues">
+                  <div className="dashboard-operations-brief__title">
+                    <span className="kpi-label">Highest priority</span>
+                    <span className="muted">
+                      {operationalIssues.length || "No"} issue
+                      {operationalIssues.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {operationalIssues.length ? (
+                    <div className="dashboard-issue-list">
+                      {operationalIssues.slice(0, 4).map((issue) => (
+                        <div className={`dashboard-issue-row is-${issue.tone}`} key={issue.id}>
+                          <span className="dashboard-issue-row__marker" aria-hidden="true" />
+                          <div className="dashboard-issue-row__content">
+                            <div className="dashboard-issue-row__header">
+                              <strong>{issue.label}</strong>
+                              {renderStatusPill(issue.status)}
+                            </div>
+                            <p>{issue.note}</p>
+                            <small>{issue.detail}</small>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="monitoring-card__metric">
-                      <strong>{card.value}</strong>
-                      <span>uptime</span>
+                  ) : (
+                    <div className="dashboard-issue-empty">
+                      <strong>No action needed</strong>
+                      <span>All configured checks are responding.</span>
                     </div>
-                    <div
-                      className="monitoring-card__rail"
-                      style={{ "--monitoring-score": `${card.score}%` }}
-                      aria-hidden="true"
-                    >
-                      <span />
-                    </div>
-                    <div className="monitoring-card__spark">
-                      <MonitoringSparkline
-                        values={card.sparkline}
-                        status={card.status}
-                        label={`${card.label} sparkline`}
-                      />
-                    </div>
-                    <div className="monitoring-card__footer">
-                      <span className="muted">{card.helper}</span>
-                    </div>
-                  </article>
-                ))}
+                  )}
+                </div>
               </div>
             </article>
 
@@ -1693,35 +1817,26 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="glass-card panel panel-span-2">
+            <article className="glass-card panel panel-span-2 dashboard-system-status">
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
-                  <p className="muted">APIs and databases by current health signal.</p>
+                  <p className="muted">{healthyServices}/{totalServices} services healthy</p>
                 </div>
               </div>
-              <div className="monitoring-card-grid">
+              <div className="dashboard-system-status__list">
                 {systemMonitorEntries.map((row) => (
-                  <article className={`bubble-card monitoring-card is-${row.tone}`} key={row.id}>
-                    <div className="monitoring-card__header">
-                      <div className="monitoring-card__title">
+                  <div className={`dashboard-system-row is-${row.tone}`} key={row.id}>
+                    <span className="dashboard-system-row__marker" aria-hidden="true" />
+                    <div className="dashboard-system-row__content">
+                      <div className="dashboard-system-row__header">
                         <strong>{row.label}</strong>
-                        <span className="muted">{row.note}</span>
+                        {renderStatusPill(row.status)}
                       </div>
-                      {renderStatusPill(row.status)}
+                      <span className="muted">{row.note}</span>
+                      {row.severity ? <p>{row.issueReason}</p> : null}
                     </div>
-                    <div className="monitoring-card__metric">
-                      <strong>{row.score}</strong>
-                      <span>score</span>
-                    </div>
-                    <div className="monitoring-card__spark">
-                      <MonitoringSparkline
-                        values={row.sparkline}
-                        status={row.status}
-                        label={`${row.label} health sparkline`}
-                      />
-                    </div>
-                  </article>
+                  </div>
                 ))}
               </div>
             </article>
@@ -1781,6 +1896,12 @@ const Dashboard = () => {
                               : `${site.summary.configured}/${site.summary.total} endpoints configured`}
                           </span>
                         </div>
+                        <div className="site-card__actions">
+                          {renderStatusPill(site.aggregateStatus)}
+                          <span className="site-card__chevron" aria-hidden="true">
+                            <FiChevronDown />
+                          </span>
+                        </div>
                       </div>
                       <div className="site-card__telemetry">
                         <div className="site-card__score">
@@ -1817,6 +1938,22 @@ const Dashboard = () => {
                           </span>
                         ) : null}
                       </div>
+                      {isExpanded ? (
+                        <div className="site-card__list" id={listId}>
+                          {site.pages.map((page) => (
+                            <div
+                              className={`site-card__row is-${getStatusTone(page.status)}`}
+                              key={`${site.id}-${page.label || page.path}`}
+                            >
+                              <span className="site-card__row-copy">
+                                <strong>{page.label || page.path || "Endpoint"}</strong>
+                                <small>{buildPageStatusDetail(page)}</small>
+                              </span>
+                              {renderStatusPill(page.status)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })
