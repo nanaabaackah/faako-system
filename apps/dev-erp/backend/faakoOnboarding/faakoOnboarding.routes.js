@@ -986,86 +986,6 @@ const buildArchivePatch = ({ existingRow, columns, user }) => {
   return { updates, values, changedFields: ["archivedAt"] };
 };
 
-const SUPPORTED_PROJECT_CURRENCIES = new Set(["CAD", "GHS"]);
-
-const normalizeProjectCurrency = (value) => {
-  const normalized = normalizeText(value, 20).toUpperCase();
-  return SUPPORTED_PROJECT_CURRENCIES.has(normalized) ? normalized : null;
-};
-
-const normalizeProjectUserId = (value) => {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-};
-
-const normalizeProjectOrganizationId = (value) => {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-};
-
-const getProjectDescriptionLine = (label, value) => {
-  const normalized = normalizeText(value, 4000);
-  if (!normalized || normalized === N_A) return "";
-  return `${label}: ${normalized}`;
-};
-
-const ensureProjectForConvertedSubmission = async ({ prisma, req, submission }) => {
-  const organizationId = normalizeProjectOrganizationId(req.user?.organizationId);
-  if (!prisma?.project?.findFirst || !prisma?.project?.create || !organizationId) {
-    return { created: false, skipped: true, reason: "Project database access is unavailable." };
-  }
-
-  const externalRef = `faako-onboarding:${submission.id}`;
-  const existingProject = await prisma.project.findFirst({
-    where: {
-      organizationId,
-      externalRef,
-    },
-    select: { id: true },
-  });
-  if (existingProject) {
-    return { created: false, projectId: existingProject.id, existing: true };
-  }
-
-  const requestedModules = Array.isArray(submission.requestedModules)
-    ? submission.requestedModules.filter(Boolean)
-    : [];
-  const description = [
-    `Converted from ${submission.formLabel || "Faako form submission"}.`,
-    getProjectDescriptionLine("Contact", [submission.contactName, submission.email, submission.phone].filter(Boolean).join(" | ")),
-    requestedModules.length ? `Requested modules: ${requestedModules.join(", ")}` : "",
-    getProjectDescriptionLine("Package", submission.packageTier),
-    getProjectDescriptionLine("Timeline", submission.timelinePreference),
-    getProjectDescriptionLine("Website", submission.websiteUrl),
-    getProjectDescriptionLine("Project details", submission.projectDetails),
-    getProjectDescriptionLine("Pain points", submission.painPoints),
-    getProjectDescriptionLine("Additional notes", submission.additionalNotes),
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const companyName = submission.companyName && submission.companyName !== N_A
-    ? submission.companyName
-    : "Faako onboarding request";
-  const project = await prisma.project.create({
-    data: {
-      organizationId,
-      ownerUserId: normalizeProjectUserId(req.user?.userId),
-      title: `${companyName} setup`,
-      clientName: companyName,
-      projectType: "EXTERNAL",
-      stage: "SCOPING",
-      priority: "MEDIUM",
-      currency: normalizeProjectCurrency(submission.currency),
-      description,
-      externalRef,
-    },
-    select: { id: true },
-  });
-
-  return { created: true, projectId: project.id };
-};
-
 const recordFaakoOnboardingAudit = ({ prisma, writeAuditLog, req, submission, action, summary, metadata, appEnv }) =>
   writeAuditLog?.(
     prisma,
@@ -1304,26 +1224,12 @@ export const registerFaakoOnboardingRoutes = (app, {
         changedFields: patch.changedFields,
         status: submission.status.value,
         assignedOwner: submission.assignedOwner || null,
-<<<<<<< HEAD
         convertedProject: project,
-=======
-        projectId: projectResult?.project?.id || null,
-        projectCreated: Boolean(projectResult?.created),
->>>>>>> origin/main
       },
       appEnv,
     });
 
-<<<<<<< HEAD
     return res.json({ submission, changedFields: patch.changedFields, project });
-=======
-    return res.json({
-      submission,
-      changedFields: patch.changedFields,
-      project: projectResult?.project || null,
-      projectCreated: Boolean(projectResult?.created),
-    });
->>>>>>> origin/main
   });
 
   app.use("/api/faako-onboarding", router);

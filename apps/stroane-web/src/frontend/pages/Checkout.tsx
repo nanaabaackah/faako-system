@@ -76,7 +76,6 @@ const parseDateInput = (value: string) => {
 
 const isSundayPickupDate = (value: string) => parseDateInput(value)?.getDay() === 0;
 
-<<<<<<< HEAD
 const createDeliverySessionToken = () => {
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
@@ -84,16 +83,6 @@ const createDeliverySessionToken = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-=======
-const isReasonableName = (value: string) => {
-  const trimmed = value.trim();
-  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
-};
-
-const getFirstFieldError = (errors: CheckoutFieldErrors) =>
-  Object.values(errors).find(Boolean) || "";
-
->>>>>>> origin/main
 const Checkout: React.FC = () => {
   const { products: catalogueProducts, loading, notice } = useCatalogueData();
   const { cart, updateQuantity, remove, clear } = useCart();
@@ -474,7 +463,7 @@ const Checkout: React.FC = () => {
                 minimumPickupDate={minimumPickupDate}
                 website={website}
                 preferredContactMethod={preferredContactMethod}
-                notice={notice}
+                notice={notice ?? ""}
                 error={error}
                 fieldErrors={fieldErrors}
                 reviewing={reviewing}
@@ -508,17 +497,7 @@ const Checkout: React.FC = () => {
                   clearFieldError("address");
                   markDetailsChanged();
                 }}
-<<<<<<< HEAD
                 onDeliveryLocationSelect={(location) => void handleDeliveryLocationSelect(location)}
-=======
-                onDeliveryLocationSelect={(location) => {
-                  setDeliveryLocation(location);
-                  setAddress(location.address || location.label);
-                  setDeliveryLocationResults([]);
-                  clearFieldError("address");
-                  markDetailsChanged();
-                }}
->>>>>>> origin/main
                 onPickupSpotChange={(value) => {
                   setPickupSpotId(value);
                   clearFieldError("pickupSpotId");
@@ -561,3 +540,26 @@ const Checkout: React.FC = () => {
 };
 
 export default Checkout;
+function getFirstFieldError(nextFieldErrors: Partial<Record<"name" | "email" | "phone" | "address" | "pickupSpotId" | "pickupDate" | "pickupTime", string>>) {
+  // Prefer a sensible field order for user-facing errors
+  const order: Array<keyof typeof nextFieldErrors> = [
+    "name",
+    "email",
+    "phone",
+    "address",
+    "pickupSpotId",
+    "pickupDate",
+    "pickupTime",
+  ];
+  for (const key of order) {
+    const v = nextFieldErrors[key];
+    if (v) return v;
+  }
+  return "";
+}
+
+function isReasonableName(name: string) {
+  const trimmed = name.trim();
+  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+}
+
