@@ -26,6 +26,7 @@ import { convertAmountToDisplayGhs, formatGhsAmount } from "../../utils/displayC
 import "./Dashboard.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
+const OPEN_RECEIVABLE_STATUSES = new Set(["PENDING", "SCHEDULED", "OVERDUE"]);
 const DASHBOARD_ACTIVITY_REFRESH_INTERVAL_MS = 15000;
 const RANGE_OPTIONS = [
   { value: "24h", label: "24H", description: "Last 24 hours", hours: 24 },
@@ -68,10 +69,12 @@ const buildAccountingSummary = (entries = []) => {
     paidRevenueGhs: 0,
     paidExpensesGhs: 0,
     pendingPayablesGhs: 0,
+    pendingReceivablesGhs: 0,
     counts: {
       paidRevenue: 0,
       paidExpenses: 0,
       pendingPayables: 0,
+      pendingReceivables: 0,
     },
   };
 
@@ -90,6 +93,10 @@ const buildAccountingSummary = (entries = []) => {
     if (entry.type === "EXPENSE" && entry.status === "PENDING") {
       base.pendingPayablesGhs += displayAmount;
       base.counts.pendingPayables += 1;
+    }
+    if (entry.type === "REVENUE" && OPEN_RECEIVABLE_STATUSES.has(entry.status)) {
+      base.pendingReceivablesGhs += displayAmount;
+      base.counts.pendingReceivables += 1;
     }
   });
 
@@ -1474,6 +1481,7 @@ const Dashboard = () => {
           <div className="panel-header">
             <div>
               <h3>Accounting snapshot</h3>
+              <p className="muted">{ACCOUNTING_RANGE.label} financials</p>
             </div>
           </div>
 
@@ -1503,6 +1511,11 @@ const Dashboard = () => {
               label="Net profit"
               value={formatGhsAmount(accountingNetTotals ?? 0)}
               delta="After paid expenses"
+            />
+            <KPICard
+              label="Open receivables"
+              value={formatGhsAmount(accountingSummary.pendingReceivablesGhs)}
+              delta={`${accountingSummary.counts.pendingReceivables} open`}
             />
             <KPICard
               label="Pending payables"

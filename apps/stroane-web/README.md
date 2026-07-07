@@ -97,7 +97,7 @@ Stroane now has a lightweight commerce foundation, not a full ERP or Shopify-sty
 - Cart state persists product IDs and quantities only in browser `localStorage`.
 - The header/mobile navigation shows a cart count and links to `/checkout`.
 - Checkout collects customer contact details plus a delivery or pickup choice, then asks the customer to review before submitting.
-- Delivery checkout uses a searchable/selectable address field. Pickup checkout captures one of the configured pickup spots plus pickup date and time.
+- Delivery checkout uses a searchable/selectable address field backed by the server-side location provider. Set `GOOGLE_MAPS_API_KEY` on the API service to use Google Places Autocomplete for suggestions and Place Details for the selected address; without a key, local/dev search falls back to Nominatim. Pickup checkout captures one of the configured pickup spots plus pickup date and time.
 - `POST /api/orders` creates a `PAYMENT_PENDING` order request when the commerce migration has been deployed.
 - The backend recalculates product prices from catalogue data; frontend totals are display-only.
 - Custom-order and price-unavailable products are hidden from the commerce grid and should use the product inquiry flow. Explicit out-of-stock, zero-available, and preorder-without-backorder products remain blocked from checkout. Unknown stock quantities are allowed for priced products in this interim storefront pass so Paystack/cart testing can continue while physical counts are entered.

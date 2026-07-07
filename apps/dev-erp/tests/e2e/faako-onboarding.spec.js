@@ -108,12 +108,14 @@ const makeSubmission = ({ status = { value: "NEW", label: "New" }, internalNotes
 });
 
 const makeListPayload = (submission) => ({
-  submissions: [submission],
+  submissions: submission ? [submission] : [],
   summary: {
-    total: 1,
-    byStatus: {
-      [submission.status.value]: 1,
-    },
+    total: submission ? 1 : 0,
+    byStatus: submission
+      ? {
+          [submission.status.value]: 1,
+        }
+      : {},
   },
   filters: {
     statuses: statusOptions,
@@ -130,11 +132,13 @@ const makeListPayload = (submission) => ({
     pdfSummary: true,
     emailDelivery: true,
     activityTimeline: true,
+    archive: true,
   },
 });
 
 test.beforeEach(async ({ page }) => {
   let detailSubmission = makeSubmission();
+  let archived = false;
 
   await page.route("**/api/**", async (route) => {
     const request = route.request();
@@ -165,7 +169,7 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === "/api/faako-onboarding" && method === "GET") {
       await route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify(makeListPayload(detailSubmission)),
+        body: JSON.stringify(makeListPayload(archived ? null : detailSubmission)),
       });
       return;
     }
@@ -184,6 +188,7 @@ test.beforeEach(async ({ page }) => {
 
     if (url.pathname === "/api/faako-onboarding/request-1" && method === "PATCH") {
       const body = request.postDataJSON();
+      expect(body.status).toBe("CONTACTED");
       detailSubmission = makeSubmission({
         status: { value: body.status, label: "Contacted" },
         internalNotes: body.internalNotes,
@@ -209,6 +214,24 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (url.pathname === "/api/faako-onboarding/request-1/archive" && method === "POST") {
+      archived = true;
+      detailSubmission = {
+        ...detailSubmission,
+        archivedAt: "2026-06-18T11:00:00.000Z",
+        archivedBy: "Admin User",
+      };
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          submission: detailSubmission,
+          changedFields: ["archivedAt"],
+          archived: true,
+        }),
+      });
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({}),
@@ -223,7 +246,7 @@ test.beforeEach(async ({ page }) => {
 test("Faako onboarding list opens detail and saves management updates", async ({ page }) => {
   await page.goto("/faako-onboarding");
 
-  await expect(page.getByRole("heading", { name: "Faako Onboarding" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Form Submissions" })).toBeVisible();
   const submissionRow = page.locator("tbody tr", { hasText: "Aba Creative Studio" });
   await expect(submissionRow).toBeVisible();
   await expect(page.getByText("Client setup form").first()).toBeVisible();
@@ -247,6 +270,13 @@ test("Faako onboarding list opens detail and saves management updates", async ({
   await managementPanel.getByRole("button", { name: "Save updates" }).click();
 
   await expect(page.getByText("Faako onboarding submission updated.")).toBeVisible();
+  await expect(submissionRow.getByText("Contacted")).toBeVisible();
   await expect(dialog.getByText("Status changed")).toBeVisible();
   await expect(managementPanel.getByLabel("Internal notes")).toHaveValue("Follow up after proposal review.");
+
+  page.once("dialog", (confirmDialog) => confirmDialog.accept());
+  await managementPanel.getByRole("button", { name: "Archive submission" }).click();
+  await expect(page.getByText("Faako onboarding submission archived.")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(submissionRow).toHaveCount(0);
 });
