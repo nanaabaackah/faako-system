@@ -21,6 +21,19 @@ const json = (event, statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
+const loadTableColumns = async (client, tableName) => {
+  const result = await client.query(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = ANY (current_schemas(false))
+        AND table_name = $1
+    `,
+    [tableName]
+  );
+  return new Set(result.rows.map((row) => row.column_name));
+};
+
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") {
@@ -39,25 +52,44 @@ export async function handler(event = {}) {
     await client.connect();
     const organizationId = await resolveConfiguredPublicOrganizationId(client);
     await applyRequestOrganizationContext(client, organizationId);
+    const productColumns = await loadTableColumns(client, "product");
+    if (!productColumns.size) {
+      return json(event, 200, { rentals: 0, products: 0 });
+    }
+
+    const hasColumn = (name) => productColumns.has(name);
+    const filters = [];
+    const queryValues = [];
+    if (hasColumn("organizationId")) {
+      queryValues.push(organizationId);
+      filters.push(`p."organizationId" = $${queryValues.length}`);
+    }
+    if (hasColumn("isDeleted")) filters.push(`COALESCE(p."isDeleted", false) = false`);
+    if (hasColumn("isArchived")) filters.push(`COALESCE(p."isArchived", false) = false`);
+
+    const rentalPredicate = hasColumn("sourceCategoryCode")
+      ? `LOWER(COALESCE(p."sourceCategoryCode", '')) = 'rental'`
+      : hasColumn("itemType")
+        ? `LOWER(COALESCE(p."itemType", '')) = 'rental'`
+        : "false";
+    const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
     const result = await client.query(
       `SELECT
          SUM(
            CASE
-             WHEN LOWER(COALESCE(p."sourceCategoryCode", '')) = 'rental' THEN 1
+             WHEN ${rentalPredicate} THEN 1
              ELSE 0
            END
          )::int AS rentals,
          SUM(
            CASE
-             WHEN LOWER(COALESCE(p."sourceCategoryCode", '')) = 'rental' THEN 0
+             WHEN ${rentalPredicate} THEN 0
              ELSE 1
            END
          )::int AS products
        FROM "product" p
-       WHERE p."organizationId" = $1
-         AND COALESCE(p."isDeleted", false) = false
-         AND COALESCE(p."isArchived", false) = false`,
-      [organizationId]
+       ${whereClause}`,
+      queryValues
     );
 
     const rentals = Number(result.rows[0]?.rentals || 0);
@@ -65,8 +97,11 @@ export async function handler(event = {}) {
 
     return json(event, 200, { rentals, products });
   } catch (err) {
+    if (err.code === "42P01") {
+      return json(event, 200, { rentals: 0, products: 0 });
+    }
     console.error("inventoryCounts error:", err);
-    return json(event, 500, { error: "Failed to load inventory counts" });
+    return json(event, err.statusCode || 500, { error: "Failed to load inventory counts" });
   } finally {
     await client.end().catch(() => {});
   }

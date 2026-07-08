@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FiArchive } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, ERPModal, ERPTable, SelectField, TextareaField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
@@ -90,7 +91,16 @@ function SummaryCard({ label, value, note }) {
   );
 }
 
-function SubmissionTable({ submissions, selectedId, loading, archivingId, onSelect, onArchive }) {
+function SubmissionTable({
+  submissions,
+  selectedId,
+  selectedSubmissionIds,
+  loading,
+  archivingId,
+  onSelect,
+  onArchive,
+  onSelectionChange,
+}) {
   const columns = useMemo(
     () => [
       {
@@ -200,6 +210,11 @@ function SubmissionTable({ submissions, selectedId, loading, archivingId, onSele
       columns={columns}
       rows={submissions}
       rowKey="id"
+      selectable
+      selectedRowKeys={selectedSubmissionIds}
+      onSelectedRowKeysChange={onSelectionChange}
+      getRowSelectLabel={(submission) => `Select submission for ${submission.companyName}`}
+      selectAllLabel="Select all visible submissions"
       state={loading ? "loading" : "ready"}
       loadingMessage="Loading Faako submissions..."
       emptyTitle="No submissions found"
@@ -475,6 +490,8 @@ export default function FaakoOnboarding() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState("");
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState([]);
+  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -534,6 +551,11 @@ export default function FaakoOnboarding() {
   useEffect(() => {
     loadSubmissions();
   }, [loadSubmissions]);
+
+  useEffect(() => {
+    const visibleIds = new Set(submissions.map((submission) => String(submission.id)));
+    setSelectedSubmissionIds((current) => current.filter((id) => visibleIds.has(String(id))));
+  }, [submissions]);
 
   const handleFilterChange = (field, value) => {
     setFilters((current) => ({ ...current, [field]: value }));
@@ -619,6 +641,45 @@ export default function FaakoOnboarding() {
     }
   }, [loadSubmissions, selectedId]);
 
+  const handleBulkArchiveSubmissions = useCallback(async () => {
+    const selectedSubmissions = submissions.filter((submission) =>
+      selectedSubmissionIds.includes(String(submission.id))
+    );
+    if (!selectedSubmissions.length) return;
+    const shouldArchive = window.confirm(
+      `Archive ${selectedSubmissions.length} selected submission${selectedSubmissions.length === 1 ? "" : "s"}?`
+    );
+    if (!shouldArchive) return;
+
+    setIsBulkArchiving(true);
+    setError("");
+    setNotice("");
+    try {
+      await Promise.all(
+        selectedSubmissions.map((submission) =>
+          apiPost(`/api/faako-onboarding/${encodeURIComponent(submission.id)}/archive`, {}, {
+            fallbackMessage: "Unable to archive selected Faako onboarding submissions.",
+          })
+        )
+      );
+      const archivedIds = new Set(selectedSubmissions.map((submission) => String(submission.id)));
+      setSubmissions((current) => current.filter((submission) => !archivedIds.has(String(submission.id))));
+      setSelectedSubmissionIds([]);
+      if (archivedIds.has(String(selectedId))) {
+        setIsDetailOpen(false);
+        setSelectedId("");
+        setSelectedSubmission(null);
+        setDetailLoading(false);
+      }
+      await loadSubmissions();
+      setNotice(`${selectedSubmissions.length} submission${selectedSubmissions.length === 1 ? "" : "s"} archived.`);
+    } catch (archiveError) {
+      setError(archiveError.message || "Unable to archive selected Faako onboarding submissions.");
+    } finally {
+      setIsBulkArchiving(false);
+    }
+  }, [loadSubmissions, selectedId, selectedSubmissionIds, submissions]);
+
   const reviewedCount = Number(summary.byStatus?.REVIEWED || 0) + Number(summary.byStatus?.CONTACTED || 0);
   const convertedCount = Number(summary.byStatus?.CONVERTED || 0);
 
@@ -700,13 +761,33 @@ export default function FaakoOnboarding() {
       </section>
 
       <section className="faako-onboarding-table-region">
+        <div className="table-bulk-toolbar" role="region" aria-label="Selected submission actions">
+          <span className="muted">
+            {selectedSubmissionIds.length
+              ? `${selectedSubmissionIds.length} selected`
+              : "Select submissions for bulk actions"}
+          </span>
+          <div className="table-bulk-toolbar__actions">
+            <button
+              className="button button-ghost"
+              type="button"
+              onClick={handleBulkArchiveSubmissions}
+              disabled={!selectedSubmissionIds.length || isBulkArchiving}
+            >
+              <FiArchive aria-hidden="true" />
+              <span>{isBulkArchiving ? "Archiving..." : "Archive"}</span>
+            </button>
+          </div>
+        </div>
         <SubmissionTable
           submissions={submissions}
           selectedId={selectedId}
+          selectedSubmissionIds={selectedSubmissionIds}
           loading={loading}
           archivingId={archivingId}
           onSelect={handleSelectSubmission}
           onArchive={handleArchiveSubmission}
+          onSelectionChange={setSelectedSubmissionIds}
         />
       </section>
 

@@ -297,6 +297,7 @@ model Invoice {
   viewToken          String?       @unique
   viewTokenExpiresAt DateTime?
   respondedAt        DateTime?
+  archivedAt         DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -304,6 +305,7 @@ model Invoice {
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, status])
+  @@index([organizationId, archivedAt])
   @@index([organizationId, dueDate])
   @@index([organizationId, issueDate])
   @@index([viewToken])

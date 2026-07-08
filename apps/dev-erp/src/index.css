@@ -1611,6 +1611,10 @@ body.nav-open .mobile-tabbar {
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .row-actions__menu button:hover {
@@ -2227,6 +2231,127 @@ body.nav-open .mobile-tabbar {
 .table-row.is-7.table-head > span:nth-child(7) {
   justify-self: start;
   text-align: left;
+}
+
+.table-row.is-8 {
+  grid-template-columns:
+    minmax(42px, 0.28fr)
+    minmax(120px, 1.05fr)
+    minmax(220px, 1.7fr)
+    minmax(120px, 0.95fr)
+    minmax(120px, 0.95fr)
+    minmax(150px, 1fr)
+    minmax(108px, 0.8fr)
+    minmax(190px, 1.15fr);
+  align-items: start;
+}
+
+.table-row.is-8 > span:nth-child(6),
+.table-row.is-8 > span:nth-child(7) {
+  justify-self: center;
+  text-align: center;
+}
+
+.table-row.is-8 > .row-actions {
+  justify-self: start;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 0.45rem;
+}
+
+.table-row.is-8 > .row-actions .row-actions__menu {
+  position: static;
+  right: auto;
+  top: auto;
+  min-width: min(220px, 100%);
+  width: min(240px, 100%);
+  flex-basis: 100%;
+}
+
+.table-row.is-8.table-head > span:nth-child(6),
+.table-row.is-8.table-head > span:nth-child(7),
+.table-row.is-8.table-head > span:nth-child(8) {
+  justify-self: center;
+  text-align: center;
+}
+
+.table-row.is-8.table-head > span:nth-child(8) {
+  justify-self: start;
+  text-align: left;
+}
+
+.table-row.is-9 {
+  grid-template-columns:
+    minmax(120px, 0.95fr)
+    minmax(160px, 1.2fr)
+    minmax(100px, 0.8fr)
+    minmax(100px, 0.8fr)
+    minmax(120px, 0.95fr)
+    minmax(120px, 0.95fr)
+    minmax(136px, 1fr)
+    minmax(128px, 0.95fr)
+    minmax(82px, 0.45fr);
+  min-width: 1080px;
+}
+
+.table-row.is-10 {
+  grid-template-columns:
+    minmax(42px, 0.28fr)
+    minmax(120px, 0.95fr)
+    minmax(160px, 1.2fr)
+    minmax(100px, 0.8fr)
+    minmax(100px, 0.8fr)
+    minmax(120px, 0.95fr)
+    minmax(120px, 0.95fr)
+    minmax(136px, 1fr)
+    minmax(128px, 0.95fr)
+    minmax(82px, 0.45fr);
+  min-width: 1120px;
+}
+
+.table-row.is-9 > .row-actions,
+.table-row.is-10 > .row-actions {
+  justify-self: end;
+  justify-content: flex-end;
+}
+
+.table-row.is-9 > .row-actions .row-actions__menu,
+.table-row.is-10 > .row-actions .row-actions__menu {
+  min-width: 220px;
+}
+
+.table-row.is-selected {
+  background: color-mix(in oklab, var(--surface) 72%, var(--card));
+}
+
+.table-select-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.table-select-cell input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.table-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0 0.25rem;
+}
+
+.table-bulk-toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
 }
 
 .table-cell-stack {
@@ -3267,10 +3392,14 @@ textarea.input {
   }
 
   .table-row.is-7,
+  .table-row.is-8,
+  .table-row.is-10,
+  .table-row.is-9,
   .table-row.is-5,
   .table-row.is-4,
   .table-row.is-3 {
     grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .table-row span {
@@ -3282,12 +3411,15 @@ textarea.input {
   }
 
   .table-row.is-7 > span:nth-child(5),
-  .table-row.is-7 > span:nth-child(6) {
+  .table-row.is-7 > span:nth-child(6),
+  .table-row.is-8 > span:nth-child(6),
+  .table-row.is-8 > span:nth-child(7) {
     justify-self: start;
     text-align: left;
   }
 
-  .table-row.is-7 > .row-actions {
+  .table-row.is-7 > .row-actions,
+  .table-row.is-8 > .row-actions {
     justify-self: start;
     justify-content: flex-start;
     width: auto;

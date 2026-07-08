@@ -7082,7 +7082,10 @@ app.get("/api/accounting/entries", authMiddleware, async (req, res) => {
       orderBy: { createdAt: "desc" },
     }),
     prisma.invoice.findMany({
-      where: organizationFilter,
+      where: {
+        ...organizationFilter,
+        archivedAt: null,
+      },
       include: { organization: { select: { id: true, name: true, slug: true } } },
       orderBy: [{ paidAt: "desc" }, { dueDate: "asc" }, { issueDate: "desc" }],
     }),
@@ -7424,6 +7427,19 @@ app.post("/api/accounting/entries/:id/archive", authMiddleware, requireAdmin, as
     include: { organization: { select: { id: true, name: true, slug: true } } },
   });
   res.json(serializeAccountingEntry(updatedEntry));
+});
+
+app.delete("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (req, res) => {
+  const { entry, error } = await pickAccountingEntry(req.params.id, { user: req.user });
+  if (error) {
+    return res.status(404).json({ error });
+  }
+  if (entry.source !== "MANUAL") {
+    return res.status(400).json({ error: "Only manual entries can be deleted." });
+  }
+
+  await prisma.accountingEntry.delete({ where: { id: entry.id } });
+  res.json({ deleted: true, entryId: entry.id });
 });
 
 app.post(
@@ -9417,6 +9433,7 @@ app.get("/api/invoices", authMiddleware, async (req, res) => {
   const isAdmin = req.user?.roleName === "Admin";
   const organizationParam = req.query?.organizationId;
   const statusParam = String(req.query?.status || "").trim();
+  const includeArchived = String(req.query?.includeArchived || "").toLowerCase() === "true";
   const organizationScope = await resolveOrganizationReadScope({
     user: req.user,
     organizationParam,
@@ -9442,6 +9459,7 @@ app.get("/api/invoices", authMiddleware, async (req, res) => {
     where: {
       ...organizationFilter,
       ...(status ? { status } : {}),
+      ...(includeArchived ? {} : { archivedAt: null }),
     },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
@@ -9642,8 +9660,8 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
 
   const invoice = await prisma.invoice.findFirst({
     where: requesterIsGlobalAdmin
-      ? { id: invoiceId }
-      : { id: invoiceId, organizationId: req.user.organizationId },
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -9893,7 +9911,63 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
   res.json(serializeInvoice(updatedInvoice));
 });
 
-app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req, res) => {
+app.post("/api/invoices/:id/archive", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) {
+    return res.status(400).json({ error: "Invoice id must be a valid number." });
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  if (!invoice) {
+    return res.status(404).json({ error: "Invoice not found." });
+  }
+
+  const updatedInvoice = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { archivedAt: new Date() },
+    include: {
+      organization: { select: { id: true, name: true, slug: true } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  await writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: updatedInvoice.organizationId,
+      action: "INVOICE_ARCHIVED",
+      targetType: "invoice",
+      targetId: String(updatedInvoice.id),
+      source: "api",
+      category: "financial",
+      severity: "info",
+      status: "ok",
+      summary: `Archived invoice ${updatedInvoice.invoiceNumber}.`,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata: {
+        invoiceNumber: updatedInvoice.invoiceNumber,
+      },
+    },
+    { environment: APP_ENV }
+  );
+
+  res.json(serializeInvoice(updatedInvoice));
+});
+
+app.delete("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) => {
   const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const invoiceId = parseInvoiceId(req.params.id);
   if (!invoiceId) {
@@ -9904,6 +9978,59 @@ app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req,
     where: requesterIsGlobalAdmin
       ? { id: invoiceId }
       : { id: invoiceId, organizationId: req.user.organizationId },
+    select: {
+      id: true,
+      organizationId: true,
+      invoiceNumber: true,
+    },
+  });
+
+  if (!invoice) {
+    return res.status(404).json({ error: "Invoice not found." });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceLineItem.deleteMany({ where: { invoiceId: invoice.id } });
+    await tx.invoice.delete({ where: { id: invoice.id } });
+  });
+
+  await writeAuditLog(
+    prisma,
+    {
+      userId: req.user?.userId,
+      organizationId: invoice.organizationId,
+      action: "INVOICE_DELETED",
+      targetType: "invoice",
+      targetId: String(invoice.id),
+      source: "api",
+      category: "financial",
+      severity: "warning",
+      status: "ok",
+      summary: `Deleted invoice ${invoice.invoiceNumber}.`,
+      actorLabel: req.user?.fullName || req.user?.email || null,
+      requestId: String(req.headers["x-request-id"] || ""),
+      ipAddress: req.ip,
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+      },
+    },
+    { environment: APP_ENV }
+  );
+
+  res.json({ deleted: true, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber });
+});
+
+app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req, res) => {
+  const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
+  const invoiceId = parseInvoiceId(req.params.id);
+  if (!invoiceId) {
+    return res.status(400).json({ error: "Invoice id must be a valid number." });
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: requesterIsGlobalAdmin
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -10088,7 +10215,7 @@ const buildInvoiceViewUrl = (token) => {
 const resolveInvoiceWithToken = async (token) => {
   if (!token || typeof token !== "string") return null;
   const invoice = await prisma.invoice.findFirst({
-    where: { viewToken: token },
+    where: { viewToken: token, archivedAt: null },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -10138,8 +10265,8 @@ app.post("/api/invoices/:id/send", authMiddleware, requireAdmin, async (req, res
 
   const invoice = await prisma.invoice.findFirst({
     where: requesterIsGlobalAdmin
-      ? { id: invoiceId }
-      : { id: invoiceId, organizationId: req.user.organizationId },
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -10248,8 +10375,8 @@ app.post("/api/invoices/:id/send-quotation", authMiddleware, requireAdmin, async
 
   const invoice = await prisma.invoice.findFirst({
     where: requesterIsGlobalAdmin
-      ? { id: invoiceId }
-      : { id: invoiceId, organizationId: req.user.organizationId },
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: {
       organization: { select: { id: true, name: true, slug: true } },
       lineItems: { orderBy: { sortOrder: "asc" } },
@@ -10340,8 +10467,8 @@ app.post("/api/invoices/:id/accept", authMiddleware, requireAdmin, async (req, r
 
   const invoice = await prisma.invoice.findFirst({
     where: requesterIsGlobalAdmin
-      ? { id: invoiceId }
-      : { id: invoiceId, organizationId: req.user.organizationId },
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
   });
 
@@ -10365,8 +10492,8 @@ app.post("/api/invoices/:id/decline", authMiddleware, requireAdmin, async (req, 
 
   const invoice = await prisma.invoice.findFirst({
     where: requesterIsGlobalAdmin
-      ? { id: invoiceId }
-      : { id: invoiceId, organizationId: req.user.organizationId },
+      ? { id: invoiceId, archivedAt: null }
+      : { id: invoiceId, organizationId: req.user.organizationId, archivedAt: null },
     include: { organization: { select: { id: true, name: true, slug: true } }, lineItems: { orderBy: { sortOrder: "asc" } } },
   });
 
@@ -12578,6 +12705,7 @@ const serializeInvoice = (invoice) => ({
   viewToken: invoice.viewToken ?? null,
   viewTokenExpiresAt: invoice.viewTokenExpiresAt ? invoice.viewTokenExpiresAt.toISOString() : null,
   respondedAt: invoice.respondedAt ? invoice.respondedAt.toISOString() : null,
+  archivedAt: invoice.archivedAt ? invoice.archivedAt.toISOString() : null,
   createdAt: invoice.createdAt ? invoice.createdAt.toISOString() : null,
   updatedAt: invoice.updatedAt ? invoice.updatedAt.toISOString() : null,
   lineItems: Array.isArray(invoice.lineItems) ? invoice.lineItems.map(serializeInvoiceLineItem) : [],
