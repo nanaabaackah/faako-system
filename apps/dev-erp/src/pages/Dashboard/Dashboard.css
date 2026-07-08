@@ -148,6 +148,264 @@
   gap: 1rem;
 }
 
+.dashboard-operations-brief,
+.dashboard-system-status {
+  gap: 1rem;
+}
+
+.dashboard-operations-brief {
+  --dashboard-status-tone: var(--info);
+  --dashboard-status-soft: var(--info-soft);
+  border-color: color-mix(in oklab, var(--dashboard-status-tone), var(--border) 62%);
+}
+
+.dashboard-operations-brief.is-success {
+  --dashboard-status-tone: var(--success);
+  --dashboard-status-soft: var(--success-soft);
+}
+
+.dashboard-operations-brief.is-warning {
+  --dashboard-status-tone: var(--warning);
+  --dashboard-status-soft: var(--warning-soft);
+}
+
+.dashboard-operations-brief.is-danger {
+  --dashboard-status-tone: var(--danger);
+  --dashboard-status-soft: var(--danger-soft);
+}
+
+.dashboard-operations-brief__body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.dashboard-operations-brief__summary {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding-top: 0.1rem;
+}
+
+.dashboard-operations-brief__summary > strong {
+  color: var(--ink);
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-operations-brief__summary > p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 46ch;
+}
+
+.dashboard-operations-brief__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.dashboard-operations-metric {
+  --dashboard-metric-tone: var(--info);
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+  padding: 0.72rem;
+  border-left: 1px solid var(--border);
+}
+
+.dashboard-operations-metric:first-child {
+  border-left: none;
+}
+
+.dashboard-operations-metric.is-success {
+  --dashboard-metric-tone: var(--success);
+}
+
+.dashboard-operations-metric.is-warning {
+  --dashboard-metric-tone: var(--warning);
+}
+
+.dashboard-operations-metric.is-danger {
+  --dashboard-metric-tone: var(--danger);
+}
+
+.dashboard-operations-metric.is-info {
+  --dashboard-metric-tone: var(--info);
+}
+
+.dashboard-operations-metric span,
+.dashboard-operations-metric small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.dashboard-operations-metric strong {
+  color: var(--dashboard-metric-tone);
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.dashboard-operations-brief__issues {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.dashboard-operations-brief__title {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.dashboard-issue-list,
+.dashboard-system-status__list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--card), var(--surface) 18%);
+}
+
+.dashboard-issue-row,
+.dashboard-system-row {
+  --dashboard-row-tone: var(--info);
+  --dashboard-row-soft: var(--info-soft);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  min-width: 0;
+  padding: 0.78rem 0.82rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--dashboard-row-soft), transparent 64%);
+}
+
+.dashboard-issue-row:last-child,
+.dashboard-system-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-issue-row.is-success,
+.dashboard-system-row.is-success {
+  --dashboard-row-tone: var(--success);
+  --dashboard-row-soft: var(--success-soft);
+}
+
+.dashboard-issue-row.is-warning,
+.dashboard-system-row.is-warning {
+  --dashboard-row-tone: var(--warning);
+  --dashboard-row-soft: var(--warning-soft);
+}
+
+.dashboard-issue-row.is-danger,
+.dashboard-system-row.is-danger {
+  --dashboard-row-tone: var(--danger);
+  --dashboard-row-soft: var(--danger-soft);
+}
+
+.dashboard-issue-row.is-info,
+.dashboard-system-row.is-info {
+  --dashboard-row-tone: var(--info);
+  --dashboard-row-soft: var(--info-soft);
+}
+
+.dashboard-issue-row__marker,
+.dashboard-system-row__marker {
+  width: 0.58rem;
+  height: 0.58rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: var(--dashboard-row-tone);
+  box-shadow: 0 0 0 4px var(--dashboard-row-soft);
+}
+
+.dashboard-issue-row__content,
+.dashboard-system-row__content {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.dashboard-issue-row__header,
+.dashboard-system-row__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.dashboard-issue-row__header strong,
+.dashboard-system-row__header strong {
+  overflow-wrap: anywhere;
+}
+
+.dashboard-issue-row p,
+.dashboard-system-row p {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.dashboard-issue-row small,
+.dashboard-system-row small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.dashboard-issue-empty {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--success-soft);
+}
+
+.dashboard-issue-empty span {
+  color: var(--muted);
+}
+
+.site-card__row-copy {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.site-card__row-copy strong,
+.site-card__row-copy small {
+  overflow-wrap: anywhere;
+}
+
+.site-card__row-copy small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.site-card__row {
+  padding: 0.58rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--card), var(--surface) 16%);
+}
+
+.site-card__row.is-success {
+  border-color: color-mix(in oklab, var(--success), var(--border) 60%);
+}
+
+.site-card__row.is-warning {
+  border-color: color-mix(in oklab, var(--warning), var(--border) 58%);
+}
+
+.site-card__row.is-danger {
+  border-color: color-mix(in oklab, var(--danger), var(--border) 56%);
 .dashboard-health-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -820,6 +1078,31 @@
     height: 2.2rem;
   }
 
+  .dashboard-operations-brief__body {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-operations-brief__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-operations-metric {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .dashboard-operations-metric:first-child {
+    border-top: none;
+  }
+
+  .dashboard-issue-row__header,
+  .dashboard-system-row__header {
+    align-items: flex-start;
+  }
+
+  .dashboard-system-row,
+  .dashboard-issue-row {
+    padding: 0.72rem;
   .dashboard-health-grid {
     grid-template-columns: 1fr;
   }

@@ -26,6 +26,7 @@ import { convertAmountToDisplayGhs, formatGhsAmount } from "../../utils/displayC
 import "./Dashboard.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
+const OPEN_RECEIVABLE_STATUSES = new Set(["PENDING", "SCHEDULED", "OVERDUE"]);
 const DASHBOARD_ACTIVITY_REFRESH_INTERVAL_MS = 15000;
 const RANGE_OPTIONS = [
   { value: "24h", label: "24H", description: "Last 24 hours", hours: 24 },
@@ -55,51 +56,6 @@ const BOOKING_STATUS_OPTIONS = [
 ];
 const MONITORING_PREVIEW_LIMIT = 3;
 
-const getMonitoringIssuePriority = (status) => {
-  if (status === "offline" || status === "error" || status === "suspended") return 0;
-  if (status === "degraded" || status === "warning" || status === "pending") return 1;
-  if (status === "not_configured" || status === "unknown" || !status) return 2;
-  return 3;
-};
-
-const buildMonitoringStatusExplanation = (status) => {
-  switch (status) {
-    case "ok":
-    case "online":
-      return "Responding normally. Dependent modules should be able to refresh from this surface.";
-    case "degraded":
-    case "warning":
-      return "Part of the check is unstable. Data may refresh slowly or only partially.";
-    case "offline":
-    case "error":
-      return "This check is failing. Features that rely on it may show stale or missing data.";
-    case "not_configured":
-      return "Monitoring is missing a URL or connection value, so health cannot be confirmed.";
-    default:
-      return "The latest health signal is unclear. Re-run monitoring or inspect the service logs.";
-  }
-};
-
-const buildMonitoringNextStep = (status, note = "") => {
-  switch (status) {
-    case "ok":
-    case "online":
-      return "Keep monitoring";
-    case "degraded":
-    case "warning":
-      return "Check latency, recent deploys, and partial route failures";
-    case "offline":
-    case "error":
-      return note?.toLowerCase().includes("db")
-        ? "Verify database credentials, network access, and migrations"
-        : "Open the service health URL and review deployment logs";
-    case "not_configured":
-      return "Add the missing URL or environment value";
-    default:
-      return "Refresh monitoring and inspect logs";
-  }
-};
-
 const DEFAULT_SLOT_FORM = {
   title: "",
   attendeeName: "",
@@ -114,10 +70,12 @@ const buildAccountingSummary = (entries = []) => {
     paidRevenueGhs: 0,
     paidExpensesGhs: 0,
     pendingPayablesGhs: 0,
+    pendingReceivablesGhs: 0,
     counts: {
       paidRevenue: 0,
       paidExpenses: 0,
       pendingPayables: 0,
+      pendingReceivables: 0,
     },
   };
 
@@ -136,6 +94,10 @@ const buildAccountingSummary = (entries = []) => {
     if (entry.type === "EXPENSE" && entry.status === "PENDING") {
       base.pendingPayablesGhs += displayAmount;
       base.counts.pendingPayables += 1;
+    }
+    if (entry.type === "REVENUE" && OPEN_RECEIVABLE_STATUSES.has(entry.status)) {
+      base.pendingReceivablesGhs += displayAmount;
+      base.counts.pendingReceivables += 1;
     }
   });
 
@@ -162,6 +124,79 @@ const DEFAULT_DAILY_WEATHER = {
   locationLabel: "Current location",
   warning: "",
   updatedAt: null,
+};
+
+const MONITOR_STATUS_SEVERITY = {
+  offline: 4,
+  error: 4,
+  suspended: 4,
+  degraded: 3,
+  warning: 3,
+  pending: 2,
+  not_configured: 1,
+  unknown: 1,
+};
+
+const pluralize = (count, singular, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const getMonitorSeverity = (status) => {
+  if (isHealthyStatus(status)) return 0;
+  return MONITOR_STATUS_SEVERITY[status] ?? 1;
+};
+
+const getAggregateMonitorStatus = (healthyCount, totalCount) => {
+  if (!totalCount) return "unknown";
+  if (healthyCount === totalCount) return "online";
+  return healthyCount ? "degraded" : "offline";
+};
+
+const getMonitorIssueReason = ({ status, subject = "This check", note = "" }) => {
+  if (status === "offline" || status === "error") {
+    return `${subject} is not responding to the latest health check.`;
+  }
+  if (status === "degraded" || status === "warning") {
+    return `${subject} is responding, but at least one check is degraded.`;
+  }
+  if (status === "not_configured") {
+    return `${subject} is missing a URL, so monitoring cannot verify it.`;
+  }
+  if (status === "unknown") {
+    return `${subject} did not return a usable health signal.`;
+  }
+  if (status === "pending") {
+    return `${subject} is still waiting for a completed signal.`;
+  }
+  if (status === "suspended") {
+    return `${subject} is suspended and needs review.`;
+  }
+  return note || `${subject} is healthy.`;
+};
+
+const summarizeAffectedPages = (pages = []) => {
+  const affectedPages = pages.filter((page) => page?.status && !isHealthyStatus(page.status));
+  if (!affectedPages.length) return "";
+
+  const pageLabels = affectedPages.slice(0, 3).map((page) => {
+    const label = page.label || page.path || "Endpoint";
+    return `${label} ${formatStatusLabel(page.status).toLowerCase()}`;
+  });
+  const overflow =
+    affectedPages.length > pageLabels.length
+      ? ` +${affectedPages.length - pageLabels.length} more`
+      : "";
+
+  return `${pluralize(affectedPages.length, "endpoint")} affected: ${pageLabels.join(", ")}${overflow}`;
+};
+
+const buildPageStatusDetail = (page) => {
+  if (isHealthyStatus(page?.status)) return page?.url || page?.path || "Responding normally.";
+  if (page?.status === "not_configured") return page?.path || "URL missing.";
+  return (
+    page?.url ||
+    page?.path ||
+    getMonitorIssueReason({ status: page?.status, subject: "Endpoint" })
+  );
 };
 
 const getTemperatureUnitSymbol = (unit) => {
@@ -905,6 +940,9 @@ const Dashboard = () => {
         },
       ].filter((surface) => surface.status);
   const lastSyncedLabel = kpiData?.lastSyncedAt ? formatDateTime(kpiData.lastSyncedAt) : "N/A";
+  const statusCheckedLabel = kpiData?.siteStatus?.checkedAt
+    ? formatDateTime(kpiData.siteStatus.checkedAt)
+    : "Not checked yet";
   const systemEntries = [
     ...apiSurfaces.map((surface) => ({
       id: surface.id,
@@ -984,148 +1022,109 @@ const Dashboard = () => {
   const serviceHealthPercent = formatPercent(healthyServices, totalServices);
   const siteHealthPercent = formatPercent(onlineSites, totalSites);
   const pageHealthPercent = formatPercent(onlinePages, totalPages);
-  const affectedSystemEntries = systemEntries
-    .filter((entry) => entry.status && !isHealthyStatus(entry.status))
+  const systemMonitorEntries = systemEntries
     .map((entry) => ({
-      id: entry.id,
-      label: entry.label,
-      status: entry.status,
-      detail: entry.note,
+      ...entry,
+      severity: getMonitorSeverity(entry.status),
+      tone: getStatusTone(entry.status),
+      issueReason: getMonitorIssueReason({
+        status: entry.status,
+        subject: entry.label,
+        note: entry.note,
+      }),
     }))
-    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
-  const affectedSiteEntries = siteOverview
-    .filter((site) => site.aggregateStatus === "offline" || site.aggregateStatus === "degraded")
+    .sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
+  const siteIssueRows = siteOverview
+    .filter((site) => site.aggregateStatus && !isHealthyStatus(site.aggregateStatus))
     .map((site) => ({
-      id: site.id,
+      id: `site-${site.id}`,
       label: site.title,
       status: site.aggregateStatus,
-      detail: `${site.summary.online}/${site.summary.configured || site.summary.total} checks online`,
-    }))
-    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
-  const siteConfigurationGaps = siteOverview
-    .filter((site) => site.aggregateStatus === "not_configured")
-    .map((site) => ({
-      id: site.id,
-      label: site.title,
-      status: "not_configured",
-      detail: "No monitored URL configured",
+      note:
+        summarizeAffectedPages(site.pages) ||
+        getMonitorIssueReason({ status: site.aggregateStatus, subject: site.title }),
+      severity: getMonitorSeverity(site.aggregateStatus),
+      tone: getStatusTone(site.aggregateStatus),
     }));
-  const pageIssueEntries = siteOverview
-    .flatMap((site) =>
-      (site.pages || [])
-        .filter((page) => page.status && !isHealthyStatus(page.status) && page.status !== "not_configured")
-        .map((page, index) => ({
-          id: `${site.id}-page-${page.path || page.label || index}`,
-          label: page.label || page.path || page.url || "Endpoint",
-          status: page.status,
-          detail: `${site.title}${page.path ? ` - ${page.path}` : ""}`,
-        }))
-    )
-    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
-  const pageConfigurationGaps = siteOverview.flatMap((site) =>
-    (site.pages || [])
-      .filter((page) => page.status === "not_configured")
-      .map((page, index) => ({
-        id: `${site.id}-missing-${page.path || page.label || index}`,
-        label: page.label || page.path || "Endpoint",
-        status: "not_configured",
-        detail: `${site.title}${page.path ? ` - ${page.path}` : ""}`,
-      }))
-  );
-  const surfaceIssueEntries = [...affectedSiteEntries, ...siteConfigurationGaps];
-  const pageOperationalIssues = [...pageIssueEntries, ...pageConfigurationGaps];
-  const systemDiagnosisRows = systemEntries
-    .map((entry) => {
-      const status = entry.status || "unknown";
-      return {
-        ...entry,
-        status,
-        tone: getMonitoringTone(status),
-        explanation: buildMonitoringStatusExplanation(status),
-        nextStep: buildMonitoringNextStep(status, entry.note),
-      };
-    })
-    .sort((left, right) => getMonitoringIssuePriority(left.status) - getMonitoringIssuePriority(right.status));
-  const operationalSnapshotCards = [
+  const operationalIssues = [
+    ...systemMonitorEntries
+      .filter((entry) => entry.severity > 0)
+      .map((entry) => ({
+        id: `system-${entry.id}`,
+        label: entry.label,
+        status: entry.status,
+        note: entry.issueReason,
+        detail: entry.note,
+        severity: entry.severity,
+        tone: entry.tone,
+      })),
+    ...siteIssueRows.map((site) => ({
+      ...site,
+      detail: "Website or portal surface",
+    })),
+  ].sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
+  const criticalIssueCount = operationalIssues.filter((issue) => issue.severity >= 4).length;
+  const degradedIssueCount = operationalIssues.filter((issue) => issue.severity === 3).length;
+  const monitoringGapCount = operationalIssues.filter(
+    (issue) => issue.severity > 0 && issue.severity < 3
+  ).length;
+  const operationalTone = criticalIssueCount
+    ? "danger"
+    : degradedIssueCount
+      ? "warning"
+      : monitoringGapCount
+        ? "info"
+        : "success";
+  const operationalStatus = criticalIssueCount
+    ? "offline"
+    : degradedIssueCount
+      ? "degraded"
+      : monitoringGapCount
+        ? "unknown"
+        : "online";
+  const operationalHeadline = criticalIssueCount
+    ? `${pluralize(criticalIssueCount, "outage")} ${
+        criticalIssueCount === 1 ? "needs" : "need"
+      } attention`
+    : degradedIssueCount
+      ? `${pluralize(degradedIssueCount, "degraded area")} ${
+          degradedIssueCount === 1 ? "needs" : "need"
+        } review`
+      : monitoringGapCount
+        ? `${pluralize(monitoringGapCount, "monitoring gap")} to complete`
+        : "All monitored systems are healthy";
+  const operationalDetail = criticalIssueCount
+    ? "Start with the unavailable service or endpoint listed first."
+    : degradedIssueCount
+      ? "No full outage detected, but degraded checks should be reviewed."
+      : monitoringGapCount
+        ? "Configured checks are responding, but some URLs or signals are missing."
+        : "Services, website surfaces, and configured pages are responding.";
+  const operationalSummaryCards = [
     {
       id: "services",
-      label: "Service layer",
-      status: healthyServices === totalServices ? "online" : healthyServices ? "degraded" : "offline",
-      headline: affectedSystemEntries.length
-        ? `${affectedSystemEntries.length} service${affectedSystemEntries.length === 1 ? "" : "s"} need attention`
-        : "All API and database checks are healthy",
-      summary: affectedSystemEntries.length
-        ? "A failing API or database can block dashboards, accounting, invoicing, and monitored app refreshes."
-        : "Core APIs and databases are responding normally.",
-      primaryMetric: `${serviceHealthPercent}% healthy`,
-      secondaryMetric: `${formatRatio(healthyServices, totalServices)} services`,
-      issues: affectedSystemEntries,
-      nextStep: affectedSystemEntries.length
-        ? buildMonitoringNextStep(affectedSystemEntries[0].status, affectedSystemEntries[0].detail)
-        : "No service action needed",
+      label: "Services",
+      value: formatRatio(healthyServices, totalServices),
+      detail: `${serviceHealthPercent}% healthy`,
+      status: getAggregateMonitorStatus(healthyServices, totalServices),
     },
     {
       id: "surfaces",
-      label: "App surfaces",
-      status: affectedSiteEntries.length
-        ? affectedSiteEntries.some((site) => site.status === "offline")
-          ? "offline"
-          : "degraded"
-        : siteConfigurationGaps.length
-          ? "not_configured"
-          : "online",
-      headline: affectedSiteEntries.length
-        ? `${affectedSiteEntries.length} app surface${affectedSiteEntries.length === 1 ? "" : "s"} affected`
-        : siteConfigurationGaps.length
-          ? `${siteConfigurationGaps.length} app surface${siteConfigurationGaps.length === 1 ? "" : "s"} not monitored`
-          : "All configured app surfaces are online",
-      summary: affectedSiteEntries.length
-        ? "The named app is not consistently reachable, so user-facing workflows may be affected."
-        : siteConfigurationGaps.length
-          ? "Monitoring cannot confirm every optional app surface yet because a URL is missing."
-          : "Configured apps are reachable from the monitor.",
-      primaryMetric: `${siteHealthPercent}% online`,
-      secondaryMetric: `${formatRatio(onlineSites, totalSites)} surfaces`,
-      issues: surfaceIssueEntries,
-      nextStep: affectedSiteEntries.length
-        ? buildMonitoringNextStep(affectedSiteEntries[0].status)
-        : siteConfigurationGaps.length
-          ? "Add missing surface URLs"
-          : "No app action needed",
+      label: "Surfaces",
+      value: formatRatio(onlineSites, totalSites),
+      detail: `${siteHealthPercent}% online`,
+      status: getAggregateMonitorStatus(onlineSites, totalSites),
     },
     {
       id: "pages",
-      label: "Page checks",
-      status: pageIssueEntries.length
-        ? pageIssueEntries.some((page) => page.status === "offline" || page.status === "error")
-          ? "offline"
-          : "degraded"
-        : pageConfigurationGaps.length
-          ? "not_configured"
-          : "online",
-      headline: pageIssueEntries.length
-        ? `${pageIssueEntries.length} route${pageIssueEntries.length === 1 ? "" : "s"} failing checks`
-        : pageConfigurationGaps.length
-          ? `${pageConfigurationGaps.length} route${pageConfigurationGaps.length === 1 ? "" : "s"} missing URLs`
-          : "All configured routes are online",
-      summary: pageIssueEntries.length
-        ? "These are the specific routes to open first when an app looks unhealthy."
-        : pageConfigurationGaps.length
-          ? "The monitor is missing some optional route URLs, so those checks are invisible."
-          : "Every configured route returned a healthy signal.",
-      primaryMetric: `${pageHealthPercent}% online`,
-      secondaryMetric: `${formatRatio(onlinePages, totalPages)} pages`,
-      issues: pageOperationalIssues,
-      nextStep: pageIssueEntries.length
-        ? buildMonitoringNextStep(pageIssueEntries[0].status)
-        : pageConfigurationGaps.length
-          ? "Fill in missing route URLs"
-          : "No route action needed",
+      label: "Pages",
+      value: formatRatio(onlinePages, totalPages),
+      detail: `${pageHealthPercent}% online`,
+      status: getAggregateMonitorStatus(onlinePages, totalPages),
     },
   ].map((card) => ({
     ...card,
-    tone: getMonitoringTone(card.status),
-    hiddenIssueCount: Math.max(card.issues.length - MONITORING_PREVIEW_LIMIT, 0),
+    tone: getStatusTone(card.status),
   }));
   const accountingNetTotals = useMemo(() => {
     if (!accountingSummary) return null;
@@ -1160,24 +1159,7 @@ const Dashboard = () => {
       ? `Feels like ${formatTemperatureValue(dailyWeather.feelsLike, dailyWeather.temperatureUnit)}`
       : dailyWeather.warning || "Current forecast";
 
-  const attentionItems = [
-    ...systemEntries
-      .filter((entry) => entry.status && !isHealthyStatus(entry.status))
-      .map((entry) => ({
-        id: `system-${entry.id}`,
-        label: entry.label,
-        status: entry.status,
-        note: entry.note,
-      })),
-    ...siteOverview
-      .filter((site) => site.aggregateStatus === "offline" || site.aggregateStatus === "degraded")
-      .map((site) => ({
-        id: `site-${site.id}`,
-        label: site.title,
-        status: site.aggregateStatus,
-        note: `${site.pages.length} pages tracked`,
-      })),
-  ];
+  const attentionItems = operationalIssues.slice(0, 5);
 
   const baseTimelineEvents = [
     kpiData?.lastSyncedAt
@@ -1610,6 +1592,7 @@ const Dashboard = () => {
           <div className="panel-header">
             <div>
               <h3>Accounting snapshot</h3>
+              <p className="muted">{ACCOUNTING_RANGE.label} financials</p>
             </div>
           </div>
 
@@ -1639,6 +1622,11 @@ const Dashboard = () => {
               label="Net profit"
               value={formatGhsAmount(accountingNetTotals ?? 0)}
               delta="After paid expenses"
+            />
+            <KPICard
+              label="Open receivables"
+              value={formatGhsAmount(accountingSummary.pendingReceivablesGhs)}
+              delta={`${accountingSummary.counts.pendingReceivables} open`}
             />
             <KPICard
               label="Pending payables"
@@ -1750,54 +1738,60 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="panel panel-span-3">
+            <article className={`panel panel-span-3 dashboard-operations-brief is-${operationalTone}`}>
               <div className="panel-header">
                 <div>
                   <h3>Operational snapshot</h3>
-                  <p className="muted">What is affected, where to look, and what to check first.</p>
+                  <p className="muted">Last health check {statusCheckedLabel}</p>
                 </div>
+                {renderStatusPill(operationalStatus)}
               </div>
-              <div className="dashboard-health-grid">
-                {operationalSnapshotCards.map((card) => (
-                  <article className={`dashboard-health-card is-${card.tone}`} key={card.id}>
-                    <div className="dashboard-health-card__header">
-                      <div>
-                        <span className="kpi-label">{card.label}</span>
-                        <strong>{card.headline}</strong>
+              <div className="dashboard-operations-brief__body">
+                <div className="dashboard-operations-brief__summary">
+                  <span className="kpi-label">Current read</span>
+                  <strong>{operationalHeadline}</strong>
+                  <p>{operationalDetail}</p>
+                  <div className="dashboard-operations-brief__metrics">
+                    {operationalSummaryCards.map((card) => (
+                      <div className={`dashboard-operations-metric is-${card.tone}`} key={card.id}>
+                        <span>{card.label}</span>
+                        <strong>{card.value}</strong>
+                        <small>{card.detail}</small>
                       </div>
-                      {renderStatusPill(card.status)}
-                    </div>
-                    <p className="dashboard-health-card__summary">{card.summary}</p>
-                    <div className="dashboard-health-card__metrics">
-                      <span>{card.primaryMetric}</span>
-                      <span>{card.secondaryMetric}</span>
-                    </div>
-                    {card.issues.length ? (
-                      <ul className="dashboard-health-card__issues">
-                        {card.issues.slice(0, MONITORING_PREVIEW_LIMIT).map((issue) => (
-                          <li key={issue.id}>
-                            <div>
+                    ))}
+                  </div>
+                </div>
+                <div className="dashboard-operations-brief__issues">
+                  <div className="dashboard-operations-brief__title">
+                    <span className="kpi-label">Highest priority</span>
+                    <span className="muted">
+                      {operationalIssues.length || "No"} issue
+                      {operationalIssues.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {operationalIssues.length ? (
+                    <div className="dashboard-issue-list">
+                      {operationalIssues.slice(0, 4).map((issue) => (
+                        <div className={`dashboard-issue-row is-${issue.tone}`} key={issue.id}>
+                          <span className="dashboard-issue-row__marker" aria-hidden="true" />
+                          <div className="dashboard-issue-row__content">
+                            <div className="dashboard-issue-row__header">
                               <strong>{issue.label}</strong>
-                              <span>{issue.detail}</span>
+                              {renderStatusPill(issue.status)}
                             </div>
-                            {renderStatusPill(issue.status)}
-                          </li>
-                        ))}
-                        {card.hiddenIssueCount ? (
-                          <li className="dashboard-health-card__more">
-                            +{card.hiddenIssueCount} more check{card.hiddenIssueCount === 1 ? "" : "s"}
-                          </li>
-                        ) : null}
-                      </ul>
-                    ) : (
-                      <p className="dashboard-health-card__empty">No issues in this group.</p>
-                    )}
-                    <div className="dashboard-health-card__next">
-                      <span>Next check</span>
-                      <strong>{card.nextStep}</strong>
+                            <p>{issue.note}</p>
+                            <small>{issue.detail}</small>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </article>
-                ))}
+                  ) : (
+                    <div className="dashboard-issue-empty">
+                      <strong>No action needed</strong>
+                      <span>All configured checks are responding.</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </article>
 
@@ -1824,30 +1818,26 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="glass-card panel panel-span-2">
+            <article className="glass-card panel panel-span-2 dashboard-system-status">
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
-                  <p className="muted">APIs and databases with the reason each state matters.</p>
+                  <p className="muted">{healthyServices}/{totalServices} services healthy</p>
                 </div>
               </div>
-              <div className="dashboard-diagnosis-list">
-                {systemDiagnosisRows.map((row) => (
-                  <article className={`dashboard-diagnosis-row is-${row.tone}`} key={row.id}>
-                    <span className="dashboard-diagnosis-row__marker" aria-hidden="true" />
-                    <div className="dashboard-diagnosis-row__main">
-                      <div className="dashboard-diagnosis-row__title">
+              <div className="dashboard-system-status__list">
+                {systemMonitorEntries.map((row) => (
+                  <div className={`dashboard-system-row is-${row.tone}`} key={row.id}>
+                    <span className="dashboard-system-row__marker" aria-hidden="true" />
+                    <div className="dashboard-system-row__content">
+                      <div className="dashboard-system-row__header">
                         <strong>{row.label}</strong>
                         {renderStatusPill(row.status)}
                       </div>
                       <span className="muted">{row.note}</span>
-                      <p>{row.explanation}</p>
+                      {row.severity ? <p>{row.issueReason}</p> : null}
                     </div>
-                    <div className="dashboard-diagnosis-row__next">
-                      <span>Next check</span>
-                      <strong>{row.nextStep}</strong>
-                    </div>
-                  </article>
+                  </div>
                 ))}
               </div>
             </article>
@@ -1907,6 +1897,12 @@ const Dashboard = () => {
                               : `${site.summary.configured}/${site.summary.total} endpoints configured`}
                           </span>
                         </div>
+                        <div className="site-card__actions">
+                          {renderStatusPill(site.aggregateStatus)}
+                          <span className="site-card__chevron" aria-hidden="true">
+                            <FiChevronDown />
+                          </span>
+                        </div>
                       </div>
                       <div className="site-card__telemetry">
                         <div className="site-card__score">
@@ -1943,6 +1939,22 @@ const Dashboard = () => {
                           </span>
                         ) : null}
                       </div>
+                      {isExpanded ? (
+                        <div className="site-card__list" id={listId}>
+                          {site.pages.map((page) => (
+                            <div
+                              className={`site-card__row is-${getStatusTone(page.status)}`}
+                              key={`${site.id}-${page.label || page.path}`}
+                            >
+                              <span className="site-card__row-copy">
+                                <strong>{page.label || page.path || "Endpoint"}</strong>
+                                <small>{buildPageStatusDetail(page)}</small>
+                              </span>
+                              {renderStatusPill(page.status)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })

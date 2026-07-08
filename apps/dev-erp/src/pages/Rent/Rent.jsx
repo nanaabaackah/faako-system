@@ -906,7 +906,7 @@ const Rent = () => {
           <div className="panel-header">
             <div>
               <h3>Missed months</h3>
-              <p className="muted">Open balances grouped by tenant and billing month.</p>
+              <p className="muted">Open balances after payments are applied to the oldest unpaid months first.</p>
             </div>
           </div>
 
@@ -939,7 +939,7 @@ const Rent = () => {
                         <span className="rent-missed-month-button__action">
                           {canManageRent ? (
                             <>
-                              Pay this month
+                              Record payment
                               <FiArrowUpRight aria-hidden="true" />
                             </>
                           ) : (

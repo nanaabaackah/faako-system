@@ -47,7 +47,7 @@ import {
   ORDER_NOTIFICATION_TYPES,
   sendCustomerOrderEmail,
 } from "./src/orderNotifications.js";
-import { searchDeliveryLocations } from "./src/locationSearch.js";
+import { getDeliveryLocationDetails, searchDeliveryLocations } from "./src/locationSearch.js";
 import { reduceInventoryForPaidOrder } from "./src/orderInventory.js";
 import { createAdminInventoryRouter } from "./src/inventory/routes.js";
 import {
@@ -639,13 +639,31 @@ app.get(["/api/catalogue/products/:slug", "/api/products/:slug"], async (req, re
 app.get("/api/location/search", locationSearchRateLimit, async (req, res) => {
   try {
     const query = String(req.query.q || "");
-    const locations = await searchDeliveryLocations(query, { limit: req.query.limit });
+    const locations = await searchDeliveryLocations(query, {
+      limit: req.query.limit,
+      sessionToken: req.query.sessionToken,
+    });
     res.json({ ok: true, locations });
   } catch (error) {
     console.warn("Location search unavailable:", toSafeErrorLog(error));
     res.status(error?.statusCode || 503).json({
       error: "Location search is unavailable. Please try again shortly.",
       locations: [],
+    });
+  }
+});
+
+app.get("/api/location/details/:placeId", locationSearchRateLimit, async (req, res) => {
+  try {
+    const location = await getDeliveryLocationDetails(req.params.placeId, {
+      sessionToken: req.query.sessionToken,
+    });
+    res.json({ ok: true, location });
+  } catch (error) {
+    console.warn("Location details unavailable:", toSafeErrorLog(error));
+    res.status(error?.statusCode || 503).json({
+      error: "Location details are unavailable. Please try again shortly.",
+      location: null,
     });
   }
 });

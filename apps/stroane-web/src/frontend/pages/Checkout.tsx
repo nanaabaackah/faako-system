@@ -76,13 +76,12 @@ const parseDateInput = (value: string) => {
 
 const isSundayPickupDate = (value: string) => parseDateInput(value)?.getDay() === 0;
 
-const isReasonableName = (value: string) => {
-  const trimmed = value.trim();
-  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+const createDeliverySessionToken = () => {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
-
-const getFirstFieldError = (errors: CheckoutFieldErrors) =>
-  Object.values(errors).find(Boolean) || "";
 
 const Checkout: React.FC = () => {
   const { products: catalogueProducts, loading, notice } = useCatalogueData();
@@ -103,6 +102,7 @@ const Checkout: React.FC = () => {
   const [deliveryLocationResults, setDeliveryLocationResults] = useState<DeliveryLocation[]>([]);
   const [deliveryLocationLoading, setDeliveryLocationLoading] = useState(false);
   const [deliveryLocationError, setDeliveryLocationError] = useState("");
+  const [deliverySessionToken, setDeliverySessionToken] = useState(createDeliverySessionToken);
   const [pickupSpotId, setPickupSpotId] = useState(PICKUP_SPOTS[0]?.id || "");
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("");
@@ -176,6 +176,19 @@ const Checkout: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!user) return;
+    setName((current) => current || user.name || "");
+    setEmail((current) => current || user.email || "");
+    setPhone((current) => current || user.phone || "");
+    setBusinessName((current) => current || user.businessName || "");
+    setPreferredContactMethod((current) =>
+      current === "email" ? user.preferredContactMethod || current : current
+    );
+    setAddress((current) => current || user.defaultDeliveryAddress || "");
+    setDeliveryNotes((current) => current || user.deliveryNotes || "");
+  }, [user]);
+
+  useEffect(() => {
     if (fulfillmentMethod !== "delivery") {
       setDeliveryLocationResults([]);
       setDeliveryLocationLoading(false);
@@ -196,7 +209,11 @@ const Checkout: React.FC = () => {
       setDeliveryLocationLoading(true);
       setDeliveryLocationError("");
       orderApi
-        .searchDeliveryLocations(query, { signal: controller.signal, limit: 6 })
+        .searchDeliveryLocations(query, {
+          signal: controller.signal,
+          limit: 6,
+          sessionToken: deliverySessionToken,
+        })
         .then((locations) => {
           setDeliveryLocationResults(locations);
         })
@@ -218,7 +235,7 @@ const Checkout: React.FC = () => {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [address, deliveryLocation, fulfillmentMethod]);
+  }, [address, deliveryLocation, deliverySessionToken, fulfillmentMethod]);
 
   const validateDetails = () => {
     const nextFieldErrors: CheckoutFieldErrors = {};
@@ -295,6 +312,33 @@ const Checkout: React.FC = () => {
       return next;
     });
     markDetailsChanged();
+  };
+
+  const handleDeliveryLocationSelect = async (location: DeliveryLocation) => {
+    setDeliveryLocationLoading(true);
+    setDeliveryLocationError("");
+    try {
+      const selectedLocation =
+        location.provider === "Google Maps" && location.placeId
+          ? await orderApi.getDeliveryLocationDetails(location.placeId, {
+              sessionToken: deliverySessionToken,
+            })
+          : location;
+      setDeliveryLocation(selectedLocation);
+      setAddress(selectedLocation.address || selectedLocation.label);
+      setDeliveryLocationResults([]);
+      setDeliverySessionToken(createDeliverySessionToken());
+      markDetailsChanged();
+    } catch (selectionError) {
+      setDeliveryLocation(null);
+      setDeliveryLocationError(
+        selectionError instanceof Error
+          ? selectionError.message
+          : "Unable to load delivery address details."
+      );
+    } finally {
+      setDeliveryLocationLoading(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -419,7 +463,7 @@ const Checkout: React.FC = () => {
                 minimumPickupDate={minimumPickupDate}
                 website={website}
                 preferredContactMethod={preferredContactMethod}
-                notice={notice}
+                notice={notice ?? ""}
                 error={error}
                 fieldErrors={fieldErrors}
                 reviewing={reviewing}
@@ -453,13 +497,7 @@ const Checkout: React.FC = () => {
                   clearFieldError("address");
                   markDetailsChanged();
                 }}
-                onDeliveryLocationSelect={(location) => {
-                  setDeliveryLocation(location);
-                  setAddress(location.address || location.label);
-                  setDeliveryLocationResults([]);
-                  clearFieldError("address");
-                  markDetailsChanged();
-                }}
+                onDeliveryLocationSelect={(location) => void handleDeliveryLocationSelect(location)}
                 onPickupSpotChange={(value) => {
                   setPickupSpotId(value);
                   clearFieldError("pickupSpotId");
@@ -502,3 +540,26 @@ const Checkout: React.FC = () => {
 };
 
 export default Checkout;
+function getFirstFieldError(nextFieldErrors: Partial<Record<"name" | "email" | "phone" | "address" | "pickupSpotId" | "pickupDate" | "pickupTime", string>>) {
+  // Prefer a sensible field order for user-facing errors
+  const order: Array<keyof typeof nextFieldErrors> = [
+    "name",
+    "email",
+    "phone",
+    "address",
+    "pickupSpotId",
+    "pickupDate",
+    "pickupTime",
+  ];
+  for (const key of order) {
+    const v = nextFieldErrors[key];
+    if (v) return v;
+  }
+  return "";
+}
+
+function isReasonableName(name: string) {
+  const trimmed = name.trim();
+  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+}
+

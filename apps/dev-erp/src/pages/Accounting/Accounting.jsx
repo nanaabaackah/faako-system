@@ -15,6 +15,7 @@ import { buildInvoiceNotes } from "../../utils/invoiceNotes";
 import { calculateInvoiceTotals, downloadInvoicePdf } from "../../utils/invoicePdf";
 
 const RANGE_OPTIONS = [
+  { value: "all", label: "All" },
   { value: "mtd", label: "MTD" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
@@ -23,6 +24,7 @@ const RANGE_OPTIONS = [
 ];
 
 const RANGE_LABELS = {
+  all: "All time",
   mtd: "Month to date",
   weekly: "Week to date",
   monthly: "Last 30 days",
@@ -56,6 +58,15 @@ const INTERVAL_OPTIONS = [
   { value: "QUARTERLY", label: "Quarterly" },
   { value: "YEARLY", label: "Yearly" },
 ];
+
+const SOURCE_LABELS = {
+  MANUAL: "Manual",
+  FAAKO_SUBSCRIPTION: "Faako subscription",
+  INVOICE_PAYMENT: "Invoice payment",
+  INVOICE_RECEIVABLE: "Invoice receivable",
+};
+
+const OPEN_RECEIVABLE_STATUSES = new Set(["PENDING", "SCHEDULED", "OVERDUE"]);
 
 const formatDate = (value) => {
   const date = new Date(value);
@@ -109,7 +120,7 @@ const Accounting = () => {
   const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const userOrgId = storedUser?.organizationId ? String(storedUser.organizationId) : "";
-  const [timeRange, setTimeRange] = useState("mtd");
+  const [timeRange, setTimeRange] = useState("all");
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     isAdmin ? "all" : userOrgId || ""
   );
@@ -300,10 +311,12 @@ const Accounting = () => {
       paidRevenueGhs: 0,
       paidExpensesGhs: 0,
       pendingPayablesGhs: 0,
+      pendingReceivablesGhs: 0,
       counts: {
         paidRevenue: 0,
         paidExpenses: 0,
         pendingPayables: 0,
+        pendingReceivables: 0,
       },
     };
 
@@ -322,6 +335,10 @@ const Accounting = () => {
       if (entry.type === "EXPENSE" && entry.status === "PENDING") {
         base.pendingPayablesGhs += displayAmount;
         base.counts.pendingPayables += 1;
+      }
+      if (entry.type === "REVENUE" && OPEN_RECEIVABLE_STATUSES.has(entry.status)) {
+        base.pendingReceivablesGhs += displayAmount;
+        base.counts.pendingReceivables += 1;
       }
     });
 
@@ -587,9 +604,11 @@ const Accounting = () => {
       ? `Recurring ${entry.recurringInterval.toLowerCase()}`
       : null;
     const invoiceLabel = entry.invoiceNumber ? `Invoice ${entry.invoiceNumber}` : null;
+    const sourceLabel = SOURCE_LABELS[entry.source] || entry.source?.replace(/_/g, " ") || null;
     const organizationLabel = entry.organization?.name ? `Org: ${entry.organization.name}` : null;
     const canManage = entry.source === "MANUAL";
     const canCreateInvoice = canManage && entry.type === "REVENUE";
+    const canOpenActions = canManage || canCreateInvoice;
     const openEntryEditor = () => {
       if (!canManage) return;
       handleEditEntry(entry);
@@ -598,7 +617,7 @@ const Accounting = () => {
       <>
         <span className="table-strong">{entry.serviceName}</span>
         <span className="muted">
-          {[entry.detail, cadenceLabel, invoiceLabel].filter(Boolean).join(" • ") || "—"}
+          {[entry.detail, sourceLabel, cadenceLabel, invoiceLabel].filter(Boolean).join(" • ") || "—"}
         </span>
         {organizationLabel ? <span className="muted">{organizationLabel}</span> : null}
       </>
@@ -628,17 +647,19 @@ const Accounting = () => {
           <span className={`status-pill is-${STATUS_TONE[entry.status] || "info"}`}>
             {entry.status}
           </span>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Row actions"
-            onClick={() =>
-              setOpenActionId((current) => (current === entry.id ? null : entry.id))
-            }
-          >
-            ⋯
-          </button>
-          {openActionId === entry.id ? (
+          {canOpenActions ? (
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="Row actions"
+              onClick={() =>
+                setOpenActionId((current) => (current === entry.id ? null : entry.id))
+              }
+            >
+              ⋯
+            </button>
+          ) : null}
+          {canOpenActions && openActionId === entry.id ? (
             <div className="row-actions__menu" role="menu">
               <button type="button" onClick={() => handleEditEntry(entry)} disabled={!canManage}>
                 Edit entry
@@ -674,8 +695,8 @@ const Accounting = () => {
           <p className="eyebrow">Finance</p>
           <h1>Accounting</h1>
           <p className="muted">
-            Paid services revenue and expenses, pending payables, and invoice-ready PDFs.
-            Window: {RANGE_LABELS[timeRange] || "Month to date"}.
+            Financial activity across manual entries, invoices, payables, and receivables.
+            Window: {RANGE_LABELS[timeRange] || "All time"}.
           </p>
         </div>
         <div className="header-actions">
@@ -1207,6 +1228,18 @@ const Accounting = () => {
         <article className="panel">
           <div className="panel-header">
             <div>
+              <p className="muted">Open receivables</p>
+              <div className="health-row">
+                <span className="table-strong">{formatGhsAmount(summary.pendingReceivablesGhs)}</span>
+              </div>
+            </div>
+            <span className="status-pill is-warning">{summary.counts.pendingReceivables} open</span>
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <div>
               <p className="muted">Pending payables</p>
               <div className="health-row">
                 <span className="table-strong">{formatGhsAmount(summary.pendingPayablesGhs)}</span>
@@ -1219,12 +1252,12 @@ const Accounting = () => {
       <article className="panel">
         <div className="panel-header">
           <div>
-            <h3>Paid services ledger</h3>
+            <h3>Financial activity ledger</h3>
             <p className="muted">
-              {sortedEntries.length} entries • Amounts shown in {DISPLAY_CURRENCY_CODE}.
+              {sortedEntries.length} entries from accounting, invoices, and subscriptions • Amounts shown in {DISPLAY_CURRENCY_CODE}.
             </p>
           </div>
-          <span className="status-pill is-info">{RANGE_LABELS[timeRange] || "Month to date"}</span>
+          <span className="status-pill is-info">{RANGE_LABELS[timeRange] || "All time"}</span>
         </div>
 
         <div className="data-table">
@@ -1232,13 +1265,16 @@ const Accounting = () => {
             <span>ID</span>
             <span>Service</span>
             <span>Type</span>
-            <span>Paid date</span>
+            <span>Date</span>
             <span>Amount</span>
             <span>Display currency</span>
             <span>Status</span>
           </div>
           {sortedEntries.map(renderLedgerRow)}
         </div>
+        {!sortedEntries.length ? (
+          <p className="muted">No financial activity in this range.</p>
+        ) : null}
       </article>
       <div className="stack">
         {[
@@ -1266,7 +1302,7 @@ const Accounting = () => {
                   <span>ID</span>
                   <span>Service</span>
                   <span>Type</span>
-                  <span>Paid date</span>
+                  <span>Date</span>
                   <span>Amount</span>
                   <span>Display currency</span>
                   <span>Status</span>

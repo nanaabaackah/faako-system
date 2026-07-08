@@ -70,6 +70,8 @@ const sampleRow = {
     fileName: "faako-client-setup-aba-creative-studio.pdf",
     generatedAt: "2026-06-18T09:05:00.000Z",
   },
+  archivedAt: null,
+  archivedBy: null,
 };
 
 test("Faako onboarding status options cover the internal workflow", () => {
@@ -109,6 +111,8 @@ test("serializeFaakoOnboardingSubmission exposes detail metadata for Dev ERP", (
   assert.equal(submission.phone, "N/A");
   assert.equal(submission.status.label, "Proposal Sent");
   assert.equal(submission.assignedOwner, "admin@example.com");
+  assert.equal(submission.archivedAt, null);
+  assert.equal(submission.archivedBy, "");
   assert.equal(submission.emailDelivery.status, "sent");
   assert.equal(submission.pdfSummary.stored, false);
   assert.equal(submission.wizardSections.some((section) => section.key === "website"), false);
@@ -121,45 +125,13 @@ test("serializeFaakoOnboardingSubmission exposes detail metadata for Dev ERP", (
   assert.equal(submission.activityTimeline[0].type, "status_changed");
 });
 
-test("buildUpdatePatch persists status changes and conversion project activity", () => {
-  const patch = buildUpdatePatch({
-    body: { status: "CONVERTED" },
-    existingRow: sampleRow,
-    columns: new Set(["status", "activityTimeline", "managementUpdatedAt", "managementUpdatedBy", "updatedAt"]),
-    user: { fullName: "Ops Admin" },
-    extraTimelineEntries: [
-      {
-        type: "project_created",
-        label: "Project created",
-        note: "Aba Creative Studio - Growth setup (#42)",
-      },
-    ],
+test("serializeFaakoOnboardingSubmission exposes archive metadata", () => {
+  const submission = serializeFaakoOnboardingSubmission({
+    ...sampleRow,
+    archivedAt: new Date("2026-06-18T11:00:00.000Z"),
+    archivedBy: "Admin User",
   });
 
-  assert.deepEqual(patch.changedFields, ["status", "project"]);
-  assert.equal(patch.values[0], "CONVERTED");
-  assert.equal(patch.updates.some((update) => update === "\"status\" = $1"), true);
-  const timeline = JSON.parse(patch.values[1]);
-  const conversionEntries = timeline.slice(-2);
-  assert.equal(conversionEntries[0].type, "status_changed");
-  assert.equal(conversionEntries[0].to, "Converted");
-  assert.equal(conversionEntries[1].type, "project_created");
-  assert.equal(conversionEntries[1].note, "Aba Creative Studio - Growth setup (#42)");
-});
-
-test("buildConvertedProjectPayload maps converted submissions into external projects", () => {
-  const payload = buildConvertedProjectPayload(sampleRow, { organizationId: 7, ownerUserId: 3 });
-
-  assert.equal(payload.organizationId, 7);
-  assert.equal(payload.ownerUserId, 3);
-  assert.equal(payload.title, "Aba Creative Studio - Growth setup");
-  assert.equal(payload.clientName, "Aba Creative Studio");
-  assert.equal(payload.projectType, "EXTERNAL");
-  assert.equal(payload.stage, "ACTIVE");
-  assert.equal(payload.priority, "HIGH");
-  assert.equal(payload.currency, "GHS");
-  assert.equal(payload.externalRef, "faako-onboarding:signup-1");
-  assert.match(payload.description, /Contact: Nana Aba <hello@example.com>/);
-  assert.match(payload.description, /Requested modules: website, portal/);
-  assert.match(payload.description, /Setup checklist: Discovery call/);
+  assert.equal(submission.archivedAt, "2026-06-18T11:00:00.000Z");
+  assert.equal(submission.archivedBy, "Admin User");
 });

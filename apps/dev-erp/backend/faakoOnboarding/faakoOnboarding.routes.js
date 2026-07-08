@@ -61,6 +61,8 @@ const SIGNUP_REQUEST_COLUMNS = [
   "activityTimeline",
   "emailDelivery",
   "pdfSummary",
+  "archivedAt",
+  "archivedBy",
   "managementUpdatedAt",
   "managementUpdatedBy",
 ];
@@ -644,6 +646,8 @@ export const serializeFaakoOnboardingSubmission = (row, { includeDetail = false 
     internalNotes: normalizeText(row.internalNotes, 12000) || "",
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
+    archivedAt: toIso(row.archivedAt),
+    archivedBy: normalizeText(row.archivedBy, 160) || "",
     managementUpdatedAt: toIso(row.managementUpdatedAt),
     managementUpdatedBy: normalizeText(row.managementUpdatedBy, 160) || "",
     emailDelivery: normalizeJson(row.emailDelivery, null),
@@ -732,6 +736,7 @@ const appendWhere = (whereParts, values, sql, value) => {
 const buildListQuery = ({ query, columns }) => {
   const values = [];
   const whereParts = [];
+  const includeArchived = String(query.includeArchived || "").toLowerCase() === "true";
   const status = normalizeStatus(query.status);
   const packageTier = normalizeText(query.package, 120);
   const company = normalizeText(query.company || query.q, 180);
@@ -739,6 +744,7 @@ const buildListQuery = ({ query, columns }) => {
   const dateFrom = parseDateBoundary(query.dateFrom);
   const dateTo = parseDateBoundary(query.dateTo, { endOfDay: true });
 
+  if (columns.has("archivedAt") && !includeArchived) whereParts.push(`"archivedAt" IS NULL`);
   if (status && columns.has("status")) appendWhere(whereParts, values, `"status" = ?`, status);
   if (packageTier && columns.has("packageTier")) {
     appendWhere(whereParts, values, `LOWER("packageTier") = LOWER(?)`, packageTier);
@@ -782,15 +788,17 @@ const loadOwnerOptions = async (prisma) => {
 };
 
 const loadFilterOptions = async ({ faakoPool, table, columns }) => {
+  const activePackageCondition = columns.has("archivedAt") ? ` AND "archivedAt" IS NULL` : "";
+  const activeModulesWhere = columns.has("archivedAt") ? `WHERE "archivedAt" IS NULL` : "";
   const [packagesResult, modulesResult] = await Promise.all([
     columns.has("packageTier")
       ? faakoPool.query(
-          `SELECT DISTINCT "packageTier" AS value FROM ${table.qualifiedName} WHERE "packageTier" IS NOT NULL AND trim("packageTier") <> '' ORDER BY "packageTier" LIMIT 80`
+          `SELECT DISTINCT "packageTier" AS value FROM ${table.qualifiedName} WHERE "packageTier" IS NOT NULL AND trim("packageTier") <> ''${activePackageCondition} ORDER BY "packageTier" LIMIT 80`
         )
       : Promise.resolve({ rows: [] }),
     columns.has("requestedModules")
       ? faakoPool.query(
-          `SELECT DISTINCT unnest("requestedModules") AS value FROM ${table.qualifiedName} ORDER BY value LIMIT 120`
+          `SELECT DISTINCT unnest("requestedModules") AS value FROM ${table.qualifiedName} ${activeModulesWhere} ORDER BY value LIMIT 120`
         )
       : Promise.resolve({ rows: [] }),
   ]);
@@ -806,11 +814,14 @@ const loadFilterOptions = async ({ faakoPool, table, columns }) => {
 };
 
 const loadSummary = async ({ faakoPool, table, columns }) => {
-  const totalResult = await faakoPool.query(`SELECT COUNT(*)::int AS count FROM ${table.qualifiedName}`);
+  const activeWhereSql = columns.has("archivedAt") ? `WHERE "archivedAt" IS NULL` : "";
+  const totalResult = await faakoPool.query(
+    `SELECT COUNT(*)::int AS count FROM ${table.qualifiedName} ${activeWhereSql}`
+  );
   const statusRows = columns.has("status")
     ? (
         await faakoPool.query(
-          `SELECT "status"::text AS status, COUNT(*)::int AS count FROM ${table.qualifiedName} GROUP BY "status"`
+          `SELECT "status"::text AS status, COUNT(*)::int AS count FROM ${table.qualifiedName} ${activeWhereSql} GROUP BY "status"`
         )
       ).rows
     : [];
@@ -934,6 +945,47 @@ export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimeli
   return { updates, values, changedFields };
 };
 
+const buildArchivePatch = ({ existingRow, columns, user }) => {
+  if (!columns.has("archivedAt")) {
+    return {
+      errorStatus: 409,
+      error: "Archive is not available until the Faako archive migration is applied.",
+    };
+  }
+
+  if (toIso(existingRow.archivedAt)) {
+    return { updates: [], values: [], changedFields: [] };
+  }
+
+  const updates = [];
+  const values = [];
+  const actor = normalizeText(user?.fullName || user?.email, 160) || "Dev ERP admin";
+  const now = new Date().toISOString();
+  const timeline = normalizeTimeline(existingRow.activityTimeline);
+
+  const pushUpdate = (column, value) => {
+    values.push(value);
+    updates.push(`"${column}" = $${values.length}`);
+  };
+
+  pushUpdate("archivedAt", now);
+  if (columns.has("archivedBy")) pushUpdate("archivedBy", actor);
+  if (columns.has("activityTimeline")) {
+    timeline.push({
+      type: "archived",
+      label: "Submission archived",
+      at: now,
+      by: actor,
+    });
+    pushUpdate("activityTimeline", JSON.stringify(timeline.slice(-60)));
+  }
+  if (columns.has("managementUpdatedAt")) updates.push('"managementUpdatedAt" = NOW()');
+  if (columns.has("managementUpdatedBy")) pushUpdate("managementUpdatedBy", actor);
+  if (columns.has("updatedAt")) updates.push('"updatedAt" = NOW()');
+
+  return { updates, values, changedFields: ["archivedAt"] };
+};
+
 const recordFaakoOnboardingAudit = ({ prisma, writeAuditLog, req, submission, action, summary, metadata, appEnv }) =>
   writeAuditLog?.(
     prisma,
@@ -1004,6 +1056,7 @@ export const registerFaakoOnboardingRoutes = (app, {
         pdfSummary: table.columns.has("pdfSummary"),
         emailDelivery: table.columns.has("emailDelivery"),
         activityTimeline: table.columns.has("activityTimeline"),
+        archive: table.columns.has("archivedAt"),
       },
     });
   });
@@ -1024,6 +1077,90 @@ export const registerFaakoOnboardingRoutes = (app, {
       ownerOptions,
       statusOptions: FAAKO_ONBOARDING_STATUS_OPTIONS,
     });
+  });
+
+  router.post("/:id/archive", authMiddleware, requireAdmin, async (req, res) => {
+    const table = await resolveSignupRequestTable(faakoPool);
+    if (table.error) return res.status(table.errorStatus).json({ error: table.error });
+    const id = normalizeText(req.params.id, 120);
+    const existingRow = await findSubmissionRow({ faakoPool, table, columns: table.columns, id });
+    if (!existingRow) return res.status(404).json({ error: "Faako onboarding submission not found." });
+
+    const patch = buildArchivePatch({
+      existingRow,
+      columns: table.columns,
+      user: req.user,
+    });
+    if (validationPatch.error) return res.status(validationPatch.errorStatus).json({ error: validationPatch.error });
+
+    const statusRequested = Object.prototype.hasOwnProperty.call(body, "status");
+    const requestedStatus = statusRequested ? normalizeStatus(body.status) : "";
+    const currentStatus = buildStatusMeta(existingRow.status).value;
+    let projectResult = null;
+    let extraTimelineEntries = [];
+
+    if (requestedStatus === CONVERTED_STATUS) {
+      projectResult = await ensureProjectForConvertedSubmission({ prisma, row: existingRow, user: req.user });
+      if (projectResult.error) {
+        return res.status(projectResult.errorStatus).json({ error: projectResult.error });
+      }
+      if (projectResult.project && (projectResult.created || currentStatus !== CONVERTED_STATUS)) {
+        extraTimelineEntries = [
+          {
+            type: projectResult.created ? "project_created" : "project_linked",
+            label: projectResult.created ? "Project created" : "Project linked",
+            note: `${projectResult.project.title} (#${projectResult.project.id})`,
+          },
+        ];
+      }
+    }
+
+    const patch = extraTimelineEntries.length
+      ? buildUpdatePatch({
+          body,
+          existingRow,
+          columns: table.columns,
+          user: req.user,
+          extraTimelineEntries,
+        })
+      : validationPatch;
+    if (patch.error) return res.status(patch.errorStatus).json({ error: patch.error });
+
+    if (!patch.changedFields.length || !patch.updates.length) {
+      return res.json({
+        submission: serializeFaakoOnboardingSubmission(existingRow, { includeDetail: true }),
+        changedFields: [],
+        archived: true,
+      });
+    }
+
+    patch.values.push(id);
+    const selectColumns = buildSelectColumns(table.columns);
+    const updateResult = await faakoPool.query(
+      `
+        UPDATE ${table.qualifiedName}
+        SET ${patch.updates.join(", ")}
+        WHERE "id" = $${patch.values.length}
+        RETURNING ${selectColumns.join(", ")}
+      `,
+      patch.values
+    );
+    const submission = serializeFaakoOnboardingSubmission(updateResult.rows[0], { includeDetail: true });
+
+    await recordFaakoOnboardingAudit({
+      prisma,
+      writeAuditLog,
+      req,
+      submission,
+      action: "FAAKO_ONBOARDING_ARCHIVED",
+      summary: `Archived Faako onboarding submission for ${submission.companyName}.`,
+      metadata: {
+        status: submission.status.value,
+      },
+      appEnv,
+    });
+
+    return res.json({ submission, changedFields: patch.changedFields, archived: true });
   });
 
   router.patch("/:id", authMiddleware, requireAdmin, async (req, res) => {
@@ -1097,6 +1234,17 @@ export const registerFaakoOnboardingRoutes = (app, {
     );
     const updatedRow = updateResult.rows[0];
     const submission = serializeFaakoOnboardingSubmission(updatedRow, { includeDetail: true });
+    let project = null;
+    if (patch.changedFields.includes("status") && submission.status.value === "CONVERTED") {
+      try {
+        project = await ensureProjectForConvertedSubmission({ prisma, req, submission });
+      } catch (projectError) {
+        project = {
+          created: false,
+          error: projectError.message || "Converted project could not be created.",
+        };
+      }
+    }
 
     await recordFaakoOnboardingAudit({
       prisma,
@@ -1109,18 +1257,12 @@ export const registerFaakoOnboardingRoutes = (app, {
         changedFields: patch.changedFields,
         status: submission.status.value,
         assignedOwner: submission.assignedOwner || null,
-        projectId: projectResult?.project?.id || null,
-        projectCreated: Boolean(projectResult?.created),
+        convertedProject: project,
       },
       appEnv,
     });
 
-    return res.json({
-      submission,
-      changedFields: patch.changedFields,
-      project: projectResult?.project || null,
-      projectCreated: Boolean(projectResult?.created),
-    });
+    return res.json({ submission, changedFields: patch.changedFields, project });
   });
 
   app.use("/api/faako-onboarding", router);
