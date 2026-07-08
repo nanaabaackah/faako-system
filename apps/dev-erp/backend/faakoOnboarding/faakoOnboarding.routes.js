@@ -1091,42 +1091,9 @@ export const registerFaakoOnboardingRoutes = (app, {
       columns: table.columns,
       user: req.user,
     });
-    if (validationPatch.error) return res.status(validationPatch.errorStatus).json({ error: validationPatch.error });
-
-    const statusRequested = Object.prototype.hasOwnProperty.call(body, "status");
-    const requestedStatus = statusRequested ? normalizeStatus(body.status) : "";
-    const currentStatus = buildStatusMeta(existingRow.status).value;
-    let projectResult = null;
-    let extraTimelineEntries = [];
-
-    if (requestedStatus === CONVERTED_STATUS) {
-      projectResult = await ensureProjectForConvertedSubmission({ prisma, row: existingRow, user: req.user });
-      if (projectResult.error) {
-        return res.status(projectResult.errorStatus).json({ error: projectResult.error });
-      }
-      if (projectResult.project && (projectResult.created || currentStatus !== CONVERTED_STATUS)) {
-        extraTimelineEntries = [
-          {
-            type: projectResult.created ? "project_created" : "project_linked",
-            label: projectResult.created ? "Project created" : "Project linked",
-            note: `${projectResult.project.title} (#${projectResult.project.id})`,
-          },
-        ];
-      }
-    }
-
-    const patch = extraTimelineEntries.length
-      ? buildUpdatePatch({
-          body,
-          existingRow,
-          columns: table.columns,
-          user: req.user,
-          extraTimelineEntries,
-        })
-      : validationPatch;
     if (patch.error) return res.status(patch.errorStatus).json({ error: patch.error });
 
-    if (!patch.changedFields.length || !patch.updates.length) {
+    if (!patch.changedFields.length) {
       return res.json({
         submission: serializeFaakoOnboardingSubmission(existingRow, { includeDetail: true }),
         changedFields: [],
