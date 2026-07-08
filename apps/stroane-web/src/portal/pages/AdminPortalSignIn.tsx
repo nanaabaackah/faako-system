@@ -14,6 +14,20 @@ const getAdminRedirect = (state: unknown) => {
   return from;
 };
 
+type AdminSignInFieldErrors = Partial<Record<"username" | "password", string>>;
+
+const RequiredMark = () => (
+  <>
+    <span className="stroane-portal-login__required" aria-hidden="true">
+      *
+    </span>
+    <span className="sr-only">required</span>
+  </>
+);
+
+const getFirstFieldError = (errors: AdminSignInFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
+
 const AdminPortalSignIn: React.FC = () => {
   const { session, signIn } = useAdminPortal();
   const location = useLocation();
@@ -22,6 +36,7 @@ const AdminPortalSignIn: React.FC = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<AdminSignInFieldErrors>({});
 
   useSEOMeta({
     title: "Operations sign in | Stroane",
@@ -34,10 +49,21 @@ const AdminPortalSignIn: React.FC = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const nextErrors: AdminSignInFieldErrors = {};
+    if (!username.trim()) nextErrors.username = "Enter your staff username.";
+    if (!password) nextErrors.password = "Enter your password.";
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError(getFirstFieldError(nextErrors));
+      return;
+    }
+
     setLoading(true);
     setError("");
+    setFieldErrors({});
     try {
-      await signIn(username, password);
+      await signIn(username.trim(), password);
       navigate(getAdminRedirect(location.state), { replace: true });
     } catch (signInError) {
       setError(signInError instanceof Error ? signInError.message : "Unable to sign in.");
@@ -55,25 +81,63 @@ const AdminPortalSignIn: React.FC = () => {
         </span>
         <h1>Stroane operations</h1>
         <p>Sign in with a staff account to manage private operational work.</p>
-        <form className="stroane-portal-login__form" onSubmit={handleSubmit}>
-          <label>
-            <span>Username</span>
+        <form className="stroane-portal-login__form" onSubmit={handleSubmit} noValidate>
+          <label className={fieldErrors.username ? "is-error" : ""}>
+            <span>
+              Username
+              <RequiredMark />
+            </span>
             <input
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                setError("");
+                setFieldErrors((current) => {
+                  if (!current.username) return current;
+                  const next = { ...current };
+                  delete next.username;
+                  return next;
+                });
+              }}
               autoComplete="username"
+              aria-invalid={fieldErrors.username ? "true" : undefined}
+              aria-describedby={fieldErrors.username ? "admin-username-error" : undefined}
               required
             />
+            {fieldErrors.username ? (
+              <span className="stroane-portal-login__field-error" id="admin-username-error">
+                {fieldErrors.username}
+              </span>
+            ) : null}
           </label>
-          <label>
-            <span>Password</span>
+          <label className={fieldErrors.password ? "is-error" : ""}>
+            <span>
+              Password
+              <RequiredMark />
+            </span>
             <input
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError("");
+                setFieldErrors((current) => {
+                  if (!current.password) return current;
+                  const next = { ...current };
+                  delete next.password;
+                  return next;
+                });
+              }}
               autoComplete="current-password"
+              aria-invalid={fieldErrors.password ? "true" : undefined}
+              aria-describedby={fieldErrors.password ? "admin-password-error" : undefined}
               required
             />
+            {fieldErrors.password ? (
+              <span className="stroane-portal-login__field-error" id="admin-password-error">
+                {fieldErrors.password}
+              </span>
+            ) : null}
           </label>
           {error ? <p className="stroane-portal-login__error" role="alert">{error}</p> : null}
           <button type="submit" disabled={loading || !username || !password}>

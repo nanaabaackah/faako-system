@@ -12,6 +12,7 @@ import "../styles/pages/Auth.css";
 const CLIENT_SETUP_DRAFT_STORAGE_KEY = "faako-client-setup-draft-v1";
 const HONEYPOT_FIELD_NAME = "companyFax";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9][0-9\s().-]{6,}$/;
 const LEGACY_NETLIFY_FUNCTIONS_PATH = "/.netlify/functions";
 
 const normalizeConfiguredApiBaseUrl = (value) => {
@@ -748,6 +749,18 @@ const normalizeText = (value) => String(value || "").trim();
 
 const isValidEmail = (value) => EMAIL_PATTERN.test(normalizeText(value).toLowerCase());
 
+const isValidOptionalPhone = (value) => {
+  const normalized = normalizeText(value);
+  return !normalized || PHONE_PATTERN.test(normalized);
+};
+
+const isReasonableName = (value) => {
+  const normalized = normalizeText(value);
+  return normalized.length >= 2 && /[A-Za-z]/.test(normalized) && !/[@:/\\]/.test(normalized);
+};
+
+const getFirstFieldError = (errors) => Object.values(errors).find(Boolean) || "";
+
 const hasMeaningfulValue = (value) => {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "boolean") return true;
@@ -935,38 +948,43 @@ const summarizeSelectedDetails = (values, selectedServiceIds) =>
     .filter(Boolean)
     .join("\n");
 
-const validateStep = (stepId, values) => {
+const getStepFieldErrors = (stepId, values) => {
+  const errors = {};
+
   if (stepId === "contact") {
-    if (!normalizeText(values.contact.businessName)) return "Enter the business name.";
-    if (!normalizeText(values.contact.name)) return "Enter the contact name.";
-    if (!isValidEmail(values.contact.email)) return "Enter a valid contact email.";
+    if (!normalizeText(values.contact.businessName)) errors["contact.businessName"] = "Enter the business name.";
+    if (!isReasonableName(values.contact.name)) errors["contact.name"] = "Enter the contact name.";
+    if (!isValidEmail(values.contact.email)) errors["contact.email"] = "Enter a valid contact email.";
+    if (!isValidOptionalPhone(values.contact.phoneWhatsapp)) {
+      errors["contact.phoneWhatsapp"] = "Enter a valid phone or WhatsApp number.";
+    }
   }
 
   if (stepId === "service") {
-    if (!normalizeText(values.service.primaryProduct)) return "Choose the main service needed.";
+    if (!normalizeText(values.service.primaryProduct)) errors["service.primaryProduct"] = "Choose the main service needed.";
     if (!normalizeText(values.service.projectReason)) {
-      return "Tell us why you need this service now.";
+      errors["service.projectReason"] = "Tell us why you need this service now.";
     }
   }
 
   if (stepId === "business" && !normalizeText(values.business.painPoints)) {
-    return "Tell us what feels slow, confusing, or hard to manage today.";
+    errors["business.painPoints"] = "Tell us what feels slow, confusing, or hard to manage today.";
   }
 
   if (stepId === "details") {
     for (const serviceId of getSelectedServiceIds(values)) {
       const config = PRODUCT_DETAILS_CONFIG[serviceId];
       if (config?.requiredPath && !normalizeText(getField(values, config.requiredPath))) {
-        return config.requiredMessage;
+        errors[config.requiredPath] = config.requiredMessage;
       }
     }
   }
 
   if (stepId === "launch" && !values.launch.consent) {
-    return "Confirm that Faako can review your answers and contact you about next steps.";
+    errors["launch.consent"] = "Confirm that Faako can review your answers and contact you about next steps.";
   }
 
-  return "";
+  return errors;
 };
 
 const buildPayload = (values, honeypotValue) => {
@@ -1066,6 +1084,17 @@ const buildPayload = (values, honeypotValue) => {
   };
 };
 
+const getFieldId = (path) => `client-setup-${path.replace(/[^a-z0-9]+/gi, "-")}`;
+
+function RequiredMark() {
+  return (
+    <>
+      <span className="signup-required-mark" aria-hidden="true">*</span>
+      <span className="sr-only">required</span>
+    </>
+  );
+}
+
 function TextField({
   label,
   path,
@@ -1075,18 +1104,32 @@ function TextField({
   type = "text",
   placeholder = "",
   autoComplete = "",
+  error = "",
 }) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
   return (
-    <label>
-      {label}
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
       <input
+        id={fieldId}
         type={type}
         value={getField(values, path)}
         onChange={(event) => onChange(path, event.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
         required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
       />
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -1099,42 +1142,77 @@ function TextAreaField({
   required = false,
   placeholder = "",
   rows = 4,
+  error = "",
 }) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
   return (
-    <label>
-      {label}
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
       <textarea
+        id={fieldId}
         value={getField(values, path)}
         onChange={(event) => onChange(path, event.target.value)}
         placeholder={placeholder}
         rows={rows}
         required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
       />
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function SelectField({ label, path, values, onChange, options }) {
+function SelectField({ label, path, values, onChange, options, required = false, error = "" }) {
+  const fieldId = getFieldId(path);
+  const errorId = error ? `${fieldId}-error` : undefined;
   return (
-    <label>
-      {label}
-      <select value={getField(values, path)} onChange={(event) => onChange(path, event.target.value)}>
+    <label className={`signup-field ${error ? "is-error" : ""}`} htmlFor={fieldId}>
+      <span className="signup-field-label">
+        {label}
+        {required ? <RequiredMark /> : null}
+      </span>
+      <select
+        id={fieldId}
+        value={getField(values, path)}
+        onChange={(event) => onChange(path, event.target.value)}
+        required={required}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={errorId}
+      >
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
         ))}
       </select>
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-function CheckboxGrid({ legend, help, options, values, path, onToggle }) {
+function CheckboxGrid({ legend, help, options, values, path, onToggle, required = false, error = "" }) {
   const selected = getField(values, path);
+  const errorId = error ? `${getFieldId(path)}-error` : undefined;
 
   return (
-    <fieldset className="signup-choice-group">
-      <legend>{legend}</legend>
+    <fieldset className={`signup-choice-group ${error ? "is-error" : ""}`} aria-describedby={errorId}>
+      <legend>
+        {legend}
+        {required ? <RequiredMark /> : null}
+      </legend>
       {help ? <p className="signup-help-text">{help}</p> : null}
       <div className="signup-chip-grid signup-chip-grid--wide">
         {options.map((option) => {
@@ -1153,6 +1231,11 @@ function CheckboxGrid({ legend, help, options, values, path, onToggle }) {
           );
         })}
       </div>
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </fieldset>
   );
 }
@@ -1188,12 +1271,16 @@ function DescribedCheckboxGrid({ legend, help, options, values, path, onToggle }
   );
 }
 
-function PrimaryServicePicker({ values, onChange }) {
+function PrimaryServicePicker({ values, onChange, error = "" }) {
   const selected = values.service.primaryProduct;
+  const errorId = error ? `${getFieldId("service.primaryProduct")}-error` : undefined;
 
   return (
-    <fieldset className="signup-choice-group">
-      <legend>Main service needed</legend>
+    <fieldset className={`signup-choice-group ${error ? "is-error" : ""}`} aria-describedby={errorId}>
+      <legend>
+        Main service needed
+        <RequiredMark />
+      </legend>
       <p className="signup-help-text">
         Pick the closest match. You can add related services below.
       </p>
@@ -1218,11 +1305,18 @@ function PrimaryServicePicker({ values, onChange }) {
           );
         })}
       </div>
+      {error ? (
+        <span className="signup-field-error" id={errorId}>
+          {error}
+        </span>
+      ) : null}
     </fieldset>
   );
 }
 
-function ProductQuestionGroup({ config, values, onChange, onToggle }) {
+function ProductQuestionGroup({ config, values, onChange, onToggle, fieldErrors = {} }) {
+  if (!config) return null;
+
   return (
     <article className="signup-review-card">
       <h3>{config.title}</h3>
@@ -1234,11 +1328,13 @@ function ProductQuestionGroup({ config, values, onChange, onToggle }) {
               <SelectField
                 key={field.path}
                 label={field.label}
-                path={field.path}
-                values={values}
-                onChange={onChange}
-                options={field.options}
-              />
+	                path={field.path}
+	                values={values}
+	                onChange={onChange}
+	                options={field.options}
+	                required={field.required}
+	                error={fieldErrors[field.path] || ""}
+	              />
             );
           }
 
@@ -1248,11 +1344,13 @@ function ProductQuestionGroup({ config, values, onChange, onToggle }) {
                 key={field.path}
                 legend={field.legend}
                 help={field.help}
-                options={field.options}
-                values={values}
-                path={field.path}
-                onToggle={onToggle}
-              />
+	                options={field.options}
+	                values={values}
+	                path={field.path}
+	                onToggle={onToggle}
+	                required={field.required}
+	                error={fieldErrors[field.path] || ""}
+	              />
             );
           }
 
@@ -1262,11 +1360,12 @@ function ProductQuestionGroup({ config, values, onChange, onToggle }) {
                 key={field.path}
                 label={field.label}
                 path={field.path}
-                values={values}
-                onChange={onChange}
-                required={field.required}
-                placeholder={field.placeholder}
-                rows={field.rows || 4}
+	                values={values}
+	                onChange={onChange}
+	                required={field.required}
+	                error={fieldErrors[field.path] || ""}
+	                placeholder={field.placeholder}
+	                rows={field.rows || 4}
               />
             );
           }
@@ -1275,12 +1374,13 @@ function ProductQuestionGroup({ config, values, onChange, onToggle }) {
             <TextField
               key={field.path}
               label={field.label}
-              path={field.path}
-              values={values}
-              onChange={onChange}
-              required={field.required}
-              placeholder={field.placeholder}
-              type={field.inputType || "text"}
+	              path={field.path}
+	              values={values}
+	              onChange={onChange}
+	              required={field.required}
+	              error={fieldErrors[field.path] || ""}
+	              placeholder={field.placeholder}
+	              type={field.inputType || "text"}
             />
           );
         })}
@@ -1294,6 +1394,7 @@ export default function ClientSetup() {
   const [values, setValues] = useState(initialValues);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [status, setStatus] = useState({ state: "idle", message: "" });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [honeypotValue, setHoneypotValue] = useState("");
   const [draftStatus, setDraftStatus] = useState(
     "Draft saves automatically on this device."
@@ -1304,6 +1405,7 @@ export default function ClientSetup() {
   const activeStep = WIZARD_STEPS[activeStepIndex];
   const selectedServiceIds = getSelectedServiceIds(values);
   const reviewSections = useMemo(() => buildReviewSections(values), [values]);
+  const fieldError = (path) => fieldErrors[path] || "";
 
   useEffect(() => {
     const saved = saveDraft(values);
@@ -1318,6 +1420,12 @@ export default function ClientSetup() {
     setStatus((current) =>
       current.state === "loading" ? current : { state: "idle", message: "" }
     );
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
 
     setValues((current) => {
       const next = setNestedValue(current, path, value);
@@ -1336,6 +1444,12 @@ export default function ClientSetup() {
     setStatus((current) =>
       current.state === "loading" ? current : { state: "idle", message: "" }
     );
+    setFieldErrors((current) => {
+      if (!current[path]) return current;
+      const next = { ...current };
+      delete next[path];
+      return next;
+    });
     setValues((current) => toggleListValue(current, path, value));
   };
 
@@ -1346,29 +1460,36 @@ export default function ClientSetup() {
     }
 
     for (let cursor = 0; cursor < index; cursor += 1) {
-      const error = validateStep(WIZARD_STEPS[cursor].id, values);
+      const errors = getStepFieldErrors(WIZARD_STEPS[cursor].id, values);
+      const error = getFirstFieldError(errors);
       if (error) {
         setActiveStepIndex(cursor);
+        setFieldErrors(errors);
         setStatus({ state: "error", message: error });
         return;
       }
     }
 
+    setFieldErrors({});
     setActiveStepIndex(index);
   };
 
   const goNext = () => {
-    const error = validateStep(activeStep.id, values);
+    const errors = getStepFieldErrors(activeStep.id, values);
+    const error = getFirstFieldError(errors);
     if (error) {
+      setFieldErrors(errors);
       setStatus({ state: "error", message: error });
       return;
     }
 
+    setFieldErrors({});
     setStatus({ state: "idle", message: "" });
     setActiveStepIndex((current) => Math.min(current + 1, WIZARD_STEPS.length - 1));
   };
 
   const goBack = () => {
+    setFieldErrors({});
     setStatus({ state: "idle", message: "" });
     setActiveStepIndex((current) => Math.max(current - 1, 0));
   };
@@ -1380,9 +1501,11 @@ export default function ClientSetup() {
 
     for (const step of WIZARD_STEPS) {
       if (step.id === "review") continue;
-      const error = validateStep(step.id, values);
+      const errors = getStepFieldErrors(step.id, values);
+      const error = getFirstFieldError(errors);
       if (error) {
         setActiveStepIndex(WIZARD_STEPS.findIndex((item) => item.id === step.id));
+        setFieldErrors(errors);
         setStatus({ state: "error", message: error });
         return;
       }
@@ -1443,6 +1566,7 @@ export default function ClientSetup() {
 
       clearDraft();
       setValues(deepClone(DEFAULT_VALUES));
+      setFieldErrors({});
       setHoneypotValue("");
       submissionKeyRef.current = createSubmissionIdempotencyKey();
       setActiveStepIndex(0);
@@ -1562,17 +1686,19 @@ export default function ClientSetup() {
                         label="Business name"
                         path="contact.businessName"
                         values={values}
-                        onChange={updateField}
-                        required
-                        autoComplete="organization"
-                      />
+	                        onChange={updateField}
+	                        required
+	                        error={fieldError("contact.businessName")}
+	                        autoComplete="organization"
+	                      />
                       <TextField
                         label="Your name"
                         path="contact.name"
                         values={values}
-                        onChange={updateField}
-                        required
-                        autoComplete="name"
+	                        onChange={updateField}
+	                        required
+	                        error={fieldError("contact.name")}
+	                        autoComplete="name"
                       />
                     </div>
                     <div className="signup-grid signup-grid--two">
@@ -1596,18 +1722,20 @@ export default function ClientSetup() {
                         label="Email"
                         path="contact.email"
                         values={values}
-                        onChange={updateField}
-                        type="email"
-                        required
-                        autoComplete="email"
+	                        onChange={updateField}
+	                        type="email"
+	                        required
+	                        error={fieldError("contact.email")}
+	                        autoComplete="email"
                       />
                       <TextField
                         label="Phone / WhatsApp"
                         path="contact.phoneWhatsapp"
                         values={values}
-                        onChange={updateField}
-                        type="tel"
-                        autoComplete="tel"
+	                        onChange={updateField}
+	                        type="tel"
+	                        error={fieldError("contact.phoneWhatsapp")}
+	                        autoComplete="tel"
                       />
                     </div>
                   </section>
@@ -1615,7 +1743,7 @@ export default function ClientSetup() {
 
                 {activeStep.id === "service" ? (
                   <section className="signup-section">
-                    <PrimaryServicePicker values={values} onChange={updateField} />
+	                    <PrimaryServicePicker values={values} onChange={updateField} error={fieldError("service.primaryProduct")} />
                     <CheckboxGrid
                       legend="Related services to consider"
                       help="Optional. Add anything that may be part of the same project."
@@ -1630,9 +1758,10 @@ export default function ClientSetup() {
                       label="Why do you need this service now?"
                       path="service.projectReason"
                       values={values}
-                      onChange={updateField}
-                      required
-                      placeholder="What changed, what is missing, or what are you trying to improve?"
+	                      onChange={updateField}
+	                      required
+	                      error={fieldError("service.projectReason")}
+	                      placeholder="What changed, what is missing, or what are you trying to improve?"
                     />
                     <TextAreaField
                       label="What would make this project successful?"
@@ -1704,9 +1833,10 @@ export default function ClientSetup() {
                       label="What feels slow, confusing, or hard to manage?"
                       path="business.painPoints"
                       values={values}
-                      onChange={updateField}
-                      required
-                      placeholder="Missed enquiries, hard-to-track payments, manual reports, unclear stock..."
+	                      onChange={updateField}
+	                      required
+	                      error={fieldError("business.painPoints")}
+	                      placeholder="Missed enquiries, hard-to-track payments, manual reports, unclear stock..."
                     />
                   </section>
                 ) : null}
@@ -1770,10 +1900,11 @@ export default function ClientSetup() {
                         <ProductQuestionGroup
                           key={serviceId}
                           config={PRODUCT_DETAILS_CONFIG[serviceId]}
-                          values={values}
-                          onChange={updateField}
-                          onToggle={toggleFieldValue}
-                        />
+	                          values={values}
+	                          onChange={updateField}
+	                          onToggle={toggleFieldValue}
+	                          fieldErrors={fieldErrors}
+	                        />
                       ))}
                     </div>
                   </section>
@@ -1856,14 +1987,21 @@ export default function ClientSetup() {
                       Please do not enter passwords, API keys, tokens, private
                       email credentials, or bank login details in this form.
                     </p>
-                    <label className={`signup-chip signup-consent ${values.launch.consent ? "is-selected" : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={values.launch.consent}
-                        onChange={(event) => updateField("launch.consent", event.target.checked)}
-                      />
-                      <span>Faako may review these answers and contact me about next steps.</span>
-                    </label>
+	                    <label className={`signup-chip signup-consent ${values.launch.consent ? "is-selected" : ""} ${fieldError("launch.consent") ? "is-error" : ""}`}>
+	                      <input
+	                        type="checkbox"
+	                        checked={values.launch.consent}
+	                        onChange={(event) => updateField("launch.consent", event.target.checked)}
+	                        aria-invalid={fieldError("launch.consent") ? "true" : undefined}
+	                        aria-describedby={fieldError("launch.consent") ? "client-setup-launch-consent-error" : undefined}
+	                      />
+	                      <span>Faako may review these answers and contact me about next steps.</span>
+	                    </label>
+	                    {fieldError("launch.consent") ? (
+	                      <span className="signup-field-error" id="client-setup-launch-consent-error">
+	                        {fieldError("launch.consent")}
+	                      </span>
+	                    ) : null}
                   </section>
                 ) : null}
 

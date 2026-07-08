@@ -1954,6 +1954,38 @@ body.nav-open .mobile-tabbar {
   height: 1rem;
 }
 
+.invoice-payment-modal {
+  width: min(620px, 95vw);
+}
+
+.invoice-payment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.invoice-payment-summary div {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--surface), var(--card) 18%);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.invoice-payment-summary span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.invoice-payment-summary strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
 .booking-actions {
   display: grid;
   gap: 0.6rem;
@@ -2224,7 +2256,16 @@ body.nav-open .mobile-tabbar {
 }
 
 .invoice-ledger-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
   white-space: nowrap;
+}
+
+.invoice-ledger-actions .text-button svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
 }
 
 .invoice-ledger-actions .icon-button {
@@ -2521,6 +2562,56 @@ body.nav-open .mobile-tabbar {
 .form-field span {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.form-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+.form-field:has(:is(input, select, textarea)[required]) > span:not(.form-field-label):first-child::after {
+  content: " *";
+  color: var(--danger);
+  font-weight: 900;
+}
+
+.form-field-required {
+  color: var(--danger);
+  font-weight: 900;
+}
+
+.form-field .form-field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.form-field.is-error .input,
+.input.is-error,
+.input-group.is-error {
+  border-color: color-mix(in oklab, var(--danger), var(--border) 18%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger-soft), transparent 20%);
+}
+
+.form-field.is-error .input:focus,
+.input.is-error:focus,
+.input-group.is-error:focus-within {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger-soft), transparent 8%);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .toggle-row {
@@ -3262,6 +3353,10 @@ textarea.input {
   }
 
   .invoice-preview-hero__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-payment-summary {
     grid-template-columns: 1fr;
   }
 

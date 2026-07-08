@@ -35,6 +35,25 @@ const BUSINESS_TYPES = [
   "Other",
 ];
 
+type ContactFieldErrors = Partial<Record<"name" | "email" | "phone" | "message", string>>;
+
+const RequiredMark = () => (
+  <>
+    <span className="contact-field__required" aria-hidden="true">
+      *
+    </span>
+    <span className="sr-only">required</span>
+  </>
+);
+
+const isReasonableName = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+};
+
+const getFirstFieldError = (errors: ContactFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
+
 const Contact: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,6 +64,7 @@ const Contact: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [feedback, setFeedback] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
 
   useSEOMeta({
     title: "Contact Stroane | Food Safety Ghana",
@@ -66,21 +86,32 @@ const Contact: React.FC = () => {
     setStatus("idle");
     setFeedback("");
 
-    if (!name.trim() || (!email.trim() && !phone.trim()) || !message.trim()) {
-      setStatus("error");
-      setFeedback("Add your name, an email or phone number, and a short message.");
-      return;
+    const nextErrors: ContactFieldErrors = {};
+    if (!name.trim()) {
+      nextErrors.name = "Add your full name.";
+    } else if (!isReasonableName(name)) {
+      nextErrors.name = "Use your real name using letters, spaces, hyphens, or apostrophes.";
     }
-    if (email.trim() && !isLikelyEmail(email)) {
-      setStatus("error");
-      setFeedback("Add a valid email address.");
-      return;
+    if (!email.trim() && !phone.trim()) {
+      nextErrors.email = "Add an email address or phone number.";
+      nextErrors.phone = "Add a phone number or email address.";
+    } else if (email.trim() && !isLikelyEmail(email)) {
+      nextErrors.email = "Add a valid email address.";
     }
     if (phone.trim() && !isLikelyPhone(phone)) {
+      nextErrors.phone = "Add a valid phone number.";
+    }
+    if (!message.trim()) {
+      nextErrors.message = "Add a short message.";
+    }
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
       setStatus("error");
-      setFeedback("Add a valid phone number.");
+      setFeedback(getFirstFieldError(nextErrors));
       return;
     }
+    setFieldErrors({});
 
     if (website.trim()) {
       setStatus("error");
@@ -91,11 +122,11 @@ const Contact: React.FC = () => {
     setSubmitting(true);
     try {
       const response = await productApi.submitInquiry({
-        name,
-        email,
-        phone,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
         businessName: business,
-        message,
+        message: message.trim(),
         source: "contact_page",
         website,
       });
@@ -147,39 +178,88 @@ const Contact: React.FC = () => {
               </header>
 
               <div className="contact-form__grid">
-                <label className="contact-field">
-                  <span>Full name</span>
+                <label className={`contact-field ${fieldErrors.name ? "is-error" : ""}`}>
+                  <span>
+                    Full name
+                    <RequiredMark />
+                  </span>
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setFieldErrors((current) => {
+                        if (!current.name) return current;
+                        const next = { ...current };
+                        delete next.name;
+                        return next;
+                      });
+                    }}
                     autoComplete="name"
+                    aria-invalid={fieldErrors.name ? "true" : undefined}
+                    aria-describedby={fieldErrors.name ? "contact-name-error" : undefined}
                     required
                   />
+                  {fieldErrors.name ? (
+                    <span className="contact-field__error" id="contact-name-error">
+                      {fieldErrors.name}
+                    </span>
+                  ) : null}
                 </label>
 
-                <label className="contact-field">
+                <label className={`contact-field ${fieldErrors.email ? "is-error" : ""}`}>
                   <span>Email</span>
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldErrors((current) => {
+                        if (!current.email && !current.phone) return current;
+                        const next = { ...current };
+                        delete next.email;
+                        delete next.phone;
+                        return next;
+                      });
+                    }}
                     autoComplete="email"
-                    required
+                    aria-invalid={fieldErrors.email ? "true" : undefined}
+                    aria-describedby={fieldErrors.email ? "contact-email-error" : undefined}
                   />
+                  {fieldErrors.email ? (
+                    <span className="contact-field__error" id="contact-email-error">
+                      {fieldErrors.email}
+                    </span>
+                  ) : null}
                 </label>
 
-                <label className="contact-field">
+                <label className={`contact-field ${fieldErrors.phone ? "is-error" : ""}`}>
                   <span>Phone</span>
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((current) => {
+                        if (!current.phone && !current.email) return current;
+                        const next = { ...current };
+                        delete next.phone;
+                        delete next.email;
+                        return next;
+                      });
+                    }}
                     autoComplete="tel"
                     inputMode="tel"
                     pattern={PHONE_INPUT_PATTERN}
                     placeholder="+233…"
+                    aria-invalid={fieldErrors.phone ? "true" : undefined}
+                    aria-describedby={fieldErrors.phone ? "contact-phone-error" : undefined}
                   />
+                  {fieldErrors.phone ? (
+                    <span className="contact-field__error" id="contact-phone-error">
+                      {fieldErrors.phone}
+                    </span>
+                  ) : null}
                 </label>
 
                 <label className="contact-field">
@@ -204,15 +284,33 @@ const Contact: React.FC = () => {
                 />
               </label>
 
-              <label className="contact-field contact-field--full">
-                <span>How can we help?</span>
+              <label className={`contact-field contact-field--full ${fieldErrors.message ? "is-error" : ""}`}>
+                <span>
+                  How can we help?
+                  <RequiredMark />
+                </span>
                 <textarea
                   rows={5}
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setFieldErrors((current) => {
+                      if (!current.message) return current;
+                      const next = { ...current };
+                      delete next.message;
+                      return next;
+                    });
+                  }}
                   placeholder="A short summary of your operation and what you need…"
+                  aria-invalid={fieldErrors.message ? "true" : undefined}
+                  aria-describedby={fieldErrors.message ? "contact-message-error" : undefined}
                   required
                 />
+                {fieldErrors.message ? (
+                  <span className="contact-field__error" id="contact-message-error">
+                    {fieldErrors.message}
+                  </span>
+                ) : null}
               </label>
 
               {feedback ? (

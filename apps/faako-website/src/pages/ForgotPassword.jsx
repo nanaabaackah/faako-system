@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -8,9 +9,35 @@ import {
 import PrimaryButton from "../components/PrimaryButton.jsx";
 import "../styles/pages/Auth.css";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const RequiredMark = () => (
+  <>
+    <span className="signup-required-mark" aria-hidden="true">
+      *
+    </span>
+    <span className="sr-only">required</span>
+  </>
+);
+
 export default function ForgotPassword() {
+  const [emailError, setEmailError] = useState("");
+
   const handleSubmit = (event) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+
+    if (!email) {
+      setEmailError("Enter your work email.");
+      return;
+    }
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailError("Use a valid email address.");
+      return;
+    }
+
+    setEmailError("");
   };
 
   return (
@@ -46,16 +73,28 @@ export default function ForgotPassword() {
           data-scroll
           style={{ "--delay": "120ms" }}
           onSubmit={handleSubmit}
+          noValidate
         >
-          <label>
-            Work email
+          <label className={`signup-field ${emailError ? "is-error" : ""}`}>
+            <span className="signup-field-label">
+              Work email
+              <RequiredMark />
+            </span>
             <input
               name="email"
               type="email"
               placeholder="you@company.com"
               autoComplete="email"
+              onChange={() => setEmailError("")}
+              aria-invalid={emailError ? "true" : undefined}
+              aria-describedby={emailError ? "forgot-email-error" : undefined}
               required
             />
+            {emailError ? (
+              <span className="signup-field-error" id="forgot-email-error">
+                {emailError}
+              </span>
+            ) : null}
           </label>
           <PrimaryButton type="submit">Send reset link</PrimaryButton>
           <div className="auth-meta">

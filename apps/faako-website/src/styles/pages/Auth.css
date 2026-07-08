@@ -2,6 +2,18 @@
    Signup / Login / Forgot Password
    ================================================ */
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .signup {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
@@ -128,7 +140,20 @@
 .login-field {
   position: relative;
   margin: 0;
-  gap: 0;
+  display: grid;
+  gap: 0.36rem;
+}
+.login-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  color: color-mix(in srgb, var(--ink) 72%, #81715d);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+.login-field-control {
+  position: relative;
+  display: block;
 }
 .login-field input {
   width: 100%;
@@ -139,6 +164,10 @@
   border: 1px solid #604825e6;
   color: #f8fbff;
   background: #60482553;
+}
+.login-field.is-error input {
+  border-color: #b42318;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
 }
 .login-field-icon {
   position: absolute;
@@ -623,6 +652,40 @@
 .signup-section h3 {
   margin: 0;
   font-size: 1rem;
+}
+.signup-field {
+  display: grid;
+  gap: 0.42rem;
+}
+.signup-field-label,
+.signup-choice-group legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+}
+.signup-required-mark {
+  color: #b42318;
+  font-weight: 900;
+}
+.signup-field-error {
+  color: #b42318;
+  font-size: 0.8rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.signup-field.is-error input,
+.signup-field.is-error select,
+.signup-field.is-error textarea,
+.login-field.is-error input,
+.signup-choice-group.is-error,
+.signup-chip.is-error {
+  border-color: #b42318;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
+}
+.signup-choice-group.is-error {
+  padding: 0.7rem;
+  border: 1px solid #b42318;
+  border-radius: 14px;
 }
 .signup-grid {
   display: grid;

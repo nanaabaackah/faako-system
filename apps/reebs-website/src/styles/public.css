@@ -1442,6 +1442,18 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(var(--ink-rgb), 0.62);
+}.form-required-mark{
+  color: #b42318;
+  font-weight: 900;
+  margin-left: 0.2rem;
+}.form-field-error{
+  color: #b42318;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+}.form-group.is-error :is(input, select, textarea, .ui-date-field__trigger, .ui-dropdown-field__trigger){
+  border-color: #b42318;
+  box-shadow: 0 2px 0 rgba(180, 35, 24, 0.24);
 }.form-shell .form-group input,
 .form-shell .form-group select,
 .form-shell .form-group .ui-date-field__trigger,
@@ -1454,6 +1466,9 @@
   padding: 0.72rem 0 0.68rem;
   color: var(--ink);
   box-shadow: none;
+}.form-shell .form-group.is-error :is(input, select, textarea, .ui-date-field__trigger, .ui-dropdown-field__trigger){
+  border-bottom-color: #b42318;
+  box-shadow: 0 2px 0 rgba(180, 35, 24, 0.24);
 }.form-shell .form-group input::placeholder,
 .form-shell .form-group textarea::placeholder{
   color: rgba(var(--ink-rgb), 0.4);

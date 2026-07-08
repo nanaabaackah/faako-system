@@ -11,9 +11,20 @@ import { getPasswordValidationMessage } from "../../utils/passwordRequirements";
 import "../styles/Auth.css";
 
 type ContactMethod = "email" | "phone" | "whatsapp";
+type SignUpFieldErrors = Partial<
+  Record<"name" | "email" | "phone" | "password" | "confirmPassword", string>
+>;
 
 const getSelectValue = (value: string | string[]) =>
   Array.isArray(value) ? value[0] || "" : value;
+
+const isReasonableName = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed.length >= 2 && /^[A-Za-zÀ-ÖØ-öø-ÿ' .-]+$/.test(trimmed);
+};
+
+const getFirstFieldError = (errors: SignUpFieldErrors) =>
+  Object.values(errors).find(Boolean) || "";
 
 const SignUp: React.FC = () => {
   const { signUp } = useAuth();
@@ -34,6 +45,7 @@ const SignUp: React.FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SignUpFieldErrors>({});
   const [loading, setLoading] = useState(false);
 
   useSEOMeta({
@@ -44,25 +56,36 @@ const SignUp: React.FC = () => {
   });
 
   const validate = () => {
-    if (!name.trim()) return "Add your full name.";
-    if (!isLikelyEmail(email)) return "Add a valid email address.";
-    if (phone.trim() && !isLikelyPhone(phone)) return "Add a valid phone number.";
+    const nextErrors: SignUpFieldErrors = {};
+    if (!name.trim()) {
+      nextErrors.name = "Add your full name.";
+    } else if (!isReasonableName(name)) {
+      nextErrors.name = "Use your real name using letters, spaces, hyphens, or apostrophes.";
+    }
+    if (!isLikelyEmail(email.trim().toLowerCase())) {
+      nextErrors.email = "Add a valid email address.";
+    }
+    if (phone.trim() && !isLikelyPhone(phone)) {
+      nextErrors.phone = "Add a valid phone number.";
+    }
     const passwordMessage = getPasswordValidationMessage(password);
-    if (passwordMessage) return passwordMessage;
-    if (password !== confirmPassword) return "Passwords do not match.";
-    return "";
+    if (passwordMessage) nextErrors.password = passwordMessage;
+    if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match.";
+    return nextErrors;
   };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
     const normalizedEmail = email.trim().toLowerCase();
-    const validationMessage = validate();
-    if (validationMessage) {
-      setError(validationMessage);
+    const nextErrors = validate();
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError(getFirstFieldError(nextErrors));
       return;
     }
 
+    setFieldErrors({});
     setLoading(true);
     try {
       await signUp({
@@ -121,8 +144,15 @@ const SignUp: React.FC = () => {
                 onChange={(event) => {
                   setName(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.name) return current;
+                    const next = { ...current };
+                    delete next.name;
+                    return next;
+                  });
                 }}
                 autoComplete="name"
+                error={fieldErrors.name}
                 required
               />
               <TextField
@@ -133,9 +163,16 @@ const SignUp: React.FC = () => {
                 onChange={(event) => {
                   setEmail(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.email) return current;
+                    const next = { ...current };
+                    delete next.email;
+                    return next;
+                  });
                 }}
                 onBlur={() => setEmail((current) => current.trim().toLowerCase())}
                 autoComplete="email"
+                error={fieldErrors.email}
                 required
               />
               <TextField
@@ -146,10 +183,17 @@ const SignUp: React.FC = () => {
                 onChange={(event) => {
                   setPhone(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.phone) return current;
+                    const next = { ...current };
+                    delete next.phone;
+                    return next;
+                  });
                 }}
                 inputMode="tel"
                 pattern={PHONE_INPUT_PATTERN}
                 autoComplete="tel"
+                error={fieldErrors.phone}
               />
               <SelectField
                 fieldClassName="auth-field"
@@ -172,9 +216,16 @@ const SignUp: React.FC = () => {
                 onChange={(event) => {
                   setPassword(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.password) return current;
+                    const next = { ...current };
+                    delete next.password;
+                    return next;
+                  });
                 }}
                 autoComplete="new-password"
                 aria-describedby="signup-password-requirements"
+                error={fieldErrors.password}
                 required
               />
               <PasswordRequirementList
@@ -189,8 +240,15 @@ const SignUp: React.FC = () => {
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);
                   setError("");
+                  setFieldErrors((current) => {
+                    if (!current.confirmPassword) return current;
+                    const next = { ...current };
+                    delete next.confirmPassword;
+                    return next;
+                  });
                 }}
                 autoComplete="new-password"
+                error={fieldErrors.confirmPassword}
                 required
               />
 
