@@ -148,7 +148,6 @@
   gap: 1rem;
 }
 
-<<<<<<< HEAD
 .dashboard-operations-brief,
 .dashboard-system-status {
   gap: 1rem;
@@ -407,7 +406,6 @@
 
 .site-card__row.is-danger {
   border-color: color-mix(in oklab, var(--danger), var(--border) 56%);
-=======
 .dashboard-health-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -617,7 +615,6 @@
   margin: 0;
   color: var(--muted);
   line-height: 1.42;
->>>>>>> origin/main
 }
 
 .dashboard-productivity {
@@ -1081,7 +1078,6 @@
     height: 2.2rem;
   }
 
-<<<<<<< HEAD
   .dashboard-operations-brief__body {
     grid-template-columns: 1fr;
   }
@@ -1107,7 +1103,6 @@
   .dashboard-system-row,
   .dashboard-issue-row {
     padding: 0.72rem;
-=======
   .dashboard-health-grid {
     grid-template-columns: 1fr;
   }
@@ -1118,7 +1113,6 @@
 
   .dashboard-diagnosis-row__next {
     grid-column: 2;
->>>>>>> origin/main
   }
 
   .dashboard-productivity .panel-header .muted {
