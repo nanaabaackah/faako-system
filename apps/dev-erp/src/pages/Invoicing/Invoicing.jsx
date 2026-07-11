@@ -4,9 +4,19 @@ import {
   calculateBalanceDueMajor,
   calculateFinanceStatusFromMajor,
 } from "@faako/finance";
-import { FiCreditCard, FiDownload, FiEdit3, FiMail, FiPlus, FiSlash, FiTrash2 } from "react-icons/fi";
+import {
+  FiArchive,
+  FiCreditCard,
+  FiDownload,
+  FiEdit3,
+  FiMail,
+  FiMoreVertical,
+  FiPlus,
+  FiSlash,
+  FiTrash2,
+} from "react-icons/fi";
 import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
-import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import {
   DISPLAY_CURRENCY_CODE,
@@ -289,6 +299,9 @@ const Invoicing = () => {
   const [paymentForm, setPaymentForm] = useState(() => buildPaymentForm());
   const [paymentError, setPaymentError] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [openActionId, setOpenActionId] = useState(null);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(() => new Set());
+  const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
@@ -349,6 +362,15 @@ const Invoicing = () => {
   useEffect(() => {
     loadInvoices();
   }, [loadInvoices]);
+
+  useEffect(() => {
+    setOpenActionId(null);
+    setSelectedInvoiceIds((current) => {
+      const visibleIds = new Set(invoices.map((invoice) => String(invoice.id)));
+      const next = new Set([...current].filter((id) => visibleIds.has(String(id))));
+      return next.size === current.size ? current : next;
+    });
+  }, [invoices]);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -462,6 +484,13 @@ const Invoicing = () => {
 
     return base;
   }, [invoices]);
+
+  const invoiceRowColumnClass = isAdmin ? "is-10" : "is-9";
+  const selectedInvoiceCount = selectedInvoiceIds.size;
+  const allVisibleInvoicesSelected =
+    isAdmin &&
+    invoices.length > 0 &&
+    invoices.every((invoice) => selectedInvoiceIds.has(String(invoice.id)));
 
   const openCreateModal = () => {
     const defaultOrgId =
@@ -692,6 +721,147 @@ const Invoicing = () => {
     }
   };
 
+  const toggleInvoiceSelection = (invoiceId) => {
+    setSelectedInvoiceIds((current) => {
+      const next = new Set(current);
+      const key = String(invoiceId);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllVisibleInvoices = () => {
+    setSelectedInvoiceIds((current) => {
+      if (allVisibleInvoicesSelected) return new Set();
+      const next = new Set(current);
+      invoices.forEach((invoice) => next.add(String(invoice.id)));
+      return next;
+    });
+  };
+
+  const removeInvoicesFromLedger = (ids) => {
+    const idSet = new Set(ids.map(String));
+    setInvoices((prev) => prev.filter((invoice) => !idSet.has(String(invoice.id))));
+    setSelectedInvoiceIds((current) => {
+      const next = new Set(current);
+      idSet.forEach((id) => next.delete(id));
+      return next;
+    });
+    setSelectedInvoice((prev) => (prev && idSet.has(String(prev.id)) ? null : prev));
+  };
+
+  const handleArchiveInvoice = async (invoice, { confirmAction = true } = {}) => {
+    if (!invoice?.id) return;
+    if (
+      confirmAction &&
+      !window.confirm(`Archive invoice ${invoice.invoiceNumber}? It will be hidden from the active ledger.`)
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      setOpenActionId(null);
+      await apiPost(`/api/invoices/${invoice.id}/archive`, {}, {
+        fallbackMessage: "Unable to archive invoice",
+      });
+      removeInvoicesFromLedger([invoice.id]);
+      await loadInvoices({ silent: true });
+      setNotice(`Invoice ${invoice.invoiceNumber} archived.`);
+    } catch (archiveError) {
+      setError(archiveError.message || "Unable to archive invoice.");
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice, { confirmAction = true } = {}) => {
+    if (!invoice?.id) return;
+    if (
+      confirmAction &&
+      !window.confirm(`Delete invoice ${invoice.invoiceNumber}? This permanently removes the invoice and its line items.`)
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      setOpenActionId(null);
+      await apiDelete(`/api/invoices/${invoice.id}`, {
+        fallbackMessage: "Unable to delete invoice",
+      });
+      removeInvoicesFromLedger([invoice.id]);
+      await loadInvoices({ silent: true });
+      setNotice(`Invoice ${invoice.invoiceNumber} deleted.`);
+    } catch (deleteError) {
+      setError(deleteError.message || "Unable to delete invoice.");
+    }
+  };
+
+  const handleBulkArchiveInvoices = async () => {
+    const selectedInvoices = invoices.filter((invoice) => selectedInvoiceIds.has(String(invoice.id)));
+    if (!selectedInvoices.length) return;
+    if (
+      !window.confirm(
+        `Archive ${selectedInvoices.length} selected invoice${selectedInvoices.length === 1 ? "" : "s"}?`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkActionRunning(true);
+    setError("");
+    try {
+      await Promise.all(
+        selectedInvoices.map((invoice) =>
+          apiPost(`/api/invoices/${invoice.id}/archive`, {}, {
+            fallbackMessage: "Unable to archive selected invoices",
+          })
+        )
+      );
+      removeInvoicesFromLedger(selectedInvoices.map((invoice) => invoice.id));
+      await loadInvoices({ silent: true });
+      setNotice(`${selectedInvoices.length} invoice${selectedInvoices.length === 1 ? "" : "s"} archived.`);
+    } catch (bulkError) {
+      setError(bulkError.message || "Unable to archive selected invoices.");
+    } finally {
+      setIsBulkActionRunning(false);
+    }
+  };
+
+  const handleBulkDeleteInvoices = async () => {
+    const selectedInvoices = invoices.filter((invoice) => selectedInvoiceIds.has(String(invoice.id)));
+    if (!selectedInvoices.length) return;
+    if (
+      !window.confirm(
+        `Delete ${selectedInvoices.length} selected invoice${selectedInvoices.length === 1 ? "" : "s"}? This permanently removes their line items too.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkActionRunning(true);
+    setError("");
+    try {
+      await Promise.all(
+        selectedInvoices.map((invoice) =>
+          apiDelete(`/api/invoices/${invoice.id}`, {
+            fallbackMessage: "Unable to delete selected invoices",
+          })
+        )
+      );
+      removeInvoicesFromLedger(selectedInvoices.map((invoice) => invoice.id));
+      await loadInvoices({ silent: true });
+      setNotice(`${selectedInvoices.length} invoice${selectedInvoices.length === 1 ? "" : "s"} deleted.`);
+    } catch (bulkError) {
+      setError(bulkError.message || "Unable to delete selected invoices.");
+    } finally {
+      setIsBulkActionRunning(false);
+    }
+  };
+
   const handleRecordPayment = async (event) => {
     event.preventDefault();
     if (!paymentInvoice) return;
@@ -916,12 +1086,6 @@ const Invoicing = () => {
       ) : null}
 
       <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h3>Filters</h3>
-            <p className="muted">Refine invoices by status and organization.</p>
-          </div>
-        </div>
         <div className="invoice-grid">
           <SelectField
               fieldClassName="form-field"
@@ -984,22 +1148,66 @@ const Invoicing = () => {
           <AnimatedLoadingState compact title="Loading invoices" />
         ) : (
           <div className="data-table">
-            <div className="table-row table-head is-7">
+            {isAdmin ? (
+              <div className="table-bulk-toolbar" role="region" aria-label="Selected invoice actions">
+                <span className="muted">
+                  {selectedInvoiceCount
+                    ? `${selectedInvoiceCount} selected`
+                    : "Select invoices for bulk actions"}
+                </span>
+                <div className="table-bulk-toolbar__actions">
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={handleBulkArchiveInvoices}
+                    disabled={!selectedInvoiceCount || isBulkActionRunning}
+                  >
+                    <FiArchive aria-hidden="true" />
+                    <span>{isBulkActionRunning ? "Working..." : "Archive"}</span>
+                  </button>
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={handleBulkDeleteInvoices}
+                    disabled={!selectedInvoiceCount || isBulkActionRunning}
+                  >
+                    <FiTrash2 aria-hidden="true" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className={`table-row table-head ${invoiceRowColumnClass}`}>
+              {isAdmin ? (
+                <span className="table-select-cell">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all visible invoices"
+                    checked={allVisibleInvoicesSelected}
+                    onChange={toggleAllVisibleInvoices}
+                  />
+                </span>
+              ) : null}
               <span>Invoice #</span>
               <span>Client</span>
               <span>Issue</span>
               <span>Due</span>
+              <span>Balance</span>
               <span>Total</span>
-              <span>Status</span>
+              <span>Payment Status</span>
+              <span>Invoice Status</span>
               <span>Actions</span>
             </div>
 
             {invoices.length ? (
               invoices.map((invoice) => {
                 const payment = getInvoicePaymentSummary(invoice);
+                const isSelected = selectedInvoiceIds.has(String(invoice.id));
                 return (
                   <div
-                    className="table-row is-7 invoice-row-clickable"
+                    className={`table-row ${invoiceRowColumnClass} invoice-row-clickable${
+                      openActionId === invoice.id ? " is-menu-open" : ""
+                    }${isSelected ? " is-selected" : ""}`}
                     key={invoice.id}
                     role="button"
                     tabIndex={0}
@@ -1011,85 +1219,92 @@ const Invoicing = () => {
                       }
                     }}
                   >
-                  <div className="table-cell-stack">
-                    <span className="table-strong">{invoice.invoiceNumber}</span>
-                    {invoice.organization?.name ? (
-                      <span className="muted">Org: {invoice.organization.name}</span>
+                    {isAdmin ? (
+                      <span className="table-select-cell">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select invoice ${invoice.invoiceNumber}`}
+                          checked={isSelected}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          onChange={() => toggleInvoiceSelection(invoice.id)}
+                        />
+                      </span>
                     ) : null}
-                  </div>
-                  <div className="table-cell-stack">
+                    <span className="table-strong">{invoice.invoiceNumber}</span>
                     <span className="table-strong">{invoice.clientName}</span>
-                    {invoice.clientEmail ? <span className="muted">{invoice.clientEmail}</span> : null}
-                  </div>
-                  <span>{formatDate(invoice.issueDate)}</span>
-                  <span>{formatDate(invoice.dueDate)}</span>
-                    <div className="table-cell-stack">
-                      <span className="table-strong">{formatAmount(invoice.total, invoice.currency)}</span>
-                      <span className="muted">
-                        Balance: {formatAmount(payment.balanceDue, invoice.currency)}
-                      </span>
-                    </div>
-                    <div className="table-cell-stack">
-                      <span className={`status-pill is-${STATUS_TONE[invoice.status] || "info"}`}>
-                        {invoice.status}
-                      </span>
-                      <span className={`status-pill is-${PAYMENT_STATUS_TONE[payment.paymentStatus] || "info"}`}>
-                        {FINANCE_STATUS_LABELS[payment.paymentStatus] || payment.paymentStatus}
-                      </span>
-                    </div>
-	                  <div className="row-actions invoice-ledger-actions">
-	                    {isAdmin ? (
-	                      <button
-	                        className="text-button"
-	                        type="button"
-	                        onClick={(event) => {
-	                          event.stopPropagation();
-	                          openEditModal(invoice);
-	                        }}
-	                      >
-	                        <FiEdit3 aria-hidden="true" />
-	                        <span>Edit</span>
-	                      </button>
-	                    ) : null}
-	                    {isAdmin && canRecordInvoicePayment(invoice) ? (
-	                      <button
-	                        className="text-button"
-	                        type="button"
-	                        onClick={(event) => {
-	                          event.stopPropagation();
-	                          openPaymentModal(invoice);
-	                        }}
-	                      >
-	                        <FiCreditCard aria-hidden="true" />
-	                        <span>Record payment</span>
-	                      </button>
-	                    ) : null}
-	                    {isAdmin && invoice.status !== "VOID" ? (
-	                      <button
-	                        className="text-button"
+                    <span>{formatDate(invoice.issueDate)}</span>
+                    <span>{formatDate(invoice.dueDate)}</span>
+                    <span className="muted">{formatAmount(payment.balanceDue, invoice.currency)}</span>
+                    <span className="table-strong">{formatAmount(invoice.total, invoice.currency)}</span>
+                    <span className={`status-pill is-${PAYMENT_STATUS_TONE[payment.paymentStatus] || "info"}`}>
+                      {FINANCE_STATUS_LABELS[payment.paymentStatus] || payment.paymentStatus}
+                    </span>
+                    <span className={`status-pill is-${STATUS_TONE[invoice.status] || "info"}`}>
+                      {invoice.status}
+                    </span>
+                    <div className="row-actions invoice-ledger-actions">
+                      <button
+                        className="icon-button"
                         type="button"
+                        aria-label={`Actions for invoice ${invoice.invoiceNumber}`}
+                        onKeyDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                           event.stopPropagation();
-	                          handleStatusChange(invoice, "VOID");
-	                        }}
-	                      >
-	                        <FiSlash aria-hidden="true" />
-	                        <span>Void</span>
-	                      </button>
-	                    ) : null}
-                    <button
-                      className="icon-button"
-                      type="button"
-                      aria-label={`Download ${invoice.invoiceNumber} PDF`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDownloadPdf(invoice);
-                      }}
-                      disabled={isPdfDownloading}
-                    >
-                      <FiDownload size={14} aria-hidden="true" />
-                    </button>
-                  </div>
+                          setOpenActionId((current) => (current === invoice.id ? null : invoice.id));
+                        }}
+                      >
+                        <FiMoreVertical size={16} aria-hidden="true" />
+                      </button>
+                      {openActionId === invoice.id ? (
+                        <div
+                          className="row-actions__menu"
+                          role="menu"
+                          tabIndex={-1}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          {isAdmin ? (
+                            <button type="button" onClick={() => openEditModal(invoice)}>
+                              <FiEdit3 aria-hidden="true" />
+                              <span>Edit</span>
+                            </button>
+                          ) : null}
+                          {isAdmin && canRecordInvoicePayment(invoice) ? (
+                            <button type="button" onClick={() => openPaymentModal(invoice)}>
+                              <FiCreditCard aria-hidden="true" />
+                              <span>Record payment</span>
+                            </button>
+                          ) : null}
+                          {isAdmin && invoice.status !== "VOID" ? (
+                            <button type="button" onClick={() => handleStatusChange(invoice, "VOID")}>
+                              <FiSlash aria-hidden="true" />
+                              <span>Void</span>
+                            </button>
+                          ) : null}
+                          {isAdmin ? (
+                            <button type="button" onClick={() => handleArchiveInvoice(invoice)}>
+                              <FiArchive aria-hidden="true" />
+                              <span>Archive</span>
+                            </button>
+                          ) : null}
+                          {isAdmin ? (
+                            <button type="button" onClick={() => handleDeleteInvoice(invoice)}>
+                              <FiTrash2 aria-hidden="true" />
+                              <span>Delete</span>
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPdf(invoice)}
+                            disabled={isPdfDownloading}
+                          >
+                            <FiDownload aria-hidden="true" />
+                            <span>Download PDF</span>
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 );
               })

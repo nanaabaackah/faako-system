@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FiArchive } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, ERPModal, ERPTable, SelectField, TextareaField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
@@ -11,6 +12,16 @@ const DEFAULT_FILTERS = {
   modules: [],
   dateFrom: "",
   dateTo: "",
+};
+
+const DEFAULT_CAPABILITIES = {
+  status: true,
+  internalNotes: false,
+  assignedOwner: false,
+  pdfSummary: false,
+  emailDelivery: false,
+  activityTimeline: false,
+  archive: false,
 };
 
 const FALLBACK_STATUS_OPTIONS = [
@@ -90,7 +101,17 @@ function SummaryCard({ label, value, note }) {
   );
 }
 
-function SubmissionTable({ submissions, selectedId, loading, archivingId, onSelect, onArchive }) {
+function SubmissionTable({
+  submissions,
+  selectedId,
+  selectedSubmissionIds,
+  loading,
+  archivingId,
+  canArchive,
+  onSelect,
+  onArchive,
+  onSelectionChange,
+}) {
   const columns = useMemo(
     () => [
       {
@@ -174,22 +195,24 @@ function SubmissionTable({ submissions, selectedId, loading, archivingId, onSele
             <button
               className="button button-ghost faako-archive-button"
               type="button"
+              title={canArchive ? "Archive submission" : "Apply the Faako archive migration to enable archive."}
               onClick={(event) => {
                 event.stopPropagation();
+                if (!canArchive) return;
                 onArchive(submission);
               }}
               onKeyDown={(event) => {
                 event.stopPropagation();
               }}
-              disabled={archivingId === submission.id}
+              disabled={!canArchive || archivingId === submission.id}
             >
-              {archivingId === submission.id ? "Archiving..." : "Archive"}
+              {!canArchive ? "Unavailable" : archivingId === submission.id ? "Archiving..." : "Archive"}
             </button>
           </div>
         ),
       },
     ],
-    [archivingId, onArchive]
+    [archivingId, canArchive, onArchive]
   );
 
   return (
@@ -200,6 +223,11 @@ function SubmissionTable({ submissions, selectedId, loading, archivingId, onSele
       columns={columns}
       rows={submissions}
       rowKey="id"
+      selectable
+      selectedRowKeys={selectedSubmissionIds}
+      onSelectedRowKeysChange={onSelectionChange}
+      getRowSelectLabel={(submission) => `Select submission for ${submission.companyName}`}
+      selectAllLabel="Select all visible submissions"
       state={loading ? "loading" : "ready"}
       loadingMessage="Loading Faako submissions..."
       emptyTitle="No submissions found"
@@ -359,6 +387,7 @@ function DetailPanel({
   statusOptions,
   onSave,
   onArchive,
+  capabilities = DEFAULT_CAPABILITIES,
   saving,
   archiving,
 }) {
@@ -387,8 +416,13 @@ function DetailPanel({
 
   const handleSave = (event) => {
     event.preventDefault();
-    onSave(submission.id, draft);
+    const payload = { status: draft.status };
+    if (capabilities.internalNotes) payload.internalNotes = draft.internalNotes;
+    if (capabilities.assignedOwner) payload.assignedOwner = draft.assignedOwner;
+    onSave(submission.id, payload);
   };
+
+  const canArchive = Boolean(capabilities.archive);
 
   return (
     <div className="faako-onboarding-detail">
@@ -423,14 +457,21 @@ function DetailPanel({
             value={draft.status}
             options={statusOptions}
             onChangeValue={(value) => setDraft((current) => ({ ...current, status: getSelectValue(value) }))}
+            disabled={capabilities.status === false}
           />
-          <TextareaField
-            label="Internal notes"
-            rows={5}
-            value={draft.internalNotes}
-            onChange={(event) => setDraft((current) => ({ ...current, internalNotes: event.target.value }))}
-            placeholder="Add handoff notes, follow-up decisions, or proposal next steps."
-          />
+          {capabilities.internalNotes ? (
+            <TextareaField
+              label="Internal notes"
+              rows={5}
+              value={draft.internalNotes}
+              onChange={(event) => setDraft((current) => ({ ...current, internalNotes: event.target.value }))}
+              placeholder="Add handoff notes, follow-up decisions, or proposal next steps."
+            />
+          ) : (
+            <div className="notice is-warning" role="status">
+              Internal notes are paused until the Faako management migration is applied.
+            </div>
+          )}
           <div className="faako-management-actions">
             <button className="button button-primary" type="submit" disabled={saving || archiving}>
               {saving ? "Saving..." : "Save updates"}
@@ -438,10 +479,14 @@ function DetailPanel({
             <button
               className="button button-ghost faako-archive-button"
               type="button"
-              onClick={() => onArchive(submission)}
-              disabled={saving || archiving}
+              title={canArchive ? "Archive submission" : "Apply the Faako archive migration to enable archive."}
+              onClick={() => {
+                if (!canArchive) return;
+                onArchive(submission);
+              }}
+              disabled={saving || archiving || !canArchive}
             >
-              {archiving ? "Archiving..." : "Archive submission"}
+              {!canArchive ? "Archive unavailable" : archiving ? "Archiving..." : "Archive submission"}
             </button>
           </div>
         </form>
@@ -470,11 +515,14 @@ export default function FaakoOnboarding() {
     packages: [],
     modules: [],
   });
+  const [capabilities, setCapabilities] = useState(DEFAULT_CAPABILITIES);
   const [ownerOptions, setOwnerOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState("");
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState([]);
+  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -504,6 +552,7 @@ export default function FaakoOnboarding() {
       });
       setSelectedSubmission(payload?.submission || null);
       if (Array.isArray(payload?.ownerOptions)) setOwnerOptions(payload.ownerOptions);
+      if (payload?.capabilities) setCapabilities((current) => ({ ...current, ...payload.capabilities }));
     } catch (loadError) {
       setError(loadError.message || "Unable to load Faako onboarding submission.");
     } finally {
@@ -522,6 +571,7 @@ export default function FaakoOnboarding() {
       setSubmissions(nextSubmissions);
       setSummary(payload?.summary || { total: 0, byStatus: {} });
       setFilterOptions(payload?.filters || { statuses: FALLBACK_STATUS_OPTIONS, packages: [], modules: [] });
+      setCapabilities((current) => ({ ...current, ...(payload?.capabilities || {}) }));
       if (Array.isArray(payload?.ownerOptions)) setOwnerOptions(payload.ownerOptions);
       setError("");
     } catch (loadError) {
@@ -534,6 +584,11 @@ export default function FaakoOnboarding() {
   useEffect(() => {
     loadSubmissions();
   }, [loadSubmissions]);
+
+  useEffect(() => {
+    const visibleIds = new Set(submissions.map((submission) => String(submission.id)));
+    setSelectedSubmissionIds((current) => current.filter((id) => visibleIds.has(String(id))));
+  }, [submissions]);
 
   const handleFilterChange = (field, value) => {
     setFilters((current) => ({ ...current, [field]: value }));
@@ -575,6 +630,8 @@ export default function FaakoOnboarding() {
         setNotice("Faako onboarding submission updated. A project was created for the converted submission.");
       } else if (payload?.project?.error) {
         setNotice("Faako onboarding submission updated, but the converted project could not be created.");
+      } else if (payload?.project?.project && submission?.status?.value === "CONVERTED") {
+        setNotice("Faako onboarding submission updated. The converted project is linked.");
       } else {
         setNotice("Faako onboarding submission updated.");
       }
@@ -588,6 +645,11 @@ export default function FaakoOnboarding() {
   };
 
   const handleArchiveSubmission = useCallback(async (submission) => {
+    if (!capabilities.archive) {
+      setError("Archive is unavailable until the Faako archive migration is applied.");
+      setNotice("");
+      return;
+    }
     const id = submission?.id;
     if (!id) return;
     const submissionLabel = submission.companyName || "this submission";
@@ -617,10 +679,55 @@ export default function FaakoOnboarding() {
     } finally {
       setArchivingId("");
     }
-  }, [loadSubmissions, selectedId]);
+  }, [capabilities.archive, loadSubmissions, selectedId]);
+
+  const handleBulkArchiveSubmissions = useCallback(async () => {
+    if (!capabilities.archive) {
+      setError("Archive is unavailable until the Faako archive migration is applied.");
+      setNotice("");
+      return;
+    }
+    const selectedSubmissions = submissions.filter((submission) =>
+      selectedSubmissionIds.includes(String(submission.id))
+    );
+    if (!selectedSubmissions.length) return;
+    const shouldArchive = window.confirm(
+      `Archive ${selectedSubmissions.length} selected submission${selectedSubmissions.length === 1 ? "" : "s"}?`
+    );
+    if (!shouldArchive) return;
+
+    setIsBulkArchiving(true);
+    setError("");
+    setNotice("");
+    try {
+      await Promise.all(
+        selectedSubmissions.map((submission) =>
+          apiPost(`/api/faako-onboarding/${encodeURIComponent(submission.id)}/archive`, {}, {
+            fallbackMessage: "Unable to archive selected Faako onboarding submissions.",
+          })
+        )
+      );
+      const archivedIds = new Set(selectedSubmissions.map((submission) => String(submission.id)));
+      setSubmissions((current) => current.filter((submission) => !archivedIds.has(String(submission.id))));
+      setSelectedSubmissionIds([]);
+      if (archivedIds.has(String(selectedId))) {
+        setIsDetailOpen(false);
+        setSelectedId("");
+        setSelectedSubmission(null);
+        setDetailLoading(false);
+      }
+      await loadSubmissions();
+      setNotice(`${selectedSubmissions.length} submission${selectedSubmissions.length === 1 ? "" : "s"} archived.`);
+    } catch (archiveError) {
+      setError(archiveError.message || "Unable to archive selected Faako onboarding submissions.");
+    } finally {
+      setIsBulkArchiving(false);
+    }
+  }, [capabilities.archive, loadSubmissions, selectedId, selectedSubmissionIds, submissions]);
 
   const reviewedCount = Number(summary.byStatus?.REVIEWED || 0) + Number(summary.byStatus?.CONTACTED || 0);
   const convertedCount = Number(summary.byStatus?.CONVERTED || 0);
+  const canArchiveSubmissions = Boolean(capabilities.archive);
 
   return (
     <section className="page faako-onboarding-page">
@@ -640,6 +747,11 @@ export default function FaakoOnboarding() {
 
       {error ? <div className="notice is-error" role="alert">{error}</div> : null}
       {notice ? <div className="notice is-success" role="status">{notice}</div> : null}
+      {!loading && !canArchiveSubmissions ? (
+        <div className="notice is-warning" role="status">
+          Archive actions are paused until the Faako archive migration is applied.
+        </div>
+      ) : null}
 
       <section className="kpi-grid" aria-label="Faako onboarding summary">
         <SummaryCard label="Submissions" value={summary.total || 0} note="All Faako intake records" />
@@ -700,13 +812,35 @@ export default function FaakoOnboarding() {
       </section>
 
       <section className="faako-onboarding-table-region">
+        <div className="table-bulk-toolbar" role="region" aria-label="Selected submission actions">
+          <span className="muted">
+            {selectedSubmissionIds.length
+              ? `${selectedSubmissionIds.length} selected`
+              : "Select submissions for bulk actions"}
+          </span>
+          <div className="table-bulk-toolbar__actions">
+            <button
+              className="button button-ghost"
+              type="button"
+              onClick={handleBulkArchiveSubmissions}
+              disabled={!canArchiveSubmissions || !selectedSubmissionIds.length || isBulkArchiving}
+              title={canArchiveSubmissions ? "Archive selected submissions" : "Apply the Faako archive migration to enable archive."}
+            >
+              <FiArchive aria-hidden="true" />
+              <span>{!canArchiveSubmissions ? "Archive unavailable" : isBulkArchiving ? "Archiving..." : "Archive"}</span>
+            </button>
+          </div>
+        </div>
         <SubmissionTable
           submissions={submissions}
           selectedId={selectedId}
+          selectedSubmissionIds={selectedSubmissionIds}
           loading={loading}
           archivingId={archivingId}
+          canArchive={canArchiveSubmissions}
           onSelect={handleSelectSubmission}
           onArchive={handleArchiveSubmission}
+          onSelectionChange={setSelectedSubmissionIds}
         />
       </section>
 
@@ -733,6 +867,7 @@ export default function FaakoOnboarding() {
             ownerOptions={ownerOptions}
             onSave={handleSave}
             onArchive={handleArchiveSubmission}
+            capabilities={capabilities}
             saving={saving}
             archiving={archivingId === selectedSubmission?.id}
           />
