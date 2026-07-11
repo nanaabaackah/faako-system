@@ -886,11 +886,12 @@ export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimeli
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "internalNotes")) {
-    if (!columns.has("internalNotes")) {
-      return { errorStatus: 409, error: "Internal notes are not available until the Faako migration is applied." };
-    }
     const internalNotes = normalizeText(body.internalNotes, 12000);
-    if (internalNotes !== normalizeText(existingRow.internalNotes, 12000)) {
+    if (!columns.has("internalNotes")) {
+      if (internalNotes) {
+        return { errorStatus: 409, error: "Internal notes are not available until the Faako migration is applied." };
+      }
+    } else if (internalNotes !== normalizeText(existingRow.internalNotes, 12000)) {
       pushUpdate("internalNotes", internalNotes || null);
       changedFields.push("internalNotes");
       timeline.push({
@@ -903,11 +904,12 @@ export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimeli
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "assignedOwner")) {
-    if (!columns.has("assignedOwner")) {
-      return { errorStatus: 409, error: "Assigned owner is not available until the Faako migration is applied." };
-    }
     const assignedOwner = normalizeText(body.assignedOwner, 160);
-    if (assignedOwner !== normalizeText(existingRow.assignedOwner, 160)) {
+    if (!columns.has("assignedOwner")) {
+      if (assignedOwner) {
+        return { errorStatus: 409, error: "Assigned owner is not available until the Faako migration is applied." };
+      }
+    } else if (assignedOwner !== normalizeText(existingRow.assignedOwner, 160)) {
       pushUpdate("assignedOwner", assignedOwner || null);
       changedFields.push("assignedOwner");
       timeline.push({

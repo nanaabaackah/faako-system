@@ -16,11 +16,11 @@ const DEFAULT_FILTERS = {
 
 const DEFAULT_CAPABILITIES = {
   status: true,
-  internalNotes: true,
-  assignedOwner: true,
-  pdfSummary: true,
-  emailDelivery: true,
-  activityTimeline: true,
+  internalNotes: false,
+  assignedOwner: false,
+  pdfSummary: false,
+  emailDelivery: false,
+  activityTimeline: false,
   archive: false,
 };
 
