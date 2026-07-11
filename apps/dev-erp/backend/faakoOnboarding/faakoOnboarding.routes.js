@@ -1211,6 +1211,17 @@ export const registerFaakoOnboardingRoutes = (app, {
     );
     const updatedRow = updateResult.rows[0];
     const submission = serializeFaakoOnboardingSubmission(updatedRow, { includeDetail: true });
+    let project = null;
+    if (patch.changedFields.includes("status") && submission.status.value === "CONVERTED") {
+      try {
+        project = await ensureProjectForConvertedSubmission({ prisma, req, submission });
+      } catch (projectError) {
+        project = {
+          created: false,
+          error: projectError.message || "Converted project could not be created.",
+        };
+      }
+    }
 
     await recordFaakoOnboardingAudit({
       prisma,
