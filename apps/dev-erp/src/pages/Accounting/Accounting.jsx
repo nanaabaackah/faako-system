@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DocumentDownload, NoteText, ReceiptItem } from "iconsax-react";
-import { FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiArchive, FiMoreVertical, FiPlus, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
-import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
 import {
   DISPLAY_CURRENCY_CODE,
@@ -134,6 +134,8 @@ const Accounting = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState(() => new Set());
+  const [isBulkEntryActionRunning, setIsBulkEntryActionRunning] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
   const [actionLink, setActionLink] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -306,6 +308,14 @@ const Accounting = () => {
     loadEntries();
   }, [loadEntries]);
 
+  useEffect(() => {
+    setSelectedEntryIds((current) => {
+      const visibleIds = new Set(entries.map((entry) => String(entry.id)));
+      const next = new Set([...current].filter((id) => visibleIds.has(String(id))));
+      return next.size === current.size ? current : next;
+    });
+  }, [entries]);
+
   const summary = useMemo(() => {
     const base = {
       paidRevenueGhs: 0,
@@ -460,6 +470,58 @@ const Accounting = () => {
     });
   }, [entries]);
 
+  const canBulkManageEntry = (entry) => isAdmin && entry?.source === "MANUAL";
+
+  const getSelectableEntryIds = (rows = []) =>
+    rows.filter(canBulkManageEntry).map((entry) => String(entry.id));
+
+  const selectedEntryCount = selectedEntryIds.size;
+  const accountingRowColumnClass = isAdmin ? "is-8" : "is-7";
+
+  const areAllEntriesSelected = (rows = []) => {
+    const selectableIds = getSelectableEntryIds(rows);
+    return selectableIds.length > 0 && selectableIds.every((id) => selectedEntryIds.has(id));
+  };
+
+  const toggleEntrySelection = (entryId) => {
+    setSelectedEntryIds((current) => {
+      const next = new Set(current);
+      const key = String(entryId);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const toggleEntriesSelection = (rows = []) => {
+    const selectableIds = getSelectableEntryIds(rows);
+    setSelectedEntryIds((current) => {
+      const allSelected = selectableIds.length > 0 && selectableIds.every((id) => current.has(id));
+      const next = new Set(current);
+      selectableIds.forEach((id) => {
+        if (allSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const removeEntriesFromLedger = (ids) => {
+    const idSet = new Set(ids.map(String));
+    setEntries((current) => current.filter((entry) => !idSet.has(String(entry.id))));
+    setSelectedEntryIds((current) => {
+      const next = new Set(current);
+      idSet.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
   const performEntryAction = async (path) => {
     const payload = await apiPost(path, undefined, {
       fallbackMessage: "Unable to complete action",
@@ -505,11 +567,93 @@ const Accounting = () => {
       await performEntryAction(`/api/accounting/entries/${entry.id}/archive`);
       setActionNotice("Entry archived.");
       setActionLink(null);
+      removeEntriesFromLedger([entry.id]);
       loadEntries({ silent: true });
     } catch (err) {
       setError(err.message);
     } finally {
       setOpenActionId(null);
+    }
+  };
+
+  const handleDeleteEntry = async (entry) => {
+    if (!canBulkManageEntry(entry)) return;
+    const shouldDelete = window.confirm(
+      `Delete ${entry.serviceName || "this accounting entry"}? This permanently removes the manual entry.`
+    );
+    if (!shouldDelete) return;
+
+    try {
+      setActionNotice("");
+      await apiDelete(`/api/accounting/entries/${entry.id}`, {
+        fallbackMessage: "Unable to delete accounting entry",
+      });
+      removeEntriesFromLedger([entry.id]);
+      setActionNotice("Entry deleted.");
+      setActionLink(null);
+      loadEntries({ silent: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOpenActionId(null);
+    }
+  };
+
+  const handleBulkArchiveEntries = async () => {
+    const selectedEntries = sortedEntries.filter((entry) => selectedEntryIds.has(String(entry.id)) && canBulkManageEntry(entry));
+    if (!selectedEntries.length) return;
+    const shouldArchive = window.confirm(
+      `Archive ${selectedEntries.length} selected accounting entr${selectedEntries.length === 1 ? "y" : "ies"}?`
+    );
+    if (!shouldArchive) return;
+
+    setIsBulkEntryActionRunning(true);
+    setError("");
+    setActionNotice("");
+    try {
+      await Promise.all(
+        selectedEntries.map((entry) =>
+          performEntryAction(`/api/accounting/entries/${entry.id}/archive`)
+        )
+      );
+      removeEntriesFromLedger(selectedEntries.map((entry) => entry.id));
+      setActionNotice(`${selectedEntries.length} accounting entr${selectedEntries.length === 1 ? "y" : "ies"} archived.`);
+      setActionLink(null);
+      loadEntries({ silent: true });
+    } catch (err) {
+      setError(err.message || "Unable to archive selected accounting entries.");
+    } finally {
+      setIsBulkEntryActionRunning(false);
+    }
+  };
+
+  const handleBulkDeleteEntries = async () => {
+    const selectedEntries = sortedEntries.filter((entry) => selectedEntryIds.has(String(entry.id)) && canBulkManageEntry(entry));
+    if (!selectedEntries.length) return;
+    const shouldDelete = window.confirm(
+      `Delete ${selectedEntries.length} selected accounting entr${selectedEntries.length === 1 ? "y" : "ies"}? This permanently removes manual entries.`
+    );
+    if (!shouldDelete) return;
+
+    setIsBulkEntryActionRunning(true);
+    setError("");
+    setActionNotice("");
+    try {
+      await Promise.all(
+        selectedEntries.map((entry) =>
+          apiDelete(`/api/accounting/entries/${entry.id}`, {
+            fallbackMessage: "Unable to delete selected accounting entries",
+          })
+        )
+      );
+      removeEntriesFromLedger(selectedEntries.map((entry) => entry.id));
+      setActionNotice(`${selectedEntries.length} accounting entr${selectedEntries.length === 1 ? "y" : "ies"} deleted.`);
+      setActionLink(null);
+      loadEntries({ silent: true });
+    } catch (err) {
+      setError(err.message || "Unable to delete selected accounting entries.");
+    } finally {
+      setIsBulkEntryActionRunning(false);
     }
   };
 
@@ -598,6 +742,29 @@ const Accounting = () => {
     return base;
   }, [sortedEntries]);
 
+  const renderLedgerTableHead = (rows, label) => (
+    <div className={`table-row ${accountingRowColumnClass} table-head`}>
+      {isAdmin ? (
+        <span className="table-select-cell">
+          <input
+            type="checkbox"
+            aria-label={`Select ${label}`}
+            checked={areAllEntriesSelected(rows)}
+            disabled={!getSelectableEntryIds(rows).length}
+            onChange={() => toggleEntriesSelection(rows)}
+          />
+        </span>
+      ) : null}
+      <span>ID</span>
+      <span>Service</span>
+      <span>Type</span>
+      <span>Date</span>
+      <span>Amount</span>
+      <span>Display currency</span>
+      <span>Status</span>
+    </div>
+  );
+
   const renderLedgerRow = (entry) => {
     const dateLabel = entry.status === "PAID" ? "Paid date" : "Due date";
     const cadenceLabel = entry.recurringInterval
@@ -606,9 +773,10 @@ const Accounting = () => {
     const invoiceLabel = entry.invoiceNumber ? `Invoice ${entry.invoiceNumber}` : null;
     const sourceLabel = SOURCE_LABELS[entry.source] || entry.source?.replace(/_/g, " ") || null;
     const organizationLabel = entry.organization?.name ? `Org: ${entry.organization.name}` : null;
-    const canManage = entry.source === "MANUAL";
+    const canManage = isAdmin && entry.source === "MANUAL";
     const canCreateInvoice = canManage && entry.type === "REVENUE";
     const canOpenActions = canManage || canCreateInvoice;
+    const isSelected = selectedEntryIds.has(String(entry.id));
     const openEntryEditor = () => {
       if (!canManage) return;
       handleEditEntry(entry);
@@ -625,9 +793,24 @@ const Accounting = () => {
 
     return (
       <div
-        className={`table-row is-7${openActionId === entry.id ? " is-menu-open" : ""}`}
+        className={`table-row ${accountingRowColumnClass}${openActionId === entry.id ? " is-menu-open" : ""}${
+          isSelected ? " is-selected" : ""
+        }`}
         key={entry.id}
       >
+        {isAdmin ? (
+          <span className="table-select-cell">
+            <input
+              type="checkbox"
+              aria-label={`Select accounting entry ${entry.id}`}
+              checked={isSelected}
+              disabled={!canManage}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onChange={() => toggleEntrySelection(entry.id)}
+            />
+          </span>
+        ) : null}
         <span className="table-strong">{entry.id}</span>
         {canManage ? (
           <button className="accounting-entry-link" type="button" onClick={openEntryEditor}>
@@ -656,7 +839,7 @@ const Accounting = () => {
                 setOpenActionId((current) => (current === entry.id ? null : entry.id))
               }
             >
-              ⋯
+              <FiMoreVertical size={16} aria-hidden="true" />
             </button>
           ) : null}
           {canOpenActions && openActionId === entry.id ? (
@@ -680,6 +863,9 @@ const Accounting = () => {
               </button>
               <button type="button" onClick={() => handleArchive(entry)} disabled={!canManage}>
                 Archive
+              </button>
+              <button type="button" onClick={() => handleDeleteEntry(entry)} disabled={!canManage}>
+                Delete
               </button>
             </div>
           ) : null}
@@ -1260,16 +1446,38 @@ const Accounting = () => {
           <span className="status-pill is-info">{RANGE_LABELS[timeRange] || "All time"}</span>
         </div>
 
-        <div className="data-table">
-          <div className="table-row is-7 table-head">
-            <span>ID</span>
-            <span>Service</span>
-            <span>Type</span>
-            <span>Date</span>
-            <span>Amount</span>
-            <span>Display currency</span>
-            <span>Status</span>
+        {isAdmin ? (
+          <div className="table-bulk-toolbar" role="region" aria-label="Selected accounting actions">
+            <span className="muted">
+              {selectedEntryCount
+                ? `${selectedEntryCount} selected`
+                : "Select manual accounting entries for bulk actions"}
+            </span>
+            <div className="table-bulk-toolbar__actions">
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={handleBulkArchiveEntries}
+                disabled={!selectedEntryCount || isBulkEntryActionRunning}
+              >
+                <FiArchive aria-hidden="true" />
+                <span>{isBulkEntryActionRunning ? "Working..." : "Archive"}</span>
+              </button>
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={handleBulkDeleteEntries}
+                disabled={!selectedEntryCount || isBulkEntryActionRunning}
+              >
+                <FiTrash2 aria-hidden="true" />
+                <span>Delete</span>
+              </button>
+            </div>
           </div>
+        ) : null}
+
+        <div className="data-table">
+          {renderLedgerTableHead(sortedEntries, "all financial activity rows")}
           {sortedEntries.map(renderLedgerRow)}
         </div>
         {!sortedEntries.length ? (
@@ -1298,15 +1506,7 @@ const Accounting = () => {
               </div>
 
               <div className="data-table">
-                <div className="table-row is-7 table-head">
-                  <span>ID</span>
-                  <span>Service</span>
-                  <span>Type</span>
-                  <span>Date</span>
-                  <span>Amount</span>
-                  <span>Display currency</span>
-                  <span>Status</span>
-                </div>
+                {renderLedgerTableHead(rows, `${section.label.toLowerCase()} rows`)}
                 {rows.length ? rows.map(renderLedgerRow) : null}
               </div>
 

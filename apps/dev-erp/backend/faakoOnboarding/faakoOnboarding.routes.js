@@ -844,6 +844,16 @@ const findSubmissionRow = async ({ faakoPool, table, columns, id }) => {
   return result.rows[0] || null;
 };
 
+const buildFaakoOnboardingCapabilities = (columns) => ({
+  status: columns.has("status"),
+  internalNotes: columns.has("internalNotes"),
+  assignedOwner: columns.has("assignedOwner"),
+  pdfSummary: columns.has("pdfSummary"),
+  emailDelivery: columns.has("emailDelivery"),
+  activityTimeline: columns.has("activityTimeline"),
+  archive: columns.has("archivedAt"),
+});
+
 export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimelineEntries = [] }) => {
   const updates = [];
   const values = [];
@@ -876,11 +886,12 @@ export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimeli
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "internalNotes")) {
-    if (!columns.has("internalNotes")) {
-      return { errorStatus: 409, error: "Internal notes are not available until the Faako migration is applied." };
-    }
     const internalNotes = normalizeText(body.internalNotes, 12000);
-    if (internalNotes !== normalizeText(existingRow.internalNotes, 12000)) {
+    if (!columns.has("internalNotes")) {
+      if (internalNotes) {
+        return { errorStatus: 409, error: "Internal notes are not available until the Faako migration is applied." };
+      }
+    } else if (internalNotes !== normalizeText(existingRow.internalNotes, 12000)) {
       pushUpdate("internalNotes", internalNotes || null);
       changedFields.push("internalNotes");
       timeline.push({
@@ -893,11 +904,12 @@ export const buildUpdatePatch = ({ body, existingRow, columns, user, extraTimeli
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "assignedOwner")) {
-    if (!columns.has("assignedOwner")) {
-      return { errorStatus: 409, error: "Assigned owner is not available until the Faako migration is applied." };
-    }
     const assignedOwner = normalizeText(body.assignedOwner, 160);
-    if (assignedOwner !== normalizeText(existingRow.assignedOwner, 160)) {
+    if (!columns.has("assignedOwner")) {
+      if (assignedOwner) {
+        return { errorStatus: 409, error: "Assigned owner is not available until the Faako migration is applied." };
+      }
+    } else if (assignedOwner !== normalizeText(existingRow.assignedOwner, 160)) {
       pushUpdate("assignedOwner", assignedOwner || null);
       changedFields.push("assignedOwner");
       timeline.push({
@@ -1050,14 +1062,7 @@ export const registerFaakoOnboardingRoutes = (app, {
       summary,
       filters,
       ownerOptions,
-      capabilities: {
-        internalNotes: table.columns.has("internalNotes"),
-        assignedOwner: table.columns.has("assignedOwner"),
-        pdfSummary: table.columns.has("pdfSummary"),
-        emailDelivery: table.columns.has("emailDelivery"),
-        activityTimeline: table.columns.has("activityTimeline"),
-        archive: table.columns.has("archivedAt"),
-      },
+      capabilities: buildFaakoOnboardingCapabilities(table.columns),
     });
   });
 
@@ -1076,6 +1081,7 @@ export const registerFaakoOnboardingRoutes = (app, {
       submission: serializeFaakoOnboardingSubmission(row, { includeDetail: true }),
       ownerOptions,
       statusOptions: FAAKO_ONBOARDING_STATUS_OPTIONS,
+      capabilities: buildFaakoOnboardingCapabilities(table.columns),
     });
   });
 
@@ -1093,7 +1099,7 @@ export const registerFaakoOnboardingRoutes = (app, {
     });
     if (patch.error) return res.status(patch.errorStatus).json({ error: patch.error });
 
-    if (!patch.changedFields.length) {
+    if (!patch.changedFields.length || !patch.updates.length) {
       return res.json({
         submission: serializeFaakoOnboardingSubmission(existingRow, { includeDetail: true }),
         changedFields: [],
@@ -1153,11 +1159,15 @@ export const registerFaakoOnboardingRoutes = (app, {
     let extraTimelineEntries = [];
 
     if (requestedStatus === CONVERTED_STATUS) {
-      projectResult = await ensureProjectForConvertedSubmission({ prisma, row: existingRow, user: req.user });
-      if (projectResult.error) {
-        return res.status(projectResult.errorStatus).json({ error: projectResult.error });
+      try {
+        projectResult = await ensureProjectForConvertedSubmission({ prisma, row: existingRow, user: req.user });
+      } catch (projectError) {
+        projectResult = {
+          created: false,
+          error: projectError.message || "Converted project could not be created.",
+        };
       }
-      if (projectResult.project && (projectResult.created || currentStatus !== CONVERTED_STATUS)) {
+      if (projectResult?.project && (projectResult.created || currentStatus !== CONVERTED_STATUS)) {
         extraTimelineEntries = [
           {
             type: projectResult.created ? "project_created" : "project_linked",
@@ -1183,7 +1193,7 @@ export const registerFaakoOnboardingRoutes = (app, {
       return res.json({
         submission: serializeFaakoOnboardingSubmission(existingRow, { includeDetail: true }),
         changedFields: patch.changedFields,
-        project: projectResult?.project || null,
+        project: projectResult,
         projectCreated: Boolean(projectResult?.created),
       });
     }
@@ -1224,12 +1234,12 @@ export const registerFaakoOnboardingRoutes = (app, {
         changedFields: patch.changedFields,
         status: submission.status.value,
         assignedOwner: submission.assignedOwner || null,
-        convertedProject: project,
+        convertedProject: projectResult,
       },
       appEnv,
     });
 
-    return res.json({ submission, changedFields: patch.changedFields, project });
+    return res.json({ submission, changedFields: patch.changedFields, project: projectResult });
   });
 
   app.use("/api/faako-onboarding", router);

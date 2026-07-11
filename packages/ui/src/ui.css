@@ -3563,6 +3563,10 @@
   background: color-mix(in srgb, var(--sys-accent-soft) 62%, transparent);
 }
 
+.ui-erp-table__table tbody tr.is-selected {
+  background: color-mix(in srgb, var(--sys-accent-soft) 76%, transparent);
+}
+
 .ui-erp-table__table tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -3577,6 +3581,26 @@
 
 .ui-erp-table__row-actions {
   white-space: nowrap;
+}
+
+.ui-erp-table__select-column,
+.ui-erp-table__select-cell {
+  width: 3rem;
+  text-align: center;
+}
+
+.ui-erp-table__select-column input,
+.ui-erp-table__select-cell input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--sys-accent);
+  cursor: pointer;
+}
+
+.ui-erp-table__select-column input:disabled,
+.ui-erp-table__select-cell input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .ui-erp-table.is-dense .ui-erp-table__table th,

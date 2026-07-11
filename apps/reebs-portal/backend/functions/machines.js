@@ -11,6 +11,19 @@ const responseHeaders = (event) => ({
   }),
 });
 
+const loadTableColumns = async (client, tableName) => {
+  const result = await client.query(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = ANY (current_schemas(false))
+        AND table_name = $1
+    `,
+    [tableName]
+  );
+  return new Set(result.rows.map((row) => row.column_name));
+};
+
 export async function handler(event) {
   if (event?.httpMethod === "OPTIONS") {
     return {
@@ -33,14 +46,19 @@ export async function handler(event) {
     await client.connect();
     const organizationId = await resolveConfiguredPublicOrganizationId(client);
 
-    const columnsResult = await client.query(`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_schema = ANY (current_schemas(false))
-        AND table_name = 'machines'
-    `);
-    const columns = new Set(columnsResult.rows.map((row) => row.column_name));
+    const [columns, productColumns] = await Promise.all([
+      loadTableColumns(client, "machines"),
+      loadTableColumns(client, "product"),
+    ]);
+    if (!columns.size) {
+      return {
+        statusCode: 200,
+        headers: responseHeaders(event),
+        body: JSON.stringify([]),
+      };
+    }
     const hasColumn = (name) => columns.has(name);
+    const hasProductColumn = (name) => productColumns.has(name);
     const machineColumn = (columnName) => `m."${columnName}"`;
     const selectExpr = (
       columnName,
@@ -54,12 +72,22 @@ export async function handler(event) {
         ? 'm."status" AS availability'
         : "NULL AS availability";
     const imageExpr = hasColumn("image")
-      ? 'COALESCE(NULLIF(m."image", \'\'), NULLIF(p."imageUrl", \'\')) AS image'
-      : 'p."imageUrl" AS image';
-    const productJoin = hasColumn("productId")
+      ? hasProductColumn("imageUrl")
+        ? 'COALESCE(NULLIF(m."image", \'\'), NULLIF(p."imageUrl", \'\')) AS image'
+        : 'm."image" AS image'
+      : hasProductColumn("imageUrl")
+        ? 'p."imageUrl" AS image'
+        : "NULL AS image";
+    const productJoin = hasColumn("productId") && productColumns.size
       ? `LEFT JOIN "product" p
-           ON p.id = m."productId"${hasColumn("organizationId") ? ' AND p."organizationId" = m."organizationId"' : ""}`
-      : 'LEFT JOIN "product" p ON 1 = 0';
+           ON p.id = m."productId"${
+             hasColumn("organizationId") && hasProductColumn("organizationId")
+               ? ' AND p."organizationId" = m."organizationId"'
+               : ""
+           }`
+      : productColumns.size
+        ? 'LEFT JOIN "product" p ON 1 = 0'
+        : "";
     if (!hasColumn("organizationId")) {
       return {
         statusCode: 503,
@@ -109,7 +137,7 @@ export async function handler(event) {
       };
     }
     console.error("❌ Database error:", err);
-    return json(event, 500, { error: "Failed to fetch machines" }, { methods: "GET,OPTIONS" });
+    return json(event, err.statusCode || 500, { error: "Failed to fetch machines" }, { methods: "GET,OPTIONS" });
   } finally {
     try {
       await client.end();
