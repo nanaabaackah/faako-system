@@ -79,6 +79,8 @@ import { createGetJobRecommendationsHandler } from "./jobs/jobs.controller.js";
 import { registerJobRoutes } from "./jobs/jobs.routes.js";
 import { createProductivityAiHandler } from "./productivity/ai.controller.js";
 import { registerProductivityRoutes } from "./productivity/productivity.routes.js";
+import { createSystemHealthAiHandler } from "./monitoring/healthAi.controller.js";
+import { registerSystemHealthAiRoutes } from "./monitoring/healthAi.routes.js";
 import { registerUserRoutes } from "./users/users.routes.js";
 import { registerFaakoOnboardingRoutes } from "./faakoOnboarding/faakoOnboarding.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
@@ -711,17 +713,38 @@ const fetchExternalWithTimeout = async (url, options = {}) => {
 };
 
 const checkUrlStatus = async (url) => {
+  const startedAt = Date.now();
+  let method = "HEAD";
   try {
-    let response = await fetchWithTimeout(url, { method: "HEAD" });
+    let response = await fetchWithTimeout(url, { method });
     if ([405, 501].includes(response.status)) {
-      response = await fetchWithTimeout(url, { method: "GET" });
+      method = "GET";
+      response = await fetchWithTimeout(url, { method });
     }
-    return classifyResponseStatus(response);
+    return {
+      status: classifyResponseStatus(response),
+      httpStatus: response.status,
+      responseTimeMs: Date.now() - startedAt,
+      checkedAt: new Date().toISOString(),
+      finalUrl: response.url || url,
+      method,
+      contentType: String(response.headers.get("content-type") || "").slice(0, 120),
+      errorType: response.ok ? null : "http_error",
+    };
   } catch (error) {
-    if (error?.name === "AbortError") {
-      return "offline";
-    }
-    return "offline";
+    const timedOut = error?.name === "AbortError";
+    return {
+      status: "offline",
+      httpStatus: null,
+      responseTimeMs: Date.now() - startedAt,
+      checkedAt: new Date().toISOString(),
+      finalUrl: url,
+      method,
+      errorType: timedOut ? "timeout" : "network_error",
+      errorMessage: timedOut
+        ? `No response within ${SITE_STATUS_TIMEOUT_MS}ms.`
+        : String(error?.message || "Network request failed.").slice(0, 180),
+    };
   }
 };
 
@@ -6143,6 +6166,9 @@ app.get("/api/dashboard", authMiddleware, async (req, res) => {
   let siteStatusPayload = null;
   let siteStatusCheckedAt = null;
   try {
+    if (String(req.query.refreshHealth || "").toLowerCase() === "true") {
+      siteStatusCache = { checkedAt: 0, data: null };
+    }
     const siteStatus = await getSiteStatus();
     siteStatusPayload = siteStatus?.data ?? buildSiteStatusFallback("unknown");
     siteStatusCheckedAt = siteStatus?.checkedAt
@@ -10880,6 +10906,12 @@ const productivityAiHandler = createProductivityAiHandler({
   buildProductivityAiInput,
   extractOpenAiResponseText,
 });
+const systemHealthAiHandler = createSystemHealthAiHandler({
+  openAiApiKey: OPENAI_API_KEY,
+  openAiResponsesUrl: OPENAI_RESPONSES_URL,
+  openAiModel: OPENAI_MODEL,
+  openAiTimeoutMs: OPENAI_TIMEOUT_MS,
+});
 
 registerJobRoutes(app, {
   authMiddleware,
@@ -10888,6 +10920,10 @@ registerJobRoutes(app, {
 registerProductivityRoutes(app, {
   authMiddleware,
   productivityAiHandler,
+});
+registerSystemHealthAiRoutes(app, {
+  authMiddleware,
+  systemHealthAiHandler,
 });
 
 const BOOKING_STATUS_VALUES = new Set(["CONFIRMED", "TENTATIVE", "CANCELED"]);
