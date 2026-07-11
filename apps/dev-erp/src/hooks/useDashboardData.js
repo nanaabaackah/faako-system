@@ -10,7 +10,7 @@ const useDashboardData = ({ range = "7d" } = {}) => {
   const normalizedRange = ["24h", "7d", "30d"].includes(range) ? range : "7d";
 
   const loadDashboard = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, forceHealth = false } = {}) => {
       if (silent) {
         setIsRefreshing(true);
       } else {
@@ -20,6 +20,7 @@ const useDashboardData = ({ range = "7d" } = {}) => {
 
       try {
         const query = new URLSearchParams({ range: normalizedRange });
+        if (forceHealth) query.set("refreshHealth", "true");
         const payload = await apiGet(`/api/dashboard?${query.toString()}`, {
           fallbackMessage: "Unable to load dashboard",
         });

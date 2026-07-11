@@ -180,12 +180,6 @@ function SubmissionTable({
         ),
       },
       {
-        id: "delivery",
-        header: "Email",
-        mobileLabel: "Email",
-        render: (submission) => getEmailDeliveryLabel(submission.emailDelivery),
-      },
-      {
         id: "actions",
         header: "Actions",
         mobileLabel: "Actions",

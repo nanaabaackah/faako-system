@@ -391,7 +391,7 @@ export default function Projects() {
           { label: "External", value: summary.external, tone: "warning" },
           { label: "Due soon", value: summary.dueSoon, tone: summary.dueSoon ? "warning" : "success" },
         ].map((item) => (
-          <article className={`panel projects-summary-card is-${item.tone}`} key={item.label}>
+          <article className={`panel bubble-card projects-summary-card is-${item.tone}`} key={item.label}>
             <span className="kpi-label">{item.label}</span>
             <strong>{item.value}</strong>
           </article>
@@ -419,12 +419,12 @@ export default function Projects() {
                 <h2>{stage.label}</h2>
                 <span className="status-pill">{stageProjects.length}</span>
               </div>
-              <div className="projects-column__cards">
+              <div className="projects-column__cards glass-card">
                 {stageProjects.map((project) => {
                   const stageIndex = getStageIndex(project.stage);
                   return (
                     <article
-                      className={`project-card is-${String(project.priority || "").toLowerCase()}`}
+                      className={`bubble-card project-card is-${String(project.priority || "").toLowerCase()}`}
                       draggable
                       key={project.id}
                       onDragStart={(event) => {
@@ -446,16 +446,12 @@ export default function Projects() {
                         </span>
                       </div>
                       <h3>{project.title}</h3>
-                      <p className="muted">{project.description || project.clientName || "No description"}</p>
+                      <p className="muted">{project.clientName || project.organization?.name || "Internal"}</p>
                       <div className="project-card__meta">
-                        <span>{project.clientName || project.organization?.name || "Internal"}</span>
                         <span>{formatDueDate(project.dueDate)}</span>
                         <span>{formatBudget(project)}</span>
                       </div>
                       <div className="project-card__footer">
-                        <span className="muted">
-                          {project.ownerUser?.fullName || project.ownerUser?.email || "Unassigned"}
-                        </span>
                         <div className="project-card__actions">
                           <button
                             className="icon-button"
