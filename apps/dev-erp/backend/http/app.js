@@ -27,6 +27,11 @@ export const configureBaseHttpMiddleware = (
   app.use(
     express.json({
       limit: "1mb",
+      verify: (req, _res, buffer) => {
+        if (String(req.originalUrl || req.url || "").startsWith("/api/webhooks/trello/")) {
+          req.rawBody = Buffer.from(buffer);
+        }
+      },
     })
   );
   app.use(securityHeaders);
