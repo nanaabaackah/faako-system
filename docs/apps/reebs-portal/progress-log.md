@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Staff login session-token response hardening
+
+Date: 2026-07-18
+Feature/change name: Cookie-only browser session delivery
+What changed: REEBS staff login continues to create the database-backed session and secure HttpOnly cookie but no longer includes the raw signed session token in JSON. The response now uses an allowlisted safe user shape plus session timestamps and expiry metadata. AuthContext no longer reads or initializes a response token and sanitizes token, password, lockout, and session-token fields before profile persistence. Backend bearer parsing remains clearly marked as temporary legacy compatibility for supported non-browser clients.
+Why it changed: Returning the same session credential in browser-readable JSON weakened the protection provided by the HttpOnly cookie and created unnecessary exposure to browser script compromise.
+Files changed: apps/reebs-portal/backend/functions/login.js, apps/reebs-portal/backend/functions/login.test.js, apps/reebs-portal/backend/functions/_shared/userAuth.js, apps/reebs-portal/src/components/AuthContext/AuthContext.jsx, apps/reebs-portal/src/components/AuthContext/authResponse.js, apps/reebs-portal/src/components/AuthContext/authResponse.test.js, apps/reebs-portal/package.json, apps/reebs-portal/docs/FRONTEND.md, apps/reebs-portal/docs/BACKEND.md, docs/apps/reebs-portal/progress-log.md, docs/platform/security-status.md.
+Data impact: None. No schema, migration, user, password, lockout, session, booking, order, inventory, or payment records changed by this implementation.
+Security impact: Positive. New browser logins expose no raw session token, password, lockout, or session-token fields; cookie authentication remains functional.
+Testing done: Focused login/frontend tests passed with 4 tests. The full discovered REEBS Node suite passed with 77 tests, the changed-file ESLint scope passed with warnings only, the production build passed, and the repository security scan/gate passed. REEBS has no TypeScript project configuration. Full app ESLint still reports 22 pre-existing errors and 95 warnings in unrelated legacy files; those were not changed in this batch.
+Rollback notes: Revert the safe response builder and AuthContext sanitizer together only if a supported browser client is proven to require response tokens. Keep the HttpOnly cookie flags and avoid restoring persistent browser token storage.
+Next step: Browser-smoke staff login, refresh, logout, remember-session behavior, and one protected API read. Inventory supported bearer clients before scheduling full bearer fallback removal.
+
 ### CRM-backed contact request intake
 
 Date: 2026-06-25

@@ -5,30 +5,14 @@ const normalizePositiveInteger = (value) => {
   const number = Number.parseInt(String(value || ""), 10);
   return Number.isInteger(number) && number > 0 ? number : 0;
 };
-const DEFAULT_PRODUCTION_ORIGINS = [
-  "https://stroanesolutions.com",
-  "https://www.stroanesolutions.com",
-  "https://portal.stroanesolutions.com",
-];
 const DEFAULT_DEVELOPMENT_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:5175",
   "http://localhost:3000",
 ];
 
-const isProductionRuntime = (env = process.env) =>
-  String(env.NODE_ENV || env.APP_ENV || "")
-    .trim()
-    .toLowerCase() === "production";
-
-const isCloudflarePagesPreviewOrigin = (origin) => {
-  try {
-    const url = new URL(normalizeOrigin(origin));
-    return url.protocol === "https:" && url.hostname.endsWith(".pages.dev");
-  } catch {
-    return false;
-  }
-};
+const resolveRuntimeEnvironment = (env = process.env) =>
+  String(env.APP_ENV || env.NODE_ENV || "development").trim().toLowerCase();
 
 export const resolveAllowedOrigins = (env = process.env) => {
   const allowedOrigins = new Set(
@@ -38,9 +22,8 @@ export const resolveAllowedOrigins = (env = process.env) => {
       .filter(Boolean)
   );
 
-  if (isProductionRuntime(env)) {
-    DEFAULT_PRODUCTION_ORIGINS.forEach((origin) => allowedOrigins.add(origin));
-  } else {
+  const runtimeEnvironment = resolveRuntimeEnvironment(env);
+  if (runtimeEnvironment === "development" || runtimeEnvironment === "test") {
     DEFAULT_DEVELOPMENT_ORIGINS.forEach((origin) => allowedOrigins.add(origin));
   }
 
@@ -53,14 +36,10 @@ export const resolveTrustProxySetting = (env = process.env) => {
 };
 
 export const createCorsOriginValidator =
-  ({ allowedOrigins, allowCloudflarePagesPreviews = true }) =>
+  ({ allowedOrigins }) =>
   (origin, callback) => {
     const normalizedOrigin = normalizeOrigin(origin);
-    if (
-      !origin ||
-      allowedOrigins.has(normalizedOrigin) ||
-      (allowCloudflarePagesPreviews && isCloudflarePagesPreviewOrigin(normalizedOrigin))
-    ) {
+    if (!origin || allowedOrigins.has(normalizedOrigin)) {
       return callback(null, true);
     }
 
@@ -68,6 +47,14 @@ export const createCorsOriginValidator =
     error.statusCode = 403;
     return callback(error);
   };
+
+export const createCorsOptions = (env = process.env) => {
+  const allowedOrigins = resolveAllowedOrigins(env);
+  return {
+    credentials: true,
+    origin: createCorsOriginValidator({ allowedOrigins }),
+  };
+};
 
 export const createSecurityHeadersMiddleware = () =>
   createExpressSecurityHeadersMiddleware({

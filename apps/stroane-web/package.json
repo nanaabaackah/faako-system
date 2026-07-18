@@ -10,6 +10,7 @@
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
     "test:backend": "node --test backend/*.test.js",
+    "test:security-foundation": "node --test backend/security.test.js src/components/serializeJsonLd.test.js",
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "db:generate": "prisma generate",

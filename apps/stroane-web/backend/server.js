@@ -8,10 +8,9 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   createApiRateLimitMiddleware,
-  createCorsOriginValidator,
+  createCorsOptions,
   createSecurityHeadersMiddleware,
   createUnsafeApiDefaultDenyMiddleware,
-  resolveAllowedOrigins,
   resolveTrustProxySetting,
 } from "./security.js";
 import {
@@ -519,13 +518,7 @@ if (trustProxySetting) {
 }
 
 // CORS — only allow explicitly configured origins; fail closed in production.
-const allowedOrigins = resolveAllowedOrigins(process.env);
-app.use(
-  cors({
-    origin: createCorsOriginValidator({ allowedOrigins }),
-    credentials: true,
-  })
-);
+app.use(cors(createCorsOptions(process.env)));
 app.use(createSecurityHeadersMiddleware());
 app.use(
   express.json({

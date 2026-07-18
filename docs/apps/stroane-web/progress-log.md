@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Security hardening foundation batch
+
+Date: 2026-07-18
+Feature/change name: Exact CORS allowlist and safe JSON-LD serialization
+What changed: Removed broad `.pages.dev` suffix trust from the credentialed Stroane API CORS validator. Hosted production and staging now accept only exact `CORS_ORIGINS` values, development retains known localhost defaults, missing-Origin server requests remain supported, and an owned Pages preview works only when its exact origin is configured. Added a lightweight JSON-LD serializer that escapes `<`, `>`, `&`, U+2028, and U+2029 before `StructuredData` writes the script body while preserving the parsed schema value.
+Why it changed: An arbitrary attacker-controlled Pages hostname could previously pass CORS validation, and raw `JSON.stringify` output could allow a schema string containing `</script>` to terminate the JSON-LD element.
+Files changed: apps/stroane-web/backend/security.js, apps/stroane-web/backend/security.test.js, apps/stroane-web/backend/server.js, apps/stroane-web/src/components/StructuredData.tsx, apps/stroane-web/src/components/serializeJsonLd.js, apps/stroane-web/src/components/serializeJsonLd.test.js, apps/stroane-web/.env.example, apps/stroane-web/package.json, apps/stroane-web/README.md, docs/apps/stroane-web/api.md, docs/apps/stroane-web/deployment.md, docs/apps/stroane-web/env.md, docs/apps/stroane-web/security-notes.md, docs/apps/stroane-web/system-status.md, docs/apps/stroane-web/progress-log.md, docs/platform/security-status.md.
+Data impact: None. No schema, migration, seed, catalogue, order, payment, customer, or inventory data changed.
+Security impact: Positive. Credentialed CORS uses exact allowlist membership with preview trust disabled by default, and inline JSON-LD no longer contains literal HTML-significant or script-closing sequences.
+Testing done: Focused CORS and JSON-LD tests passed with 16 tests. Full Stroane backend tests passed with 76 tests. TypeScript check, full lint, production build, `pnpm run security:scan`, and `pnpm run security:gate` passed. The build retained the pre-existing Vite warning about `NODE_ENV=production` in the local env file.
+Rollback notes: Revert the exact-origin helper/server wiring and serializer/component wiring together. Restoring broad `.pages.dev` trust or raw JSON-LD serialization is not recommended.
+Next step: Redeploy the API only after confirming hosted `CORS_ORIGINS` contains every exact storefront and portal origin, then browser-smoke the storefront, portal, and one product detail page.
+
 ### Accounting expense hub
 
 Date: 2026-07-04

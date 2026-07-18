@@ -97,7 +97,7 @@ details or cron secrets to Cloudflare Pages.
 
 Do not set `VITE_API_BASE_URL` on the Railway API service unless a future backend feature explicitly needs it. `VITE_API_BASE_URL` belongs on the Cloudflare Pages frontend.
 
-The API also includes built-in CORS allow-list defaults for `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` set explicitly in Railway for production clarity; do not use `*` while credentials are enabled.
+The API requires exact `CORS_ORIGINS` configuration in hosted environments. It does not trust `.pages.dev` by suffix. Keep the production apex, `www`, and portal origins explicit in Railway; never use `*` or broad preview matching while credentials are enabled.
 
 For staging, set `CORS_ORIGINS=https://stage.stroanesolutions.com,https://portal-stage.stroanesolutions.com`, keep Paystack live keys disabled, and use a staging-only database and signing secret. The API server and Prisma config both load `.env.staging` during local `APP_ENV=staging` checks; hosted Railway services should use Railway environment variables as the source of truth.
 

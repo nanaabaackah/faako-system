@@ -199,7 +199,7 @@ function QuickActionsPanel({ actions, onNavigate }) {
 function RecommendationsPanel({ items, onNavigate }) {
   const safeItems = Array.isArray(items) ? items : [];
   return (
-    <PanelShell title="Recommendations">
+    <PanelShell title="What needs attention" subtitle="The most useful next actions, kept in one short list.">
       <ul className="aw-home-list aw-home-list--recommendations">
         {safeItems.map((item) => (
           <li key={item.key}>
@@ -219,6 +219,109 @@ function RecommendationsPanel({ items, onNavigate }) {
           </li>
         ))}
       </ul>
+    </PanelShell>
+  );
+}
+
+function AdvancedInsightsPanel({ panel, onNavigate }) {
+  if (!panel?.visible) return null;
+  const insights = Array.isArray(panel.insights) ? panel.insights : [];
+  const inventoryRisks = Array.isArray(panel.inventoryRisks) ? panel.inventoryRisks : [];
+
+  return (
+    <PanelShell
+      title="Advanced insights"
+      subtitle={panel.serviceMessage || "Forecasting, demand patterns, and stock cover."}
+      className="aw-advanced-insights"
+      actions={(
+        <div className="aw-advanced-insights-actions">
+          <span className={`aw-insight-source ${panel.connected ? "is-python" : "is-fallback"}`}>
+            {panel.connected ? "Python analytics" : "Built-in forecast"}
+          </span>
+          <button
+            type="button"
+            className="aw-secondary-btn"
+            onClick={panel.onRefresh}
+            disabled={panel.loading}
+          >
+            <AppIcon icon={faRotateRight} />
+            Refresh
+          </button>
+        </div>
+      )}
+    >
+      {panel.loading ? (
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Finding useful patterns"
+          message="Reviewing aggregated sales, bookings, customers, and stock movement."
+          variant="workspace"
+        />
+      ) : panel.error ? (
+        <InlineNotice tone="error" compact message={panel.error} />
+      ) : (
+        <>
+          <div className="aw-insight-metrics">
+            <article className="aw-insight-metric">
+              <span>Next 30 days</span>
+              <strong>{panel.forecastValue}</strong>
+              <small>{panel.forecastMeta}</small>
+            </article>
+            <article className="aw-insight-metric">
+              <span>Busiest booking day</span>
+              <strong>{panel.peakWeekday}</strong>
+              <small>{panel.bookingForecastMeta}</small>
+            </article>
+            <article className="aw-insight-metric">
+              <span>Repeat customers</span>
+              <strong>{panel.repeatRate}%</strong>
+              <small>{panel.repeatCustomerMeta}</small>
+            </article>
+          </div>
+
+          {insights.length ? (
+            <ul className="aw-insight-list">
+              {insights.map((insight) => (
+                <li key={insight.key}>
+                  <button
+                    type="button"
+                    className={`aw-insight-item is-${insight.tone || "info"}`}
+                    onClick={() => onNavigate(insight.path || "/admin/reports")}
+                  >
+                    <span className="aw-insight-dot" aria-hidden="true" />
+                    <span>
+                      <strong>{insight.title}</strong>
+                      <small>{insight.detail}</small>
+                    </span>
+                    <AppIcon icon={faArrowRight} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="aw-muted">More operating history is needed before recommendations become reliable.</p>
+          )}
+
+          {inventoryRisks.length > 0 && (
+            <details className="aw-insight-details">
+              <summary>{inventoryRisks.length} predicted stock risk{inventoryRisks.length === 1 ? "" : "s"}</summary>
+              <ul>
+                {inventoryRisks.map((item) => (
+                  <li key={item.productId || item.name}>
+                    <span>{item.name}</span>
+                    <strong>
+                      {item.daysCover === null || item.daysCover === undefined
+                        ? `${item.stock} in stock`
+                        : `~${item.daysCover} days cover`}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
+      )}
     </PanelShell>
   );
 }
@@ -267,7 +370,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
 
   return (
     <PanelShell
-      title="Business KPI Dashboard"
+      title="Business overview"
       subtitle={panel.updatedAt ? (
         <span className={`aw-freshness${panel.dataFreshnessClass ? ` ${panel.dataFreshnessClass}` : ""}`}>
           {`Updated ${panel.updatedAt} • ${panel.sourceLabel}`}
@@ -851,6 +954,7 @@ export function AdminWorkspaceHomeView({
   homeSummaryCards = [],
   homeQuickActions = [],
   recommendationItems = [],
+  advancedInsightsPanel,
   kpiPanel,
   approvalsPanel,
   teamLoadPanel,
@@ -893,6 +997,7 @@ export function AdminWorkspaceHomeView({
         </div>
       )}
       <RecommendationsPanel items={recommendationItems} onNavigate={onNavigate} />
+      <AdvancedInsightsPanel panel={advancedInsightsPanel} onNavigate={onNavigate} />
       <BusinessKpiPanel panel={kpiPanel} onNavigate={onNavigate} />
 
       {kpiPanel?.visible && (

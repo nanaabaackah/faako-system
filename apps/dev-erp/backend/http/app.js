@@ -24,6 +24,7 @@ export const configureBaseHttpMiddleware = (
   });
 
   app.use(cors(corsOptions));
+  app.use(securityHeaders);
   app.use(
     express.json({
       limit: "1mb",
@@ -34,7 +35,6 @@ export const configureBaseHttpMiddleware = (
       },
     })
   );
-  app.use(securityHeaders);
   app.use("/api", apiRequestLogger);
   app.use("/api", apiRateLimit);
   app.use("/api/auth/login", authRateLimit);
