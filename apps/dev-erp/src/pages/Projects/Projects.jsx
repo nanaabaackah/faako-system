@@ -1,9 +1,29 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FiArrowLeft, FiArrowRight, FiEdit2, FiPlus } from "react-icons/fi";
-import { AnimatedLoadingState, DateField, SelectField } from "@faako/ui";
+import { FiArchive, FiArrowLeft, FiArrowRight, FiEdit2, FiPlus, FiRotateCcw } from "react-icons/fi";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { AnimatedLoadingState, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { readStoredSessionUser } from "../../utils/authSession";
+import ProjectFormModal from "./ProjectFormModal";
+import ProjectActivityTimeline from "./ProjectActivityTimeline";
+import ProjectTasksSection from "./ProjectTasksSection";
+import ProjectTrelloSection from "./ProjectTrelloSection";
+import {
+  buildProjectForm,
+  buildProjectPayload,
+  validateProjectForm,
+} from "./projectForm";
+import {
+  getProjectHealthLabel,
+  getProjectHealthTone,
+  normalizeProjectProgress,
+} from "./projectPresentation";
+import {
+  appendProjectFilterParams,
+  createDefaultProjectFilters,
+  hasActiveProjectFilters,
+} from "./projectFilters";
 import "./Projects.css";
 
 const PROJECT_STAGES = [
@@ -14,39 +34,20 @@ const PROJECT_STAGES = [
   { key: "DONE", label: "Done" },
 ];
 
-const PROJECT_TYPE_OPTIONS = [
-  { value: "PERSONAL", label: "Personal" },
-  { value: "EXTERNAL", label: "External" },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: "LOW", label: "Low" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "HIGH", label: "High" },
-  { value: "URGENT", label: "Urgent" },
-];
-
-const CURRENCY_OPTIONS = ["CAD", "GHS"];
-
 const buildTodayDate = () => new Date().toISOString().slice(0, 10);
 
-const toDateInput = (value) => {
-  if (!value) return "";
+const formatProjectDate = (value, fallback = "Not set") => {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-};
-
-const formatDueDate = (value) => {
-  if (!value) return "No due date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "No due date";
+  if (Number.isNaN(date.getTime())) return fallback;
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 };
+
+const formatDueDate = (value) => formatProjectDate(value, "No due date");
 
 const formatBudget = (project) => {
   const amount = Number(project?.budgetAmount);
@@ -63,31 +64,23 @@ const formatBudget = (project) => {
   }
 };
 
-const buildProjectForm = (project = null, organizationId = "") => ({
-  title: project?.title || "",
-  projectType: project?.projectType || "PERSONAL",
-  stage: project?.stage || "BACKLOG",
-  priority: project?.priority || "MEDIUM",
-  clientName: project?.clientName || "",
-  budgetAmount: project?.budgetAmount !== undefined && project?.budgetAmount !== null
-    ? String(project.budgetAmount)
-    : "",
-  currency: project?.currency || "CAD",
-  dueDate: toDateInput(project?.dueDate) || "",
-  description: project?.description || "",
-  externalRef: project?.externalRef || "",
-  organizationId: project?.organization?.id ? String(project.organization.id) : organizationId,
-});
-
 const getStageIndex = (stage) => PROJECT_STAGES.findIndex((item) => item.key === stage);
 
 export default function Projects() {
+  const navigate = useNavigate();
+  const { projectId } = useParams();
   const storedUser = useMemo(() => readStoredSessionUser(), []);
   const isAdmin = storedUser?.role?.name === "Admin";
   const userOrgId = storedUser?.organizationId ? String(storedUser.organizationId) : "";
   const [projects, setProjects] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(Boolean(projectId));
+  const [detailError, setDetailError] = useState("");
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(isAdmin ? "all" : userOrgId);
+  const [filters, setFilters] = useState(createDefaultProjectFilters);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -96,9 +89,13 @@ export default function Projects() {
   const [dragOverStage, setDragOverStage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState(null);
-  const [formState, setFormState] = useState(() => buildProjectForm(null, userOrgId));
+  const [formState, setFormState] = useState(() =>
+    buildProjectForm(null, { organizationId: userOrgId })
+  );
   const [formError, setFormError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const loadOrganizations = useCallback(async () => {
     if (!isAdmin) return;
@@ -130,6 +127,7 @@ export default function Projects() {
             query.set("organizationId", selectedOrganizationId);
           }
         }
+        appendProjectFilterParams(query, { filters, searchQuery });
 
         const payload = await apiGet(`/api/projects?${query.toString()}`, {
           fallbackMessage: "Unable to load projects",
@@ -142,7 +140,7 @@ export default function Projects() {
         setIsRefreshing(false);
       }
     },
-    [isAdmin, selectedOrganizationId]
+    [filters, isAdmin, searchQuery, selectedOrganizationId]
   );
 
   useEffect(() => {
@@ -150,8 +148,37 @@ export default function Projects() {
   }, [loadOrganizations]);
 
   useEffect(() => {
+    if (projectId) return;
     loadProjects();
-  }, [loadProjects]);
+  }, [loadProjects, projectId]);
+
+  useEffect(() => {
+    if (!projectId) {
+      setSelectedProject(null);
+      setDetailError("");
+      setDetailLoading(false);
+      return;
+    }
+
+    let active = true;
+    setDetailLoading(true);
+    setDetailError("");
+    setSelectedProject(null);
+    apiGet(`/api/projects/${projectId}`, { fallbackMessage: "Unable to load project" })
+      .then((project) => {
+        if (active) setSelectedProject(project);
+      })
+      .catch((loadError) => {
+        if (active) setDetailError(loadError.message || "Unable to load project");
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
 
   useEffect(() => {
     if (!notice) return undefined;
@@ -204,20 +231,49 @@ export default function Projects() {
     };
   }, [projects]);
 
+  const activeFilters = useMemo(
+    () => hasActiveProjectFilters({ filters, searchQuery }),
+    [filters, searchQuery]
+  );
+
+  const visibleProjectStages = useMemo(
+    () => (filters.stage === "all"
+      ? PROJECT_STAGES
+      : PROJECT_STAGES.filter((stage) => stage.key === filters.stage)),
+    [filters.stage]
+  );
+
+  const updateFilter = (field, value) => {
+    setFilters((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setSearchQuery(searchInput.trim());
+  };
+
+  const clearFilters = () => {
+    setFilters(createDefaultProjectFilters());
+    setSearchInput("");
+    setSearchQuery("");
+  };
+
   const openCreateModal = () => {
     const defaultOrgId =
       selectedOrganizationId && selectedOrganizationId !== "all"
         ? selectedOrganizationId
         : userOrgId;
     setEditingProjectId(null);
-    setFormState(buildProjectForm(null, defaultOrgId));
+    setFormState(
+      buildProjectForm(null, { organizationId: defaultOrgId })
+    );
     setFormError("");
     setShowForm(true);
   };
 
   const openEditModal = (project) => {
     setEditingProjectId(project.id);
-    setFormState(buildProjectForm(project, userOrgId));
+    setFormState(buildProjectForm(project, { organizationId: userOrgId }));
     setFormError("");
     setShowForm(true);
   };
@@ -276,32 +332,13 @@ export default function Projects() {
     event.preventDefault();
     setFormError("");
 
-    const title = formState.title.trim();
-    if (!title) {
-      setFormError("Project title is required.");
+    const validationError = validateProjectForm(formState);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
 
-    const budgetAmount = formState.budgetAmount.trim();
-    if (budgetAmount && Number(budgetAmount) < 0) {
-      setFormError("Budget must be 0 or greater.");
-      return;
-    }
-
-    const payload = {
-      title,
-      projectType: formState.projectType,
-      stage: formState.stage,
-      priority: formState.priority,
-      clientName: formState.clientName.trim() || null,
-      budgetAmount: budgetAmount || null,
-      currency: budgetAmount ? formState.currency : null,
-      dueDate: formState.dueDate || null,
-      description: formState.description.trim() || null,
-      externalRef: formState.externalRef.trim() || null,
-      organizationId:
-        isAdmin && formState.organizationId ? Number(formState.organizationId) : undefined,
-    };
+    const payload = buildProjectPayload(formState, { includeOrganization: isAdmin });
 
     setIsSaving(true);
     try {
@@ -319,6 +356,10 @@ export default function Projects() {
         }
         return [savedProject, ...current];
       });
+      if (selectedProject?.id === savedProject.id) {
+        setSelectedProject(savedProject);
+        setActivityRefreshKey((current) => current + 1);
+      }
       closeFormModal();
       setNotice(editingProjectId ? "Project updated." : "Project created.");
     } catch (saveError) {
@@ -327,6 +368,165 @@ export default function Projects() {
       setIsSaving(false);
     }
   };
+
+  const handleArchiveProject = async () => {
+    if (!selectedProject || isArchiving) return;
+    const shouldArchive = !selectedProject.archivedAt;
+    if (
+      shouldArchive &&
+      !window.confirm(`Archive ${selectedProject.title}? It will be hidden from the active projects board.`)
+    ) {
+      return;
+    }
+
+    setIsArchiving(true);
+    setDetailError("");
+    try {
+      const updatedProject = await apiPatch(
+        `/api/projects/${selectedProject.id}`,
+        { archived: shouldArchive },
+        { fallbackMessage: shouldArchive ? "Unable to archive project" : "Unable to restore project" }
+      );
+      setSelectedProject(updatedProject);
+      setNotice(shouldArchive ? "Project archived." : "Project restored to the active board.");
+      setActivityRefreshKey((current) => current + 1);
+    } catch (archiveError) {
+      setDetailError(
+        archiveError.message || (shouldArchive ? "Unable to archive project" : "Unable to restore project")
+      );
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  if (projectId) {
+    const detailProgress = normalizeProjectProgress(selectedProject?.progressPercent);
+    return (
+      <section className="page projects-page project-detail-page">
+        <header className="page-header">
+          <div>
+            <button className="button button-ghost project-detail-back" type="button" onClick={() => navigate("/projects")}>
+              <FiArrowLeft aria-hidden="true" />
+              <span>Back to projects</span>
+            </button>
+            <p className="eyebrow">Project overview</p>
+            <h1>{selectedProject?.title || "Project"}</h1>
+            <p className="muted">{selectedProject?.clientName || "Internal project"}</p>
+          </div>
+          {selectedProject ? (
+            <div className="header-actions">
+              {!selectedProject.archivedAt ? (
+                <button className="button button-primary" type="button" onClick={() => openEditModal(selectedProject)}>
+                  <FiEdit2 aria-hidden="true" />
+                  <span>Edit project</span>
+                </button>
+              ) : null}
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={handleArchiveProject}
+                disabled={isArchiving}
+              >
+                {selectedProject.archivedAt ? <FiRotateCcw aria-hidden="true" /> : <FiArchive aria-hidden="true" />}
+                <span>
+                  {isArchiving
+                    ? selectedProject.archivedAt ? "Restoring..." : "Archiving..."
+                    : selectedProject.archivedAt ? "Restore project" : "Archive project"}
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </header>
+
+        {detailLoading ? <AnimatedLoadingState compact className="panel" title="Loading project" /> : null}
+        {detailError ? <div className="notice is-error" role="alert">{detailError}</div> : null}
+        {notice ? <div className="notice is-success" role="status">{notice}</div> : null}
+
+        {selectedProject?.archivedAt ? (
+          <div className="notice project-archive-notice" role="status">
+            <strong>Archived project</strong>
+            <span>This project was archived on {formatProjectDate(selectedProject.archivedAt)} and is hidden from the active board.</span>
+          </div>
+        ) : null}
+
+        {selectedProject && !detailLoading ? (
+          <>
+            <article className="panel project-detail-summary">
+              <div className="project-detail-summary__heading">
+                <div>
+                  <span className={`project-health is-${getProjectHealthTone(selectedProject.health)}`}>
+                    {getProjectHealthLabel(selectedProject.health)}
+                  </span>
+                  <span className="status-pill">
+                    {PROJECT_STAGES.find((stage) => stage.key === selectedProject.stage)?.label || selectedProject.stage}
+                  </span>
+                </div>
+                <strong>{detailProgress}% complete</strong>
+              </div>
+              <div
+                className="project-progress__track"
+                role="progressbar"
+                aria-label={`${selectedProject.title} progress`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={detailProgress}
+              >
+                <span style={{ width: `${detailProgress}%` }} />
+              </div>
+            </article>
+
+            <article className="panel project-detail-grid" aria-label="Project information">
+              <div><span>Client</span><strong>{selectedProject.clientName || "Not set"}</strong></div>
+              <div><span>Project type</span><strong>{selectedProject.projectType === "EXTERNAL" ? "External" : "Personal"}</strong></div>
+              <div><span>Stage</span><strong>{PROJECT_STAGES.find((stage) => stage.key === selectedProject.stage)?.label || selectedProject.stage}</strong></div>
+              <div><span>Priority</span><strong>{selectedProject.priority}</strong></div>
+              <div><span>Health</span><strong>{getProjectHealthLabel(selectedProject.health)}</strong></div>
+              <div><span>Progress</span><strong>{detailProgress}%</strong></div>
+              <div><span>Start date</span><strong>{formatProjectDate(selectedProject.startDate)}</strong></div>
+              <div><span>Due date</span><strong>{formatDueDate(selectedProject.dueDate)}</strong></div>
+              <div><span>Currency</span><strong>{selectedProject.currency || "Not set"}</strong></div>
+              <div><span>Budget</span><strong>{formatBudget(selectedProject)}</strong></div>
+              <div><span>Created</span><strong>{formatProjectDate(selectedProject.createdAt)}</strong></div>
+              <div><span>Updated</span><strong>{formatProjectDate(selectedProject.updatedAt)}</strong></div>
+            </article>
+
+            <article className="panel project-detail-description">
+              <h2>Description</h2>
+              <p>{selectedProject.description || "No description provided."}</p>
+            </article>
+
+            <ProjectTasksSection
+              projectId={selectedProject.id}
+              isProjectArchived={Boolean(selectedProject.archivedAt)}
+              onActivityRecorded={() => setActivityRefreshKey((current) => current + 1)}
+            />
+
+            <ProjectActivityTimeline
+              projectId={selectedProject.id}
+              refreshKey={activityRefreshKey}
+            />
+
+            <ProjectTrelloSection projectId={selectedProject.id} isAdmin={isAdmin} />
+          </>
+        ) : null}
+
+        {showForm ? (
+          <ProjectFormModal
+            isAdmin={isAdmin}
+            organizations={organizations}
+            formState={formState}
+            editingProjectId={editingProjectId}
+            formError={formError}
+            isSaving={isSaving}
+            onFieldChange={updateFormField}
+            onSubmit={handleSaveProject}
+            onClose={closeFormModal}
+            projectStages={PROJECT_STAGES}
+          />
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section className="page projects-page">
@@ -368,6 +568,80 @@ export default function Projects() {
         </div>
       </header>
 
+      <form className="panel projects-filters" onSubmit={handleSearch}>
+        <label className="projects-filter-search">
+          <span>Search</span>
+          <input
+            className="input"
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Project or client"
+          />
+        </label>
+        <div className="projects-filter-field">
+          <span>Stage</span>
+          <SelectField
+            ariaLabel="Filter projects by stage"
+            value={filters.stage}
+            onChange={(event) => updateFilter("stage", event.target.value)}
+          >
+            <option value="all">All stages</option>
+            {PROJECT_STAGES.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
+          </SelectField>
+        </div>
+        <div className="projects-filter-field">
+          <span>Priority</span>
+          <SelectField
+            ariaLabel="Filter projects by priority"
+            value={filters.priority}
+            onChange={(event) => updateFilter("priority", event.target.value)}
+          >
+            <option value="all">All priorities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </SelectField>
+        </div>
+        <div className="projects-filter-field">
+          <span>Health</span>
+          <SelectField
+            ariaLabel="Filter projects by health"
+            value={filters.health}
+            onChange={(event) => updateFilter("health", event.target.value)}
+          >
+            <option value="all">All health</option>
+            <option value="ON_TRACK">On track</option>
+            <option value="AT_RISK">At risk</option>
+            <option value="BLOCKED">Blocked</option>
+          </SelectField>
+        </div>
+        <div className="projects-filter-field">
+          <span>Project type</span>
+          <SelectField
+            ariaLabel="Filter projects by type"
+            value={filters.type}
+            onChange={(event) => updateFilter("type", event.target.value)}
+          >
+            <option value="all">All types</option>
+            <option value="PERSONAL">Personal</option>
+            <option value="EXTERNAL">External</option>
+          </SelectField>
+        </div>
+        <div className="projects-filter-actions">
+          <button className="button button-primary" type="submit">Search</button>
+          <button
+            className="button button-ghost"
+            type="button"
+            onClick={clearFilters}
+            disabled={!activeFilters && !searchInput}
+          >
+            Clear
+          </button>
+        </div>
+      </form>
+
       {loading ? (
         <AnimatedLoadingState compact className="panel" title="Loading projects" />
       ) : null}
@@ -398,12 +672,21 @@ export default function Projects() {
         ))}
       </div>
 
-      <section className="projects-board" aria-label="Projects kanban board">
-        {PROJECT_STAGES.map((stage) => {
+      {!loading && !projects.length && activeFilters ? (
+        <div className="panel projects-filter-empty" role="status">
+          <h2>No matching projects</h2>
+          <p className="muted">Try changing your search or clearing one of the filters.</p>
+          <button className="button button-ghost" type="button" onClick={clearFilters}>Clear filters</button>
+        </div>
+      ) : null}
+
+      {projects.length || !activeFilters ? (
+      <section className={`projects-board${visibleProjectStages.length === 1 ? " is-single-stage" : ""}`} aria-label="Projects kanban board">
+        {visibleProjectStages.map((stage) => {
           const stageProjects = projectsByStage[stage.key] || [];
           return (
             <article
-              className={`projects-column${dragOverStage === stage.key ? " is-drag-over" : ""}`}
+              className={`glass-card projects-column${dragOverStage === stage.key ? " is-drag-over" : ""}`}
               key={stage.key}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -419,9 +702,12 @@ export default function Projects() {
                 <h2>{stage.label}</h2>
                 <span className="status-pill">{stageProjects.length}</span>
               </div>
-              <div className="projects-column__cards glass-card">
+              <div className="projects-column__cards ">
                 {stageProjects.map((project) => {
                   const stageIndex = getStageIndex(project.stage);
+                  const progressPercent = normalizeProjectProgress(project.progressPercent);
+                  const healthLabel = getProjectHealthLabel(project.health);
+                  const healthTone = getProjectHealthTone(project.health);
                   return (
                     <article
                       className={`bubble-card project-card is-${String(project.priority || "").toLowerCase()}`}
@@ -437,6 +723,12 @@ export default function Projects() {
                         setDragOverStage("");
                       }}
                     >
+                      <Link
+                        className="project-card__open-link"
+                        to={`/projects/${project.id}`}
+                        aria-label={`View ${project.title} project details`}
+                        draggable={false}
+                      />
                       <div className="project-card__topline">
                         <span className={`status-pill is-${project.projectType === "EXTERNAL" ? "warning" : "info"}`}>
                           {project.projectType === "EXTERNAL" ? "External" : "Personal"}
@@ -447,9 +739,29 @@ export default function Projects() {
                       </div>
                       <h3>{project.title}</h3>
                       <p className="muted">{project.clientName || project.organization?.name || "Internal"}</p>
+                      <div className="project-card__status-line">
+                        <span className="status-pill">{stage.label}</span>
+                        <span className={`project-health is-${healthTone}`}>{healthLabel}</span>
+                      </div>
+                      <div className="project-progress">
+                        <div className="project-progress__label">
+                          <span>Progress</span>
+                          <strong>{progressPercent}%</strong>
+                        </div>
+                        <div
+                          className="project-progress__track"
+                          role="progressbar"
+                          aria-label={`${project.title} progress`}
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                          aria-valuenow={progressPercent}
+                        >
+                          <span style={{ width: `${progressPercent}%` }} />
+                        </div>
+                      </div>
                       <div className="project-card__meta">
-                        <span>{formatDueDate(project.dueDate)}</span>
-                        <span>{formatBudget(project)}</span>
+                        <span><strong>Due:</strong> {formatDueDate(project.dueDate)}</span>
+                        <span><strong>Budget:</strong> {formatBudget(project)}</span>
                       </div>
                       <div className="project-card__footer">
                         <div className="project-card__actions">
@@ -494,166 +806,21 @@ export default function Projects() {
           );
         })}
       </section>
+      ) : null}
 
       {showForm ? (
-        <div className="modal-backdrop" role="presentation">
-          <button
-            className="modal-dismiss"
-            type="button"
-            aria-label="Close project form"
-            onClick={closeFormModal}
-          />
-          <article className="modal-card projects-modal" role="dialog" aria-modal="true" aria-labelledby="project-form-title">
-            <div className="modal-header">
-              <div>
-                <p className="eyebrow">Projects</p>
-                <h3 id="project-form-title">{editingProjectId ? "Edit project" : "New project"}</h3>
-                <p className="muted">Set the ownership, stage, and delivery details.</p>
-              </div>
-              <button className="button button-ghost" type="button" onClick={closeFormModal}>
-                Close
-              </button>
-            </div>
-
-            {formError ? (
-              <div className="notice is-error" role="alert">
-                {formError}
-              </div>
-            ) : null}
-
-            <form className="stack" onSubmit={handleSaveProject}>
-              <div className="project-form-grid">
-                {isAdmin && organizations.length ? (
-                  <SelectField
-                    fieldClassName="form-field"
-                    label="Organization"
-                    value={formState.organizationId}
-                    onChange={(event) => updateFormField("organizationId", event.target.value)}
-                    required
-                  >
-                    <option value="">Select organization</option>
-                    {organizations.map((organization) => (
-                      <option key={organization.id} value={String(organization.id)}>
-                        {organization.name}
-                      </option>
-                    ))}
-                  </SelectField>
-                ) : null}
-                <label className="form-field">
-                  <span>Title</span>
-                  <input
-                    className="input"
-                    type="text"
-                    value={formState.title}
-                    onChange={(event) => updateFormField("title", event.target.value)}
-                    required
-                  />
-                </label>
-                <SelectField
-                  fieldClassName="form-field"
-                  label="Type"
-                  value={formState.projectType}
-                  onChange={(event) => updateFormField("projectType", event.target.value)}
-                >
-                  {PROJECT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </SelectField>
-                <SelectField
-                  fieldClassName="form-field"
-                  label="Stage"
-                  value={formState.stage}
-                  onChange={(event) => updateFormField("stage", event.target.value)}
-                >
-                  {PROJECT_STAGES.map((stage) => (
-                    <option key={stage.key} value={stage.key}>
-                      {stage.label}
-                    </option>
-                  ))}
-                </SelectField>
-                <SelectField
-                  fieldClassName="form-field"
-                  label="Priority"
-                  value={formState.priority}
-                  onChange={(event) => updateFormField("priority", event.target.value)}
-                >
-                  {PRIORITY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </SelectField>
-                <label className="form-field">
-                  <span>Client or context</span>
-                  <input
-                    className="input"
-                    type="text"
-                    value={formState.clientName}
-                    onChange={(event) => updateFormField("clientName", event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Budget</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formState.budgetAmount}
-                    onChange={(event) => updateFormField("budgetAmount", event.target.value)}
-                  />
-                </label>
-                <SelectField
-                  fieldClassName="form-field"
-                  label="Currency"
-                  value={formState.currency}
-                  onChange={(event) => updateFormField("currency", event.target.value)}
-                >
-                  {CURRENCY_OPTIONS.map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-                </SelectField>
-                <DateField
-                  fieldClassName="form-field"
-                  label="Due date"
-                  value={formState.dueDate}
-                  onChange={(event) => updateFormField("dueDate", event.target.value)}
-                />
-                <label className="form-field">
-                  <span>External reference</span>
-                  <input
-                    className="input"
-                    type="text"
-                    value={formState.externalRef}
-                    onChange={(event) => updateFormField("externalRef", event.target.value)}
-                  />
-                </label>
-              </div>
-
-              <label className="form-field">
-                <span>Description</span>
-                <textarea
-                  className="input"
-                  value={formState.description}
-                  onChange={(event) => updateFormField("description", event.target.value)}
-                />
-              </label>
-
-              <div className="header-actions">
-                <button className="button button-ghost" type="button" onClick={closeFormModal}>
-                  Cancel
-                </button>
-                <button className="button button-primary" type="submit" disabled={isSaving}>
-                  {isSaving ? "Saving..." : editingProjectId ? "Save project" : "Create project"}
-                </button>
-              </div>
-            </form>
-          </article>
-        </div>
+        <ProjectFormModal
+          isAdmin={isAdmin}
+          organizations={organizations}
+          formState={formState}
+          editingProjectId={editingProjectId}
+          formError={formError}
+          isSaving={isSaving}
+          onFieldChange={updateFormField}
+          onSubmit={handleSaveProject}
+          onClose={closeFormModal}
+          projectStages={PROJECT_STAGES}
+        />
       ) : null}
     </section>
   );

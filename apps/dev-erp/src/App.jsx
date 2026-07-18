@@ -632,6 +632,14 @@ function App() {
           }
         />
         <Route
+          path="/projects/:projectId"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <Projects />
+            </ShellPage>
+          }
+        />
+        <Route
           path="/rent"
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>

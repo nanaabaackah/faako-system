@@ -36,6 +36,9 @@ test("system health AI diagnostics require system health module access", () => {
 test("projects API is protected by the projects module", () => {
   assert.deepEqual(resolveModulesForPath("/api/projects"), ["projects"]);
   assert.deepEqual(resolveModulesForPath("/api/projects/12"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/tasks"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/tasks/4/status"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/task-assignees"), ["projects"]);
 });
 
 test("Faako onboarding API is protected by the onboarding module", () => {
