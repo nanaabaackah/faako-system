@@ -1,4 +1,5 @@
 import React from "react";
+import { serializeJsonLd } from "./serializeJsonLd.js";
 
 interface Props {
   schema: Record<string, unknown> | Record<string, unknown>[];
@@ -10,7 +11,7 @@ const StructuredData: React.FC<Props> = ({ schema, id }) => (
   <script
     id={id}
     type="application/ld+json"
-    dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
   />
 );
 

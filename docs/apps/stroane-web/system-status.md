@@ -13,7 +13,7 @@ Client-sensitive active project. Treat public frontend, purchasing, backend API,
 - React storefront structure, pages, components, API client, and types.
 - Express backend route and middleware structure.
 - Railway API `/health` endpoint returns `{ ok: true, service: "stroane-api" }` without requiring database access.
-- Railway API CORS now allows the live Cloudflare Pages storefront and portal origins by default: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, and Cloudflare Pages preview origins ending in `.pages.dev`. Keep `CORS_ORIGINS` explicit in Railway for clarity.
+- Railway API CORS accepts only exact hosted origins configured in `CORS_ORIGINS`; development alone includes known localhost defaults. Broad `.pages.dev` preview trust has been removed.
 - Prisma schema and migration workflow.
 - Cloudflare Pages frontend deployment pattern with Railway API/backend and Railway Postgres.
 - Staging environment mapping is established for `https://stage.stroanesolutions.com`, `https://portal-stage.stroanesolutions.com`, and `https://api-staging.stroanesolutions.com` with separate storefront/portal Cloudflare surfaces and a staging Railway API/database target.

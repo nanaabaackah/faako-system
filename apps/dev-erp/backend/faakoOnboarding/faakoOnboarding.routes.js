@@ -1234,12 +1234,12 @@ export const registerFaakoOnboardingRoutes = (app, {
         changedFields: patch.changedFields,
         status: submission.status.value,
         assignedOwner: submission.assignedOwner || null,
-        convertedProject: projectResult,
+        convertedProject: project || projectResult,
       },
       appEnv,
     });
 
-    return res.json({ submission, changedFields: patch.changedFields, project: projectResult });
+    return res.json({ submission, changedFields: patch.changedFields, project: project || projectResult });
   });
 
   app.use("/api/faako-onboarding", router);

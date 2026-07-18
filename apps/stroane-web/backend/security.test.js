@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createApiRateLimitMiddleware,
+  createCorsOptions,
   createCorsOriginValidator,
   createSecurityHeadersMiddleware,
   createUnsafeApiDefaultDenyMiddleware,
@@ -29,70 +30,105 @@ const createMockResponse = () => {
   return response;
 };
 
-test("resolveAllowedOrigins includes current production storefront origins by default", () => {
+const validateOrigin = (validator, origin) => {
+  let allowed = false;
+  let error = null;
+  validator(origin, (receivedError, isAllowed) => {
+    error = receivedError;
+    allowed = Boolean(isAllowed);
+  });
+  return { allowed, error };
+};
+
+test("resolveAllowedOrigins allows an explicitly configured production origin", () => {
   const allowedOrigins = resolveAllowedOrigins({
-    NODE_ENV: "production",
-    CORS_ORIGINS: "",
+    APP_ENV: "production",
+    CORS_ORIGINS: "https://stroanesolutions.com",
   });
   assert.equal(allowedOrigins.has("https://stroanesolutions.com"), true);
-  assert.equal(allowedOrigins.has("https://www.stroanesolutions.com"), true);
-  assert.equal(allowedOrigins.has("https://portal.stroanesolutions.com"), true);
-
-  const validator = createCorsOriginValidator({ allowedOrigins });
-  let allowed = false;
-  let error = null;
-  validator("https://stroanesolutions.com", (receivedError, isAllowed) => {
-    error = receivedError;
-    allowed = Boolean(isAllowed);
-  });
-
+  const { allowed, error } = validateOrigin(
+    createCorsOriginValidator({ allowedOrigins }),
+    "https://stroanesolutions.com"
+  );
   assert.equal(allowed, true);
   assert.equal(error, null);
 });
 
-test("createCorsOriginValidator allows Cloudflare Pages previews without wildcard credentials", () => {
+test("resolveAllowedOrigins allows an explicitly configured staging origin", () => {
   const allowedOrigins = resolveAllowedOrigins({
-    NODE_ENV: "production",
-    CORS_ORIGINS: "",
+    APP_ENV: "staging",
+    CORS_ORIGINS: "https://stage.stroanesolutions.com",
   });
-
-  const validator = createCorsOriginValidator({ allowedOrigins });
-  let allowed = false;
-  let error = null;
-  validator("https://preview-name.pages.dev", (receivedError, isAllowed) => {
-    error = receivedError;
-    allowed = Boolean(isAllowed);
-  });
-
-  assert.equal(allowed, true);
-  assert.equal(error, null);
+  const result = validateOrigin(
+    createCorsOriginValidator({ allowedOrigins }),
+    "https://stage.stroanesolutions.com"
+  );
+  assert.equal(result.allowed, true);
+  assert.equal(result.error, null);
+  assert.equal(allowedOrigins.has("http://localhost:5175"), false);
 });
 
-test("createCorsOriginValidator rejects unrelated origins", () => {
-  const allowedOrigins = resolveAllowedOrigins({
-    NODE_ENV: "production",
-    CORS_ORIGINS: "",
-  });
-
-  const validator = createCorsOriginValidator({ allowedOrigins });
-  let allowed = false;
-  let error = null;
-  validator("https://evil.example", (receivedError, isAllowed) => {
-    error = receivedError;
-    allowed = Boolean(isAllowed);
-  });
-
-  assert.equal(allowed, false);
-  assert.equal(error?.statusCode, 403);
+test("resolveAllowedOrigins allows localhost defaults only in development", () => {
+  const allowedOrigins = resolveAllowedOrigins({ APP_ENV: "development", CORS_ORIGINS: "" });
+  const result = validateOrigin(
+    createCorsOriginValidator({ allowedOrigins }),
+    "http://localhost:5175"
+  );
+  assert.equal(result.allowed, true);
+  assert.equal(result.error, null);
 });
 
-test("resolveAllowedOrigins includes the Stroane Vite dev port outside production", () => {
+test("an exact configured Pages preview origin is allowed", () => {
   const allowedOrigins = resolveAllowedOrigins({
-    NODE_ENV: "development",
-    CORS_ORIGINS: "",
+    APP_ENV: "development",
+    CORS_ORIGINS: "https://owned-preview.pages.dev",
   });
+  const result = validateOrigin(
+    createCorsOriginValidator({ allowedOrigins }),
+    "https://owned-preview.pages.dev"
+  );
+  assert.equal(result.allowed, true);
+  assert.equal(result.error, null);
+});
 
-  assert.equal(allowedOrigins.has("http://localhost:5175"), true);
+test("an unrelated attacker Pages origin is rejected", () => {
+  const allowedOrigins = resolveAllowedOrigins({
+    APP_ENV: "development",
+    CORS_ORIGINS: "https://owned-preview.pages.dev",
+  });
+  const result = validateOrigin(
+    createCorsOriginValidator({ allowedOrigins }),
+    "https://attacker.pages.dev"
+  );
+  assert.equal(result.allowed, false);
+  assert.equal(result.error?.statusCode, 403);
+});
+
+test("an unrelated HTTPS origin is rejected", () => {
+  const allowedOrigins = resolveAllowedOrigins({
+    APP_ENV: "production",
+    CORS_ORIGINS: "https://stroanesolutions.com",
+  });
+  const result = validateOrigin(createCorsOriginValidator({ allowedOrigins }), "https://evil.example");
+  assert.equal(result.allowed, false);
+  assert.equal(result.error?.statusCode, 403);
+});
+
+test("requests without an Origin header remain allowed", () => {
+  const allowedOrigins = resolveAllowedOrigins({ APP_ENV: "production", CORS_ORIGINS: "" });
+  const result = validateOrigin(createCorsOriginValidator({ allowedOrigins }), undefined);
+  assert.equal(result.allowed, true);
+  assert.equal(result.error, null);
+});
+
+test("credentialed CORS uses exact origins and never broad Pages matching", () => {
+  const options = createCorsOptions({
+    APP_ENV: "production",
+    CORS_ORIGINS: "https://stroanesolutions.com",
+  });
+  assert.equal(options.credentials, true);
+  assert.equal(validateOrigin(options.origin, "https://stroanesolutions.com").allowed, true);
+  assert.equal(validateOrigin(options.origin, "https://attacker.pages.dev").allowed, false);
 });
 
 test("resolveTrustProxySetting only enables explicit positive proxy hop counts", () => {

@@ -3,10 +3,8 @@ import {
   addAuthInvalidListener,
   AUTH_USER_STORAGE_KEY,
   clearAuthState,
-  getAuthToken,
-  isAuthTokenExpired,
-  setAuthToken,
 } from "../../utils/organization.js";
+import { sanitizeAuthUser } from "./authResponse.js";
 
 const AuthContext = createContext(null);
 const SESSION_VALIDATION_TIMEOUT_MS = 6500;
@@ -22,18 +20,12 @@ function AuthProvider({ children }) {
   const [authReady, setAuthReady] = useState(false);
   const storageKey = AUTH_USER_STORAGE_KEY;
 
-  const sanitizeUser = (value) => {
-    if (!value || typeof value !== "object") return null;
-    const { token: _ignoredToken, ...safeUser } = value;
-    return safeUser;
-  };
-
   const readStoredUser = () => {
     if (typeof window === "undefined") return null;
     const raw = window.localStorage.getItem(storageKey) || window.sessionStorage.getItem(storageKey);
     if (!raw) return null;
     try {
-      return sanitizeUser(JSON.parse(raw));
+      return sanitizeAuthUser(JSON.parse(raw));
     } catch {
       return null;
     }
@@ -41,7 +33,7 @@ function AuthProvider({ children }) {
 
   const writeStoredUser = (nextUser, remember) => {
     if (typeof window === "undefined") return;
-    const safeUser = sanitizeUser(nextUser);
+    const safeUser = sanitizeAuthUser(nextUser);
     if (!safeUser) return;
     try {
       if (remember) {
@@ -58,7 +50,7 @@ function AuthProvider({ children }) {
 
   const updateStoredUser = (nextUser) => {
     if (typeof window === "undefined") return;
-    const safeUser = sanitizeUser(nextUser);
+    const safeUser = sanitizeAuthUser(nextUser);
     if (!safeUser) return;
     try {
       if (window.localStorage.getItem(storageKey)) {
@@ -85,16 +77,8 @@ function AuthProvider({ children }) {
 
     const initializeAuth = async () => {
       const storedUser = readStoredUser();
-      const storedToken = getAuthToken();
       if (storedUser && isActive) {
         setUser(storedUser);
-      }
-
-      const hasLegacyToken = Boolean(storedToken) && !isAuthTokenExpired(storedToken);
-      if (hasLegacyToken) {
-        setAuthToken(storedToken);
-      } else if (storedToken) {
-        setAuthToken(null);
       }
 
       const controller = typeof AbortController === "function" ? new AbortController() : null;
@@ -111,8 +95,7 @@ function AuthProvider({ children }) {
         if (!isActive) return;
 
         if (response.ok) {
-          const nextUser = sanitizeUser(await response.json());
-          setAuthToken(null);
+          const nextUser = sanitizeAuthUser(await response.json());
           setUser(nextUser);
           updateStoredUser(nextUser);
         } else if (response.status === 401 || response.status === 403) {
@@ -153,8 +136,7 @@ function AuthProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Login failed");
-      const safeUser = sanitizeUser(data);
-      setAuthToken(null);
+      const safeUser = sanitizeAuthUser(data);
       setUser(safeUser);
       writeStoredUser(safeUser, remember);
       return safeUser;
@@ -185,7 +167,7 @@ function AuthProvider({ children }) {
       return;
     }
     const baseUser = user && typeof user === "object" ? user : {};
-    const mergedUser = sanitizeUser({ ...baseUser, ...nextUser });
+    const mergedUser = sanitizeAuthUser({ ...baseUser, ...nextUser });
     setUser(mergedUser);
     updateStoredUser(mergedUser);
   };

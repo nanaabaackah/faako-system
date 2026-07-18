@@ -12,6 +12,7 @@
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
     "test": "node --test",
+    "test:security-foundation": "node --test backend/http/app.test.js",
     "test:e2e": "playwright test -c playwright.config.js",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
