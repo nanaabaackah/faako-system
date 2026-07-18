@@ -702,7 +702,7 @@ export default function Projects() {
                 <h2>{stage.label}</h2>
                 <span className="status-pill">{stageProjects.length}</span>
               </div>
-              <div className="projects-column__cards ">
+              <div className="projects-column__cards glass-card">
                 {stageProjects.map((project) => {
                   const stageIndex = getStageIndex(project.stage);
                   const progressPercent = normalizeProjectProgress(project.progressPercent);
@@ -739,29 +739,9 @@ export default function Projects() {
                       </div>
                       <h3>{project.title}</h3>
                       <p className="muted">{project.clientName || project.organization?.name || "Internal"}</p>
-                      <div className="project-card__status-line">
-                        <span className="status-pill">{stage.label}</span>
-                        <span className={`project-health is-${healthTone}`}>{healthLabel}</span>
-                      </div>
-                      <div className="project-progress">
-                        <div className="project-progress__label">
-                          <span>Progress</span>
-                          <strong>{progressPercent}%</strong>
-                        </div>
-                        <div
-                          className="project-progress__track"
-                          role="progressbar"
-                          aria-label={`${project.title} progress`}
-                          aria-valuemin="0"
-                          aria-valuemax="100"
-                          aria-valuenow={progressPercent}
-                        >
-                          <span style={{ width: `${progressPercent}%` }} />
-                        </div>
-                      </div>
                       <div className="project-card__meta">
-                        <span><strong>Due:</strong> {formatDueDate(project.dueDate)}</span>
-                        <span><strong>Budget:</strong> {formatBudget(project)}</span>
+                        <span>{formatDueDate(project.dueDate)}</span>
+                        <span>{formatBudget(project)}</span>
                       </div>
                       <div className="project-card__footer">
                         <div className="project-card__actions">
