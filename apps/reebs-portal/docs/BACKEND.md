@@ -30,6 +30,12 @@ Key responsibilities:
 - Production base URL: `https://api.reebspartythemes.com/api/*`.
 - Legacy `/api/*` remains an API-server alias while browser calls migrate to `/api/*`.
 - Each function now loads the shared runtime env helper, resolves `DATABASE_URL` from the active app environment, and uses `resolvePgSslConfig()` so local Postgres can run with `DATABASE_SSL_MODE="disable"` while hosted Postgres keeps SSL enabled.
+- The standalone API adapter limits active handlers with `REEBS_API_CONCURRENCY_LIMIT`
+  (default `2`) to avoid overwhelming the hosted PostgreSQL proxy.
+- Failed read-only GET handlers are retried up to `REEBS_API_READ_RETRY_LIMIT`
+  times (default `2`) with exponential backoff starting at
+  `REEBS_API_READ_RETRY_DELAY_MS` (default `180`). Mutation requests are never
+  retried automatically.
 - `prisma/schema.prisma` is the source of truth for table definitions.
 - `prismaClient.js` configures Prisma with the Postgres adapter (used by scripts).
 

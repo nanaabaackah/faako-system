@@ -1,9 +1,9 @@
-/* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
+import { serializePgClientQueries } from "./_shared/serializedPgClient.js";
 import { requireUser } from "./_shared/userAuth.js";
 
 const responseHeaders = (event) => ({
@@ -48,10 +48,10 @@ export async function handler(event = {}) {
     ["1", "true", "yes"].includes((event.queryStringParameters?.details || "").toLowerCase()) ||
     ["1", "true", "yes"].includes((event.queryStringParameters?.includeDetails || "").toLowerCase());
 
-  const client = new Client({
+  const client = serializePgClientQueries(new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: resolvePgSslConfig(),
-  });
+  }));
 
   try {
     await client.connect();

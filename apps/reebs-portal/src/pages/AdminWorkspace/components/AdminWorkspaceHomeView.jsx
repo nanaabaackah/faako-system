@@ -367,6 +367,14 @@ function BusinessKpiPanel({ panel, onNavigate }) {
     bars: [],
     max: 1,
   };
+  const revenueTrendInteractive = !revenueTrend.loading && !revenueTrend.error;
+  const stockMovementInteractive = !stockMovement.loading && !stockMovement.error;
+
+  const activateChartCardFromKeyboard = (event, path, enabled) => {
+    if (!enabled || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    onNavigate(path);
+  };
 
   return (
     <PanelShell
@@ -495,10 +503,16 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               </div>
             </button>
 
-            <button
-              type="button"
+            <div
               className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
-              onClick={() => onNavigate(revenueTrend.path)}
+              role={revenueTrendInteractive ? "button" : undefined}
+              tabIndex={revenueTrendInteractive ? 0 : undefined}
+              onClick={() => revenueTrendInteractive && onNavigate(revenueTrend.path)}
+              onKeyDown={(event) => activateChartCardFromKeyboard(
+                event,
+                revenueTrend.path,
+                revenueTrendInteractive
+              )}
             >
               <div className="aw-home-kpi-chart-head">
                 <h3>Revenue trend</h3>
@@ -531,12 +545,18 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               ) : (
                 <p className="aw-muted">No revenue trend yet.</p>
               )}
-            </button>
+            </div>
 
-            <button
-              type="button"
+            <div
               className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
-              onClick={() => onNavigate(stockMovement.path)}
+              role={stockMovementInteractive ? "button" : undefined}
+              tabIndex={stockMovementInteractive ? 0 : undefined}
+              onClick={() => stockMovementInteractive && onNavigate(stockMovement.path)}
+              onKeyDown={(event) => activateChartCardFromKeyboard(
+                event,
+                stockMovement.path,
+                stockMovementInteractive
+              )}
             >
               <div className="aw-home-kpi-chart-head">
                 <h3>Stock movement</h3>
@@ -595,7 +615,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               ) : (
                 <p className="aw-muted">No stock history yet.</p>
               )}
-            </button>
+            </div>
 
             <button
               type="button"
@@ -838,6 +858,64 @@ function CustomerHealthPanel({ panel, onNavigate }) {
   );
 }
 
+function BusinessDetailsSection({
+  kpiPanel,
+  approvalsPanel,
+  teamLoadPanel,
+  customerHealthPanel,
+  activityPanel,
+  onNavigate,
+  formatRelativeTime,
+  formatDateTime,
+}) {
+  const approvalItems = Array.isArray(approvalsPanel?.items) ? approvalsPanel.items : [];
+  const teamRows = Array.isArray(teamLoadPanel?.rows) ? teamLoadPanel.rows : [];
+  const customerCards = Array.isArray(customerHealthPanel?.summaryCards)
+    ? customerHealthPanel.summaryCards
+    : [];
+  const hasCustomerData =
+    customerCards.some((card) => Number(card?.value) > 0)
+    || (customerHealthPanel?.topCustomers?.length || 0) > 0
+    || (customerHealthPanel?.inactiveVipCustomers?.length || 0) > 0;
+
+  return (
+    <details className="aw-dashboard-details">
+      <summary>
+        <span>
+          <strong>Business details</strong>
+          <small>KPIs, approvals, team workload, customer health, and activity</small>
+        </span>
+        <span className="aw-dashboard-details-cue">Show details</span>
+      </summary>
+      <div className="aw-dashboard-details-body">
+        <BusinessKpiPanel panel={kpiPanel} onNavigate={onNavigate} />
+
+        {(approvalItems.length > 0 || teamRows.length > 0) && (
+          <div className="aw-home-grid">
+            {approvalItems.length > 0 && (
+              <ApprovalsPanel panel={approvalsPanel} onNavigate={onNavigate} />
+            )}
+            {teamRows.length > 0 && (
+              <TeamLoadPanel panel={teamLoadPanel} onNavigate={onNavigate} />
+            )}
+          </div>
+        )}
+
+        {hasCustomerData && (
+          <CustomerHealthPanel panel={customerHealthPanel} onNavigate={onNavigate} />
+        )}
+
+        <ActivityPanel
+          panel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
+      </div>
+    </details>
+  );
+}
+
 function ActivityPanel({ panel, onNavigate, formatRelativeTime, formatDateTime }) {
   const safePanel = panel || {};
   const items = Array.isArray(safePanel.items) ? safePanel.items : [];
@@ -998,24 +1076,26 @@ export function AdminWorkspaceHomeView({
       )}
       <RecommendationsPanel items={recommendationItems} onNavigate={onNavigate} />
       <AdvancedInsightsPanel panel={advancedInsightsPanel} onNavigate={onNavigate} />
-      <BusinessKpiPanel panel={kpiPanel} onNavigate={onNavigate} />
 
-      {kpiPanel?.visible && (
-        <>
-          <div className="aw-home-grid">
-            <ApprovalsPanel panel={approvalsPanel} onNavigate={onNavigate} />
-            <TeamLoadPanel panel={teamLoadPanel} onNavigate={onNavigate} />
-          </div>
-          <CustomerHealthPanel panel={customerHealthPanel} onNavigate={onNavigate} />
-        </>
+      {kpiPanel?.visible ? (
+        <BusinessDetailsSection
+          kpiPanel={kpiPanel}
+          approvalsPanel={approvalsPanel}
+          teamLoadPanel={teamLoadPanel}
+          customerHealthPanel={customerHealthPanel}
+          activityPanel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
+      ) : (
+        <ActivityPanel
+          panel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
       )}
-
-      <ActivityPanel
-        panel={activityPanel}
-        onNavigate={onNavigate}
-        formatRelativeTime={formatRelativeTime}
-        formatDateTime={formatDateTime}
-      />
     </section>
   );
 }

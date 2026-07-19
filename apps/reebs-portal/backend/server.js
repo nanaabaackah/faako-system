@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import "../runtimeEnv.js";
 
 import express from "express";
@@ -11,6 +10,53 @@ const backendDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.join(backendDir, "functions");
 const FUNCTION_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const PORT = Number(process.env.PORT || process.env.REEBS_API_PORT || 8888);
+const readIntegerSetting = (value, fallback) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const API_CONCURRENCY_LIMIT = Math.max(
+  1,
+  readIntegerSetting(process.env.REEBS_API_CONCURRENCY_LIMIT, 2)
+);
+const READ_RETRY_LIMIT = Math.max(
+  0,
+  readIntegerSetting(process.env.REEBS_API_READ_RETRY_LIMIT, 2)
+);
+const READ_RETRY_DELAY_MS = Math.max(
+  0,
+  readIntegerSetting(process.env.REEBS_API_READ_RETRY_DELAY_MS, 180)
+);
+
+const requestQueue = [];
+let activeRequestCount = 0;
+
+const acquireRequestSlot = () => {
+  if (activeRequestCount < API_CONCURRENCY_LIMIT) {
+    activeRequestCount += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => requestQueue.push(resolve));
+};
+
+const releaseRequestSlot = () => {
+  const next = requestQueue.shift();
+  if (next) {
+    next();
+    return;
+  }
+  activeRequestCount = Math.max(0, activeRequestCount - 1);
+};
+
+const withRequestSlot = async (operation) => {
+  await acquireRequestSlot();
+  try {
+    return await operation();
+  } finally {
+    releaseRequestSlot();
+  }
+};
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const parseTrustProxySetting = (value) => {
   const normalized = String(value ?? "1").trim().toLowerCase();
@@ -175,7 +221,17 @@ const dispatchFunctionRequest = async (req, res, functionNameInput) => {
       }, { functionName });
     }
 
-    const result = await handler(event, {});
+    const result = await withRequestSlot(async () => {
+      let currentResult = null;
+      for (let attempt = 0; attempt <= READ_RETRY_LIMIT; attempt += 1) {
+        currentResult = await handler(event, {});
+        const statusCode = Number(currentResult?.statusCode || currentResult?.status || 200);
+        const shouldRetry = req.method === "GET" && statusCode >= 500;
+        if (!shouldRetry || attempt === READ_RETRY_LIMIT) return currentResult;
+        await wait(READ_RETRY_DELAY_MS * (2 ** attempt));
+      }
+      return currentResult;
+    });
     return sendFunctionResponse(res, result);
   } catch (error) {
     console.error("REEBS API function failed", {
@@ -201,6 +257,8 @@ export const createReebsApiServer = () => {
       service: "reebs-api",
       adapter: "api-handler-adapter",
       functions: functionFiles.size,
+      concurrencyLimit: API_CONCURRENCY_LIMIT,
+      readRetryLimit: READ_RETRY_LIMIT,
     })
   );
 

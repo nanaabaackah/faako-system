@@ -103,6 +103,7 @@ const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 const mockData = async (page: Page) => {
   const fixtures: Record<string, unknown> = {
     analytics: stubAnalytics,
+    authSession: stubAdminUser,
     bouncy_castles: stubBouncyTypes,
     bookings: [],
     createOrder: { id: 1, orderNumber: 'ORD-1' },
@@ -574,6 +575,31 @@ test.describe('REEBS Party Themes Pages', () => {
         await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
       });
     }
+
+    test('keeps secondary dashboard details collapsed on desktop', async ({ page }) => {
+      test.setTimeout(120000);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/admin');
+
+      const details = page.locator('.aw-dashboard-details');
+      await expect(details).toBeVisible({ timeout: 60000 });
+      await expect(details).not.toHaveAttribute('open', '');
+      await expect(page.getByRole('heading', { name: /business overview/i })).toBeHidden();
+      await expect(page.locator('.aw-nav')).toBeHidden();
+
+      await details.getByText(/business details/i).click();
+      await expect(details).toHaveAttribute('open', '');
+      await expect(page.getByRole('heading', { name: /business overview/i })).toBeVisible();
+    });
+
+    test('retains the compact navigation on mobile', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto('/admin');
+
+      await expect(page.locator('.aw-nav')).toBeVisible();
+      await expect(page.locator('.aw-dashboard-details')).toBeVisible();
+      await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 390);
+    });
   });
 
   // -----------------------------
