@@ -195,7 +195,7 @@ Frontend route guards are navigation boundaries only. Protected `/api/admin/*` e
 - Railway API pre-deploy migration command: `pnpm --filter @faako/stroane-web run db:deploy:prod`
 - Railway API start command: `node ./scripts/railway-service.mjs start`
 - Cloudflare Pages public API base: `VITE_API_BASE_URL=https://api.stroanesolutions.com`
-- Browser CORS origins: `https://stroanesolutions.com`, `https://www.stroanesolutions.com`, `https://portal.stroanesolutions.com`, approved local development origins, and Cloudflare Pages preview domains ending in `.pages.dev`.
+- Browser CORS origins: exact origins configured through `CORS_ORIGINS`; development also has known localhost defaults. Cloudflare Pages previews are disabled by default and only an exact configured owned preview origin is accepted.
 
 Cloudflare Pages is the frontend host. Railway hosts the API and Postgres database.
 

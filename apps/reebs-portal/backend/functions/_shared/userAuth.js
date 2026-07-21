@@ -61,7 +61,7 @@ const shouldUseSecureCookies = (event) => {
   return host ? !isLocalHostValue(host) : true;
 };
 
-const resolveCookieDomain = (event) => {
+const resolveCookieDomain = () => {
   const configuredDomain = String(process.env.USER_SESSION_COOKIE_DOMAIN || "").trim();
   if (configuredDomain && !isLocalHostValue(configuredDomain)) {
     return configuredDomain;
@@ -115,6 +115,8 @@ export const verifyUserToken = (token) => {
 };
 
 export const getBearerUserTokenFromEvent = (event) => {
+  // Temporary legacy compatibility for supported non-browser clients. New web
+  // sessions authenticate only through the HttpOnly session cookie.
   const header = event?.headers?.authorization || event?.headers?.Authorization || "";
   if (!header || !header.toLowerCase().startsWith("bearer ")) return null;
   return header.slice(7).trim() || null;

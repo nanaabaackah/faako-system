@@ -26,9 +26,19 @@ test("module capability routes cover authenticated productivity surfaces", () =>
   assert.deepEqual(resolveModulesForPath("/api/ai/productivity-coach"), ["dashboard"]);
 });
 
+test("system health AI diagnostics require system health module access", () => {
+  assert.deepEqual(
+    resolveModulesForPath("/api/ai/system-health-diagnosis"),
+    ["system-health"]
+  );
+});
+
 test("projects API is protected by the projects module", () => {
   assert.deepEqual(resolveModulesForPath("/api/projects"), ["projects"]);
   assert.deepEqual(resolveModulesForPath("/api/projects/12"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/tasks"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/tasks/4/status"), ["projects"]);
+  assert.deepEqual(resolveModulesForPath("/api/projects/12/task-assignees"), ["projects"]);
 });
 
 test("Faako onboarding API is protected by the onboarding module", () => {

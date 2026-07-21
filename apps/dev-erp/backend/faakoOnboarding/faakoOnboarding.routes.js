@@ -1211,17 +1211,6 @@ export const registerFaakoOnboardingRoutes = (app, {
     );
     const updatedRow = updateResult.rows[0];
     const submission = serializeFaakoOnboardingSubmission(updatedRow, { includeDetail: true });
-    let project = null;
-    if (patch.changedFields.includes("status") && submission.status.value === "CONVERTED") {
-      try {
-        project = await ensureProjectForConvertedSubmission({ prisma, req, submission });
-      } catch (projectError) {
-        project = {
-          created: false,
-          error: projectError.message || "Converted project could not be created.",
-        };
-      }
-    }
 
     await recordFaakoOnboardingAudit({
       prisma,
@@ -1234,12 +1223,12 @@ export const registerFaakoOnboardingRoutes = (app, {
         changedFields: patch.changedFields,
         status: submission.status.value,
         assignedOwner: submission.assignedOwner || null,
-        convertedProject: projectResult,
+        convertedProject: project || projectResult,
       },
       appEnv,
     });
 
-    return res.json({ submission, changedFields: patch.changedFields, project: projectResult });
+    return res.json({ submission, changedFields: patch.changedFields, project: project || projectResult });
   });
 
   app.use("/api/faako-onboarding", router);

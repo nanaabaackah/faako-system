@@ -74,7 +74,7 @@ Do not place database URLs, Paystack secrets, Resend keys, auth secrets, service
 - `NODE_ENV`: usually `development` locally and `production` on hosted API services.
 - `APP_ENV`: `development`, `staging`, or `production`; used by Prisma/env resolution.
 - `PORT`: backend server port.
-- `CORS_ORIGINS`: comma-separated allowed browser origins.
+- `CORS_ORIGINS`: comma-separated exact allowed browser origins. It is required for hosted production/staging; development alone receives known localhost defaults.
 - `TRUST_PROXY_HOPS`: trusted proxy hop count, usually `1` on Railway after verification.
 - `APP_AUTH_SECRET`: backend-only signing secret for private admin/viewer sessions.
 - `STROANE_ADMIN_AUTH_COOKIE_NAME`: optional staff cookie name override. Defaults to `stroane_admin_session`.
@@ -124,7 +124,7 @@ Delivery address search is intentionally proxied through the Stroane API at
 `GET /api/location/search` so the browser does not receive provider endpoints,
 provider keys, database credentials, or server-side request headers.
 
-Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com` on the Railway API service for explicit production config. The backend also allows these origins by default and supports Cloudflare Pages preview origins ending in `.pages.dev`; do not use wildcard CORS with credentials.
+Set `CORS_ORIGINS=https://stroanesolutions.com,https://www.stroanesolutions.com,https://portal.stroanesolutions.com` on the Railway API service. The backend no longer trusts all `.pages.dev` hosts. If an owned Pages preview is needed for development, add that one exact origin to `CORS_ORIGINS`; do not use wildcard or suffix-based CORS with credentials.
 
 Current staff authentication stores only staff profile metadata in portal-origin
 `sessionStorage`; the credential is an HttpOnly staff cookie. Current customer

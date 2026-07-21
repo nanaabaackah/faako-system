@@ -542,6 +542,9 @@ function AdminWorkspace({ section = "home" }) {
   const [kpiStats, setKpiStats] = useState(null);
   const [kpiLoading, setKpiLoading] = useState(false);
   const [kpiError, setKpiError] = useState("");
+  const [advancedAnalytics, setAdvancedAnalytics] = useState(null);
+  const [advancedAnalyticsLoading, setAdvancedAnalyticsLoading] = useState(false);
+  const [advancedAnalyticsError, setAdvancedAnalyticsError] = useState("");
   const [dashboardWindow, setDashboardWindow] = useState("30d");
   const [financialStats, setFinancialStats] = useState({
     cashflow: [],
@@ -1051,6 +1054,28 @@ function AdminWorkspace({ section = "home" }) {
     }
   }, [activeWindowConfig.orderStatsWindow, canViewHomeKpis, normalizeKpiStats]);
 
+  const fetchAdvancedAnalytics = useCallback(async () => {
+    if (!canViewHomeKpis) {
+      setAdvancedAnalytics(null);
+      setAdvancedAnalyticsError("");
+      return;
+    }
+    setAdvancedAnalyticsLoading(true);
+    setAdvancedAnalyticsError("");
+    try {
+      const response = await fetch(`/api/advancedAnalytics?ts=${Date.now()}`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load advanced insights.");
+      }
+      setAdvancedAnalytics(payload && typeof payload === "object" ? payload : null);
+    } catch (error) {
+      setAdvancedAnalyticsError(error.message || "Unable to load advanced insights.");
+    } finally {
+      setAdvancedAnalyticsLoading(false);
+    }
+  }, [canViewHomeKpis]);
+
   const fetchFinancialStats = useCallback(async () => {
     if (!canViewHomeKpis) {
       const emptyState = {
@@ -1373,12 +1398,14 @@ function AdminWorkspace({ section = "home" }) {
   useEffect(() => {
     if (activeSection !== "home" || !canViewHomeKpis) return;
     fetchHomeKpis();
+    fetchAdvancedAnalytics();
     fetchFinancialStats();
     fetchStockActivity();
     fetchDirectoryKpis();
   }, [
     activeSection,
     canViewHomeKpis,
+    fetchAdvancedAnalytics,
     fetchDirectoryKpis,
     fetchFinancialStats,
     fetchHomeKpis,
@@ -2257,15 +2284,49 @@ function AdminWorkspace({ section = "home" }) {
   const refreshHomeDashboard = useCallback(() => {
     fetchWorkflowData();
     fetchHomeKpis();
+    fetchAdvancedAnalytics();
     fetchFinancialStats();
     fetchStockActivity();
     fetchDirectoryKpis();
   }, [
     fetchDirectoryKpis,
+    fetchAdvancedAnalytics,
     fetchFinancialStats,
     fetchHomeKpis,
     fetchStockActivity,
     fetchWorkflowData,
+  ]);
+
+  const advancedInsightsPanel = useMemo(() => {
+    const forecast = advancedAnalytics?.forecast || {};
+    const demand = advancedAnalytics?.demand || {};
+    const customer = advancedAnalytics?.customer || {};
+    const direction = forecast.direction === "up" ? "growing" : forecast.direction === "down" ? "softening" : "steady";
+    const confidence = String(forecast.confidence || "low").toLowerCase();
+    const repeat = toNumber(customer.repeat);
+    const total = toNumber(customer.total);
+    return {
+      visible: canViewHomeKpis,
+      loading: advancedAnalyticsLoading,
+      error: advancedAnalyticsError,
+      connected: Boolean(advancedAnalytics?.service?.connected),
+      serviceMessage: advancedAnalytics?.service?.message || "Read-only forecasting from aggregated operating data.",
+      forecastValue: toCurrency(toNumber(forecast.next30RevenueCents) / 100, "GHS"),
+      forecastMeta: `${confidence} confidence • ${direction}${toNumber(forecast.changePct) ? ` ${Math.abs(toNumber(forecast.changePct))}%` : ""}`,
+      peakWeekday: demand.peakWeekday || "No pattern yet",
+      bookingForecastMeta: `${toNumber(demand.bookingForecastNext30)} bookings predicted in 30 days`,
+      repeatRate: Math.max(0, Math.min(100, Math.round(toNumber(customer.repeatRate)))),
+      repeatCustomerMeta: `${repeat} of ${total} active customer${total === 1 ? "" : "s"}`,
+      insights: Array.isArray(advancedAnalytics?.insights) ? advancedAnalytics.insights : [],
+      inventoryRisks: Array.isArray(advancedAnalytics?.inventoryRisks) ? advancedAnalytics.inventoryRisks : [],
+      onRefresh: fetchAdvancedAnalytics,
+    };
+  }, [
+    advancedAnalytics,
+    advancedAnalyticsError,
+    advancedAnalyticsLoading,
+    canViewHomeKpis,
+    fetchAdvancedAnalytics,
   ]);
 
   const toggleAssignedWorkItem = useCallback((itemKey) => {
@@ -2944,6 +3005,7 @@ function AdminWorkspace({ section = "home" }) {
       homeSummaryCards={homeSummaryCards}
       homeQuickActions={homeQuickActions}
       recommendationItems={recommendationItems}
+      advancedInsightsPanel={advancedInsightsPanel}
       kpiPanel={businessKpiPanel}
       approvalsPanel={approvalsPanel}
       teamLoadPanel={teamLoadPanel}

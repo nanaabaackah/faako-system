@@ -19,6 +19,30 @@ const SESSION_ONLY_TTL_MS = 1000 * 60 * 60 * 12;
 const respond = (event, statusCode, payload = {}, extraHeaders = {}) =>
   json(event, statusCode, payload, { methods: "POST, OPTIONS", extraHeaders });
 
+export const toSafeLoginUser = (user = {}) => ({
+  id: user.id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  fullName: user.fullName,
+  email: user.email,
+  personalEmail: user.personalEmail,
+  role: user.role,
+  organizationId: user.organizationId,
+});
+
+export const buildSuccessfulLoginResponse = (
+  event,
+  { user, session, token, sessionTtlMs }
+) => respond(event, 200, {
+  ...toSafeLoginUser(user),
+  authenticatedAt: session.createdAt,
+  sessionCreatedAt: session.createdAt,
+  sessionLastSeenAt: session.lastSeenAt,
+  expiresInHours: Math.round(sessionTtlMs / (1000 * 60 * 60)),
+}, {
+  "Set-Cookie": buildUserSessionCookie(event, token, { ttlMs: sessionTtlMs }),
+});
+
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204);
@@ -136,8 +160,6 @@ export async function handler(event) {
       );
     }
 
-    // Strip password and lockout fields before returning
-    const { password: _, loginAttempts: __, lockedUntil: ___, ...safeUser } = user;
     await ensureUserSessionsTable(client);
     const session = await createUserSession(client, {
       organizationId: user.organizationId,
@@ -169,16 +191,11 @@ export async function handler(event) {
       ipAddress: getEventIpAddress(event),
     });
 
-    const sessionCookie = buildUserSessionCookie(event, token, { ttlMs: sessionTtlMs });
-    return respond(event, 200, {
-      ...safeUser,
-      authenticatedAt: session.createdAt,
-      sessionCreatedAt: session.createdAt,
-      sessionLastSeenAt: session.lastSeenAt,
+    return buildSuccessfulLoginResponse(event, {
+      user,
+      session,
       token,
-      expiresInHours: Math.round(sessionTtlMs / (1000 * 60 * 60)),
-    }, {
-      "Set-Cookie": sessionCookie,
+      sessionTtlMs,
     });
   } catch (err) {
     logger.error({ err }, "Login error");

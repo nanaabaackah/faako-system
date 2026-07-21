@@ -40,6 +40,32 @@ test("buildSiteStatus preserves configured and unconfigured apps", async () => {
   assert.equal(result[1].pages[0].url, null);
 });
 
+test("buildSiteStatus preserves diagnostic evidence returned by a URL check", async () => {
+  const result = await buildSiteStatus({
+    sites: [
+      {
+        id: "api",
+        baseUrl: "https://api.example.com",
+        pages: [{ label: "Health", path: "/health" }],
+      },
+    ],
+    checkUrlStatus: async () => ({
+      status: "degraded",
+      httpStatus: 401,
+      responseTimeMs: 84,
+      checkedAt: "2026-07-11T12:00:00.000Z",
+      finalUrl: "https://api.example.com/health",
+      method: "HEAD",
+      errorType: "http_error",
+    }),
+  });
+
+  assert.equal(result[0].pages[0].status, "degraded");
+  assert.equal(result[0].pages[0].httpStatus, 401);
+  assert.equal(result[0].pages[0].responseTimeMs, 84);
+  assert.equal(result[0].pages[0].errorType, "http_error");
+});
+
 test("buildSiteStatusFallback keeps missing URLs explicitly not configured", () => {
   const result = buildSiteStatusFallback([
     { id: "hosted", baseUrl: "https://example.com", pages: [{ path: "/" }] },

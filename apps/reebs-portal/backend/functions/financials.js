@@ -1,8 +1,8 @@
-/* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
+import { serializePgClientQueries } from "./_shared/serializedPgClient.js";
 import {
   EXPENSE_CATEGORIES,
   buildExpenseFilter,
@@ -460,10 +460,10 @@ export async function handler(event = {}) {
     return respond(event, 204, {}, { methods: "GET,OPTIONS" });
   }
 
-  const client = new Client({
+  const client = serializePgClientQueries(new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: resolvePgSslConfig(),
-  });
+  }));
 
   const windowKey = (event.queryStringParameters?.window || "thisMonth").trim();
   const { start, end, label } = getWindowRange(windowKey);

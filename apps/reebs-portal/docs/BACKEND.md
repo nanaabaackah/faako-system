@@ -10,6 +10,19 @@ Key responsibilities:
 - Accounting, expenses, invoicing
 - Delivery planning and HR records
 - Marketing discounts
+- Organization-scoped dashboard aggregates and optional read-only Python analytics
+
+## Advanced Analytics Boundary
+
+- `GET /api/advancedAnalytics` is restricted to users with `financials:read`.
+- The Node handler reads organization-scoped aggregates for revenue, booking demand,
+  stock velocity, and customer repeat activity.
+- When `REEBS_ANALYTICS_SERVICE_URL` is configured, Node sends only those aggregates
+  to the isolated FastAPI service in `services/reebs-analytics`.
+- The Python service has no database connection and cannot mutate orders, payments,
+  bookings, inventory, or customers.
+- Node validates the returned organization scope and falls back to local deterministic
+  forecasting if the service is unavailable.
 
 ## Runtime and Data Access
 - API wrapper lives in `backend/server.js`.
@@ -17,6 +30,12 @@ Key responsibilities:
 - Production base URL: `https://api.reebspartythemes.com/api/*`.
 - Legacy `/api/*` remains an API-server alias while browser calls migrate to `/api/*`.
 - Each function now loads the shared runtime env helper, resolves `DATABASE_URL` from the active app environment, and uses `resolvePgSslConfig()` so local Postgres can run with `DATABASE_SSL_MODE="disable"` while hosted Postgres keeps SSL enabled.
+- The standalone API adapter limits active handlers with `REEBS_API_CONCURRENCY_LIMIT`
+  (default `2`) to avoid overwhelming the hosted PostgreSQL proxy.
+- Failed read-only GET handlers are retried up to `REEBS_API_READ_RETRY_LIMIT`
+  times (default `2`) with exponential backoff starting at
+  `REEBS_API_READ_RETRY_DELAY_MS` (default `180`). Mutation requests are never
+  retried automatically.
 - `prisma/schema.prisma` is the source of truth for table definitions.
 - `prismaClient.js` configures Prisma with the Postgres adapter (used by scripts).
 
@@ -25,7 +44,7 @@ Key responsibilities:
 - Endpoint: `POST /api/login`
 - Validates user credentials from the `user` table.
 - Passwords are hashed with `utils/passwords.js` (scrypt).
-- Returns a signed token with `USER_APP_SECRET`.
+- Sets a signed session token only in the secure HttpOnly session cookie and returns safe user/session metadata without the raw token.
 
 ### Manager Login (Mobile App)
 - Endpoint: `POST /api/managerLogin`
@@ -33,9 +52,9 @@ Key responsibilities:
 - Returns manager token signed with `MANAGER_APP_SECRET`.
 
 ### Token Handling
-- Staff token is validated by `requireUser()` in `backend/functions/_shared/userAuth.js`.
+- Staff cookie sessions are validated by `requireUser()` in `backend/functions/_shared/userAuth.js`. Bearer-token parsing remains temporarily for supported legacy non-browser clients but is not emitted by login responses.
 - Manager token is validated by `getManagerFromEvent()` in `backend/functions/_shared/managerAuth.js`.
-- Frontend includes credentials and attaches the token as `Authorization: Bearer <token>` for API calls when a legacy token is present.
+- Frontend includes credentials for cookie sessions. An already-present legacy token may still be attached during the temporary compatibility period.
 
 ## Organization Scoping
 - `backend/functions/_shared/organization.js` resolves `organizationId` from:
@@ -95,7 +114,9 @@ Response:
   "email": "ama_mensah@reebs.com",
   "role": "staff",
   "organizationId": 1,
-  "token": "<jwt-like token>",
+  "authenticatedAt": "2026-07-18T10:00:00.000Z",
+  "sessionCreatedAt": "2026-07-18T10:00:00.000Z",
+  "sessionLastSeenAt": "2026-07-18T10:00:00.000Z",
   "expiresInHours": 168
 }
 ```
