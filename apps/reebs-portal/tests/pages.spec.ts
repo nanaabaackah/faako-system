@@ -603,7 +603,7 @@ test.describe('REEBS Party Themes Pages', () => {
       });
     }
 
-    test('shows the decision dashboard while keeping secondary operations collapsed', async ({ page }) => {
+    test('keeps secondary dashboard details collapsed on desktop', async ({ page }) => {
       test.setTimeout(120000);
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/admin');
@@ -611,14 +611,12 @@ test.describe('REEBS Party Themes Pages', () => {
       const details = page.locator('.aw-dashboard-details');
       await expect(details).toBeVisible({ timeout: 60000 });
       await expect(details).not.toHaveAttribute('open', '');
-      await expect(page.getByRole('heading', { name: /business overview/i })).toBeVisible();
-      await expect(page.getByText(/next 30 days/i).first()).toBeVisible();
-      await expect(page.getByRole('heading', { name: /advanced insights/i })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: /business overview/i })).toBeHidden();
       await expect(page.locator('.aw-nav')).toBeHidden();
 
-      await details.getByText(/operations and customers/i).click();
+      await details.getByText(/business details/i).click();
       await expect(details).toHaveAttribute('open', '');
-      await expect(details.locator('.aw-dashboard-details-body')).toBeVisible();
+      await expect(page.getByRole('heading', { name: /business overview/i })).toBeVisible();
     });
 
     test('retains the compact navigation on mobile', async ({ page }) => {

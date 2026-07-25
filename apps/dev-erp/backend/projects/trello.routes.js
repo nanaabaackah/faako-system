@@ -238,67 +238,6 @@ export const createTrelloHandlers = ({
 };
 
 export const registerTrelloRoutes = (app, dependencies) => {
-  if (dependencies.emailSync) {
-    const loadEmailProject = async (req, res) => {
-      const projectId = parseProjectTaskId(req.params.projectId);
-      if (!projectId) {
-        res.status(400).json({ error: "Project id must be a valid number." });
-        return null;
-      }
-      const project = await dependencies.prisma.project.findFirst({
-        where: buildProjectAccessWhere({
-          projectId,
-          organizationId: req.user.organizationId,
-          globalAccess: dependencies.isGlobalAdmin(req.user),
-        }),
-        select: { id: true, organizationId: true },
-      });
-      if (!project) res.status(404).json({ error: "Project not found." });
-      return project;
-    };
-
-    app.get(
-      "/api/projects/:projectId/trello",
-      dependencies.authMiddleware,
-      asyncHandler(async (req, res) => {
-        const project = await loadEmailProject(req, res);
-        if (!project) return;
-        const recentErrors = await dependencies.prisma.projectTask.findMany({
-          where: {
-            projectId: project.id,
-            organizationId: project.organizationId,
-            trelloSyncStatus: "ERROR",
-          },
-          select: { id: true, title: true, trelloLastError: true, trelloCardUrl: true },
-          orderBy: { updatedAt: "desc" },
-          take: 10,
-        });
-        res.json({
-          delivery: dependencies.emailSync.getConfiguration(),
-          connection: null,
-          recentErrors,
-        });
-      })
-    );
-    app.post(
-      "/api/projects/:projectId/trello/tasks/:taskId/sync",
-      dependencies.authMiddleware,
-      asyncHandler(async (req, res) => {
-        const project = await loadEmailProject(req, res);
-        if (!project) return;
-        const taskId = parseProjectTaskId(req.params.taskId);
-        if (!taskId) return res.status(400).json({ error: "Task id must be a valid number." });
-        const task = await dependencies.prisma.projectTask.findFirst({
-          where: { id: taskId, projectId: project.id, organizationId: project.organizationId },
-          select: { id: true },
-        });
-        if (!task) return res.status(404).json({ error: "Task not found." });
-        return res.json(await dependencies.emailSync.syncTask(task.id));
-      })
-    );
-    return;
-  }
-
   const handlers = createTrelloHandlers(dependencies);
   const base = "/api/projects/:projectId/trello";
   app.get(base, dependencies.authMiddleware, asyncHandler(handlers.get));

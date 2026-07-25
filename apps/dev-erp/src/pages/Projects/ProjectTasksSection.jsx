@@ -166,14 +166,14 @@ export default function ProjectTasksSection({
     setError("");
     try {
       const result = await apiPost(`/api/projects/${projectId}/trello/tasks/${task.id}/sync`, {}, {
-        fallbackMessage: "Unable to email task to Trello",
+        fallbackMessage: "Unable to synchronize task with Trello",
       });
       await loadTasks();
-      if (result.synced) setNotice("Task emailed to Trello.");
+      if (result.synced) setNotice("Task synchronized with Trello.");
       else if (result.error) setError(result.error);
-      else setNotice("Trello email-to-board delivery is not configured.");
+      else setNotice("Connect a Trello board before synchronizing this task.");
     } catch (syncError) {
-      setError(syncError.message || "Unable to email task to Trello");
+      setError(syncError.message || "Unable to synchronize task with Trello");
     } finally {
       setUpdatingTaskId(null);
     }
@@ -266,7 +266,7 @@ export default function ProjectTasksSection({
                       <FiEdit2 aria-hidden="true" />
                     </button>
                     {task.trelloSyncStatus !== "SYNCED" ? (
-                      <button className="icon-button" type="button" aria-label={`Email ${task.title} to Trello`} onClick={() => syncTaskWithTrello(task)} disabled={updatingTaskId === task.id}>
+                      <button className="icon-button" type="button" aria-label={`Sync ${task.title} with Trello`} onClick={() => syncTaskWithTrello(task)} disabled={updatingTaskId === task.id}>
                         <FiRefreshCw aria-hidden="true" />
                       </button>
                     ) : null}
@@ -320,7 +320,7 @@ export default function ProjectTasksSection({
                             <FiEdit2 aria-hidden="true" />
                           </button>
                           {task.trelloSyncStatus !== "SYNCED" ? (
-                            <button className="icon-button" type="button" aria-label={`Email ${task.title} to Trello`} onClick={() => syncTaskWithTrello(task)} disabled={updatingTaskId === task.id}>
+                            <button className="icon-button" type="button" aria-label={`Sync ${task.title} with Trello`} onClick={() => syncTaskWithTrello(task)} disabled={updatingTaskId === task.id}>
                               <FiRefreshCw aria-hidden="true" />
                             </button>
                           ) : null}

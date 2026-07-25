@@ -60,7 +60,7 @@ import {
 import { registerProjectTaskRoutes } from "./projects/projectTasks.routes.js";
 import { registerProjectActivityRoutes } from "./projects/projectActivity.routes.js";
 import { registerTrelloRoutes } from "./projects/trello.routes.js";
-import { createTrelloEmailSyncService } from "./projects/trelloEmail.service.js";
+import { createTrelloClient, createTrelloSyncService } from "./projects/trello.service.js";
 import {
   PROJECT_ACTIVITY_ACTIONS,
   recordProjectActivity,
@@ -8139,19 +8139,17 @@ app.patch("/api/projects/:id", authMiddleware, async (req, res) => {
   res.json(serializeProject(updatedProject));
 });
 
-const trelloSync = createTrelloEmailSyncService({
-  prisma,
-  configured: Boolean(resend && EMAIL_PATTERN.test(TRELLO_EMAIL_TO_BOARD_ADDRESS)),
-  sendEmailToBoard: sendTrelloBoardEmail,
-  boardName: TRELLO_EMAIL_BOARD_NAME,
-  listName: TRELLO_EMAIL_LIST_NAME,
-});
+const trelloClient = createTrelloClient();
+const trelloSync = createTrelloSyncService({ prisma, secretCrypto: oauthTokenCrypto, trelloClient });
 registerProjectActivityRoutes(app, { prisma, authMiddleware, isGlobalAdmin });
 registerTrelloRoutes(app, {
   prisma,
   authMiddleware,
   isGlobalAdmin,
-  emailSync: trelloSync,
+  secretCrypto: oauthTokenCrypto,
+  trelloClient,
+  trelloSync,
+  webhookBaseUrl: process.env.TRELLO_WEBHOOK_BASE_URL,
 });
 registerProjectTaskRoutes(app, {
   prisma,

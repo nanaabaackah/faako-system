@@ -8,6 +8,7 @@ import { readStoredSessionUser } from "../../utils/authSession";
 import ProjectFormModal from "./ProjectFormModal";
 import ProjectActivityTimeline from "./ProjectActivityTimeline";
 import ProjectTasksSection from "./ProjectTasksSection";
+import ProjectTrelloSection from "./ProjectTrelloSection";
 import {
   buildProjectForm,
   buildProjectPayload,
@@ -505,6 +506,7 @@ export default function Projects() {
               refreshKey={activityRefreshKey}
             />
 
+            <ProjectTrelloSection projectId={selectedProject.id} isAdmin={isAdmin} />
           </>
         ) : null}
 

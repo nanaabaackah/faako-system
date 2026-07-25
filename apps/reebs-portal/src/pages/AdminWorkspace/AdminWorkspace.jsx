@@ -2330,6 +2330,38 @@ function AdminWorkspace({ section = "home" }) {
     fetchWorkflowData,
   ]);
 
+  const advancedInsightsPanel = useMemo(() => {
+    const forecast = advancedAnalytics?.forecast || {};
+    const demand = advancedAnalytics?.demand || {};
+    const customer = advancedAnalytics?.customer || {};
+    const direction = forecast.direction === "up" ? "growing" : forecast.direction === "down" ? "softening" : "steady";
+    const confidence = String(forecast.confidence || "low").toLowerCase();
+    const repeat = toNumber(customer.repeat);
+    const total = toNumber(customer.total);
+    return {
+      visible: canViewHomeKpis,
+      loading: advancedAnalyticsLoading,
+      error: advancedAnalyticsError,
+      connected: Boolean(advancedAnalytics?.service?.connected),
+      serviceMessage: advancedAnalytics?.service?.message || "Read-only forecasting from aggregated operating data.",
+      forecastValue: toCurrency(toNumber(forecast.next30RevenueCents) / 100, "GHS"),
+      forecastMeta: `${confidence} confidence • ${direction}${toNumber(forecast.changePct) ? ` ${Math.abs(toNumber(forecast.changePct))}%` : ""}`,
+      peakWeekday: demand.peakWeekday || "No pattern yet",
+      bookingForecastMeta: `${toNumber(demand.bookingForecastNext30)} bookings predicted in 30 days`,
+      repeatRate: Math.max(0, Math.min(100, Math.round(toNumber(customer.repeatRate)))),
+      repeatCustomerMeta: `${repeat} of ${total} active customer${total === 1 ? "" : "s"}`,
+      insights: Array.isArray(advancedAnalytics?.insights) ? advancedAnalytics.insights : [],
+      inventoryRisks: Array.isArray(advancedAnalytics?.inventoryRisks) ? advancedAnalytics.inventoryRisks : [],
+      onRefresh: fetchAdvancedAnalytics,
+    };
+  }, [
+    advancedAnalytics,
+    advancedAnalyticsError,
+    advancedAnalyticsLoading,
+    canViewHomeKpis,
+    fetchAdvancedAnalytics,
+  ]);
+
   const toggleAssignedWorkItem = useCallback((itemKey) => {
     setExpandedAssignedWorkKey((current) => (current === itemKey ? "" : itemKey));
   }, []);
@@ -3073,6 +3105,7 @@ function AdminWorkspace({ section = "home" }) {
       homeSummaryCards={homeSummaryCards}
       homeQuickActions={homeQuickActions}
       recommendationItems={recommendationItems}
+      advancedInsightsPanel={advancedInsightsPanel}
       kpiPanel={businessKpiPanel}
       approvalsPanel={approvalsPanel}
       teamLoadPanel={teamLoadPanel}

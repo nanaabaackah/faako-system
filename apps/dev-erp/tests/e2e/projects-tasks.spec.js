@@ -54,6 +54,7 @@ const installTaskApi = async (page, { initialTasks = [initialTask], failStatus =
   let tasks = initialTasks.map((task) => ({ ...task }));
   const writes = [];
   let activityId = 1;
+  let trelloConnection = null;
   let activity = [{
     id: activityId,
     action: "PROJECT_CREATED",
@@ -108,19 +109,43 @@ const installTaskApi = async (page, { initialTasks = [initialTask], failStatus =
       return;
     }
     if (url.pathname === "/api/projects/42/trello" && request.method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ connection: trelloConnection, recentErrors: [] }) });
+      return;
+    }
+    if (url.pathname === "/api/projects/42/trello/discover" && request.method() === "POST") {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({
-        delivery: {
-          mode: "email_to_board",
-          configured: true,
-          boardName: "Delivery Board",
-          listName: "Inbox",
-        },
-        recentErrors: [],
+        board: { id: "board-1", name: "Delivery Board", url: "https://trello.com/b/board-1" },
+        lists: [
+          { id: "list-backlog", name: "Backlog" },
+          { id: "list-todo", name: "To do" },
+          { id: "list-progress", name: "In progress" },
+          { id: "list-review", name: "Review" },
+          { id: "list-blocked", name: "Blocked" },
+          { id: "list-done", name: "Done" },
+        ],
       }) });
       return;
     }
+    if (url.pathname === "/api/projects/42/trello/connection" && request.method() === "PATCH") {
+      const body = request.postDataJSON();
+      trelloConnection = {
+        id: 3,
+        organizationId: 1,
+        boardId: "board-1",
+        boardName: "Delivery Board",
+        boardUrl: "https://trello.com/b/board-1",
+        statusMappings: body.statusMappings,
+        status: "ACTIVE",
+        webhookConfigured: true,
+        webhookId: "webhook-1",
+        lastSyncAt: null,
+        lastError: null,
+      };
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ connection: trelloConnection, webhookError: null }) });
+      return;
+    }
     if (/^\/api\/projects\/42\/trello\/tasks\/\d+\/sync$/.test(url.pathname) && request.method() === "POST") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ synced: true }) });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ synced: Boolean(trelloConnection), skipped: !trelloConnection }) });
       return;
     }
     if (url.pathname === "/api/projects/42/tasks" && request.method() === "GET") {
@@ -299,4 +324,32 @@ test("project detail shows recent activity and refreshes after a task change", a
   await expect(completionEntry).toBeVisible();
   await expect(completionEntry.getByText("Admin User", { exact: true })).toBeVisible();
   await expect(completionEntry.getByText("Task #9", { exact: true })).toBeVisible();
+});
+
+test("administrator connects a Trello board and maps all task statuses", async ({ page }) => {
+  await installTaskApi(page);
+  await page.goto("/projects/42", { waitUntil: "domcontentloaded" });
+
+  await page.getByRole("button", { name: "Connect Trello" }).click();
+  await page.getByLabel("API key").fill("api-key");
+  await page.getByLabel("API token").fill("api-token");
+  await page.getByLabel("Application secret").fill("app-secret");
+  await page.getByLabel("Board ID").fill("board-1");
+  await page.getByRole("button", { name: "Load board lists" }).click();
+  await expect(page.getByText("Loaded Delivery Board.")).toBeVisible();
+
+  const mappings = [
+    ["Backlog", "Backlog"],
+    ["To do", "To do"],
+    ["In progress", "In progress"],
+    ["Review", "Review"],
+    ["Blocked", "Blocked"],
+    ["Done", "Done"],
+  ];
+  for (const [label, option] of mappings) {
+    await chooseDropdown(page, label, option);
+  }
+  await page.getByRole("button", { name: "Save connection" }).click();
+  await expect(page.getByRole("link", { name: /Delivery Board/ })).toBeVisible();
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
 });
