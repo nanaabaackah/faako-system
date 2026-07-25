@@ -58,10 +58,18 @@ export const buildSiteStatus = async ({
   );
   const checkedPages = await mapWithConcurrency(checks, concurrency, async ({ site, page }) => {
     const url = buildSitePageUrl(site, page);
-    const status = url && typeof checkUrlStatus === "function"
+    const checkResult = url && typeof checkUrlStatus === "function"
       ? await checkUrlStatus(url)
       : "not_configured";
-    return { ...page, url, status };
+    const details = checkResult && typeof checkResult === "object"
+      ? checkResult
+      : { status: checkResult };
+    return {
+      ...page,
+      url,
+      ...details,
+      status: details.status || "unknown",
+    };
   });
 
   let checkedPageIndex = 0;
@@ -84,6 +92,10 @@ export const buildSiteStatusFallback = (sites = [], status = "unknown") =>
         ...page,
         url,
         status: url ? status : "not_configured",
+        checkedAt: null,
+        httpStatus: null,
+        responseTimeMs: null,
+        errorType: url ? "check_unavailable" : "not_configured",
       };
     }),
   }));

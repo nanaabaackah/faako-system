@@ -19,10 +19,11 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 ## Current Backend Protections
 
 - Express disables `x-powered-by`.
-- CORS is allowlist-based. Production defaults include the Stroane apex, `www`, and `portal` domains, and Railway should still set `CORS_ORIGINS` explicitly.
+- CORS is exact-allowlist based. Hosted production and staging environments must set `CORS_ORIGINS` explicitly; there is no broad `.pages.dev` suffix trust. Development keeps known localhost defaults, and any owned Cloudflare Pages preview must be listed by its exact origin.
 - `TRUST_PROXY_HOPS` must be explicit before Express trusts proxy-derived client IPs.
 - JSON request bodies are limited to `1mb`.
 - Paystack webhook raw-body capture is limited to `/api/paystack/webhook`.
+- JSON-LD script content uses a dedicated serializer that escapes HTML-significant characters and Unicode line/paragraph separators while preserving the parsed schema value.
 - Global API rate limiting remains in place with method-aware read/write buckets. Tighter route-specific limits cover staff login, customer signup/login/password, staff/customer session routes, inquiry, checkout, protected admin APIs, Paystack initialization, Paystack verification, Paystack webhook routes, and inventory alert checks. The protected admin limiter is mounted once before the admin router stack to avoid multiplying hits across unmatched routers.
 - Unknown API write routes still hit the default deny middleware.
 - Product price, currency, stock status, purchasability, and quantity are validated server-side before order creation and again before Paystack payment initialization.
@@ -83,7 +84,7 @@ Stroane Web is now a customer-facing commerce app with product, inquiry, order, 
 - Cloudflare Pages static responses use `apps/stroane-web/public/_headers`.
 - The frontend CSP allows the intended browser API origin `https://api.stroanesolutions.com`, Paystack, Google Analytics and its regional collection hosts, Cloudflare Insights, and Google Maps frames for the staff order-location map. `script-src-attr 'none'` remains set so inline event-handler attributes stay blocked; `script-src-elem` allows trusted script elements required by deployed analytics/payment hosting.
 - Keep `VITE_*` values browser-safe only. `VITE_API_BASE_URL` is acceptable; secrets, database URLs, provider keys, session keys, and webhook secrets are not. `VITE_BACKEND_BASE_URL` should be treated as a legacy fallback only.
-- Set `CORS_ORIGINS` to the exact deployed frontend origin.
+- Set `CORS_ORIGINS` to every exact deployed frontend origin. Never use `*`, a broad hostname suffix, or an unbounded Pages-preview rule with credentialed CORS.
 - Set `PAYSTACK_CALLBACK_URL` to the public `/checkout/return` URL for the deployed frontend.
 - Set the Paystack webhook URL in Paystack to the deployed backend `/api/paystack/webhook` route.
 - Use HTTPS in production.

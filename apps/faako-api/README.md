@@ -76,7 +76,7 @@ Important behavior:
 
 ## Deployment
 
-Deploy this as a Node/Express service on Railway. Set the Railway service env to `RAILWAY_WORKSPACE=@faako/faako-api`. Run Prisma migrations before starting a hosted backend:
+Deploy this as a Node/Express service on Railway. Set the Railway service env to `RAILWAY_WORKSPACE=@faako/faako-api`. The Railway start script applies pending Prisma migrations before starting the API, and exits without starting when a migration fails:
 
 ```bash
 pnpm --filter @faako/faako-api run prisma:migrate:deploy
@@ -85,5 +85,5 @@ pnpm --filter @faako/faako-api run prisma:migrate:deploy
 Workspace start command:
 
 ```bash
-pnpm --filter @faako/faako-api run server
+pnpm --filter @faako/faako-api run railway:start
 ```

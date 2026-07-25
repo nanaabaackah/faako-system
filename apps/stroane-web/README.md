@@ -218,7 +218,7 @@ The database foundation is additive and uses Prisma/Postgres models for `Catalog
 
 - `VITE_API_BASE_URL`: primary frontend API base URL when the backend is hosted separately
 - `VITE_BACKEND_BASE_URL`: legacy frontend API base URL fallback for older deployments
-- `CORS_ORIGINS`: allowed browser origins for the backend
+- `CORS_ORIGINS`: exact allowed browser origins for the backend; hosted environments must configure every owned origin explicitly, and Cloudflare Pages previews are not trusted by suffix
 - `APP_AUTH_SECRET`: backend-only token signing secret for private `SiteUser` admin/viewer auth
 - `DATABASE_URL`: Railway Postgres default database URL
 - `DATABASE_URL_DEVELOPMENT`: optional development database URL

@@ -7,6 +7,9 @@
     "dev": "pnpm run predeploy:local && pnpm run dev:backend",
     "dev:backend": "node ../../scripts/run-with-env-file.mjs .env.dev -- node src/server.js",
     "server": "node src/server.js",
+    "server:prod": "APP_ENV=production node src/server.js",
+    "server:with-migrate": "APP_ENV=production pnpm run prisma:migrate:deploy && pnpm run server:prod",
+    "railway:start": "pnpm run server:with-migrate",
     "lint": "eslint .",
     "prisma:generate": "node ../../scripts/run-with-env-file.mjs .env.dev -- prisma generate",
     "prisma:migrate": "node ../../scripts/run-with-env-file.mjs .env.dev -- prisma migrate dev",
@@ -14,7 +17,7 @@
     "predeploy:local": "pnpm run prisma:generate && pnpm run prisma:migrate:deploy && pnpm run prisma:migrate:status",
     "predeploy": "pnpm run predeploy:local",
     "build": "echo \"No build step required for faako-api\"",
-    "start": "node src/server.js",
+    "start": "pnpm run server:with-migrate",
     "prisma:migrate:status": "node ../../scripts/run-with-env-file.mjs .env.dev -- prisma migrate status"
   },
   "dependencies": {

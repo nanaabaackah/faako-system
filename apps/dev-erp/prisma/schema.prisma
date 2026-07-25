@@ -7,37 +7,40 @@ datasource db {
 }
 
 model Organization {
-  id        Int       @id @default(autoincrement())
-  name      String
-  slug      String    @unique
-  status    OrgStatus @default(ACTIVE)
+  id                   Int            @id @default(autoincrement())
+  name                 String
+  slug                 String         @unique
+  status               OrgStatus      @default(ACTIVE)
   parentOrganizationId Int?
-  parentOrganization   Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+  parentOrganization   Organization?  @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
   childOrganizations   Organization[] @relation("OrganizationHierarchy")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  roles Role[]
-  users User[]
-  bookings Booking[]
-  bookingSettings BookingSettings?
+  roles                Role[]
+  users                User[]
+  bookings             Booking[]
+  bookingSettings      BookingSettings?
   calendarIntegrations CalendarIntegration[]
-  accountingEntries AccountingEntry[]
-  invoices Invoice[]
-  proposals Proposal[]
-  productivityEntries ProductivityEntry[]
-  productivityTodos ProductivityTodo[]
-  rentTenants RentTenant[]
-  rentPayments RentPayment[]
-  projects Project[]
+  accountingEntries    AccountingEntry[]
+  invoices             Invoice[]
+  proposals            Proposal[]
+  productivityEntries  ProductivityEntry[]
+  productivityTodos    ProductivityTodo[]
+  rentTenants          RentTenant[]
+  rentPayments         RentPayment[]
+  projects             Project[]
+  projectTasks         ProjectTask[]
+  trelloConnection     TrelloConnection?
+  trelloWebhookEvents  TrelloWebhookEvent[]
 
   @@index([parentOrganizationId])
 }
 
 model Role {
-  id             Int           @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   organizationId Int
-  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
   name           String
   description    String?
   permissions    Json?
@@ -48,38 +51,39 @@ model Role {
 }
 
 model User {
-  id             Int           @id @default(autoincrement())
-  organizationId Int
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  roleId         Int
-  role           Role          @relation(fields: [roleId], references: [id])
-  firstName      String
-  lastName       String
-  fullName       String
-  email          String        @unique
-  password       String
-  status         UserStatus    @default(ACTIVE)
-  tokenVersion   Int           @default(0)
-  loginAttempts  Int           @default(0)
-  lockedUntil    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  createdProposals Proposal[] @relation("ProposalCreatedBy")
-  editedProposals Proposal[] @relation("ProposalLastEditedBy")
-  ownedProjects Project[] @relation("ProjectOwner")
-  productivityEntries ProductivityEntry[]
-  productivityTodos ProductivityTodo[]
-  refreshTokens RefreshToken[]
+  id                   Int                 @id @default(autoincrement())
+  organizationId       Int
+  organization         Organization        @relation(fields: [organizationId], references: [id])
+  roleId               Int
+  role                 Role                @relation(fields: [roleId], references: [id])
+  firstName            String
+  lastName             String
+  fullName             String
+  email                String              @unique
+  password             String
+  status               UserStatus          @default(ACTIVE)
+  tokenVersion         Int                 @default(0)
+  loginAttempts        Int                 @default(0)
+  lockedUntil          DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  createdProposals     Proposal[]          @relation("ProposalCreatedBy")
+  editedProposals      Proposal[]          @relation("ProposalLastEditedBy")
+  ownedProjects        Project[]           @relation("ProjectOwner")
+  assignedProjectTasks ProjectTask[]       @relation("ProjectTaskAssignee")
+  productivityEntries  ProductivityEntry[]
+  productivityTodos    ProductivityTodo[]
+  refreshTokens        RefreshToken[]
 }
 
 model RefreshToken {
-  id           Int      @id @default(autoincrement())
-  userId       Int
-  user         User     @relation(fields: [userId], references: [id])
-  tokenHash    String   @unique
-  expiresAt    DateTime
-  revokedAt    DateTime?
-  createdAt    DateTime @default(now())
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
@@ -102,7 +106,7 @@ model AuditLog {
   actorType      String?
   actorLabel     String?
   requestId      String?
-  externalRef    String?   @unique
+  externalRef    String?  @unique
   metadata       Json?
   ipAddress      String?
   createdAt      DateTime @default(now())
@@ -116,24 +120,24 @@ model AuditLog {
 }
 
 model Booking {
-  id            Int            @id @default(autoincrement())
-  organizationId Int
-  organization  Organization   @relation(fields: [organizationId], references: [id])
-  externalId    String?
-  source        BookingSource  @default(MANUAL)
-  title         String
-  description   String?
-  startAt       DateTime
-  endAt         DateTime
-  location      String?
-  meetingLink   String?
-  calendarEventId String?
+  id               Int               @id @default(autoincrement())
+  organizationId   Int
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  externalId       String?
+  source           BookingSource     @default(MANUAL)
+  title            String
+  description      String?
+  startAt          DateTime
+  endAt            DateTime
+  location         String?
+  meetingLink      String?
+  calendarEventId  String?
   calendarProvider CalendarProvider?
-  status        BookingStatus  @default(CONFIRMED)
-  attendeeEmail String?
-  attendeeName  String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  status           BookingStatus     @default(CONFIRMED)
+  attendeeEmail    String?
+  attendeeName     String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([organizationId, externalId, source])
   @@index([organizationId, calendarProvider, calendarEventId])
@@ -141,90 +145,90 @@ model Booking {
 }
 
 model BookingSettings {
-  id             Int           @id @default(autoincrement())
-  organizationId Int           @unique
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  bookingLink    String?
-  calendarEmail  String?
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @unique
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  bookingLink     String?
+  calendarEmail   String?
   defaultLocation String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model ReportConfig {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique
-  isEnabled     Boolean?
-  subjectPrefix String?
-  heading       String?
-  introText     String?
-  footerText    String?
-  contentOptions Json?
-  scheduleFrequency String?
-  scheduleWeekdayUtc Int?
-  scheduleMonthDayUtc Int?
-  scheduleHourUtc Int?
-  scheduleMinuteUtc Int?
+  id                    Int      @id @default(autoincrement())
+  key                   String   @unique
+  isEnabled             Boolean?
+  subjectPrefix         String?
+  heading               String?
+  introText             String?
+  footerText            String?
+  contentOptions        Json?
+  scheduleFrequency     String?
+  scheduleWeekdayUtc    Int?
+  scheduleMonthDayUtc   Int?
+  scheduleHourUtc       Int?
+  scheduleMinuteUtc     Int?
   scheduleDaysBeforeDue Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model AlertPreference {
-  id             Int      @id @default(autoincrement())
-  key            String   @unique
-  emailEnabled   Boolean  @default(false)
-  smsEnabled     Boolean  @default(false)
-  notifyOffline  Boolean  @default(true)
-  notifyDegraded Boolean  @default(true)
+  id              Int      @id @default(autoincrement())
+  key             String   @unique
+  emailEnabled    Boolean  @default(false)
+  smsEnabled      Boolean  @default(false)
+  notifyOffline   Boolean  @default(true)
+  notifyDegraded  Boolean  @default(true)
   emailRecipients String?
   smsRecipients   String?
-  fromEmail      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  fromEmail       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model CalendarIntegration {
-  id               Int              @id @default(autoincrement())
-  organizationId   Int
-  organization     Organization     @relation(fields: [organizationId], references: [id])
-  provider         CalendarProvider
-  accessToken      String
-  refreshToken     String?
-  tokenExpiry      DateTime?
-  scope            String?
-  email            String?
-  calendarId       String?
-  lastSyncedAt     DateTime?
-  channelId        String?
-  channelToken     String?
+  id                Int              @id @default(autoincrement())
+  organizationId    Int
+  organization      Organization     @relation(fields: [organizationId], references: [id])
+  provider          CalendarProvider
+  accessToken       String
+  refreshToken      String?
+  tokenExpiry       DateTime?
+  scope             String?
+  email             String?
+  calendarId        String?
+  lastSyncedAt      DateTime?
+  channelId         String?
+  channelToken      String?
   channelResourceId String?
   channelExpiration DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@unique([organizationId, provider])
 }
 
 model AccountingEntry {
-  id             Int                @id @default(autoincrement())
-  organizationId Int
-  organization   Organization       @relation(fields: [organizationId], references: [id])
-  type           AccountingType
-  status         AccountingStatus
-  source         AccountingSource   @default(MANUAL)
-  sourceRef      String?
+  id                Int                 @id @default(autoincrement())
+  organizationId    Int
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  type              AccountingType
+  status            AccountingStatus
+  source            AccountingSource    @default(MANUAL)
+  sourceRef         String?
   recurringInterval AccountingInterval?
-  invoiceNumber  String?
-  archivedAt     DateTime?
-  currency       CurrencyCode
-  amount         Decimal            @db.Decimal(14, 2)
-  serviceName    String
-  detail         String?
-  paidAt         DateTime?
-  dueAt          DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  invoiceNumber     String?
+  archivedAt        DateTime?
+  currency          CurrencyCode
+  amount            Decimal             @db.Decimal(14, 2)
+  serviceName       String
+  detail            String?
+  paidAt            DateTime?
+  dueAt             DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   @@index([organizationId, type])
   @@index([organizationId, status])
@@ -297,6 +301,7 @@ model Invoice {
   viewToken          String?       @unique
   viewTokenExpiresAt DateTime?
   respondedAt        DateTime?
+  archivedAt         DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -304,6 +309,7 @@ model Invoice {
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, status])
+  @@index([organizationId, archivedAt])
   @@index([organizationId, dueDate])
   @@index([organizationId, issueDate])
   @@index([viewToken])
@@ -325,29 +331,110 @@ model InvoiceLineItem {
 }
 
 model Project {
-  id             Int             @id @default(autoincrement())
-  organizationId Int
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  ownerUserId    Int?
-  ownerUser      User?           @relation("ProjectOwner", fields: [ownerUserId], references: [id])
-  title          String
-  clientName     String?
-  projectType    ProjectType     @default(PERSONAL)
-  stage          ProjectStage    @default(BACKLOG)
-  priority       ProjectPriority @default(MEDIUM)
-  currency       CurrencyCode?
-  budgetAmount   Decimal?        @db.Decimal(14, 2)
-  dueDate        DateTime?       @db.Date
-  description    String?
-  externalRef    String?
-  archivedAt     DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              Int             @id @default(autoincrement())
+  organizationId  Int
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  ownerUserId     Int?
+  ownerUser       User?           @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+  title           String
+  clientName      String?
+  projectType     ProjectType     @default(PERSONAL)
+  stage           ProjectStage    @default(BACKLOG)
+  priority        ProjectPriority @default(MEDIUM)
+  currency        CurrencyCode?
+  budgetAmount    Decimal?        @db.Decimal(14, 2)
+  startDate       DateTime?       @db.Date
+  dueDate         DateTime?       @db.Date
+  progressPercent Int             @default(0)
+  health          ProjectHealth   @default(ON_TRACK)
+  description     String?
+  externalRef     String?
+  archivedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tasks           ProjectTask[]
 
   @@index([organizationId, stage])
   @@index([organizationId, projectType])
   @@index([organizationId, dueDate])
   @@index([ownerUserId])
+}
+
+model ProjectTask {
+  id             Int                 @id @default(autoincrement())
+  organizationId Int
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  projectId      Int
+  project        Project             @relation(fields: [projectId], references: [id])
+  title          String
+  description    String?
+  status         ProjectTaskStatus   @default(BACKLOG)
+  priority       ProjectTaskPriority @default(MEDIUM)
+  assigneeUserId Int?
+  assigneeUser   User?               @relation("ProjectTaskAssignee", fields: [assigneeUserId], references: [id])
+  startDate      DateTime?           @db.Date
+  dueDate        DateTime?           @db.Date
+  completedAt    DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  trelloCardId         String?          @unique
+  trelloCardUrl        String?
+  trelloSyncStatus     TrelloSyncStatus @default(NOT_LINKED)
+  trelloLastSyncSource TrelloSyncSource?
+  trelloLastSyncedAt   DateTime?
+  trelloLastError      String?
+  trelloWebhookEvents  TrelloWebhookEvent[]
+
+  @@index([organizationId, projectId, archivedAt])
+  @@index([projectId, status, archivedAt])
+  @@index([organizationId, assigneeUserId, archivedAt])
+  @@index([projectId, dueDate])
+}
+
+model TrelloConnection {
+  id                 Int                    @id @default(autoincrement())
+  organizationId     Int                    @unique
+  organization       Organization           @relation(fields: [organizationId], references: [id])
+  apiKeyEncrypted    String
+  apiTokenEncrypted  String
+  appSecretEncrypted String
+  boardId            String
+  boardName          String?
+  boardUrl           String?
+  statusMappings     Json
+  status             TrelloConnectionStatus @default(ACTIVE)
+  webhookId          String?                @unique
+  webhookCallbackUrl String?
+  lastSyncAt         DateTime?
+  lastError          String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  webhookEvents      TrelloWebhookEvent[]
+
+  @@index([status])
+}
+
+model TrelloWebhookEvent {
+  id               Int                      @id @default(autoincrement())
+  organizationId   Int
+  organization     Organization             @relation(fields: [organizationId], references: [id])
+  connectionId     Int
+  connection       TrelloConnection         @relation(fields: [connectionId], references: [id])
+  taskId           Int?
+  task             ProjectTask?             @relation(fields: [taskId], references: [id])
+  actionId         String                   @unique
+  actionType       String
+  cardId           String?
+  clientIdentifier String?
+  status           TrelloWebhookEventStatus
+  error            String?
+  processedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([connectionId, createdAt])
+  @@index([taskId, createdAt])
 }
 
 model Proposal {
@@ -507,6 +594,51 @@ enum ProjectPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum ProjectHealth {
+  ON_TRACK
+  AT_RISK
+  BLOCKED
+}
+
+enum ProjectTaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  BLOCKED
+  DONE
+}
+
+enum ProjectTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TrelloConnectionStatus {
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+enum TrelloSyncStatus {
+  NOT_LINKED
+  SYNCED
+  ERROR
+}
+
+enum TrelloSyncSource {
+  DEV_ERP
+  TRELLO
+}
+
+enum TrelloWebhookEventStatus {
+  PROCESSED
+  IGNORED
+  ERROR
 }
 
 enum RentTenantStatus {

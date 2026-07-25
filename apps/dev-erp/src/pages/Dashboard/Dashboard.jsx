@@ -54,7 +54,6 @@ const BOOKING_STATUS_OPTIONS = [
   { value: "TENTATIVE", label: "Tentative" },
   { value: "CANCELED", label: "Canceled" },
 ];
-const MONITORING_PREVIEW_LIMIT = 3;
 
 const DEFAULT_SLOT_FORM = {
   title: "",

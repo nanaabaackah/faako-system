@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   FAAKO_ONBOARDING_STATUS_OPTIONS,
+  buildUpdatePatch,
   buildWizardSections,
   serializeFaakoOnboardingSubmission,
 } from "./faakoOnboarding.routes.js";
@@ -132,4 +133,39 @@ test("serializeFaakoOnboardingSubmission exposes archive metadata", () => {
 
   assert.equal(submission.archivedAt, "2026-06-18T11:00:00.000Z");
   assert.equal(submission.archivedBy, "Admin User");
+});
+
+test("status updates ignore empty legacy management fields before the Faako migration", () => {
+  const patch = buildUpdatePatch({
+    body: {
+      status: "REVIEWED",
+      internalNotes: "",
+      assignedOwner: "",
+    },
+    existingRow: {
+      ...sampleRow,
+      status: "NEW",
+      internalNotes: undefined,
+      assignedOwner: undefined,
+      activityTimeline: undefined,
+    },
+    columns: new Set(["status", "updatedAt"]),
+    user: { fullName: "Admin User" },
+  });
+
+  assert.equal(patch.error, undefined);
+  assert.deepEqual(patch.changedFields, ["status"]);
+  assert.equal(patch.updates.includes('"status" = $1'), true);
+});
+
+test("non-empty management fields still require the Faako migration", () => {
+  const patch = buildUpdatePatch({
+    body: { status: "REVIEWED", internalNotes: "Follow up tomorrow." },
+    existingRow: { ...sampleRow, status: "NEW", internalNotes: undefined },
+    columns: new Set(["status", "updatedAt"]),
+    user: { fullName: "Admin User" },
+  });
+
+  assert.equal(patch.errorStatus, 409);
+  assert.match(patch.error, /Faako migration/i);
 });

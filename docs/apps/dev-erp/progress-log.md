@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Security headers before JSON parsing
+
+Date: 2026-07-18
+Feature/change name: Parser-error security-header coverage
+What changed: Moved the existing Dev ERP shared security-header middleware ahead of `express.json` while preserving the versioned API alias, CORS position, 1 MB limit, Trello raw-body capture, request logging, rate limiting, CSRF, capability checks, routes, and centralized error handling. Added HTTP-level tests for normal responses, malformed JSON, oversized JSON, CORS rejection, and middleware progression.
+Why it changed: JSON parser failures occurred before the normal security headers were installed, so malformed and oversized JSON responses could miss the API header baseline.
+Files changed: apps/dev-erp/backend/http/app.js, apps/dev-erp/backend/http/app.test.js, apps/dev-erp/package.json, apps/dev-erp/README.md, docs/apps/dev-erp/progress-log.md, docs/platform/security-status.md.
+Data impact: None. No schema, migration, seed, project, task, booking, appointment, accounting, rent, invoice, user, or integration data changed.
+Security impact: Positive. Normal, malformed, and oversized JSON responses now retain CSP, frame protection, and content-type protection without exposing internal production error details.
+Testing done: Focused HTTP middleware tests passed with 4 tests. Full Dev ERP tests passed with 196 tests. TypeScript check, changed-file ESLint, production build, repository security scan, and security gate passed. Full Dev ERP lint retains one pre-existing unrelated unused `project` variable in `backend/faakoOnboarding/faakoOnboarding.routes.js:1219`.
+Rollback notes: Restore the prior middleware order only if an unexpected integration dependency is proven; keep CORS before headers and preserve Trello raw-body capture and the 1 MB parser limit.
+Next step: Browser/API-smoke a normal authenticated request and inspect malformed and oversized JSON responses after deployment.
+
 ### Module run-through, finance handoff, and Projects Kanban
 
 Date: 2026-07-04

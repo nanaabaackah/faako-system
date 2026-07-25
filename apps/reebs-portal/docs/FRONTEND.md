@@ -19,7 +19,7 @@ The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythe
 
 ## Entry Points and Boot
 - `src/main.jsx` bootstraps the React app and calls `patchOrganizationFetch()`.
-- `patchOrganizationFetch()` maps legacy function paths to `/api/*`, includes credentials, and injects `x-organization-id` and `Authorization` headers when available.
+- `patchOrganizationFetch()` maps legacy function paths to `/api/*`, includes credentials, and injects `x-organization-id`. It may attach an already-present legacy bearer token during the temporary compatibility period, but new browser logins use only the HttpOnly session cookie.
 - `src/App.jsx` wires routing, auth gating, cart overlay, and global UI shell.
 
 ## System Architecture (High Level)
@@ -75,11 +75,11 @@ Protected routes use `RequireAuth` in `src/App.jsx`. Some admin routes are block
 
 ## State Management
 ### AuthContext
-Location: `src/components/AuthContext.jsx`
-- Stores the logged-in user and token in localStorage or sessionStorage.
-- `login(email, password, remember)` calls `/api/login` and stores token.
-- `logout()` clears stored user and token.
-- `updateUser()` merges profile updates and keeps token.
+Location: `src/components/AuthContext/AuthContext.jsx`
+- Stores only safe logged-in user/profile metadata in localStorage or sessionStorage.
+- `login(email, password, remember)` calls `/api/login`; authentication is carried by the secure HttpOnly session cookie, not a response token.
+- `logout()` clears stored profile metadata and closes the cookie session.
+- `updateUser()` merges and sanitizes safe profile updates.
 
 ### CartContext
 Location: `src/components/CartContext.jsx`
@@ -94,8 +94,8 @@ Location: `src/components/CurrencyContext.jsx`
 
 ## API Integration
 All API calls should resolve through `/api/*` on the configured API base.
-- `patchOrganizationFetch()` automatically maps legacy `/api/*` paths to `/api/*`, includes credentials, and adds `x-organization-id` and `Authorization` headers if present.
-- Auth token is stored in `window.__reebsAuthToken` and local/session storage.
+- `patchOrganizationFetch()` automatically maps legacy `/api/*` paths to `/api/*`, includes credentials, and adds `x-organization-id`. A previously supplied in-memory legacy bearer token may still be attached temporarily for supported compatibility clients.
+- New frontend login responses contain no token, and the frontend does not store or persist a new session token.
 - Set `VITE_API_BASE_URL` to override the API host (production: `https://api.reebspartythemes.com`). `VITE_BACKEND_BASE_URL` is a legacy fallback.
 
 Caching:
@@ -193,6 +193,12 @@ Each admin page consumes a focused API endpoint:
 - Delivery: `/api/deliveries`
 - Marketing/Discounts: `/api/marketing`
 - Dashboard KPIs: `/api/orderStats`, `/api/userStats`
+- Advanced dashboard insights: `/api/advancedAnalytics` with a safe Node fallback
+
+The dashboard keeps immediate work and attention items first. Privileged users also
+see an Advanced Insights panel with a 30-day revenue projection, booking day patterns,
+repeat-customer rate, and predicted inventory cover. The panel identifies whether the
+result came from the isolated Python service or the built-in fallback.
 
 ## UI and Styling
 - Global styles: `src/index.css`, `src/styles/reset.css`.

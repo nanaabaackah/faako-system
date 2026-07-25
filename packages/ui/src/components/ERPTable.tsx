@@ -283,6 +283,12 @@ export function ERPTable<Row>({
   rowKey,
   rowActions,
   rowActionsHeader = "Actions",
+  selectable = false,
+  selectedRowKeys = [],
+  onSelectedRowKeysChange,
+  getRowSelectionDisabled,
+  getRowSelectLabel,
+  selectAllLabel = "Select all rows",
   state = "ready",
   loadingMessage = "Loading rows...",
   emptyTitle = "No rows to show",
@@ -311,6 +317,12 @@ export function ERPTable<Row>({
   rowKey: keyof Row | ((row: Row, index: number) => string | number);
   rowActions?: (row: Row, rowIndex: number) => ReactNode;
   rowActionsHeader?: ReactNode;
+  selectable?: boolean;
+  selectedRowKeys?: Array<string | number> | Set<string | number>;
+  onSelectedRowKeysChange?: (nextSelectedRowKeys: string[]) => void;
+  getRowSelectionDisabled?: (row: Row, rowIndex: number) => boolean;
+  getRowSelectLabel?: (row: Row, rowIndex: number) => string;
+  selectAllLabel?: string;
   state?: ERPTableState;
   loadingMessage?: ReactNode;
   emptyTitle?: ReactNode;
@@ -333,6 +345,46 @@ export function ERPTable<Row>({
 
   const getKey = (row: Row, rowIndex: number) =>
     typeof rowKey === "function" ? rowKey(row, rowIndex) : String(row[rowKey] ?? rowIndex);
+  const selectionEnabled = selectable && Boolean(onSelectedRowKeysChange);
+  const selectedKeyValues =
+    selectedRowKeys instanceof Set ? Array.from(selectedRowKeys) : Array.isArray(selectedRowKeys) ? selectedRowKeys : [];
+  const selectedKeySet = new Set(selectedKeyValues.map(String));
+  const selectableRowKeys = rows
+    .map((row, rowIndex) => ({
+      key: String(getKey(row, rowIndex)),
+      disabled: Boolean(getRowSelectionDisabled?.(row, rowIndex)),
+    }))
+    .filter((row) => !row.disabled)
+    .map((row) => row.key);
+  const allSelectableRowsSelected =
+    selectableRowKeys.length > 0 && selectableRowKeys.every((key) => selectedKeySet.has(key));
+  const partiallySelected =
+    selectableRowKeys.some((key) => selectedKeySet.has(key)) && !allSelectableRowsSelected;
+
+  const commitSelectedKeys = (nextKeys: Set<string>) => {
+    onSelectedRowKeysChange?.([...nextKeys]);
+  };
+
+  const toggleAllRows = () => {
+    const next = new Set(selectedKeySet);
+    if (allSelectableRowsSelected) {
+      selectableRowKeys.forEach((key) => next.delete(key));
+    } else {
+      selectableRowKeys.forEach((key) => next.add(key));
+    }
+    commitSelectedKeys(next);
+  };
+
+  const toggleRow = (row: Row, rowIndex: number) => {
+    const key = String(getKey(row, rowIndex));
+    const next = new Set(selectedKeySet);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    commitSelectedKeys(next);
+  };
 
   const getCellClassName = (column: ERPTableColumn<Row>, row: Row, rowIndex: number) =>
     joinClasses(
@@ -381,6 +433,18 @@ export function ERPTable<Row>({
             {caption ? <caption>{caption}</caption> : null}
             <thead>
               <tr>
+                {selectionEnabled ? (
+                  <th className="ui-erp-table__select-column" scope="col">
+                    <input
+                      type="checkbox"
+                      aria-label={selectAllLabel}
+                      aria-checked={partiallySelected ? "mixed" : allSelectableRowsSelected}
+                      checked={allSelectableRowsSelected}
+                      disabled={!selectableRowKeys.length}
+                      onChange={toggleAllRows}
+                    />
+                  </th>
+                ) : null}
                 {tableColumns.map((column) => (
                   <th
                     key={column.id}
@@ -400,15 +464,32 @@ export function ERPTable<Row>({
             <tbody>
               {rows.map((row, rowIndex) => {
                 const extraRowProps = getRowProps?.(row, rowIndex) ?? {};
+                const resolvedRowKey = String(getKey(row, rowIndex));
+                const rowSelectionDisabled = Boolean(getRowSelectionDisabled?.(row, rowIndex));
+                const rowSelected = selectedKeySet.has(resolvedRowKey);
                 return (
                   <tr
                     {...extraRowProps}
-                    key={getKey(row, rowIndex)}
+                    key={resolvedRowKey}
                     className={joinClasses(
+                      rowSelected && "is-selected",
                       typeof rowClassName === "function" ? rowClassName(row, rowIndex) : rowClassName,
                       extraRowProps.className,
                     )}
                   >
+                    {selectionEnabled ? (
+                      <td className="ui-erp-table__select-cell" data-label="Select">
+                        <input
+                          type="checkbox"
+                          aria-label={getRowSelectLabel?.(row, rowIndex) || `Select row ${rowIndex + 1}`}
+                          checked={rowSelected}
+                          disabled={rowSelectionDisabled}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          onChange={() => toggleRow(row, rowIndex)}
+                        />
+                      </td>
+                    ) : null}
                     {columns.map((column) => {
                       const content = column.render
                         ? column.render(row, rowIndex)

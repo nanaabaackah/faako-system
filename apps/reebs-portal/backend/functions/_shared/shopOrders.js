@@ -1,9 +1,16 @@
-/* eslint-disable no-undef */
 import { getDeliveryFeeDetails } from "./deliveryFee.js";
 import { formatVariantLabel } from "./inventoryExtensions.js";
 import { sanitizeOrderLogisticsDetails } from "./orderDetails.js";
 
 export const ORDER_METHODS = "GET,POST,PATCH,PUT,DELETE,OPTIONS";
+
+const runSequentially = async (operations = []) => {
+  const results = [];
+  for (const operation of operations) {
+    results.push(await operation());
+  }
+  return results;
+};
 
 // Builds the placeholders and flat params array for a batch INSERT into "orderItem".
 // Returns { placeholders: string[], params: any[] } so callers can test the shape
@@ -1254,8 +1261,8 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
   );
   if (orderRes.rowCount === 0) return null;
   const order = orderRes.rows[0];
-  const [itemsRes, paymentsRes, receiptsRes, eventsRes, stockRes, expensesRes] = await Promise.all([
-    client.query(
+  const [itemsRes, paymentsRes, receiptsRes, eventsRes, stockRes, expensesRes] = await runSequentially([
+    () => client.query(
       `SELECT
          oi.id,
          oi."productId",
@@ -1279,7 +1286,7 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
        ORDER BY oi.id ASC`,
       [orderId, organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT *
        FROM "orderPayment"
        WHERE "orderId" = $1
@@ -1287,7 +1294,7 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
        ORDER BY "paidAt" DESC, id DESC`,
       [orderId, organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT id, "receiptNumber", "orderId", "paymentId", "customerId", "amountCents", "pdfDocumentId", "issuedAt", "issuedByUserId", "createdAt"
        FROM "orderReceipt"
        WHERE "orderId" = $1
@@ -1295,7 +1302,7 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
        ORDER BY "issuedAt" DESC, id DESC`,
       [orderId, organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT *
        FROM "orderEvent"
        WHERE "orderId" = $1
@@ -1303,7 +1310,7 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
        ORDER BY "createdAt" DESC, id DESC`,
       [orderId, organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT sm.*, p.name AS "productName", p.sku
        FROM "stockMovement" sm
        LEFT JOIN "product" p
@@ -1314,7 +1321,7 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
        ORDER BY sm.date DESC, sm.id DESC`,
       [organizationId, orderId, order.orderNumber]
     ),
-    client.query(
+    () => client.query(
       `SELECT id, category, amount, description, date, "createdAt", "updatedAt"
        FROM "expense"
        WHERE "organizationId" = $1
@@ -1501,15 +1508,15 @@ export const fetchOrdersList = async (client, { organizationId, query = {} }) =>
 
   const listParams = [...params, pageSize, offset];
   const limitSql = `LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-  const [result, countRes] = await Promise.all([
-    client.query(
+  const [result, countRes] = await runSequentially([
+    () => client.query(
       `${selectSql}
        WHERE ${whereSql}
        ORDER BY o."orderDate" DESC, o.id DESC
        ${limitSql}`,
       listParams
     ),
-    client.query(
+    () => client.query(
       `SELECT COUNT(*)::int AS total
        FROM "order" o
        WHERE ${whereSql}`,

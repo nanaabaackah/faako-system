@@ -199,7 +199,7 @@ function QuickActionsPanel({ actions, onNavigate }) {
 function RecommendationsPanel({ items, onNavigate }) {
   const safeItems = Array.isArray(items) ? items : [];
   return (
-    <PanelShell title="Recommendations">
+    <PanelShell title="What needs attention" subtitle="The most useful next actions, kept in one short list.">
       <ul className="aw-home-list aw-home-list--recommendations">
         {safeItems.map((item) => (
           <li key={item.key}>
@@ -219,6 +219,109 @@ function RecommendationsPanel({ items, onNavigate }) {
           </li>
         ))}
       </ul>
+    </PanelShell>
+  );
+}
+
+function AdvancedInsightsPanel({ panel, onNavigate }) {
+  if (!panel?.visible) return null;
+  const insights = Array.isArray(panel.insights) ? panel.insights : [];
+  const inventoryRisks = Array.isArray(panel.inventoryRisks) ? panel.inventoryRisks : [];
+
+  return (
+    <PanelShell
+      title="Advanced insights"
+      subtitle={panel.serviceMessage || "Forecasting, demand patterns, and stock cover."}
+      className="aw-advanced-insights"
+      actions={(
+        <div className="aw-advanced-insights-actions">
+          <span className={`aw-insight-source ${panel.connected ? "is-python" : "is-fallback"}`}>
+            {panel.connected ? "Python analytics" : "Built-in forecast"}
+          </span>
+          <button
+            type="button"
+            className="aw-secondary-btn"
+            onClick={panel.onRefresh}
+            disabled={panel.loading}
+          >
+            <AppIcon icon={faRotateRight} />
+            Refresh
+          </button>
+        </div>
+      )}
+    >
+      {panel.loading ? (
+        <AnimatedLoadingState
+          compact
+          className="glass-card admin-module-loading"
+          title="Finding useful patterns"
+          message="Reviewing aggregated sales, bookings, customers, and stock movement."
+          variant="workspace"
+        />
+      ) : panel.error ? (
+        <InlineNotice tone="error" compact message={panel.error} />
+      ) : (
+        <>
+          <div className="aw-insight-metrics">
+            <article className="aw-insight-metric">
+              <span>Next 30 days</span>
+              <strong>{panel.forecastValue}</strong>
+              <small>{panel.forecastMeta}</small>
+            </article>
+            <article className="aw-insight-metric">
+              <span>Busiest booking day</span>
+              <strong>{panel.peakWeekday}</strong>
+              <small>{panel.bookingForecastMeta}</small>
+            </article>
+            <article className="aw-insight-metric">
+              <span>Repeat customers</span>
+              <strong>{panel.repeatRate}%</strong>
+              <small>{panel.repeatCustomerMeta}</small>
+            </article>
+          </div>
+
+          {insights.length ? (
+            <ul className="aw-insight-list">
+              {insights.map((insight) => (
+                <li key={insight.key}>
+                  <button
+                    type="button"
+                    className={`aw-insight-item is-${insight.tone || "info"}`}
+                    onClick={() => onNavigate(insight.path || "/admin/reports")}
+                  >
+                    <span className="aw-insight-dot" aria-hidden="true" />
+                    <span>
+                      <strong>{insight.title}</strong>
+                      <small>{insight.detail}</small>
+                    </span>
+                    <AppIcon icon={faArrowRight} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="aw-muted">More operating history is needed before recommendations become reliable.</p>
+          )}
+
+          {inventoryRisks.length > 0 && (
+            <details className="aw-insight-details">
+              <summary>{inventoryRisks.length} predicted stock risk{inventoryRisks.length === 1 ? "" : "s"}</summary>
+              <ul>
+                {inventoryRisks.map((item) => (
+                  <li key={item.productId || item.name}>
+                    <span>{item.name}</span>
+                    <strong>
+                      {item.daysCover === null || item.daysCover === undefined
+                        ? `${item.stock} in stock`
+                        : `~${item.daysCover} days cover`}
+                    </strong>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
+      )}
     </PanelShell>
   );
 }
@@ -264,10 +367,18 @@ function BusinessKpiPanel({ panel, onNavigate }) {
     bars: [],
     max: 1,
   };
+  const revenueTrendInteractive = !revenueTrend.loading && !revenueTrend.error;
+  const stockMovementInteractive = !stockMovement.loading && !stockMovement.error;
+
+  const activateChartCardFromKeyboard = (event, path, enabled) => {
+    if (!enabled || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    onNavigate(path);
+  };
 
   return (
     <PanelShell
-      title="Business KPI Dashboard"
+      title="Business overview"
       subtitle={panel.updatedAt ? (
         <span className={`aw-freshness${panel.dataFreshnessClass ? ` ${panel.dataFreshnessClass}` : ""}`}>
           {`Updated ${panel.updatedAt} • ${panel.sourceLabel}`}
@@ -392,10 +503,16 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               </div>
             </button>
 
-            <button
-              type="button"
+            <div
               className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
-              onClick={() => onNavigate(revenueTrend.path)}
+              role={revenueTrendInteractive ? "button" : undefined}
+              tabIndex={revenueTrendInteractive ? 0 : undefined}
+              onClick={() => revenueTrendInteractive && onNavigate(revenueTrend.path)}
+              onKeyDown={(event) => activateChartCardFromKeyboard(
+                event,
+                revenueTrend.path,
+                revenueTrendInteractive
+              )}
             >
               <div className="aw-home-kpi-chart-head">
                 <h3>Revenue trend</h3>
@@ -428,12 +545,18 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               ) : (
                 <p className="aw-muted">No revenue trend yet.</p>
               )}
-            </button>
+            </div>
 
-            <button
-              type="button"
+            <div
               className="button-card aw-home-kpi-chart-card aw-home-kpi-chart-card--link"
-              onClick={() => onNavigate(stockMovement.path)}
+              role={stockMovementInteractive ? "button" : undefined}
+              tabIndex={stockMovementInteractive ? 0 : undefined}
+              onClick={() => stockMovementInteractive && onNavigate(stockMovement.path)}
+              onKeyDown={(event) => activateChartCardFromKeyboard(
+                event,
+                stockMovement.path,
+                stockMovementInteractive
+              )}
             >
               <div className="aw-home-kpi-chart-head">
                 <h3>Stock movement</h3>
@@ -492,7 +615,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               ) : (
                 <p className="aw-muted">No stock history yet.</p>
               )}
-            </button>
+            </div>
 
             <button
               type="button"
@@ -735,6 +858,64 @@ function CustomerHealthPanel({ panel, onNavigate }) {
   );
 }
 
+function BusinessDetailsSection({
+  kpiPanel,
+  approvalsPanel,
+  teamLoadPanel,
+  customerHealthPanel,
+  activityPanel,
+  onNavigate,
+  formatRelativeTime,
+  formatDateTime,
+}) {
+  const approvalItems = Array.isArray(approvalsPanel?.items) ? approvalsPanel.items : [];
+  const teamRows = Array.isArray(teamLoadPanel?.rows) ? teamLoadPanel.rows : [];
+  const customerCards = Array.isArray(customerHealthPanel?.summaryCards)
+    ? customerHealthPanel.summaryCards
+    : [];
+  const hasCustomerData =
+    customerCards.some((card) => Number(card?.value) > 0)
+    || (customerHealthPanel?.topCustomers?.length || 0) > 0
+    || (customerHealthPanel?.inactiveVipCustomers?.length || 0) > 0;
+
+  return (
+    <details className="aw-dashboard-details">
+      <summary>
+        <span>
+          <strong>Business details</strong>
+          <small>KPIs, approvals, team workload, customer health, and activity</small>
+        </span>
+        <span className="aw-dashboard-details-cue">Show details</span>
+      </summary>
+      <div className="aw-dashboard-details-body">
+        <BusinessKpiPanel panel={kpiPanel} onNavigate={onNavigate} />
+
+        {(approvalItems.length > 0 || teamRows.length > 0) && (
+          <div className="aw-home-grid">
+            {approvalItems.length > 0 && (
+              <ApprovalsPanel panel={approvalsPanel} onNavigate={onNavigate} />
+            )}
+            {teamRows.length > 0 && (
+              <TeamLoadPanel panel={teamLoadPanel} onNavigate={onNavigate} />
+            )}
+          </div>
+        )}
+
+        {hasCustomerData && (
+          <CustomerHealthPanel panel={customerHealthPanel} onNavigate={onNavigate} />
+        )}
+
+        <ActivityPanel
+          panel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
+      </div>
+    </details>
+  );
+}
+
 function ActivityPanel({ panel, onNavigate, formatRelativeTime, formatDateTime }) {
   const safePanel = panel || {};
   const items = Array.isArray(safePanel.items) ? safePanel.items : [];
@@ -851,6 +1032,7 @@ export function AdminWorkspaceHomeView({
   homeSummaryCards = [],
   homeQuickActions = [],
   recommendationItems = [],
+  advancedInsightsPanel,
   kpiPanel,
   approvalsPanel,
   teamLoadPanel,
@@ -893,24 +1075,27 @@ export function AdminWorkspaceHomeView({
         </div>
       )}
       <RecommendationsPanel items={recommendationItems} onNavigate={onNavigate} />
-      <BusinessKpiPanel panel={kpiPanel} onNavigate={onNavigate} />
+      <AdvancedInsightsPanel panel={advancedInsightsPanel} onNavigate={onNavigate} />
 
-      {kpiPanel?.visible && (
-        <>
-          <div className="aw-home-grid">
-            <ApprovalsPanel panel={approvalsPanel} onNavigate={onNavigate} />
-            <TeamLoadPanel panel={teamLoadPanel} onNavigate={onNavigate} />
-          </div>
-          <CustomerHealthPanel panel={customerHealthPanel} onNavigate={onNavigate} />
-        </>
+      {kpiPanel?.visible ? (
+        <BusinessDetailsSection
+          kpiPanel={kpiPanel}
+          approvalsPanel={approvalsPanel}
+          teamLoadPanel={teamLoadPanel}
+          customerHealthPanel={customerHealthPanel}
+          activityPanel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
+      ) : (
+        <ActivityPanel
+          panel={activityPanel}
+          onNavigate={onNavigate}
+          formatRelativeTime={formatRelativeTime}
+          formatDateTime={formatDateTime}
+        />
       )}
-
-      <ActivityPanel
-        panel={activityPanel}
-        onNavigate={onNavigate}
-        formatRelativeTime={formatRelativeTime}
-        formatDateTime={formatDateTime}
-      />
     </section>
   );
 }

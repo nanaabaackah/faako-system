@@ -6,6 +6,43 @@
   min-width: 220px;
 }
 
+.projects-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(135px, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.projects-filter-search,
+.projects-filter-field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.projects-filter-search > span,
+.projects-filter-field > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.projects-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.projects-filter-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+}
+
+.projects-filter-empty h2,
+.projects-filter-empty p {
+  margin: 0;
+}
+
 .projects-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -40,6 +77,10 @@
   min-width: 0;
   overflow-x: auto;
   padding-bottom: 0.4rem;
+}
+
+.projects-board.is-single-stage {
+  grid-template-columns: minmax(280px, 520px);
 }
 
 .projects-column {
@@ -79,9 +120,10 @@
 }
 
 .project-card {
+  position: relative;
   display: grid;
   gap: 0.7rem;
-  min-height: 212px;
+  min-height: 300px;
   padding: 0.95rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -91,8 +133,31 @@
   cursor: grab;
 }
 
+.project-card__open-link {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.project-card__open-link:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent), transparent 60%);
+  outline-offset: 2px;
+}
+
 .project-card:active {
   cursor: grabbing;
+}
+
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: color-mix(in oklab, var(--accent), var(--border) 38%);
+  box-shadow: 0 20px 42px color-mix(in oklab, var(--accent), transparent 86%);
+}
+
+.project-card:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent), transparent 60%);
+  outline-offset: 2px;
 }
 
 .project-card.is-high,
@@ -130,6 +195,70 @@
   gap: 0.65rem;
 }
 
+.project-card__status-line,
+.project-progress__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.project-health {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.project-health.is-on-track {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.project-health.is-at-risk {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.project-health.is-blocked {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.project-progress {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.project-progress__label {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.project-progress__label strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.project-progress__track {
+  height: 0.48rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--border), var(--surface) 35%);
+}
+
+.project-progress__track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
 .project-card__meta {
   display: grid;
   gap: 0.32rem;
@@ -137,7 +266,14 @@
   font-size: 0.82rem;
 }
 
+.project-card__meta strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .project-card__actions {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -177,17 +313,497 @@
   gap: 1rem;
 }
 
+.project-detail-page {
+  gap: 1rem;
+}
+
+.project-archive-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.project-detail-back {
+  margin-bottom: 1rem;
+}
+
+.project-detail-summary {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.project-detail-summary__heading,
+.project-detail-summary__heading > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.project-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.project-detail-grid > div {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--surface), var(--card) 45%);
+}
+
+.project-detail-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.project-detail-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.project-detail-description h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.project-detail-description p {
+  margin-bottom: 0;
+  white-space: pre-wrap;
+}
+
+.project-tasks-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.project-tasks-header,
+.project-tasks-header-actions,
+.project-task-heading,
+.project-task-controls,
+.project-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.project-tasks-header,
+.project-task-heading {
+  justify-content: space-between;
+}
+
+.project-tasks-header-actions {
+  justify-content: flex-end;
+}
+
+.project-tasks-header-actions .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.project-tasks-header h2,
+.project-tasks-header p,
+.project-task-heading h3,
+.project-task-main p {
+  margin: 0;
+}
+
+.project-tasks-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.project-task-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.project-task-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(230px, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 0.45rem;
+}
+
+.project-task-column {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 230px;
+  min-height: 300px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--card), var(--surface) 8%);
+}
+
+.project-task-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.project-task-column-header h3 {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.project-task-column-cards {
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+}
+
+.project-task-board-card {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 10px 24px color-mix(in oklab, var(--ink), transparent 93%);
+}
+
+.project-task-board-card h4,
+.project-task-board-card p {
+  margin: 0;
+}
+
+.project-task-board-card h4 {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.project-task-board-card.is-done h4 {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.project-task-board-meta {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.project-task-board-meta strong {
+  color: var(--ink);
+}
+
+.project-task-board-card > .ui-dropdown-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.project-task-column-empty {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.project-task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--surface), var(--card) 45%);
+}
+
+.project-task-row.is-done .project-task-heading h3 {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.project-task-main {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.project-task-heading h3 {
+  font-size: 0.98rem;
+}
+
+.project-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.project-task-meta strong {
+  color: var(--ink);
+}
+
+.project-task-meta a,
+.project-task-board-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.project-task-sync-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.project-task-controls {
+  justify-content: flex-end;
+}
+
+.project-task-controls > .ui-dropdown-field {
+  min-width: 150px;
+}
+
+.project-task-status-label {
+  display: none;
+}
+
+.project-task-priority {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--surface), var(--card) 45%);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.project-task-priority.is-high {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.project-task-priority.is-urgent {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.project-task-priority.is-low {
+  color: var(--info);
+  background: var(--info-soft);
+}
+
+.project-task-modal {
+  width: min(820px, 100%);
+}
+
+.project-task-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.project-task-title-field {
+  grid-column: 1 / -1;
+}
+
+.project-activity-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.project-activity-header,
+.project-activity-entry-heading,
+.project-activity-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.project-activity-header,
+.project-activity-entry-heading {
+  justify-content: space-between;
+}
+
+.project-activity-header h2,
+.project-activity-header p {
+  margin: 0;
+}
+
+.project-activity-header > svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 1.4rem;
+}
+
+.project-activity-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.project-activity-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-activity-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0 0 1rem;
+}
+
+.project-activity-entry:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 0.7rem;
+  bottom: 0;
+  left: 0.31rem;
+  width: 1px;
+  background: var(--border);
+}
+
+.project-activity-marker {
+  position: relative;
+  z-index: 1;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.35rem;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.project-activity-entry-heading strong {
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.project-activity-entry-heading > span,
+.project-activity-entry-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.project-activity-entry-heading > span {
+  flex: 0 0 auto;
+}
+
+.project-activity-entry-meta {
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+.project-activity-entry-meta span:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.75rem;
+}
+
+.project-trello-section,
+.project-trello-form,
+.project-trello-errors {
+  display: grid;
+  gap: 1rem;
+}
+
+.project-trello-header,
+.project-trello-header > div,
+.project-trello-errors > div,
+.project-trello-errors > div > span {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.project-trello-header,
+.project-trello-errors > div {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-trello-header > div,
+.project-trello-errors > div > span {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.project-trello-header h2,
+.project-trello-header p,
+.project-trello-errors h3,
+.project-trello-errors small {
+  margin: 0;
+}
+
+.project-trello-summary,
+.project-trello-credentials,
+.project-trello-mappings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.project-trello-summary > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.project-trello-summary span,
+.project-trello-errors small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.project-trello-summary a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.project-trello-errors > div {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--danger), var(--border) 55%);
+  border-radius: 8px;
+}
+
 .projects-modal {
   width: min(980px, 100%);
 }
 
 @media (max-width: 1180px) {
+  .projects-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .projects-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
+  .projects-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .projects-board {
     grid-template-columns: 1fr;
     overflow-x: visible;
@@ -201,9 +817,40 @@
   .project-form-grid {
     grid-template-columns: 1fr;
   }
+
+  .project-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-task-board {
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .project-task-column {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .project-task-controls {
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 640px) {
+  .projects-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-filter-actions,
+  .projects-filter-actions .button {
+    width: 100%;
+  }
+
   .projects-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -220,5 +867,65 @@
   .project-card__actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .project-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-detail-summary__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-archive-notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-tasks-header,
+  .project-tasks-header-actions,
+  .project-task-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-tasks-header .button,
+  .project-tasks-header-actions,
+  .project-tasks-header-actions .segmented,
+  .project-task-controls > .ui-dropdown-field,
+  .project-task-actions {
+    width: 100%;
+  }
+
+  .project-tasks-header-actions .segment {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .project-task-actions {
+    justify-content: space-between;
+  }
+
+  .project-task-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-activity-entry-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .project-trello-header,
+  .project-trello-errors > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-trello-summary,
+  .project-trello-credentials,
+  .project-trello-mappings {
+    grid-template-columns: 1fr;
   }
 }

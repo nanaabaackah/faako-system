@@ -40,6 +40,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/dashboard(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/jobs(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/ai\/productivity-coach(?:\/|$)/, modules: ["dashboard"] },
+  { pattern: /^\/api\/ai\/system-health-diagnosis(?:\/|$)/, modules: ["system-health"] },
   { pattern: /^\/api\/productivity(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/projects(?:\/|$)/, modules: ["projects"] },
   { pattern: /^\/api\/proposals(?:\/|$)/, modules: ["proposals"] },
