@@ -204,7 +204,7 @@ function AboutContent() {
             </div>
 
             <div className="about-hero__profile-meta">
-              <p>Nana Aba Ackah</p>
+              <h1>Nana Aba Ackah</h1>
               <p>Technical Product Engineer</p>
               <p>[NOW]</p>
               <p>Toronto, ON</p>

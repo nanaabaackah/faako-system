@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildFallbackAnalytics,
   normalizeAnalyticsServiceUrl,
+  resolveAnalyticsServiceUrl,
 } from "./advancedAnalytics.js";
 
 test("fallback analytics returns safe advanced dashboard insights", () => {
@@ -46,4 +47,12 @@ test("analytics service URL accepts a Railway hostname without a scheme", () => 
     "https://analytics.example.com/base"
   );
   assert.equal(normalizeAnalyticsServiceUrl("file:///tmp/service"), "");
+});
+
+test("production analytics uses the deployed forecasting service by default", () => {
+  assert.equal(
+    resolveAnalyticsServiceUrl({ APP_ENV: "production" }),
+    "https://reebs-service-production.up.railway.app"
+  );
+  assert.equal(resolveAnalyticsServiceUrl({ APP_ENV: "development" }), "");
 });

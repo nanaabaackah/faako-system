@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  BYNANA_COOKIE_PREFS_OPEN_EVENT,
   readByNanaCookiePreferences,
   saveByNanaCookiePreferences,
 } from '../utils/cookieConsent';
@@ -15,6 +16,16 @@ function CookieConsentBanner() {
     const saved = readByNanaCookiePreferences();
     setVisible(!saved);
     setAnalytics(Boolean(saved?.analytics));
+
+    const handleOpenPreferences = () => {
+      const current = readByNanaCookiePreferences();
+      setAnalytics(Boolean(current?.analytics));
+      setExpanded(true);
+      setVisible(true);
+    };
+
+    window.addEventListener(BYNANA_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
+    return () => window.removeEventListener(BYNANA_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
   }, []);
 
   const persist = (nextAnalytics) => {

@@ -52,9 +52,9 @@ const projects = [
     cta: 'View case study',
   },
   {
-    title: 'Portfolio Website (React)',
-    summary: 'Open-source portfolio with case studies, animation, and accessibility-first structure.',
-    stack: 'React · Vite · CSS3',
+    title: 'Portfolio Website (Astro + React)',
+    summary: 'Personal portfolio with static case-study routes, motion, and accessibility-first structure.',
+    stack: 'Astro · React · CSS3',
     impact: 'Case + repo',
     href: '/projects/portfolio',
     image: '/imgs/mockups/portfolio/PORTFOLIO_6.png',
@@ -143,7 +143,7 @@ const ProjectsContent = () => (
   <div className="projects-showcase">
 
     <div className="projects-showcase__center">
-      <p className="projects-showcase__count">[{projects.length} FEATURED PROJECTS]</p>
+      <h1 className="projects-showcase__count">[{projects.length} FEATURED PROJECTS]</h1>
     </div>
     
     <ProjectMarquee />

@@ -12,6 +12,49 @@ export const PROJECT_CASE_STUDY_STATUS = {
 
 export const PORTFOLIO_PROJECT_REGISTRY = [
   {
+    key: "ttngh",
+    appKey: "ttngh",
+    appPath: "apps/ttngh",
+    projectName: "The Thriving Network GH",
+    projectType: "NGO Public Website",
+    status: "foundation",
+    visibility: PROJECT_VISIBILITY.PRIVATE,
+    clientPublic: false,
+    privateInternal: true,
+    caseStudyEnabled: false,
+    caseStudyStatus: PROJECT_CASE_STUDY_STATUS.DISABLED,
+    shortDescription:
+      "An Astro-based foundation for a future NGO website, donation service, and participation forms.",
+    longDescription:
+      "Private foundation metadata only. The public site, organizational claims, payment flows, and case study remain unpublished until content and operations are approved.",
+    techStack: [
+      "Astro",
+      "Express",
+      "Cloudflare Pages-ready",
+      "Railway-ready",
+      "Paystack-ready",
+      "MTN MoMo-ready",
+    ],
+    features: [
+      "Static-first public website scaffold",
+      "SEO and AEO launch gate",
+      "Client-approved brand foundation",
+      "Validated content collections",
+      "Mental-health content governance",
+      "Privacy-gated analytics plan",
+      "Donation provider contracts",
+      "Contact submission validation",
+      "Railway API health boundary",
+    ],
+    screenshots: [],
+    screenshotPlaceholders: ["Approved homepage", "Programs", "Donation flow", "Contact form"],
+    latestMilestone: "Client requirements, brand, content, analytics, and safety foundation",
+    lastUpdated: "2026-07-23",
+    relatedDocsPath: "docs/apps/ttngh",
+    notes:
+      "Keep private until the organization approves its identity, claims, content, domain, and launch scope.",
+  },
+  {
     key: "stroane-web",
     appKey: "stroane-web",
     appPath: "apps/stroane-web",

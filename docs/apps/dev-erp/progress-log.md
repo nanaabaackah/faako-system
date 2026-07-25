@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### Server-only Trello delivery
+
+Date: 2026-07-23
+Feature/change name: Safer Trello task delivery
+What changed: Replaced the runtime Trello API-key/token connection flow with one-way email-to-board delivery using a private server environment variable and the existing server-side Resend provider. Removed the Trello setup panel from Projects; task creation sends one card email automatically, while failed delivery remains visible and retryable on the task.
+Why it changed: Trello credentials and its private email-to-board address should not be collected or exposed in the frontend.
+Files changed: Dev ERP Trello backend composition/service/routes/tests, project task UI and tests, env example, README, and Dev ERP documentation.
+Data impact: No schema migration. Existing task sync fields record delivery state. Existing encrypted Trello connection rows are no longer read by the runtime and are left untouched for a separately approved cleanup.
+Security impact: Positive. The browser no longer accepts Trello API keys, tokens, application secrets, or the email-to-board address. The legacy credential configuration and webhook routes are not registered in the active server composition. The email address remains a capability secret and must stay in server environment configuration.
+Testing done: Backend syntax checks, focused Trello tests, Dev ERP lint, typecheck, production build, full Dev ERP test suite (199 tests), and affected-file whitespace checks passed.
+Rollback notes: Restore the prior Trello client composition and setup panel only if bidirectional sync is required before a server-side OAuth flow is available. No database rollback is required.
+Next step: Configure `TRELLO_EMAIL_TO_BOARD_ADDRESS`, `TRELLO_EMAIL_FROM_EMAIL`, `TRELLO_EMAIL_BOARD_NAME`, and `TRELLO_EMAIL_LIST_NAME` in the Dev ERP server environment, then revoke the previously used Trello token after confirming email delivery.
+
 ### Security headers before JSON parsing
 
 Date: 2026-07-18

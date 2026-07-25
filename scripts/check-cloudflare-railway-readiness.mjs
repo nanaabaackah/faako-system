@@ -32,7 +32,7 @@ const hasApiEntrypoint = (appDir, scripts = {}) =>
 const hasPrisma = (appDir, manifest = {}) =>
   fs.existsSync(path.join(appDir, "prisma")) || hasDependency(manifest, "@prisma/client");
 
-const assertCloudflareFiles = ({ appLabel, appDir }) => {
+const assertCloudflareFiles = ({ appLabel, appDir, requiresSpaFallback }) => {
   const headersPath = path.join(appDir, "public", "_headers");
   const redirectsPath = path.join(appDir, "public", "_redirects");
   const headers = readText(headersPath).toLowerCase();
@@ -49,9 +49,9 @@ const assertCloudflareFiles = ({ appLabel, appDir }) => {
     }
   }
 
-  if (!redirects) {
+  if (requiresSpaFallback && !redirects) {
     findings.push(`[cloudflare] ${appLabel}: missing public/_redirects`);
-  } else if (!redirects.includes("/index.html 200")) {
+  } else if (requiresSpaFallback && !redirects.includes("/index.html 200")) {
     findings.push(`[cloudflare] ${appLabel}: public/_redirects should include an SPA fallback to /index.html 200`);
   }
 };
@@ -109,13 +109,15 @@ for (const project of graph.apps) {
   const manifest = readJson(path.join(rootDir, project.manifestPath));
   const appLabel = manifest.name || project.dir;
   const scripts = manifest.scripts || {};
-  const isStaticApp = hasDependency(manifest, "vite") || /vite build/.test(String(scripts.build || "")) || hasViteConfig(appDir);
+  const isAstroApp = hasDependency(manifest, "astro") || /astro build/.test(String(scripts.build || ""));
+  const isViteApp = hasDependency(manifest, "vite") || /vite build/.test(String(scripts.build || "")) || hasViteConfig(appDir);
+  const isStaticApp = isAstroApp || isViteApp;
   const isApiApp = hasApiEntrypoint(appDir, scripts);
 
   assertNoLegacyProviderFiles({ appLabel, appDir, manifest });
 
   if (isStaticApp) {
-    assertCloudflareFiles({ appLabel, appDir });
+    assertCloudflareFiles({ appLabel, appDir, requiresSpaFallback: isViteApp && !isAstroApp });
   }
 
   if (isApiApp) {

@@ -426,165 +426,65 @@ button.aw-home-summary-card:focus-visible {
   overflow: hidden;
 }
 
-.aw-advanced-insights {
-  overflow: hidden;
-  border-color: color-mix(in oklab, var(--aw-primary), transparent 68%);
-  background:
-    radial-gradient(circle at 100% 0%, rgba(15, 143, 120, 0.13), transparent 42%),
-    var(--aw-surface-panel);
+.aw-kpi-signal,
+.aw-chart-signal {
+  display: grid;
+  gap: 0.16rem;
+  margin-top: 0.72rem;
+  padding: 0.62rem 0.68rem;
+  border: 1px solid color-mix(in oklab, var(--aw-primary), transparent 76%);
+  border-radius: var(--aw-radius-md);
+  background: color-mix(in oklab, var(--aw-primary-soft), var(--aw-card) 58%);
 }
 
-.aw-advanced-insights-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.55rem;
+.aw-kpi-signal small,
+.aw-chart-signal > span,
+.aw-chart-signal small {
+  color: var(--aw-muted);
+  font-size: 0.68rem;
+  font-style: normal;
 }
 
-.aw-insight-source {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--aw-border);
-  border-radius: var(--aw-radius-pill);
-  color: var(--aw-neutral-text);
-  background: var(--aw-neutral-bg);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
+.aw-kpi-signal b,
+.aw-chart-signal strong {
+  color: var(--aw-ink);
+  font-size: 0.84rem;
 }
 
-.aw-insight-source.is-python {
-  color: var(--aw-success-text);
+.aw-kpi-signal em {
+  color: var(--aw-muted);
+  font-size: 0.68rem;
+  font-style: normal;
+}
+
+.aw-kpi-signal.is-positive {
+  border-color: color-mix(in oklab, var(--aw-success-text), transparent 72%);
   background: var(--aw-success-bg);
-  border-color: color-mix(in oklab, var(--aw-primary), transparent 72%);
 }
 
-.aw-insight-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
+.aw-kpi-signal.is-warning {
+  border-color: color-mix(in oklab, var(--aw-warning-text), transparent 70%);
+  background: var(--aw-warning-bg);
 }
 
-.aw-insight-metric {
-  min-width: 0;
-  padding: 0.9rem;
-  border: 1px solid var(--aw-border);
-  border-radius: var(--aw-radius-lg);
-  background: var(--aw-card);
+.aw-kpi-signal.is-critical,
+.aw-chart-signal.is-critical {
+  border-color: color-mix(in oklab, var(--aw-danger-text), transparent 70%);
+  background: var(--aw-danger-soft);
 }
 
-.aw-insight-metric > span,
-.aw-insight-metric > small {
+.aw-recommendation-eyebrow {
   display: block;
-  color: var(--aw-muted);
-  font-size: 0.74rem;
-}
-
-.aw-insight-metric > strong {
-  display: block;
-  margin: 0.3rem 0;
-  color: var(--aw-ink);
-  font-size: clamp(1.05rem, 2.6vw, 1.45rem);
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.aw-insight-list {
-  list-style: none;
-  display: grid;
-  gap: 0.55rem;
-  margin: 0.8rem 0 0;
-  padding: 0;
-}
-
-.aw-insight-item {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.78rem;
-  border: 1px solid var(--aw-border);
-  border-radius: var(--aw-radius-md);
-  color: inherit;
-  background: var(--aw-card);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.aw-insight-item:hover {
-  border-color: var(--aw-active-border);
-  background: var(--aw-hover-soft);
-}
-
-.aw-insight-item strong,
-.aw-insight-item small {
-  display: block;
-}
-
-.aw-insight-item strong {
-  font-size: 0.88rem;
-}
-
-.aw-insight-item small {
-  margin-top: 0.2rem;
-  color: var(--aw-muted);
-  font-size: 0.76rem;
-}
-
-.aw-insight-dot {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 50%;
-  background: var(--aw-info-text);
-}
-
-.aw-insight-item.is-warning .aw-insight-dot {
-  background: var(--aw-warning-text);
-}
-
-.aw-insight-item.is-critical .aw-insight-dot {
-  background: var(--aw-danger-text);
-}
-
-.aw-insight-details {
-  margin-top: 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--aw-border);
-  border-radius: var(--aw-radius-md);
-  background: var(--aw-card-soft);
-}
-
-.aw-insight-details summary {
-  cursor: pointer;
-  color: var(--aw-ink);
-  font-size: 0.82rem;
+  margin-bottom: 0.18rem;
+  color: var(--aw-primary);
+  font-size: 0.66rem;
   font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.aw-insight-details ul {
-  list-style: none;
-  display: grid;
-  gap: 0.45rem;
-  margin: 0.65rem 0 0;
-  padding: 0;
-}
-
-.aw-insight-details li {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.8rem;
-  color: var(--aw-muted);
-  font-size: 0.78rem;
-}
-
-.aw-insight-details li strong {
-  color: var(--aw-ink);
-  white-space: nowrap;
+.aw-home-list-item--link.is-critical {
+  border-color: color-mix(in oklab, var(--aw-danger-text), transparent 74%);
 }
 
 .aw-dashboard-details {
@@ -2377,29 +2277,8 @@ button.aw-activity-item {
 
 /* ─── Mobile responsive fixes ───────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .aw-panel-header,
-  .aw-advanced-insights-actions {
+  .aw-panel-header {
     align-items: stretch;
-  }
-
-  .aw-advanced-insights .aw-panel-header {
-    flex-direction: column;
-  }
-
-  .aw-advanced-insights-actions {
-    justify-content: space-between;
-  }
-
-  .aw-insight-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .aw-insight-metric {
-    padding: 0.78rem;
-  }
-
-  .aw-insight-item {
-    align-items: start;
   }
 
   .aw-home-kpi-grid {

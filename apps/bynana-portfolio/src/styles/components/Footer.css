@@ -66,11 +66,22 @@
 }
 
 .site-footer__column p,
-.site-footer__column a {
+.site-footer__column a,
+.site-footer__text-button {
   margin: 0.95rem 0 0;
   font-size: clamp(0.98rem, 1.05vw, 1.1rem);
   line-height: 1.45;
   color: rgba(225, 219, 201, 0.84);
+}
+
+.site-footer__text-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .site-footer__column ul a {
@@ -80,7 +91,9 @@
 }
 
 .site-footer__column ul a:hover,
-.site-footer__column ul a:focus-visible {
+.site-footer__column ul a:focus-visible,
+.site-footer__text-button:hover,
+.site-footer__text-button:focus-visible {
   color: rgba(225, 219, 201, 0.98);
   outline: none;
 }

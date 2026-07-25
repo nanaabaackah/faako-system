@@ -6,7 +6,10 @@ ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents projects
 
 ## What Lives Here
 
-- `src/`: React + Vite frontend
+- `src/pages/`: Astro file-based routes, including generated project and article pages
+- `src/layouts/BaseLayout.astro`: canonical metadata, social cards, and JSON-LD foundation
+- `src/views/`: server-rendered React views retained during the visual-parity migration
+- `src/content/`: project, article, and centralized SEO/AEO metadata
 - `public/fonts/`: current custom font assets used by the site
 - `public/_redirects`: SPA fallback routing
 - `.env.example`: local public configuration reference
@@ -17,7 +20,7 @@ ByNana Portfolio is Nana Aba Ackah's public portfolio site. It presents projects
 pnpm --filter @faako/bynana-portfolio run dev
 ```
 
-The frontend uses the normal Vite dev port unless another process already owns it.
+Astro uses its normal development port unless another process already owns it.
 
 ## Common Commands
 
@@ -31,7 +34,9 @@ pnpm --filter @faako/bynana-portfolio run lint
 
 The static frontend should only receive browser-safe `VITE_*` values. The contact form opens a mail draft by default; configure `VITE_CONTACT_SUBMIT_ENDPOINT` only when a dedicated browser-callable contact API exists.
 
-`AppUpdateNotice` from `@faako/ui` is mounted in the app shell. It is enabled in production and can be tested locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh when a newer deployed bundle is available and never reloads automatically.
+Astro statically renders every public URL. React remains as a compatibility island for the existing interactive visual layer, so page content, headings, canonical metadata, and structured data are present before JavaScript runs. `AppUpdateNotice` from `@faako/ui` remains mounted in that island.
+
+SEO output is generated from `src/content/seo.js`. Project and article routes are derived from the same content records used by the UI, and `@astrojs/sitemap` generates `sitemap-index.xml` plus `sitemap-0.xml` during each build. Do not restore the old hand-maintained sitemap or the SPA catch-all redirect.
 
 ## Project Metadata Registry
 
@@ -56,3 +61,17 @@ pnpm --filter @faako/bynana-portfolio run build
 ```
 
 The publish folder is `apps/bynana-portfolio/dist`.
+
+Before deploying, run:
+
+```bash
+pnpm --filter @faako/bynana-portfolio run lint
+pnpm --filter @faako/bynana-portfolio run build
+pnpm --filter @faako/bynana-portfolio run test:seo
+pnpm --filter @faako/bynana-portfolio run test:standards
+```
+
+The production build optimizes copied JPEG and PNG files in `dist` without changing the original
+portfolio photography or mockups in `public`.
+
+The SEO regression test verifies that every public route has generated HTML, a title, description, canonical URL, JSON-LD, and server-rendered H1; it also checks sitemap coverage and the non-indexable 404 page.
