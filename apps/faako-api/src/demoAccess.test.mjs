@@ -75,6 +75,9 @@ test("demo access request sends code without returning it to the browser", async
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.ok, true);
   assert.match(res.body.challengeToken, /^[0-9a-f-]{36}$/i);
+  assert.equal(res.body.data.challengeToken, res.body.challengeToken);
+  assert.equal(res.body.data.deliveryMode, res.body.deliveryMode);
+  assert.equal(res.body.meta.requestId, res.headers["X-Request-Id"]);
   assert.equal(res.body.previewCode, undefined);
   assert.match(deliveredCode, /^\d{6}$/);
 });
@@ -101,6 +104,8 @@ test("demo access verifies an emailed code and creates a browser session", async
   assert.equal(verifyRes.statusCode, 200);
   assert.equal(verifyRes.body.ok, true);
   assert.equal(verifyRes.body.session.email, "client@example.com");
+  assert.equal(verifyRes.body.data.session.email, verifyRes.body.session.email);
+  assert.equal(verifyRes.body.meta.requestId, verifyRes.headers["X-Request-Id"]);
   assert.equal(verifyRes.body.session.accessToken, undefined);
   assert.ok(Date.parse(verifyRes.body.session.expiresAt) > Date.now());
 });
@@ -123,4 +128,29 @@ test("demo access fails closed in production when the signing secret is missing"
 
   assert.equal(res.statusCode, 503);
   assert.equal(res.body.ok, false);
+  assert.equal(res.body.error, "Demo access email delivery is not configured.");
+  assert.equal(res.body.apiError.code, "service_unavailable");
+  assert.equal(res.body.apiError.message, res.body.error);
+  assert.equal(res.body.meta.requestId, res.headers["X-Request-Id"]);
+});
+
+test("demo access preserves safe request IDs and replaces invalid ones", async () => {
+  const handler = createDemoAccessHandler({
+    sendEmail: async () => {},
+  });
+
+  const retained = await runHandler(
+    handler,
+    { action: "request", email: "first@example.com" },
+    { "x-request-id": "edge-request_123" },
+  );
+  const replaced = await runHandler(
+    handler,
+    { action: "request", email: "second@example.com" },
+    { "x-request-id": "invalid request id" },
+  );
+
+  assert.equal(retained.headers["X-Request-Id"], "edge-request_123");
+  assert.match(replaced.headers["X-Request-Id"], /^[0-9a-f-]{36}$/i);
+  assert.notEqual(replaced.headers["X-Request-Id"], "invalid request id");
 });

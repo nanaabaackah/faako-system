@@ -151,6 +151,9 @@ importers:
       '@faako/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@faako/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       '@fortawesome/free-brands-svg-icons':
         specifier: ^6.7.2
         version: 6.7.2
@@ -281,6 +284,9 @@ importers:
 
   apps/faako-api:
     dependencies:
+      '@faako/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
       '@faako/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -348,6 +354,12 @@ importers:
 
   apps/faako-erp:
     dependencies:
+      '@faako/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@faako/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
       '@faako/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -1052,6 +1064,14 @@ importers:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
 
+  packages/api-client:
+    dependencies:
+      '@faako/api-contracts':
+        specifier: workspace:*
+        version: link:../api-contracts
+
+  packages/api-contracts: {}
+
   packages/audit: {}
 
   packages/config:
@@ -1127,6 +1147,12 @@ importers:
       '@faako/types':
         specifier: workspace:*
         version: link:../types
+
+  packages/validation:
+    dependencies:
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
 
 packages:
 

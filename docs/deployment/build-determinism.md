@@ -103,9 +103,9 @@ A changed build environment value must produce a different Turbo task hash. An u
 Validated on 2026-07-26:
 
 - frozen-lockfile resolution passed with lifecycle scripts disabled;
-- lint passed in all 25 active workspaces;
-- type-check passed in all 10 applicable workspaces;
-- tests passed in all 11 test-bearing workspaces, including all 200 Dev ERP tests;
+- lint passed in all 28 active workspaces;
+- type-check passed in all 13 applicable workspaces;
+- tests passed in all 15 test-bearing workspaces, including all 202 Dev ERP tests and the API client and validation package suites;
 - a clean build passed in all 10 build-capable applications;
 - a repeated build restored all eight safely cached application builds and re-executed Dev ERP and Stroane;
 - changing a representative `VITE_*` value changed the resolved Turbo build hash;

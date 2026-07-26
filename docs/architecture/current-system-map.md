@@ -42,6 +42,17 @@ Stroane Storefront*      Stroane Portal*       Stroane API*
 ## Workspace dependency direction
 
 - Applications consume shared package source directly through `workspace:*`.
+- `@faako/api-contracts` provides framework-independent response builders,
+  normalizers, error codes, pagination, and request metadata to Faako API and
+  Faako ERP for the pilot adoption.
+- `@faako/api-client` provides framework-independent browser/server transport,
+  standard JSON and error handling, AbortSignal and request-ID support, and
+  opt-in domain clients. Faako ERP demo access is the first transport pilot.
+- `@faako/types` provides framework-independent domain contracts. Stroane's
+  customer API boundary is the first application pilot; React-specific
+  renderer/table types now remain inside `@faako/ui`.
+- `@faako/validation` provides framework-independent Zod request schemas and
+  inferred input types. Dev ERP's forgot-password boundary is the first pilot.
 - `@faako/ui` depends on `@faako/security`, `@faako/theme`, `@faako/types`, and `@faako/utils`.
 - `@faako/theme` and `@faako/config` depend on `@faako/types`.
 - Dev ERP consumes the broadest shared set: config, logger, finance, notifications, offline sync, security, UI, utils, and email kit.
@@ -96,9 +107,14 @@ Faako Website's `AuthContext` is presentation state only and should not be treat
 - Four independent Prisma schemas: Dev ERP, Faako API, REEBS Portal, and Stroane.
 - Each schema owns its database lifecycle and migrations.
 - Repeated names do not imply shared records; `Organization`, `User`, orders, products, accounting, inventory, and audit concepts differ by product.
+- Stable API/event fields now have shared structural contracts in
+  `@faako/types`; Prisma models, state machines, and application extensions
+  remain locally owned.
 - Cross-system integration is HTTP/webhook based, not shared-database based.
 - Frontend API contracts are mostly handwritten and app-local.
-- Native `fetch` is the universal HTTP primitive; no shared query cache exists.
+- Native `fetch` remains the universal HTTP primitive. A shared transport now
+  exists, but only Faako ERP demo access has adopted it; no shared query cache
+  exists.
 - REEBS Website is tightly coupled to REEBS Portal's routes and cookie behavior.
 
 ## Cross-cutting capabilities
@@ -109,7 +125,7 @@ Faako Website's `AuthContext` is presentation state only and should not be treat
 | Analytics | Shared GA utilities/route tracker; REEBS Python operational analytics |
 | Logging | Pino in Dev ERP; console logging elsewhere |
 | Error monitoring | No centralized third-party error monitoring |
-| Validation | Zod in Dev ERP; Pydantic in analytics; custom validation elsewhere |
+| Validation | Shared Zod schemas with a Dev ERP pilot; Pydantic in analytics; custom validation remains elsewhere pending compatible adoption |
 | State | React context/hooks, storage, IndexedDB/offline queues |
 | Testing | Node test, Playwright, some Jest/Testing Library assets, Pytest |
 | Hosting | Cloudflare static frontends; Railway/Nixpacks Node APIs; Docker-capable Python service |

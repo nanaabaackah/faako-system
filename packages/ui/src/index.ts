@@ -2,6 +2,12 @@ import "@faako/theme/system.css";
 import "@faako/theme/erp-shell.css";
 import "./ui.css";
 
+export type {
+  DataTableColumn,
+  DataTableSummaryCell,
+  IconRenderer,
+} from "./types";
+
 export * from "./ErpBottomNav";
 export * from "./ErpBreadcrumb";
 export * from "./ErpMobileBottomNavFrame";
