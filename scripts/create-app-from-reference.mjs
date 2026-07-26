@@ -291,6 +291,7 @@ const inferTechStack = (targetDir, targetManifest) => {
   const stack = new Set(["Faako monorepo"]);
 
   if (dependencies.react) stack.add("React");
+  if (dependencies.astro) stack.add("Astro");
   if (dependencies.vite) stack.add("Vite");
   if (dependencies.typescript || fs.existsSync(path.join(targetDir, "tsconfig.json"))) {
     stack.add("TypeScript");
@@ -299,7 +300,7 @@ const inferTechStack = (targetDir, targetManifest) => {
   if (dependencies["@prisma/client"] || fs.existsSync(path.join(targetDir, "prisma"))) {
     stack.add("Prisma");
   }
-  if (dependencies.vite) stack.add("Cloudflare Pages-ready");
+  if (dependencies.vite || dependencies.astro) stack.add("Cloudflare Pages-ready");
   if (dependencies.express || fs.existsSync(path.join(targetDir, "backend", "server.js"))) {
     stack.add("Railway-ready");
   }
@@ -317,7 +318,9 @@ const isStaticCloudflareApp = (targetDir, targetManifest) => {
   const scripts = targetManifest.scripts || {};
 
   return Boolean(
+    dependencies.astro ||
     dependencies.vite ||
+    /astro build/.test(String(scripts.build || "")) ||
     /vite build/.test(String(scripts.build || "")) ||
     ["vite.config.js", "vite.config.mjs", "vite.config.ts"].some((fileName) =>
       fs.existsSync(path.join(targetDir, fileName))
@@ -340,7 +343,13 @@ const ensureCloudflarePagesFiles = ({ targetDir, targetManifest }) => {
     changed = true;
   }
 
-  if (!fs.existsSync(redirectsPath)) {
+  const isAstroApp = Boolean(
+    targetManifest.dependencies?.astro ||
+    targetManifest.devDependencies?.astro ||
+    /astro build/.test(String(targetManifest.scripts?.build || ""))
+  );
+
+  if (!isAstroApp && !fs.existsSync(redirectsPath)) {
     fs.writeFileSync(redirectsPath, DEFAULT_CLOUDFLARE_REDIRECTS);
     changed = true;
   }

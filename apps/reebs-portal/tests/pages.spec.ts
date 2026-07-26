@@ -59,6 +59,32 @@ const stubAnalytics = {
   categories: [],
   velocity: [],
 };
+const stubAdvancedAnalytics = {
+  forecast: {
+    next30RevenueCents: 1850000,
+    changePct: 8,
+    direction: 'up',
+    confidence: 'high',
+  },
+  demand: {
+    peakWeekday: 'Saturday',
+    bookingForecastNext30: 12,
+  },
+  inventoryRisks: [
+    { productId: 1, name: 'Rainbow Balloon Set', stock: 4, daysCover: 6, severity: 'critical' },
+  ],
+  customer: { total: 20, repeat: 8, repeatRate: 40 },
+  insights: [
+    {
+      key: 'peak-day',
+      title: 'Saturday is the busiest booking day',
+      detail: 'Plan delivery and setup capacity around Saturday demand.',
+      tone: 'info',
+      path: '/admin/schedule',
+    },
+  ],
+  service: { enabled: true, available: true, connected: true, mode: 'python' },
+};
 const stubUserStats = {
   orders: 0,
   orderRevenue: 0,
@@ -102,6 +128,7 @@ const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 
 const mockData = async (page: Page) => {
   const fixtures: Record<string, unknown> = {
+    advancedAnalytics: stubAdvancedAnalytics,
     analytics: stubAnalytics,
     authSession: stubAdminUser,
     bouncy_castles: stubBouncyTypes,

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppBottomBar } from '@faako/ui';
 import { Link } from 'react-router-dom';
+import { openByNanaCookiePreferences } from '../utils/cookieConsent';
 import '../styles/components/Footer.css';
 
 const footerLinks = [
@@ -34,10 +35,11 @@ const CONTACT_PHONE_HREF = 'tel:+16479162361';
 
 function Footer() {
   const year = new Date().getFullYear();
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(null);
   const footerRef = useRef(null);
 
   useEffect(() => {
+    setNow(new Date());
     const timerId = window.setInterval(() => {
       setNow(new Date());
     }, 60000);
@@ -68,23 +70,15 @@ function Footer() {
   }, []);
 
   const localTimeLabel = useMemo(() => {
+    if (!now) return 'Local time loading';
+
     const timeLabel = new Intl.DateTimeFormat(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: 'Africa/Accra',
     }).format(now);
 
-    const offsetMinutes = -now.getTimezoneOffset();
-    const sign = offsetMinutes >= 0 ? '+' : '-';
-    const absoluteOffset = Math.abs(offsetMinutes);
-    const offsetHours = Math.floor(absoluteOffset / 60);
-    const offsetRemainder = absoluteOffset % 60;
-
-    const offsetLabel =
-      offsetRemainder === 0
-        ? `UTC${sign}${offsetHours}`
-        : `UTC${sign}${String(offsetHours).padStart(2, '0')}:${String(offsetRemainder).padStart(2, '0')}`;
-
-    return `${timeLabel} ${offsetLabel}`;
+    return `${timeLabel} GMT`;
   }, [now]);
 
   return (
@@ -126,14 +120,21 @@ function Footer() {
               </ul>
             </section>
 
-            <section className="site-footer__column" aria-label="Local time">
-              <h2>Local Time</h2>
+            <section className="site-footer__column" aria-label="Accra local time">
+              <h2>Accra Time</h2>
               <p>{localTimeLabel}</p>
             </section>
 
             <section className="site-footer__column" aria-label="Version">
               <h2>Version</h2>
               <p>{year} © Edition</p>
+              <button
+                type="button"
+                className="site-footer__text-button"
+                onClick={openByNanaCookiePreferences}
+              >
+                Cookie settings
+              </button>
             </section>
           </div>
 

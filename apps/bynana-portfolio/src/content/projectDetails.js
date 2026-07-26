@@ -930,13 +930,13 @@ export const projectDetails = [
   {
     slug: 'portfolio',
     seo: {
-      title: 'Projects | Portfolio Website (React) | By Nana',
+      title: 'Projects | Portfolio Website (Astro + React) | By Nana',
       description:
         'Case study: React portfolio website built as a storytelling and conversion platform with reusable case-study and blog structure.',
       path: '/projects/portfolio',
     },
     eyebrow: 'Case study',
-    title: 'Portfolio Website (React)',
+    title: 'Portfolio Website (Astro + React)',
     summary:
       'A custom portfolio platform built to present projects, blog content, and service positioning in a clear narrative structure that balances brand expression with technical credibility.',
     heroImage: '/imgs/mockups/portfolio/PORTFOLIO_8.png',
@@ -1017,8 +1017,8 @@ export const projectDetails = [
         list: [
           'Route-level SEO metadata for project and blog detail pages.',
           'Semantic headings, readable type scaling, and keyboard-friendly interaction patterns.',
-          'Optimized image usage with lazy loading across visual-heavy sections.',
-          'Vite build pipeline keeps delivery fast for production deployment.',
+          'Lazy-loaded imagery reduces unnecessary work below the fold while the media optimization pass continues.',
+          'Astro emits crawlable route-specific HTML while React preserves the interactive experience.',
         ],
       },
       {
@@ -1044,7 +1044,7 @@ export const projectDetails = [
       },
     ],
     actions: [
-      { label: 'View GitHub repository', href: 'https://github.com/nanaabaackah/bynana-portfolio', external: true },
+      { label: 'View GitHub profile', href: 'https://github.com/nanaabaackah/', external: true },
       { label: 'Visit live website', href: 'https://nanaabaackah.com', external: true },
       { label: 'Back to projects', href: '/projects' },
     ],

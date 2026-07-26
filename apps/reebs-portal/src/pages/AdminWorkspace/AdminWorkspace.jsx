@@ -2108,12 +2108,20 @@ function AdminWorkspace({ section = "home" }) {
   }, [currentDateTime, currentWindowCustomers.length, customers]);
   const recommendationItems = useMemo(() => {
     const items = [];
+    const predictedInventoryRisks = Array.isArray(advancedAnalytics?.inventoryRisks)
+      ? advancedAnalytics.inventoryRisks
+      : [];
+    const predictedCriticalStock = predictedInventoryRisks.filter((item) => item?.severity === "critical");
     if (canAccessInventoryModule && lowStockCount > 0) {
       items.push({
         key: "reorder",
         title: `Reorder ${Math.min(lowStockCount, 3)} item${lowStockCount === 1 ? "" : "s"} today`,
-        note: stockForecastLabel(directoryStats.avgLeadTime, lowStockCount),
+        note: predictedInventoryRisks.length
+          ? `${predictedCriticalStock.length || predictedInventoryRisks.length} item${(predictedCriticalStock.length || predictedInventoryRisks.length) === 1 ? "" : "s"} may run short soon • ${stockForecastLabel(directoryStats.avgLeadTime, lowStockCount)}`
+          : stockForecastLabel(directoryStats.avgLeadTime, lowStockCount),
         path: DASHBOARD_PATHS.inventoryLow,
+        eyebrow: predictedInventoryRisks.length ? "Stock forecast" : "Inventory",
+        tone: predictedCriticalStock.length ? "critical" : "warning",
       });
     }
     if (canAccessBookingsModule && pendingConfirmationBookings.length > 0) {
@@ -2124,6 +2132,17 @@ function AdminWorkspace({ section = "home" }) {
           ? `Next: ${pendingConfirmationBookings[0].customerName} on ${formatDate(pendingConfirmationBookings[0].eventDate)}`
           : "Open the pending bookings queue",
         path: buildPathWithParams("/admin/bookings", { status: "pending", timing: "next7" }),
+      });
+    }
+    const peakWeekday = String(advancedAnalytics?.demand?.peakWeekday || "").trim();
+    if (canAccessBookingsModule && peakWeekday && peakWeekday !== "No pattern yet") {
+      items.push({
+        key: "forecast-peak-day",
+        title: `${peakWeekday} is your busiest booking day`,
+        note: `Plan delivery and setup capacity for ${toNumber(advancedAnalytics?.demand?.bookingForecastNext30)} predicted bookings over the next 30 days.`,
+        path: "/admin/schedule",
+        eyebrow: "Demand forecast",
+        tone: "info",
       });
     }
     if (canAccessCustomers && customerHealth.inactiveVipCustomers.length > 0) {
@@ -2146,6 +2165,19 @@ function AdminWorkspace({ section = "home" }) {
         path: approvalItems[0]?.href || DASHBOARD_PATHS.orderApprovals,
       });
     }
+    const knownInsightKeys = new Set(["inventory-risk", "peak-day"]);
+    (Array.isArray(advancedAnalytics?.insights) ? advancedAnalytics.insights : [])
+      .filter((insight) => !knownInsightKeys.has(insight?.key))
+      .forEach((insight) => {
+        items.push({
+          key: `forecast-${insight.key || insight.title}`,
+          title: insight.title,
+          note: insight.detail,
+          path: insight.path || "/admin/reports",
+          eyebrow: "Suggested action",
+          tone: insight.tone || "info",
+        });
+      });
     if (!items.length) {
       items.push({
         key: "clear",
@@ -2159,6 +2191,7 @@ function AdminWorkspace({ section = "home" }) {
     return items.slice(0, 4);
   }, [
     approvalItems,
+    advancedAnalytics,
     canAccessBookingsModule,
     canAccessCustomers,
     canAccessInventoryModule,
@@ -2343,16 +2376,42 @@ function AdminWorkspace({ section = "home" }) {
   );
 
   const businessKpiPanel = useMemo(
-    () => ({
+    () => {
+      const forecast = advancedAnalytics?.forecast || {};
+      const demand = advancedAnalytics?.demand || {};
+      const inventoryRisks = Array.isArray(advancedAnalytics?.inventoryRisks)
+        ? advancedAnalytics.inventoryRisks
+        : [];
+      const confidence = String(forecast.confidence || "low").toLowerCase();
+      const direction = forecast.direction === "up"
+        ? "growing"
+        : forecast.direction === "down"
+          ? "softening"
+          : "steady";
+      const forecastChange = Math.abs(toNumber(forecast.changePct));
+      const forecastMeta = `${confidence} confidence • ${direction}${forecastChange ? ` ${forecastChange}%` : ""}`;
+      const forecastStatus = advancedAnalyticsLoading
+        ? "Updating forecasts"
+        : advancedAnalyticsError
+          ? "Core metrics live"
+          : "Forecasts included";
+      const criticalInventoryRisks = inventoryRisks.filter((item) => item?.severity === "critical");
+
+      return ({
       visible: canViewHomeKpis,
       updatedAt: homeUpdatedAt ? formatRelativeTime(homeUpdatedAt) : "",
-      sourceLabel: activeWindowConfig.sourceLabel,
+      sourceLabel: `${activeWindowConfig.sourceLabel} • ${forecastStatus}`,
       windowOptions: HOME_WINDOW_OPTIONS,
       activeWindow: dashboardWindow,
       onWindowChange: setDashboardWindow,
       onRefresh: refreshHomeDashboard,
       refreshDisabled:
-        kpiLoading || financialLoading || stockActivityLoading || directoryLoading || workflowLoading,
+        kpiLoading
+        || financialLoading
+        || stockActivityLoading
+        || directoryLoading
+        || workflowLoading
+        || advancedAnalyticsLoading,
       loading: kpiLoading,
       error: kpiError,
       summaryCards: [
@@ -2361,6 +2420,12 @@ function AdminWorkspace({ section = "home" }) {
           label: "Revenue",
           value: toCurrency(totalRevenue, "GHS"),
           meta: revenueDeltaLabel,
+          signal: {
+            label: "Next 30 days",
+            value: toCurrency(toNumber(forecast.next30RevenueCents) / 100, "GHS"),
+            meta: forecastMeta,
+            tone: forecast.direction === "down" ? "warning" : "positive",
+          },
           path: DASHBOARD_PATHS.accounting,
         },
         {
@@ -2376,6 +2441,14 @@ function AdminWorkspace({ section = "home" }) {
           label: "Inventory value",
           value: toCurrency(inventoryValue, "GHS"),
           meta: stockForecastNote,
+          signal: {
+            label: "Predicted stock risk",
+            value: `${inventoryRisks.length} item${inventoryRisks.length === 1 ? "" : "s"}`,
+            meta: criticalInventoryRisks.length
+              ? `${criticalInventoryRisks.length} may run out within a week`
+              : "Based on recent stock movement",
+            tone: criticalInventoryRisks.length ? "critical" : inventoryRisks.length ? "warning" : "positive",
+          },
           meterClass: "is-warning",
           meterWidth: Math.max(8, 100 - inventoryRiskPct),
           path: DASHBOARD_PATHS.inventoryLow,
@@ -2385,6 +2458,14 @@ function AdminWorkspace({ section = "home" }) {
           label: "Locked-in next quarter",
           value: toCurrency(lockedInValue, "GHS"),
           meta: `${kpiStats?.nextQuarterLabel || "Next quarter"} • ${lockedInPct}% of current revenue`,
+          signal: {
+            label: "30-day booking demand",
+            value: `${toNumber(demand.bookingForecastNext30)} predicted`,
+            meta: demand.peakWeekday && demand.peakWeekday !== "No pattern yet"
+              ? `${demand.peakWeekday} is usually busiest`
+              : "More booking history will improve this",
+            tone: "info",
+          },
           meterClass: "is-accent",
           meterWidth: lockedInPct,
           path: DASHBOARD_PATHS.bookingsConfirmed,
@@ -2418,6 +2499,8 @@ function AdminWorkspace({ section = "home" }) {
         deltaLabel: revenueTrendDeltaLabel,
         rangeLabel: revenueTrendRangeLabel,
         spark: revenueTrendSpark,
+        forecastValue: toCurrency(toNumber(forecast.next30RevenueCents) / 100, "GHS"),
+        forecastMeta,
         onRetry: fetchFinancialStats,
       },
       stockMovement: {
@@ -2435,20 +2518,28 @@ function AdminWorkspace({ section = "home" }) {
           stockOut: toNumber(entry.stockOut),
         })),
         velocityMax,
+        riskCount: inventoryRisks.length,
+        criticalRiskCount: criticalInventoryRisks.length,
         onRetry: fetchStockActivity,
       },
       operationalLoad: {
         path: "/admin/bookings",
         bars: operationsBars,
         max: operationsBarsMax,
+        bookingForecast: toNumber(demand.bookingForecastNext30),
+        peakWeekday: demand.peakWeekday || "No pattern yet",
       },
       topProducts: kpiStats?.topProducts || [],
       topRentalBookings: kpiStats?.topRentalBookings || [],
       dataFreshnessClass,
       onRetryKpi: fetchHomeKpis,
-    }),
+    });
+    },
     [
       activeWindowConfig.sourceLabel,
+      advancedAnalytics,
+      advancedAnalyticsError,
+      advancedAnalyticsLoading,
       avgOrderValue,
       canViewHomeKpis,
       dashboardWindow,
@@ -2527,7 +2618,13 @@ function AdminWorkspace({ section = "home" }) {
   );
 
   const customerHealthPanel = useMemo(
-    () => ({
+    () => {
+      const forecastCustomer = advancedAnalytics?.customer || {};
+      const hasForecastCustomerData = toNumber(forecastCustomer.total) > 0;
+      const repeatRate = hasForecastCustomerData
+        ? Math.max(0, Math.min(100, Math.round(toNumber(forecastCustomer.repeatRate))))
+        : customerHealth.repeatRate;
+      return ({
       summaryCards: [
         {
           key: "new",
@@ -2539,8 +2636,10 @@ function AdminWorkspace({ section = "home" }) {
         {
           key: "repeat",
           label: "Repeat rate",
-          value: `${customerHealth.repeatRate}%`,
-          meta: "Customers with more than one order or booking",
+          value: `${repeatRate}%`,
+          meta: hasForecastCustomerData
+            ? `${toNumber(forecastCustomer.repeat)} of ${toNumber(forecastCustomer.total)} customers have returned`
+            : "Customers with more than one order or booking",
           path: DASHBOARD_PATHS.customerDirectory,
         },
         {
@@ -2566,8 +2665,9 @@ function AdminWorkspace({ section = "home" }) {
         customer.last_activity_at
           ? `Last active ${formatDate(customer.last_activity_at)}`
           : "No recent activity recorded",
-    }),
-    [customerHealth, customersDeltaLabel]
+    });
+    },
+    [advancedAnalytics, customerHealth, customersDeltaLabel]
   );
 
   const activityPanel = useMemo(

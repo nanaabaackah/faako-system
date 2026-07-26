@@ -99,13 +99,13 @@
   justify-content: center;
   align-items: center;
   background: rgba(107, 123, 132, 0.78);
-  --home-blurb-title: rgba(236, 233, 223, 0.86);
+  --home-blurb-title: rgba(255, 255, 255, 0.98);
   --home-blurb-body: rgba(236, 233, 223, 0.72);
   --home-blurb-muted: rgba(236, 233, 223, 0.62);
 }
 
 [data-theme='dark'] .home-blurb {
-  --home-blurb-title: rgba(236, 233, 223, 0.82);
+  --home-blurb-title: rgba(255, 255, 255, 0.96);
   --home-blurb-body: rgba(236, 233, 223, 0.68);
   --home-blurb-muted: rgba(236, 233, 223, 0.58);
 }
@@ -191,12 +191,14 @@
 
 .home-blurb__explore {
   width: min(980px, 100%);
+  min-height: 2.75rem;
   margin: 0 auto;
   border: 0;
   background: transparent;
   color: var(--home-blurb-muted);
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
   font-size: 0.95rem;
   letter-spacing: 0.01em;

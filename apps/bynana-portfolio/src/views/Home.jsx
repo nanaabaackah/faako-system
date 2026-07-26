@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import {
   HiArrowDown,
   HiArrowRight,
@@ -13,7 +13,6 @@ import Seo from '../components/Seo';
 import LogoLoop from '../components/LogoLoop';
 import DecryptedText from '../components/DecryptedText';
 import StarBorder from '../components/StarBorder';
-import ShapeBlur from '../components/ShapeBlur';
 import {
   SiExpress,
   SiFigma,
@@ -31,25 +30,15 @@ import {
 } from 'react-icons/si';
 import '../styles/pages/Home.css';
 
+const ShapeBlur = lazy(() => import('../components/ShapeBlur'));
+
 const EXPERIENCE_START_YEAR = 2022;
 const EXPERIENCE_START_MONTH_INDEX = 8; // September (0-indexed)
 const TRUST_STATS_ENDPOINT =
   import.meta.env.VITE_TRUST_STATS_ENDPOINT ||
   'https://api.dev.nanaabaackah.com/api/public/trust-stats';
-const TRUST_STATS_UPSTREAM_URL = import.meta.env.VITE_TRUST_STATS_UPSTREAM_URL;
-const LIVE_SYSTEMS_FALLBACK = '3';
-
-const buildTrustStatsCandidates = () =>
-  Array.from(
-    new Set(
-      [
-        TRUST_STATS_ENDPOINT,
-        TRUST_STATS_UPSTREAM_URL && TRUST_STATS_UPSTREAM_URL !== TRUST_STATS_ENDPOINT
-          ? TRUST_STATS_UPSTREAM_URL
-          : '',
-      ].filter(Boolean),
-    ),
-  );
+const TRUST_STATS_CACHE_KEY = 'bynana:trust-stats:organizations';
+const TRUST_STATS_RETRY_DELAYS = [0, 600, 1800];
 
 const parseCountValue = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -337,10 +326,33 @@ function HomeTimelineEntry({ item, index }) {
 
 function Home() {
   const [portraitHasError, setPortraitHasError] = useState(false);
-  const [liveSystemsCount, setLiveSystemsCount] = useState(LIVE_SYSTEMS_FALLBACK);
+  const [shouldRenderPortraitEffect, setShouldRenderPortraitEffect] = useState(false);
+  const [liveSystemsCount, setLiveSystemsCount] = useState(null);
   const portraitSectionRef = useRef(null);
   const portraitFrameRef = useRef(null);
   const yearsOfExperience = getYearsOfExperienceLabel();
+
+  useEffect(() => {
+    const section = portraitSectionRef.current;
+    if (!section || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+
+    if (typeof IntersectionObserver !== 'function') {
+      setShouldRenderPortraitEffect(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setShouldRenderPortraitEffect(true);
+        observer.disconnect();
+      },
+      { rootMargin: '360px 0px' },
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   const handleScrollToFooter = useCallback(() => {
     const footer = document.getElementById('site-footer') ?? document.querySelector('.site-footer');
@@ -417,15 +429,30 @@ function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let retryTimer;
 
     const fetchOrganizationsCount = async () => {
-      const urls = buildTrustStatsCandidates();
+      try {
+        const cachedCount = parseCountValue(window.localStorage.getItem(TRUST_STATS_CACHE_KEY));
+        if (cachedCount !== null) {
+          setLiveSystemsCount(String(cachedCount));
+        }
+      } catch {
+        // Storage can be unavailable in privacy-restricted browser contexts.
+      }
 
-      for (const url of urls) {
+      for (const [attempt, delay] of TRUST_STATS_RETRY_DELAYS.entries()) {
+        if (delay > 0) {
+          await new Promise((resolve) => {
+            retryTimer = window.setTimeout(resolve, delay);
+          });
+        }
+
         try {
-          const response = await fetch(url, {
+          const response = await fetch(TRUST_STATS_ENDPOINT, {
             signal: controller.signal,
             headers: { Accept: 'application/json' },
+            cache: 'no-store',
           });
 
           if (!response.ok) continue;
@@ -438,20 +465,28 @@ function Home() {
           if (count === null) continue;
 
           setLiveSystemsCount(String(count));
+          try {
+            window.localStorage.setItem(TRUST_STATS_CACHE_KEY, String(count));
+          } catch {
+            // The live value still renders when storage is unavailable.
+          }
           return;
         } catch (error) {
           if (error?.name === 'AbortError') return;
+          if (attempt === TRUST_STATS_RETRY_DELAYS.length - 1) {
+            console.warn('Unable to refresh the live organization count.', {
+              endpoint: TRUST_STATS_ENDPOINT,
+            });
+          }
         }
       }
-
-      console.warn('Unable to load organization count for home stats; using fallback.', {
-        fallback: LIVE_SYSTEMS_FALLBACK,
-        attemptedUrls: urls,
-      });
     };
 
     fetchOrganizationsCount();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, []);
 
   return (
@@ -546,15 +581,19 @@ function Home() {
           <div className="home-portrait__sticky">
             <div ref={portraitFrameRef} className="home-portrait__frame-wrap" data-scroll-reveal="fadeInUp">
               <div className="home-portrait__shape-blur" aria-hidden="true">
-                <ShapeBlur
-                  variation={0}
-                  pixelRatioProp={typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1}
-                  shapeSize={1}
-                  roundness={0.5}
-                  borderSize={0.05}
-                  circleSize={0.25}
-                  circleEdge={1}
-                />
+                <Suspense fallback={null}>
+                  {shouldRenderPortraitEffect ? (
+                    <ShapeBlur
+                      variation={0}
+                      pixelRatioProp={typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1}
+                      shapeSize={1}
+                      roundness={0.5}
+                      borderSize={0.05}
+                      circleSize={0.25}
+                      circleEdge={1}
+                    />
+                  ) : null}
+                </Suspense>
               </div>
 
               <figure className="home-portrait__frame">
@@ -612,7 +651,7 @@ function Home() {
                     item.dynamicValue === 'experience'
                       ? yearsOfExperience
                       : item.dynamicValue === 'organizations'
-                        ? liveSystemsCount
+                        ? (liveSystemsCount ?? '—')
                         : item.value
                   }
                   duration={980}

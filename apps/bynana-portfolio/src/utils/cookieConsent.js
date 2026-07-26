@@ -1,5 +1,6 @@
 export const BYNANA_COOKIE_PREFS_KEY = 'bynana_cookie_preferences_v1';
 export const BYNANA_COOKIE_PREFS_EVENT = 'bynana-cookie-preferences';
+export const BYNANA_COOKIE_PREFS_OPEN_EVENT = 'bynana-cookie-preferences-open';
 
 export const readByNanaCookiePreferences = () => {
   if (typeof window === 'undefined') return null;
@@ -29,4 +30,8 @@ export const saveByNanaCookiePreferences = ({ analytics }) => {
 
   window.localStorage.setItem(BYNANA_COOKIE_PREFS_KEY, JSON.stringify(preferences));
   window.dispatchEvent(new CustomEvent(BYNANA_COOKIE_PREFS_EVENT, { detail: preferences }));
+};
+
+export const openByNanaCookiePreferences = () => {
+  window.dispatchEvent(new CustomEvent(BYNANA_COOKIE_PREFS_OPEN_EVENT));
 };

@@ -1549,6 +1549,14 @@ const coerceBoolean = (value, fallback = false) => {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TRELLO_EMAIL_TO_BOARD_ADDRESS =
+  String(process.env.TRELLO_EMAIL_TO_BOARD_ADDRESS || "").trim();
+const TRELLO_EMAIL_FROM_EMAIL =
+  String(process.env.TRELLO_EMAIL_FROM_EMAIL || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL).trim();
+const TRELLO_EMAIL_BOARD_NAME =
+  String(process.env.TRELLO_EMAIL_BOARD_NAME || "Dev delivery").trim();
+const TRELLO_EMAIL_LIST_NAME =
+  String(process.env.TRELLO_EMAIL_LIST_NAME || "").trim();
 const INVOICE_EMAIL_SENDER_NAME =
   String(process.env.INVOICE_EMAIL_SENDER_NAME || "By Nana").trim() || "By Nana";
 const INVOICE_EMAIL_HEADER_TAGLINE =
@@ -2325,6 +2333,31 @@ const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html,
     deliveryRecipients: delivery.deliveryRecipients,
     wasRerouted: delivery.wasRerouted,
   };
+};
+
+const sendTrelloBoardEmail = async ({ subject, text }) => {
+  if (!resend) throw new Error("RESEND_API_KEY is not configured");
+  if (!EMAIL_PATTERN.test(TRELLO_EMAIL_TO_BOARD_ADDRESS)) {
+    throw new Error("TRELLO_EMAIL_TO_BOARD_ADDRESS is not configured");
+  }
+  if (!EMAIL_PATTERN.test(TRELLO_EMAIL_FROM_EMAIL)) {
+    throw new Error("TRELLO_EMAIL_FROM_EMAIL is not a valid sender");
+  }
+  const result = await resend.emails.send({
+    from: buildEmailFromHeader({
+      fromEmail: TRELLO_EMAIL_FROM_EMAIL,
+      fromName: "Dev ERP Tasks",
+    }),
+    to: [TRELLO_EMAIL_TO_BOARD_ADDRESS],
+    subject,
+    text,
+  });
+  if (result?.error) {
+    const error = new Error(result.error?.message || "Trello email delivery failed");
+    error.statusCode = Number(result.error?.statusCode) || 502;
+    throw error;
+  }
+  return result;
 };
 
 const sendSms = async ({ recipients, body }) => {

@@ -86,7 +86,7 @@ const buildInitialFormState = (subjectTag) => ({
 
 const isReasonableName = (value) => {
   const normalized = String(value || '').trim();
-  return normalized.length >= 2 && /[A-Za-z]/.test(normalized) && !/[@:/\\]/.test(normalized);
+  return normalized.length >= 2 && /\p{L}/u.test(normalized) && !/[@:/\\]/.test(normalized);
 };
 
 const validateContactForm = (values) => {
@@ -126,7 +126,7 @@ const ContactForm = ({
   if (status.state === 'success') {
     return (
       <div className="contact-card contact-confirmation ui-panel" role="status" aria-live="polite">
-        <h3>Message sent</h3>
+        <h3>{status.title || 'Message sent'}</h3>
         <p>{status.message}</p>
         <button type="button" className="ui-button" onClick={onReset}>
           Send another note
@@ -146,9 +146,9 @@ const ContactForm = ({
 	    >
       <input type="hidden" name="form-name" value="contact" />
       <input type="hidden" name="subjectTag" value={subjectTag} />
-      <p className="sr-only">
-        <label htmlFor="bot-field">Do not fill this out if you are human</label>
-        <input id="bot-field" name="bot-field" />
+      <p className="contact-form__honeypot" aria-hidden="true">
+        <label htmlFor="bot-field">Leave this field empty</label>
+        <input id="bot-field" name="bot-field" tabIndex="-1" autoComplete="off" />
       </p>
 
       <div className="contact-form__row">
@@ -162,6 +162,7 @@ const ContactForm = ({
             placeholder="Your name"
             value={formState.name}
             onChange={onChange}
+            maxLength="120"
             required
             aria-invalid={fieldErrors.name ? 'true' : undefined}
             aria-describedby={fieldErrors.name ? 'fname-error' : undefined}
@@ -179,6 +180,7 @@ const ContactForm = ({
             placeholder="you@example.com"
             value={formState.email}
             onChange={onChange}
+            maxLength="254"
             required
             aria-invalid={fieldErrors.email ? 'true' : undefined}
             aria-describedby={fieldErrors.email ? 'email-error' : undefined}
@@ -196,6 +198,7 @@ const ContactForm = ({
           placeholder="What would you like to discuss?"
           value={formState.subject}
           onChange={onChange}
+          maxLength="160"
           required
           aria-invalid={fieldErrors.subject ? 'true' : undefined}
           aria-describedby={fieldErrors.subject ? 'subject-error' : undefined}
@@ -213,6 +216,7 @@ const ContactForm = ({
           placeholder="Tell me about your project, timeline, and goals."
           value={formState.message}
           onChange={onChange}
+          maxLength="4000"
           required
           aria-invalid={fieldErrors.message ? 'true' : undefined}
           aria-describedby={fieldErrors.message ? 'message-error' : undefined}
@@ -231,6 +235,10 @@ const ContactForm = ({
           {isSubmitting ? 'Sending...' : 'Send message'}
         </button>
       </div>
+      <p className="contact-form__privacy-note">
+        By sending this enquiry, you agree that I may use the details provided to respond.
+        See the <a href="/privacy">privacy policy</a>.
+      </p>
     </form>
   );
 };
@@ -288,7 +296,7 @@ const ContactContent = ({
             </div>
             <div>
               <dt>Local time</dt>
-              <dd>{localTime}</dd>
+              <dd suppressHydrationWarning>{localTime}</dd>
             </div>
             <div>
               <dt>Response</dt>
@@ -410,11 +418,18 @@ function Contact({ embedded = false, sectionId }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (isSubmitting) return;
+    const formElement = event.currentTarget;
 
     const nextFieldErrors = validateContactForm(formState);
     if (Object.keys(nextFieldErrors).length) {
       setFieldErrors(nextFieldErrors);
-      setFormStatus({ state: 'error', message: Object.values(nextFieldErrors)[0] });
+      setFormStatus({
+        state: 'error',
+        message: 'Please review the highlighted fields.',
+      });
+      window.requestAnimationFrame(() => {
+        formElement.querySelector('[aria-invalid="true"]')?.focus();
+      });
       return;
     }
 
@@ -434,7 +449,7 @@ function Contact({ embedded = false, sectionId }) {
     setFormStatus({ state: 'idle', message: '' });
 
     try {
-      const formData = new FormData(event.target);
+      const formData = new FormData(formElement);
       const botField = String(formData.get('bot-field') || '').trim();
       const trimmedSubject = formState.subject.trim();
       const subjectPrefix = subjectTag ? `[${subjectTag}]` : '';
@@ -478,6 +493,7 @@ function Contact({ embedded = false, sectionId }) {
 
       setFormStatus({
         state: 'success',
+        title: CONTACT_SUBMIT_ENDPOINT ? 'Message sent' : 'Email draft opened',
         message: CONTACT_SUBMIT_ENDPOINT
           ? "Thanks! Your note is on its way. I'll reply within one business day."
           : "Your email draft is ready. Send it from your mail app and I'll reply within one business day.",
