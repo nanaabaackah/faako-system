@@ -23,7 +23,7 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/bynana-portfolio` | `eslint .` | `astro check` | SEO and generated-output Node tests | Astro static build and image optimization | — |
 | `@faako/dev-erp` | `eslint .` | `tsc --noEmit` | `node --test` | Prisma generate and Vite build | Playwright, separate |
 | `@faako/faako-api` | `eslint .` | —; JavaScript | `node --test` | Intentional no-compilation check | — |
-| `@faako/faako-erp` | `eslint .` | —; JavaScript | —; none found | Vite build | — |
+| `@faako/faako-erp` | `eslint .` | —; JavaScript | `node --test` | Vite build | — |
 | `@faako/faako-website` | `eslint .` | —; JavaScript | —; none found | Vite build | — |
 | `@faako/reebs-portal` | `eslint .` | —; JavaScript application | `node --test` | Vite build | Playwright, separate |
 | `@faako/reebs-website` | `eslint .` | —; JavaScript application | —; none found | Sitemap generation and Vite build | Script exists, but no specs/config were found |
@@ -31,6 +31,8 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/system-starter` | `eslint .` | —; JavaScript | —; none found | Vite build | — |
 | `@faako/ui-workbench` | `eslint .` | —; JavaScript | —; none found | Vite build | — |
 | `@faako/audit` | `eslint src` | —; JavaScript | `node --test` | —; source-consumed | — |
+| `@faako/api-client` | `eslint src test` | `tsc --noEmit -p tsconfig.json` | Node test with native TypeScript stripping | —; source-consumed | — |
+| `@faako/api-contracts` | `eslint src test` | declaration check with `tsc --noEmit` | `node --test` | —; source-consumed | — |
 | `@faako/config` | `eslint src` | `tsc --noEmit -p tsconfig.json` | `node --test` | —; source-consumed | — |
 | `@faako/core` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/email-kit` | `eslint src` | —; CommonJS | —; none found | —; source-consumed | — |
@@ -45,6 +47,7 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/types` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; type-only | —; source-consumed | — |
 | `@faako/ui` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/utils` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
+| `@faako/validation` | `eslint src test` | declaration check with `tsc --noEmit` | `node --test` | —; source-consumed | — |
 | `reebs-analytics` | Python tooling applies | Python/Pydantic import-time checking only | `python -m pytest` through `pnpm test:python` | Docker/Python service; outside Turbo | — |
 
 `apps/ttngh` is not listed as an active workspace because it has no source manifest. The three manifest-less package placeholders are also outside the executable gate.
@@ -89,11 +92,11 @@ Unsafe build and test caching remains disabled deliberately. The detailed cache 
 On 2026-07-26:
 
 - `CI=true pnpm install --frozen-lockfile --ignore-scripts` passed against the updated lockfile;
-- the equivalent `--offline` verification could not complete because the local pnpm store did not contain the `react-helmet@6.1.0` tarball;
+- `CI=true pnpm install --offline --frozen-lockfile --ignore-scripts` also passed across all 29 workspace projects after the workspace links were refreshed;
 - the aggregate `pnpm check` command passed end to end;
-- lint passed in 25 workspaces, with existing React hook/fast-refresh warnings;
-- type-check passed in all 10 applicable workspaces;
-- the standard test gate passed in all 11 test-bearing workspaces with ordinary loopback permissions;
+- lint passed in 28 workspaces, with existing React hook/fast-refresh warnings;
+- type-check passed in all 13 applicable workspaces;
+- the standard test gate passed in all 15 test-bearing workspaces with ordinary loopback permissions;
 - the Dev ERP onboarding regression file passed 7/7;
 - build passed in all 10 build-capable workspaces;
 - REEBS analytics could not start because the local Python interpreter lacks pytest.

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
-import type { DataTableColumn, DataTableSummaryCell } from "@faako/types";
 import { EmptyState } from "./Primitives";
+import type { DataTableColumn, DataTableSummaryCell } from "../types";
 
 const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
