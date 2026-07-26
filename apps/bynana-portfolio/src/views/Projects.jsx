@@ -7,8 +7,8 @@ const projects = [
   {
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Split kids party shop and rental business stack with a public storefront, CRM-backed contact intake, POS/order builder, admin portal, Express API backend, and PostgreSQL data model.',
-    stack: 'React · Vite · Express API · PostgreSQL',
+      'Live storefront and role-aware operations ERP for CRM intake, POS, orders, rental bookings, inventory, finance, fulfillment, workforce workflows, and dashboard analytics.',
+    stack: 'React · Vite · Express · Prisma · PostgreSQL',
     impact: 'Live website + portal',
     href: '/projects/kids-party-shop-rental',
     image: '/imgs/mockups/reebs/REEBS_1.png',
@@ -42,7 +42,7 @@ const projects = [
   {
     title: 'Development Operations System (Dev ERP)',
     summary:
-      'Internal operations portal for registry-driven modules, proposals, rent, accounting, invoicing, appointments, reports, access control, alerts, and system health.',
+      'Internal ERP for projects and tasks, proposals, form intake, rent, accounting, invoicing, appointments, reports, access control, automation, audit activity, and system health.',
     stack: 'React · Express · Prisma · PostgreSQL',
     impact: 'Ops + finance portal',
     href: '/projects/development-tracker',
@@ -53,7 +53,8 @@ const projects = [
   },
   {
     title: 'Portfolio Website (Astro + React)',
-    summary: 'Personal portfolio with static case-study routes, motion, and accessibility-first structure.',
+    summary:
+      'Static-first portfolio with crawlable project and article routes, structured data, optimized media, React interactions, accessibility checks, and Cloudflare-ready delivery.',
     stack: 'Astro · React · CSS3',
     impact: 'Case + repo',
     href: '/projects/portfolio',

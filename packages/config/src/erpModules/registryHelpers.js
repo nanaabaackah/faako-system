@@ -29,11 +29,6 @@ export const normalizeModulePath = (path) => {
   return normalized || "/";
 };
 
-const getModulePaths = (module) => {
-  const paths = [module?.path, ...(Array.isArray(module?.matchPaths) ? module.matchPaths : [])];
-  return paths.map(normalizeModulePath).filter(Boolean);
-};
-
 const pathMatches = (pattern, path) => {
   const normalizedPattern = normalizeModulePath(pattern);
   const normalizedPath = normalizeModulePath(path);

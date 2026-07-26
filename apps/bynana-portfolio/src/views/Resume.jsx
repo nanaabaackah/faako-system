@@ -13,6 +13,17 @@ const stats = [
 
 const experience = [
   {
+    role: 'Business Analyst',
+    company: 'MTN Ghana',
+    meta: 'Accra, Ghana · 2026 to Present',
+    highlights: [
+      'Analyze current-state business processes and identify practical opportunities for automation.',
+      'Translate operational needs into clear requirements, workflow definitions, and implementation priorities.',
+      'Work with business and technical stakeholders to align process changes with reliable system behavior.',
+      'Support validation and adoption so automated workflows remain usable, traceable, and sustainable.',
+    ],
+  },
+  {
     role: 'IT Technician & Front-End Developer',
     company: 'IBW Surveyors Ltd',
     meta: 'Remote · Oct 2024 to Jul 2025',
@@ -40,15 +51,17 @@ const experience = [
 const projectHighlights = [
   {
     name: 'Kids Party Shop + Rental Portal ERP',
-    stack: 'React/Vite · Express API · PostgreSQL · Prisma',
-    summary: 'Split public storefront and admin portal/backend for CRM contact requests, POS orders, bookings, inventory, finance, fulfillment, and staff operations.',
+    stack: 'React/Vite · Express · Prisma · PostgreSQL',
+    summary:
+      'Live storefront and role-aware ERP for CRM intake, POS, orders, bookings, inventory, finance, fulfillment, workforce workflows, and operational analytics.',
     image: '/imgs/projects/dashboard-case.png',
     href: '/projects/kids-party-shop-rental',
   },
   {
-    name: 'Faako ERP Suite',
-    stack: 'React · Node API · PostgreSQL',
-    summary: 'Multi-tenant ERP SaaS with tenant onboarding and modular operations workflows.',
+    name: 'Faako Platform Foundation',
+    stack: 'React/Vite · Express · Shared Platform Packages',
+    summary:
+      'Public brand and onboarding surfaces backed by an API foundation and a shared ERP shell for future operational modules.',
     image: '/imgs/projects/erp-case.png',
     href: 'https://faako.nanaabaackah.com',
     external: true,
@@ -56,13 +69,26 @@ const projectHighlights = [
   {
     name: 'Development Operations System',
     stack: 'React · Express · Prisma · PostgreSQL',
-    summary: 'Internal Dev ERP portal covering registry-driven modules, proposals, rent, accounting, invoicing, appointments, reporting, user access, alerts, and system health.',
+    summary:
+      'Internal ERP for projects and tasks, proposals, intake review, rent, finance, appointments, reporting, access control, automation, audit activity, and system health.',
     image: '/imgs/10.png',
     href: '/projects/development-tracker',
   },
 ];
 
 const skillGroups = [
+  {
+    title: 'Business Analysis + Automation',
+    items: [
+      'Business process analysis',
+      'Requirements gathering',
+      'Process mapping',
+      'Workflow automation',
+      'Acceptance criteria',
+      'UAT coordination',
+      'Stakeholder alignment',
+    ],
+  },
   {
     title: 'Frontend + UX',
     items: ['React', 'Vue 3', 'Tailwind CSS', 'HTML/CSS', 'Figma', 'Accessibility', 'Design systems'],
@@ -73,7 +99,7 @@ const skillGroups = [
   },
   {
     title: 'ERP + Product Ops',
-    items: ['Odoo.sh', 'Odoo Studio', 'Workflow mapping', 'Rollout enablement', 'QA planning', 'Analytics'],
+    items: ['Odoo.sh', 'Odoo Studio', 'Operational workflows', 'Rollout enablement', 'QA planning', 'Analytics'],
   },
   {
     title: 'AI + Delivery',
@@ -91,9 +117,9 @@ const certifications = [
 ];
 
 const resumeMeta = [
-  { label: 'Location', value: 'Toronto, ON' },
-  { label: 'Availability', value: 'Open to full-time and fractional roles' },
-  { label: 'Focus', value: 'ERP systems, automation, and product engineering' },
+  { label: 'Location', value: 'Accra, Ghana' },
+  { label: 'Current role', value: 'Business Analyst at MTN Ghana' },
+  { label: 'Focus', value: 'Business-process automation, ERP, and product engineering' },
 ];
 
 const ResumeSection = ({ title, headingId, children }) => (
@@ -148,10 +174,10 @@ const ResumeContent = ({ idPrefix }) => {
       <header className="resume-hero" data-scroll-reveal="fadeInUp">
         <div className="resume-hero__copy">
           <p className="ui-kicker">Resume</p>
-          <h1 className="ui-heading">Digital Experience Lead shaping resilient ERP and SaaS experiences.</h1>
+          <h1 className="ui-heading">Business Analyst and Product Engineer improving how teams work.</h1>
           <p className="ui-copy">
-            I help teams ship systems that feel polished and operationally strong, blending product strategy, UX clarity,
-            and full-stack execution.
+            I connect process analysis, requirements, automation, product thinking, and full-stack delivery to turn
+            operational friction into clearer, more reliable ways of working.
           </p>
           <div className="ui-action-row">
             <a className="ui-button ui-button--primary" href="mailto:nanaabaackah@gmail.com">
@@ -290,7 +316,7 @@ function Resume({ embedded = false, sectionId }) {
         {!embedded && (
           <Seo
             title="Resume | By Nana"
-            description="Experience, skills, and results across product engineering, ERP systems, and workflow automation."
+            description="Experience, skills, and selected work across business analysis, business-process automation, product engineering, and ERP systems."
           />
         )}
         <section {...desktopSectionProps}>

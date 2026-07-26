@@ -8,20 +8,20 @@ export const DEFAULT_IMAGE = '/assets/bn-long.png';
 
 export const staticPageSeo = {
   '/': {
-    title: 'Nana Aba Ackah | Product Engineer, ERP & Automation',
+    title: 'Nana Aba Ackah | Business Analyst, ERP & Automation',
     description:
-      'Nana Aba Ackah designs and builds ERP, automation, SaaS, and operational web products. Explore selected systems, case studies, and practical writing.',
+      'Nana Aba Ackah analyzes and automates business processes and builds ERP, SaaS, and operational web products. Explore selected systems, case studies, and practical writing.',
   },
   '/about': {
-    title: 'About Nana Aba Ackah | Product Engineer & Systems Builder',
+    title: 'About Nana Aba Ackah | Business Analyst & Product Engineer',
     description:
-      'Meet Nana Aba Ackah, a product engineer combining UX, frontend engineering, ERP customization, automation, and operational systems thinking.',
+      'Meet Nana Aba Ackah, a Business Analyst and Product Engineer combining process analysis, automation, ERP customization, UX, and operational systems thinking.',
     schemaType: 'ProfilePage',
   },
   '/resume': {
-    title: 'Resume | Nana Aba Ackah',
+    title: 'Business Analyst & Product Engineer Resume | Nana Aba Ackah',
     description:
-      'Experience, capabilities, and selected outcomes from Nana Aba Ackah across product engineering, ERP, automation, UX, and technical delivery.',
+      'Experience, capabilities, and selected outcomes from Nana Aba Ackah across business analysis, process automation, product engineering, ERP, UX, and technical delivery.',
   },
   '/projects': {
     title: 'ERP, Automation & Product Engineering Projects | By Nana',
@@ -105,9 +105,9 @@ export function buildStructuredData(path, seo) {
     name: 'Nana Aba Ackah',
     url: `${SITE_URL}/about`,
     image: absoluteUrl('/imgs/IMG_5131.JPG'),
-    jobTitle: 'Product Engineer and Systems Builder',
+    jobTitle: 'Business Analyst and Product Engineer',
     description:
-      'Product engineer specializing in ERP, automation, operational UX, frontend systems, and SaaS delivery.',
+      'Business Analyst and Product Engineer specializing in business-process automation, ERP, operational UX, frontend systems, and SaaS delivery.',
     sameAs: [
       'https://www.linkedin.com/in/nana-aba-ackah/',
       'https://github.com/nanaabaackah/',

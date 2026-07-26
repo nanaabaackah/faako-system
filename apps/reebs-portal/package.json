@@ -21,6 +21,8 @@
     "server:dev": "APP_ENV=development node backend/server.js",
     "server:prod": "APP_ENV=production node backend/server.js",
     "dev:with-backend": "pnpm run predeploy:local && concurrently -k -n backend,portal -c magenta,cyan \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "lint": "eslint .",
+    "test": "node --test",
     "server:dev:with-migrate": "pnpm run predeploy:local && pnpm run server:dev",
     "server:prod:with-migrate": "pnpm run db:generate && pnpm run db:deploy:prod && pnpm run server:prod",
     "server:with-migrate": "pnpm run server:prod:with-migrate",
@@ -28,7 +30,7 @@
     "source-categories:relink:dry": "node scripts/relinkToysSourceCategories.js",
     "source-categories:relink:apply": "node scripts/relinkToysSourceCategories.js --apply",
     "rehash:passwords": "node scripts/rehashPasswords.js",
-    "test:e2e": "PORT=5174 npx playwright test",
+    "test:e2e": "PORT=5174 playwright test",
     "test:security-foundation": "node --test backend/functions/login.test.js src/components/AuthContext/authResponse.test.js",
     "test:e2e:ui": "PORT=5174 npx playwright test --ui",
     "test:e2e:all": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\" \"pnpm run test:e2e\""

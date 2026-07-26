@@ -7,6 +7,7 @@
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build && node scripts/optimize-dist-images.mjs",
     "lint": "eslint .",
+    "typecheck": "astro check",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "test": "pnpm run test:seo && pnpm run test:standards",
     "test:seo": "node --test tests/seo-output.test.mjs",
@@ -27,6 +28,7 @@
     "three": "^0.183.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.6",
     "@eslint/js": "^9.25.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
@@ -35,6 +37,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.2"
   }
 }

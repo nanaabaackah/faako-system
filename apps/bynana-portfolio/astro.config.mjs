@@ -16,5 +16,13 @@ export default defineConfig({
     resolve: {
       dedupe: ['react', 'react-dom'],
     },
+    server: {
+      proxy: {
+        '/api/public/trust-stats': {
+          target: 'https://api.dev.nanaabaackah.com',
+          changeOrigin: true,
+        },
+      },
+    },
   },
 });
