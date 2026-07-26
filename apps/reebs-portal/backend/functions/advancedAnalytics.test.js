@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildFallbackAnalytics } from "./advancedAnalytics.js";
+import {
+  buildFallbackAnalytics,
+  normalizeAnalyticsServiceUrl,
+} from "./advancedAnalytics.js";
 
 test("fallback analytics returns safe advanced dashboard insights", () => {
   const result = buildFallbackAnalytics({
@@ -33,3 +36,14 @@ test("fallback analytics handles an empty snapshot", () => {
   assert.deepEqual(result.inventoryRisks, []);
 });
 
+test("analytics service URL accepts a Railway hostname without a scheme", () => {
+  assert.equal(
+    normalizeAnalyticsServiceUrl("reebs-service-production.up.railway.app/"),
+    "https://reebs-service-production.up.railway.app"
+  );
+  assert.equal(
+    normalizeAnalyticsServiceUrl("https://analytics.example.com/base/"),
+    "https://analytics.example.com/base"
+  );
+  assert.equal(normalizeAnalyticsServiceUrl("file:///tmp/service"), "");
+});

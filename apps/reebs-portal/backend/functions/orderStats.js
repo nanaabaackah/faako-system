@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
@@ -17,6 +16,14 @@ const json = (event, statusCode, payload) => ({
   headers: responseHeaders(event),
   body: statusCode === 204 ? "" : JSON.stringify(payload),
 });
+
+const runSequentially = async (operations = []) => {
+  const results = [];
+  for (const operation of operations) {
+    results.push(await operation());
+  }
+  return results;
+};
 
 // Exported so it can be unit-tested without a DB connection.
 export const getStatsWindowRange = (windowKey = "30d") => {
@@ -268,8 +275,8 @@ export async function handler(event = {}) {
       operatingExpensesWindowCents,
       operatingExpensesTotalCents,
       maintenanceCostCents,
-    ] = await Promise.all([
-      client.query(
+    ] = await runSequentially([
+      () => client.query(
         `SELECT
            COUNT(*)::int AS orders,
            COALESCE(SUM(o.total_amount), 0) AS revenue_cents,
@@ -284,7 +291,7 @@ export async function handler(event = {}) {
            ${orderOrgFilter}`,
         orderParams
       ),
-      client.query(
+      () => client.query(
         `SELECT COALESCE(SUM(oi.quantity), 0)::int AS units
          FROM "orderItem" oi
          JOIN "order" o ON o.id = oi."orderId"
@@ -293,7 +300,7 @@ export async function handler(event = {}) {
            ${orderOrgFilter}`,
         orderParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            p.id,
            p.name,
@@ -310,7 +317,7 @@ export async function handler(event = {}) {
          LIMIT 5`,
         orderParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            bi."productId" AS product_id,
            p.name AS product_name,
@@ -328,7 +335,7 @@ export async function handler(event = {}) {
          ORDER BY b."eventDate"::date ASC`,
         conflictParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            p.id,
            p.name,
@@ -347,7 +354,7 @@ export async function handler(event = {}) {
          LIMIT 3`,
         bookingParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            COUNT(*)::int AS bookings,
            COALESCE(SUM(b."totalAmount"), 0) AS revenue_cents
@@ -358,7 +365,7 @@ export async function handler(event = {}) {
            ${bookingOrgFilter}`,
         bookingParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            p.id,
            p.name,
@@ -374,20 +381,20 @@ export async function handler(event = {}) {
          LIMIT 6`,
         productParams
       ),
-      client.query(
+      () => client.query(
         `SELECT COUNT(*)::int AS open_count
          FROM "maintenanceLog"
          WHERE LOWER(COALESCE(status, '')) = 'open'
            ${maintenanceOpenOrgFilter}`,
         maintenanceOpenParams
       ),
-      client.query(
+      () => client.query(
         `SELECT COALESCE(SUM(COALESCE(p.stock, 0) * COALESCE(p.price, 0)), 0) AS inventory_value_cents
          FROM "product" p
          WHERE ${productBaseFilter}`,
         productParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            COALESCE(p."specificCategory", 'Uncategorized') AS category,
            COUNT(*)::int AS count
@@ -397,7 +404,7 @@ export async function handler(event = {}) {
          ORDER BY count DESC`,
         productParams
       ),
-      client.query(
+      () => client.query(
         `SELECT
            to_char(date_trunc('month', sm."date"), 'Mon YYYY') AS label,
            SUM(CASE WHEN sm."type" = 'StockIn' THEN sm.quantity ELSE 0 END)::int AS stock_in,
@@ -409,7 +416,7 @@ export async function handler(event = {}) {
          ORDER BY date_trunc('month', sm."date") ASC`,
         velocityParams
       ),
-      getOperatingExpenseTotalCents({
+      () => getOperatingExpenseTotalCents({
         client,
         expenseTable,
         expenseColumns,
@@ -418,7 +425,7 @@ export async function handler(event = {}) {
         startDate: windowStart,
         endDate: now,
       }),
-      getOperatingExpenseTotalCents({
+      () => getOperatingExpenseTotalCents({
         client,
         expenseTable,
         expenseColumns,
@@ -427,7 +434,7 @@ export async function handler(event = {}) {
         startDate: allTimeStart,
         endDate: allTimeEnd,
       }),
-      getMaintenanceExpenseCents({
+      () => getMaintenanceExpenseCents({
         client,
         maintenanceHasOrg,
         organizationId,
@@ -444,7 +451,11 @@ export async function handler(event = {}) {
     const bookingRevenueCents = Number(bookingSummary.rows[0]?.revenue_cents || 0);
     const maintenanceOpen = Number(maintenanceOpenSummary.rows[0]?.open_count || 0);
 
-    const lowStockItems = (lowStockRows.rows || []).map(({ total_count, ...row }) => row);
+    const lowStockItems = (lowStockRows.rows || []).map((row) => {
+      const item = { ...row };
+      delete item.total_count;
+      return item;
+    });
     const lowStockCount = Number(lowStockRows.rows?.[0]?.total_count || 0);
 
     const inventoryValue = Number(inventoryRes.rows[0]?.inventory_value_cents || 0) / 100;

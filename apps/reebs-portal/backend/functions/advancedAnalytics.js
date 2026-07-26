@@ -16,6 +16,29 @@ const toNumber = (value, fallback = 0) => {
 const average = (values = []) =>
   values.length ? values.reduce((sum, value) => sum + toNumber(value), 0) / values.length : 0;
 
+const runSequentially = async (operations = []) => {
+  const results = [];
+  for (const operation of operations) {
+    results.push(await operation());
+  }
+  return results;
+};
+
+export const normalizeAnalyticsServiceUrl = (value) => {
+  const configured = String(value || "").trim();
+  if (!configured) return "";
+  const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(configured)
+    ? configured
+    : `https://${configured}`;
+  try {
+    const parsed = new URL(candidate);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+};
+
 export const buildFallbackAnalytics = (snapshot = {}) => {
   const dailyRevenue = (snapshot.revenueSeries || []).map(
     (row) => toNumber(row.orderRevenueCents) + toNumber(row.bookingRevenueCents)
@@ -111,8 +134,8 @@ export const buildFallbackAnalytics = (snapshot = {}) => {
 };
 
 const loadAnalyticsSnapshot = async (client, organizationId) => {
-  const [revenueResult, demandResult, inventoryResult, customerResult] = await Promise.all([
-    client.query(
+  const [revenueResult, demandResult, inventoryResult, customerResult] = await runSequentially([
+    () => client.query(
       `WITH days AS (
          SELECT generate_series(CURRENT_DATE - INTERVAL '89 days', CURRENT_DATE, INTERVAL '1 day')::date AS day
        ), order_daily AS (
@@ -145,7 +168,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
        ORDER BY days.day`,
       [organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT EXTRACT(ISODOW FROM "eventDate")::int AS weekday_number,
               COUNT(*)::int AS bookings
        FROM "booking"
@@ -157,7 +180,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
        ORDER BY weekday_number`,
       [organizationId]
     ),
-    client.query(
+    () => client.query(
       `SELECT p.id AS "productId",
               p.name,
               GREATEST(COALESCE(p.stock, 0), 0)::int AS stock,
@@ -180,7 +203,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
        LIMIT 100`,
       [organizationId]
     ),
-    client.query(
+    () => client.query(
       `WITH activity AS (
          SELECT "customerId", COUNT(*)::int AS interactions
          FROM (
@@ -222,7 +245,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
 };
 
 const requestPythonAnalytics = async (snapshot) => {
-  const serviceUrl = String(process.env.REEBS_ANALYTICS_SERVICE_URL || "").trim().replace(/\/$/, "");
+  const serviceUrl = normalizeAnalyticsServiceUrl(process.env.REEBS_ANALYTICS_SERVICE_URL);
   if (!serviceUrl) return null;
 
   const controller = new AbortController();

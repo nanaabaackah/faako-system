@@ -587,6 +587,92 @@ button.aw-home-summary-card:focus-visible {
   white-space: nowrap;
 }
 
+.aw-dashboard-details {
+  border: 1px solid var(--aw-border);
+  border-radius: var(--aw-radius-lg);
+  background: var(--aw-card);
+  box-shadow: var(--aw-shadow);
+  overflow: hidden;
+}
+
+.aw-dashboard-details > summary {
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  color: var(--aw-ink);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.aw-dashboard-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.aw-dashboard-details > summary:hover {
+  background: var(--aw-hover-soft);
+}
+
+.aw-dashboard-details > summary:focus-visible {
+  outline: 2px solid var(--aw-primary);
+  outline-offset: -3px;
+}
+
+.aw-dashboard-details > summary > span:first-child,
+.aw-dashboard-details > summary strong,
+.aw-dashboard-details > summary small {
+  display: block;
+}
+
+.aw-dashboard-details > summary strong {
+  font-size: 0.95rem;
+}
+
+.aw-dashboard-details > summary small {
+  margin-top: 0.2rem;
+  color: var(--aw-muted);
+  font-size: 0.76rem;
+}
+
+.aw-dashboard-details-cue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--aw-radius-pill);
+  color: var(--aw-primary);
+  background: var(--aw-primary-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aw-dashboard-details[open] .aw-dashboard-details-cue::before {
+  content: "Hide details";
+}
+
+.aw-dashboard-details[open] .aw-dashboard-details-cue {
+  font-size: 0;
+}
+
+.aw-dashboard-details[open] .aw-dashboard-details-cue::before {
+  font-size: 0.72rem;
+}
+
+.aw-dashboard-details-body {
+  display: grid;
+  gap: 1rem;
+  padding: 0 0.85rem 0.85rem;
+  border-top: 1px solid var(--aw-divider);
+}
+
+.aw-dashboard-details-body > :first-child {
+  margin-top: 0.85rem;
+}
+
 .aw-home-kpi-grid {
   display: grid;
   gap: 0.65rem;
@@ -956,7 +1042,8 @@ button.aw-home-list-item:focus-visible {
   padding: var(--aw-card-pad-y) var(--aw-card-pad-x);
 }
 
-button.aw-home-kpi-chart-card {
+button.aw-home-kpi-chart-card,
+[role="button"].aw-home-kpi-chart-card {
   width: 100%;
   color: inherit;
   font: inherit;
@@ -965,12 +1052,14 @@ button.aw-home-kpi-chart-card {
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-button.aw-home-kpi-chart-card:hover {
+button.aw-home-kpi-chart-card:hover,
+[role="button"].aw-home-kpi-chart-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
 
-button.aw-home-kpi-chart-card:focus-visible {
+button.aw-home-kpi-chart-card:focus-visible,
+[role="button"].aw-home-kpi-chart-card:focus-visible {
   outline: 2px solid var(--aw-primary);
   outline-offset: 2px;
 }
@@ -1939,7 +2028,7 @@ button.aw-activity-item {
   width: min(var(--aw-nav-max-width), max(10.5rem, calc(var(--aw-nav-count, 4) * 7rem)));
   max-width: var(--aw-nav-max-width);
   z-index: 12;
-  display: grid;
+  display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
   padding: 0.45rem;
@@ -2069,10 +2158,6 @@ button.aw-activity-item {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .aw-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .aw-home-kpi-donut-shell svg {
     width: 132px;
     height: 132px;
@@ -2119,11 +2204,25 @@ button.aw-activity-item {
   }
 
   .aw-nav {
+    display: grid;
     left: 0.7rem;
     right: 0.7rem;
     transform: none;
     width: auto;
     max-width: none;
+  }
+
+  .aw-dashboard-details > summary {
+    align-items: flex-start;
+    padding: 0.9rem;
+  }
+
+  .aw-dashboard-details > summary small {
+    max-width: 15rem;
+  }
+
+  .aw-dashboard-details-body {
+    padding-inline: 0.55rem;
   }
 
   .aw-home-summary-grid {
