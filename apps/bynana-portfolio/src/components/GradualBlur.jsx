@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as math from 'mathjs';
 import '../styles/components/GradualBlur.css';
 
 const DEFAULT_CONFIG = {
@@ -142,13 +141,13 @@ function GradualBlur(props) {
       progress = curveFn(progress);
 
       const blurValue = config.exponential
-        ? math.pow(2, progress * 4) * 0.0625 * currentStrength
+        ? Math.pow(2, progress * 4) * 0.0625 * currentStrength
         : 0.0625 * (progress * config.divCount + 1) * currentStrength;
 
-      const p1 = math.round((increment * i - increment) * 10) / 10;
-      const p2 = math.round(increment * i * 10) / 10;
-      const p3 = math.round((increment * i + increment) * 10) / 10;
-      const p4 = math.round((increment * i + increment * 2) * 10) / 10;
+      const p1 = Math.round((increment * i - increment) * 10) / 10;
+      const p2 = Math.round(increment * i * 10) / 10;
+      const p3 = Math.round((increment * i + increment) * 10) / 10;
+      const p4 = Math.round((increment * i + increment * 2) * 10) / 10;
       const direction = getGradientDirection(config.position);
 
       let gradient = `transparent ${p1}%, black ${p2}%`;

@@ -1,5 +1,11 @@
 {
   "$schema": "https://turborepo.org/schema.json",
+  "globalDependencies": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "scripts/vite/**"
+  ],
   "tasks": {
     "dev": {
       "cache": false,
@@ -7,9 +13,33 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "build/**"]
+      "cache": true,
+      "env": [
+        "NODE_ENV",
+        "PUBLIC_*",
+        "VITE_*"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env",
+        ".env.*"
+      ],
+      "outputs": ["dist/**"]
     },
-    "lint": {},
-    "test": {}
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "cache": false,
+      "outputs": []
+    },
+    "test:e2e": {
+      "cache": false,
+      "outputs": []
+    }
   }
 }

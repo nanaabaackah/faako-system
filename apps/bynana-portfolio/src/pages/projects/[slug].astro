@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { projectSeoEntries } from '../../content/seo.js';
+
+export function getStaticPaths() {
+  return projectSeoEntries.map((project) => ({
+    params: { slug: project.slug },
+    props: { path: project.path },
+  }));
+}
+
+const { path } = Astro.props;
+---
+
+<BaseLayout path={path} />
