@@ -1,14 +1,11 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const appRoot = path.resolve(__dirname, "..");
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicSitemapPath = path.join(appRoot, "public", "sitemap.xml");
-
-const SITE_URL = "https://www.reebspartythemes.com";
-const DEFAULT_API_BASE_URL = "https://api.reebspartythemes.com";
-const today = new Date().toISOString().slice(0, 10);
+const rentalRoutesPath = path.join(appRoot, "sitemap-rental-routes.json");
+const siteUrl = "https://www.reebspartythemes.com";
 
 const staticRoutes = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
@@ -24,14 +21,6 @@ const staticRoutes = [
   { path: "/terms-of-service", changefreq: "yearly", priority: "0.5" },
 ];
 
-const slugify = (value = "") =>
-  value
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-
 const xmlEscape = (value = "") =>
   value
     .replace(/&/g, "&amp;")
@@ -40,97 +29,69 @@ const xmlEscape = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 
-const buildRentalPath = (item = {}) => {
-  const idSlug = String(item?.id || item?.productId || "").trim().toLowerCase();
-  const pageSlug = slugify(item?.page?.split("/").filter(Boolean).pop() || "");
-  const nameSlug = slugify(item?.name);
-  const slug = pageSlug || idSlug || nameSlug;
-  return slug ? `/rentals/${slug}` : null;
-};
-
-const normalizeApiBaseUrl = (value = "") => {
-  const normalized = String(value || "").trim().replace(/\/+$/, "");
-  return normalized.endsWith("/api") ? normalized.slice(0, -4) : normalized;
-};
-
-const getApiBaseUrl = () =>
-  normalizeApiBaseUrl(
-    process.env.VITE_API_BASE_URL
-      || process.env.REEBS_API_BASE_URL
-      || process.env.BACKEND_BASE_URL
-      || process.env.VITE_BACKEND_BASE_URL
-      || DEFAULT_API_BASE_URL
-  );
-
-const isRentalInventoryItem = (item = {}) => {
-  const source = String(
-    item.sourceCategoryCode
-      || item.sourcecategorycode
-      || item.sourceCategoryName
-      || item.sourcecategoryname
-      || ""
-  ).trim().toLowerCase();
-  if (source === "rental" || source === "rentals") return true;
-  return String(item.sku || "").trim().toUpperCase().startsWith("REN");
-};
-
-const loadRentalRoutes = async () => {
-  const apiBaseUrl = getApiBaseUrl();
-  if (!apiBaseUrl) return [];
-
-  let items = [];
-  try {
-    const response = await fetch(new URL("/api/inventory", apiBaseUrl));
-    if (!response.ok) {
-      throw new Error(`Inventory request failed: ${response.status}`);
-    }
-    const data = await response.json();
-    items = Array.isArray(data) ? data.filter(isRentalInventoryItem) : [];
-  } catch (error) {
-    console.warn(`Skipping rental sitemap routes: ${error?.message || error}`);
-    return [];
+const readRentalRoutes = async () => {
+  const rawRoutes = JSON.parse(await readFile(rentalRoutesPath, "utf8"));
+  if (!Array.isArray(rawRoutes)) {
+    throw new TypeError("sitemap-rental-routes.json must contain an array");
   }
 
-  const uniquePaths = new Set();
-
-  for (const item of Array.isArray(items) ? items : []) {
-    const routePath = buildRentalPath(item);
-    if (!routePath) continue;
-    uniquePaths.add(routePath);
-  }
-
-  return Array.from(uniquePaths)
-    .sort((a, b) => a.localeCompare(b))
-    .map((routePath) => ({
-      path: routePath,
-      changefreq: "weekly",
-      priority: "0.85",
-    }));
+  return Array.from(
+    new Set(
+      rawRoutes.map((routePath) => String(routePath || "").trim())
+        .filter((routePath) => /^\/rentals\/[a-z0-9-]+$/.test(routePath))
+    )
+  ).sort((a, b) => a.localeCompare(b));
 };
 
 const buildUrlNode = ({ path: routePath, changefreq, priority }) => {
-  const loc = `${SITE_URL}${routePath === "/" ? "" : routePath}`;
+  const location = `${siteUrl}${routePath === "/" ? "" : routePath}`;
   return `  <url>
-    <loc>${xmlEscape(loc)}</loc>
-    <lastmod>${today}</lastmod>
+    <loc>${xmlEscape(location)}</loc>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
 };
 
-const main = async () => {
-  const rentalRoutes = await loadRentalRoutes();
+const createSitemap = async () => {
+  const rentalRoutes = (await readRentalRoutes()).map((routePath) => ({
+    path: routePath,
+    changefreq: "weekly",
+    priority: "0.85",
+  }));
   const routes = [...staticRoutes, ...rentalRoutes];
-  const sitemap = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...routes.map(buildUrlNode),
-    "</urlset>",
-    "",
-  ].join("\n");
 
-  await writeFile(publicSitemapPath, sitemap, "utf8");
-  console.log(`Generated sitemap with ${routes.length} URLs at ${publicSitemapPath}`);
+  return {
+    routeCount: routes.length,
+    sitemap: [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...routes.map(buildUrlNode),
+      "</urlset>",
+      "",
+    ].join("\n"),
+  };
+};
+
+const main = async () => {
+  const { routeCount, sitemap } = await createSitemap();
+  const checkOnly = process.argv.includes("--check");
+  const currentSitemap = await readFile(publicSitemapPath, "utf8").catch(() => "");
+
+  if (checkOnly) {
+    if (currentSitemap !== sitemap) {
+      throw new Error("public/sitemap.xml is stale; run pnpm sitemap");
+    }
+    console.log(`Sitemap is deterministic and current (${routeCount} URLs)`);
+    return;
+  }
+
+  if (currentSitemap !== sitemap) {
+    await writeFile(publicSitemapPath, sitemap, "utf8");
+    console.log(`Generated deterministic sitemap with ${routeCount} URLs`);
+    return;
+  }
+
+  console.log(`Sitemap already current (${routeCount} URLs)`);
 };
 
 main().catch((error) => {

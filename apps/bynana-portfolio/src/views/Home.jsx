@@ -34,9 +34,11 @@ const ShapeBlur = lazy(() => import('../components/ShapeBlur'));
 
 const EXPERIENCE_START_YEAR = 2022;
 const EXPERIENCE_START_MONTH_INDEX = 8; // September (0-indexed)
+const PUBLIC_TRUST_STATS_ENDPOINT =
+  'https://api.dev.nanaabaackah.com/api/public/trust-stats';
 const TRUST_STATS_ENDPOINT =
   import.meta.env.VITE_TRUST_STATS_ENDPOINT ||
-  'https://api.dev.nanaabaackah.com/api/public/trust-stats';
+  (import.meta.env.DEV ? '/api/public/trust-stats' : PUBLIC_TRUST_STATS_ENDPOINT);
 const TRUST_STATS_CACHE_KEY = 'bynana:trust-stats:organizations';
 const TRUST_STATS_RETRY_DELAYS = [0, 600, 1800];
 
@@ -96,11 +98,11 @@ const getYearsOfExperienceLabel = (currentDate = new Date()) => {
 };
 
 const HERO_TITLE = "Hi, I'm Nana Aba Ackah";
-const HERO_SUBTITLE = 'Technical Product Engineer';
+const HERO_SUBTITLE = 'Business Analyst & Product Engineer';
 const BLURB_TITLE =
-  'i am Nana Aba Ackah, a Technical Product Engineer building fast, reliable digital systems that blend product thinking with engineering precision.';
+  'i am Nana Aba Ackah, a Business Analyst and Product Engineer improving how teams work through process analysis, automation, and reliable digital systems.';
 const BLURB_BODY =
-  'i focus on ERP and SaaS workflows that simplify operations, improve team adoption, and help products scale with confidence.';
+  'i translate business needs into clearer workflows, practical requirements, and ERP or SaaS solutions that reduce manual work and support confident delivery.';
 const PORTRAIT_IMAGE = '/imgs/IMG_6668.JPG';
 const STATS_HEADLINE = 'Driving measurable growth and engagement through thoughtful product design and engineering.';
 const STATS_INTRO =
@@ -147,13 +149,20 @@ const SERVICES = [
   },
   {
     number: '04',
-    title: 'API & System Architecture',
+    title: 'Business Process Analysis & Automation',
     description:
-      'I design API and data flows that keep ERP, finance, and internal tools in sync with stability, security, and clear ownership.',
+      'I map current workflows, define requirements and acceptance criteria, and help teams automate repeatable processes with clear ownership and controls.',
     icon: HiOutlineCircleStack,
   },
 ];
 const EXPERIENCE_TIMELINE = [
+  {
+    company: 'MTN Ghana',
+    role: 'Business Analyst',
+    summary:
+      'Analyze business processes, clarify requirements, and help automate repeatable workflows so teams can reduce manual effort and operate more consistently.',
+    date: '2026 - Present',
+  },
   {
     company: 'IBW Surveyors Ltd',
     role: 'IT Technician & Front-End Developer',
@@ -203,8 +212,8 @@ const HOME_PROJECTS = [
   {
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'Live kids party shop and rental business website paired with a CRM-aware admin portal, POS/order builder, and Express API backend.',
-    stack: 'React · Vite · Express API · PostgreSQL',
+      'Live storefront and operations ERP spanning CRM intake, POS, orders, bookings, inventory, finance, fulfillment, role-aware workflows, and decision-ready dashboard analytics.',
+    stack: 'React · Vite · Express · Prisma · PostgreSQL',
     category: 'Website + ERP Portal',
     href: '/projects/kids-party-shop-rental',
     image: '/imgs/mockups/reebs/REEBS_4.png',
@@ -232,7 +241,7 @@ const HOME_PROJECTS = [
   {
     title: 'Development Operations System',
     summary:
-      'Dev ERP portal covering registry-driven modules, proposals, dashboard analytics, rent, accounting, invoicing, appointments, reporting, users, alerts, and system health.',
+      'Dev ERP workspace covering projects and tasks, proposals, intake review, rent, finance, appointments, reporting, access control, automation, audit activity, and system health.',
     stack: 'React · Express · Prisma · PostgreSQL',
     category: 'Dev ERP',
     href: '/projects/development-tracker',
@@ -492,8 +501,8 @@ function Home() {
   return (
     <>
       <Seo
-        title="By Nana | Portfolio"
-        description="Digital experience lead crafting ERP, automation, and SaaS experiences. Explore case studies and ways to collaborate."
+        title="Nana Aba Ackah | Business Analyst & Product Engineer"
+        description="Business Analyst and Product Engineer focused on business-process automation, ERP systems, operational products, and reliable digital delivery."
         path="/"
       />
 

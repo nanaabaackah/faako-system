@@ -45,7 +45,7 @@ if (status !== 200) Astro.response.status = status;
     <meta name="twitter:description" content={seo.description} />
     <meta name="twitter:image" content={image} />
     {seo.noIndex && <meta name="robots" content="noindex, nofollow" />}
-    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   </head>
   <body>
     <PortfolioApp staticLocation={path} client:load />

@@ -18,7 +18,6 @@ const shouldUseConsoleLogger = Boolean(
 );
 
 const createConsoleLogger = (name) => {
-  const prefix = `[${name}]`;
   const serialize = (obj, msg) => {
     if (obj && typeof obj === "object") {
       const { err, error, ...rest } = obj;

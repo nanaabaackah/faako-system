@@ -317,7 +317,7 @@ class PerformanceMonitor {
         console.log('LCP:', lastEntry.renderTime || lastEntry.loadTime);
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
-    } catch (e) {
+    } catch {
       // Silently fail if not supported
     }
     
@@ -330,7 +330,7 @@ class PerformanceMonitor {
         });
       });
       fidObserver.observe({ entryTypes: ['first-input'] });
-    } catch (e) {
+    } catch {
       // Silently fail if not supported
     }
     
@@ -346,7 +346,7 @@ class PerformanceMonitor {
         }
       });
       clsObserver.observe({ entryTypes: ['layout-shift'] });
-    } catch (e) {
+    } catch {
       // Silently fail if not supported
     }
   }
@@ -366,7 +366,7 @@ function initReebsEnhancements() {
   new BackToTop();
   
   // Only monitor performance in development
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     new PerformanceMonitor();
   }
 }

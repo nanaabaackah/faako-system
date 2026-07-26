@@ -1,0 +1,15 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "cache": false,
+      "env": [
+        "$TURBO_EXTENDS$",
+        "APP_ENV",
+        "DATABASE_URL",
+        "DATABASE_URL_DEVELOPMENT",
+        "DATABASE_URL_PRODUCTION"
+      ]
+    }
+  }
+}

@@ -4,6 +4,7 @@ import {
   FAAKO_ONBOARDING_STATUS_OPTIONS,
   buildUpdatePatch,
   buildWizardSections,
+  registerFaakoOnboardingRoutes,
   serializeFaakoOnboardingSubmission,
 } from "./faakoOnboarding.routes.js";
 
@@ -168,4 +169,111 @@ test("non-empty management fields still require the Faako migration", () => {
 
   assert.equal(patch.errorStatus, 409);
   assert.match(patch.error, /Faako migration/i);
+});
+
+test("converting a submission returns and audits the resolved project result", async () => {
+  let mountedRouter;
+  let auditEntry;
+  const columns = Object.keys(sampleRow).concat(["managementUpdatedAt", "managementUpdatedBy"]);
+  const convertedRow = {
+    ...sampleRow,
+    status: "CONVERTED",
+    updatedAt: new Date("2026-06-18T11:30:00.000Z"),
+  };
+  const existingProject = {
+    id: 42,
+    organizationId: 7,
+    organization: { id: 7, name: "Faako", slug: "faako" },
+    ownerUserId: 9,
+    ownerUser: { id: 9, fullName: "Admin User", email: "admin@example.com" },
+    title: "Aba Creative Studio - Growth setup",
+    clientName: "Aba Creative Studio",
+    projectType: "EXTERNAL",
+    stage: "ACTIVE",
+    priority: "HIGH",
+    currency: "GHS",
+    budgetAmount: null,
+    dueDate: null,
+    description: "Converted onboarding project.",
+    externalRef: "faako-onboarding:signup-1",
+    archivedAt: null,
+    createdAt: new Date("2026-06-18T11:20:00.000Z"),
+    updatedAt: new Date("2026-06-18T11:20:00.000Z"),
+  };
+  const faakoPool = {
+    async query(sql) {
+      if (sql.includes("information_schema.tables")) {
+        return { rows: [{ table_schema: "public", table_name: "SignupRequest" }] };
+      }
+      if (sql.includes("information_schema.columns")) {
+        return { rows: columns.map((column_name) => ({ column_name })) };
+      }
+      if (sql.includes("SELECT") && sql.includes('WHERE "id" = $1')) {
+        return { rows: [sampleRow] };
+      }
+      if (sql.includes("UPDATE")) {
+        return { rows: [convertedRow] };
+      }
+      throw new Error(`Unexpected query in onboarding route test: ${sql}`);
+    },
+  };
+  const prisma = {
+    project: {
+      findFirst: async () => existingProject,
+      create: async () => {
+        throw new Error("Existing converted project should be reused.");
+      },
+    },
+  };
+  const app = {
+    use(path, router) {
+      assert.equal(path, "/api/faako-onboarding");
+      mountedRouter = router;
+    },
+  };
+
+  registerFaakoOnboardingRoutes(app, {
+    faakoPool,
+    prisma,
+    authMiddleware: (_req, _res, next) => next(),
+    requireAdmin: (_req, _res, next) => next(),
+    writeAuditLog: async (_prisma, entry) => {
+      auditEntry = entry;
+    },
+  });
+
+  const patchLayer = mountedRouter.stack.find(
+    (layer) => layer.route?.path === "/:id" && layer.route.methods.patch,
+  );
+  const patchHandler = patchLayer.route.stack.at(-1).handle;
+  const req = {
+    params: { id: sampleRow.id },
+    body: { status: "CONVERTED" },
+    user: {
+      userId: 9,
+      organizationId: 7,
+      fullName: "Admin User",
+      email: "admin@example.com",
+    },
+    headers: { "x-request-id": "request-1" },
+    ip: "127.0.0.1",
+  };
+  const res = {
+    statusCode: 200,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = payload;
+      return payload;
+    },
+  };
+
+  await patchHandler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.project.created, false);
+  assert.equal(res.body.project.project.id, 42);
+  assert.equal(auditEntry.metadata.convertedProject.project.id, 42);
 });

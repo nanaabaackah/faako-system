@@ -6,8 +6,9 @@ import ExploreMore from '../components/ExploreMore';
 import '../styles/pages/About.css';
 
 const SERVICES = [
+  'Business analysis and requirements definition',
+  'Business process mapping and automation',
   'ERP implementation and customization',
-  'Workflow automation and process mapping',
   'Digital experience strategy (web + intranet + client workflows)',
   'Frontend product development',
   'API integrations and reporting systems',
@@ -27,13 +28,16 @@ const BLOG_POSTS = [
 ];
 
 const PROJECTS = [
-  { label: 'Kids Party Shop + Rental Portal ERP (Storefront, POS, Admin Portal, Bookings, Inventory, Finance)', href: '/projects/kids-party-shop-rental' },
-  { label: 'Development Operations System (Rent, Accounting, Invoicing, Appointments, System Health)', href: '/projects/development-tracker' },
+  { label: 'Kids Party Shop + Rental Portal ERP (Storefront, CRM, POS, Bookings, Inventory, Finance, Analytics)', href: '/projects/kids-party-shop-rental' },
+  { label: 'Development Operations System (Projects, Proposals, Rent, Finance, Appointments, System Health)', href: '/projects/development-tracker' },
   { label: 'Odoo ERP Customization', href: '/projects/odoo' },
   { label: 'Intranet Website Redesign (including Internal Learning System)', href: '/projects/reconstruction' },
 ];
 
 const SKILLS = [
+  'Business process analysis, requirements gathering, and workflow design',
+  'Process automation discovery and implementation planning',
+  'Stakeholder alignment, acceptance criteria, and UAT coordination',
   'Digital product strategy across website, intranet, ERP, and client workflows',
   'Workflow mapping and operational process optimization',
   'Rollout enablement, onboarding, and team training',
@@ -72,7 +76,7 @@ const ABOUT_ROWS = [
   {
     label: 'Bio',
     content:
-      'Digital Experience Lead and Product Engineer. I build systems that connect website, intranet, ERP, and client workflows into one consistent product experience.',
+      'Business Analyst and Product Engineer. I turn operational needs into clear requirements, automated workflows, and reliable digital systems.',
     sideTitle: 'Services',
     sideType: 'list',
     sideContent: SERVICES,
@@ -80,7 +84,7 @@ const ABOUT_ROWS = [
   {
     label: 'Currently',
     content:
-      'Building and scaling ERP-connected products with a focus on adoption, performance, and measurable operational impact.',
+      'Working as a Business Analyst at MTN Ghana, with a current focus on analyzing and automating business processes.',
     sideTitle: 'Stack',
     sideType: 'stack',
     sideContent: STACK_COLUMNS,
@@ -205,9 +209,9 @@ function AboutContent() {
 
             <div className="about-hero__profile-meta">
               <h1>Nana Aba Ackah</h1>
-              <p>Technical Product Engineer</p>
+              <p>Business Analyst & Product Engineer</p>
               <p>[NOW]</p>
-              <p>Toronto, ON</p>
+              <p>Accra, Ghana</p>
             </div>
           </aside>
 
@@ -257,7 +261,7 @@ function About({ embedded = false, sectionId }) {
         {!embedded && (
           <Seo
             title="About | Nana Aba Ackah"
-            description="Digital Experience Lead and Product Engineer building ERP-connected products and workflow-focused systems."
+            description="Business Analyst and Product Engineer focused on business-process automation, ERP-connected products, and workflow-focused systems."
             path="/about"
           />
         )}

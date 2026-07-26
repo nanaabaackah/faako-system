@@ -111,6 +111,19 @@ test('known stale public claims and broken repository destinations are absent', 
   assert.equal(output.includes('github.com/nanaabaackah/bynana-portfolio'), false);
   assert.equal(output.includes('Optimized image usage with lazy loading'), false);
   assert.equal(output.includes('Vite build pipeline keeps delivery fast'), false);
+  assert.equal(output.includes('Faako ERP Suite'), false);
+  assert.equal(output.includes('Multi-tenant ERP SaaS with tenant onboarding'), false);
+});
+
+test('current career and project positioning is present in generated pages', () => {
+  const output = htmlFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+
+  assert.match(output, /Business Analyst/);
+  assert.match(output, /MTN Ghana/);
+  assert.match(output, /Business Process Analysis/);
+  assert.match(output, /Projects \+ Tasks/);
+  assert.match(output, /Operational Dashboard and Analytics/);
+  assert.match(output, /Astro static output/);
 });
 
 test('trust stats use the live endpoint without presenting a fabricated fallback', () => {

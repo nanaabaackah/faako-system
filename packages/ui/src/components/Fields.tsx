@@ -137,11 +137,14 @@ const buildTimeOptions = (intervalMinutes = 15) => {
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
-const isSameDay = (left: Date | null, right: Date | null) =>
-  Boolean(left && right) &&
-  left.getFullYear() === right.getFullYear() &&
-  left.getMonth() === right.getMonth() &&
-  left.getDate() === right.getDate();
+const isSameDay = (left: Date | null, right: Date | null) => {
+  if (!left || !right) return false;
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+};
 const getWeekStartOffset = (date: Date) => (date.getDay() + 6) % 7;
 
 const buildCalendarDays = (month: Date) => {
@@ -202,7 +205,7 @@ function FieldShell({
   const Wrapper = as;
   return (
     <Wrapper
-      className={joinClasses("ui-field", error && "is-error", className)}
+      className={joinClasses("ui-field", Boolean(error) && "is-error", className)}
       {...(as === "label" && htmlFor ? { htmlFor } : {})}
     >
       {label ? (
