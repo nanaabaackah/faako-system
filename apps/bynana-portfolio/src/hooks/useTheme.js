@@ -2,27 +2,31 @@ import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'bynana-theme';
 
-const getSystemTheme = () => {
-  if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
 export function useTheme() {
-  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
-  const [preference, setPreference] = useState(() => {
-    if (typeof window === 'undefined') return 'system';
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === 'dark' || stored === 'light' ? stored : 'system';
-  });
+  // Keep the server and first browser render deterministic. The real browser
+  // preference is applied immediately after hydration.
+  const [systemTheme, setSystemTheme] = useState('light');
+  const [preference, setPreference] = useState('system');
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const resolvedTheme = preference === 'system' ? systemTheme : preference;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (event) => setSystemTheme(event.matches ? 'dark' : 'light');
+    let storedPreference = 'system';
 
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored === 'dark' || stored === 'light') storedPreference = stored;
+    } catch {
+      // System preference remains available when storage is restricted.
+    }
+
+    setPreference(storedPreference);
     handleChange(media);
+    setHasHydrated(true);
+
     if (media.addEventListener) {
       media.addEventListener('change', handleChange);
     } else {
@@ -39,19 +43,23 @@ export function useTheme() {
   }, []);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (!hasHydrated) return;
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.dataset.themePreference = preference;
-  }, [preference, resolvedTheme]);
+  }, [hasHydrated, preference, resolvedTheme]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (preference === 'system') {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(STORAGE_KEY, preference);
+    if (!hasHydrated) return;
+    try {
+      if (preference === 'system') {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(STORAGE_KEY, preference);
+      }
+    } catch {
+      // Theme switching should still work when storage is restricted.
     }
-  }, [preference]);
+  }, [hasHydrated, preference]);
 
   const toggleTheme = () => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark');
   const resetToSystem = () => setPreference('system');

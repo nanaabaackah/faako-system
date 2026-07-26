@@ -9,6 +9,8 @@
     "dev:with-backend": "pnpm run predeploy:local && concurrently -k -n backend,frontend -c magenta,cyan \"pnpm run server:dev\" \"pnpm run dev:frontend\"",
     "build": "pnpm run db:generate && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "test": "node --test",
     "test:backend": "node --test backend/*.test.js",
     "test:security-foundation": "node --test backend/security.test.js src/components/serializeJsonLd.test.js",
     "test:e2e": "playwright test",

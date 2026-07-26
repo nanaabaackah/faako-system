@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://nanaabaackah.com/sitemap.xml
+Sitemap: https://nanaabaackah.com/sitemap-index.xml

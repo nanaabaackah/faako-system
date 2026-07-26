@@ -34,6 +34,11 @@ function SideRails({ lightStyle = false }) {
     if (!footer) return undefined;
 
     const updateStopState = () => {
+      if (window.matchMedia('(max-width: 720px)').matches) {
+        setStopTop(null);
+        return;
+      }
+
       const revealHeightVar = getComputedStyle(document.documentElement)
         .getPropertyValue('--footer-reveal-height')
         .trim();
@@ -44,7 +49,7 @@ function SideRails({ lightStyle = false }) {
       );
       const boundaryTop = Math.max(0, maxScrollY - revealHeight);
 
-      if (window.scrollY >= boundaryTop) {
+      if (boundaryTop > 0 && window.scrollY >= boundaryTop) {
         setStopTop(boundaryTop);
         return;
       }

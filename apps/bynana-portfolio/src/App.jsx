@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { BrowserRouter, StaticRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
 import { AppUpdateNotice, GoogleAnalyticsRouteTracker } from '@faako/ui';
 import { HiXMark } from 'react-icons/hi2';
 
@@ -14,20 +14,28 @@ import {
 import { useTheme } from './hooks/useTheme';
 import ErrorBoundary from './components/ErrorBoundary';
 import BackgroundFX from './components/BackgroundFX';
-import Loader from './components/Loader';
 import GradualBlur from './components/GradualBlur';
+import ErrorPage from './views/Error';
 
-import Home from './pages/Home';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import Projects from './pages/Projects';
-import Blog from './pages/Blog';
-import Privacy from './pages/Privacy';
-import ProjectDetail from './pages/ProjectDetail';
-import BlogPostDetail from './pages/BlogPostDetail';
-import ErrorPage from './pages/Error';
 import useScrollAnimations from './hooks/useScrollAnimations';
-import { projectDetailsBySlug } from './content/projectDetails';
+
+const Home = lazy(() => import('./views/Home'));
+const About = lazy(() => import('./views/About'));
+const Contact = lazy(() => import('./views/Contact'));
+const Projects = lazy(() => import('./views/Projects'));
+const Blog = lazy(() => import('./views/Blog'));
+const Privacy = lazy(() => import('./views/Privacy'));
+const Resume = lazy(() => import('./views/Resume'));
+const ProjectDetail = lazy(() => import('./views/ProjectDetail'));
+const BlogPostDetail = lazy(() => import('./views/BlogPostDetail'));
+
+const PROJECT_TITLES = {
+  reconstruction: 'Intranet Website Redesign',
+  'development-tracker': 'Development Operations System',
+  odoo: 'Odoo ERP Customization',
+  'kids-party-shop-rental': 'Kids Party Shop + Rental Portal ERP',
+  portfolio: 'Portfolio Website',
+};
 
 const GOOGLE_ANALYTICS_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || import.meta.env.VITE_GA_ID;
 const GOOGLE_ANALYTICS_ENABLED =
@@ -39,9 +47,8 @@ function AppLayout() {
   const projectDetailMatch = location.pathname.match(/^\/projects\/([^/]+)\/?$/);
   const isProjectDetailRoute = Boolean(projectDetailMatch);
   const projectDetailSlug = projectDetailMatch?.[1]?.toLowerCase() ?? '';
-  const projectDetailTitle = projectDetailsBySlug[projectDetailSlug]?.title ?? 'Project not found';
+  const projectDetailTitle = PROJECT_TITLES[projectDetailSlug] ?? 'Project not found';
   const [isHomeBlurbActive, setIsHomeBlurbActive] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true);
   const [analyticsAllowed, setAnalyticsAllowed] = useState(hasByNanaAnalyticsConsent);
   useScrollAnimations(location.pathname);
 
@@ -111,23 +118,6 @@ function AppLayout() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  useEffect(() => {
-    setIsPageLoading(true);
-    const timerId = window.setTimeout(() => {
-      setIsPageLoading(false);
-    }, 620);
-
-    return () => window.clearTimeout(timerId);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    document.body.classList.toggle('is-page-loading', isPageLoading);
-
-    return () => {
-      document.body.classList.remove('is-page-loading');
-    };
-  }, [isPageLoading]);
-
   return (
     <div className="app-layer">
       <GoogleAnalyticsRouteTracker
@@ -164,7 +154,6 @@ function AppLayout() {
         opacity={1}
         zIndex={44}
       />
-      <Loader active={isPageLoading} />
       <a className="skip-link" href="#main-content">Skip to main content</a>
       {!isProjectDetailRoute && (
         <Navbar
@@ -184,18 +173,21 @@ function AppLayout() {
       )}
 
       <div className="app-main-shell">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/privacy" element={<Privacy />} />
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/resume" element={<Resume />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/privacy" element={<Privacy />} />
 
-          <Route path="/projects/:slug" element={<ProjectDetail />} />
-          <Route path="/blog/:slug" element={<BlogPostDetail />} />
-          <Route path="*" element={<ErrorPage variant="not-found" />} />
-        </Routes>
+            <Route path="/projects/:slug" element={<ProjectDetail />} />
+            <Route path="/blog/:slug" element={<BlogPostDetail />} />
+            <Route path="*" element={<ErrorPage variant="not-found" />} />
+          </Routes>
+        </Suspense>
       </div>
       <Footer themeControls={theme} />
       <CookieConsentBanner />
@@ -213,9 +205,11 @@ function AppWithBoundary() {
   );
 }
 
-function App() {
+function App({ staticLocation }) {
+  const Router = staticLocation ? StaticRouter : BrowserRouter;
+
   return (
-    <Router>
+    <Router {...(staticLocation ? { location: staticLocation } : {})}>
       <AppWithBoundary />
     </Router>
   );

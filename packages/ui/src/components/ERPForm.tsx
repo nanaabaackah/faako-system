@@ -195,7 +195,7 @@ export function ERPFieldGroup({
   const Wrapper = as;
   return (
     <Wrapper
-      className={joinClasses("ui-erp-field-group", error && "is-error", className)}
+      className={joinClasses("ui-erp-field-group", Boolean(error) && "is-error", className)}
       {...(as === "label" && htmlFor ? { htmlFor } : {})}
       {...props}
     >

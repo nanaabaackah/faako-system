@@ -125,17 +125,17 @@ export const projectDetails = [
     seo: {
       title: 'Projects | Development Operations System | By Nana',
       description:
-        'Case study: Dev ERP internal operations portal with dashboard, rent, accounting, invoicing, appointments, reports, user access, alerts, and system monitoring.',
+        'Case study: Dev ERP for projects and tasks, proposals, intake, rent, finance, appointments, reporting, access control, automation, audit activity, and system monitoring.',
       path: '/projects/development-tracker',
     },
     eyebrow: 'Case study',
     title: 'Development Operations System (Dev ERP)',
     summary:
-      'A standalone internal operations portal that combines dashboard metrics, rent management, accounting, invoicing, proposals, Faako onboarding intake review, appointments, reporting, user access, alerts, and system-health monitoring in one Dev ERP workspace.',
+      'A live internal ERP that brings projects and task delivery, proposals, onboarding intake review, rent, accounting, invoicing, appointments, reporting, access control, automation, audit activity, and system-health monitoring into one workspace.',
     heroImage: '/imgs/mockups/dev/DEV_1.png',
     supportingImages: ['/imgs/mockups/dev/DEV_4.png', '/imgs/mockups/dev/DEV_2.png'],
     discoveryImage: '/imgs/mockups/dev/DEV_3.png',
-    pills: ['Dev ERP', 'React + Express', 'Prisma + PostgreSQL', 'Module registry', 'Cookie sessions + CSRF'],
+    pills: ['Dev ERP', 'Projects + tasks', 'Proposals + intake', 'Prisma + PostgreSQL', 'Capability-based access'],
     heroFacts: [
       { label: 'Deliverables', value: 'Internal Operations Portal' },
       { label: 'Stack', value: 'React/Vite, Express, Prisma, PostgreSQL' },
@@ -148,7 +148,7 @@ export const projectDetails = [
       {
         label: 'Scope',
         value:
-          'Dashboard, rent, accounting, invoicing, appointments, organizations, user control, reports, audit logs, settings, system health, alerts',
+          'Projects, tasks, proposals, intake, dashboard, rent, accounting, invoicing, appointments, organizations, users, reports, audit logs, settings, and system health',
       },
       { label: 'Tools', value: 'React/Vite, Express route slices, Prisma schema + migrations, PostgreSQL, Cloudflare API routing' },
     ],
@@ -159,16 +159,16 @@ export const projectDetails = [
       { value: 'Org-scoped', label: 'Organization hierarchy and capability-based access model' },
     ],
     challenges: [
-      'Operational data for rent, accounting, invoicing, proposals, onboarding submissions, appointments, reporting, and system status needed to live in one workspace without flattening user roles or organization boundaries.',
+      'Project delivery, proposals, intake submissions, rent, finance, appointments, reporting, and system status needed to live in one workspace without flattening user roles or organization boundaries.',
       'The backend had to move toward focused vertical route slices while preserving secure session handling, CSRF checks, capability enforcement, and database isolation safeguards.',
       'Public appointment booking, Google Calendar sync, report delivery, email/SMS alerts, and system-health checks needed to coexist with a maintainable Express and Prisma architecture.',
     ],
     storefrontShowcase: {
       label: '[Dev ERP Workspace]',
       headline:
-        'DEV ERP NOW CONNECTS OPERATIONS, FINANCE, APPOINTMENTS, ACCESS CONTROL, AND SYSTEM HEALTH.',
+        'DEV ERP NOW CONNECTS PROJECT DELIVERY, CLIENT INTAKE, OPERATIONS, FINANCE, ACCESS CONTROL, AND SYSTEM HEALTH.',
       paragraphs: [
-        'The interface gives admins and role-scoped users one control center for dashboard metrics, rent, accounting, invoicing, appointments, reports, audit logs, and system health.',
+        'The interface gives admins and role-scoped users one control center for project boards and tasks, proposals, form submissions, rent, finance, appointments, reports, audit logs, and system health.',
         'Behind the UI, modular Express route slices and a Prisma-backed Postgres schema keep each workflow connected through shared session, CSRF, capability, and organization-scope rules.',
       ],
       image: '/imgs/mockups/dev/DEV_11.png',
@@ -178,11 +178,11 @@ export const projectDetails = [
         id: 'dev-tracker-system-layout',
         type: 'architecture',
         title: 'Architecture Diagram',
-        caption: 'Vite frontend modules, modular Express API slices, Prisma data model, and external operations integrations.',
+        caption: 'React/Vite frontend modules, modular Express API slices, Prisma data model, and external operations integrations.',
         ariaLabel:
           'System architecture for Dev ERP showing Vite admin portal, public appointment booking, auth and capability middleware, modular Express API, Prisma Postgres, Google Calendar, and alerts.',
         nodes: [
-          { id: 'ui', label: 'Vite Admin Portal', detail: '12 role-aware modules', x: 15, y: 18, tone: 'accent' },
+          { id: 'ui', label: 'React/Vite Admin Portal', detail: 'Role-aware ERP modules', x: 15, y: 18, tone: 'accent' },
           { id: 'public-book', label: 'Public Appointment', detail: 'Org-scoped booking page', x: 49, y: 10, tone: 'light' },
           { id: 'auth', label: 'Auth Sessions', detail: 'Secure cookie flow', x: 78, y: 18, tone: 'light' },
           { id: 'capabilities', label: 'Capability Rules', detail: 'Role and module checks', x: 83, y: 38, tone: 'light' },
@@ -328,11 +328,12 @@ export const projectDetails = [
         image: '/imgs/mockups/dev/DEV_6.png',
         cards: [
           { title: 'Dashboard', detail: 'KPI, availability, site status, and operational health overview.' },
+          { title: 'Projects + Tasks', detail: 'Org-scoped project records, delivery stages, progress, task ownership, activity, and optional external-project synchronization.' },
           { title: 'Rent', detail: 'Tenant records, rent payment history, balances, and rent-only user paths.' },
           { title: 'Accounting + Invoicing', detail: 'Revenue/expense entries, invoice records, line items, due dates, and payment state.' },
           { title: 'Proposals + Intake', detail: 'Editable proposal canvas, secure client response links, and Faako onboarding submission review.' },
           { title: 'Appointments', detail: 'Manual + public appointment booking with Google Calendar sync support.' },
-          { title: 'Admin modules', detail: 'Organizations, user control, reports, audit logs, settings, alerts, and system health.' },
+          { title: 'Admin + Insights', detail: 'Organizations, user control, reports, audit logs, settings, alerts, and system health.' },
         ],
       },
       {
@@ -364,6 +365,8 @@ export const projectDetails = [
         title: 'Integrations and Automations',
         image: '/imgs/mockups/dev/DEV_9.png',
         list: [
+          'Project delivery combines org-scoped records, Kanban stages, task tracking, activity history, and bounded external-project synchronization.',
+          'Proposal workflows cover reusable templates, internal review, secure client responses, and approved-proposal handoff into invoice drafts.',
           'Google Calendar OAuth flow for booking sync, callback processing, and disconnect actions.',
           'Productivity coach endpoint connected to OpenAI Responses API for planning guidance.',
           'Scheduled report and reminder jobs support rent summaries, accounting reminders, invoice email delivery, and alerts.',
@@ -385,10 +388,10 @@ export const projectDetails = [
           ],
           afterLabel: 'After',
           after: [
-            'One Dev ERP workspace for operations, finance, rent, appointments, and monitoring',
+            'One Dev ERP workspace for projects, proposals, intake, operations, finance, appointments, and monitoring',
             'Modular Express route slices composed by the runtime app',
             'Cookie + CSRF + capability-gated API access model',
-            'Centralized reports, alerts, audit logs, and system-health visibility',
+            'Centralized automation, reports, cross-app audit activity, alerts, and system-health visibility',
           ],
         },
       },
@@ -520,17 +523,17 @@ export const projectDetails = [
     seo: {
       title: 'Projects | Kids Party Shop + Rental Portal ERP | By Nana',
       description:
-        'Case study: split kids party shop and rental business public website, admin portal, and Express API handlers backend for bookings, inventory, accounting, delivery, HR, and operations.',
+        'Case study: live party storefront and operations ERP for CRM, POS, orders, bookings, inventory, finance, fulfillment, workforce workflows, and dashboard analytics.',
       path: '/projects/kids-party-shop-rental',
     },
     eyebrow: 'Flagship case study',
     title: 'Kids Party Shop + Rental Portal ERP',
     summary:
-      'A live React/Vite public website for a kids party shop and rental business, paired with a dedicated admin portal and portal-owned Express API handlers backend across POS orders, bookings, CRM-backed planning requests, inventory, delivery, documents, accounting, maintenance, marketing, HR, and workforce management.',
+      'A live React/Vite storefront paired with a role-aware operations ERP and Express/Prisma backend for CRM intake, POS, orders, rental bookings, inventory, finance, fulfillment, maintenance, workforce workflows, and decision-ready analytics.',
     heroImage: '/imgs/mockups/reebs/REEBS_2.png',
     supportingImages: ['/imgs/mockups/reebs/REEBS_3.png', '/imgs/mockups/reebs/REEBS_7.png'],
     discoveryImage: '/imgs/mockups/reebs/REEBS_5.png',
-    pills: ['Live website', 'Portal ERP', 'CRM lead intake', 'Inventory + Finance', 'Module registry'],
+    pills: ['Live storefront', 'Operations ERP', 'CRM + POS', 'Inventory + Finance', 'Dashboard analytics'],
     heroFacts: [
       { label: 'Deliverables', value: 'Public Website + Admin Portal ERP' },
       { label: 'Stack', value: 'React/Vite, Express API handlers, PostgreSQL, Prisma, Shared Workspace Packages' },
@@ -543,7 +546,7 @@ export const projectDetails = [
       {
         label: 'Scope',
         value:
-          'Website pages, shop, rentals, cart, checkout, contact requests, POS/order builder, bookings, orders, stock movement, invoicing, expenses, delivery, documents, maintenance, timesheets, roles, marketing, operations workflows',
+          'Storefront, shop, rentals, cart, checkout, CRM, POS, bookings, orders, inventory, finance, receipts, delivery, maintenance, team access, reports, and dashboard analytics',
       },
       { label: 'Stack', value: 'React + Vite, Express API handlers, PostgreSQL (Railway), Prisma schema and migrations, shared shell/runtime packages' },
     ],
@@ -551,7 +554,7 @@ export const projectDetails = [
       { value: '2 deploy targets', label: 'Public website and portal/backend split' },
       { value: '40+ functions', label: 'Portal-owned backend endpoints' },
       { value: '3 sales paths', label: 'Website checkout, staff POS orders, and rental bookings' },
-      { value: 'CRM-backed', label: 'Contact briefs, customer linking, and follow-up tasks' },
+      { value: 'Decision-ready', label: 'Windowed KPIs, revenue trends, workflow queues, and stock risk' },
     ],
     challenges: [
       'The customer-facing website and internal ERP needed clearer ownership so public pages could stay lightweight while admin workflows, functions, and Prisma migrations lived in the portal app.',
@@ -563,7 +566,7 @@ export const projectDetails = [
       headline:
         'THE PUBLIC WEBSITE NOW HANDS OPERATIONAL WORK TO A DEDICATED PORTAL BACKEND.',
       paragraphs: [
-        'Customers move through shopping, rentals, booking, checkout, and support/contact pages in the public website while staff and managers work from the portal admin workspace, CRM, and POS/order builder.',
+        'Customers move through shopping, rentals, booking, checkout, and support/contact pages while staff and managers use a role-aware portal for CRM, POS, inventory, bookings, finance, fulfillment, and team workflows.',
         'Portal-owned Express API handlers write to shared order, booking, inventory, delivery, document, accounting, HR, and operations services, while shared organization utilities keep requests aligned across the split apps.',
       ],
       image: '/imgs/mockups/reebs/REEBS_1.png',
@@ -771,6 +774,19 @@ export const projectDetails = [
     ],
     sections: [
       {
+        id: 'operations-dashboard',
+        title: 'Operational Dashboard and Analytics',
+        image: '/imgs/mockups/reebs/REEBS_2.png',
+        summary:
+          'The portal home turns live operational records into role-aware priorities, trend context, and direct routes into the work that needs attention.',
+        cards: [
+          { title: 'Windowed KPIs', detail: 'Orders, bookings, revenue, stock value, and average order value can be reviewed across practical time windows.' },
+          { title: 'Revenue mix + trend', detail: 'Retail and rental revenue are compared with operating expenses and net-profit context.' },
+          { title: 'Assigned work', detail: 'Due-today, overdue, and personally assigned orders or bookings are surfaced without searching across modules.' },
+          { title: 'Inventory risk', detail: 'Low-stock items, booking conflicts, reorder pressure, and operational exceptions become actionable dashboard signals.' },
+        ],
+      },
+      {
         id: 'commerce-layer',
         title: 'Commerce Layer (Public Website)',
         image: '/imgs/mockups/reebs/REEBS_14.png',
@@ -930,22 +946,22 @@ export const projectDetails = [
   {
     slug: 'portfolio',
     seo: {
-      title: 'Projects | Portfolio Website (React) | By Nana',
+      title: 'Projects | Portfolio Website (Astro + React) | By Nana',
       description:
-        'Case study: React portfolio website built as a storytelling and conversion platform with reusable case-study and blog structure.',
+        'Case study: Astro and React portfolio built for crawlable project storytelling, structured data, accessibility, performance, and conversion.',
       path: '/projects/portfolio',
     },
     eyebrow: 'Case study',
-    title: 'Portfolio Website (React)',
+    title: 'Portfolio Website (Astro + React)',
     summary:
       'A custom portfolio platform built to present projects, blog content, and service positioning in a clear narrative structure that balances brand expression with technical credibility.',
     heroImage: '/imgs/mockups/portfolio/PORTFOLIO_8.png',
     supportingImages: ['/imgs/mockups/portfolio/PORTFOLIO_5.png', '/imgs/mockups/portfolio/PORTFOLIO_4.png'],
     discoveryImage: '/imgs/mockups/portfolio/PORTFOLIO_1.png',
-    pills: ['Personal brand site', 'React + Vite', 'Case-study framework', 'Accessibility-aware', 'SEO-ready'],
+    pills: ['Astro static output', 'React islands', 'Structured data', 'Accessibility-aware', 'Cloudflare-ready'],
     heroFacts: [
       { label: 'Deliverables', value: 'Portfolio Website + Case Study Pages' },
-      { label: 'Stack', value: 'React, Vite, React Router, Custom CSS' },
+      { label: 'Stack', value: 'Astro, React, React Router, Custom CSS' },
       { label: 'Role', value: 'Product Designer + Front-End Engineer' },
       { label: 'Service', value: 'Brand Experience + Front-End Delivery' },
     ],
@@ -953,7 +969,7 @@ export const projectDetails = [
       { label: 'Product', value: 'Professional portfolio and thought-leadership website' },
       { label: 'Users', value: 'Potential clients, hiring teams, and collaborators' },
       { label: 'Goal', value: 'Showcase capability through detailed case studies and clear conversion paths' },
-      { label: 'Tools', value: 'React, Vite, React Router, Custom CSS, static deployment workflow' },
+      { label: 'Tools', value: 'Astro, React, React Router, Custom CSS, sitemap and static deployment workflow' },
     ],
     stats: [
       { value: '5+', label: 'Featured project case studies' },
@@ -994,8 +1010,8 @@ export const projectDetails = [
         image: '/imgs/mockups/portfolio/PORTFOLIO_7.png',
         cards: [
           { title: 'Route system', detail: 'Dedicated routes for Home, About, Projects, Contact, Blog, and dynamic detail pages.' },
-          { title: 'Project data model', detail: 'Case studies are driven by structured content objects for maintainable updates.' },
-          { title: 'Blog structure', detail: 'Post lists and detail pages reuse shared metadata and body sections.' },
+          { title: 'Project data model', detail: 'Astro generates a crawlable route for each case study from structured content objects.' },
+          { title: 'Blog structure', detail: 'Article routes reuse shared metadata, structured data, and body sections.' },
           { title: 'Navigation clarity', detail: 'Global navigation and page hierarchy reduce click uncertainty.' },
         ],
       },
@@ -1015,10 +1031,11 @@ export const projectDetails = [
         title: 'Performance, Accessibility, and SEO',
         image: '/imgs/mockups/portfolio/PORTFOLIO_2.png',
         list: [
-          'Route-level SEO metadata for project and blog detail pages.',
+          'Route-level titles, descriptions, canonicals, Open Graph data, schema markup, robots rules, and sitemap output.',
           'Semantic headings, readable type scaling, and keyboard-friendly interaction patterns.',
-          'Optimized image usage with lazy loading across visual-heavy sections.',
-          'Vite build pipeline keeps delivery fast for production deployment.',
+          'Build-time media optimization and lazy loading reduce image delivery cost below the fold.',
+          'Astro emits crawlable route-specific HTML while a focused React island preserves the interactive experience.',
+          'Automated SEO, local-link, asset, duplicate-ID, security-header, and performance-budget checks protect each release.',
         ],
       },
       {
@@ -1044,7 +1061,7 @@ export const projectDetails = [
       },
     ],
     actions: [
-      { label: 'View GitHub repository', href: 'https://github.com/nanaabaackah/bynana-portfolio', external: true },
+      { label: 'View GitHub profile', href: 'https://github.com/nanaabaackah/', external: true },
       { label: 'Visit live website', href: 'https://nanaabaackah.com', external: true },
       { label: 'Back to projects', href: '/projects' },
     ],

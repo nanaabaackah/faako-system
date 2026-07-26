@@ -67,7 +67,7 @@
   gap: 0.32rem;
 }
 
-.about-hero__profile-meta p {
+.about-hero__profile-meta :is(h1, p) {
   margin: 0;
   color: color-mix(in srgb, var(--text-1) 84%, transparent);
   font-size: 1rem;
