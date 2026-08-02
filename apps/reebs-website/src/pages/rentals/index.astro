@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CataloguePrelude from "../../components/catalogue/CataloguePrelude.astro";
+import SiteFooter from "../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../components/catalogue/SiteHeader.astro";
+import RentalsIsland from "../../components/islands/RentalsIsland.jsx";
+---
+
+<BaseLayout path="/rentals">
+  <SiteHeader currentPath="/rentals" />
+  <CataloguePrelude kind="rental" />
+  <RentalsIsland path={`/rentals${Astro.url.search}`} chrome={false} client:load />
+  <SiteFooter />
+</BaseLayout>

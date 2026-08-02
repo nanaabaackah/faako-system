@@ -1,0 +1,122 @@
+---
+const { item } = Astro.props;
+const isRental = item.kind === "rental";
+const basePath = isRental ? "/rentals" : "/shop";
+const categoryPath = `${basePath}/category/${item.categorySlug}`;
+const formatter = new Intl.NumberFormat("en-GH", {
+  style: "currency",
+  currency: item.currency || "GHS",
+  maximumFractionDigits: 2,
+});
+---
+
+<main class="catalogue-detail" id="main">
+  <nav aria-label="Breadcrumb">
+    <a href="/">Home</a><span aria-hidden="true">/</span>
+    <a href={basePath}>{isRental ? "Rentals" : "Shop"}</a><span aria-hidden="true">/</span>
+    <a href={categoryPath}>{item.category}</a><span aria-hidden="true">/</span>
+    <span aria-current="page">{item.name}</span>
+  </nav>
+  <article>
+    <div class="catalogue-detail__media">
+      {item.image ? (
+        <img
+          src={item.image}
+          alt={item.name}
+          width="960"
+          height="720"
+          decoding="async"
+        />
+      ) : (
+        <div role="img" aria-label={`${item.name} image not available`}>
+          Image coming soon
+        </div>
+      )}
+    </div>
+    <div class="catalogue-detail__copy">
+      <p class="catalogue-detail__eyebrow">{item.category}</p>
+      <h1>{item.name}</h1>
+      {item.description && <p>{item.description}</p>}
+      <p class="catalogue-detail__price">
+        {item.price && item.price > 0
+          ? formatter.format(item.price)
+          : "Contact REEBS for current pricing"}
+      </p>
+      <p>
+        {item.availability === "in-stock"
+          ? "Listed as available. Stock is confirmed during checkout."
+          : item.availability === "out-of-stock"
+            ? "Currently listed as out of stock."
+            : "Date availability is confirmed after your booking request."}
+      </p>
+      <div class="catalogue-detail__actions">
+        <a class="btn btn-primary" href={isRental ? `/book?rental=${item.slug}` : `/shop?q=${encodeURIComponent(item.name)}`}>
+          {isRental ? "Request this rental" : "Find in live shop"}
+        </a>
+        <a class="btn btn-secondary" href="https://wa.me/233244238419" target="_blank" rel="noopener noreferrer">
+          Ask on WhatsApp
+        </a>
+      </div>
+    </div>
+  </article>
+</main>
+
+<style>
+  .catalogue-detail {
+    width: min(1180px, calc(100% - 2rem));
+    min-height: 70vh;
+    margin: 0 auto;
+    padding: clamp(7rem, 12vw, 10rem) 0 4rem;
+  }
+  .catalogue-detail nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin-bottom: 1.5rem;
+  }
+  .catalogue-detail nav a { color: var(--text-main); }
+  .catalogue-detail article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, .85fr);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: center;
+  }
+  .catalogue-detail__media {
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--gray-200);
+    box-shadow: var(--shadow);
+  }
+  .catalogue-detail__media img,
+  .catalogue-detail__media div {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+  .catalogue-detail__media div {
+    display: grid;
+    place-items: center;
+    color: var(--text-subtle);
+    font-weight: 800;
+  }
+  .catalogue-detail__eyebrow {
+    color: var(--text-subtle);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .catalogue-detail h1 {
+    margin: .25rem 0 1rem;
+    font: 800 clamp(2.3rem, 6vw, 5rem)/.98 var(--font-heading);
+  }
+  .catalogue-detail__price { font-size: 1.35rem; font-weight: 850; }
+  .catalogue-detail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: 1.5rem;
+  }
+  @media (max-width: 760px) {
+    .catalogue-detail article { grid-template-columns: 1fr; }
+  }
+</style>

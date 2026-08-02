@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { FALLBACK_RATES } from "../CurrencyContext/CurrencyContext";
+import {
+  DEFAULT_CURRENCY_RATES as FALLBACK_RATES,
+  formatCurrencyMajor,
+} from "@faako/finance";
 import {
   getCartItemKey,
   getCartItemMaxSelectableQuantity,
@@ -9,6 +12,8 @@ import {
 } from "/src/utils/cart";
 
 const CartContext = createContext();
+const RATES_CACHE_KEY = "reebs_rates_cache_v1";
+const RATES_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const readStoredJson = (key, fallback) => {
   if (typeof window === "undefined") return fallback;
   try {
@@ -31,31 +36,38 @@ const readStoredCurrency = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState(readStoredCart);
+  // Keep the server render and the browser's first render identical. Persisted
+  // state is restored after hydration so Astro islands do not mismatch.
+  const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
-
-  const [currency, setCurrency] = useState(readStoredCurrency);
+  const [currency, setCurrency] = useState("GHS");
+  const [storageHydrated, setStorageHydrated] = useState(false);
 
   const [rates, setRates] = useState(FALLBACK_RATES);
   const apiKey = import.meta.env.VITE_CURRENCY_API_KEY;
-  const RATES_CACHE_KEY = "reebs_rates_cache_v1";
-  const RATES_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+  useEffect(() => {
+    setCart(readStoredCart());
+    setCurrency(readStoredCurrency());
+    setStorageHydrated(true);
+  }, []);
 
   useEffect(() => {
+    if (!storageHydrated) return;
     try {
       localStorage.setItem("cart", JSON.stringify(cart));
     } catch {
       // ignore storage write failures
     }
-  }, [cart]);
+  }, [cart, storageHydrated]);
 
   useEffect(() => {
+    if (!storageHydrated) return;
     try {
       localStorage.setItem("currency", currency);
     } catch {
       // ignore storage write failures
     }
-  }, [currency]);
+  }, [currency, storageHydrated]);
 
   // fetch exchange rates
   useEffect(() => {
@@ -201,14 +213,11 @@ export const CartProvider = ({ children }) => {
   };
 
   const formatCurrency = (value) => {
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency,
-      }).format(value);
-    } catch {
-      return value + " " + currency;
-    }
+    const locale =
+      typeof navigator !== "undefined" && navigator.language
+        ? navigator.language
+        : "en-GH";
+    return formatCurrencyMajor(value, currency, { locale });
   };
 
   return (

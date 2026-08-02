@@ -95,6 +95,10 @@ test("normal API responses retain security headers and middleware order", async 
     assertSecurityHeaders(response);
     assert.equal(response.headers.get("access-control-allow-origin"), allowedOrigin);
     assert.equal(response.headers.get("access-control-allow-credentials"), "true");
+    assert.match(
+      response.headers.get("x-request-id"),
+      /^[A-Za-z0-9][A-Za-z0-9._:-]+$/,
+    );
     assert.deepEqual(await response.json(), { received: { ok: true } });
     assert.deepEqual(middlewareCalls, [
       "request-logger",
@@ -115,7 +119,10 @@ test("malformed JSON responses receive security headers without internal details
     });
     assert.equal(response.status, 400);
     assertSecurityHeaders(response);
-    assert.deepEqual(await response.json(), { error: "Malformed JSON body." });
+    const payload = await response.json();
+    assert.equal(payload.error, "Malformed JSON body.");
+    assert.equal(payload.apiError.code, "validation_error");
+    assert.equal(payload.meta.requestId, response.headers.get("x-request-id"));
   });
 });
 
@@ -129,7 +136,9 @@ test("oversized JSON responses receive security headers and preserve the 1 MB li
     });
     assert.equal(response.status, 413);
     assertSecurityHeaders(response);
-    assert.deepEqual(await response.json(), { error: "Request body is too large." });
+    const payload = await response.json();
+    assert.equal(payload.error, "Request body is too large.");
+    assert.equal(payload.apiError.code, "validation_error");
   });
 });
 
@@ -143,6 +152,8 @@ test("CORS continues to reject unrelated browser origins", async () => {
     });
     assert.equal(response.status, 403);
     assert.equal(response.headers.get("access-control-allow-origin"), null);
-    assert.deepEqual(await response.json(), { error: "Not allowed by CORS" });
+    const payload = await response.json();
+    assert.equal(payload.error, "Not allowed by CORS");
+    assert.equal(payload.apiError.code, "permission_error");
   });
 });

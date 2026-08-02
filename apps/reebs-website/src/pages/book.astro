@@ -1,0 +1,39 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import BookIsland from "../components/islands/BookIsland.jsx";
+---
+
+<BaseLayout path="/book">
+  <main id="main">
+    <header class="booking-prelude">
+      <p>Party booking request</p>
+      <h1>Reserve rentals and plan your event</h1>
+      <p>
+        Share your date, venue, and preferred rentals. REEBS will confirm
+        availability and the next payment step.
+      </p>
+    </header>
+    <BookIsland path={`/book${Astro.url.search}`} client:load />
+  </main>
+</BaseLayout>
+
+<style>
+  .booking-prelude {
+    width: min(1180px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: clamp(7rem, 12vw, 10rem) 0 1rem;
+  }
+  .booking-prelude > p:first-child {
+    margin: 0;
+    color: var(--text-subtle);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .booking-prelude h1 {
+    max-width: 16ch;
+    margin: .35rem 0;
+    font: 800 clamp(2.4rem, 7vw, 5rem)/.98 var(--font-heading);
+  }
+  .booking-prelude > p:last-child { max-width: 66ch; }
+</style>

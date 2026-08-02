@@ -12,13 +12,9 @@ const PARTY_BITS = [
 ];
 
 function PartyConfetti({ className = "" }) {
-  const [enabled, setEnabled] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const reduceData = window.matchMedia("(prefers-reduced-data: reduce)").matches;
-    const mobileView = window.matchMedia("(max-width: 900px)").matches;
-    return !reduceMotion && !reduceData && !mobileView;
-  });
+  // Match the server's first render, then opt into decorative motion once the
+  // browser's motion, data, and viewport preferences are known.
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

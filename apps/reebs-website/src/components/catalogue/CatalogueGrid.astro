@@ -1,0 +1,154 @@
+---
+interface CatalogueItem {
+  name: string;
+  path: string;
+  category: string;
+  image?: string;
+  price?: number | null;
+  availability: string;
+}
+
+const {
+  items,
+  heading,
+  description,
+  backHref,
+  backLabel,
+} = Astro.props as {
+  items: CatalogueItem[];
+  heading: string;
+  description: string;
+  backHref: string;
+  backLabel: string;
+};
+const formatter = new Intl.NumberFormat("en-GH", {
+  style: "currency",
+  currency: "GHS",
+  maximumFractionDigits: 2,
+});
+---
+
+<main class="catalogue-page" id="main">
+  <nav aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">/</span>
+    <a href={backHref}>{backLabel}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{heading}</span>
+  </nav>
+  <header>
+    <p class="catalogue-page__eyebrow">{backLabel} category</p>
+    <h1>{heading}</h1>
+    <p>{description}</p>
+  </header>
+  {items.length ? (
+    <ul class="catalogue-grid">
+      {items.map((item) => (
+        <li>
+          <article class="catalogue-card">
+            {item.image ? (
+              <img
+                src={item.image}
+                alt={item.name}
+                width="640"
+                height="480"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <div class="catalogue-card__placeholder" role="img" aria-label={`${item.name} image not available`}>
+                Image coming soon
+              </div>
+            )}
+            <div class="catalogue-card__body">
+              <p>{item.category}</p>
+              <h2><a href={item.path}>{item.name}</a></h2>
+              <span>
+                {item.price && item.price > 0
+                  ? formatter.format(item.price)
+                  : "Ask for current pricing"}
+              </span>
+              <small>
+                {item.availability === "in-stock"
+                  ? "Available"
+                  : item.availability === "out-of-stock"
+                    ? "Currently out of stock"
+                    : "Check date availability"}
+              </small>
+            </div>
+          </article>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p role="status">No public items are listed in this category right now.</p>
+  )}
+</main>
+
+<style>
+  .catalogue-page {
+    width: min(1180px, calc(100% - 2rem));
+    min-height: 60vh;
+    margin: 0 auto;
+    padding: clamp(7rem, 12vw, 10rem) 0 4rem;
+  }
+  .catalogue-page nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin-bottom: 1.5rem;
+  }
+  .catalogue-page nav a { color: var(--text-main); }
+  .catalogue-page__eyebrow {
+    margin: 0;
+    color: var(--text-subtle);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .catalogue-page h1 {
+    margin: .35rem 0;
+    font: 800 clamp(2.3rem, 6vw, 4.8rem)/1 var(--font-heading);
+  }
+  .catalogue-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 1rem;
+    padding: 0;
+    margin: 2rem 0 0;
+    list-style: none;
+  }
+  .catalogue-card {
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+  .catalogue-card img,
+  .catalogue-card__placeholder {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--gray-200);
+  }
+  .catalogue-card__placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--text-subtle);
+    font-weight: 750;
+  }
+  .catalogue-card__body { padding: 1rem; }
+  .catalogue-card__body p,
+  .catalogue-card__body small,
+  .catalogue-card__body span { display: block; }
+  .catalogue-card__body p { margin: 0; color: var(--text-subtle); }
+  .catalogue-card__body h2 {
+    margin: .35rem 0 .75rem;
+    font: 800 1.3rem/1.15 var(--font-heading);
+  }
+  .catalogue-card__body h2 a { color: var(--text-main); }
+  .catalogue-card__body span { font-weight: 800; }
+  .catalogue-card__body small { margin-top: .35rem; color: var(--text-subtle); }
+</style>

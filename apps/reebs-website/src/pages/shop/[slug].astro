@@ -1,0 +1,57 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CatalogueDetail from "../../components/catalogue/CatalogueDetail.astro";
+import SiteFooter from "../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../components/catalogue/SiteHeader.astro";
+import { publicShopItems } from "../../content/publicCatalogue.js";
+import { SITE_URL } from "../../utils/seo.js";
+
+export function getStaticPaths() {
+  return publicShopItems.map((item) => ({
+    params: { slug: item.slug },
+    props: { item },
+  }));
+}
+
+const { item } = Astro.props;
+const description =
+  item.description
+  || `${item.name} in the REEBS Party Themes public shop catalogue.`;
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "@id": `${SITE_URL}${item.path}#product`,
+  name: item.name,
+  description,
+  sku: item.sku || undefined,
+  category: item.category,
+  image: item.image || undefined,
+  url: `${SITE_URL}${item.path}`,
+  offers:
+    item.price && item.price > 0
+      ? {
+          "@type": "Offer",
+          price: item.price,
+          priceCurrency: item.currency || "GHS",
+          availability:
+            item.availability === "in-stock"
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          url: `${SITE_URL}${item.path}`,
+        }
+      : undefined,
+};
+---
+
+<BaseLayout
+  path={item.path}
+  title={`${item.name} | REEBS Party Themes`}
+  description={description}
+  image={item.image || undefined}
+  type="product"
+  structuredData={productSchema}
+>
+  <SiteHeader currentPath="/shop" />
+  <CatalogueDetail item={item} />
+  <SiteFooter />
+</BaseLayout>

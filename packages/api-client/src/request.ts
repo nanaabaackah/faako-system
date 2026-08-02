@@ -1,4 +1,5 @@
 import {
+  createRequestId,
   normalizeApiResponse,
   readRequestId,
   readRetryAfterSeconds,
@@ -276,7 +277,8 @@ export const createApiClient = (
     const requestId =
       cleanRequestId(options.requestId) ||
       existingRequestId ||
-      cleanRequestId(config.requestIdFactory?.());
+      cleanRequestId(config.requestIdFactory?.()) ||
+      cleanRequestId(createRequestId());
     if (requestId && !existingRequestId) {
       headers.set("X-Request-Id", requestId);
     }

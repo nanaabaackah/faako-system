@@ -1,0 +1,31 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../components/catalogue/SiteHeader.astro";
+---
+
+<BaseLayout
+  path="/404"
+  status={404}
+  title="Page Not Found | REEBS Party Themes"
+  description="The REEBS page you requested could not be found."
+  noIndex
+>
+  <SiteHeader />
+  <main class="status-page" id="main">
+    <p>Error 404</p>
+    <h1>This page has moved or does not exist.</h1>
+    <p>Browse the public catalogue or contact REEBS for help planning your event.</p>
+    <div>
+      <a class="btn btn-primary" href="/rentals">Browse rentals</a>
+      <a class="btn btn-secondary" href="/contact">Contact REEBS</a>
+    </div>
+  </main>
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .status-page { width: min(760px, calc(100% - 2rem)); min-height: 70vh; margin: auto; padding: 10rem 0 5rem; }
+  .status-page h1 { font: 800 clamp(2.5rem, 7vw, 5rem)/1 var(--font-heading); }
+  .status-page div { display: flex; flex-wrap: wrap; gap: .75rem; }
+</style>

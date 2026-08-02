@@ -1,4 +1,8 @@
 import { apiPath } from "../../api/config";
+import {
+  STROANE_ADMIN_ACTION_IDS,
+  STROANE_ADMIN_MODULE_IDS,
+} from "@faako/security";
 
 const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
 
@@ -53,18 +57,9 @@ export const ADMIN_ROLES = ["ADMIN", "OWNER", "VIEWER", "CUSTOM"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 export type AdminAppearancePreference = "system" | "light" | "dark";
 
-export const ADMIN_ROLE_MODULES = [
-  "dashboard",
-  "orders",
-  "receipts",
-  "accounting",
-  "crm",
-  "inventory",
-  "team",
-  "profile",
-] as const;
+export const ADMIN_ROLE_MODULES = STROANE_ADMIN_MODULE_IDS;
 
-export const ADMIN_ROLE_ACTIONS = ["view", "create", "edit", "delete", "archive", "manage"] as const;
+export const ADMIN_ROLE_ACTIONS = STROANE_ADMIN_ACTION_IDS;
 
 export type AdminRoleModule = (typeof ADMIN_ROLE_MODULES)[number];
 export type AdminRoleAction = (typeof ADMIN_ROLE_ACTIONS)[number];

@@ -3,7 +3,7 @@ import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
 import { Link } from 'react-router-dom';
 import { Call, Location, Sms } from 'iconsax-react';
-import { SUPPORTED_CURRENCIES } from '../CurrencyContext/CurrencyContext';
+import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from '@faako/finance';
 import { useCart } from '../CartContext/CartContext';
 import {
   IoLogoFacebook,
@@ -16,7 +16,7 @@ import {
   clearExpiringDraft,
   loadExpiringDraft,
   saveExpiringDraft,
-} from '/src/utils/formDrafts';
+} from '@faako/utils';
 import { buildWebsiteUrl } from '/src/utils/website';
 
 const MENU_LINKS = [

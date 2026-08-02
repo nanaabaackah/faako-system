@@ -41,27 +41,27 @@ This covers ignored local environment files and mode-specific files such as deve
 
 The root manifest, lockfile, workspace definition, and `scripts/vite/**` are global dependencies. Changes to shared analytics injection or manual chunk logic therefore invalidate affected cached work.
 
-## Deterministic REEBS sitemap
+## Deterministic REEBS catalogue and sitemap
 
-The REEBS Website build no longer performs a live inventory request and no longer inserts the wall-clock date into `sitemap.xml`.
+The REEBS Website build does not perform a live inventory request. Astro generates its sitemap from tracked file routes and a committed public-only catalogue snapshot.
 
 Normal flow:
 
-1. `sitemap-rental-routes.json` is a committed, sorted snapshot.
-2. `pnpm sitemap` generates `public/sitemap.xml` only from tracked source.
-3. The generator omits synthetic `lastmod` timestamps.
-4. `pnpm sitemap:check` fails when the committed output and snapshot disagree.
-5. `pnpm build` runs the deterministic generator before Vite.
+1. `src/content/public-catalogue.json` is a committed snapshot generated from the public inventory API.
+2. The snapshot generator uses an explicit public-field allowlist and stable slugs.
+3. Astro generates `sitemap-index.xml` and `sitemap-0.xml` from tracked routes.
+4. `pnpm sitemap:check` validates catalogue route uniqueness and, after a build, required sitemap routes.
+5. The build reads only committed source and finishes with a deterministic CSP/redirect finalizer.
 
 Inventory refresh is explicit:
 
 ```sh
-pnpm --filter @faako/reebs-website run sitemap:refresh
-pnpm --filter @faako/reebs-website run sitemap
+pnpm --filter @faako/reebs-website run catalogue:refresh
 pnpm --filter @faako/reebs-website run sitemap:check
+pnpm --filter @faako/reebs-website run build
 ```
 
-The refresh command may use `VITE_API_BASE_URL`, `REEBS_API_BASE_URL`, `BACKEND_BASE_URL`, or `VITE_BACKEND_BASE_URL`. It is intentionally outside the build task. Review the changed snapshot and sitemap before committing.
+The refresh command may use `VITE_API_BASE_URL`, `REEBS_API_BASE_URL`, `BACKEND_BASE_URL`, or `VITE_BACKEND_BASE_URL`. It is intentionally outside the build task. Review the changed snapshot before committing.
 
 ## Cache safety
 

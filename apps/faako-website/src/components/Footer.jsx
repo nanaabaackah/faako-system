@@ -74,7 +74,7 @@ export default function Footer({ footerLogo }) {
             <Link to="/terms">Terms of Service</Link>
           </div>
         </div>
-        <AppBottomBar variant="footer" />
+        <AppBottomBar variant="footer" businessName="Faako" />
       </div>
     </footer>
   );

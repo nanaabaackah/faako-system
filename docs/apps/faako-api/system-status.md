@@ -6,7 +6,7 @@ Faako API is the Express backend for the current Faako signup flow and Faako ERP
 
 ## Current status
 
-Focused backend service for signup, demo access, and health checks. Faako Website calls this API through `VITE_API_BASE_URL` or the local Vite `/api` proxy; Faako ERP calls `/api/demo-access` for email-code demo access.
+Focused backend service for signup, demo access, and health checks. Faako Website calls this API through `VITE_API_BASE_URL` or the local Astro `/api` proxy; Faako ERP calls `/api/demo-access` for email-code demo access.
 
 ## Stable modules/features
 

@@ -1,7 +1,10 @@
 export {
   API_CLIENT_ERROR_CODES,
   ApiClientError,
+  getApiErrorPresentation,
   isApiClientError,
+  type ApiErrorPresentation,
+  type ApiErrorStateId,
   type ApiClientErrorOptions,
   type ApiClientLocalErrorCode,
 } from "./errors.ts";

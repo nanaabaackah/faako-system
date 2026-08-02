@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { InlineNotice } from "@faako/ui";
+import { getApiErrorPresentation } from "@faako/api-client";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import {
   DEMO_SCENARIO_OPTIONS,
@@ -19,11 +21,12 @@ const demoAccessApi = createDemoAccessApi({
 });
 
 const getApiError = (fallback) => {
-  if (fallback instanceof Error && fallback.message) {
-    return fallback.message;
-  }
-
-  return fallback || "Something went wrong. Please try again.";
+  const presentation = getApiErrorPresentation(fallback, {
+    fallbackMessage: "Something went wrong. Please try again.",
+  });
+  return presentation.requestId
+    ? `${presentation.message} Reference: ${presentation.requestId}`
+    : presentation.message;
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -240,7 +243,11 @@ export default function DemoAccessGate() {
 
         <div className="demo-access-panel">
           {step === "request" ? (
-            <form className="demo-access-form" onSubmit={handleRequestCode}>
+            <form
+              className="demo-access-form"
+              onSubmit={handleRequestCode}
+              aria-busy={isRequesting}
+            >
               <div className="field">
                 <label htmlFor="demo-access-email">Work email</label>
                 <input
@@ -256,7 +263,13 @@ export default function DemoAccessGate() {
               </div>
 
               {error ? (
-                <div className="demo-access-feedback is-danger">{error}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="error"
+                  title="Code not sent"
+                  message={error}
+                />
               ) : null}
 
               <button
@@ -272,7 +285,11 @@ export default function DemoAccessGate() {
               </p>
             </form>
           ) : (
-            <form className="demo-access-form" onSubmit={handleVerifyCode}>
+            <form
+              className="demo-access-form"
+              onSubmit={handleVerifyCode}
+              aria-busy={isVerifying}
+            >
               <div className="field">
                 <label htmlFor="demo-access-code">Enter your access code</label>
                 <input
@@ -296,7 +313,13 @@ export default function DemoAccessGate() {
               </div>
 
               {feedback ? (
-                <div className="demo-access-feedback is-info">{feedback}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="success"
+                  title="Access code ready"
+                  message={feedback}
+                />
               ) : null}
 
               {deliveryMode !== "email" ? (
@@ -306,7 +329,13 @@ export default function DemoAccessGate() {
               ) : null}
 
               {error ? (
-                <div className="demo-access-feedback is-danger">{error}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="error"
+                  title="Demo not unlocked"
+                  message={error}
+                />
               ) : null}
 
               <button

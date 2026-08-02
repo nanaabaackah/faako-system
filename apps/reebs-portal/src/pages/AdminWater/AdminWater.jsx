@@ -13,6 +13,9 @@ import WaterOperationsGrid from "./components/WaterOperationsGrid";
 import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
 import WaterOrderFormCard from "./components/WaterOrderFormCard";
 import WaterRestockCard from "./components/WaterRestockCard";
+import { buildRestockPeriods, filterEntriesByRestockPeriod } from "./waterPeriodUtils";
+import { buildRetailPriceUpdatePayload, toMoneyInputValue } from "./waterPriceUtils";
+import { useAuth } from "../../components/AuthContext/AuthContext";
 
 const DEFAULT_PURCHASE_COST = 2200;
 const DEFAULT_RETAIL_PRICE = 2700;
@@ -124,74 +127,6 @@ const formatDateTime = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   });
-};
-
-const getTimestampValue = (value) => {
-  if (!value) return Number.NaN;
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? Number.NaN : parsed;
-};
-
-const getWaterRecordTimestamp = (record) => {
-  const datedAt = getTimestampValue(record?.date);
-  if (Number.isFinite(datedAt)) return datedAt;
-  const createdAt = getTimestampValue(record?.createdAt);
-  return Number.isFinite(createdAt) ? createdAt : Number.NEGATIVE_INFINITY;
-};
-
-const compareWaterRecords = (left, right) => {
-  const primaryDiff = getWaterRecordTimestamp(left) - getWaterRecordTimestamp(right);
-  if (primaryDiff !== 0) return primaryDiff;
-  const createdDiff = getTimestampValue(left?.createdAt) - getTimestampValue(right?.createdAt);
-  if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
-  return toNumber(left?.id) - toNumber(right?.id);
-};
-
-const formatPackCount = (value) => {
-  const quantity = Math.max(0, Math.round(toNumber(value, 0)));
-  return `${quantity} pack${quantity === 1 ? "" : "s"}`;
-};
-
-const buildRestockPeriods = (restocks = [], formatDateLabel = formatDate) => {
-  const ordered = [...restocks].sort(compareWaterRecords);
-  return ordered
-    .map((restock, index) => {
-      const nextRestock = ordered[index + 1] || null;
-      const restockId = Number(restock?.id);
-      const quantity = Math.max(0, Math.round(toNumber(restock?.quantity, 0)));
-      return {
-        value:
-          Number.isFinite(restockId) && restockId > 0
-            ? `restock:${restockId}`
-            : `restock:index:${index}`,
-        id: Number.isFinite(restockId) && restockId > 0 ? restockId : null,
-        quantity,
-        date: restock?.date || "",
-        startAt: getWaterRecordTimestamp(restock),
-        endAt: nextRestock ? getWaterRecordTimestamp(nextRestock) : null,
-        isCurrent: index === ordered.length - 1,
-        label: `${formatDateLabel(restock?.date)} · ${formatPackCount(quantity)}`,
-      };
-    })
-    .reverse();
-};
-
-const filterEntriesByRestockPeriod = (entries = [], period = null) => {
-  if (!Array.isArray(entries)) return [];
-  if (!period) return entries;
-  return entries.filter((entry) => {
-    const entryTime = getWaterRecordTimestamp(entry);
-    if (!Number.isFinite(entryTime)) return false;
-    if (entryTime < period.startAt) return false;
-    if (Number.isFinite(period.endAt) && entryTime >= period.endAt) return false;
-    return true;
-  });
-};
-
-const toMoneyInputValue = (value) => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return "";
-  return (amount / 100).toFixed(2);
 };
 
 const toPercentInputValue = (value) => {
@@ -453,6 +388,7 @@ function AdminWater() {
   const [orderQuery, setOrderQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [stockPeriodFilter, setStockPeriodFilter] = useState("current");
+  const [retailPriceInput, setRetailPriceInput] = useState("");
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [orderForm, setOrderForm] = useState(null);
   const [orderError, setOrderError] = useState("");
@@ -460,6 +396,7 @@ function AdminWater() {
   const [activeLedgerItem, setActiveLedgerItem] = useState(null);
   const [ledgerForm, setLedgerForm] = useState(null);
   const [ledgerError, setLedgerError] = useState("");
+  const { user, authReady } = useAuth();
   const [removedRecordIds, setRemovedRecordIds] = useState({
     sale: [],
     expense: [],
@@ -508,7 +445,10 @@ function AdminWater() {
   }, []);
 
   const loadWater = async () => {
-    const response = await fetch("/api/water");
+    const response = await fetch("/api/water", {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load the water module.");
@@ -519,7 +459,10 @@ function AdminWater() {
   const loadVendors = async () => {
     setVendorError("");
     try {
-      const response = await fetch("/api/vendors");
+      const response = await fetch("/api/vendors", {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load vendors.");
@@ -535,7 +478,10 @@ function AdminWater() {
   const loadCustomers = async () => {
     setCustomerError("");
     try {
-      const response = await fetch("/api/customers");
+      const response = await fetch("/api/customers", {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load customers.");
@@ -562,8 +508,21 @@ function AdminWater() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
+    if (!user) {
+      setError("Please sign in to access the water module.");
+      setDashboard(buildDefaultDashboard());
+      return;
+    }
     loadModule();
-  }, []);
+  }, [authReady, user]);
+
+  const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
+  const retailPriceCents = Math.max(0, toNumber(pricing?.retailSingle, DEFAULT_RETAIL_PRICE));
+
+  useEffect(() => {
+    setRetailPriceInput(toMoneyInputValue(retailPriceCents));
+  }, [retailPriceCents]);
 
   const handleAction = async (action, payload, successMessage) => {
     setSaving(true);
@@ -572,7 +531,11 @@ function AdminWater() {
     try {
       const response = await fetch("/api/water", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ action, ...payload }),
       });
       const data = await response.json().catch(() => null);
@@ -600,7 +563,7 @@ function AdminWater() {
     }));
   };
 
-  const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
+  const retailPriceInputValue = retailPriceInput || toMoneyInputValue(retailPriceCents);
   const dashboardRestocks = Array.isArray(dashboard?.restocks) ? dashboard.restocks : [];
   const dashboardSales = Array.isArray(dashboard?.sales) ? dashboard.sales : [];
   const dashboardExpenses = Array.isArray(dashboard?.expenses) ? dashboard.expenses : [];
@@ -1635,6 +1598,28 @@ function AdminWater() {
     }
   };
 
+  const handleRetailPriceSubmit = async (event) => {
+    event.preventDefault();
+    const priceUpdate = buildRetailPriceUpdatePayload(retailPriceInputValue);
+    if (!priceUpdate) {
+      setError("Enter a retail price greater than zero.");
+      setStatus("");
+      return;
+    }
+
+    const saved = await handleAction(
+      "update_product_pricing",
+      {
+        retailSingle: priceUpdate.retailSingle,
+      },
+      "Water retail price updated."
+    );
+
+    if (saved) {
+      setRetailPriceInput(toMoneyInputValue(priceUpdate.cents));
+    }
+  };
+
   const handleRestockSubmit = async (event) => {
     event.preventDefault();
     const saved = await handleAction(
@@ -1883,6 +1868,13 @@ function AdminWater() {
 
         <WaterRestockCard
           onSubmit={handleRestockSubmit}
+          retailPriceInputValue={retailPriceInputValue}
+          onRetailPriceChange={(event) => setRetailPriceInput(event.target.value)}
+          onRetailPriceSubmit={handleRetailPriceSubmit}
+          retailPriceLabel={formatCurrency(retailPriceCents)}
+          retailPriceSaving={saving}
+          retailPriceLoading={loading}
+          formatCurrency={formatCurrency}
           quickQuantities={RESTOCK_QUICK_QUANTITIES}
           restockQuantity={restockQuantity}
           quantityValue={restockForm.quantity}
@@ -1893,7 +1885,6 @@ function AdminWater() {
           restockCost={restockCost}
           saving={saving}
           loading={loading}
-          formatCurrency={formatCurrency}
         />
 
         <WaterOrderFormCard

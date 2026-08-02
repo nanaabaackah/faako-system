@@ -24,7 +24,7 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/dev-erp` | `eslint .` | `tsc --noEmit` | `node --test` | Prisma generate and Vite build | Playwright, separate |
 | `@faako/faako-api` | `eslint .` | —; JavaScript | `node --test` | Intentional no-compilation check | — |
 | `@faako/faako-erp` | `eslint .` | —; JavaScript | `node --test` | Vite build | — |
-| `@faako/faako-website` | `eslint .` | —; JavaScript | —; none found | Vite build | — |
+| `@faako/faako-website` | `eslint .` | `astro check` | `node --test tests/*.test.mjs`; production Playwright smoke script | Astro static build plus CSP finalizer | — |
 | `@faako/reebs-portal` | `eslint .` | —; JavaScript application | `node --test` | Vite build | Playwright, separate |
 | `@faako/reebs-website` | `eslint .` | —; JavaScript application | —; none found | Sitemap generation and Vite build | Script exists, but no specs/config were found |
 | `@faako/stroane-web` | `eslint .` | `tsc -b` | `node --test` | Prisma generate and Vite build | Playwright, separate |

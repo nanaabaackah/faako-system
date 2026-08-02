@@ -7,6 +7,22 @@ import { isSafeAuditMetadataKey } from "./actorHelpers.js";
 
 const nowIso = () => new Date().toISOString();
 
+const redactSensitiveAuditText = (value) =>
+  String(value)
+    .replace(/\b(bearer)\s+[a-z0-9._~+/=-]+/gi, "$1 [REDACTED]")
+    .replace(
+      /\beyJ[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\b/gi,
+      "[REDACTED]",
+    )
+    .replace(
+      /\b(password|token|secret|api[_-]?key|card[_-]?number|cvv|cvc|pin)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi,
+      "$1=[REDACTED]",
+    )
+    .replace(
+      /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b/gi,
+      "[REDACTED]",
+    );
+
 /**
  * Strips any potentially sensitive keys from audit event metadata.
  * Keys whose lowercased form contains a blocked term are removed silently.
@@ -16,9 +32,34 @@ const nowIso = () => new Date().toISOString();
  */
 export const stripSensitiveMetadata = (metadata = {}) => {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
-  return Object.fromEntries(
-    Object.entries(metadata).filter(([key]) => isSafeAuditMetadataKey(key))
-  );
+  const normalize = (value, depth = 0) => {
+    if (depth > 6) return "[TRUNCATED]";
+    if (Array.isArray(value)) {
+      return value.map((entry) =>
+        entry && typeof entry === "object"
+          ? normalize(entry, depth + 1)
+          : typeof entry === "string"
+            ? redactSensitiveAuditText(entry)
+            : entry
+      );
+    }
+    if (typeof value === "string") return redactSensitiveAuditText(value);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => isSafeAuditMetadataKey(key))
+        .map(([key, entry]) => [
+          key,
+          entry && typeof entry === "object"
+            ? normalize(entry, depth + 1)
+            : typeof entry === "string"
+              ? redactSensitiveAuditText(entry)
+              : entry,
+        ])
+    );
+  };
+
+  return normalize(metadata);
 };
 
 /**
@@ -30,14 +71,26 @@ export const stripSensitiveMetadata = (metadata = {}) => {
  * @returns {import("../types/index.js").AuditEvent}
  */
 export const createAuditEvent = (fields = {}) => {
+  const occurredAt = fields.occurredAt || fields.timestamp || nowIso();
   const event = {
+    kind: "audit",
     action: fields.action || "",
     entityType: fields.entityType || "",
+    eventName:
+      fields.eventName ||
+      [fields.entityType, fields.action]
+        .filter(Boolean)
+        .join(".")
+        .toLowerCase(),
     source: fields.source || AUDIT_SOURCES.ONLINE,
     status: fields.status || AUDIT_STATUSES.SUCCESS,
     severity: fields.severity || AUDIT_SEVERITIES.INFO,
-    timestamp: fields.timestamp || nowIso(),
+    occurredAt,
+    timestamp: occurredAt,
   };
+  if (fields.id != null) event.id = String(fields.id);
+  if (fields.application) event.application = String(fields.application);
+  if (fields.requestId) event.requestId = String(fields.requestId).slice(0, 120);
   if (fields.entityId != null) event.entityId = String(fields.entityId);
   if (fields.actor && typeof fields.actor === "object") event.actor = { ...fields.actor };
   if (fields.org && typeof fields.org === "object") event.org = { ...fields.org };

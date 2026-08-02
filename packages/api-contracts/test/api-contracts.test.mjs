@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   API_ERROR_CODES,
+  API_ERROR_MESSAGES,
+  API_ERROR_STATUS,
+  createRequestId,
   createCompatibleErrorResponse,
   createCompatibleSuccessResponse,
   errorCodeForStatus,
+  isValidRequestId,
   normalizeApiResponse,
   readRequestId,
   readRetryAfterSeconds,
+  resolveRequestId,
+  safeMessageForErrorCode,
+  statusForErrorCode,
 } from "../src/index.js";
 
 test("compatible success keeps legacy fields and exposes canonical data", () => {
@@ -109,4 +116,21 @@ test("request and retry metadata are read case-insensitively", () => {
     readRetryAfterSeconds(new Headers({ "Retry-After": "45" })),
     45,
   );
+});
+
+test("error codes expose standard statuses and user-safe fallback messages", () => {
+  assert.equal(API_ERROR_STATUS[API_ERROR_CODES.PERMISSION], 403);
+  assert.equal(statusForErrorCode(API_ERROR_CODES.RATE_LIMITED), 429);
+  assert.equal(
+    safeMessageForErrorCode(API_ERROR_CODES.SERVER),
+    API_ERROR_MESSAGES[API_ERROR_CODES.SERVER],
+  );
+});
+
+test("request IDs accept a constrained incoming value and replace invalid input", () => {
+  assert.equal(isValidRequestId("edge-request_123"), true);
+  assert.equal(isValidRequestId("invalid request id"), false);
+  assert.equal(resolveRequestId("edge-request_123"), "edge-request_123");
+  assert.equal(resolveRequestId("invalid request id", () => "generated-id"), "generated-id");
+  assert.equal(isValidRequestId(createRequestId()), true);
 });

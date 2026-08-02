@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CatalogueGrid from "../../../components/catalogue/CatalogueGrid.astro";
+import SiteFooter from "../../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../../components/catalogue/SiteHeader.astro";
+import {
+  getPublicCategories,
+  getPublicCategoryItems,
+} from "../../../content/publicCatalogue.js";
+
+export function getStaticPaths() {
+  return getPublicCategories("rental").map((category) => ({
+    params: { category: category.slug },
+    props: {
+      category,
+      items: getPublicCategoryItems("rental", category.slug),
+    },
+  }));
+}
+
+const { category, items } = Astro.props;
+const title = `${category.name} Rentals | REEBS Party Themes`;
+const description =
+  `Browse ${category.name.toLowerCase()} for parties and events, then ask REEBS to confirm your date.`;
+---
+
+<BaseLayout path={`/rentals/category/${category.slug}`} title={title} description={description}>
+  <SiteHeader currentPath="/rentals" />
+  <CatalogueGrid
+    items={items}
+    heading={category.name}
+    description={description}
+    backHref="/rentals"
+    backLabel="Rentals"
+  />
+  <SiteFooter />
+</BaseLayout>

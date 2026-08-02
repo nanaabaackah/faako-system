@@ -1,4 +1,5 @@
 import { resolveMountedRequestPath } from "./auth.middleware.js";
+import { hasModuleAccess } from "@faako/security";
 
 const normalizeModuleName = (value) =>
   String(value || "")
@@ -74,7 +75,11 @@ export const createCapabilityAccessMiddleware =
       const acceptedModules = normalizeCapabilityModules(
         capability.modules ?? capability.module ?? capability.moduleKey
       );
-      if (acceptedModules.some((module) => modules.includes(module))) {
+      if (
+        acceptedModules.some((module) =>
+          hasModuleAccess(modules, module)
+        )
+      ) {
         return next();
       }
 

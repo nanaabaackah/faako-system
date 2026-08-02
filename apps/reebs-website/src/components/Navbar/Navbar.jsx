@@ -1,10 +1,10 @@
 import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { SelectField } from "@faako/ui";
 import "./Navbar.css";
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from "../AuthContext/AuthContext";
 import { useCart } from "../CartContext/CartContext";
-import { SUPPORTED_CURRENCIES } from "../CurrencyContext/CurrencyContext";
+import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from "@faako/finance";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMagnifyingGlass, faShoppingCart, faSignInAlt, faTimes, faUser } from "/src/icons/iconSet";
 import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCache';
@@ -282,7 +282,6 @@ const isPathActive = (pathname, path) => {
 
 const Navbar = ({ scrollContainerRef }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, logout, authReady } = useAuth();
   const { cart, openCart, currency, setCurrency } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -441,7 +440,7 @@ const Navbar = ({ scrollContainerRef }) => {
   const handleLogout = () => {
     logout();
     setMobileOpen(false);
-    navigate('/login', { replace: true, state: { signedOut: true } });
+    window.location.assign(buildPortalUrl('/login'));
   };
 
   const isAuthenticated = Boolean(authReady && user);
@@ -494,7 +493,7 @@ const Navbar = ({ scrollContainerRef }) => {
 
   const handleSearchNavigate = (path) => {
     closeSearch();
-    navigate(path);
+    window.location.assign(path);
   };
 
   const renderLinks = (onClick) => (

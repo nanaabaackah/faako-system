@@ -1,4 +1,5 @@
 import {
+  API_ERROR_MESSAGES,
   API_ERROR_CODES,
   errorCodeForStatus,
   normalizeApiResponse,
@@ -66,6 +67,96 @@ export class ApiClientError extends Error {
 
 export const isApiClientError = (error: unknown): error is ApiClientError =>
   error instanceof ApiClientError;
+
+export type ApiErrorStateId =
+  | "error"
+  | "offline"
+  | "permission-denied"
+  | "rate-limited"
+  | "session-expired"
+  | "validation";
+
+export interface ApiErrorPresentation {
+  stateId: ApiErrorStateId;
+  title: string;
+  message: string;
+  canRetry: boolean;
+  retryLabel?: string;
+  requestId?: string;
+}
+
+export const getApiErrorPresentation = (
+  error: unknown,
+  {
+    fallbackMessage = API_ERROR_MESSAGES[API_ERROR_CODES.SERVER],
+  }: { fallbackMessage?: string } = {},
+): ApiErrorPresentation => {
+  const apiError = isApiClientError(error) ? error : null;
+  const code = apiError?.code || API_ERROR_CODES.SERVER;
+  const requestId = apiError?.requestId;
+  const withRequestId = (presentation: Omit<ApiErrorPresentation, "requestId">) => ({
+    ...presentation,
+    ...(requestId ? { requestId } : {}),
+  });
+
+  if (code === API_ERROR_CODES.AUTHENTICATION || apiError?.status === 401) {
+    return withRequestId({
+      stateId: "session-expired",
+      title: "Sign in again",
+      message: API_ERROR_MESSAGES[API_ERROR_CODES.AUTHENTICATION],
+      canRetry: false,
+    });
+  }
+  if (code === API_ERROR_CODES.PERMISSION || apiError?.status === 403) {
+    return withRequestId({
+      stateId: "permission-denied",
+      title: "Access unavailable",
+      message: API_ERROR_MESSAGES[API_ERROR_CODES.PERMISSION],
+      canRetry: false,
+    });
+  }
+  if (code === API_ERROR_CODES.VALIDATION) {
+    return withRequestId({
+      stateId: "validation",
+      title: "Check the form",
+      message: API_ERROR_MESSAGES[API_ERROR_CODES.VALIDATION],
+      canRetry: false,
+    });
+  }
+  if (code === API_ERROR_CODES.RATE_LIMITED || apiError?.status === 429) {
+    return withRequestId({
+      stateId: "rate-limited",
+      title: "Try again later",
+      message: apiError?.retryAfterSeconds
+        ? `Too many requests. Try again in ${apiError.retryAfterSeconds} seconds.`
+        : API_ERROR_MESSAGES[API_ERROR_CODES.RATE_LIMITED],
+      canRetry: true,
+      retryLabel: "Try again",
+    });
+  }
+  if (code === API_CLIENT_ERROR_CODES.NETWORK) {
+    return withRequestId({
+      stateId: "offline",
+      title: "Service unavailable",
+      message: "Check your connection and try again.",
+      canRetry: true,
+      retryLabel: "Retry request",
+    });
+  }
+
+  return withRequestId({
+    stateId: "error",
+    title: "Request not completed",
+    message:
+      code === API_ERROR_CODES.SERVICE_UNAVAILABLE
+        ? API_ERROR_MESSAGES[API_ERROR_CODES.SERVICE_UNAVAILABLE]
+        : fallbackMessage,
+    canRetry:
+      code !== API_CLIENT_ERROR_CODES.ABORTED &&
+      code !== API_CLIENT_ERROR_CODES.SERIALIZATION,
+    retryLabel: "Try again",
+  });
+};
 
 interface ResponseErrorContext {
   response: Response;
@@ -149,10 +240,10 @@ export const createNetworkError = ({
   });
 
 export const createInvalidResponseError = (
-  message: string,
+  _message: string,
   options: ApiClientErrorOptions,
 ): ApiClientError =>
-  new ApiClientError(message, {
+  new ApiClientError("The service returned an invalid response.", {
     ...options,
     code: API_CLIENT_ERROR_CODES.INVALID_RESPONSE,
   });

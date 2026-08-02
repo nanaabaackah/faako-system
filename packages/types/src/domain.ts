@@ -77,6 +77,8 @@ export interface Organisation<
  */
 export interface Permission {
   key: string;
+  applicationId?: string | null;
+  moduleId?: string | null;
   resource?: string | null;
   action?: string | null;
   description?: string | null;
@@ -319,6 +321,8 @@ export interface ApplicationAccess<
 > {
   userId: UserId;
   organisationId?: OrganisationId | null;
+  organisationIds?: OrganisationId[];
+  applicationIds?: string[];
   roleIds: RoleId[];
   permissionKeys: Permission["key"][];
   moduleKeys?: string[];
@@ -342,6 +346,9 @@ export interface AuditEvent<
   OrganisationId extends DomainId = DomainId,
 > {
   id?: Id;
+  kind?: "audit";
+  application?: string | null;
+  eventName?: string | null;
   organisationId?: OrganisationId | null;
   action: string;
   source: string;
@@ -355,4 +362,5 @@ export interface AuditEvent<
   externalReference?: string | null;
   metadata?: DomainMetadata | null;
   occurredAt: IsoDateTimeString;
+  timestamp?: IsoDateTimeString;
 }

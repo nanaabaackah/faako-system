@@ -5,13 +5,13 @@ import { FiArrowRight, FiChevronDown } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, ERPStatusBadge, SelectField } from "@faako/ui";
 import KPICard from "../../components/KPICard/KPICard";
 import TerminalLogStream from "../../components/TerminalLogStream/TerminalLogStream";
-import MonitoringSparkline from "../../components/MonitoringSparkline/MonitoringSparkline";
 import {
-  buildMonitoringSparklineValues,
   getMonitoringHealthScore,
   getMonitoringStatusSummary,
   getMonitoringTone,
 } from "../../components/MonitoringSparkline/monitoringSparklineUtils";
+import { HealthTimeline } from "../SystemHealth/SystemHealthComponents";
+import { buildHealthTimeline } from "../SystemHealth/monitoringConfig";
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
 import WeatherWidget from "../../components/WeatherWidget/WeatherWidget";
@@ -24,6 +24,7 @@ import { buildUserScopedCacheKey, readOfflineCache, writeOfflineCache } from "..
 import { hasModuleAccess } from "../../utils/moduleAccess";
 import { convertAmountToDisplayGhs, formatGhsAmount } from "../../utils/displayCurrency";
 import "./Dashboard.css";
+import "../SystemHealth/SystemHealth.css";
 
 const ACCOUNTING_RANGE = { value: "all", label: "All time" };
 const OPEN_RECEIVABLE_STATUSES = new Set(["PENDING", "SCHEDULED", "OVERDUE"]);
@@ -895,6 +896,7 @@ const Dashboard = () => {
   const activeRange = RANGE_OPTIONS.find((option) => option.value === timeRange) || RANGE_OPTIONS[1];
   const rangeDescription = activeRange.description;
   const rangeWindowMs = activeRange.hours * 60 * 60 * 1000;
+  const monitoringTimelineRange = timeRange === "24h" ? "day" : timeRange === "30d" ? "month" : "week";
 
   const renderStatusPill = (status) => {
     const tone = getStatusTone(status);
@@ -993,10 +995,11 @@ const Dashboard = () => {
       summary,
       score,
       tone: getMonitoringTone(aggregateStatus),
-      sparkline: buildMonitoringSparklineValues({
+      timeline: buildHealthTimeline({
+        id: `dashboard-site-${site.id}`,
         status: aggregateStatus,
-        score,
-        seed: site.title?.length || site.id?.length || 1,
+        latencyMs: pages.find((page) => Number.isFinite(Number(page?.responseTimeMs)))?.responseTimeMs,
+        range: monitoringTimelineRange,
       }),
     };
   });
@@ -1030,6 +1033,12 @@ const Dashboard = () => {
         status: entry.status,
         subject: entry.label,
         note: entry.note,
+      }),
+      timeline: buildHealthTimeline({
+        id: `dashboard-system-${entry.id}`,
+        status: entry.status,
+        latencyMs: null,
+        range: monitoringTimelineRange,
       }),
     }))
     .sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
@@ -1821,8 +1830,9 @@ const Dashboard = () => {
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
-                  <p className="muted">{healthyServices}/{totalServices} services healthy</p>
+                  <p className="muted">{healthyServices}/{totalServices} services healthy · {rangeDescription}</p>
                 </div>
+                <Link className="button button-ghost" to="/system-health">Open health dashboard</Link>
               </div>
               <div className="dashboard-system-status__list">
                 {systemMonitorEntries.map((row) => (
@@ -1835,6 +1845,7 @@ const Dashboard = () => {
                       </div>
                       <span className="muted">{row.note}</span>
                       {row.severity ? <p>{row.issueReason}</p> : null}
+                      <HealthTimeline timeline={row.timeline} serviceName={row.label} compact />
                     </div>
                   </div>
                 ))}
@@ -1910,11 +1921,11 @@ const Dashboard = () => {
                           </strong>
                           <span>surface score</span>
                         </div>
-                        <div className="site-card__spark">
-                          <MonitoringSparkline
-                            values={site.sparkline}
-                            status={site.aggregateStatus}
-                            label={`${site.title} health sparkline`}
+                        <div className="site-card__spark site-card__timeline">
+                          <HealthTimeline
+                            timeline={site.timeline}
+                            serviceName={site.title}
+                            compact
                           />
                         </div>
                       </div>

@@ -1,10 +1,10 @@
-import { readMobileBrowserChromeColor } from "../../../../packages/utils/src/mobileBrowserChrome";
+import { readMobileBrowserChromeColor } from "@faako/utils";
 import { flattenFaqItems } from "/src/content/faqContent";
 
-const SITE_NAME = "REEBS Party Themes";
-const SITE_URL = "https://www.reebspartythemes.com";
-const DEFAULT_IMAGE = `${SITE_URL}/imgs/promos/banner.jpg`;
-const DEFAULT_DESCRIPTION =
+export const SITE_NAME = "REEBS Party Themes";
+export const SITE_URL = "https://www.reebspartythemes.com";
+export const DEFAULT_IMAGE = `${SITE_URL}/imgs/promos/banner.jpg`;
+export const DEFAULT_DESCRIPTION =
   "REEBS Party Themes provides party rentals, decor setup, and party supplies across Ghana with fast delivery and friendly support.";
 const DEFAULT_KEYWORDS =
   "kids party rentals Ghana, bouncy castle rental Accra, party decor Tema, party supplies Ghana, event setup services, kids birthday planning";
@@ -339,7 +339,7 @@ const ensureAlternateLink = (hreflang) => {
   return element;
 };
 
-const getRouteMeta = (pathname) => {
+export const getSeoForPath = (pathname) => {
   const normalizedPath = normalizePath(pathname);
   const match = PAGE_META.find((item) => item.match(normalizedPath));
   return {
@@ -462,7 +462,7 @@ export const applySeo = ({
   if (typeof document === "undefined") return;
 
   const normalizedPath = normalizePath(pathname);
-  const routeMeta = getRouteMeta(normalizedPath);
+  const routeMeta = getSeoForPath(normalizedPath);
   const finalTitle = title || routeMeta.title;
   const finalDescription = description || routeMeta.description;
   const finalKeywords = keywords || routeMeta.keywords || DEFAULT_KEYWORDS;
@@ -529,4 +529,31 @@ export const applySeo = ({
   ensureAlternateLink("en-GH").setAttribute("href", canonical);
   ensureAlternateLink("x-default").setAttribute("href", canonical);
   updateSchema(finalSchema);
+};
+
+export const buildStructuredData = (
+  pathname = "/",
+  seo = getSeoForPath(pathname),
+  additionalSchema = null,
+) => {
+  const normalizedPath = normalizePath(pathname);
+  if (seo?.noIndex) return [];
+
+  const canonical =
+    normalizedPath === "/" ? SITE_URL : `${SITE_URL}${normalizedPath}`;
+
+  return normalizeSchemaPayload([
+    ORGANIZATION_SCHEMA,
+    LOCAL_BUSINESS_SCHEMA,
+    WEBSITE_SCHEMA,
+    seo?.schema,
+    additionalSchema,
+    buildWebPageSchema({
+      pathname: normalizedPath,
+      canonical,
+      title: seo?.title || SITE_NAME,
+      description: seo?.description || DEFAULT_DESCRIPTION,
+    }),
+    buildBreadcrumbSchema(normalizedPath, canonical),
+  ]);
 };

@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CartIsland from "../components/islands/CartIsland.jsx";
+---
+
+<BaseLayout path="/cart" noIndex>
+  <CartIsland path="/cart" client:load />
+</BaseLayout>

@@ -1,3 +1,9 @@
+import {
+  createCompatibleErrorResponse,
+  errorCodeForStatus,
+} from "@faako/api-contracts";
+import { createRequestContextMiddleware } from "@faako/logger";
+
 export const configureBaseHttpMiddleware = (
   app,
   {
@@ -14,6 +20,13 @@ export const configureBaseHttpMiddleware = (
     capabilityAccessMiddleware,
   }
 ) => {
+  app.use(
+    createRequestContextMiddleware({
+      application: "dev-erp",
+      environment: process.env.APP_ENV || process.env.NODE_ENV,
+    })
+  );
+
   // Allow /api/v1/* as an alias for /api/* so clients can adopt versioned URLs
   // without requiring route changes. Strip the version segment before routing.
   app.use((req, _res, next) => {
@@ -48,9 +61,21 @@ export const configureBaseHttpMiddleware = (
 
 export const registerApiFallbackRoute = (app) => {
   app.use("/api", (req, res) => {
-    res.status(404).json({
-      error: `API route not found: ${req.method} ${req.originalUrl}`,
-    });
+    res.status(404).json(
+      createCompatibleErrorResponse(
+        {
+          code: errorCodeForStatus(404),
+          message: "API route not found.",
+        },
+        {
+          requestId: req.requestId,
+          legacy: {
+            method: req.method,
+            path: String(req.originalUrl || "").split("?")[0],
+          },
+        },
+      )
+    );
   });
 };
 
@@ -74,15 +99,32 @@ export const registerErrorHandler = (app, { classifyApiError, isProduction, logg
 
     if (status >= 500) {
       const log = logger ?? console;
-      log.error({ err, method: req.method, url: req.originalUrl }, "Unhandled API error");
+      log.error(
+        {
+          err,
+          eventName: "api.request.failed",
+          method: req.method,
+          path: String(req.originalUrl || "").split("?")[0],
+          requestId: req.requestId,
+          organisationId: req.user?.organizationId,
+          userId: req.user?.userId,
+        },
+        "Unhandled API error"
+      );
     }
 
     if (isApiRequest) {
-      const payload = { error: message };
-      if (!isProduction && code) {
-        payload.code = code;
-      }
-      res.status(status).json(payload);
+      void isProduction;
+      void code;
+      res.status(status).json(
+        createCompatibleErrorResponse(
+          {
+            code: errorCodeForStatus(status),
+            message,
+          },
+          { requestId: req.requestId }
+        )
+      );
       return;
     }
 

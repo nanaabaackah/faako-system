@@ -31,7 +31,8 @@ export const isSafeAuditMetadataKey = (key) => {
 
 /**
  * Creates a safe actor reference from a user-like object.
- * Only picks id, role, display name, and sourceApp — never passwords or tokens.
+ * Only picks id, role, an explicitly supplied non-sensitive label, and
+ * sourceApp — never passwords, tokens, email addresses, or phone numbers.
  *
  * @param {object} [user]
  * @returns {{ id?: string, role?: string, label?: string, sourceApp?: string } | undefined}
@@ -41,11 +42,8 @@ export const createActorRef = (user = {}) => {
   const ref = {};
   if (user.id) ref.id = String(user.id);
   if (user.role) ref.role = String(user.role);
-  if (user.name) {
-    ref.label = String(user.name);
-  } else if (user.email) {
-    // Redact most of the local part before the @ for privacy
-    ref.label = String(user.email).replace(/^(.{2})([^@]*)(@)/, "$1***$3");
+  if (user.label) {
+    ref.label = String(user.label);
   }
   if (user.sourceApp) ref.sourceApp = String(user.sourceApp);
   return Object.keys(ref).length > 0 ? ref : undefined;

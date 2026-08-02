@@ -4,7 +4,7 @@ import "./Navbar.css";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../AuthContext/AuthContext";
 import { useCart } from "../CartContext/CartContext";
-import { SUPPORTED_CURRENCIES } from "../CurrencyContext/CurrencyContext";
+import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from "@faako/finance";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMagnifyingGlass, faShoppingCart, faSignInAlt, faTimes, faUser } from "/src/icons/iconSet";
 import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCache';

@@ -4,10 +4,10 @@ import {
   createCompatibleErrorResponse,
   createCompatibleSuccessResponse,
   errorCodeForStatus,
+  resolveRequestId,
 } from "@faako/api-contracts";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,120}$/;
 const CODE_TTL_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -26,11 +26,6 @@ const sanitizeHeaderValue = (value, fallback = "") =>
   String(value || fallback)
     .replace(/[\r\n]/g, "")
     .trim();
-
-const resolveRequestId = (value) => {
-  const candidate = sanitizeHeaderValue(value);
-  return REQUEST_ID_PATTERN.test(candidate) ? candidate : crypto.randomUUID();
-};
 
 const isProductionRuntime = () =>
   process.env.NODE_ENV === "production" ||

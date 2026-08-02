@@ -56,7 +56,11 @@ import {
 } from "@faako/audit";
 
 // Build a safe actor reference from a user session (no passwords/tokens)
-const actor = createActorRef({ id: user.id, role: user.role, name: user.name });
+const actor = createActorRef({
+  id: user.id,
+  role: user.role,
+  label: "Authenticated user",
+});
 
 // Create a normalized audit event (does not store or emit anything)
 const event = createAuditEvent({

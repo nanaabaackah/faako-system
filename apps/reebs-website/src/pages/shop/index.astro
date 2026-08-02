@@ -1,0 +1,18 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CataloguePrelude from "../../components/catalogue/CataloguePrelude.astro";
+import SiteFooter from "../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../components/catalogue/SiteHeader.astro";
+import ShopIsland from "../../components/islands/ShopIsland.jsx";
+---
+
+<BaseLayout path="/shop">
+  <SiteHeader currentPath="/shop" />
+  <CataloguePrelude kind="shop" />
+  <ShopIsland
+    path={`/shop${Astro.url.search}`}
+    chrome={false}
+    client:only="react"
+  />
+  <SiteFooter />
+</BaseLayout>
