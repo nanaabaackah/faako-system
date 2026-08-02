@@ -13,9 +13,7 @@ const easeInOutCubic = (t) => {
 function useMergeProgress() {
   const containerRef = useRef(null);
   const [progress, setProgress] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window === "undefined" ? 1280 : window.innerWidth,
-  );
+  const [viewportWidth, setViewportWidth] = useState(1280);
 
   useEffect(() => {
     let measureRafId = 0;
@@ -80,7 +78,7 @@ function useMergeProgress() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
-    onScroll();
+    onResize();
 
     return () => {
       if (measureRafId) {

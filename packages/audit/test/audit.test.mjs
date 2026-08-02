@@ -31,6 +31,9 @@ test("AUDIT_ACTION_TYPES covers auth, payment, order, booking, inventory, sync, 
   assert.equal(typeof AUDIT_ACTION_TYPES.OFFLINE_SYNC_RETRIED, "string");
   assert.equal(typeof AUDIT_ACTION_TYPES.SETTINGS_UPDATED, "string");
   assert.equal(typeof AUDIT_ACTION_TYPES.SYSTEM_EVENT, "string");
+  assert.equal(typeof AUDIT_ACTION_TYPES.USER_CREATED, "string");
+  assert.equal(typeof AUDIT_ACTION_TYPES.PERMISSION_CHANGED, "string");
+  assert.equal(typeof AUDIT_ACTION_TYPES.INVOICE_STATUS_CHANGED, "string");
 });
 
 test("AUDIT_ACTION_TYPES is frozen", () => {
@@ -70,17 +73,17 @@ test("isSafeAuditMetadataKey allows safe operational keys", () => {
 });
 
 test("createActorRef picks only safe fields", () => {
-  const actor = createActorRef({ id: "u1", role: "admin", name: "Ama", email: "ama@example.com", password: "secret123" });
+  const actor = createActorRef({ id: "u1", role: "admin", label: "Administrator", name: "Ama", email: "ama@example.com", password: "secret123" });
   assert.equal(actor.id, "u1");
   assert.equal(actor.role, "admin");
-  assert.equal(actor.label, "Ama");
+  assert.equal(actor.label, "Administrator");
   assert.equal(actor.password, undefined);
 });
 
-test("createActorRef redacts most of email local-part when no name present", () => {
+test("createActorRef does not derive audit labels from email addresses", () => {
   const actor = createActorRef({ id: "u2", email: "abcdef@example.com" });
-  assert.match(actor.label, /ab\*+@example\.com/);
-  assert.doesNotMatch(actor.label, /abcdef/);
+  assert.equal(actor.id, "u2");
+  assert.equal(actor.label, undefined);
 });
 
 test("createActorRef returns undefined for empty input", () => {
@@ -119,8 +122,28 @@ test("createAuditEvent produces a normalized event with defaults", () => {
   assert.equal(event.source, AUDIT_SOURCES.ONLINE);
   assert.equal(event.status, AUDIT_STATUSES.SUCCESS);
   assert.equal(event.severity, AUDIT_SEVERITIES.INFO);
+  assert.equal(event.kind, "audit");
+  assert.equal(event.eventName, "settings.settings_updated");
   assert.equal(typeof event.timestamp, "string");
+  assert.equal(event.occurredAt, event.timestamp);
   assert.ok(event.timestamp.includes("T"));
+});
+
+test("createAuditEvent carries application and request correlation without secrets", () => {
+  const event = createAuditEvent({
+    application: "reebs-portal",
+    requestId: "request-1",
+    action: AUDIT_ACTION_TYPES.USER_CREATED,
+    entityType: AUDIT_ENTITY_TYPES.USER,
+    metadata: {
+      assignedRole: "staff",
+      nested: { accessToken: "secret", reason: "new starter" },
+    },
+  });
+  assert.equal(event.application, "reebs-portal");
+  assert.equal(event.requestId, "request-1");
+  assert.equal(event.metadata.nested.accessToken, undefined);
+  assert.equal(event.metadata.nested.reason, "new starter");
 });
 
 test("createAuditEvent strips sensitive metadata keys", () => {
@@ -131,6 +154,19 @@ test("createAuditEvent strips sensitive metadata keys", () => {
   });
   assert.equal(event.metadata?.token, undefined);
   assert.equal(event.metadata?.role, "admin");
+});
+
+test("createAuditEvent redacts secrets and personal data embedded in safe text fields", () => {
+  const event = createAuditEvent({
+    metadata: {
+      lastError:
+        "Bearer abc123 failed for person@example.com with token=secret-value",
+    },
+  });
+
+  assert.equal(event.metadata.lastError.includes("abc123"), false);
+  assert.equal(event.metadata.lastError.includes("person@example.com"), false);
+  assert.equal(event.metadata.lastError.includes("secret-value"), false);
 });
 
 test("createAuditEvent omits metadata key when all fields are stripped", () => {

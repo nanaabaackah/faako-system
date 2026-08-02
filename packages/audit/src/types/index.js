@@ -39,6 +39,10 @@
  * - status reflects the outcome of the action, not the app's local UI state.
  *
  * @typedef {Object} AuditEvent
+ * @property {"audit"} kind - Separates audit events from diagnostic log records
+ * @property {string} [id] - Optional persisted event identifier
+ * @property {string} [application] - Stable application identifier
+ * @property {string} eventName - Stable dotted event name
  * @property {string} action - From AUDIT_ACTION_TYPES
  * @property {string} entityType - From AUDIT_ENTITY_TYPES
  * @property {string} [entityId] - The affected entity's identifier (string only)
@@ -48,6 +52,8 @@
  * @property {string} status - From AUDIT_STATUSES (success | failed | pending | conflict)
  * @property {string} severity - From AUDIT_SEVERITIES (info | warning | error | critical)
  * @property {string} timestamp - ISO 8601 timestamp
+ * @property {string} occurredAt - Canonical ISO 8601 occurrence time
+ * @property {string} [requestId] - Transport request ID for correlation
  * @property {Record<string, unknown>} [metadata] - Safe additional context only
  */
 

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   addAuthInvalidListener,
@@ -6,7 +7,7 @@ import {
   getAuthToken,
   isAuthTokenExpired,
   setAuthToken,
-} from "../../utils/organization.js";
+} from "@faako/core";
 import { isPortalAppOrigin } from "../../utils/portal.js";
 
 const AuthContext = createContext(null);
@@ -142,6 +143,9 @@ function AuthProvider({ children }) {
     return () => {
       isActive = false;
     };
+  // The initialization intentionally runs once; its helpers read the initial
+  // browser session and only update provider state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => addAuthInvalidListener(() => {

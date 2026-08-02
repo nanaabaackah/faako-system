@@ -6,13 +6,16 @@ Faako Website is the public marketing site and signup funnel for Faako. It prese
 
 ## What Lives Here
 
-- `src/`: React + Vite public website
-- `.env.example`: public and server-side env reference for this site
+- `src/pages/`: Astro route documents
+- `src/layouts/`: shared metadata and public page shell
+- `src/views/`: route-scoped React compatibility views
+- `src/components/islands/`: explicitly hydrated interactive boundaries
+- `.env.example`: browser-safe website configuration only
 
 ## Run It Locally
 
 ```bash
-pnpm --filter @faako/faako-website run dev:frontend
+pnpm --filter @faako/faako-website run dev
 ```
 
 Typical local frontend URL:
@@ -27,13 +30,15 @@ pnpm run dev:faako
 
 ## Current System Notes
 
-- the signup flow calls `VITE_API_BASE_URL` when configured; production should use `https://api.faako.nanaabaackah.com`, while local dev can use the `/api` Vite proxy
-- local development proxies `/api/*` to the Faako API server through Vite
+- Astro pre-renders the public routes; authenticated ERP and API workspaces remain separate
+- the signup flow calls `VITE_API_BASE_URL` when configured, while local development can use the `/api` proxy
+- local development proxies `/api/*` to the Faako API through Astro
 - the signup page is a client onboarding intake wizard, and `/client-setup` is a lighter client setup wizard with product-specific follow-up questions
 - public intake forms should not collect API keys, passwords, tokens, private email credentials, or bank login details
 - onboarding PDF generation and email sending happen server-side in the Faako API, not in the browser
 - signup and client setup forms send a per-submission idempotency key to Faako API so double clicks or browser retries do not create duplicate records or duplicate emails
 - the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for refresh without interrupting an in-progress onboarding form
+- login, password recovery, and dashboard pages are retained as non-indexed public prototypes; they do not implement production authentication
 
 ## Common Commands
 
@@ -41,6 +46,8 @@ pnpm run dev:faako
 pnpm --filter @faako/faako-website run build
 pnpm --filter @faako/faako-website run preview
 pnpm --filter @faako/faako-website run lint
+pnpm --filter @faako/faako-website run typecheck
+pnpm --filter @faako/faako-website run test
 ```
 
 ## Configuration
@@ -52,7 +59,7 @@ Rules:
 - `VITE_*` values are bundled into the browser and must stay non-secret
 - local website values can live in `apps/faako-website/.env.dev`
 - keep backend secrets on the dedicated Faako API service
-- onboarding email aliases are optional: `FAAKO_ONBOARDING_FROM_NAME`, `FAAKO_ONBOARDING_FROM_EMAIL`, and `FAAKO_ONBOARDING_ADMIN_EMAIL`
+- API, email, rate-limit, and database secrets belong to the Faako API deployment, not this workspace
 
 ## Deployment
 

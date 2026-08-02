@@ -3,6 +3,7 @@ import test from "node:test";
 import { requireAdminRole, resolveUserAccess, userHasPermission } from "./src/adminAuth.js";
 import { safeVerifyPassword, signToken } from "./src/auth.js";
 import { createAuthRouter } from "./src/routes/auth.js";
+import { createAdminOrderRouter } from "./src/ordersAdmin/routes.js";
 
 const createResponse = (resolve) => ({
   statusCode: 200,
@@ -180,7 +181,63 @@ test("custom roles need inventory view permission for protected inventory reads"
   const denied = await runMiddleware({ orders: { view: true } });
   assert.equal(denied.nextCalled, false);
   assert.equal(denied.response.statusCode, 403);
-  assert.deepEqual(denied.response.body, { error: "Access denied" });
+  assert.equal(denied.response.body.error, "Access denied");
+  assert.equal(denied.response.body.apiError.code, "permission_error");
+});
+
+test("admin order API enforces the same custom-role view permission as the frontend", async () => {
+  process.env.APP_AUTH_SECRET = "orders-view-route-test-secret";
+  const token = signToken({
+    id: "custom-orders-1",
+    username: "custom.orders",
+    role: "CUSTOM",
+  });
+  let orderQueryCount = 0;
+  const prisma = {
+    siteUser: {
+      findUnique: async () => ({
+        id: "custom-orders-1",
+        username: "custom.orders",
+        role: "CUSTOM",
+        isActive: true,
+        customRole: {
+          id: "role-orders",
+          key: "orders-helper",
+          name: "Orders helper",
+          permissions: { orders: { view: false } },
+          isActive: true,
+        },
+      }),
+    },
+    commerceOrder: {
+      findMany: async () => {
+        orderQueryCount += 1;
+        return [];
+      },
+    },
+  };
+  const router = createAdminOrderRouter(prisma);
+  let response;
+
+  await new Promise((resolve, reject) => {
+    response = createResponse(resolve);
+    router.handle(
+      {
+        method: "GET",
+        url: "/orders",
+        originalUrl: "/orders",
+        headers: { authorization: `Bearer ${token}` },
+        query: {},
+      },
+      response,
+      (error) => (error ? reject(error) : resolve()),
+    );
+  });
+
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.body.error, "Access denied");
+  assert.equal(response.body.apiError.code, "permission_error");
+  assert.equal(orderQueryCount, 0);
 });
 
 test("team management APIs allow owners", async () => {

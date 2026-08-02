@@ -19,13 +19,13 @@ const parseKeyMaterial = (value) => {
   return Buffer.from(base64Value, "base64");
 };
 
-export const createSecretCrypto = (value) => {
+export const createSecretCrypto = (value, { keyName = "OAUTH_TOKEN_ENCRYPTION_KEY" } = {}) => {
   const key = parseKeyMaterial(value);
   if (!key) {
     return null;
   }
   if (key.length !== KEY_LENGTH_BYTES) {
-    throw new Error("OAUTH_TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes.");
+    throw new Error(`${keyName} must decode to exactly 32 bytes.`);
   }
 
   const encrypt = (plaintext) => {

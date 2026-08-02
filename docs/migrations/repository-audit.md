@@ -5,7 +5,7 @@ Scope: current-state inspection before framework or architecture changes
 
 ## Executive summary
 
-Faako is a pnpm/Turborepo monorepo containing 10 active JavaScript application workspaces, one artifact-only application directory, 15 active shared-package workspaces, three placeholder package directories, and one Python service outside the pnpm workspace.
+Faako is a pnpm/Turborepo monorepo containing 10 active JavaScript application workspaces, one artifact-only application directory, 18 active shared-package workspaces, three placeholder package directories, and one Python service outside the pnpm workspace.
 
 The dominant application architecture is React plus Vite with React Router and Express/Prisma backends where server behavior is required. The portfolio is already an Astro static site, but it hydrates a site-wide React Router island. Public Faako and REEBS sites are client-rendered Vite SPAs and are the strongest Astro migration candidates. The authenticated ERP and portal surfaces should remain React/Vite. No current application has a compelling, low-risk reason to move to Next.js.
 
@@ -29,8 +29,8 @@ No framework, application, package, route, or deployment architecture was change
 | --- | --- | --- |
 | `dev` | cache disabled; persistent | Appropriate for development servers. |
 | `build` | depends on `^build`; hashes `NODE_ENV`, `PUBLIC_*`, `VITE_*`, package `.env*` files, and shared root inputs; output `dist/**` | Safe frontend builds are cached. Dev ERP and Stroane override caching because Prisma generation writes outside `dist/**`; Faako API declares no artifact. |
-| `lint` | no dependencies; no outputs | All 25 active pnpm workspaces expose lint. |
-| `typecheck` | depends on `^typecheck`; no outputs | Runs in 10 currently applicable Astro/TypeScript workspaces. |
+| `lint` | no dependencies; no outputs | All 28 active pnpm workspaces expose lint. |
+| `typecheck` | depends on `^typecheck`; no outputs | Runs in 13 currently applicable Astro/TypeScript/declaration workspaces. |
 | `test` | no outputs; cache disabled | Runs all existing Node unit/integration suites and excludes E2E. |
 | `test:e2e` | no outputs; cache disabled | Separate browser-test boundary. |
 
@@ -44,7 +44,7 @@ Root global dependencies cover the manifest, lockfile, workspace definition, and
 | `@faako/dev-erp` | Internal multi-organization ERP and operations system | React 19/Vite frontend; Express 5 API; Prisma/PostgreSQL | Vite plus Prisma generate | React Router 7 SPA with lazy routes, boundaries, and role/module guards | JWT access and refresh sessions in HttpOnly cookies, CSRF cookie/header, bcrypt, server-authoritative role/module/org checks; bearer fallback |
 | `@faako/faako-api` | Faako onboarding and activity API | Express 5; Prisma/PostgreSQL | No compilation; Prisma generate/migrate for deployment | Express routes | Public/rate-limited intake plus shared-secret bearer-style webhook/demo-access controls; no general user session |
 | `@faako/faako-erp` | Publicly accessible ERP demonstration shell | React 18/Vite | Vite | React Router 6 SPA | Demo-access session persisted client-side after an API grant; not production user authentication |
-| `@faako/faako-website` | Public Faako marketing, pricing, configuration, signup, and onboarding | React 18/Vite | Vite | React Router 6 SPA | `AuthContext` is only in-memory UI state; login/forgot-password pages do not establish a durable server session |
+| `@faako/faako-website` | Public Faako marketing, pricing, configuration, signup, and onboarding | Astro static site with bounded React islands (migrated after this audit) | Astro | File-based Astro routes; route-local React compatibility islands | Login/forgot-password remain no-index prototypes and do not establish a durable server session |
 | `@faako/reebs-portal` | REEBS authenticated operations/admin portal and its API | React 19/Vite; Express/Netlify-style functions; Prisma/PostgreSQL | Vite plus Prisma scripts | React Router 7 SPA with protected admin routes | User session is an HttpOnly SameSite cookie; manager bearer tokens also exist; browser stores only a sanitized user shell in local/session storage and validates `/api/authSession` |
 | `@faako/reebs-website` | Public REEBS commerce, rentals, cart, checkout, and customer access | React 19/Vite | Deterministic tracked sitemap generation, then Vite | React Router 7 SPA | Duplicated REEBS auth context; relies on the portal-owned cookie-session API |
 | `@faako/stroane-web` | Stroane public catalogue/commerce plus private admin portal and API | React 19/Vite TypeScript; Express 5; Prisma/PostgreSQL | Vite plus Prisma generate | Runtime-selected storefront and portal React Router 7 trees in one bundle/workspace | Separate customer/admin HttpOnly cookie sessions with bearer compatibility; browser stores non-secret profile/session shells |
@@ -61,6 +61,8 @@ Root global dependencies cover the manifest, lockfile, workspace definition, and
 
 | Package | Purpose | Implementation/build |
 | --- | --- | --- |
+| `@faako/api-client` | Framework-independent browser/server Fetch transport, errors, cancellation, request IDs, and opt-in domain clients | TypeScript source with Node tests |
+| `@faako/api-contracts` | Framework-independent API response, error, pagination, request metadata, and compatibility contracts | JavaScript runtime plus TypeScript declarations and Node tests |
 | `@faako/audit` | Audit action/status constants and display helpers | JavaScript source consumed directly; Node tests |
 | `@faako/config` | App-system definitions, navigation, project registry, monitoring metadata | JavaScript/TypeScript source consumed directly |
 | `@faako/core` | Organization/template configuration helpers | TypeScript/TSX source consumed directly |
@@ -73,11 +75,12 @@ Root global dependencies cover the manifest, lockfile, workspace definition, and
 | `@faako/org-settings` | Organization defaults and safe settings helpers | JavaScript source; Node tests |
 | `@faako/security` | Security profiles, CORS/default policy, and config validation | JavaScript source |
 | `@faako/theme` | Shared tokens and ERP/system CSS | TypeScript and CSS source |
-| `@faako/types` | Shared ERP shell, security, theme, feedback, and table types | TypeScript source |
-| `@faako/ui` | Shared ERP shell, primitives, feedback, forms, tables, update notice, and GA route tracker | TSX/CSS source |
+| `@faako/types` | Framework-independent business-domain, ERP shell, security, theme, and feedback contracts | TypeScript source with no framework imports |
+| `@faako/ui` | Shared ERP shell, primitives, feedback, forms, React table/renderer types, update notice, and GA route tracker | TSX/CSS source |
 | `@faako/utils` | Google Analytics, viewport/mobile, and element observers | TypeScript source |
+| `@faako/validation` | Framework-independent Zod request schemas, inferred input types, primitives, and issue normalization | JavaScript runtime plus TypeScript declarations and Node tests |
 
-Seven TypeScript shared packages now expose package-local type-check scripts using the root package baseline. Applications still compile their source directly; shared packages do not emit build artifacts. Mixed-JavaScript packages remain linted but are not represented as fully type-safe.
+Ten TypeScript or declaration-backed shared packages now expose package-local type-check scripts using the root package baseline. Applications still compile their source directly; shared packages do not emit build artifacts. Mixed-JavaScript packages remain linted but are not represented as fully type-safe.
 
 ### Placeholder directories
 
@@ -108,7 +111,7 @@ No Axios, TanStack Query, SWR, Apollo, Redux Toolkit Query, or equivalent depend
 | Dev ERP | Typed `src/api/client.ts` centralizes credentials, CSRF, error parsing, and optional validation, but several frontend/backend modules still fetch directly |
 | Faako API | Server-side fetch for activity/onboarding integrations |
 | Faako ERP | Direct demo-access request |
-| Faako Website | Direct onboarding/contact API requests through Vite/proxy configuration |
+| Faako Website | Shared API client for onboarding; contact mail-client hand-off; Astro development proxy configuration |
 | REEBS Portal | Extensive direct `fetch` across pages/functions plus small shared internal API helpers |
 | REEBS Website | Direct public commerce/rental calls to the portal API |
 | Stroane | Stronger app-local API modules for products, orders, customer accounts, and portal resources, all built on native `fetch` |
@@ -120,16 +123,22 @@ The absence of a shared response envelope, generated client, query cache, and cr
 
 ## Types and domain duplication
 
-`@faako/types` currently covers UI/system contracts, not business domains. Domain types remain app-local or implicit:
+`@faako/types` now covers stable framework-independent business-domain and
+system contracts, while `@faako/api-contracts` covers transport response
+contracts. Most application-specific domain extensions remain local:
 
 - Stroane defines product, customer, order, receipt, accounting, inventory, role, and session interfaces across API, page, context, and portal files.
 - `ContactMethod`/`PreferredContactMethod`, checkout field errors, inventory shapes, product shapes, and admin session/role shapes repeat inside Stroane.
 - Dev ERP has a typed HTTP client but most domain contracts are JavaScript objects or Prisma-derived assumptions.
 - REEBS applications are JavaScript and repeat payload knowledge across the public app, portal, backend functions, SQL, and Prisma.
 - Prisma schemas repeat the concepts `Organization`, `User`, `AuditLog`, `Product`, `Order`, `OrderItem`, `Booking`, accounting entries, inventory, and currency/status enums with different names and semantics.
-- Faako API and Dev ERP both model organizations/users/status/currency but do not share API-domain contracts.
+- Faako API and Dev ERP both model organizations/users/status/currency; their
+  stable boundary fields now have shared contracts, but neither persistence
+  model was migrated.
 
-These models should not be mechanically unified: their ownership and lifecycle differ. Shared types should first be limited to explicit API boundaries and stable primitives.
+These models should not be mechanically unified: their ownership and lifecycle
+differ. Shared types are limited to explicit API/event boundaries and stable
+primitives. Stroane's customer profile API is the first pilot adoption.
 
 ## Shared and duplicated UI
 
@@ -268,17 +277,17 @@ Tracked environment files are examples only (`.env.example` in the active Vite/E
 - Jest and Testing Library dependencies/setup: REEBS Portal and REEBS Website.
 - `axe-playwright`: REEBS Portal and REEBS Website.
 - Pytest/httpx: REEBS Analytics optional development dependencies.
-- Test file counts found: portfolio 2, Dev ERP 47, Faako API 1, REEBS Portal 14, Stroane 15, REEBS Analytics 1, and six shared packages with one test file each.
-- No test files were found in Faako ERP, Faako Website, REEBS Website, System Starter, UI Workbench, or TTNGH, despite REEBS Website carrying test dependencies and Playwright scripts.
+- Test file counts found: portfolio 2, Dev ERP 48, Faako API 1, Faako ERP 2, REEBS Portal 14, Stroane 15, REEBS Analytics 1, and nine shared packages with one test file each.
+- No test files were found in Faako Website, REEBS Website, System Starter, UI Workbench, or TTNGH, despite REEBS Website carrying test dependencies and Playwright scripts.
 
 ### Quality-gate repair results
 
 | Command | Result |
 | --- | --- |
 | `CI=true pnpm install --frozen-lockfile --ignore-scripts` | Passed against the updated lockfile. An offline-only attempt could not complete because the local pnpm store did not contain the `react-helmet@6.1.0` tarball. |
-| `pnpm lint` | Passed in all 25 active workspaces. Existing React hooks and fast-refresh warnings remain non-fatal and documented. |
-| `pnpm typecheck` | Passed in all 10 applicable Astro/TypeScript workspaces. |
-| `pnpm test` | Passed in all 11 test-bearing workspaces with normal loopback permission. In the managed sandbox only, four Dev ERP HTTP assertions fail to bind `127.0.0.1`; the assertions are unchanged. |
+| `pnpm lint` | Passed in all 28 active workspaces. Existing React hooks and fast-refresh warnings remain non-fatal and documented. |
+| `pnpm typecheck` | Passed in all 13 applicable Astro/TypeScript/declaration workspaces. |
+| `pnpm test` | Passed in all 15 test-bearing workspaces with normal loopback permission. In the managed sandbox only, four Dev ERP HTTP assertions fail to bind `127.0.0.1`; the assertions are unchanged. |
 | Dev ERP onboarding targeted regression | Passed 7/7, including conversion response and audit metadata for the resolved project. |
 | `pnpm build` | Passed in all 10 build-capable workspaces. Vite environment-file and portfolio chunk-size warnings remain; the former REEBS live-sitemap warning is resolved. |
 | `pnpm check` | Passed end to end with ordinary loopback permission. |

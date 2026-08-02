@@ -1,0 +1,57 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import RentalItemIsland from "../../components/islands/RentalItemIsland.jsx";
+import SiteFooter from "../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../components/catalogue/SiteHeader.astro";
+import { publicRentals } from "../../content/publicCatalogue.js";
+import { SITE_URL } from "../../utils/seo.js";
+
+export function getStaticPaths() {
+  return publicRentals.map((item) => ({
+    params: { slug: item.slug },
+    props: { item },
+  }));
+}
+
+const { item } = Astro.props;
+const description =
+  item.description
+  || `View ${item.name} rental details and ask REEBS to confirm availability for your event date.`;
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "@id": `${SITE_URL}${item.path}#product`,
+  name: item.name,
+  description,
+  sku: item.sku || undefined,
+  category: item.category,
+  image: item.image || undefined,
+  url: `${SITE_URL}${item.path}`,
+  offers:
+    item.price && item.price > 0
+      ? {
+          "@type": "Offer",
+          price: item.price,
+          priceCurrency: item.currency || "GHS",
+          url: `${SITE_URL}${item.path}`,
+        }
+      : undefined,
+};
+---
+
+<BaseLayout
+  path={item.path}
+  title={`${item.name} Rental | REEBS Party Themes`}
+  description={description}
+  image={item.image || undefined}
+  type="product"
+  structuredData={productSchema}
+>
+  <SiteHeader currentPath="/rentals" />
+  <RentalItemIsland
+    path={item.path}
+    initialRental={item}
+    client:load
+  />
+  <SiteFooter />
+</BaseLayout>

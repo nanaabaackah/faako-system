@@ -153,6 +153,11 @@
   gap: 1rem;
 }
 
+.dashboard-system-status .panel-header .button {
+  align-self: center;
+  white-space: nowrap;
+}
+
 .dashboard-operations-brief {
   --dashboard-status-tone: var(--info);
   --dashboard-status-soft: var(--info-soft);
@@ -329,6 +334,16 @@
 .dashboard-system-row__content {
   display: grid;
   gap: 0.24rem;
+  min-width: 0;
+}
+
+.dashboard-system-row .health-timeline {
+  margin-top: 0.3rem;
+}
+
+.site-card__timeline,
+.site-card__timeline .health-timeline {
+  width: 100%;
   min-width: 0;
 }
 

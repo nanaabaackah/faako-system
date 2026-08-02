@@ -1,25 +1,11 @@
+import { DEV_ERP_MODULE_IDS } from "@faako/security";
+
 const normalizeModuleName = (value) =>
   String(value || "")
     .trim()
     .toLowerCase();
 
-const ACTIVE_MODULE_KEYS = new Set([
-  "dashboard",
-  "projects",
-  "proposals",
-  "faako-onboarding",
-  "rent",
-  "accounting",
-  "invoicing",
-  "bookings",
-  "organizations",
-  "system-health",
-  "reports",
-  "audit-logs",
-  "profile",
-  "settings",
-  "user-control",
-]);
+const ACTIVE_MODULE_KEYS = new Set(DEV_ERP_MODULE_IDS);
 
 const MODULE_ROUTE_RULES = [
   { pattern: /^\/dashboard(?:\/|$)/, module: "dashboard" },

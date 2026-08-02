@@ -261,6 +261,19 @@
 
     object-position: center 20%;
   }
+
+  .projects-showcase {
+    min-height: auto;
+    justify-content: stretch;
+    align-items: start;
+  }
+
+  .projects-showcase__center {
+    justify-self: center;
+    max-width: none;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
   
   .projects-marquee {
     overflow: visible;

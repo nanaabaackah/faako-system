@@ -65,6 +65,11 @@ import { createAdminProductRouter } from "./src/products/routes.js";
 import { createAdminAccountingRouter } from "./src/accounting/routes.js";
 import { createAdminAuditLogRouter } from "./src/auditLogs/routes.js";
 import { createAuthRouter } from "./src/routes/auth.js";
+import { sendApiError } from "./src/apiResponse.js";
+import {
+  createLogger,
+  createRequestContextMiddleware,
+} from "@faako/logger";
 
 const { PrismaClient } = prismaPkg;
 
@@ -81,6 +86,10 @@ dotenv.config({ path: path.join(appDirectory, ".env") });
 const runtimeEnvironment = normalizeEnvironmentName(
   process.env.APP_ENV || process.env.NODE_ENV || "development"
 );
+const stroaneLogger = createLogger("stroane-admin", {
+  component: "api",
+  environment: runtimeEnvironment,
+});
 const runtimeEnvFile = path.join(appDirectory, `.env.${runtimeEnvironment}`);
 const runtimeEnvResult = dotenv.config({ path: runtimeEnvFile, override: true });
 const runtimeEnvErrorCode =
@@ -518,6 +527,13 @@ if (trustProxySetting) {
 }
 
 // CORS — only allow explicitly configured origins; fail closed in production.
+app.use(
+  createRequestContextMiddleware({
+    application: "stroane-admin",
+    component: "api",
+    environment: runtimeEnvironment,
+  })
+);
 app.use(cors(createCorsOptions(process.env)));
 app.use(createSecurityHeadersMiddleware());
 app.use(
@@ -1265,19 +1281,36 @@ app.post("/api/paystack/verify", paymentVerifyRateLimit, async (req, res) => {
 app.use("/api", createUnsafeApiDefaultDenyMiddleware());
 
 app.use((req, res) => {
-  res.status(404).json({ error: "Not found" });
+  return sendApiError(req, res, {
+    status: 404,
+    message: "Not found",
+  });
 });
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
-  console.error("Unhandled Stroane backend error:", toSafeErrorLog(err));
   const schemaNotReady = isDatabaseSchemaReadinessError(err);
-  res.status(err?.statusCode || (schemaNotReady ? 503 : 500)).json({
-    error: err?.statusCode
-      ? err.message
-      : schemaNotReady
-        ? "Database schema is not ready. Apply the latest Stroane migrations and restart the API."
-        : "Internal server error",
+  const status = err?.statusCode || (schemaNotReady ? 503 : 500);
+  stroaneLogger.error(
+    {
+      err,
+      eventName: "api.request.failed",
+      requestId: req.requestId,
+      userId: req.authUser?.id,
+      method: req.method,
+      path: String(req.originalUrl || "").split("?")[0],
+      statusCode: status,
+    },
+    "Unhandled Stroane backend error"
+  );
+  return sendApiError(req, res, {
+    status,
+    message:
+      status < 500
+        ? err.message
+        : schemaNotReady
+          ? "The service is temporarily unavailable."
+          : "Internal server error",
   });
 });
 

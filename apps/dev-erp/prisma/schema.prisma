@@ -17,22 +17,28 @@ model Organization {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  roles                Role[]
-  users                User[]
-  bookings             Booking[]
-  bookingSettings      BookingSettings?
-  calendarIntegrations CalendarIntegration[]
-  accountingEntries    AccountingEntry[]
-  invoices             Invoice[]
-  proposals            Proposal[]
-  productivityEntries  ProductivityEntry[]
-  productivityTodos    ProductivityTodo[]
-  rentTenants          RentTenant[]
-  rentPayments         RentPayment[]
-  projects             Project[]
-  projectTasks         ProjectTask[]
-  trelloConnection     TrelloConnection?
-  trelloWebhookEvents  TrelloWebhookEvent[]
+  roles                   Role[]
+  users                   User[]
+  bookings                Booking[]
+  bookingSettings         BookingSettings?
+  calendarIntegrations    CalendarIntegration[]
+  accountingEntries       AccountingEntry[]
+  invoices                Invoice[]
+  proposals               Proposal[]
+  productivityEntries     ProductivityEntry[]
+  productivityTodos       ProductivityTodo[]
+  rentTenants             RentTenant[]
+  rentPayments            RentPayment[]
+  projects                Project[]
+  projectTasks            ProjectTask[]
+  trelloConnection        TrelloConnection?
+  trelloWebhookEvents     TrelloWebhookEvent[]
+  monitoringIncidents     MonitoringIncident[]
+  alertRules              AlertRule[]
+  notificationChannels    MonitoringNotificationChannel[]
+  escalationPolicies      EscalationPolicy[]
+  maintenanceWindows      MaintenanceWindow[]
+  monitoringNotifications MonitoringNotification[]
 
   @@index([parentOrganizationId])
 }
@@ -361,26 +367,26 @@ model Project {
 }
 
 model ProjectTask {
-  id             Int                 @id @default(autoincrement())
-  organizationId Int
-  organization   Organization        @relation(fields: [organizationId], references: [id])
-  projectId      Int
-  project        Project             @relation(fields: [projectId], references: [id])
-  title          String
-  description    String?
-  status         ProjectTaskStatus   @default(BACKLOG)
-  priority       ProjectTaskPriority @default(MEDIUM)
-  assigneeUserId Int?
-  assigneeUser   User?               @relation("ProjectTaskAssignee", fields: [assigneeUserId], references: [id])
-  startDate      DateTime?           @db.Date
-  dueDate        DateTime?           @db.Date
-  completedAt    DateTime?
-  archivedAt     DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  trelloCardId         String?          @unique
+  id                   Int                  @id @default(autoincrement())
+  organizationId       Int
+  organization         Organization         @relation(fields: [organizationId], references: [id])
+  projectId            Int
+  project              Project              @relation(fields: [projectId], references: [id])
+  title                String
+  description          String?
+  status               ProjectTaskStatus    @default(BACKLOG)
+  priority             ProjectTaskPriority  @default(MEDIUM)
+  assigneeUserId       Int?
+  assigneeUser         User?                @relation("ProjectTaskAssignee", fields: [assigneeUserId], references: [id])
+  startDate            DateTime?            @db.Date
+  dueDate              DateTime?            @db.Date
+  completedAt          DateTime?
+  archivedAt           DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  trelloCardId         String?              @unique
   trelloCardUrl        String?
-  trelloSyncStatus     TrelloSyncStatus @default(NOT_LINKED)
+  trelloSyncStatus     TrelloSyncStatus     @default(NOT_LINKED)
   trelloLastSyncSource TrelloSyncSource?
   trelloLastSyncedAt   DateTime?
   trelloLastError      String?
@@ -508,6 +514,285 @@ model RentPayment {
 
   @@index([organizationId, tenantId, paidAt])
   @@index([tenantId, paidAt])
+}
+
+model MonitoredService {
+  id                 Int                  @id @default(autoincrement())
+  key                String               @unique
+  name               String
+  category           MonitoringCategory
+  environment        String
+  provider           String?
+  checkType          MonitoringCheckType
+  enabled            Boolean              @default(true)
+  intervalSeconds    Int
+  timeoutMs          Int                  @default(10000)
+  retryCount         Int                  @default(0)
+  critical           Boolean              @default(false)
+  safeTargetLabel    String?
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  checks             HealthCheck[]
+  incidents          MonitoringIncident[]
+  dependencies       ServiceDependency[]  @relation("ServiceDependencies")
+  dependents         ServiceDependency[]  @relation("DependencyDependents")
+  alertRules         AlertRule[]
+  alertEvents        AlertEvent[]
+  maintenanceWindows MaintenanceWindow[]
+
+  @@index([category, enabled])
+  @@index([environment, enabled])
+}
+
+model HealthCheck {
+  id           Int              @id @default(autoincrement())
+  serviceId    Int
+  service      MonitoredService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  status       MonitoringStatus
+  latencyMs    Int?
+  httpStatus   Int?
+  startedAt    DateTime
+  completedAt  DateTime
+  errorCode    String?
+  errorSummary String?
+  details      Json?
+  createdAt    DateTime         @default(now())
+
+  @@index([serviceId, startedAt])
+  @@index([status, startedAt])
+}
+
+model MonitoringIncident {
+  id                   Int                      @id @default(autoincrement())
+  serviceId            Int
+  service              MonitoredService         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  organizationId       Int?
+  organization         Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  status               IncidentStatus
+  severity             IncidentSeverity
+  title                String?
+  startedAt            DateTime
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId Int?
+  resolvedAt           DateTime?
+  recoveredAt          DateTime?
+  closedAt             DateTime?
+  assignedUserId       Int?
+  assignedRoleId       Int?
+  responseDueAt        DateTime?
+  resolutionDueAt      DateTime?
+  responseBreachedAt   DateTime?
+  resolutionBreachedAt DateTime?
+  failureCount         Int                      @default(0)
+  recoveryCount        Int                      @default(0)
+  autoResolve          Boolean                  @default(true)
+  rootCause            String?
+  impactSummary        String?
+  resolutionSummary    String?
+  summary              String?
+  metadata             Json?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  alertEvents          AlertEvent[]
+  timeline             IncidentTimelineEntry[]
+  notifications        MonitoringNotification[]
+
+  @@index([serviceId, startedAt])
+  @@index([status, startedAt])
+  @@index([organizationId, status, startedAt])
+  @@index([assignedUserId, status])
+  @@index([responseDueAt, status])
+  @@index([resolutionDueAt, status])
+}
+
+model ServiceDependency {
+  id                 Int              @id @default(autoincrement())
+  serviceId          Int
+  service            MonitoredService @relation("ServiceDependencies", fields: [serviceId], references: [id], onDelete: Cascade)
+  dependsOnServiceId Int
+  dependsOnService   MonitoredService @relation("DependencyDependents", fields: [dependsOnServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, dependsOnServiceId])
+  @@index([serviceId])
+  @@index([dependsOnServiceId])
+}
+
+model AlertRule {
+  id                    Int                 @id @default(autoincrement())
+  organizationId        Int?
+  organization          Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceId             Int?
+  service               MonitoredService?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  escalationPolicyId    Int?
+  escalationPolicy      EscalationPolicy?   @relation(fields: [escalationPolicyId], references: [id], onDelete: SetNull)
+  name                  String
+  triggerType           AlertTriggerType
+  category              MonitoringCategory?
+  environment           String?
+  severity              IncidentSeverity    @default(WARNING)
+  thresholdValue        Float?
+  consecutiveFailures   Int?
+  cooldownMinutes       Int                 @default(15)
+  recoveryNotifications Boolean             @default(true)
+  enabled               Boolean             @default(true)
+  createdByUserId       Int?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  events                AlertEvent[]
+  channels              AlertRuleChannel[]
+
+  @@index([organizationId, enabled, triggerType])
+  @@index([serviceId, enabled])
+  @@index([category, environment, enabled])
+}
+
+model AlertEvent {
+  id               Int                            @id @default(autoincrement())
+  ruleId           Int
+  rule             AlertRule                      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  serviceId        Int
+  service          MonitoredService               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  incidentId       Int?
+  incident         MonitoringIncident?            @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  channelId        Int?
+  channel          MonitoringNotificationChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  eventType        AlertEventType
+  deliveryStatus   AlertDeliveryStatus            @default(PENDING)
+  deduplicationKey String                         @unique
+  occurrenceCount  Int                            @default(1)
+  attemptCount     Int                            @default(0)
+  nextAttemptAt    DateTime?
+  deliveredAt      DateTime?
+  errorSummary     String?
+  safeSummary      String?
+  metadata         Json?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  @@index([incidentId, createdAt])
+  @@index([ruleId, serviceId, eventType, createdAt])
+  @@index([deliveryStatus, nextAttemptAt])
+}
+
+model IncidentTimelineEntry {
+  id          Int                  @id @default(autoincrement())
+  incidentId  Int
+  incident    MonitoringIncident   @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  type        IncidentTimelineType
+  actorUserId Int?
+  actorLabel  String?
+  summary     String
+  details     Json?
+  createdAt   DateTime             @default(now())
+
+  @@index([incidentId, createdAt])
+  @@index([type, createdAt])
+}
+
+model MonitoringNotificationChannel {
+  id              Int                     @id @default(autoincrement())
+  organizationId  Int?
+  organization    Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  type            NotificationChannelType
+  enabled         Boolean                 @default(true)
+  safeDisplay     String?
+  encryptedConfig String?
+  createdByUserId Int?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  rules           AlertRuleChannel[]
+  events          AlertEvent[]
+
+  @@index([organizationId, type, enabled])
+}
+
+model AlertRuleChannel {
+  ruleId    Int
+  rule      AlertRule                     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  channelId Int
+  channel   MonitoringNotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, channelId])
+  @@index([channelId])
+}
+
+model EscalationPolicy {
+  id                Int              @id @default(autoincrement())
+  organizationId    Int?
+  organization      Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name              String
+  enabled           Boolean          @default(true)
+  stopOnAcknowledge Boolean          @default(false)
+  createdByUserId   Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  rules             AlertRule[]
+  steps             EscalationStep[]
+
+  @@index([organizationId, enabled])
+}
+
+model EscalationStep {
+  id                Int                  @id @default(autoincrement())
+  policyId          Int
+  policy            EscalationPolicy     @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  position          Int
+  delayMinutes      Int
+  targetType        EscalationTargetType
+  targetUserId      Int?
+  targetRoleId      Int?
+  targetChannelId   Int?
+  stopOnAcknowledge Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+
+  @@unique([policyId, position])
+  @@index([policyId, delayMinutes])
+}
+
+model MaintenanceWindow {
+  id                Int                 @id @default(autoincrement())
+  organizationId    Int?
+  organization      Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceId         Int?
+  service           MonitoredService?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  category          MonitoringCategory?
+  environment       String?
+  name              String
+  reason            String?
+  status            MaintenanceStatus   @default(SCHEDULED)
+  suppressAlerts    Boolean             @default(true)
+  startsAt          DateTime
+  endsAt            DateTime
+  createdByUserId   Int?
+  cancelledByUserId Int?
+  cancelledAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([organizationId, status, startsAt, endsAt])
+  @@index([serviceId, status, startsAt, endsAt])
+  @@index([category, environment, status])
+}
+
+model MonitoringNotification {
+  id             Int                @id @default(autoincrement())
+  organizationId Int?
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         Int?
+  incidentId     Int
+  incident       MonitoringIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  type           AlertEventType
+  title          String
+  message        String
+  link           String
+  readAt         DateTime?
+  createdAt      DateTime           @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([organizationId, readAt, createdAt])
+  @@index([incidentId, createdAt])
 }
 
 enum OrgStatus {
@@ -644,4 +929,110 @@ enum TrelloWebhookEventStatus {
 enum RentTenantStatus {
   ACTIVE
   INACTIVE
+}
+
+enum MonitoringCategory {
+  BUSINESS
+  API
+  DATABASE
+  INFRASTRUCTURE
+  EXTERNAL
+  WORKER
+}
+
+enum MonitoringCheckType {
+  HTTP
+  DATABASE
+  DNS
+  SSL
+  TCP
+  WORKER
+  EXTERNAL
+  SYNTHETIC
+}
+
+enum MonitoringStatus {
+  HEALTHY
+  DEGRADED
+  DOWN
+  UNKNOWN
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  CLOSED
+}
+
+enum IncidentSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertTriggerType {
+  SERVICE_DOWN
+  SERVICE_DEGRADED
+  CONSECUTIVE_FAILURES
+  LATENCY_THRESHOLD
+  UPTIME_BELOW
+  INCIDENT_UNACKNOWLEDGED
+  INCIDENT_UNRESOLVED
+  SSL_EXPIRY
+  WORKER_STALE
+  CRITICAL_DEPENDENCY_FAILURE
+}
+
+enum AlertEventType {
+  TRIGGERED
+  REPEATED
+  ESCALATED
+  DELIVERY_FAILED
+  RECOVERED
+  SUPPRESSED
+}
+
+enum AlertDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum NotificationChannelType {
+  IN_APP
+  EMAIL
+  WHATSAPP
+  WEBHOOK
+}
+
+enum IncidentTimelineType {
+  CREATED
+  DETECTED
+  ALERT_SENT
+  ACKNOWLEDGED
+  ASSIGNED
+  UPDATED
+  NOTE_ADDED
+  ESCALATED
+  SLA_BREACHED
+  RECOVERY_DETECTED
+  RESOLVED
+  CLOSED
+  REOPENED
+  MAINTENANCE_SUPPRESSED
+}
+
+enum EscalationTargetType {
+  USER
+  ROLE
+  CHANNEL
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }

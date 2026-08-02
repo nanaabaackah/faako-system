@@ -12,7 +12,7 @@ export interface SEOConfig {
 
 const SITE_NAME = "Stroane";
 const SITE_URL = "https://stroanesolutions.com";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/og-image.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/logos/logo_long.png`;
 
 function upsertMeta(attr: "name" | "property", key: string, content: string) {
   let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);

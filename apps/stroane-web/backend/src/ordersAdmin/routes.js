@@ -187,6 +187,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.get(
     "/orders",
+    requireAdminRole(prisma, "orders", "view"),
     asyncRoute(async (req, res) => {
       const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
       const orders = await prisma.commerceOrder.findMany({
@@ -205,6 +206,7 @@ export const createAdminOrderRouter = (prisma) => {
 
   router.get(
     "/orders/:id",
+    requireAdminRole(prisma, "orders", "view"),
     asyncRoute(async (req, res) => {
       const order = await prisma.commerceOrder.findUnique({
         where: { id: String(req.params.id || "") },

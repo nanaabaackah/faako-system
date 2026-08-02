@@ -52,6 +52,7 @@ const WATER_ACTIONS = new Set([
   "adjustment",
   "update_adjustment",
   "delete_adjustment",
+  "update_product_pricing",
 ]);
 
 const tableStatements = [
@@ -206,6 +207,24 @@ const cleanText = (value, maxLength = MAX_NOTES_LENGTH) => {
     .trim()
     .slice(0, Math.max(0, Number(maxLength) || 0))
     .trim();
+};
+
+export const normalizeWaterAction = (value) => {
+  const cleaned = cleanText(value, MAX_ACTION_LENGTH).toLowerCase();
+  if (!cleaned) return "";
+
+  const normalized = cleaned.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const aliases = {
+    update_retail_price: "update_product_pricing",
+    retail_price: "update_product_pricing",
+    set_retail_price: "update_product_pricing",
+    update_product_price: "update_product_pricing",
+    update_price: "update_product_pricing",
+    product_pricing: "update_product_pricing",
+  };
+
+  if (WATER_ACTIONS.has(normalized)) return normalized;
+  return aliases[normalized] || "";
 };
 
 const normalizeComparableText = (value) =>
@@ -580,7 +599,11 @@ const scoreWaterProductCandidate = (candidateName) => {
 const resolveLinkedWaterVendors = async (client, organizationId) => {
   const productTableExists = await hasTable(client, "product");
   if (!productTableExists) {
-    return { inventoryProductId: null, linkedVendorIds: [] };
+    return {
+      inventoryProductId: null,
+      linkedVendorIds: [],
+      retailPrice: RETAIL_PRICE,
+    };
   }
 
   await ensureProductLinkColumns(client);
@@ -588,7 +611,7 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   await backfillProductVendorLinksFromProducts(client, organizationId);
 
   const productResult = await client.query(
-    `SELECT id, name
+    `SELECT id, name, price
      FROM "product"
      WHERE "organizationId" = $1
        AND COALESCE("isDeleted", false) = false
@@ -613,7 +636,11 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   }
 
   if (!matchedProduct) {
-    return { inventoryProductId: null, linkedVendorIds: [] };
+    return {
+      inventoryProductId: null,
+      linkedVendorIds: [],
+      retailPrice: RETAIL_PRICE,
+    };
   }
 
   const vendorIdsByProduct = await getProductVendorIdsMap(client, {
@@ -625,6 +652,10 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   return {
     inventoryProductId: Number(matchedProduct.id) || null,
     linkedVendorIds,
+    retailPrice:
+      Number.isFinite(Number(matchedProduct.price)) && Number(matchedProduct.price) > 0
+        ? Number(matchedProduct.price)
+        : RETAIL_PRICE,
   };
 };
 
@@ -786,7 +817,11 @@ const buildDashboard = async (client, organizationId, options = {}) => {
     ),
     includeLinkedProduct
       ? resolveLinkedWaterVendors(client, organizationId)
-      : Promise.resolve({ inventoryProductId: null, linkedVendorIds: [] }),
+      : Promise.resolve({
+          inventoryProductId: null,
+          linkedVendorIds: [],
+          retailPrice: RETAIL_PRICE,
+        }),
   ]);
 
   return {
@@ -797,7 +832,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       linkedVendorIds: linkedProduct.linkedVendorIds,
       purchaseCost: DEFAULT_PURCHASE_COST,
       pricing: {
-        retailSingle: RETAIL_PRICE,
+        retailSingle: linkedProduct.retailPrice,
         retailBulk: BULK_RETAIL_PRICE,
         company: COMPANY_PRICE,
         bulkThreshold: BULK_THRESHOLD,
@@ -881,8 +916,9 @@ export async function handler(event = {}) {
       return json(400, { error: "Invalid JSON body." });
     }
 
-    const action = cleanText(payload.action, MAX_ACTION_LENGTH).toLowerCase();
-    const normalizedAction = WATER_ACTIONS.has(action) ? action : "unknown";
+    const rawAction = cleanText(payload.action, MAX_ACTION_LENGTH).toLowerCase();
+    const action = normalizeWaterAction(rawAction);
+    const normalizedAction = action || "unknown";
     const writeRateLimit = await enforceWaterRateLimit(client, event, {
       organizationId,
       authUser,
@@ -1018,6 +1054,28 @@ export async function handler(event = {}) {
              "date" = $7
          WHERE id = $1 AND "organizationId" = $2`,
         [restockId, organizationId, quantity, vendorId, vendorName, notes, date]
+      );
+
+      return json(200, await buildDashboard(client, organizationId));
+    }
+
+    if (action === "update_product_pricing") {
+      const retailSingle = parseMoney(payload.retailSingle);
+      if (!retailSingle) {
+        return json(400, { error: "Retail price must be greater than zero." });
+      }
+
+      const linkedProduct = await resolveLinkedWaterVendors(client, organizationId);
+      if (!linkedProduct.inventoryProductId) {
+        return json(400, { error: "No water product was found to update." });
+      }
+
+      await client.query(
+        `UPDATE "product"
+         SET "price" = $3,
+             "updatedAt" = NOW()
+         WHERE id = $1 AND "organizationId" = $2`,
+        [linkedProduct.inventoryProductId, organizationId, retailSingle]
       );
 
       return json(200, await buildDashboard(client, organizationId));

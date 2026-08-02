@@ -1,3 +1,5 @@
+import { publicApi } from "../lib/publicApi.js";
+
 const INVENTORY_CACHE_KEY = "reebs_inventory_cache_v2";
 const INVENTORY_CACHE_TTL = 5 * 60 * 1000;
 let inventoryRequestPromise = null;
@@ -84,12 +86,10 @@ export const fetchInventoryWithCache = async ({ signal } = {}) => {
 
   if (!inventoryRequestPromise) {
     inventoryRequestPromise = (async () => {
-      const response = await fetch("/api/inventory");
-      if (!response.ok) {
-        throw new Error(`Inventory request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await publicApi.get("/inventory", {
+        responseMode: "raw",
+        fallbackMessage: "Could not load the public catalogue.",
+      });
       const items = Array.isArray(data) ? data : [];
       writeInventoryCache(items);
       return items;

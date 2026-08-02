@@ -67,3 +67,4 @@ export const getErpPageTitle = (
 export * from "./mobileBrowserChrome";
 export * from "./observeElementHeightVar";
 export * from "./googleAnalytics";
+export * from "./expiringDraft";

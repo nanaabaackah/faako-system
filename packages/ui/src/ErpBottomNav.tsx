@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import type { ErpNavItem, IconRenderer } from "@faako/types";
+import type { ErpNavItem } from "@faako/types";
 import { isPathActive } from "@faako/utils";
 import { ErpStatusBadge } from "./ErpStatusBadge";
+import type { IconRenderer } from "./types";
 
 interface ErpBottomNavProps {
   items: ErpNavItem[];

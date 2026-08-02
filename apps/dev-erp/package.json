@@ -36,6 +36,7 @@
     "postinstall": "node -e \"const hasDbUrl = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_DEVELOPMENT || process.env.DATABASE_URL_PRODUCTION); if (hasDbUrl) { require('child_process').execSync('prisma generate', { stdio: 'inherit' }); } else { console.log('Skipping prisma generate'); }\""
   },
   "dependencies": {
+    "@faako/api-contracts": "workspace:*",
     "@faako/config": "workspace:*",
     "@faako/logger": "workspace:*",
     "@faako/finance": "workspace:*",
@@ -44,6 +45,7 @@
     "@faako/security": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",
+    "@faako/validation": "workspace:*",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.6",

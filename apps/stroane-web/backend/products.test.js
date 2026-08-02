@@ -83,7 +83,8 @@ test("admin middleware rejects product API requests without a bearer token", asy
 
   assert.equal(nextCalled, false);
   assert.equal(response.statusCode, 401);
-  assert.deepEqual(response.body, { error: "Unauthorized" });
+  assert.equal(response.body.error, "Unauthorized");
+  assert.equal(response.body.apiError.code, "authentication_error");
 });
 
 test("admin middleware authorizes with the current database role when token role is stale", async () => {
@@ -152,7 +153,8 @@ test("admin product router applies bearer auth before product routes", async () 
 
   assert.equal(nextCalled, false);
   assert.equal(response.statusCode, 401);
-  assert.deepEqual(response.body, { error: "Unauthorized" });
+  assert.equal(response.body.error, "Unauthorized");
+  assert.equal(response.body.apiError.code, "authentication_error");
   assert.deepEqual(
     router.stack.filter((layer) => layer.route).map((layer) => layer.route.path),
     [

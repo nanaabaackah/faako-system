@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { FALLBACK_RATES } from "../CurrencyContext/CurrencyContext";
+import {
+  DEFAULT_CURRENCY_RATES as FALLBACK_RATES,
+  formatCurrencyMajor,
+} from "@faako/finance";
 import {
   getCartItemKey,
   getCartItemMaxSelectableQuantity,
@@ -201,14 +204,11 @@ export const CartProvider = ({ children }) => {
   };
 
   const formatCurrency = (value) => {
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency,
-      }).format(value);
-    } catch {
-      return value + " " + currency;
-    }
+    const locale =
+      typeof navigator !== "undefined" && navigator.language
+        ? navigator.language
+        : "en-GH";
+    return formatCurrencyMajor(value, currency, { locale });
   };
 
   return (

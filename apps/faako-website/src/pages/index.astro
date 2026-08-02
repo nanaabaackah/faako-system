@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import HomeIsland from "../components/islands/HomeIsland.jsx";
+---
+
+<BaseLayout path="/">
+  <HomeIsland path="/" client:idle={{ timeout: 1200 }} />
+</BaseLayout>

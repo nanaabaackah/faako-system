@@ -27,6 +27,30 @@ const normalizeBaseUrl = (value) => {
 
 export const MONOREPO_APP_REGISTRY = [
   {
+    key: "ttngh",
+    packageName: "@faako/ttngh",
+    path: "apps/ttngh",
+    title: "The Thriving Network GH",
+    purpose: "Public NGO website and future donation and participation surface.",
+    category: "marketing",
+    productionSensitive: false,
+    monitoringEnabled: true,
+    monitoringOptional: true,
+    envBaseUrlKeys: ["TTNGH_BASE_URL", "TTNGH_URL"],
+    monitoringPages: [{ label: "Home", path: "/" }],
+    additionalMonitoringSites: [
+      {
+        id: "ttngh-api",
+        title: "The Thriving Network GH API",
+        purpose: "Railway API boundary for future donations and form submissions.",
+        category: "api",
+        envBaseUrlKeys: ["TTNGH_API_BASE_URL"],
+        monitoringOptional: true,
+        monitoringPages: [{ label: "Health", path: "/healthz" }],
+      },
+    ],
+  },
+  {
     key: "reebs-portal",
     packageName: "@faako/reebs-portal",
     path: "apps/reebs-portal",

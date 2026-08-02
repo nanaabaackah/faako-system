@@ -1,9 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { ErpBranding, ErpNavItem, IconRenderer } from "@faako/types";
+import type { ErpBranding, ErpNavItem } from "@faako/types";
 import { isPathActive } from "@faako/utils";
 import { SidebarEdgeToggle } from "./SidebarEdgeToggle";
 import { ErpStatusBadge } from "./ErpStatusBadge";
+import type { IconRenderer } from "./types";
 
 interface ErpNavSidebarProps {
   brand: ErpBranding;

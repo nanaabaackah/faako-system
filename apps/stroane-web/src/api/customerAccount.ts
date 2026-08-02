@@ -1,5 +1,6 @@
 import { apiPath } from "./config";
 import type { CheckoutOrderResponse } from "./orders";
+import type { Customer as SharedCustomer } from "@faako/types";
 
 const CUSTOMER_CLIENT_HEADER = { "X-Stroane-Client": "storefront" };
 
@@ -16,10 +17,12 @@ const parseJsonResponse = async <T>(response: Response, fallbackMessage: string)
   return body as T;
 };
 
-export type CustomerContactMethod = "email" | "phone" | "whatsapp";
+export type CustomerContactMethod =
+  | "email"
+  | "phone"
+  | "whatsapp";
 
-export interface CustomerProfile {
-  id: string;
+export interface CustomerProfile extends SharedCustomer<string> {
   email: string;
   status: "invited" | "active" | "locked";
   name: string;

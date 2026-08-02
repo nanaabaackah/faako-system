@@ -4,12 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "lint": "eslint src"
+    "lint": "eslint src test",
+    "test": "node --test"
   },
   "exports": {
     ".": "./src/index.js"
   },
   "dependencies": {
+    "@faako/api-contracts": "workspace:*",
     "pino": "^9.0.0"
   }
 }

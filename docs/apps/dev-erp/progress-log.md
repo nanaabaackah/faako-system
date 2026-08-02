@@ -23,6 +23,58 @@ Next step:
 
 ## Entries
 
+### System Health incident response Phase 3
+
+Date: 2026-07-31
+Feature/change name: Operational alerting and incident management
+What changed: Added persisted configuration-driven alert rules, deterministic restart-safe deduplication/cooldowns, in-app/email delivery state and bounded retries, controlled incident acknowledgement/assignment/notes/resolution/closure/reopening, complete structured timelines, ordered escalation policies, maintenance-window suppression while checks continue, response/resolution target calculation and breach records, recovery notifications, safe PDF/CSV exports, unread notifications, granular action capabilities, organization/platform boundaries, and a responsive incident-response extension to the existing System Health dashboard.
+Why it changed: Convert Phase 2 monitoring observations into a secure operational response workflow without redesigning the monitoring dashboard.
+Files changed: Additive Prisma schema/development migration; monitoring alerts/incidents/maintenance modules and tests; server composition; environment example; System Health hook/components/config/styles/tests; README and documentation.
+Data impact: Additive incident-response tables and nullable MonitoringIncident columns only. The migration was created but not applied to production. No cleanup or destructive migration was added.
+Security impact: Positive. Channel configuration is encrypted at rest; serializers/exports/logs omit secrets; action capabilities, organization scope, explicit global-admin boundaries, CSRF, rate limits, validated assignees/targets, safe provider errors, and auditing are enforced. WhatsApp/webhooks remain disabled.
+Testing done: Prisma validation/generation, all 243 Dev ERP tests, full lint, typecheck, production build, focused syntax/whitespace checks, security scan, and responsive light/dark browser QA passed. The repository security gate was run and remains blocked only by unrelated pre-existing missing `appSystem.js` files in Faako Website and TTNGH.
+Rollback notes: Set `MONITORING_ALERTS_ENABLED=false` first. Revert Phase 3 route/composition/UI integration, then reverse the additive migration only after confirming alert, timeline, maintenance, notification, and incident-response records are disposable.
+Next step: Review and deploy the development migration, configure a dedicated encryption key, verify scope boundaries with alerts disabled, then enable alerts on one monitoring instance.
+
+### System Health operational monitoring Phase 2
+
+Date: 2026-07-31
+Feature/change name: Persistent monitoring engine and live dashboard integration
+What changed: Added configuration-driven monitoring services, additive Prisma models/migration, HTTP/database/DNS/SSL/TCP/worker checkers, bounded process-local scheduling, persistent minimized check results, threshold-based incident open/recovery, dependency-effective statuses, fixed-width server aggregation for 1h/24h/7d/30d, latency and uptime metrics, weighted health scoring with coverage suppression, authenticated APIs, capability enforcement, administrator-only rate-limited/audited manual checks, and 30-second visibility-aware frontend polling. Phase 1 layout and dashboard timeline language remain intact; staging references were removed.
+Why it changed: Make the System Health dashboard operational with real server-owned observations while preserving security boundaries and UI compatibility.
+Files changed: Dev ERP Prisma schema/development migration, monitoring backend/checkers/tests, server composition/access configuration/env example, System Health data hook/config/components/page/styles/tests, README, and Dev ERP documentation.
+Data impact: Additive monitoring tables only. The migration was created but not applied to production. No cleanup or destructive retention job was added.
+Security impact: Positive. Targets remain server-side and registry-controlled; responses/logs are minimized and redacted; no arbitrary target endpoint exists; reads require auth plus System Health capability; writes additionally require Admin, CSRF, rate limiting, and auditing.
+Testing done: Prisma validation/generation, full lint, typecheck, production build, security scan, syntax/whitespace checks, focused monitoring tests, and the full 225-test Dev ERP suite passed. Desktop/mobile browser QA passed with all six categories, no horizontal overflow, range switching, the service drawer/P95 view, and administrator manual checks. The repository-wide security gate was also run and remains blocked only by unrelated pre-existing missing `appSystem.js` files in `apps/faako-website` and `apps/ttngh`.
+Rollback notes: Disable `MONITORING_ENABLED`, revert the monitoring route/composition/frontend integration, then reverse the additive migration only after confirming monitoring records are disposable.
+Next step: Review and deploy the development migration, configure trusted targets, enable one API instance initially, and verify Unknown-to-Healthy transitions before expanding coverage.
+
+### System Health enterprise dashboard Phase 1
+
+Date: 2026-07-31
+Feature/change name: System Health enterprise monitoring UI refresh
+What changed: Rebuilt `/system-health` as a configuration-driven monitoring dashboard with a platform score, five summary cards, search/environment/status/category/provider filters, four functioning history ranges, seven requested dashboard sections, adjacent status blocks with keyboard-accessible telemetry, grouped service rows, latency/status badges, empty/loading foundations, dependencies, incidents, and an accessible service-detail drawer. Updated Dashboard System Status and website/portal health cards to use the same block-history language and link to the full route.
+Why it changed: Provide a dense enterprise operations view inspired by modern observability products while keeping the Faako visual system, responsive behavior, dark-mode tokens, and existing routes.
+Files changed: System Health page, components, configuration, CSS, and tests; Dashboard page/CSS; Dev ERP README and documentation.
+Data impact: None. System Health Phase 1 uses deterministic demo data and no migration.
+Security impact: None. No auth, permission, API, backend, secret, or monitoring request behavior changed.
+Testing done: Focused System Health tests, affected-file ESLint, production build, diff/whitespace verification, and responsive route review.
+Rollback notes: Revert the System Health Phase 1 files and Dashboard timeline imports/rendering. No data rollback is required.
+Next step: Adapt real monitoring observations to the documented service model, add historical storage/SLO calculations, and connect manual checks only after a separate backend/security review.
+
+### Server-only Trello delivery
+
+Date: 2026-07-23
+Feature/change name: Safer Trello task delivery
+What changed: Replaced the runtime Trello API-key/token connection flow with one-way email-to-board delivery using a private server environment variable and the existing server-side Resend provider. Removed the Trello setup panel from Projects; task creation sends one card email automatically, while failed delivery remains visible and retryable on the task.
+Why it changed: Trello credentials and its private email-to-board address should not be collected or exposed in the frontend.
+Files changed: Dev ERP Trello backend composition/service/routes/tests, project task UI and tests, env example, README, and Dev ERP documentation.
+Data impact: No schema migration. Existing task sync fields record delivery state. Existing encrypted Trello connection rows are no longer read by the runtime and are left untouched for a separately approved cleanup.
+Security impact: Positive. The browser no longer accepts Trello API keys, tokens, application secrets, or the email-to-board address. The legacy credential configuration and webhook routes are not registered in the active server composition. The email address remains a capability secret and must stay in server environment configuration.
+Testing done: Backend syntax checks, focused Trello tests, Dev ERP lint, typecheck, production build, full Dev ERP test suite (199 tests), and affected-file whitespace checks passed.
+Rollback notes: Restore the prior Trello client composition and setup panel only if bidirectional sync is required before a server-side OAuth flow is available. No database rollback is required.
+Next step: Configure `TRELLO_EMAIL_TO_BOARD_ADDRESS`, `TRELLO_EMAIL_FROM_EMAIL`, `TRELLO_EMAIL_BOARD_NAME`, and `TRELLO_EMAIL_LIST_NAME` in the Dev ERP server environment, then revoke the previously used Trello token after confirming email delivery.
+
 ### Security headers before JSON parsing
 
 Date: 2026-07-18

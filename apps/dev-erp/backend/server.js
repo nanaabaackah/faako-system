@@ -100,6 +100,26 @@ import { createProductivityAiHandler } from "./productivity/ai.controller.js";
 import { registerProductivityRoutes } from "./productivity/productivity.routes.js";
 import { createSystemHealthAiHandler } from "./monitoring/healthAi.controller.js";
 import { registerSystemHealthAiRoutes } from "./monitoring/healthAi.routes.js";
+import { createMonitoringController } from "./monitoring/monitoring.controller.js";
+import { createMonitoringLogger } from "./monitoring/monitoring.logging.js";
+import { createMonitoringRepository } from "./monitoring/monitoring.repository.js";
+import { buildMonitoringRegistry } from "./monitoring/monitoring.registry.js";
+import { registerMonitoringRoutes } from "./monitoring/monitoring.routes.js";
+import { startSingletonMonitoringScheduler } from "./monitoring/monitoring.scheduler.js";
+import { createManualCheckRateLimit, createMonitoringMutationRateLimit } from "./monitoring/monitoring.security.js";
+import { createMonitoringService } from "./monitoring/monitoring.service.js";
+import { buildIncidentResponseOptions } from "./monitoring/alerts/alert.config.js";
+import { createAlertController } from "./monitoring/alerts/alert.controller.js";
+import { createAlertDelivery } from "./monitoring/alerts/alert.delivery.js";
+import { createAlertEngine } from "./monitoring/alerts/alert.engine.js";
+import { createOperationalSweep, startIncidentResponseScheduler } from "./monitoring/alerts/alert.escalation.js";
+import { createAlertAdministrationService } from "./monitoring/alerts/alert.service.js";
+import { createIncidentController } from "./monitoring/incidents/incident.controller.js";
+import { INCIDENT_CAPABILITIES } from "./monitoring/incidents/incident.constants.js";
+import { registerIncidentResponseRoutes } from "./monitoring/incidents/incident.routes.js";
+import { createIncidentService } from "./monitoring/incidents/incident.service.js";
+import { createMaintenanceController } from "./monitoring/maintenance/maintenance.controller.js";
+import { createMaintenanceService } from "./monitoring/maintenance/maintenance.service.js";
 import { registerUserRoutes } from "./users/users.routes.js";
 import { registerFaakoOnboardingRoutes } from "./faakoOnboarding/faakoOnboarding.routes.js";
 import { buildAccountInvitationEmailContent } from "./accountInvitationEmailTemplate.js";
@@ -367,7 +387,12 @@ const errorHintsContain = (error, patterns) => {
 
 const app = express();
 app.disable("x-powered-by");
+const apiLogger = createLogger("dev-erp", {
+  component: "http",
+  environment: APP_ENV,
+});
 const apiRequestLogger = createRequestLogger({
+  logger: apiLogger,
   appKey: "dev-erp",
   environment: APP_ENV,
   auditWriter: (event) => {
@@ -1549,6 +1574,14 @@ const coerceBoolean = (value, fallback = false) => {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TRELLO_EMAIL_TO_BOARD_ADDRESS =
+  String(process.env.TRELLO_EMAIL_TO_BOARD_ADDRESS || "").trim();
+const TRELLO_EMAIL_FROM_EMAIL =
+  String(process.env.TRELLO_EMAIL_FROM_EMAIL || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL).trim();
+const TRELLO_EMAIL_BOARD_NAME =
+  String(process.env.TRELLO_EMAIL_BOARD_NAME || "Dev delivery").trim();
+const TRELLO_EMAIL_LIST_NAME =
+  String(process.env.TRELLO_EMAIL_LIST_NAME || "").trim();
 const INVOICE_EMAIL_SENDER_NAME =
   String(process.env.INVOICE_EMAIL_SENDER_NAME || "By Nana").trim() || "By Nana";
 const INVOICE_EMAIL_HEADER_TAGLINE =
@@ -1833,6 +1866,13 @@ const extractAllowedModules = (permissions) => {
   );
 };
 
+const INCIDENT_CAPABILITY_SET = new Set(Object.values(INCIDENT_CAPABILITIES));
+const extractAllowedIncidentCapabilities = (permissions) => {
+  const capabilities = permissions?.capabilities;
+  if (!Array.isArray(capabilities)) return [];
+  return Array.from(new Set(capabilities.map((value) => String(value || "").trim().toUpperCase()).filter((value) => INCIDENT_CAPABILITY_SET.has(value))));
+};
+
 const serializeUserRole = (role) => ({
   id: role.id,
   name: role.name,
@@ -1912,6 +1952,7 @@ const serializeAuthenticatedUser = (user) => ({
   email: user.email,
   status: user.status,
   modules: extractAllowedModules(user.role?.permissions),
+  capabilities: extractAllowedIncidentCapabilities(user.role?.permissions),
 });
 
 const loadSessionUser = async (payload) => {
@@ -2325,6 +2366,31 @@ const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html,
     deliveryRecipients: delivery.deliveryRecipients,
     wasRerouted: delivery.wasRerouted,
   };
+};
+
+const sendTrelloBoardEmail = async ({ subject, text }) => {
+  if (!resend) throw new Error("RESEND_API_KEY is not configured");
+  if (!EMAIL_PATTERN.test(TRELLO_EMAIL_TO_BOARD_ADDRESS)) {
+    throw new Error("TRELLO_EMAIL_TO_BOARD_ADDRESS is not configured");
+  }
+  if (!EMAIL_PATTERN.test(TRELLO_EMAIL_FROM_EMAIL)) {
+    throw new Error("TRELLO_EMAIL_FROM_EMAIL is not a valid sender");
+  }
+  const result = await resend.emails.send({
+    from: buildEmailFromHeader({
+      fromEmail: TRELLO_EMAIL_FROM_EMAIL,
+      fromName: "Dev ERP Tasks",
+    }),
+    to: [TRELLO_EMAIL_TO_BOARD_ADDRESS],
+    subject,
+    text,
+  });
+  if (result?.error) {
+    const error = new Error(result.error?.message || "Trello email delivery failed");
+    error.statusCode = Number(result.error?.statusCode) || 502;
+    throw error;
+  }
+  return result;
 };
 
 const sendSms = async ({ recipients, body }) => {
@@ -4986,6 +5052,37 @@ const csrfMiddleware = createCsrfMiddleware({
 });
 
 const requireAdmin = createRequireAdmin();
+const monitoringRegistry = buildMonitoringRegistry(process.env);
+const monitoringLogger = createMonitoringLogger(apiLogger);
+const monitoringRepository = createMonitoringRepository({ prisma });
+const incidentResponseOptions = buildIncidentResponseOptions(process.env);
+const monitoringAuditWriter = (event) => writeAuditLog(prisma, event, { environment: APP_ENV });
+const monitoringChannelCrypto = createSecretCrypto(process.env.MONITORING_CHANNEL_ENCRYPTION_KEY, { keyName: "MONITORING_CHANNEL_ENCRYPTION_KEY" });
+const maintenanceService = createMaintenanceService({ prisma, isGlobalAdmin, auditWriter: monitoringAuditWriter });
+const incidentService = createIncidentService({ prisma, isGlobalAdmin, auditWriter: monitoringAuditWriter });
+const alertDelivery = createAlertDelivery({ prisma, channelCrypto: monitoringChannelCrypto, sendEmail, options: incidentResponseOptions });
+const alertEngine = createAlertEngine({ prisma, options: incidentResponseOptions, incidentService, maintenanceService, delivery: alertDelivery, auditWriter: monitoringAuditWriter });
+const alertAdministrationService = createAlertAdministrationService({ prisma, channelCrypto: monitoringChannelCrypto, options: incidentResponseOptions, auditWriter: monitoringAuditWriter, delivery: alertDelivery, isGlobalAdmin });
+const incidentResponseSweep = createOperationalSweep({ prisma, maintenanceService, incidentService, delivery: alertDelivery, auditWriter: monitoringAuditWriter });
+const monitoringService = createMonitoringService({
+  registry: monitoringRegistry.services,
+  options: monitoringRegistry.options,
+  repository: monitoringRepository,
+  logger: monitoringLogger,
+  queryFns: {
+    "dev-erp": () => pool.query("SELECT 1"),
+  },
+  incidentResponse: alertEngine,
+});
+const monitoringController = createMonitoringController({
+  monitoringService,
+  auditWriter: monitoringAuditWriter,
+});
+const incidentController = createIncidentController({ incidentService });
+const alertController = createAlertController({ alertService: alertAdministrationService, options: incidentResponseOptions, prisma, isGlobalAdmin });
+const maintenanceController = createMaintenanceController({ maintenanceService });
+const monitoringManualCheckRateLimit = createManualCheckRateLimit();
+const monitoringMutationRateLimit = createMonitoringMutationRateLimit();
 const requireGlobalAdmin = (req, res, next) => {
   if (!isGlobalAdmin(req.user)) {
     return res.status(403).json({ error: "Global admin access required" });
@@ -5303,6 +5400,7 @@ app.get("/api/access/roles", authMiddleware, requireAdmin, async (req, res) => {
 
   res.json({
     modules: ACCESS_MODULE_KEYS,
+    incidentCapabilities: [...INCIDENT_CAPABILITY_SET],
     roles: roles.map(serializeAccessRole),
   });
 });
@@ -5330,6 +5428,11 @@ app.patch("/api/access/roles/:id", authMiddleware, requireAdmin, async (req, res
     updateData.description = String(req.body.description || "").trim() || null;
   }
 
+  const currentModules = extractAllowedModules(role.permissions);
+  const currentIncidentCapabilities = extractAllowedIncidentCapabilities(role.permissions);
+  let nextModules = currentModules;
+  let nextIncidentCapabilities = currentIncidentCapabilities;
+
   if (req.body?.modules !== undefined) {
     const modules = normalizeAccessModules(req.body.modules);
     if (!modules) {
@@ -5343,11 +5446,22 @@ app.patch("/api/access/roles/:id", authMiddleware, requireAdmin, async (req, res
         .json({ error: "Admin role cannot be module-scoped. Leave modules empty for full access." });
     }
 
-    updateData.permissions = modules.length ? { modules } : null;
+    nextModules = modules;
+  }
+
+  if (req.body?.capabilities !== undefined) {
+    if (!Array.isArray(req.body.capabilities)) return res.status(400).json({ error: "capabilities must be an array of supported incident capability keys." });
+    const requested = req.body.capabilities.map((value) => String(value || "").trim().toUpperCase());
+    if (requested.some((value) => !INCIDENT_CAPABILITY_SET.has(value))) return res.status(400).json({ error: "One or more incident capabilities are not supported." });
+    nextIncidentCapabilities = Array.from(new Set(requested));
+  }
+
+  if (req.body?.modules !== undefined || req.body?.capabilities !== undefined) {
+    updateData.permissions = nextModules.length || nextIncidentCapabilities.length ? { ...(nextModules.length ? { modules: nextModules } : {}), ...(nextIncidentCapabilities.length ? { capabilities: nextIncidentCapabilities } : {}) } : null;
   }
 
   if (!Object.keys(updateData).length) {
-    return res.status(400).json({ error: "Provide description and/or modules to update role access." });
+    return res.status(400).json({ error: "Provide description, modules, and/or incident capabilities to update role access." });
   }
 
   const updated = await prisma.role.update({
@@ -11092,6 +11206,19 @@ registerSystemHealthAiRoutes(app, {
   authMiddleware,
   systemHealthAiHandler,
 });
+registerMonitoringRoutes(app, {
+  authMiddleware,
+  requireAdmin,
+  manualCheckRateLimit: monitoringManualCheckRateLimit,
+  controller: monitoringController,
+});
+registerIncidentResponseRoutes(app, {
+  authMiddleware,
+  mutationRateLimit: monitoringMutationRateLimit,
+  incidentController,
+  alertController,
+  maintenanceController,
+});
 
 const BOOKING_STATUS_VALUES = new Set(["CONFIRMED", "TENTATIVE", "CANCELED"]);
 const USER_STATUS_VALUES = new Set(["ACTIVE", "SUSPENDED", "PENDING"]);
@@ -13753,7 +13880,10 @@ app.post("/api/webhooks/google-calendar", async (req, res) => {
 registerApiFallbackRoute(app);
 registerHealthRoute(app, { environment: APP_ENV });
 
-const serverLogger = createLogger("server");
+const serverLogger = createLogger("dev-erp", {
+  component: "server",
+  environment: APP_ENV,
+});
 
 registerErrorHandler(app, { classifyApiError, isProduction, logger: serverLogger });
 
@@ -13873,6 +14003,31 @@ const initializeBackgroundServices = async () => {
   }
 
   if (databaseReady) {
+    try {
+      await monitoringService.syncRegistry();
+      if (monitoringRegistry.options.enabled) {
+        startSingletonMonitoringScheduler({
+          services: monitoringRegistry.services,
+          monitoringService,
+          options: monitoringRegistry.options,
+          logger: monitoringLogger,
+        });
+      } else {
+        serverLogger.info({ eventName: "monitoring.scheduler.disabled" }, "Monitoring scheduler disabled");
+      }
+      if (incidentResponseOptions.enabled) {
+        await alertEngine.syncDefaults();
+        startIncidentResponseScheduler({
+          sweep: incidentResponseSweep,
+          intervalMs: Math.min(incidentResponseOptions.escalationIntervalMs, incidentResponseOptions.slaIntervalMs),
+          logger: monitoringLogger,
+        });
+      } else {
+        serverLogger.info({ eventName: "monitoring.incident_response.disabled" }, "Monitoring incident response disabled");
+      }
+    } catch (error) {
+      monitoringLogger.failure("monitoring.initialization_failed", null, error);
+    }
     await loadPersistedAlertPreferences();
     scheduleNightlyGoogleSync();
     scheduleWeeklyReportEmail();

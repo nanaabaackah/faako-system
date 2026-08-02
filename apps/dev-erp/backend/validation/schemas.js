@@ -1,13 +1,12 @@
 import { z } from "zod";
+import { forgotPasswordInputSchema } from "@faako/validation";
 
 export const loginSchema = z.object({
   email: z.string().min(1).max(254).email(),
   password: z.string().min(1).max(1024),
 });
 
-export const forgotPasswordSchema = z.object({
-  email: z.string().min(1).max(254).email(),
-});
+export const forgotPasswordSchema = forgotPasswordInputSchema;
 
 export const setupAccountVerifySchema = z.object({
   token: z.string().min(1).max(2048),

@@ -6,9 +6,9 @@ import "./index.css";
 import "@faako/ui/compat.css";
 import App from "./App.jsx";
 import appSystem from "../appSystem.js";
-import { patchOrganizationFetch } from "./utils/organization.js";
+import { patchOrganizationFetch } from "@faako/core";
 import { initializeReebsGoogleAnalytics } from "./utils/analytics.js";
-import { syncMobileBrowserChrome } from "../../../packages/utils/src/mobileBrowserChrome";
+import { syncMobileBrowserChrome } from "@faako/utils";
 
 patchOrganizationFetch();
 syncMobileBrowserChrome({ fallbackColor: "#f6f7f9" });

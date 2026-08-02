@@ -143,3 +143,20 @@ test('theme state uses a deterministic server and first-client snapshot', () => 
   assert.equal(themeSource.includes('useState(getSystemTheme)'), false);
   assert.equal(themeSource.includes("typeof window === 'undefined'"), false);
 });
+
+test('contact form protects unsaved work and uses shared error feedback', () => {
+  const contactSource = readFileSync(new URL('../src/views/Contact.jsx', import.meta.url), 'utf8');
+
+  assert.match(contactSource, /beforeunload/);
+  assert.match(contactSource, /<InlineNotice/);
+  assert.match(contactSource, /title="Message not sent"/);
+  assert.equal(contactSource.includes('error.message'), false);
+});
+
+test('static routes defer hydration while the contact form remains immediately interactive', () => {
+  const layoutSource = readFileSync(new URL('../src/layouts/BaseLayout.astro', import.meta.url), 'utf8');
+
+  assert.match(layoutSource, /path === '\/contact'/);
+  assert.match(layoutSource, /client:load/);
+  assert.match(layoutSource, /client:idle=\{\{ timeout: 2000 \}\}/);
+});

@@ -1,3 +1,9 @@
+import {
+  createCompatibleErrorResponse,
+  errorCodeForStatus,
+  safeMessageForErrorCode,
+} from "@faako/api-contracts";
+
 export class HttpError extends Error {
   constructor(message, statusCode = 400, details = undefined) {
     super(message);
@@ -10,14 +16,48 @@ export class HttpError extends Error {
 export const createHttpError = (message, statusCode = 400, details = undefined) =>
   new HttpError(message, statusCode, details);
 
+export const sendApiError = (
+  req,
+  res,
+  {
+    status = 500,
+    code = errorCodeForStatus(status),
+    message = safeMessageForErrorCode(code),
+    issues,
+    details,
+    legacy = {},
+    exposeServerMessage = false,
+  } = {},
+) => {
+  const safeMessage =
+    status >= 500 && !exposeServerMessage
+      ? safeMessageForErrorCode(code)
+      : message;
+  return res.status(status).json(
+    createCompatibleErrorResponse(
+      {
+        code,
+        message: safeMessage,
+        issues,
+        details,
+      },
+      {
+        requestId: req?.requestId,
+        legacy,
+      },
+    ),
+  );
+};
+
 export const asyncRoute = (handler) => async (req, res, next) => {
   try {
     await handler(req, res, next);
   } catch (error) {
     if (error?.statusCode && error.statusCode < 500) {
-      return res.status(error.statusCode).json({
-        error: error.message,
-        details: error.details || undefined,
+      return sendApiError(req, res, {
+        status: error.statusCode,
+        message: error.message,
+        details: error.details,
       });
     }
 

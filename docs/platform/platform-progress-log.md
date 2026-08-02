@@ -24,6 +24,34 @@ Next step:
 
 ## Entries
 
+### Dev ERP monitoring incident response
+
+Date: 2026-07-31
+Change name: Dev ERP System Health Phase 3
+Apps/packages affected: Dev ERP and platform operations documentation
+What changed: Extended the app-owned monitoring foundation with persisted alert rules/events, restart-safe cooldown/deduplication, encrypted in-app/email channels, controlled incident lifecycle/assignment/timelines, escalation policies, maintenance suppression, operational response/resolution targets, recovery notifications, unread state, secure exports, granular authorization, and responsive administration UI.
+Why it changed: Turn health observations into an actionable incident-response workflow while keeping secrets, organization scope, and production deployment controls server-owned.
+Files changed: Dev ERP schema/migration/backend/frontend/config/tests/docs and platform status/progress documentation.
+Data impact: Additive Dev ERP incident-response tables and nullable incident columns after manual migration deployment. No production migration or destructive cleanup ran.
+Security impact: Positive. Dedicated encryption, safe serializers/exports/provider errors, action capabilities, CSRF/rate limiting, validated targets, audit records, and explicit global-admin boundaries are enforced. Unapproved WhatsApp/webhook delivery remains disabled.
+Testing done: See the Dev ERP Phase 3 handoff for final Prisma, tests, lint, typecheck, build, security, and browser results.
+Rollback notes: Disable Phase 3 alerts before reverting routes/UI; any schema rollback requires a separately reviewed data-retention decision.
+Next step: Apply the development migration, verify organization boundaries with alerts disabled, then enable one monitoring/incident-response instance.
+
+### Dev ERP persistent monitoring foundation
+
+Date: 2026-07-31
+Change name: Dev ERP System Health Phase 2
+Apps/packages affected: Dev ERP and platform operations documentation
+What changed: Added Dev ERP-owned configuration-driven monitoring persistence, safe checkers, process-local scheduling, incidents, dependencies, server-side timeline/latency/health aggregation, authenticated System Health APIs, administrator-only audited manual checks, and live Phase 1 dashboard integration.
+Why it changed: Move the Dev ERP health UI from deterministic preview data to secured operational observations without introducing cross-app shared runtime coupling.
+Files changed: Dev ERP monitoring backend/frontend/schema/migration/config/tests/docs and platform status/progress documentation.
+Data impact: Additive Dev ERP monitoring tables after manual migration deployment. No production migration was applied and no retention deletion job exists.
+Security impact: Trusted server-only targets, minimized storage/responses, capability authorization, Admin/CSRF/manual rate-limit enforcement, and safe logging. No arbitrary target API was added.
+Testing done: See the Dev ERP Phase 2 handoff for Prisma, test, lint, build, security, and browser results.
+Rollback notes: Disable monitoring scheduling first; revert integration and schema only through a separately reviewed data decision.
+Next step: Deploy the additive migration, start with one monitoring-enabled API instance, and validate target configuration before broader rollout.
+
 ### Stroane staging and rate-limit audit
 
 Date: 2026-07-03

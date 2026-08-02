@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
-import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./http.js";
+import { isCrossSiteBrowserRequest, json } from "./http.js";
+import { hasPermissionIdentifier } from "@faako/security";
 import {
   applyRequestOrganizationContext,
   resolveAuthorizedOrganizationId,
@@ -97,21 +98,11 @@ export const hasPermission = (user, permission) => {
 
   const role = normalizeRole(user?.role);
   const permissions = ROLE_PERMISSIONS[role] || [];
-  if (permissions.includes("*")) return true;
-  if (permissions.includes(permission)) return true;
-
-  const [namespace] = String(permission).split(":");
-  return permissions.includes(`${namespace}:*`);
+  return hasPermissionIdentifier(permissions, permission);
 };
 
-export const respond = (event, statusCode, payload = {}, options = {}) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    ...buildResponseHeaders(event, options),
-  },
-  body: statusCode === 204 ? "" : JSON.stringify(payload),
-});
+export const respond = (event, statusCode, payload = {}, options = {}) =>
+  json(event, statusCode, payload, options);
 
 export const isProductionRuntime = (env = process.env) => {
   const runtime = String(env?.APP_ENV || env?.NODE_ENV || "")
@@ -149,7 +140,7 @@ const requireScopedUser = async (
     roleError = "Insufficient privileges.",
     permissionError = "Insufficient privileges.",
     body = null,
-    allowCrossOrgForRoles = ["owner", "admin"],
+    allowCrossOrgForRoles = [],
   } = {}
 ) => {
   if (isCrossSiteBrowserRequest(event)) {

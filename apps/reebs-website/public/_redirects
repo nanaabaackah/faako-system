@@ -1,2 +1,5 @@
-https://portal.reebspartythemes.com/ /admin 302
-/* /index.html 200
+/home / 301
+/gallery /about 301
+/login https://portal.reebspartythemes.com/login 302
+/admin https://portal.reebspartythemes.com/admin 302
+/admin/* https://portal.reebspartythemes.com/admin/:splat 302

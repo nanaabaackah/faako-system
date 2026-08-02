@@ -4,6 +4,12 @@ import {
   mergeAllowedOrigins,
   normalizeOrigin,
 } from "@faako/security";
+import {
+  createCompatibleErrorResponse,
+  errorCodeForStatus,
+  resolveRequestId,
+  safeMessageForErrorCode,
+} from "@faako/api-contracts";
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.reebspartythemes.com",
@@ -55,6 +61,7 @@ const DEFAULT_ALLOW_HEADERS = [
   "Authorization",
   "X-Organization-Id",
   "X-CSRF-Token",
+  "X-Request-Id",
 ];
 
 const mergeAllowHeaders = (value) => {
@@ -76,6 +83,19 @@ export const isCrossSiteBrowserRequest = (event) => {
   return fetchSite === "cross-site";
 };
 
+export const getEventRequestId = (event) => {
+  if (event?.requestId) return event.requestId;
+  const requestId = resolveRequestId(getHeaderValue(event, "x-request-id"));
+  if (event && typeof event === "object") {
+    event.requestId = requestId;
+    event.headers = {
+      ...(event.headers || {}),
+      "x-request-id": requestId,
+    };
+  }
+  return requestId;
+};
+
 export const buildResponseHeaders = (
   event,
   {
@@ -85,6 +105,7 @@ export const buildResponseHeaders = (
     extraHeaders = {},
   } = {}
 ) => {
+  const requestId = getEventRequestId(event);
   const normalizedAllowHeaders = mergeAllowHeaders(allowHeaders);
   const requestOrigin = normalizeOrigin(getHeaderValue(event, "origin"));
   const requestProtocol =
@@ -104,15 +125,51 @@ export const buildResponseHeaders = (
 
   headers["Access-Control-Allow-Headers"] = normalizedAllowHeaders;
   headers["Access-Control-Allow-Methods"] = methods;
+  headers["Access-Control-Expose-Headers"] = "X-Request-Id, Retry-After";
+  headers["X-Request-Id"] = requestId;
 
   return headers;
 };
 
-export const json = (event, statusCode, payload = {}, options = {}) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    ...buildResponseHeaders(event, options),
-  },
-  body: statusCode === 204 ? "" : JSON.stringify(payload),
-});
+export const json = (event, statusCode, payload = {}, options = {}) => {
+  const requestId = getEventRequestId(event);
+  const normalizedPayload =
+    statusCode >= 400
+      ? createCompatibleErrorResponse(
+          {
+            code: payload?.apiError?.code || errorCodeForStatus(statusCode),
+            message:
+              statusCode >= 500 && options.exposeServerMessage !== true
+                ? safeMessageForErrorCode(errorCodeForStatus(statusCode))
+                : String(
+                    payload?.apiError?.message ||
+                      payload?.error ||
+                      payload?.message ||
+                      safeMessageForErrorCode(errorCodeForStatus(statusCode))
+                  ),
+            issues:
+              payload?.apiError?.issues ||
+              payload?.issues ||
+              payload?.errors,
+          },
+          {
+            requestId,
+            retryAfterSeconds:
+              payload?.retryAfterSeconds || options.retryAfterSeconds,
+            legacy:
+              payload && typeof payload === "object" && !Array.isArray(payload)
+                ? payload
+                : {},
+          }
+        )
+      : payload;
+
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json",
+      ...buildResponseHeaders(event, options),
+    },
+    body: statusCode === 204 ? "" : JSON.stringify(normalizedPayload),
+  };
+};

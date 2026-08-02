@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { InlineNotice } from "@faako/ui";
+import { getApiErrorPresentation } from "@faako/api-client";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import {
   DEMO_SCENARIO_OPTIONS,
   getDemoScenarioById,
 } from "../data/demoScenarios.js";
+import { createDemoAccessApi } from "../api/demoAccess.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEMO_ACCESS_MODE = String(
@@ -12,54 +15,18 @@ const DEMO_ACCESS_MODE = String(
 const DEMO_ACCESS_ENDPOINT = String(
   import.meta.env.VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT || "/api/demo-access",
 ).trim();
+const demoAccessApi = createDemoAccessApi({
+  endpoint: DEMO_ACCESS_ENDPOINT,
+  mode: DEMO_ACCESS_MODE,
+});
 
 const getApiError = (fallback) => {
-  if (fallback instanceof Error && fallback.message) {
-    return fallback.message;
-  }
-
-  return fallback || "Something went wrong. Please try again.";
-};
-
-const parseApiResponse = async (response) => {
-  const rawText = await response.text();
-  let payload = null;
-
-  if (rawText) {
-    try {
-      payload = JSON.parse(rawText);
-    } catch {
-      payload = null;
-    }
-  }
-
-  if (!response.ok || !payload?.ok) {
-    if (payload?.error) {
-      throw new Error(payload.error);
-    }
-
-    throw new Error("Unable to complete the demo access request right now.");
-  }
-
-  return payload;
-};
-
-const postDemoAccess = async (payload) => {
-  if (DEMO_ACCESS_MODE === "local") {
-    throw new Error(
-      "Demo access must be verified by the Faako API. Configure VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT."
-    );
-  }
-
-  const response = await fetch(DEMO_ACCESS_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+  const presentation = getApiErrorPresentation(fallback, {
+    fallbackMessage: "Something went wrong. Please try again.",
   });
-
-  return parseApiResponse(response);
+  return presentation.requestId
+    ? `${presentation.message} Reference: ${presentation.requestId}`
+    : presentation.message;
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -150,7 +117,7 @@ export default function DemoAccessGate() {
     setFeedback("");
 
     try {
-      const result = await postDemoAccess({
+      const result = await demoAccessApi.submit({
         action: "request",
         email: normalizedEmail,
       });
@@ -191,7 +158,7 @@ export default function DemoAccessGate() {
     setFeedback("");
 
     try {
-      const result = await postDemoAccess({
+      const result = await demoAccessApi.submit({
         action: "verify",
         email: normalizeEmail(email),
         code: normalizedCode,
@@ -276,7 +243,11 @@ export default function DemoAccessGate() {
 
         <div className="demo-access-panel">
           {step === "request" ? (
-            <form className="demo-access-form" onSubmit={handleRequestCode}>
+            <form
+              className="demo-access-form"
+              onSubmit={handleRequestCode}
+              aria-busy={isRequesting}
+            >
               <div className="field">
                 <label htmlFor="demo-access-email">Work email</label>
                 <input
@@ -292,7 +263,13 @@ export default function DemoAccessGate() {
               </div>
 
               {error ? (
-                <div className="demo-access-feedback is-danger">{error}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="error"
+                  title="Code not sent"
+                  message={error}
+                />
               ) : null}
 
               <button
@@ -308,7 +285,11 @@ export default function DemoAccessGate() {
               </p>
             </form>
           ) : (
-            <form className="demo-access-form" onSubmit={handleVerifyCode}>
+            <form
+              className="demo-access-form"
+              onSubmit={handleVerifyCode}
+              aria-busy={isVerifying}
+            >
               <div className="field">
                 <label htmlFor="demo-access-code">Enter your access code</label>
                 <input
@@ -332,7 +313,13 @@ export default function DemoAccessGate() {
               </div>
 
               {feedback ? (
-                <div className="demo-access-feedback is-info">{feedback}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="success"
+                  title="Access code ready"
+                  message={feedback}
+                />
               ) : null}
 
               {deliveryMode !== "email" ? (
@@ -342,7 +329,13 @@ export default function DemoAccessGate() {
               ) : null}
 
               {error ? (
-                <div className="demo-access-feedback is-danger">{error}</div>
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="error"
+                  title="Demo not unlocked"
+                  message={error}
+                />
               ) : null}
 
               <button

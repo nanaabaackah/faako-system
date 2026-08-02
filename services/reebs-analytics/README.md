@@ -21,7 +21,9 @@ REEBS_ANALYTICS_SERVICE_URL=http://127.0.0.1:8010
 REEBS_ANALYTICS_SERVICE_SECRET=replace-with-a-server-only-secret
 ```
 
-The dashboard uses a Node fallback when the service is not configured or temporarily unavailable.
+Production uses the deployed analytics service by default; the URL remains configurable
+for previews and alternate environments. The dashboard uses a deterministic Node
+continuity model whenever the isolated service is temporarily unavailable.
 
 ## Deployment boundary
 

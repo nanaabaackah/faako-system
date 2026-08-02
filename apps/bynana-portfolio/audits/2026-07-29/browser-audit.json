@@ -1,0 +1,442 @@
+{
+  "generatedAt": "2026-07-29T22:02:10.795Z",
+  "baseUrl": "http://127.0.0.1:4321",
+  "screenshots": [
+    {
+      "name": "01-desktop-home-consent",
+      "file": "screenshots/01-desktop-home-consent.png",
+      "url": "http://127.0.0.1:4321/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "02-desktop-live-stats",
+      "file": "screenshots/02-desktop-live-stats.png",
+      "url": "http://127.0.0.1:4321/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "03-desktop-keyboard-focus",
+      "file": "screenshots/03-desktop-keyboard-focus.png",
+      "url": "http://127.0.0.1:4321/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "04-desktop-projects",
+      "file": "screenshots/04-desktop-projects.png",
+      "url": "http://127.0.0.1:4321/projects",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "05-desktop-project-detail",
+      "file": "screenshots/05-desktop-project-detail.png",
+      "url": "http://127.0.0.1:4321/projects/development-tracker",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "06-desktop-contact-validation",
+      "file": "screenshots/06-desktop-contact-validation.png",
+      "url": "http://127.0.0.1:4321/contact",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "name": "07-mobile-home",
+      "file": "screenshots/07-mobile-home.png",
+      "url": "http://127.0.0.1:4321/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "08-mobile-projects",
+      "file": "screenshots/08-mobile-projects.png",
+      "url": "http://127.0.0.1:4321/projects",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "09-mobile-contact-validation",
+      "file": "screenshots/09-mobile-contact-validation.png",
+      "url": "http://127.0.0.1:4321/contact",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  ],
+  "routes": [
+    {
+      "surface": "desktop",
+      "route": "/",
+      "status": 200,
+      "title": "Nana Aba Ackah | Business Analyst, ERP & Automation",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "desktop",
+      "route": "/about",
+      "status": 200,
+      "title": "About Nana Aba Ackah | Business Analyst & Product Engineer",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "desktop",
+      "route": "/projects",
+      "status": 200,
+      "title": "ERP, Automation & Product Engineering Projects | By Nana",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "desktop",
+      "route": "/projects/development-tracker",
+      "status": 200,
+      "title": "Projects | Development Operations System | By Nana",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "desktop",
+      "route": "/blog",
+      "status": 200,
+      "title": "Product Engineering, ERP & Automation Writing | By Nana",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "desktop",
+      "route": "/contact",
+      "status": 200,
+      "title": "Work With Nana Aba Ackah | Product Engineering & ERP",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "bodyWidth": 1440,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "mobile",
+      "route": "/",
+      "status": 200,
+      "title": "Nana Aba Ackah | Business Analyst, ERP & Automation",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 390,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "mobile",
+      "route": "/projects",
+      "status": 200,
+      "title": "ERP, Automation & Product Engineering Projects | By Nana",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 390,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    },
+    {
+      "surface": "mobile",
+      "route": "/contact",
+      "status": 200,
+      "title": "Work With Nana Aba Ackah | Product Engineering & ERP",
+      "h1Count": 1,
+      "mainCount": 1,
+      "documentWidth": 390,
+      "viewportWidth": 390,
+      "bodyWidth": 390,
+      "brokenImages": [],
+      "horizontalOverflow": false
+    }
+  ],
+  "consoleErrors": [
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Access to fetch at 'https://api.dev.nanaabaackah.com/api/public/trust-stats' from origin 'http://127.0.0.1:4321' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."
+    },
+    {
+      "surface": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "surface": "desktop",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "desktop",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    },
+    {
+      "surface": "mobile",
+      "url": "https://api.dev.nanaabaackah.com/api/public/trust-stats",
+      "method": "GET",
+      "reason": "net::ERR_FAILED"
+    }
+  ],
+  "accessibility": [
+    {
+      "surface": "desktop-consent",
+      "route": "/",
+      "violations": []
+    },
+    {
+      "surface": "desktop",
+      "route": "/about",
+      "violations": []
+    },
+    {
+      "surface": "desktop",
+      "route": "/projects",
+      "violations": []
+    },
+    {
+      "surface": "desktop",
+      "route": "/projects/development-tracker",
+      "violations": []
+    },
+    {
+      "surface": "desktop",
+      "route": "/blog",
+      "violations": []
+    },
+    {
+      "surface": "desktop",
+      "route": "/contact",
+      "violations": []
+    },
+    {
+      "surface": "mobile",
+      "route": "/",
+      "violations": []
+    },
+    {
+      "surface": "mobile",
+      "route": "/projects",
+      "violations": []
+    },
+    {
+      "surface": "mobile",
+      "route": "/contact",
+      "violations": []
+    }
+  ],
+  "interactions": {
+    "trustStat": {
+      "displayedValue": "—"
+    },
+    "keyboardFirstFocus": {
+      "tag": "A",
+      "text": "Skip to main content",
+      "href": "#main-content",
+      "outlineStyle": "none",
+      "outlineWidth": "3px"
+    },
+    "themeToggle": {
+      "before": "light",
+      "after": "dark"
+    },
+    "contactValidation": {
+      "invalidFieldCount": 4,
+      "focusedField": "name",
+      "errorMessages": [
+        "Enter your name.",
+        "Enter a valid email address.",
+        "Add a short subject.",
+        "Tell me a little more about the project."
+      ]
+    },
+    "mobileSideControls": [
+      {
+        "selector": ".site-side-rails__social",
+        "top": 621.796875,
+        "bottom": 733.609375,
+        "inViewport": true
+      },
+      {
+        "selector": ".site-side-rails__resume-tab",
+        "top": 591.203125,
+        "bottom": 716,
+        "inViewport": true
+      }
+    ]
+  }
+}

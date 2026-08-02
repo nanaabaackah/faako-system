@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', '.astro'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -32,7 +32,7 @@ export default [
     },
   },
   {
-    files: ['utils/passwords.js', 'vite.config.js'],
+    files: ['astro.config.mjs', 'scripts/*.mjs', 'tests/*.mjs'],
     languageOptions: {
       globals: globals.node,
     },

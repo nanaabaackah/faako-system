@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+import { isOrganisationAssignmentAllowed } from "@faako/security";
 const parseOrganizationId = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -110,7 +111,7 @@ export const resolveAuthorizedOrganizationId = async (
     authUser,
     event,
     body = null,
-    allowCrossOrgForRoles = ["owner", "admin"],
+    allowCrossOrgForRoles = [],
     systemAdminEmail = String(process.env.SYSTEM_ADMIN_EMAIL || "system_admin@reebs.com")
       .trim()
       .toLowerCase(),
@@ -131,11 +132,17 @@ export const resolveAuthorizedOrganizationId = async (
   const normalizedRole = String(authUser?.role || "").trim().toLowerCase();
   const isSystemAdmin =
     String(authUser?.email || "").trim().toLowerCase() === systemAdminEmail;
-  const canCrossOrganizations =
-    isSystemAdmin ||
-    allowCrossOrgForRoles.some(
-      (role) => normalizedRole === String(role || "").trim().toLowerCase()
-    );
+  const roleCanUseAssignments = allowCrossOrgForRoles.some(
+    (role) => normalizedRole === String(role || "").trim().toLowerCase()
+  );
+  const canCrossOrganizations = isOrganisationAssignmentAllowed({
+    authenticatedOrganisationId: authenticatedOrganizationId,
+    requestedOrganisationId: requestedOrganizationId,
+    assignedOrganisationIds: roleCanUseAssignments
+      ? authUser?.organizationIds || authUser?.organisationIds || []
+      : [],
+    unrestricted: isSystemAdmin,
+  });
 
   if (!canCrossOrganizations) {
     const error = new Error("Cross-organization access is not allowed.");

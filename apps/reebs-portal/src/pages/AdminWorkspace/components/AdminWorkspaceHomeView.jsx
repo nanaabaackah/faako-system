@@ -205,10 +205,11 @@ function RecommendationsPanel({ items, onNavigate }) {
           <li key={item.key}>
             <button
               type="button"
-              className="aw-home-list-item aw-home-list-item--link"
+              className={`aw-home-list-item aw-home-list-item--link${item.tone ? ` is-${item.tone}` : ""}`}
               onClick={() => onNavigate(item.path)}
             >
               <div>
+                {item.eyebrow ? <span className="aw-recommendation-eyebrow">{item.eyebrow}</span> : null}
                 <strong>{item.title}</strong>
                 <p>{item.note}</p>
               </div>
@@ -442,6 +443,13 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                 <p className="aw-home-kpi-label">{card.label}</p>
                 <strong>{card.value}</strong>
                 <span>{card.meta}</span>
+                {card.signal ? (
+                  <div className={`aw-kpi-signal${card.signal.tone ? ` is-${card.signal.tone}` : ""}`}>
+                    <small>{card.signal.label}</small>
+                    <b>{card.signal.value}</b>
+                    {card.signal.meta ? <em>{card.signal.meta}</em> : null}
+                  </div>
+                ) : null}
                 {card.meterWidth !== undefined ? (
                   <div className={`aw-home-kpi-meter${card.meterClass ? ` ${card.meterClass}` : ""}`}>
                     <span style={{ width: `${card.meterWidth}%` }} />
@@ -541,6 +549,11 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                     <strong>{revenueTrend.deltaLabel}</strong>
                     <span>{revenueTrend.rangeLabel}</span>
                   </div>
+                  <div className="aw-chart-signal">
+                    <span>30-day forecast</span>
+                    <strong>{revenueTrend.forecastValue}</strong>
+                    <small>{revenueTrend.forecastMeta}</small>
+                  </div>
                 </div>
               ) : (
                 <p className="aw-muted">No revenue trend yet.</p>
@@ -590,6 +603,15 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                   <div className="aw-home-kpi-spark-meta">
                     <strong>{stockMovement.rangeLabel}</strong>
                     <span>{stockMovement.velocityTotalsLabel}</span>
+                  </div>
+                  <div className={`aw-chart-signal${stockMovement.criticalRiskCount ? " is-critical" : ""}`}>
+                    <span>Predicted stock risk</span>
+                    <strong>{stockMovement.riskCount} item{stockMovement.riskCount === 1 ? "" : "s"}</strong>
+                    <small>
+                      {stockMovement.criticalRiskCount
+                        ? `${stockMovement.criticalRiskCount} may run out within a week`
+                        : "No immediate run-out risk detected"}
+                    </small>
                   </div>
                   {stockMovement.velocityTrend.length > 0 && (
                     <ul className="aw-home-kpi-velocity-list">
@@ -647,6 +669,15 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                   );
                 })}
               </ul>
+              <div className="aw-chart-signal">
+                <span>Expected booking load</span>
+                <strong>{operationalLoad.bookingForecast} in 30 days</strong>
+                <small>
+                  {operationalLoad.peakWeekday === "No pattern yet"
+                    ? "More history will reveal the busiest day"
+                    : `${operationalLoad.peakWeekday} is usually busiest`}
+                </small>
+              </div>
             </button>
           </div>
 

@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DEFAULT_CURRENCY_RATES,
   FINANCE_STATUSES,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   RECEIPT_STATUSES,
+  SUPPORTED_CURRENCY_CODES,
   buildFinanceSummary,
   buildReceiptDisplaySummary,
   centsToMajor,
@@ -19,6 +21,21 @@ import {
   normalizeReceiptStatus,
   normalizeReference,
 } from "../src/index.js";
+
+test("shared currency constants expose immutable REEBS-compatible defaults", () => {
+  assert.deepEqual(SUPPORTED_CURRENCY_CODES, [
+    "GHS",
+    "USD",
+    "CAD",
+    "GBP",
+    "EUR",
+    "NGN",
+  ]);
+  assert.equal(DEFAULT_CURRENCY_RATES.GHS, 1);
+  assert.equal(DEFAULT_CURRENCY_RATES.NGN, 97);
+  assert.equal(Object.isFrozen(SUPPORTED_CURRENCY_CODES), true);
+  assert.equal(Object.isFrozen(DEFAULT_CURRENCY_RATES), true);
+});
 
 test("currency helpers format major and minor values without mutating inputs", () => {
   assert.equal(majorToCents("12.345"), 1235);

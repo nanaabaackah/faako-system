@@ -17,8 +17,8 @@ Date: 2026-07-25
 Public static/SPAs       Authenticated SPAs    Node APIs         Python service
   |                              |                |                  |
 Portfolio (Astro)        Dev ERP (Vite)        Dev ERP Express   REEBS Analytics
-Faako Website (Vite)     Faako ERP demo        Faako API         FastAPI/Pydantic
-REEBS Website (Vite)     REEBS Portal          REEBS API*
+Faako Website (Astro)    Faako ERP demo        Faako API         FastAPI/Pydantic
+REEBS Website (Astro)    REEBS Portal          REEBS API*
 Stroane Storefront*      Stroane Portal*       Stroane API*
                          Starter/workbench
 
@@ -42,11 +42,22 @@ Stroane Storefront*      Stroane Portal*       Stroane API*
 ## Workspace dependency direction
 
 - Applications consume shared package source directly through `workspace:*`.
+- `@faako/api-contracts` provides framework-independent response builders,
+  normalizers, error codes, pagination, and request metadata to Faako API and
+  Faako ERP for the pilot adoption.
+- `@faako/api-client` provides framework-independent browser/server transport,
+  standard JSON and error handling, AbortSignal and request-ID support, and
+  opt-in domain clients. Faako ERP demo access is the first transport pilot.
+- `@faako/types` provides framework-independent domain contracts. Stroane's
+  customer API boundary is the first application pilot; React-specific
+  renderer/table types now remain inside `@faako/ui`.
+- `@faako/validation` provides framework-independent Zod request schemas and
+  inferred input types. Dev ERP's forgot-password boundary is the first pilot.
 - `@faako/ui` depends on `@faako/security`, `@faako/theme`, `@faako/types`, and `@faako/utils`.
 - `@faako/theme` and `@faako/config` depend on `@faako/types`.
 - Dev ERP consumes the broadest shared set: config, logger, finance, notifications, offline sync, security, UI, utils, and email kit.
 - REEBS Portal consumes config, core, finance, notifications, offline sync, security, UI, and utils.
-- REEBS Website consumes core, UI, and utils but duplicates many portal files and carries portal/backend dependencies.
+- REEBS Website consumes API client, core, finance, theme, types, UI, utils, and validation packages. Its former portal/backend ownership has been removed; Astro owns public documents and route-level React islands retain commerce interaction.
 - Stroane consumes core, notifications, offline sync, security, theme, types, UI, and utils.
 - Portfolio, Faako Website, Faako ERP, Starter, and Workbench consume narrower UI/config/utils slices.
 - The Python analytics service is isolated from the pnpm graph and communicates over HTTP.
@@ -60,7 +71,7 @@ Stroane Storefront*      Stroane Portal*       Stroane API*
 | Faako ERP | React Router 6 | Single demo SPA tree |
 | Faako Website | React Router 6 | Public, onboarding, configuration, dashboard, and auth-like pages in one tree |
 | REEBS Portal | React Router 7 | Protected admin tree |
-| REEBS Website | React Router 7 | Public commerce/customer tree; `/admin` redirects externally |
+| REEBS Website | Astro file routes with route-level React Router islands | Public commerce/customer pages; `/login` and `/admin/*` redirect externally |
 | Stroane | React Router 7 | Separate storefront and portal trees selected by `VITE_APP_SURFACE` |
 | System Starter | React Router 7 | Starter shell |
 | UI Workbench | React Router 7 | Workbench shell |
@@ -96,10 +107,15 @@ Faako Website's `AuthContext` is presentation state only and should not be treat
 - Four independent Prisma schemas: Dev ERP, Faako API, REEBS Portal, and Stroane.
 - Each schema owns its database lifecycle and migrations.
 - Repeated names do not imply shared records; `Organization`, `User`, orders, products, accounting, inventory, and audit concepts differ by product.
+- Stable API/event fields now have shared structural contracts in
+  `@faako/types`; Prisma models, state machines, and application extensions
+  remain locally owned.
 - Cross-system integration is HTTP/webhook based, not shared-database based.
 - Frontend API contracts are mostly handwritten and app-local.
-- Native `fetch` is the universal HTTP primitive; no shared query cache exists.
-- REEBS Website is tightly coupled to REEBS Portal's routes and cookie behavior.
+- Native `fetch` remains the universal HTTP primitive. A shared transport now
+  exists, but only Faako ERP demo access has adopted it; no shared query cache
+  exists.
+- REEBS Website still depends on the Portal API's route/cookie contract for transactional flows, but public document generation and catalogue snapshots no longer depend on Portal source or database ownership.
 
 ## Cross-cutting capabilities
 
@@ -109,7 +125,7 @@ Faako Website's `AuthContext` is presentation state only and should not be treat
 | Analytics | Shared GA utilities/route tracker; REEBS Python operational analytics |
 | Logging | Pino in Dev ERP; console logging elsewhere |
 | Error monitoring | No centralized third-party error monitoring |
-| Validation | Zod in Dev ERP; Pydantic in analytics; custom validation elsewhere |
+| Validation | Shared Zod schemas with a Dev ERP pilot; Pydantic in analytics; custom validation remains elsewhere pending compatible adoption |
 | State | React context/hooks, storage, IndexedDB/offline queues |
 | Testing | Node test, Playwright, some Jest/Testing Library assets, Pytest |
 | Hosting | Cloudflare static frontends; Railway/Nixpacks Node APIs; Docker-capable Python service |

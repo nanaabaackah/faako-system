@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CatalogueGrid from "../../../components/catalogue/CatalogueGrid.astro";
+import SiteFooter from "../../../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../../../components/catalogue/SiteHeader.astro";
+import {
+  getPublicCategories,
+  getPublicCategoryItems,
+} from "../../../content/publicCatalogue.js";
+
+export function getStaticPaths() {
+  return getPublicCategories("shop").map((category) => ({
+    params: { category: category.slug },
+    props: {
+      category,
+      items: getPublicCategoryItems("shop", category.slug),
+    },
+  }));
+}
+
+const { category, items } = Astro.props;
+const title = `${category.name} | REEBS Party Supplies`;
+const description =
+  `Browse ${category.name.toLowerCase()} currently listed in the REEBS public shop catalogue.`;
+---
+
+<BaseLayout path={`/shop/category/${category.slug}`} title={title} description={description}>
+  <SiteHeader currentPath="/shop" />
+  <CatalogueGrid
+    items={items}
+    heading={category.name}
+    description={description}
+    backHref="/shop"
+    backLabel="Shop"
+  />
+  <SiteFooter />
+</BaseLayout>

@@ -1,0 +1,31 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/catalogue/SiteFooter.astro";
+import SiteHeader from "../components/catalogue/SiteHeader.astro";
+---
+
+<BaseLayout
+  path="/500"
+  status={500}
+  title="Service Unavailable | REEBS Party Themes"
+  description="REEBS could not load this page right now."
+  noIndex
+>
+  <SiteHeader />
+  <main class="status-page" id="main">
+    <p>Error 500</p>
+    <h1>We could not load this page right now.</h1>
+    <p>Try again, or contact REEBS if you need immediate booking support.</p>
+    <div>
+      <a class="btn btn-primary" href="/">Try the home page</a>
+      <a class="btn btn-secondary" href="https://wa.me/233244238419">WhatsApp REEBS</a>
+    </div>
+  </main>
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .status-page { width: min(760px, calc(100% - 2rem)); min-height: 70vh; margin: auto; padding: 10rem 0 5rem; }
+  .status-page h1 { font: 800 clamp(2.5rem, 7vw, 5rem)/1 var(--font-heading); }
+  .status-page div { display: flex; flex-wrap: wrap; gap: .75rem; }
+</style>

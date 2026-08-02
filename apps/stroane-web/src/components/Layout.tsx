@@ -17,8 +17,13 @@ const Layout: React.FC<{
 
   return (
     <div className="min-h-screen flex flex-col">
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       {!hideHeader && <Header externalNavigationBaseUrl={externalNavigationBaseUrl} />}
-      <main className="flex-grow relative">{children}</main>
+      <main id="main-content" className="flex-grow relative" tabIndex={-1}>
+        {children}
+      </main>
       <Footer externalNavigationBaseUrl={externalNavigationBaseUrl} />
       <ScrollToTop />
     </div>

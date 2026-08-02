@@ -1,8 +1,8 @@
 import {
   useEffect,
   useId,
+  useRef,
   type HTMLAttributes,
-  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -16,6 +16,15 @@ import {
 
 const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 type ERPDialogSize = "sm" | "md" | "lg" | "xl";
 
@@ -47,6 +56,72 @@ function useDialogEscape(open: boolean, closeOnEscape: boolean, onClose?: () => 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [closeOnEscape, onClose, open]);
+}
+
+function useDialogFocus(
+  open: boolean,
+  dialogRef: { current: HTMLElement | null },
+) {
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return undefined;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const getFocusableElements = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (element) => element.getAttribute("aria-hidden") !== "true",
+      );
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (dialog.contains(document.activeElement)) return;
+      const preferred =
+        dialog.querySelector<HTMLElement>("[data-dialog-initial-focus]")
+        || getFocusableElements()[0]
+        || dialog;
+      preferred.focus();
+    });
+
+    const containFocus = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+
+      const focusable = getFocusableElements();
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", containFocus);
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", containFocus);
+      document.body.style.overflow = previousBodyOverflow;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [dialogRef, open]);
 }
 
 function getDialogAria({
@@ -95,7 +170,9 @@ export function ERPModal({
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const descriptionId = `${baseId}-description`;
+  const dialogRef = useRef<HTMLDivElement>(null);
   useDialogEscape(open, closeOnEscape, onClose);
+  useDialogFocus(open, dialogRef);
 
   if (!open) return null;
 
@@ -107,9 +184,11 @@ export function ERPModal({
   return (
     <div className="ui-erp-dialog-backdrop" onMouseDown={handleBackdropMouseDown}>
       <div
+        ref={dialogRef}
         className={joinClasses("ui-erp-modal", `ui-erp-modal--${size}`, className)}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         {...getDialogAria({
           title,
           description,
@@ -161,7 +240,9 @@ export function ERPDrawer({
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const descriptionId = `${baseId}-description`;
+  const drawerRef = useRef<HTMLElement>(null);
   useDialogEscape(open, closeOnEscape, onClose);
+  useDialogFocus(open, drawerRef);
 
   if (!open) return null;
 
@@ -176,9 +257,11 @@ export function ERPDrawer({
       onMouseDown={handleBackdropMouseDown}
     >
       <aside
+        ref={drawerRef}
         className={joinClasses("ui-erp-drawer", `ui-erp-drawer--${side}`, className)}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         {...getDialogAria({
           title,
           description,
@@ -236,11 +319,6 @@ export function ERPConfirmDialog({
   children?: ReactNode;
 }) {
   const ConfirmAction = confirmTone === "primary" ? ERPPrimaryAction : ERPDangerAction;
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Enter") return;
-    if (disabled || loading) return;
-    onConfirm();
-  };
 
   return (
     <ERPModal
@@ -249,9 +327,15 @@ export function ERPConfirmDialog({
       description={description}
       onClose={onClose}
       size="sm"
+      role="alertdialog"
       footer={
         <ERPActionBar align="end">
-          <ERPSecondaryAction onClick={onCancel} disabled={loading}>
+          <ERPSecondaryAction
+            autoFocus
+            data-dialog-initial-focus
+            onClick={onCancel}
+            disabled={loading}
+          >
             {cancelLabel}
           </ERPSecondaryAction>
           <ConfirmAction onClick={onConfirm} loading={loading} disabled={disabled}>
@@ -259,7 +343,6 @@ export function ERPConfirmDialog({
           </ConfirmAction>
         </ERPActionBar>
       }
-      onKeyDown={handleKeyDown}
       {...props}
     >
       {message ? <p className="ui-erp-confirm-dialog__message">{message}</p> : null}

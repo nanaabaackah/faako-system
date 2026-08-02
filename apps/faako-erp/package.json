@@ -8,9 +8,12 @@
     "dev:frontend": "vite --mode dev --host 0.0.0.0 --port 5176",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --test"
   },
   "dependencies": {
+    "@faako/api-client": "workspace:*",
+    "@faako/api-contracts": "workspace:*",
     "@faako/config": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",

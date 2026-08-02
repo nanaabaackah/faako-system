@@ -11,7 +11,7 @@ Capture technical notes, open questions, cleanup targets, and risks for Faako AP
 - `src/runtimeConfig.js` and `src/db.js` centralize runtime config and database behavior.
 - Local commands load `.env.dev`.
 - Local development refuses the production database unless `ALLOW_PRODUCTION_DATABASE_IN_DEV=true`.
-- Faako Website calls these endpoints through `VITE_API_BASE_URL` or the local Vite proxy.
+- Faako Website calls these endpoints through `VITE_API_BASE_URL` or the local Astro proxy.
 - `signup` accepts structured onboarding intake payloads and stores a compatibility summary in `SignupRequest.additionalNotes` without requiring a schema migration.
 - `signup` generates a lightweight PDF summary server-side and sends client/admin copies through Resend when configured.
 - `SignupRequest` now has additive management metadata fields for Dev ERP: internal notes, assigned owner, activity timeline, email delivery status, PDF summary metadata, and management update tracking. The public signup handler checks column availability before writing this metadata, so older databases still keep the public form flow working until the migration is applied.
