@@ -1,15 +1,23 @@
 import "../runtimeEnv.js";
 
 import express from "express";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildResponseHeaders } from "./functions/_shared/http.js";
+import {
+  createLogger,
+  createRequestContextMiddleware,
+} from "@faako/logger";
+import { json } from "./functions/_shared/http.js";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.join(backendDir, "functions");
 const FUNCTION_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const PORT = Number(process.env.PORT || process.env.REEBS_API_PORT || 8888);
+const apiLogger = createLogger("reebs-portal", {
+  component: "api-adapter",
+  environment: process.env.APP_ENV || process.env.NODE_ENV,
+});
 const readIntegerSetting = (value, fallback) => {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -85,6 +93,7 @@ const readFunctionFiles = () => {
 
 const functionFiles = readFunctionFiles();
 const handlerCache = new Map();
+const handlerMtimes = new Map();
 
 const toPlainHeaders = (headers = {}) => {
   const plainHeaders = {};
@@ -182,29 +191,31 @@ const sendFunctionResponse = (res, result = {}) => {
 
 const sendJson = (req, res, statusCode, payload, options = {}) => {
   const event = createEvent(req, options.functionName || "");
-  res.status(statusCode);
-  applyResponseHeaders(
-    res,
-    {
-      "Content-Type": "application/json",
-      ...buildResponseHeaders(event, {
-        methods: options.methods || "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-      }),
-    }
-  );
-  return res.send(JSON.stringify(payload));
+  const result = json(event, statusCode, payload, {
+    methods: options.methods || "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+  });
+  res.status(result.statusCode);
+  applyResponseHeaders(res, result.headers);
+  return res.send(result.body);
 };
 
 const loadHandler = async (functionName) => {
   if (!FUNCTION_NAME_PATTERN.test(functionName)) return null;
-  if (handlerCache.has(functionName)) return handlerCache.get(functionName);
 
   const functionFile = functionFiles.get(functionName);
   if (!functionFile) return null;
 
-  const module = await import(pathToFileURL(functionFile).href);
+  const currentMtime = statSync(functionFile).mtimeMs;
+  const cachedHandler = handlerCache.get(functionName);
+  const cachedMtime = handlerMtimes.get(functionName);
+  if (cachedHandler && cachedMtime === currentMtime) {
+    return cachedHandler;
+  }
+
+  const module = await import(`${pathToFileURL(functionFile).href}?t=${currentMtime}`);
   const handler = typeof module.handler === "function" ? module.handler : null;
   handlerCache.set(functionName, handler);
+  handlerMtimes.set(functionName, currentMtime);
   return handler;
 };
 
@@ -234,11 +245,15 @@ const dispatchFunctionRequest = async (req, res, functionNameInput) => {
     });
     return sendFunctionResponse(res, result);
   } catch (error) {
-    console.error("REEBS API function failed", {
-      functionName,
-      message: error?.message || String(error),
-      code: error?.code || undefined,
-    });
+    (req.log || apiLogger).error(
+      {
+        err: error,
+        eventName: "api.function.failed",
+        functionName,
+        requestId: req.requestId,
+      },
+      "REEBS API function failed"
+    );
     return sendJson(req, res, 500, {
       error: "Unexpected API error.",
     }, { functionName });
@@ -249,6 +264,13 @@ export const createReebsApiServer = () => {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", parseTrustProxySetting(process.env.TRUST_PROXY_HOPS));
+  app.use(
+    createRequestContextMiddleware({
+      application: "reebs-portal",
+      component: "api-adapter",
+      environment: process.env.APP_ENV || process.env.NODE_ENV,
+    })
+  );
   app.use(express.text({ type: "*/*", limit: process.env.REEBS_API_BODY_LIMIT || "10mb" }));
 
   app.get(["/health", "/api/health"], (req, res) =>
@@ -297,7 +319,10 @@ export const createReebsApiServer = () => {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const app = createReebsApiServer();
   const server = app.listen(PORT, () => {
-    console.log(`REEBS API listening on http://localhost:${PORT}`);
+    apiLogger.info(
+      { eventName: "server.started", port: PORT },
+      "REEBS API listening"
+    );
   });
   globalThis.__reebsApiServer = server;
 }

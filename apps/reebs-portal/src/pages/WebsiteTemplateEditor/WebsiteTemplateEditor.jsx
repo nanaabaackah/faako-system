@@ -8,7 +8,7 @@ import {
   faPenToSquare,
 } from "/src/icons/iconSet";
 
-import { useTemplateConfig } from "../../context/TemplateConfigContext";
+import { useTemplateConfig } from "@faako/core";
 import { WEBSITE_URL } from "../../utils/website";
 
 const FIELD_META = [

@@ -7,5 +7,6 @@ Disallow: /login
 Disallow: /cart
 Disallow: /checkout
 Disallow: /customer-login
+Disallow: /reset-password
 
-Sitemap: https://www.reebspartythemes.com/sitemap.xml
+Sitemap: https://www.reebspartythemes.com/sitemap-index.xml

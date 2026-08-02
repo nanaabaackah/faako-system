@@ -13,6 +13,10 @@ export const API_ERROR_CODES: Readonly<{
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
 
+export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>>;
+export const API_ERROR_MESSAGES: Readonly<Record<ApiErrorCode, string>>;
+export const REQUEST_ID_HEADER: "X-Request-Id";
+
 export interface ApiValidationIssue {
   field?: string;
   code?: string;
@@ -116,6 +120,17 @@ export class ApiContractError extends Error {
 }
 
 export function errorCodeForStatus(status: number): ApiErrorCode;
+export function statusForErrorCode(code: unknown, fallback?: number): number;
+export function safeMessageForErrorCode(
+  code: unknown,
+  fallback?: string,
+): string;
+export function isValidRequestId(value: unknown): boolean;
+export function createRequestId(): string;
+export function resolveRequestId(
+  value: unknown,
+  factory?: () => string,
+): string;
 
 export function createSuccessResponse<Data>(
   data: Data,

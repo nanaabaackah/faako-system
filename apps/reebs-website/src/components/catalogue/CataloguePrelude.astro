@@ -1,0 +1,86 @@
+---
+import { getPublicCategories } from "../../content/publicCatalogue.js";
+
+const { kind } = Astro.props;
+const isRental = kind === "rental";
+const categories = getPublicCategories(kind);
+const basePath = isRental ? "/rentals" : "/shop";
+---
+
+<section class="catalogue-prelude" aria-labelledby={`${kind}-catalogue-heading`}>
+  <div>
+    <p class="catalogue-prelude__eyebrow">
+      {isRental ? "Plan the experience" : "Complete the celebration"}
+    </p>
+    <h1 id={`${kind}-catalogue-heading`}>
+      {isRental ? "Party rentals and setup options" : "Party supplies and useful extras"}
+    </h1>
+    <p>
+      {isRental
+        ? "Browse bookable equipment and setup categories, then confirm the event date with REEBS."
+        : "Browse current shop categories, search the live catalogue, and add available items to your cart."}
+    </p>
+  </div>
+  <nav aria-label={`${isRental ? "Rental" : "Shop"} categories`}>
+    <ul class="catalogue-category-links">
+      {categories.map((category) => (
+        <li>
+          <a href={`${basePath}/category/${category.slug}`}>
+            {category.name} <span>({category.count})</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</section>
+
+<style>
+  .catalogue-prelude {
+    width: min(1180px, calc(100% - 2rem));
+    margin: 7rem auto 0;
+    padding: clamp(1.5rem, 4vw, 3rem);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+  .catalogue-prelude__eyebrow {
+    margin: 0 0 .5rem;
+    color: var(--text-subtle);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .catalogue-prelude h1 {
+    margin: 0;
+    color: var(--text-main);
+    font: 800 clamp(2rem, 5vw, 4rem)/1 var(--font-heading);
+  }
+  .catalogue-prelude p {
+    max-width: 68ch;
+  }
+  .catalogue-category-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    padding: 0;
+    margin: 1.25rem 0 0;
+    list-style: none;
+  }
+  .catalogue-category-links a {
+    display: inline-flex;
+    gap: .35rem;
+    padding: .65rem .9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    color: var(--text-main);
+    background: var(--light);
+    font-weight: 750;
+    text-decoration: none;
+  }
+  .catalogue-category-links a:hover,
+  .catalogue-category-links a:focus-visible {
+    border-color: var(--accent);
+    outline: 3px solid var(--accent-soft);
+  }
+</style>

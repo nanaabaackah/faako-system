@@ -1,0 +1,86 @@
+---
+const { currentPath = "/" } = Astro.props;
+const links = [
+  { href: "/", label: "Home" },
+  { href: "/shop", label: "Shop" },
+  { href: "/rentals", label: "Rentals" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+];
+---
+
+<header class="astro-site-header">
+  <a class="astro-site-header__brand" href="/" aria-label="REEBS Party Themes home">
+    <img src="/imgs/brand/reebs_logo2.svg" alt="" width="130" height="55" />
+  </a>
+  <nav aria-label="Primary navigation">
+    <ul>
+      {links.map((link) => (
+        <li>
+          <a
+            href={link.href}
+            aria-current={currentPath === link.href ? "page" : undefined}
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+  <a class="astro-site-header__cart" href="/cart">Cart</a>
+</header>
+
+<style>
+  .astro-site-header {
+    position: absolute;
+    z-index: 20;
+    top: 1rem;
+    left: 50%;
+    display: flex;
+    width: min(1180px, calc(100% - 2rem));
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .5rem .85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, .94);
+    box-shadow: var(--shadow-sm);
+    transform: translateX(-50%);
+  }
+  .astro-site-header__brand { display: inline-flex; }
+  .astro-site-header__brand img { display: block; width: 105px; height: auto; }
+  .astro-site-header ul {
+    display: flex;
+    gap: .25rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .astro-site-header nav a,
+  .astro-site-header__cart {
+    display: inline-flex;
+    padding: .65rem .8rem;
+    border-radius: var(--radius-full);
+    color: var(--text-main);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .astro-site-header nav a[aria-current="page"],
+  .astro-site-header nav a:hover,
+  .astro-site-header nav a:focus-visible,
+  .astro-site-header__cart:hover,
+  .astro-site-header__cart:focus-visible {
+    background: var(--accent-soft);
+    outline: 2px solid transparent;
+  }
+  .astro-site-header__cart {
+    color: var(--dark);
+    background: var(--other);
+  }
+  @media (max-width: 720px) {
+    .astro-site-header { position: relative; top: .5rem; flex-wrap: wrap; }
+    .astro-site-header nav { order: 3; width: 100%; overflow-x: auto; }
+    .astro-site-header ul { min-width: max-content; }
+  }
+</style>

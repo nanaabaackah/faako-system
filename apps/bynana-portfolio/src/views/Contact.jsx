@@ -5,6 +5,7 @@ import { CalendarTick, DocumentDownload } from 'iconsax-react';
 import { HiArrowRight } from 'react-icons/hi2';
 import { SiGithub, SiGmail } from 'react-icons/si';
 import { BsLinkedin } from 'react-icons/bs';
+import { InlineNotice } from '@faako/ui';
 import ExploreMore from '../components/ExploreMore';
 import '../styles/pages/Contact.css';
 
@@ -225,9 +226,13 @@ const ContactForm = ({
       </label>
 
       {status.state === 'error' && (
-        <p className="contact-form__status contact-form__status--error" role="alert">
-          {status.message}
-        </p>
+        <InlineNotice
+          compact
+          dismissible={false}
+          tone="error"
+          title="Message not sent"
+          message={status.message}
+        />
       )}
 
       <div className="contact-form__actions">
@@ -263,7 +268,7 @@ const ContactContent = ({
 
   return (
     <div className="contact-shell">
-      <header className="contact-hero" role="banner">
+      <header className="contact-hero">
         <div className="contact-hero__copy" data-scroll-reveal="fadeInUp">
           <p className="contact-hero__eyebrow">[Contact]</p>
           <h1>Designing useful digital experiences starts with a clear conversation.</h1>
@@ -385,6 +390,16 @@ function Contact({ embedded = false, sectionId }) {
   const [formStatus, setFormStatus] = useState({ state: 'idle', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const hasUnsavedChanges = useMemo(
+    () =>
+      formStatus.state !== 'success'
+      && Object.entries(formState).some(
+        ([field, value]) =>
+          String(value || '').trim()
+          && !(field === 'subject' && value === (subjectTag ? `[${subjectTag}] ` : '')),
+      ),
+    [formState, formStatus.state, subjectTag],
+  );
 
   useEffect(() => {
     if (!subjectTag) return;
@@ -397,6 +412,18 @@ function Contact({ embedded = false, sectionId }) {
       return prev;
     });
   }, [subjectTag]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || isSubmitting) return undefined;
+
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [hasUnsavedChanges, isSubmitting]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -478,11 +505,7 @@ function Contact({ embedded = false, sectionId }) {
           },
           body: JSON.stringify(payload),
         });
-        const responsePayload = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          throw new Error(responsePayload?.error || 'Unable to send your message. Please try again.');
-        }
+        if (!response.ok) throw new Error('contact_submission_failed');
       }
 
       try {
@@ -500,10 +523,10 @@ function Contact({ embedded = false, sectionId }) {
 	      });
 	      setFormState(buildInitialFormState(subjectTag));
 	      setFieldErrors({});
-    } catch (error) {
+    } catch {
       setFormStatus({
         state: 'error',
-        message: error.message || 'Unable to send your message. Please try again.',
+        message: 'Unable to send your message. Please try again.',
       });
     } finally {
       setIsSubmitting(false);

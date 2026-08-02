@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@faako/api-contracts": "workspace:*",
+    "@faako/logger": "workspace:*",
     "@faako/security": "workspace:*",
     "@prisma/client": "^7.3.0",
     "cors": "^2.8.6",

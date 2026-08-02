@@ -35,7 +35,35 @@ test("resolveAuthorizedOrganizationId blocks cross-organization access for non-a
   );
 });
 
-test("resolveAuthorizedOrganizationId allows cross-organization access for admins when the organization exists", async () => {
+test("resolveAuthorizedOrganizationId does not infer cross-organization access from admin role", async () => {
+  await assert.rejects(
+    () =>
+      resolveAuthorizedOrganizationId(
+        {
+          async query() {
+            throw new Error("should not query organization table");
+          },
+        },
+        {
+          authUser: {
+            organizationId: 7,
+            role: "admin",
+            email: "admin@example.com",
+          },
+          event: {
+            queryStringParameters: {
+              organizationId: "12",
+            },
+          },
+        }
+      ),
+    {
+      message: "Cross-organization access is not allowed.",
+    }
+  );
+});
+
+test("resolveAuthorizedOrganizationId allows an explicitly assigned organization for compatible roles", async () => {
   const organizationId = await resolveAuthorizedOrganizationId(
     {
       async query(queryText, params) {
@@ -49,6 +77,34 @@ test("resolveAuthorizedOrganizationId allows cross-organization access for admin
         organizationId: 7,
         role: "admin",
         email: "admin@example.com",
+        organizationIds: [7, 12],
+      },
+      event: {
+        queryStringParameters: {
+          organizationId: "12",
+        },
+      },
+      allowCrossOrgForRoles: ["admin"],
+    }
+  );
+
+  assert.equal(organizationId, 12);
+});
+
+test("resolveAuthorizedOrganizationId preserves the configured system administrator exception", async () => {
+  const organizationId = await resolveAuthorizedOrganizationId(
+    {
+      async query(queryText, params) {
+        assert.match(queryText, /FROM "organization"/);
+        assert.deepEqual(params, [12]);
+        return { rowCount: 1, rows: [{ id: 12 }] };
+      },
+    },
+    {
+      authUser: {
+        organizationId: 7,
+        role: "admin",
+        email: "system_admin@reebs.com",
       },
       event: {
         queryStringParameters: {

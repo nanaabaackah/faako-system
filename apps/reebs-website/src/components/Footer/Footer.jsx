@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Call, Location, Sms } from 'iconsax-react';
-import { SUPPORTED_CURRENCIES } from '../CurrencyContext/CurrencyContext';
+import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from '@faako/finance';
 import { useCart } from '../CartContext/CartContext';
 import {
   IoLogoFacebook,
@@ -16,7 +16,7 @@ import {
   clearExpiringDraft,
   loadExpiringDraft,
   saveExpiringDraft,
-} from '/src/utils/formDrafts';
+} from '@faako/utils';
 
 const MENU_LINKS = [
   { to: '/', label: 'Home' },
@@ -45,7 +45,6 @@ const COMPANY_LINKS = [
 const FOOTER_PROMO_DRAFT_KEY = "footerPromoDraft";
 
 function Footer() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const { currency, rates } = useCart();
 
@@ -82,9 +81,10 @@ function Footer() {
     event.preventDefault();
     const leadEmail = email.trim();
     clearExpiringDraft(FOOTER_PROMO_DRAFT_KEY);
-    navigate('/contact', {
-      state: leadEmail ? { leadEmail } : undefined,
-    });
+    if (leadEmail) {
+      sessionStorage.setItem("reebs_contact_lead_email", leadEmail);
+    }
+    window.location.assign('/contact');
   };
 
   return (

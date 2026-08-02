@@ -3,10 +3,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../../../reebs-portal/node_modules/playwright/index.mjs';
 
-const auditDirectory = dirname(fileURLToPath(import.meta.url));
+const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+const auditDirectory = process.env.PORTFOLIO_AUDIT_OUTPUT_DIR
+  ? resolve(process.cwd(), process.env.PORTFOLIO_AUDIT_OUTPUT_DIR)
+  : scriptDirectory;
 const screenshotsDirectory = resolve(auditDirectory, 'screenshots');
 const axeSource = resolve(
-  auditDirectory,
+  scriptDirectory,
   '../../../../node_modules/.pnpm/axe-core@4.11.1/node_modules/axe-core/axe.min.js',
 );
 const baseUrl = process.env.PORTFOLIO_AUDIT_URL || 'http://localhost:5173';

@@ -21,6 +21,8 @@ import {
   ErpPanel,
   ErpPanelGrid,
   ErpPanelHeader,
+  SecurityActionButton,
+  SecurityState,
   StackGroup,
 } from "@faako/ui";
 import { apiGet, apiPost, ApiError } from "../../api/client";
@@ -235,10 +237,24 @@ const Settings = () => {
         </div>
       </header>
 
-      {status.message ? (
-        <div className={`notice ${status.tone ? `is-${status.tone}` : ""}`.trim()}>
-          {status.message}
-        </div>
+      {!hasSession ? (
+        <SecurityState
+          compact
+          stateId="session-expired"
+          message="Sign in again to load or change alert settings. No changes were saved."
+          actions={
+            <SecurityActionButton onClick={() => window.location.assign("/login")}>
+              Sign in
+            </SecurityActionButton>
+          }
+        />
+      ) : status.message ? (
+        <ERPNotice
+          compact
+          tone={status.tone === "error" ? "error" : status.tone || "info"}
+          title={status.tone === "success" ? "Settings updated" : "Settings unavailable"}
+          message={status.message}
+        />
       ) : null}
 
       {isLoadingPrefs ? (

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatedLoadingState, ERPFormNotice } from "@faako/ui";
+import { AnimatedLoadingState, ERPConfirmDialog, ERPFormNotice } from "@faako/ui";
 import "./AdminCustomers.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faUserPlus } from "/src/icons/iconSet";
@@ -55,6 +55,7 @@ export default function AdminCustomers() {
   const [detail, setDetail] = useState(null);
   const [detailForm, setDetailForm] = useState(EMPTY_CUSTOMER_FORM);
   const [removingCustomerId, setRemovingCustomerId] = useState(null);
+  const [pendingArchiveCustomer, setPendingArchiveCustomer] = useState(null);
   const [draggedCustomerId, setDraggedCustomerId] = useState(null);
   const [dragOverSegment, setDragOverSegment] = useState("");
   const [movingCustomerId, setMovingCustomerId] = useState(null);
@@ -403,9 +404,6 @@ export default function AdminCustomers() {
     const customerId = Number(customer?.id);
     if (!Number.isFinite(customerId) || removingCustomerId === customerId) return;
 
-    const confirmed = window.confirm(`Archive ${customer?.name || "this customer"}?`);
-    if (!confirmed) return;
-
     setRemovingCustomerId(customerId);
     setError("");
     setDetailError("");
@@ -427,6 +425,7 @@ export default function AdminCustomers() {
       if (activeCustomer?.id === customerId) {
         closeDetail();
       }
+      setPendingArchiveCustomer(null);
     } catch (err) {
       console.error("Failed to archive customer", err);
       if (activeCustomer?.id === customerId) {
@@ -437,6 +436,16 @@ export default function AdminCustomers() {
     } finally {
       setRemovingCustomerId(null);
     }
+  };
+
+  const requestArchiveCustomer = (customer) => {
+    if (!customer || removingCustomerId) return;
+    setPendingArchiveCustomer(customer);
+  };
+
+  const closeArchiveConfirmation = () => {
+    if (removingCustomerId) return;
+    setPendingArchiveCustomer(null);
   };
 
   const openDetail = async (customer) => {
@@ -715,7 +724,7 @@ export default function AdminCustomers() {
             onKanbanDragLeave={handleKanbanDragLeave}
             onKanbanDrop={handleKanbanDrop}
             onOpenDetail={openDetail}
-            onArchiveCustomer={archiveCustomer}
+            onArchiveCustomer={requestArchiveCustomer}
             removingCustomerId={removingCustomerId}
             draggedCustomerId={draggedCustomerId}
             movingCustomerId={movingCustomerId}
@@ -754,9 +763,29 @@ export default function AdminCustomers() {
         requestStatusSavingId={requestStatusSavingId}
         onClose={closeDetail}
         onSave={saveCustomer}
-        onArchive={archiveCustomer}
+        onArchive={requestArchiveCustomer}
         onFormChange={handleDetailFormChange}
         onRequestStatusChange={updateContactRequestStatus}
+      />
+
+      <ERPConfirmDialog
+        open={Boolean(pendingArchiveCustomer)}
+        title="Archive customer?"
+        description="This removes the customer from the active CRM list."
+        message={
+          pendingArchiveCustomer
+            ? `Archive ${pendingArchiveCustomer.name || "this customer"}? Existing linked records are not deleted.`
+            : ""
+        }
+        confirmLabel="Archive customer"
+        loading={
+          removingCustomerId !== null
+          && removingCustomerId === Number(pendingArchiveCustomer?.id)
+        }
+        disabled={!pendingArchiveCustomer}
+        onCancel={closeArchiveConfirmation}
+        onClose={closeArchiveConfirmation}
+        onConfirm={() => archiveCustomer(pendingArchiveCustomer)}
       />
     </div>
   );

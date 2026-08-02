@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { DateField, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField } from "@faako/ui";
+import { emailSchema, phoneSchema } from "@faako/validation";
 import { useLocation } from 'react-router-dom';
 import {
   clearExpiringDraft,
   loadExpiringDraft,
   saveExpiringDraft,
-} from '/src/utils/formDrafts';
+} from '@faako/utils';
 
 const CONTACT_DRAFT_KEY = "contactFormDraft";
 const MAX_NAME_LENGTH = 80;
@@ -13,9 +14,6 @@ const MAX_EMAIL_LENGTH = 120;
 const MAX_PHONE_LENGTH = 25;
 const MAX_LOCATION_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 1500;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\+?[0-9][0-9\s().-]{6,}$/;
-
 const createInitialValues = (prefillEmail = "") => ({
   name: "",
   email: prefillEmail,
@@ -37,10 +35,10 @@ const isReasonableName = (value) => {
 const validateContactForm = (values) => {
   const errors = {};
   if (!isReasonableName(values.name)) errors.name = "Enter your full name.";
-  if (!EMAIL_PATTERN.test(String(values.email || "").trim().toLowerCase())) {
+  if (!emailSchema.safeParse(String(values.email || "").trim().toLowerCase()).success) {
     errors.email = "Enter a valid email address.";
   }
-  if (!PHONE_PATTERN.test(String(values.phone || "").trim())) {
+  if (!phoneSchema.safeParse(String(values.phone || "").trim()).success) {
     errors.phone = "Enter a valid phone or WhatsApp number.";
   }
   if (!values.topic) errors.topic = "Choose the service you need.";
@@ -72,6 +70,16 @@ function ContactForm() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const isDirty = useMemo(
+    () =>
+      Object.entries(formValues).some(
+        ([field, value]) =>
+          field !== "botField"
+          && String(value || "").trim()
+          && !(field === "email" && String(value).trim() === prefillEmail),
+      ),
+    [formValues, prefillEmail],
+  );
 
   useEffect(() => {
     const savedDraft = loadExpiringDraft(CONTACT_DRAFT_KEY);
@@ -95,6 +103,18 @@ function ContactForm() {
     if (submitting || submitSuccess) return;
     saveExpiringDraft(CONTACT_DRAFT_KEY, formValues);
   }, [formValues, submitting, submitSuccess]);
+
+  useEffect(() => {
+    if (!isDirty || submitting || submitSuccess) return undefined;
+
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [isDirty, submitting, submitSuccess]);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -354,11 +374,32 @@ function ContactForm() {
           {submitting ? "Sending..." : "Send planning brief"}
         </button>
       </div>
-      {submitError ? <p className="form-error" role="alert">{submitError}</p> : null}
+      {isDirty && !submitting && !submitError && !submitSuccess ? (
+        <InlineNotice
+          compact
+          dismissible={false}
+          tone="info"
+          title="Draft saved on this device"
+          message="Your planning brief is saved temporarily. You will be warned before closing this page with unsent changes."
+        />
+      ) : null}
+      {submitError ? (
+        <InlineNotice
+          compact
+          dismissible={false}
+          tone="error"
+          title="Planning brief not sent"
+          message={submitError}
+        />
+      ) : null}
       {submitSuccess ? (
-        <p className="form-success" role="status" aria-live="polite">
-          {submitSuccess}
-        </p>
+        <InlineNotice
+          compact
+          dismissible={false}
+          tone="success"
+          title="Planning brief sent"
+          message={submitSuccess}
+        />
       ) : null}
     </form>
   );

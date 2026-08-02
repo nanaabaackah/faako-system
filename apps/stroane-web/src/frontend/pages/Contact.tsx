@@ -1,7 +1,8 @@
 import React, { useState, type FormEvent } from "react";
 import { HiMail, HiPhone, HiLocationMarker, HiClock } from "react-icons/hi";
 import { FaWhatsapp } from "react-icons/fa";
-import { SelectField } from "@faako/ui";
+import { InlineNotice, SelectField } from "@faako/ui";
+import { useOnlineStatus } from "@faako/offline-sync";
 import Layout from "../../components/Layout";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import StructuredData from "../../components/StructuredData";
@@ -55,6 +56,7 @@ const getFirstFieldError = (errors: ContactFieldErrors) =>
   Object.values(errors).find(Boolean) || "";
 
 const Contact: React.FC = () => {
+  const isOnline = useOnlineStatus();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -85,6 +87,12 @@ const Contact: React.FC = () => {
     e.preventDefault();
     setStatus("idle");
     setFeedback("");
+
+    if (!isOnline) {
+      setStatus("error");
+      setFeedback("You are offline. Reconnect to send this enquiry, or use the email link below.");
+      return;
+    }
 
     const nextErrors: ContactFieldErrors = {};
     if (!name.trim()) {
@@ -313,22 +321,40 @@ const Contact: React.FC = () => {
                 ) : null}
               </label>
 
-              {feedback ? (
-                <p
-                  className={`contact-form__feedback contact-form__feedback--${status}`}
-                  role={status === "error" ? "alert" : "status"}
-                >
-                  {feedback}
-                  {status === "error" ? (
+              {!isOnline ? (
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone="warning"
+                  title="You are offline"
+                  message={
                     <>
-                      {" "}
-                      <a href={mailtoHref()}>Email Stroane instead.</a>
+                      Reconnect to submit this form, or <a href={mailtoHref()}>email Stroane instead</a>.
                     </>
-                  ) : null}
-                </p>
+                  }
+                />
+              ) : null}
+              {feedback ? (
+                <InlineNotice
+                  compact
+                  dismissible={false}
+                  tone={status === "success" ? "success" : "error"}
+                  title={status === "success" ? "Enquiry sent" : "Enquiry not sent"}
+                  message={
+                    status === "error" ? (
+                      <>
+                        {feedback} <a href={mailtoHref()}>Email Stroane instead.</a>
+                      </>
+                    ) : feedback
+                  }
+                />
               ) : null}
 
-              <button type="submit" className="contact-form__submit" disabled={submitting}>
+              <button
+                type="submit"
+                className="contact-form__submit"
+                disabled={submitting || !isOnline}
+              >
                 {submitting ? "Sending..." : "Send Message"}
               </button>
               <p className="contact-form__note">

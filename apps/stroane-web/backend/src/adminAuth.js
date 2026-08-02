@@ -1,4 +1,9 @@
 import { getRequestAuthToken, verifyToken } from "./auth.js";
+import {
+  STROANE_ADMIN_ACTION_IDS,
+  STROANE_ADMIN_MODULE_IDS,
+} from "@faako/security";
+import { sendApiError } from "./apiResponse.js";
 
 const normalizeRole = (value) => String(value || "").trim().toUpperCase();
 const normalizePermissionKey = (value) =>
@@ -11,18 +16,9 @@ const normalizePermissionKey = (value) =>
 export const SYSTEM_ROLE_KEYS = new Set(["ADMIN", "OWNER", "VIEWER", "CUSTOM"]);
 export const PORTAL_AUTH_ROLES = ["ADMIN", "OWNER", "VIEWER", "CUSTOM"];
 
-export const PORTAL_MODULES = [
-  "dashboard",
-  "orders",
-  "receipts",
-  "accounting",
-  "crm",
-  "inventory",
-  "team",
-  "profile",
-];
+export const PORTAL_MODULES = [...STROANE_ADMIN_MODULE_IDS];
 
-export const PORTAL_ACTIONS = ["view", "create", "edit", "delete", "archive", "manage"];
+export const PORTAL_ACTIONS = [...STROANE_ADMIN_ACTION_IDS];
 const VIEWER_MODULES = new Set(["dashboard", "orders", "receipts", "accounting", "crm", "inventory", "profile"]);
 
 const createEmptyPermissions = () =>
@@ -121,10 +117,20 @@ export const getBearerToken = (req) => {
 
 export const requireSiteUser = (prisma, allowedRoles = ["ADMIN", "OWNER"]) => async (req, res, next) => {
   const token = getRequestAuthToken(req);
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  if (!token) {
+    return sendApiError(req, res, {
+      status: 401,
+      message: "Unauthorized",
+    });
+  }
 
   const payload = verifyToken(token);
-  if (!payload?.id) return res.status(401).json({ error: "Unauthorized" });
+  if (!payload?.id) {
+    return sendApiError(req, res, {
+      status: 401,
+      message: "Unauthorized",
+    });
+  }
 
   const allowedRoleSet = new Set(allowedRoles.map(normalizeRole));
 
@@ -148,9 +154,17 @@ export const requireSiteUser = (prisma, allowedRoles = ["ADMIN", "OWNER"]) => as
       },
     });
 
-    if (!user?.isActive) return res.status(401).json({ error: "Unauthorized" });
+    if (!user?.isActive) {
+      return sendApiError(req, res, {
+        status: 401,
+        message: "Unauthorized",
+      });
+    }
     if (!allowedRoleSet.has(normalizeRole(user.role))) {
-      return res.status(403).json({ error: "Access denied" });
+      return sendApiError(req, res, {
+        status: 403,
+        message: "Access denied",
+      });
     }
 
     req.authUser = {
@@ -162,14 +176,25 @@ export const requireSiteUser = (prisma, allowedRoles = ["ADMIN", "OWNER"]) => as
     console.error("Admin auth lookup failed:", {
       message: error?.message || "Unknown auth error",
     });
-    return res.status(503).json({ error: "Admin authentication is unavailable" });
+    return sendApiError(req, res, {
+      status: 503,
+      message: "Admin authentication is unavailable",
+    });
   }
 };
 
 export const requirePermission = (moduleId, action = "edit") => (req, res, next) => {
-  if (!req.authUser) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.authUser) {
+    return sendApiError(req, res, {
+      status: 401,
+      message: "Unauthorized",
+    });
+  }
   if (!userHasPermission(req.authUser, moduleId, action)) {
-    return res.status(403).json({ error: "Access denied" });
+    return sendApiError(req, res, {
+      status: 403,
+      message: "Access denied",
+    });
   }
   return next();
 };

@@ -1,0 +1,18 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ModuleDetailIsland from "../../components/islands/ModuleDetailIsland.jsx";
+import { moduleShowcaseItems } from "../../data/modules.js";
+
+export const getStaticPaths = () =>
+  moduleShowcaseItems.map((module) => ({
+    params: { moduleId: module.id },
+    props: { module },
+  }));
+
+const { module } = Astro.props;
+const path = `/modules/${module.id}`;
+---
+
+<BaseLayout path={path}>
+  <ModuleDetailIsland path={path} />
+</BaseLayout>

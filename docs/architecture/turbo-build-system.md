@@ -29,9 +29,9 @@ Turbo creates dependency nodes even for source-consumed internal packages withou
 | `@faako/dev-erp` | Vite, `vite.config.js`; Prisma | Prisma generate, then Vite build | `dist/**` | Not cached; Prisma generation writes outside the declared artifact |
 | `@faako/faako-api` | Node/Express; Prisma runtime | Intentional no-compilation verification | None | Cached result, explicit empty outputs |
 | `@faako/faako-erp` | Vite, `vite.config.mjs` | Vite build | `dist/**` | Cached |
-| `@faako/faako-website` | Vite, `vite.config.mjs` | Vite build | `dist/**` | Cached |
+| `@faako/faako-website` | Astro, `astro.config.mjs` | Astro static build plus CSP finalizer | `dist/**` | Cached |
 | `@faako/reebs-portal` | Vite, PostCSS, Tailwind | Vite build | `dist/**` | Cached |
-| `@faako/reebs-website` | Vite, PostCSS, Tailwind | Deterministic sitemap, then Vite build | `dist/**` | Cached |
+| `@faako/reebs-website` | Astro static output with React islands | Astro build plus CSP/redirect finalizer | `dist/**` | Cached |
 | `@faako/stroane-web` | Vite, PostCSS, Tailwind; Prisma | Prisma generate, then Vite build | `dist/**` | Not cached; Prisma generation writes outside the declared artifact |
 | `@faako/system-starter` | Vite, `vite.config.js` | Vite build | `dist/**` | Cached |
 | `@faako/ui-workbench` | Vite, `vite.config.js` | Vite build | `dist/**` | Cached |
@@ -50,7 +50,7 @@ Application dependencies are defined through `workspace:*` manifest entries:
 | Faako ERP | `@faako/api-client`, `@faako/api-contracts`, `@faako/config`, `@faako/ui`, `@faako/utils` |
 | Faako Website | `@faako/ui` |
 | REEBS Portal | `@faako/config`, `@faako/core`, `@faako/finance`, `@faako/notifications`, `@faako/offline-sync`, `@faako/security`, `@faako/ui`, `@faako/utils` |
-| REEBS Website | `@faako/core`, `@faako/ui`, `@faako/utils` |
+| REEBS Website | `@faako/api-client`, `@faako/core`, `@faako/finance`, `@faako/theme`, `@faako/types`, `@faako/ui`, `@faako/utils`, `@faako/validation` |
 | Stroane | `@faako/core`, `@faako/notifications`, `@faako/offline-sync`, `@faako/security`, `@faako/theme`, `@faako/types`, `@faako/ui`, `@faako/utils` |
 | System Starter | `@faako/ui`, `@faako/utils` |
 | UI Workbench | `@faako/theme`, `@faako/ui`, `@faako/utils` |

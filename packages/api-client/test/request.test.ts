@@ -11,6 +11,7 @@ import {
   appendQuery,
   createApiClient,
   createCustomersApi,
+  getApiErrorPresentation,
 } from "../src/index.ts";
 import { createServerApiClient } from "../src/server.ts";
 
@@ -103,6 +104,22 @@ test("sends and returns request IDs without changing response payloads", async (
   assert.equal(result.requestId, "server-request-id");
 });
 
+test("generates a request ID when the caller does not provide one", async () => {
+  const client = createApiClient({
+    fetch: async (_input, init) => {
+      const requestId = new Headers(init?.headers).get("x-request-id");
+      assert.match(String(requestId), /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/);
+      return jsonResponse(
+        { ok: true },
+        { headers: { "X-Request-Id": String(requestId) } },
+      );
+    },
+  });
+
+  const result = await client.requestDetailed("/api/health");
+  assert.equal(typeof result.requestId, "string");
+});
+
 test("normalises legacy and canonical HTTP errors with metadata", async () => {
   const client = createApiClient({
     fetch: async () =>
@@ -136,6 +153,28 @@ test("normalises legacy and canonical HTTP errors with metadata", async () => {
       return true;
     },
   );
+});
+
+test("maps API failures to safe UX states without exposing raw backend errors", () => {
+  const permission = getApiErrorPresentation(
+    new ApiClientError("SQL permission table missing", {
+      code: API_ERROR_CODES.PERMISSION,
+      status: 403,
+      requestId: "request-403",
+    }),
+  );
+  assert.equal(permission.stateId, "permission-denied");
+  assert.equal(permission.canRetry, false);
+  assert.equal(permission.requestId, "request-403");
+  assert.doesNotMatch(permission.message, /SQL/);
+
+  const network = getApiErrorPresentation(
+    new ApiClientError("fetch failed", {
+      code: API_CLIENT_ERROR_CODES.NETWORK,
+    }),
+  );
+  assert.equal(network.stateId, "offline");
+  assert.equal(network.canRetry, true);
 });
 
 test("data response mode unwraps canonical and compatible success envelopes", async () => {

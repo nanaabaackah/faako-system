@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ClientSetupIsland from "../components/islands/ClientSetupIsland.jsx";
+---
+
+<BaseLayout path="/client-setup">
+  <ClientSetupIsland path="/client-setup" client:load />
+</BaseLayout>

@@ -250,7 +250,8 @@ test("admin alert routes apply bearer auth before private inventory alert data",
 
   assert.equal(nextCalled, false);
   assert.equal(response.statusCode, 401);
-  assert.deepEqual(response.body, { error: "Unauthorized" });
+  assert.equal(response.body.error, "Unauthorized");
+  assert.equal(response.body.apiError.code, "authentication_error");
   assert.deepEqual(
     router.stack.filter((layer) => layer.route).map((layer) => layer.route.path),
     ["/inventory/alerts", "/inventory/alerts/check"]

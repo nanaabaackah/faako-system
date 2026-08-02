@@ -43,8 +43,12 @@ export const createRequestLogger = ({
   appKey = "dev-erp",
   environment = "development",
   shouldPersist = shouldPersistDefault,
+  persistDiagnosticsAsAudit = false,
 } = {}) => {
-  const log = typeof logger?.info === "function" ? logger.info.bind(logger) : console.log;
+  const log =
+    typeof logger?.info === "function"
+      ? logger.info.bind(logger)
+      : (fields, message) => console.log(message, fields);
 
   return (req, res, next) => {
     const startedAt = globalThis.process.hrtime.bigint();
@@ -54,16 +58,32 @@ export const createRequestLogger = ({
       const duration = formatDurationMs(startedAt);
       const durationMs = duration.toFixed(1);
       const contentLength = res.getHeader("content-length");
-      const sizeSuffix =
-        contentLength === undefined || contentLength === null ? "" : ` ${contentLength}b`;
-
-      log(`[api] ${req.method} ${requestPath} ${res.statusCode} ${durationMs}ms${sizeSuffix}`);
-
-      if (typeof auditWriter !== "function") return;
-      if (!shouldPersist({ req, res, requestPath, durationMs: duration })) return;
-
       const method = String(req.method || "GET").toUpperCase();
       const statusCode = Number(res.statusCode || 0);
+
+      log(
+        {
+          application: appKey,
+          environment,
+          eventName: "api.request.completed",
+          requestId: req.requestId || req.headers?.["x-request-id"],
+          organisationId: req.user?.organizationId,
+          userId: req.user?.userId,
+          method,
+          path: requestPath,
+          statusCode,
+          durationMs: Number(durationMs),
+          contentLength:
+            contentLength === undefined || contentLength === null
+              ? undefined
+              : String(contentLength),
+        },
+        "API request completed"
+      );
+
+      if (!persistDiagnosticsAsAudit || typeof auditWriter !== "function") return;
+      if (!shouldPersist({ req, res, requestPath, durationMs: duration })) return;
+
       const severity = statusCode >= 500 ? "error" : statusCode >= 400 ? "warning" : "info";
       const status = statusCode >= 500 ? "failed" : statusCode >= 400 ? "rejected" : "ok";
       const actorLabel = req.user?.fullName || req.user?.email || null;
@@ -83,7 +103,7 @@ export const createRequestLogger = ({
         summary: `${method} ${requestPath} completed with ${statusCode}.`,
         actorType: actorLabel ? "user" : "system",
         actorLabel,
-        requestId: String(req.headers?.["x-request-id"] || ""),
+        requestId: String(req.requestId || req.headers?.["x-request-id"] || ""),
         ipAddress: String(req.headers?.["x-forwarded-for"] || req.ip || "").split(",")[0].trim(),
         metadata: {
           method,

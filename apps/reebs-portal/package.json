@@ -36,12 +36,14 @@
     "test:e2e:all": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\" \"pnpm run test:e2e\""
   },
   "dependencies": {
+    "@faako/api-contracts": "workspace:*",
     "@faako/config": "workspace:*",
     "@faako/core": "workspace:*",
     "@faako/finance": "workspace:*",
     "@faako/notifications": "workspace:*",
     "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
+    "@faako/logger": "workspace:*",
     "@faako/ui": "workspace:*",
     "@faako/utils": "workspace:*",
     "@prisma/adapter-pg": "^7.1.0",

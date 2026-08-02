@@ -3,7 +3,7 @@ import {
   addAuthInvalidListener,
   AUTH_USER_STORAGE_KEY,
   clearAuthState,
-} from "../../utils/organization.js";
+} from "@faako/core";
 import { sanitizeAuthUser } from "./authResponse.js";
 
 const AuthContext = createContext(null);

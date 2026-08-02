@@ -44,7 +44,7 @@ Root global dependencies cover the manifest, lockfile, workspace definition, and
 | `@faako/dev-erp` | Internal multi-organization ERP and operations system | React 19/Vite frontend; Express 5 API; Prisma/PostgreSQL | Vite plus Prisma generate | React Router 7 SPA with lazy routes, boundaries, and role/module guards | JWT access and refresh sessions in HttpOnly cookies, CSRF cookie/header, bcrypt, server-authoritative role/module/org checks; bearer fallback |
 | `@faako/faako-api` | Faako onboarding and activity API | Express 5; Prisma/PostgreSQL | No compilation; Prisma generate/migrate for deployment | Express routes | Public/rate-limited intake plus shared-secret bearer-style webhook/demo-access controls; no general user session |
 | `@faako/faako-erp` | Publicly accessible ERP demonstration shell | React 18/Vite | Vite | React Router 6 SPA | Demo-access session persisted client-side after an API grant; not production user authentication |
-| `@faako/faako-website` | Public Faako marketing, pricing, configuration, signup, and onboarding | React 18/Vite | Vite | React Router 6 SPA | `AuthContext` is only in-memory UI state; login/forgot-password pages do not establish a durable server session |
+| `@faako/faako-website` | Public Faako marketing, pricing, configuration, signup, and onboarding | Astro static site with bounded React islands (migrated after this audit) | Astro | File-based Astro routes; route-local React compatibility islands | Login/forgot-password remain no-index prototypes and do not establish a durable server session |
 | `@faako/reebs-portal` | REEBS authenticated operations/admin portal and its API | React 19/Vite; Express/Netlify-style functions; Prisma/PostgreSQL | Vite plus Prisma scripts | React Router 7 SPA with protected admin routes | User session is an HttpOnly SameSite cookie; manager bearer tokens also exist; browser stores only a sanitized user shell in local/session storage and validates `/api/authSession` |
 | `@faako/reebs-website` | Public REEBS commerce, rentals, cart, checkout, and customer access | React 19/Vite | Deterministic tracked sitemap generation, then Vite | React Router 7 SPA | Duplicated REEBS auth context; relies on the portal-owned cookie-session API |
 | `@faako/stroane-web` | Stroane public catalogue/commerce plus private admin portal and API | React 19/Vite TypeScript; Express 5; Prisma/PostgreSQL | Vite plus Prisma generate | Runtime-selected storefront and portal React Router 7 trees in one bundle/workspace | Separate customer/admin HttpOnly cookie sessions with bearer compatibility; browser stores non-secret profile/session shells |
@@ -111,7 +111,7 @@ No Axios, TanStack Query, SWR, Apollo, Redux Toolkit Query, or equivalent depend
 | Dev ERP | Typed `src/api/client.ts` centralizes credentials, CSRF, error parsing, and optional validation, but several frontend/backend modules still fetch directly |
 | Faako API | Server-side fetch for activity/onboarding integrations |
 | Faako ERP | Direct demo-access request |
-| Faako Website | Direct onboarding/contact API requests through Vite/proxy configuration |
+| Faako Website | Shared API client for onboarding; contact mail-client hand-off; Astro development proxy configuration |
 | REEBS Portal | Extensive direct `fetch` across pages/functions plus small shared internal API helpers |
 | REEBS Website | Direct public commerce/rental calls to the portal API |
 | Stroane | Stronger app-local API modules for products, orders, customer accounts, and portal resources, all built on native `fetch` |

@@ -7,6 +7,234 @@ export const SECURITY_PROFILE_IDS = [
 
 export const AUTH_MODES = ["none", "cookie", "bearer"];
 
+export const AUTHORIZATION_APPLICATION_IDS = Object.freeze({
+  DEV_ERP: "dev-erp",
+  FAAKO_ERP: "faako-erp",
+  REEBS_PORTAL: "reebs-portal",
+  STROANE_ADMIN: "stroane-admin",
+});
+
+export const AUTHORIZATION_SCOPES = Object.freeze({
+  APPLICATION: "application",
+  MODULE: "module",
+  ACTION: "action",
+});
+
+export const STANDARD_PERMISSION_ACTIONS = Object.freeze([
+  "access",
+  "read",
+  "view",
+  "create",
+  "write",
+  "edit",
+  "delete",
+  "archive",
+  "approve",
+  "export",
+  "manage",
+]);
+
+export const DEV_ERP_MODULE_IDS = Object.freeze([
+  "dashboard",
+  "projects",
+  "proposals",
+  "faako-onboarding",
+  "rent",
+  "accounting",
+  "invoicing",
+  "bookings",
+  "organizations",
+  "system-health",
+  "reports",
+  "audit-logs",
+  "profile",
+  "settings",
+  "user-control",
+]);
+
+export const STROANE_ADMIN_MODULE_IDS = Object.freeze([
+  "dashboard",
+  "orders",
+  "receipts",
+  "accounting",
+  "crm",
+  "inventory",
+  "team",
+  "profile",
+]);
+
+export const STROANE_ADMIN_ACTION_IDS = Object.freeze([
+  "view",
+  "create",
+  "edit",
+  "delete",
+  "archive",
+  "manage",
+]);
+
+export const REEBS_PERMISSION_IDS = Object.freeze([
+  "inventory:read",
+  "inventory:write",
+  "inventory:approve",
+  "orders:read",
+  "orders:write",
+  "bookings:read",
+  "bookings:write",
+  "customers:read",
+  "customers:write",
+  "deliveries:read",
+  "deliveries:write",
+  "maintenance:read",
+  "maintenance:write",
+  "financials:read",
+  "documents:read",
+  "documents:write",
+  "invoices:read",
+  "invoices:write",
+  "marketing:read",
+  "marketing:write",
+  "expenses:read",
+  "expenses:write",
+  "timesheets:manage",
+  "vendors:read",
+  "vendors:write",
+  "water:read",
+  "water:write",
+  "users:read",
+  "users:write",
+  "website-content:write",
+]);
+
+const normalizeAccessIdentifier = (value) =>
+  String(value || "").trim().toLowerCase();
+
+export const buildPermissionIdentifier = (moduleId, actionId) => {
+  const moduleKey = normalizeAccessIdentifier(moduleId);
+  const actionKey = normalizeAccessIdentifier(actionId);
+  return moduleKey && actionKey ? `${moduleKey}:${actionKey}` : "";
+};
+
+export const definePermission = ({
+  id,
+  applicationId,
+  moduleId,
+  action,
+  description = "",
+  legacyIds = [],
+} = {}) => {
+  const normalizedApplicationId = normalizeAccessIdentifier(applicationId);
+  const normalizedModuleId = normalizeAccessIdentifier(moduleId);
+  const normalizedAction = normalizeAccessIdentifier(action);
+  const normalizedId =
+    normalizeAccessIdentifier(id) ||
+    buildPermissionIdentifier(normalizedModuleId, normalizedAction);
+
+  if (!normalizedApplicationId || !normalizedId) {
+    throw new TypeError("Permission definitions require applicationId and id.");
+  }
+
+  return Object.freeze({
+    id: normalizedId,
+    applicationId: normalizedApplicationId,
+    scope: normalizedAction
+      ? AUTHORIZATION_SCOPES.ACTION
+      : normalizedModuleId
+        ? AUTHORIZATION_SCOPES.MODULE
+        : AUTHORIZATION_SCOPES.APPLICATION,
+    ...(normalizedModuleId ? { moduleId: normalizedModuleId } : {}),
+    ...(normalizedAction ? { action: normalizedAction } : {}),
+    ...(String(description || "").trim()
+      ? { description: String(description).trim() }
+      : {}),
+    legacyIds: Object.freeze(
+      Array.from(
+        new Set(
+          [normalizedId, ...legacyIds]
+            .map(normalizeAccessIdentifier)
+            .filter(Boolean),
+        ),
+      ),
+    ),
+  });
+};
+
+export const hasPermissionIdentifier = (
+  grantedPermissionIds,
+  requiredPermissionId,
+) => {
+  const required = normalizeAccessIdentifier(requiredPermissionId);
+  if (!required) return true;
+
+  const grants = new Set(
+    (Array.isArray(grantedPermissionIds) ? grantedPermissionIds : [])
+      .map(normalizeAccessIdentifier)
+      .filter(Boolean),
+  );
+  if (grants.has("*") || grants.has(required)) return true;
+
+  const separator = required.indexOf(":");
+  if (separator <= 0) return false;
+  return grants.has(`${required.slice(0, separator)}:*`);
+};
+
+export const hasPermissionDefinition = (
+  grantedPermissionIds,
+  permissionDefinition,
+) => {
+  if (!permissionDefinition) return true;
+  return permissionDefinition.legacyIds.some((permissionId) =>
+    hasPermissionIdentifier(grantedPermissionIds, permissionId),
+  );
+};
+
+export const hasApplicationAccess = (
+  applicationIds,
+  requiredApplicationId,
+  { unrestricted = false } = {},
+) => {
+  if (unrestricted) return true;
+  const required = normalizeAccessIdentifier(requiredApplicationId);
+  if (!required) return true;
+  return (Array.isArray(applicationIds) ? applicationIds : [])
+    .map(normalizeAccessIdentifier)
+    .includes(required);
+};
+
+export const hasModuleAccess = (
+  moduleIds,
+  requiredModuleId,
+  { unrestricted = false } = {},
+) => {
+  if (unrestricted) return true;
+  const required = normalizeAccessIdentifier(requiredModuleId);
+  if (!required) return true;
+  return (Array.isArray(moduleIds) ? moduleIds : [])
+    .map(normalizeAccessIdentifier)
+    .includes(required);
+};
+
+export const isOrganisationAssignmentAllowed = ({
+  assignedOrganisationIds = [],
+  authenticatedOrganisationId,
+  requestedOrganisationId,
+  unrestricted = false,
+} = {}) => {
+  const authenticated = normalizeAccessIdentifier(authenticatedOrganisationId);
+  const requested =
+    normalizeAccessIdentifier(requestedOrganisationId) || authenticated;
+  if (!requested || !authenticated) return false;
+  if (requested === authenticated) return true;
+  if (unrestricted) return true;
+
+  return assignedOrganisationIds
+    .map(normalizeAccessIdentifier)
+    .filter(Boolean)
+    .includes(requested);
+};
+
+export const isOrganizationAssignmentAllowed =
+  isOrganisationAssignmentAllowed;
+
 export const BASE_SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",

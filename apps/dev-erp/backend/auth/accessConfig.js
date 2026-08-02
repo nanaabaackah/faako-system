@@ -1,22 +1,8 @@
+import { DEV_ERP_MODULE_IDS } from "@faako/security";
+
 const RENT_MODULE_KEY = "rent";
 
-export const ACCESS_MODULE_KEYS = [
-  "dashboard",
-  "projects",
-  "proposals",
-  "faako-onboarding",
-  "rent",
-  "accounting",
-  "invoicing",
-  "bookings",
-  "organizations",
-  "system-health",
-  "reports",
-  "audit-logs",
-  "profile",
-  "settings",
-  "user-control",
-];
+export const ACCESS_MODULE_KEYS = [...DEV_ERP_MODULE_IDS];
 
 export const ACCESS_MODULE_SET = new Set(ACCESS_MODULE_KEYS);
 
@@ -41,6 +27,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/jobs(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/ai\/productivity-coach(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/ai\/system-health-diagnosis(?:\/|$)/, modules: ["system-health"] },
+  { pattern: /^\/api\/monitoring(?:\/|$)/, modules: ["system-health"] },
   { pattern: /^\/api\/productivity(?:\/|$)/, modules: ["dashboard"] },
   { pattern: /^\/api\/projects(?:\/|$)/, modules: ["projects"] },
   { pattern: /^\/api\/proposals(?:\/|$)/, modules: ["proposals"] },

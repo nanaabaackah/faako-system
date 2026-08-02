@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import "./ResetPassword.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEye, faEyeSlash } from "/src/icons/iconSet";
-import { clearAuthState } from "../../utils/organization.js";
+import { clearAuthState } from "@faako/core";
 import { buildWebsiteUrl } from "../../utils/website";
 
 const MIN_PASSWORD_LENGTH = 8;

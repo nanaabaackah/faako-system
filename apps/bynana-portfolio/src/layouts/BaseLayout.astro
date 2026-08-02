@@ -15,6 +15,8 @@ const seo = getSeoForPath(path);
 const canonical = new URL(path === '/' ? '/' : path, SITE_URL).toString();
 const image = new URL(seo.image || DEFAULT_IMAGE, SITE_URL).toString();
 const structuredData = buildStructuredData(path, seo);
+const serializedStructuredData = JSON.stringify(structuredData).replace(/</g, '\\u003c');
+const imageAlt = `${seo.name || 'Nana Aba Ackah'} preview`;
 
 if (status !== 200) Astro.response.status = status;
 ---
@@ -27,6 +29,8 @@ if (status !== 200) Astro.response.status = status;
     <meta name="theme-color" content="#ebe5d4" />
     <title>{seo.title}</title>
     <meta name="description" content={seo.description} />
+    <meta name="author" content="Nana Aba Ackah" />
+    <meta name="robots" content={seo.noIndex ? 'noindex, nofollow' : 'index, follow'} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/assets/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/assets/icon.svg" />
@@ -34,21 +38,28 @@ if (status !== 200) Astro.response.status = status;
     <link rel="manifest" href="/assets/site.webmanifest" />
     <meta name="generator" content={Astro.generator} />
     <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:locale" content="en_GH" />
     <meta property="og:title" content={seo.title} />
     <meta property="og:description" content={seo.description} />
     <meta property="og:type" content={seo.type || 'website'} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={image} />
-    <meta property="og:image:alt" content={`${seo.name || 'Nana Aba Ackah'} preview`} />
+    <meta property="og:image:alt" content={imageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={seo.title} />
     <meta name="twitter:description" content={seo.description} />
     <meta name="twitter:image" content={image} />
-    {seo.noIndex && <meta name="robots" content="noindex, nofollow" />}
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    <script is:inline type="application/ld+json" set:html={serializedStructuredData} />
   </head>
   <body>
-    <PortfolioApp staticLocation={path} client:load />
+    {
+      path === '/contact' ? (
+        <PortfolioApp staticLocation={path} client:load />
+      ) : (
+        <PortfolioApp staticLocation={path} client:idle={{ timeout: 2000 }} />
+      )
+    }
     <noscript>This portfolio works best with JavaScript enabled, but all page content remains available in the HTML.</noscript>
     <script is:inline>
       document.documentElement.classList.add('js');

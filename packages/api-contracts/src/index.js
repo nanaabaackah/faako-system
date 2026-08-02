@@ -11,11 +11,60 @@ export const API_ERROR_CODES = Object.freeze({
   UPSTREAM: "upstream_error",
 });
 
+export const API_ERROR_STATUS = Object.freeze({
+  [API_ERROR_CODES.BAD_REQUEST]: 400,
+  [API_ERROR_CODES.VALIDATION]: 400,
+  [API_ERROR_CODES.AUTHENTICATION]: 401,
+  [API_ERROR_CODES.PERMISSION]: 403,
+  [API_ERROR_CODES.NOT_FOUND]: 404,
+  [API_ERROR_CODES.CONFLICT]: 409,
+  [API_ERROR_CODES.RATE_LIMITED]: 429,
+  [API_ERROR_CODES.SERVER]: 500,
+  [API_ERROR_CODES.UPSTREAM]: 502,
+  [API_ERROR_CODES.SERVICE_UNAVAILABLE]: 503,
+});
+
+export const API_ERROR_MESSAGES = Object.freeze({
+  [API_ERROR_CODES.BAD_REQUEST]: "The request could not be completed.",
+  [API_ERROR_CODES.VALIDATION]: "Check the highlighted information and try again.",
+  [API_ERROR_CODES.AUTHENTICATION]: "Your session has expired. Sign in again.",
+  [API_ERROR_CODES.PERMISSION]: "You do not have permission to do that.",
+  [API_ERROR_CODES.NOT_FOUND]: "The requested resource could not be found.",
+  [API_ERROR_CODES.CONFLICT]: "The request conflicts with the current record state.",
+  [API_ERROR_CODES.RATE_LIMITED]: "Too many requests. Please wait and try again.",
+  [API_ERROR_CODES.SERVER]: "The service could not complete the request.",
+  [API_ERROR_CODES.UPSTREAM]: "A required service returned an invalid response.",
+  [API_ERROR_CODES.SERVICE_UNAVAILABLE]: "The service is temporarily unavailable.",
+});
+
+export const REQUEST_ID_HEADER = "X-Request-Id";
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
+
 const isObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const cleanString = (value) =>
   typeof value === "string" && value.trim() ? value.trim() : "";
+
+export const isValidRequestId = (value) =>
+  typeof value === "string" && REQUEST_ID_PATTERN.test(value.trim());
+
+export const createRequestId = () => {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const randomPart = Math.random().toString(36).slice(2, 14);
+  return `req-${Date.now().toString(36)}-${randomPart}`;
+};
+
+export const resolveRequestId = (value, factory = createRequestId) => {
+  const candidate = typeof value === "string" ? value.trim() : "";
+  if (isValidRequestId(candidate)) return candidate;
+
+  const generated = typeof factory === "function" ? factory() : "";
+  return isValidRequestId(generated) ? generated.trim() : createRequestId();
+};
 
 const cleanPositiveNumber = (value) => {
   const number = Number(value);
@@ -83,6 +132,12 @@ export const errorCodeForStatus = (status) => {
   if (normalizedStatus >= 500) return API_ERROR_CODES.SERVER;
   return API_ERROR_CODES.BAD_REQUEST;
 };
+
+export const statusForErrorCode = (code, fallback = 500) =>
+  API_ERROR_STATUS[cleanString(code)] || Number(fallback || 500);
+
+export const safeMessageForErrorCode = (code, fallback = "Request failed.") =>
+  API_ERROR_MESSAGES[cleanString(code)] || cleanString(fallback) || "Request failed.";
 
 export const createSuccessResponse = (data, options = {}) => {
   const meta = buildMeta(options);

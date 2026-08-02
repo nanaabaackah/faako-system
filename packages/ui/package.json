@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "eslint src",
+    "test": "node --test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

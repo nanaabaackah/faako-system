@@ -4,10 +4,16 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { hashPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
+import {
+  hasPermission,
+  isSystemAdminUser,
+  normalizeRole,
+} from "./_shared/accessControl.js";
+import { createLogger } from "./_shared/logger.js";
 import { requireUser } from "./_shared/userAuth.js";
 import { ensureUserSessionsTable } from "./_shared/userSessions.js";
 
-const SYSTEM_ADMIN_EMAIL = "system_admin@reebs.com";
+const logger = createLogger("users");
 const respond = (event, statusCode, body = {}) =>
   json(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
 
@@ -84,6 +90,20 @@ const cleanPermissions = (value) => {
   return null;
 };
 
+export const requiredUsersPermission = (method) =>
+  String(method || "").toUpperCase() === "GET"
+    ? "users:read"
+    : "users:write";
+
+export const canAccessUsersMethod = (user, method) => {
+  const normalizedMethod = String(method || "").toUpperCase();
+  if (isSystemAdminUser(user)) return true;
+  if (normalizedMethod === "GET" && normalizeRole(user?.role) === "driver") {
+    return true;
+  }
+  return hasPermission(user, requiredUsersPermission(normalizedMethod));
+};
+
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204);
@@ -115,8 +135,13 @@ export async function handler(event) {
       return respond(event, 401, { error: "Unauthorized" });
     }
     const organizationId = authUser.organizationId;
-    const isSystemAdmin = (authUser.email || "").toLowerCase() === SYSTEM_ADMIN_EMAIL;
+    const isSystemAdmin = isSystemAdminUser(authUser);
     const requesterRoleKey = normalizeRoleKey(authUser.role);
+    if (!canAccessUsersMethod(authUser, method)) {
+      return respond(event, 403, {
+        error: "You do not have permission to manage users.",
+      });
+    }
 
     if (method === "POST") {
       const firstName = cleanNamePart(payload.firstName);
@@ -373,8 +398,15 @@ export async function handler(event) {
       (result.rows || []).map((row) => normalizeUserRecord(row, { limited: requesterRoleKey === "driver" }))
     );
   } catch (err) {
-    console.error("❌ Database error:", err);
-    return respond(event, 500, { error: err.message || "Database error" });
+    logger.error(
+      {
+        err,
+        eventName: "users.request.failed",
+        requestId: event?.requestId,
+      },
+      "REEBS users request failed"
+    );
+    return respond(event, 500, { error: "Unable to complete the users request." });
   } finally {
     await client.end().catch(() => {});
   }
