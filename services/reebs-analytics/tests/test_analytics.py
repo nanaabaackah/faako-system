@@ -1,9 +1,27 @@
 import unittest
+from unittest.mock import patch
+
+from fastapi import HTTPException
 
 from app.analytics import build_dashboard_insights
+from app.main import _authorize
 
 
 class DashboardAnalyticsTests(unittest.TestCase):
+    def test_service_authentication_fails_closed_without_a_secret(self):
+        with patch.dict("os.environ", {}, clear=True), self.assertRaises(HTTPException) as raised:
+            _authorize(None)
+
+        self.assertEqual(raised.exception.status_code, 503)
+
+    def test_service_authentication_uses_constant_time_bearer_comparison(self):
+        with patch.dict("os.environ", {"REEBS_ANALYTICS_SERVICE_SECRET": "expected-secret"}):
+            _authorize("Bearer expected-secret")
+            with self.assertRaises(HTTPException) as raised:
+                _authorize("Bearer wrong-secret")
+
+        self.assertEqual(raised.exception.status_code, 401)
+
     def test_builds_forecast_demand_and_inventory_risk(self):
         payload = {
             "historyDays": 180,
@@ -39,4 +57,3 @@ class DashboardAnalyticsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

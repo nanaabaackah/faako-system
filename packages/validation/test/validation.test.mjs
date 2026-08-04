@@ -3,11 +3,15 @@ import test from "node:test";
 import {
   authenticationRegistrationInputSchema,
   bookingInputSchema,
+  bookingStatusTransitionSchema,
   contactInputSchema,
   customerFormSchema,
+  customerMasterDataFormSchema,
   eventRegistrationInputSchema,
   forgotPasswordInputSchema,
   inventoryAdjustmentSchema,
+  orderCreateInputSchema,
+  orderStatusTransitionSchema,
   invoiceInputSchema,
   loginInputSchema,
   newsletterInputSchema,
@@ -15,7 +19,13 @@ import {
   passwordResetInputSchema,
   paymentInputSchema,
   productFormSchema,
+  roleAssignmentInputSchema,
+  roleFormSchema,
+  userAccessFormSchema,
+  usernameAccessFormSchema,
   validationIssues,
+  vendorFormSchema,
+  deliveryUpdateSchema,
 } from "../src/index.js";
 
 test("authentication schemas preserve current Dev ERP login and reset limits", () => {
@@ -71,6 +81,72 @@ test("organisation and customer schemas accept string and numeric boundaries", (
       phone: "+233 20 000 0000",
     }).success,
     true,
+  );
+});
+
+test("master-data schemas preserve name-only customers and validate identity fields", () => {
+  assert.equal(
+    customerMasterDataFormSchema.safeParse({ name: "Walk-in customer" }).success,
+    true,
+  );
+  assert.equal(
+    customerMasterDataFormSchema.safeParse({
+      name: "Walk-in customer",
+      email: "invalid",
+    }).success,
+    false,
+  );
+  assert.equal(
+    userAccessFormSchema.safeParse({
+      firstName: "Ama",
+      lastName: "Mensah",
+      roleKey: "manager",
+      status: "ACTIVE",
+    }).success,
+    true,
+  );
+  assert.equal(
+    userAccessFormSchema.safeParse({ firstName: "", lastName: "Mensah" }).success,
+    false,
+  );
+});
+
+test("role assignment and vendor schemas enforce safe master-data boundaries", () => {
+  assert.equal(
+    roleAssignmentInputSchema.safeParse({ userId: 2, roleKey: "warehouse" }).success,
+    true,
+  );
+  assert.equal(roleAssignmentInputSchema.safeParse({ userId: 2 }).success, false);
+  assert.equal(
+    roleFormSchema.safeParse({ name: "Inventory lead", key: "inventory_lead" }).success,
+    true,
+  );
+  assert.equal(
+    vendorFormSchema.safeParse({ name: "Accra Supplies", leadTimeDays: 4 }).success,
+    true,
+  );
+  assert.equal(
+    vendorFormSchema.safeParse({ name: "Accra Supplies", leadTimeDays: -1 }).success,
+    false,
+  );
+});
+
+test("username access validation preserves portal username rules", () => {
+  const parsed = usernameAccessFormSchema.safeParse({
+    username: "Team.Member",
+    password: "temporary-password",
+    roleKey: "VIEWER",
+  });
+
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.data.username, "team.member");
+  assert.equal(
+    usernameAccessFormSchema.safeParse({
+      username: "invalid user",
+      password: "temporary-password",
+      roleKey: "VIEWER",
+    }).success,
+    false,
   );
 });
 
@@ -130,6 +206,30 @@ test("booking accepts an end time or duration and rejects reversed ranges", () =
       endAt: "2026-08-01T09:00:00.000Z",
     }).success,
     false,
+  );
+});
+
+test("commercial-operation schemas preserve safe prices and reject invalid transitions", () => {
+  const order = orderCreateInputSchema.parse({
+    customerId: 12,
+    status: "pending",
+    items: [{ productId: 4, quantity: 2, price: "19.50" }],
+    discount: 0,
+    userId: "server-owned",
+  });
+  assert.equal(order.items[0].price, "19.50");
+  assert.equal("userId" in order, false);
+  assert.equal(
+    orderStatusTransitionSchema.safeParse({ status: "unsupported" }).success,
+    false,
+  );
+  assert.equal(
+    bookingStatusTransitionSchema.safeParse({ status: "confirmed" }).success,
+    true,
+  );
+  assert.equal(
+    deliveryUpdateSchema.safeParse({ status: "delivered", notes: "Left with recipient." }).success,
+    true,
   );
 });
 

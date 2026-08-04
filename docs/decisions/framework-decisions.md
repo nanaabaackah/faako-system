@@ -22,7 +22,7 @@ Decision status: proposed, based on repository audit
 | Faako Website | Astro static site with bounded React islands (migrated from React 18/Vite) | Public marketing plus signup/onboarding/configuration | Astro for public routes; bounded React islands/app flow | Complete | Completed | Interactive intake/prototype routes still require careful API and no-index handling | Validate the branch preview, API CORS, analytics consent, and Cloudflare headers before promotion |
 | REEBS Portal | React 19/Vite + Express/functions/Prisma | Authenticated operations/admin portal and API | React/Vite + existing API | No framework migration | High cleanup priority | Large surface; tests not on root command; duplicated website code; mixed function/server styles | Add standard quality scripts and establish portal ownership of API/auth/contracts |
 | REEBS Website | Astro 7 + React 19 islands (migrated from Vite SPA) | Public rentals, shop, cart, checkout, and bounded customer access | Astro + React commerce islands | Completed; production cutover pending preview parity | High validation priority | Large legacy media; shared compatibility chunk; live API/cookie parity; 1,067 catalogue item routes | Validate Cloudflare preview, forms/payments boundary, API routing, mobile UX, and analytics before promotion |
-| Stroane Web | React 19/Vite TypeScript + Express/Prisma; two build surfaces | Public catalogue/commerce and private portal | React/Vite now; future Astro storefront plus React/Vite portal after boundary split | Boundary migration later | Medium | Storefront/portal/API in one workspace; env-selected builds; payment/auth/database coupling | Separate build/deployment ownership and stabilize commerce contracts; do not change framework yet |
+| Stroane Web | React 19/Vite TypeScript + Express/Prisma; independent storefront/admin browser entries | Public catalogue/customer commerce, private portal, separate API runtime | React/Vite storefront and portal, with separate artifacts; Express API | Public framework decision complete; physical workspace split remains optional | Completed decision, high preview priority | Client-rendered body SEO; one source workspace; live stock/payment launch dependencies | Preview both artifacts against staging API, measure public SEO/performance, and migrate remaining API adapters incrementally |
 | System Starter | React 19/Vite | Internal starter/scaffold | React/Vite | No | Low | No lint/test/typecheck scripts; may propagate weak defaults | Add standard quality scripts and keep it aligned with authenticated app conventions |
 | UI Workbench | React 19/Vite | Shared component workbench | React/Vite | No | Medium | No automated component/accessibility tests; not Storybook-like isolated docs | Add smoke/accessibility coverage and keep it as the UI verification surface |
 | TTNGH | No active source; generated Astro artifacts only | Intended NGO public site | Astro + server-side donation/form APIs | Recreate scaffold | After shared standards | Root script points to missing workspace; artifact-only state; payment/PII/security requirements | Do not build yet; recreate from a proven public-site template after quality/API conventions land |
@@ -37,7 +37,7 @@ Decision status: proposed, based on repository audit
 - System Starter
 - UI Workbench
 
-Stroane's current workspace should remain Vite until its storefront and portal are separated. That recommendation does not mean the public storefront must remain Vite permanently.
+Stroane's storefront and portal now have independent compile-time entries and deployable artifacts. The evidence-based ADR retains Vite for the storefront because customer authentication, live catalogue reconciliation, cart, location search, Paystack checkout, and return verification are core responsibilities. Reconsider Astro only after measuring the route-shell SEO result and defining a separate customer/checkout owner.
 
 ## Applications that should use Astro
 
@@ -45,7 +45,7 @@ Stroane's current workspace should remain Vite until its storefront and portal a
 - Faako Website: public routes.
 - REEBS Website: public/content/catalogue routes with commerce islands.
 - TTNGH: when its scaffold is recreated.
-- Stroane Storefront: conditional future candidate after ownership separation.
+- Stroane Storefront is not an active Astro candidate under the accepted 2026-08-02 ADR; reconsider only with measured evidence and a customer/checkout boundary plan.
 
 ## Applications that should use Next.js
 

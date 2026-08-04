@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { reebsApiResponse } from "../../../api/client.js";
 
 export default function useOrderPayments(orderId) {
   const [payments, setPayments] = useState([]);
@@ -17,7 +18,7 @@ export default function useOrderPayments(orderId) {
     const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
-    return fetch(`/api/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
+    return reebsApiResponse(`/api/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
       .then(async (response) => {
         const payload = await response.json().catch(() => []);
         if (!response.ok) {
@@ -40,7 +41,7 @@ export default function useOrderPayments(orderId) {
 
   const recordPayment = useCallback(async (payload) => {
     const controller = new AbortController();
-    const response = await fetch("/api/orderPayments", {
+    const response = await reebsApiResponse("/api/orderPayments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, orderId }),

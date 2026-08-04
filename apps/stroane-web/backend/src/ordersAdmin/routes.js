@@ -18,6 +18,7 @@ import {
   verifyPaystackTransaction,
 } from "../paystack.js";
 import { ensureReceiptForOrder, sendReceiptForPaidOrder } from "../receipts/service.js";
+import { orderStatusTransitionSchema } from "@faako/validation";
 
 const ORDER_STATUSES = new Set([
   "PENDING",
@@ -33,6 +34,15 @@ const sanitizeText = (value = "", maxLength = 160) =>
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, maxLength);
+
+export const parseAdminOrderStatus = (value) => {
+  const status = sanitizeText(value, 40).toUpperCase();
+  if (!status) return "";
+  const validation = orderStatusTransitionSchema.safeParse({
+    status: status.toLowerCase(),
+  });
+  return validation.success && ORDER_STATUSES.has(status) ? status : null;
+};
 
 const toMoneyNumber = (value) => {
   const parsed = Number(value);
@@ -285,7 +295,13 @@ export const createAdminOrderRouter = (prisma) => {
     "/orders/:id",
     requireAdminRole(prisma, "orders", "edit"),
     asyncRoute(async (req, res) => {
-      const status = sanitizeText(req.body?.status, 40).toUpperCase();
+      const status = parseAdminOrderStatus(req.body?.status);
+      if (status === null) {
+          return res.status(400).json({
+            error: "Choose a supported order status.",
+            code: "VALIDATION_ERROR",
+          });
+      }
       const data = {
         fulfillmentStatus: sanitizeText(req.body?.fulfillmentStatus, 80).toLowerCase() || null,
         deliveryMethod: sanitizeText(req.body?.deliveryMethod, 80) || null,
@@ -295,7 +311,7 @@ export const createAdminOrderRouter = (prisma) => {
         statusUpdatedById: req.authUser?.id || null,
         statusUpdatedAt: new Date(),
       };
-      if (status && ORDER_STATUSES.has(status)) data.status = status;
+      if (status) data.status = status;
 
       const order = await prisma.commerceOrder.update({
         where: { id: String(req.params.id || "") },

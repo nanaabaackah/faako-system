@@ -35,7 +35,7 @@ export const LatencyBadge = ({ value }) => {
   return <span className={`health-latency is-${tone}`}>{Number.isFinite(value) ? `${value} ms` : "No data"}</span>;
 };
 
-export const TimelineBlock = ({ block, serviceName }) => {
+export const TimelineBlock = ({ block, serviceName, provider, environment }) => {
   const statusLabel = STATUS_LABELS[normalizeHealthStatus(block.status)];
   const tooltip = [
     formatDateTime(block.timestamp),
@@ -43,6 +43,8 @@ export const TimelineBlock = ({ block, serviceName }) => {
     Number.isFinite(block.latencyMs) ? `${block.latencyMs} ms` : "No latency",
     block.httpStatus ? `HTTP ${block.httpStatus}` : "No HTTP status",
     block.duration,
+    provider || "Provider not configured",
+    environment || "Environment not configured",
   ].join(" · ");
   return (
     <button
@@ -54,9 +56,9 @@ export const TimelineBlock = ({ block, serviceName }) => {
   );
 };
 
-export const HealthTimeline = ({ timeline, serviceName, compact = false }) => (
+export const HealthTimeline = ({ timeline, serviceName, provider, environment, compact = false }) => (
   <div className={`health-timeline ${compact ? "is-compact" : ""}`} aria-label={`${serviceName} health timeline`}>
-    {timeline.map((block) => <TimelineBlock block={block} serviceName={serviceName} key={block.id} />)}
+    {timeline.map((block) => <TimelineBlock block={block} serviceName={serviceName} provider={provider} environment={environment} key={block.id} />)}
   </div>
 );
 
@@ -77,7 +79,7 @@ export const TimelineRangeSelector = ({ value, onChange }) => (
 );
 
 export const PlatformHealthScore = ({ summary }) => (
-  <section className="health-score-card" aria-label={Number.isFinite(summary.score) ? `Platform health score ${summary.score} percent` : "Platform health score unavailable"}>
+  <section className="health-score-card glass-card" aria-label={Number.isFinite(summary.score) ? `Platform health score ${summary.score} percent` : "Platform health score unavailable"}>
     <div className="health-score-card__ring" style={{ "--health-score": `${Number.isFinite(summary.score) ? summary.score * 3.6 : 0}deg` }}>
       <span><strong>{Number.isFinite(summary.score) ? summary.score : "--"}</strong><small>{Number.isFinite(summary.score) ? "/ 100" : "score"}</small></span>
     </div>
@@ -100,7 +102,7 @@ export const MonitoringSummaryCards = ({ summary }) => {
   return (
     <div className="health-summary-cards">
       {cards.map(([label, value, tone]) => (
-        <article className={`health-summary-card is-${tone}`} key={label}>
+        <article className={`health-summary-card bubble-card is-${tone}`} key={label}>
           <span>{label}</span><strong>{value}</strong>
         </article>
       ))}
@@ -109,7 +111,7 @@ export const MonitoringSummaryCards = ({ summary }) => {
 };
 
 export const MonitoringFilters = ({ filters, onChange, providers, environments }) => (
-  <section className="health-filter-panel" aria-label="Monitoring filters">
+  <section className="health-filter-panel glass-card" aria-label="Monitoring filters">
     <label className="field health-filter-search">
       <span>Search</span>
       <span className="health-filter-search__control">
@@ -132,7 +134,7 @@ export const ServiceRow = ({ service, onSelect }) => (
     </button>
     <StatusBadge status={service.status} />
     <LatencyBadge value={service.latencyMs} />
-    <HealthTimeline timeline={service.timeline} serviceName={service.name} />
+    <HealthTimeline timeline={service.timeline} serviceName={service.name} provider={service.provider} environment={service.environment} />
     <span className="health-service-row__uptime"><strong>{Number.isFinite(service.uptimePercentage) ? `${service.uptimePercentage}%` : "--"}</strong><small>uptime</small></span>
   </div>
 );
@@ -141,7 +143,7 @@ export const MonitoringSection = ({ section, services, onSelect }) => {
   if (!services.length) return null;
   const healthy = services.filter((service) => normalizeHealthStatus(service.status) === "healthy").length;
   return (
-    <section className="health-monitoring-section" aria-labelledby={`health-section-${section.id}`}>
+    <section className="health-monitoring-section glass-card" aria-labelledby={`health-section-${section.id}`}>
       <header>
         <div><h2 id={`health-section-${section.id}`}>{section.label}</h2><p>{section.description}</p></div>
         <span>{healthy}/{services.length} healthy</span>
@@ -186,7 +188,7 @@ export const ServiceDrawer = ({ service, serviceMap, onClose, onManualCheck, isC
   ];
   return (
     <div className="health-drawer-shell" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <aside className="health-service-drawer" role="dialog" aria-modal="true" aria-labelledby="service-drawer-title">
+      <aside className="health-service-drawer glass-card" role="dialog" aria-modal="true" aria-labelledby="service-drawer-title">
         <header>
           <div><p className="eyebrow">Service detail</p><h2 id="service-drawer-title">{service.name}</h2><p>{service.environment} · {service.provider}</p></div>
           <button className="health-drawer-close" type="button" onClick={onClose} ref={closeRef} aria-label="Close service details"><CloseCircle size={24} aria-hidden="true" /></button>
@@ -194,7 +196,7 @@ export const ServiceDrawer = ({ service, serviceMap, onClose, onManualCheck, isC
         <div className="health-drawer-content">
           <section className="health-drawer-current"><div><StatusBadge status={isChecking ? "checking" : service.effectiveStatus} />{service.directStatus !== service.effectiveStatus ? <small>Direct: {STATUS_LABELS[service.directStatus]}</small> : null}</div><span>Uptime <strong>{Number.isFinite(service.uptimePercentage) ? `${service.uptimePercentage}%` : "N/A"}</strong></span></section>
           <section><h3>Latency</h3><div className="health-drawer-metrics">{metrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{Number.isFinite(value) ? `${value} ms` : "N/A"}</strong></div>)}</div></section>
-          <section><h3>Historical timeline</h3><HealthTimeline timeline={service.timeline} serviceName={service.name} /><p className="health-drawer-trend">Latency trend: <strong>{service.latencyTrend}</strong></p></section>
+          <section><h3>Historical timeline</h3><HealthTimeline timeline={service.timeline} serviceName={service.name} provider={service.provider} environment={service.environment} /><p className="health-drawer-trend">Latency trend: <strong>{service.latencyTrend}</strong></p></section>
           <section><h3>Latest checks</h3><dl className="health-check-times"><div><dt>Last checked</dt><dd>{formatDateTime(service.lastCheckedAt)}</dd></div><div><dt>Last successful</dt><dd>{formatDateTime(service.lastSuccessfulCheck)}</dd></div><div><dt>Last failed</dt><dd>{service.lastFailedCheck ? formatDateTime(service.lastFailedCheck) : "None in range"}</dd></div></dl></section>
           <section><h3>Dependencies</h3><DependencyTree dependencies={service.dependencies} serviceMap={serviceMap} /></section>
           <section><h3>Recent incidents</h3><IncidentList incidents={service.incidents} /></section>
@@ -209,5 +211,5 @@ export const ServiceDrawer = ({ service, serviceMap, onClose, onManualCheck, isC
 export const SkeletonRow = () => <div className="health-skeleton-row" aria-hidden="true"><span /><span /><span /></div>;
 
 export const EmptyState = ({ onReset }) => (
-  <section className="health-empty-state"><SearchNormal1 size={28} aria-hidden="true" /><h2>No services match these filters</h2><p>Try a broader search or reset the monitoring filters.</p><button className="button button-ghost" type="button" onClick={onReset}>Reset filters</button></section>
+  <section className="health-empty-state glass-card"><SearchNormal1 size={28} aria-hidden="true" /><h2>No services match these filters</h2><p>Try a broader search or reset the monitoring filters.</p><button className="button button-ghost" type="button" onClick={onReset}>Reset filters</button></section>
 );

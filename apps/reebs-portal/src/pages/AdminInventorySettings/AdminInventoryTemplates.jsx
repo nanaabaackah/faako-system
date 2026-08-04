@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
+import { reebsApiResponse } from "../../api/client.js";
 import "./AdminInventorySettings.css";
 
 const inventoryTemplateSection = "inventory-templates";
@@ -66,7 +67,7 @@ function AdminInventoryTemplates() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${contentUrl}?section=${inventoryTemplateSection}`);
+      const response = await reebsApiResponse(`${contentUrl}?section=${inventoryTemplateSection}`);
       if (!response.ok) {
         throw new Error(await readApiError(response, "Inventory templates could not be loaded."));
       }
@@ -105,7 +106,7 @@ function AdminInventoryTemplates() {
     setError("");
     setSuccess("");
     try {
-      const response = await fetch(contentUrl, {
+      const response = await reebsApiResponse(contentUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

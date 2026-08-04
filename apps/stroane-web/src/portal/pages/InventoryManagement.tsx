@@ -28,6 +28,7 @@ import {
   HiOutlineX,
 } from "react-icons/hi";
 import { useSearchParams } from "react-router-dom";
+import { productFormSchema } from "@faako/validation";
 import {
   ERPFormNotice,
   ERPDangerAction,
@@ -745,13 +746,16 @@ const InventoryManagementContent: React.FC = () => {
 
       clearMessages();
       setFormError("");
-      if (!productDraft.name.trim()) {
-        setFormError("Product name is required.");
-        setProductAutosaveStatus(options.silent ? "error" : "idle");
-        return;
-      }
-      if (productDraft.price && Number.isNaN(Number(productDraft.price))) {
-        setFormError("Product price must be a valid number.");
+      const productValidation = productFormSchema.safeParse({
+        name: productDraft.name,
+        sku: productDraft.sku || null,
+        price: productDraft.price === "" ? null : productDraft.price,
+        currency: productDraft.currency || "GHS",
+        categorySlug: productDraft.categorySlug || null,
+        shortDescription: productDraft.shortDescription || null,
+      });
+      if (!productValidation.success) {
+        setFormError(productValidation.error.issues[0]?.message || "Review the product details.");
         setProductAutosaveStatus(options.silent ? "error" : "idle");
         return;
       }
@@ -788,12 +792,16 @@ const InventoryManagementContent: React.FC = () => {
     clearMessages();
     setFormError("");
 
-    if (!createDraft.name.trim()) {
-      setFormError("Product name is required.");
-      return;
-    }
-    if (createDraft.price && Number.isNaN(Number(createDraft.price))) {
-      setFormError("Product price must be a valid number.");
+    const productValidation = productFormSchema.safeParse({
+      name: createDraft.name,
+      sku: createDraft.sku || null,
+      price: createDraft.price === "" ? null : createDraft.price,
+      currency: createDraft.currency || "GHS",
+      categorySlug: createDraft.categorySlug || null,
+      shortDescription: createDraft.shortDescription || null,
+    });
+    if (!productValidation.success) {
+      setFormError(productValidation.error.issues[0]?.message || "Review the product details.");
       return;
     }
     const numberFields = [

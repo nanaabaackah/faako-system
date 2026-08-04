@@ -105,7 +105,11 @@ def build_dashboard_insights(payload: dict[str, Any]) -> dict[str, Any]:
         insights.append({
             "key": "inventory-risk",
             "title": f"{len(risks)} fast-moving item{'s' if len(risks) != 1 else ''} need attention",
-            "detail": f"{critical_count} may run out within a week." if critical_count else "Review stock cover before the next booking cycle.",
+            "detail": (
+                f"{critical_count} may run out within a week."
+                if critical_count
+                else "Review stock cover before the next booking cycle."
+            ),
             "tone": "critical" if critical_count else "warning",
             "path": "/admin/inventory?filter=low",
         })
@@ -143,4 +147,3 @@ def build_dashboard_insights(payload: dict[str, Any]) -> dict[str, Any]:
         },
         "insights": insights[:4],
     }
-

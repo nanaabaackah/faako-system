@@ -1,4 +1,8 @@
 import catalogueData from "./stroaneCatalogue.json";
+import type {
+  PublicCatalogueCategory,
+  PublicCatalogueProduct,
+} from "@faako/types";
 
 export type Category = string;
 
@@ -16,7 +20,7 @@ export type ProductStock =
   | "Preorder"
   | "Unavailable";
 
-export interface CatalogueCategory {
+export interface CatalogueCategory extends PublicCatalogueCategory<string> {
   id: string;
   name: Category;
   description: string;
@@ -37,7 +41,7 @@ export interface BusinessProfile {
   sourceNote: string;
 }
 
-export interface Product {
+export interface Product extends PublicCatalogueProduct<string> {
   id: string;
   name: string;
   productType?: "standalone" | "variant_parent";

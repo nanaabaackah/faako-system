@@ -12,6 +12,7 @@ import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
+import { reebsApiResponse } from "../../api/client.js";
 import {
   SYNC_STATES,
   createIndexedDbQueueStorage,
@@ -824,7 +825,7 @@ function Admin() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/inventory");
+      const response = await reebsApiResponse("/api/inventory");
       if (!response.ok) {
         throw new Error("Unable to fetch inventory.");
       }
@@ -844,7 +845,7 @@ function Admin() {
 
   const loadVendors = useCallback(async () => {
     try {
-      const response = await fetch("/api/vendors");
+      const response = await reebsApiResponse("/api/vendors");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch vendors.");
@@ -863,7 +864,7 @@ function Admin() {
   const loadSourceCategories = useCallback(async () => {
     setSourceCategoryError("");
     try {
-      const response = await fetch("/api/sourceCategories");
+      const response = await reebsApiResponse("/api/sourceCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch products.");
@@ -883,7 +884,7 @@ function Admin() {
   const loadSpecificCategories = useCallback(async () => {
     setSourceCategoryError("");
     try {
-      const response = await fetch("/api/specificCategories");
+      const response = await reebsApiResponse("/api/specificCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch categories.");
@@ -912,7 +913,7 @@ function Admin() {
     );
     if (existing) return existing;
 
-    const response = await fetch("/api/sourceCategories", {
+    const response = await reebsApiResponse("/api/sourceCategories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: categoryName }),
@@ -941,7 +942,7 @@ function Admin() {
     const categoryName = normalizeInventoryCategoryName(nextName);
     if (!categoryName || categoryName.toLowerCase() === String(category.name || "").toLowerCase()) return;
 
-    const response = await fetch("/api/sourceCategories", {
+    const response = await reebsApiResponse("/api/sourceCategories", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: category.id, name: categoryName }),
@@ -994,7 +995,7 @@ function Admin() {
     setEditRequestsLoading(true);
     setEditRequestsError("");
     try {
-      const response = await fetch("/api/inventory?view=edit-requests");
+      const response = await reebsApiResponse("/api/inventory?view=edit-requests");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load edit requests.");
@@ -1019,7 +1020,7 @@ function Admin() {
     setLoading(true);
     setErrorState("");
     try {
-      const response = await fetch(`/api/inventory?view=${view}`);
+      const response = await reebsApiResponse(`/api/inventory?view=${view}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Failed to load items.");
       setter(Array.isArray(data) ? data : []);
@@ -1054,7 +1055,7 @@ function Admin() {
     setStockActivityError("");
     try {
       const query = buildStockActivityQuery();
-      const res = await fetch(`/api/stockActivity${query ? `?${query}` : ""}`);
+      const res = await reebsApiResponse(`/api/stockActivity${query ? `?${query}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Unable to load stock history.");
       setStockActivity(Array.isArray(data?.months) ? data.months : []);
@@ -1069,7 +1070,7 @@ function Admin() {
 
   const loadWaterSnapshot = useCallback(async () => {
     try {
-      const response = await fetch("/api/water");
+      const response = await reebsApiResponse("/api/water");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to load water summary.");
@@ -1104,7 +1105,7 @@ function Admin() {
 
     try {
       const query = buildStockActivityQuery({ month: monthKey, movementType });
-      const response = await fetch(`/api/stockActivity?${query}`);
+      const response = await reebsApiResponse(`/api/stockActivity?${query}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Unable to load movement items.");
@@ -1269,7 +1270,7 @@ function Admin() {
     try {
       const endpoint = queueItem.payload?.endpoint || {};
       const adjustment = queueItem.payload?.adjustment || {};
-      const response = await fetch(endpoint.path || "/api/stock", {
+      const response = await reebsApiResponse(endpoint.path || "/api/stock", {
         method: endpoint.method || "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(adjustment),
@@ -1428,7 +1429,7 @@ function Admin() {
     if (!window.confirm(`Archive "${formatInventoryItemName(item.name, "This Item")}"?`)) return;
     setActionItemId(item.id);
     try {
-      const response = await fetch("/api/inventory", {
+      const response = await reebsApiResponse("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, action: "archive", ...buildActorPayload() }),
@@ -1457,7 +1458,7 @@ function Admin() {
     try {
       const restored = [];
       for (const id of archivedSelected) {
-        const response = await fetch("/api/inventory", {
+        const response = await reebsApiResponse("/api/inventory", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, action: "unarchive", ...buildActorPayload() }),
@@ -1495,7 +1496,7 @@ function Admin() {
     try {
       const deleted = [];
       for (const id of archivedSelected) {
-        const response = await fetch("/api/inventory", {
+        const response = await reebsApiResponse("/api/inventory", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, ...buildActorPayload() }),
@@ -2132,7 +2133,7 @@ function Admin() {
     if (!option) return null;
     const linkedSource = findCanonicalSourceCategory(option.sourceCategoryCode);
     const sourceCategoryId = Number(linkedSource?.id);
-    const response = await fetch("/api/specificCategories", {
+    const response = await reebsApiResponse("/api/specificCategories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2281,7 +2282,7 @@ function Admin() {
     setSubmitError("");
     setSuccess("");
     try {
-      const response = await fetch("/api/inventory", {
+      const response = await reebsApiResponse("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2357,7 +2358,7 @@ function Admin() {
     try {
       const archived = [];
       for (const item of selectedItems) {
-        const response = await fetch("/api/inventory", {
+        const response = await reebsApiResponse("/api/inventory", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: item.id, action: "archive", ...buildActorPayload() }),
@@ -2873,7 +2874,7 @@ function Admin() {
           hasCadPrice && cadToGbpWithTaxRate
             ? purchasePriceCadValue * cadToGbpWithTaxRate
             : null;
-        const response = await fetch("/api/inventory", {
+        const response = await reebsApiResponse("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -2918,7 +2919,7 @@ function Admin() {
           const vColors = String(row.variantColors || "").split(",").map((s) => s.trim()).filter(Boolean);
           const vSizes = String(row.variantSizes || "").split(",").map((s) => s.trim()).filter(Boolean);
           if (vNames.length || vNumbers.length || vColors.length || vSizes.length) {
-            const vResponse = await fetch("/api/inventoryVariants", {
+            const vResponse = await reebsApiResponse("/api/inventoryVariants", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -3236,7 +3237,7 @@ function Admin() {
   };
 
   const fetchItemVariants = async (itemId) => {
-    const response = await fetch(`/api/inventoryVariants?itemId=${encodeURIComponent(itemId)}`);
+    const response = await reebsApiResponse(`/api/inventoryVariants?itemId=${encodeURIComponent(itemId)}`);
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(payload?.error || "Unable to load variants.");
@@ -3302,7 +3303,7 @@ function Admin() {
     if (!variantsToSave.length) return nextVariants;
 
     for (const payload of variantsToSave) {
-      const response = await fetch("/api/inventoryVariants", {
+      const response = await reebsApiResponse("/api/inventoryVariants", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -3326,7 +3327,7 @@ function Admin() {
     setVariantActionId(variantId);
     setDetailError("");
     try {
-      const response = await fetch(
+      const response = await reebsApiResponse(
         `/api/inventoryVariants?id=${encodeURIComponent(variantId)}`,
         { method: "DELETE" }
       );
@@ -3374,7 +3375,7 @@ function Admin() {
         setDetailError("Enter at least one dimension — names, numbers, colors, or sizes.");
         return;
       }
-      const response = await fetch("/api/inventoryVariants", {
+      const response = await reebsApiResponse("/api/inventoryVariants", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3510,7 +3511,7 @@ function Admin() {
       let payload = detailItem || {};
 
       if (hasCoreChanges) {
-        response = await fetch("/api/inventory", {
+        response = await reebsApiResponse("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -3581,7 +3582,7 @@ function Admin() {
         
         // Reload the item from the database to prevent stale state since staff changes don't update immediately
         try {
-          const refreshed = await fetch(`/api/inventory`);
+          const refreshed = await reebsApiResponse(`/api/inventory`);
           if (refreshed.ok) {
             const allItems = await refreshed.json();
             const updatedItem = allItems?.find((item) => Number(item.id) === Number(formSnapshot.id));
@@ -3691,7 +3692,7 @@ function Admin() {
     setEditRequestsError("");
     setSuccess("");
     try {
-      const response = await fetch("/api/inventory", {
+      const response = await reebsApiResponse("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId: request.id, action }),
@@ -3765,7 +3766,7 @@ function Admin() {
         return;
       }
 
-      const response = await fetch("/api/stock", {
+      const response = await reebsApiResponse("/api/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(stockAdjustmentPayload),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { reebsApiResponse } from "../../../api/client.js";
 
 export default function useOrder(orderId) {
   const [order, setOrder] = useState(null);
@@ -17,7 +18,7 @@ export default function useOrder(orderId) {
     const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
-    return fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
+    return reebsApiResponse(`/api/orders?id=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {

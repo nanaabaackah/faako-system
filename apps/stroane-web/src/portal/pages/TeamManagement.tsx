@@ -18,6 +18,11 @@ import {
   ERPTextareaField,
   ERPTextField,
 } from "@faako/ui";
+import {
+  roleFormSchema,
+  usernameAccessFormSchema,
+  validationIssues,
+} from "@faako/validation";
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
 import {
@@ -66,7 +71,6 @@ const CUSTOM_ROLE_MODULES = ADMIN_ROLE_MODULES.filter(
   (moduleId): moduleId is Exclude<AdminRoleModule, "team"> => moduleId !== "team"
 );
 
-const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{1,50}$/;
 const ROLE_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,48}[a-z0-9]$/;
 
 const createDefaultCustomPermissions = (): AdminRolePermissions =>
@@ -158,6 +162,28 @@ const TeamManagement: React.FC = () => {
       })),
     [activeRoles]
   );
+  const hasUnsavedChanges = useMemo(
+    () =>
+      userDraft.username !== EMPTY_USER_DRAFT.username ||
+      userDraft.password !== EMPTY_USER_DRAFT.password ||
+      userDraft.roleKey !== EMPTY_USER_DRAFT.roleKey ||
+      editingRoleId !== "" ||
+      roleDraft.key !== "" ||
+      roleDraft.name !== "" ||
+      roleDraft.description !== "" ||
+      JSON.stringify(roleDraft.permissions) !==
+        JSON.stringify(createDefaultCustomPermissions()),
+    [editingRoleId, roleDraft, userDraft]
+  );
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const warnAboutUnsavedChanges = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnAboutUnsavedChanges);
+    return () => window.removeEventListener("beforeunload", warnAboutUnsavedChanges);
+  }, [hasUnsavedChanges]);
 
   const loadTeam = useCallback(async () => {
     setLoading(true);
@@ -185,13 +211,8 @@ const TeamManagement: React.FC = () => {
   }, [loadTeam]);
 
   const validateUserDraft = () => {
-    const username = userDraft.username.trim().toLowerCase();
-    if (!USERNAME_PATTERN.test(username)) {
-      return "Username must be 1-50 characters using letters, numbers, . _ - only.";
-    }
-    if (userDraft.password.length < 8 || userDraft.password.length > 100) {
-      return "Password must be 8-100 characters.";
-    }
+    const parsed = usernameAccessFormSchema.safeParse(userDraft);
+    if (!parsed.success) return validationIssues(parsed.error)[0]?.message || "Check the user details.";
     if (!roleByKey.has(userDraft.roleKey)) {
       return "Choose an active role for this user.";
     }
@@ -199,10 +220,9 @@ const TeamManagement: React.FC = () => {
   };
 
   const validateRoleDraft = () => {
-    const name = roleDraft.name.trim();
     const key = normalizeRoleKeyInput(roleDraft.key);
-    if (!name || name.length > 80) return "Role name must be 1-80 characters.";
-    if (roleDraft.description.trim().length > 240) return "Role description must be 240 characters or fewer.";
+    const parsed = roleFormSchema.safeParse({ ...roleDraft, key });
+    if (!parsed.success) return validationIssues(parsed.error)[0]?.message || "Check the role details.";
     if (key && !ROLE_KEY_PATTERN.test(key)) {
       return "Role key must be 3-50 characters using lowercase letters, numbers, _ or -.";
     }
@@ -300,6 +320,9 @@ const TeamManagement: React.FC = () => {
 
   const updateRoleStatus = async (role: AdminRoleDefinition, isActive: boolean) => {
     if (role.isSystem) return;
+    if (!isActive && !window.confirm(`Deactivate the ${role.name} role? Existing assignments may lose access.`)) {
+      return;
+    }
     setNotice("");
     setError("");
     setUpdatingRoleId(role.id);
@@ -319,6 +342,12 @@ const TeamManagement: React.FC = () => {
   };
 
   const updateUser = async (user: AdminTeamUser, payload: AdminUpdateUserPayload) => {
+    if (
+      payload.isActive === false &&
+      !window.confirm(`Disable ${user.username}? They will no longer be able to sign in.`)
+    ) {
+      return;
+    }
     setNotice("");
     setError("");
     setUpdatingUserId(user.id);

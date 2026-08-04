@@ -12,7 +12,7 @@ The repository-level JavaScript/TypeScript contract is:
 - `pnpm build`: every workspace with a build artifact or an intentional no-compilation API build check.
 - `pnpm check`: runs lint, type-check, unit/integration tests, and build in that order and stops on the first failure.
 - `pnpm test:e2e`: separate Playwright orchestration; use targeted workspace commands when services or fixtures differ.
-- `pnpm test:python`: REEBS analytics tests using its isolated Python environment.
+- `pnpm test:python`: shared Faako Analytics tests using its isolated Python environment.
 
 An em dash in the inventory means that no applicable check or test asset currently exists. It does not mean that Turbo silently skips a known suite.
 
@@ -48,7 +48,7 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/ui` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/utils` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/validation` | `eslint src test` | declaration check with `tsc --noEmit` | `node --test` | —; source-consumed | — |
-| `reebs-analytics` | Python tooling applies | Python/Pydantic import-time checking only | `python -m pytest` through `pnpm test:python` | Docker/Python service; outside Turbo | — |
+| `faako-analytics` (compatibility path `reebs-analytics`) | Ruff | mypy + Pydantic contracts | `python -m pytest` through `pnpm test:python` | Docker/Python service; outside Turbo | — |
 
 `apps/ttngh` is not listed as an active workspace because it has no source manifest. The three manifest-less package placeholders are also outside the executable gate.
 
@@ -64,7 +64,7 @@ Dev ERP's four HTTP integration assertions in `backend/http/app.test.js` create 
 
 ## Python isolation
 
-REEBS analytics is intentionally outside the pnpm workspace. Use:
+Faako Analytics is intentionally outside the pnpm workspace. Use:
 
 ```sh
 python3 -m venv services/reebs-analytics/.venv

@@ -82,3 +82,8 @@ Before enablement:
 
 Provider selection and installation should be a separate decision/PR after the
 unchecked items have owners.
+# Final-phase observability review (2026-08-04)
+
+The decision remains unchanged: no paid monitoring provider is approved or installed.
+
+Current strengths are shared structured/redacted logging, request-ID middleware/contracts, Dev ERP request/audit logs, representative Stroane adoption, and separate audit-event conventions. Final gaps are: remaining legacy console logging; no central frontend exception transport; no release identifier/private source-map upload; no formal alert ownership/SLO; incomplete request-ID adoption in serverless REEBS handlers; and no provider-neutral exception envelope for the Python service. Before provider selection, approve data residency, retention, PII redaction, environment separation, source-map access, release naming, sampling, alert routing, and incident ownership.

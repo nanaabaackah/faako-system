@@ -45,6 +45,10 @@ The public site now pre-renders 1,125 documents from tracked source. Product, ca
 
 - The public storefront and portal are code-split, but the emitted public storefront chunk remains about 241 KiB minified alongside vendor and shared UI chunks.
 - The workspace builds Prisma client before the Vite frontend, reflecting the current mixed public/backend boundary.
+
+### Boundary follow-up — 2026-08-02
+
+The storefront and admin now compile from independent entry graphs into `dist/storefront` and `dist/admin`. The storefront no longer emits a portal application chunk, and public pages are route-lazy: the storefront entry is 19.93 kB raw, while individual page chunks range from small policy/auth modules to 21.16 kB for the homepage, with the catalogue data isolated in a 69.59 kB raw chunk. The shared React/router vendor remains 232.47 kB raw. Browser builds no longer run Prisma generation. Static route shells add route-specific metadata and structured data without changing the interactive Vite runtime.
 - About 67 MiB of emitted images dominates output.
 - Google Fonts add third-party DNS, connection, stylesheet, and font requests.
 - Product APIs and checkout flows are legitimate dynamic work; service, about, resource, legal, and marketing content should become static at migration time.

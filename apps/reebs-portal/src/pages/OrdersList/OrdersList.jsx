@@ -20,6 +20,7 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import { reebsApiResponse } from "../../api/client.js";
 import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 import {
   faPlus,
@@ -219,7 +220,7 @@ function OrdersList() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/orders?compact=1&limit=500", {
+      const response = await reebsApiResponse("/api/orders?compact=1&limit=500", {
         signal: fetchSignal,
       });
       if (!response.ok) {
@@ -703,7 +704,7 @@ function OrdersList() {
     });
 
     try {
-      const response = await fetch("/api/orderPayments", {
+      const response = await reebsApiResponse("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -884,7 +885,7 @@ function OrdersList() {
         return;
       }
 
-      const response = await fetch("/api/orderPayments", {
+      const response = await reebsApiResponse("/api/orderPayments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paymentPayload),

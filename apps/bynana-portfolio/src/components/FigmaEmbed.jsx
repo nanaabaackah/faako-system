@@ -30,7 +30,7 @@ function FigmaEmbed({ figmaUrl, previewImage, alt }) {
           aria-modal="true"
           aria-label={`${alt} fullscreen preview`}
         >
-          <button className="lightbox-close" onClick={closeLightbox} aria-label="Close preview">
+          <button type="button" className="lightbox-close" onClick={closeLightbox} aria-label="Close preview">
             <CloseCircle size={22} variant="Bold" aria-hidden="true" />
           </button>
           <div className="lightbox-content">

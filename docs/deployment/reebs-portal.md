@@ -1,0 +1,9 @@
+# REEBS Portal and API deployment
+
+- **Hosting/domain:** portal static frontend at the approved portal domain; Express/Prisma API on Railway at the approved API domain. The public Astro site is a separate deployment.
+- **Build/runtime:** frontend `pnpm --filter @faako/reebs-portal run build`; API `server:with-migrate`. Generate/deploy Prisma before starting Node 22.
+- **Health/logs:** API health endpoint, structured/request-ID logs where adopted, operational audit logs, and read-only analytics-service health.
+- **Preview/production:** separate database, exact CORS origins, cookie domains, manager/user secrets, analytics secret and notification catchalls. Never point Playwright mutation suites at production.
+- **Cache/redirects/headers:** deploy portal `_headers`/`_redirects`; admin HTML should not be cached publicly; hashed assets may be immutable.
+- **Rollback:** keep the prior portal/API release available; redeploy it if checks fail. Schema rollback requires an approved migration.
+- **Environment names:** `APP_ENV`, `NODE_ENV`, `PORT`, `REEBS_API_PORT`, `DATABASE_URL`, `DATABASE_URL_PRODUCTION`, `CORS_ORIGINS`, `ALLOWED_ORIGINS`, `TRUST_PROXY_HOPS`, `USER_APP_SECRET`, `USER_SESSION_COOKIE_NAME`, `USER_SESSION_COOKIE_DOMAIN`, `MANAGER_APP_SECRET`, `MANAGER_PIN_HASH`, `MANAGER_ORGANIZATION_ID`, `MANAGER_APP_ORIGIN`, `REEBS_PORTAL_URL`, `REEBS_WEBSITE_URL`, `APP_BASE_URL`, `APP_URL`, `SITE_URL`, `VITE_API_BASE_URL`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_ENABLE_GA_IN_DEV`, `VITE_GOOGLE_MAPS_KEY`, `GOOGLE_MAPS_API_KEY`, `OPENAI_API_KEY`, `FAAKO_ANALYTICS_SERVICE_URL`, `FAAKO_ANALYTICS_SERVICE_SECRET`, `REEBS_ANALYTICS_SERVICE_URL`, `REEBS_ANALYTICS_SERVICE_SECRET`, `ALLOWED_CHECKOUT_ORG_IDS`, `WATER_MOMO_WEBHOOK_SECRET`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_MANAGER_PHONE`, `RAILWAY_WEBHOOK_SECRET`, `APP_ACTIVITY_WEBHOOK_URL`, `APP_ACTIVITY_WEBHOOK_SECRET`.

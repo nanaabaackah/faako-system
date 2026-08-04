@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { SelectField } from "@faako/ui";
 import { InlineNotice } from "../../../components/InlineNotice/InlineNotice";
+import { reebsApiResponse } from "../../../api/client.js";
 import {
   FULFILLMENT_STATUS_OPTIONS,
   formatDateTime,
@@ -23,7 +24,7 @@ export default function FulfillmentPanel({ order, onUpdated }) {
     setNotice(null);
     const controller = new AbortController();
     try {
-      const response = await fetch("/api/orders", {
+      const response = await reebsApiResponse("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: order.id, fulfillmentStatus: status }),

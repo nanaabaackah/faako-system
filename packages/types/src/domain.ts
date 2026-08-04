@@ -130,6 +130,48 @@ export interface Product<
   price?: Money<number | string> | null;
 }
 
+/** Framework-independent contract for catalogue data safe to expose publicly. */
+export type CatalogueAvailabilityStatus =
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock"
+  | "preorder"
+  | "unavailable"
+  | "manual_review";
+
+export interface PublicCatalogueCategory<Id extends DomainId = DomainId>
+  extends DomainEntity<Id> {
+  name: string;
+  slug?: string | null;
+  description?: string | null;
+  parentId?: Id | null;
+  sortOrder?: number | null;
+  isGroup?: boolean;
+  tags?: string[];
+}
+
+export interface PublicCatalogueProduct<Id extends DomainId = DomainId>
+  extends DomainEntity<Id> {
+  name: string;
+  slug?: string | null;
+  sku?: string | null;
+  category: string;
+  categorySlug: string;
+  description?: string | null;
+  price: number | null;
+  currency: string;
+  image?: string | null;
+  imageAlt?: string | null;
+  stockStatus?: CatalogueAvailabilityStatus;
+  stockQuantity?: number | null;
+  reservedQuantity?: number | null;
+  availableQuantity?: number | null;
+  lowStockThreshold?: number | null;
+  reorderThreshold?: number | null;
+  allowBackorder?: boolean;
+  isPurchasable?: boolean;
+}
+
 export interface Customer<
   Id extends DomainId = DomainId,
   OrganisationId extends DomainId = DomainId,

@@ -8,9 +8,21 @@ import {
   getVendorProductSummaries,
   setProductVendorLinks,
 } from "./_shared/productVendors.js";
-import { requireInternalUser, respond } from "./_shared/internalApi.js";
+import {
+  hasPermission,
+  requirePermission,
+  respond,
+} from "./_shared/internalApi.js";
 
 const VENDOR_METHODS = "GET,POST,PUT,PATCH,OPTIONS";
+
+export const requiredVendorsPermission = (method) =>
+  String(method || "").toUpperCase() === "GET"
+    ? "vendors:read"
+    : "vendors:write";
+
+export const canAccessVendorsMethod = (user, method) =>
+  hasPermission(user, requiredVendorsPermission(method));
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS "vendor" (
@@ -202,11 +214,15 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
-    const authResult = await requireInternalUser(client, event, {
-      methods: VENDOR_METHODS,
-      roles: ["owner", "admin", "manager"],
-      roleError: "Only owners, admins, and managers can access vendors.",
-    });
+    const authResult = await requirePermission(
+      client,
+      event,
+      requiredVendorsPermission(event.httpMethod),
+      {
+        methods: VENDOR_METHODS,
+        permissionError: "You do not have permission to access vendors.",
+      },
+    );
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }

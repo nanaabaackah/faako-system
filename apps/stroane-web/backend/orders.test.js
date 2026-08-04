@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { prepareCommerceOrder } from "./src/orders.js";
+import { parseAdminOrderStatus } from "./src/ordersAdmin/routes.js";
+
+test("admin order updates accept supported transitions and reject unknown statuses", () => {
+  assert.equal(parseAdminOrderStatus("paid"), "PAID");
+  assert.equal(parseAdminOrderStatus(" completed "), "COMPLETED");
+  assert.equal(parseAdminOrderStatus("not-a-status"), null);
+  assert.equal(parseAdminOrderStatus(undefined), "");
+});
 
 const createPrismaWithProduct = (product) => ({
   catalogueProduct: {
