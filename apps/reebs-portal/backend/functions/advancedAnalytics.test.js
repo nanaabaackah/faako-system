@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildFallbackAnalytics,
+  buildSharedAnalyticsRequest,
   normalizeAnalyticsServiceUrl,
 } from "./advancedAnalytics.js";
 
@@ -46,4 +47,18 @@ test("analytics service URL accepts a Railway hostname without a scheme", () => 
     "https://analytics.example.com/base"
   );
   assert.equal(normalizeAnalyticsServiceUrl("file:///tmp/service"), "");
+});
+
+test("shared analytics request binds REEBS application and tenant context", () => {
+  const request = buildSharedAnalyticsRequest({
+    organizationId: 42,
+    generatedAt: "2026-08-04T12:00:00.000Z",
+    historyDays: 90,
+    revenueSeries: [{ date: "2026-08-01", orderRevenueCents: 1000 }],
+  });
+
+  assert.equal(request.context.applicationId, "reebs");
+  assert.equal(request.context.tenantId, "42");
+  assert.equal(request.period.startAt, "2026-08-01T00:00:00.000Z");
+  assert.equal(request.sourceTimestamp, "2026-08-04T12:00:00.000Z");
 });

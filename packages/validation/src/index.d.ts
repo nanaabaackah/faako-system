@@ -51,6 +51,64 @@ export declare const customerFormSchema: z.ZodType<{
   status?: string;
 }>;
 
+export declare const customerMasterDataFormSchema: z.ZodType<{
+  name: string;
+  email?: string;
+  phone?: string;
+  businessName?: string;
+  preferredContactMethod?: "email" | "phone" | "whatsapp";
+  defaultDeliveryAddress?: string;
+  deliveryNotes?: string;
+  status?: string;
+}>;
+
+export declare const userAccessFormSchema: z.ZodType<{
+  firstName: string;
+  lastName: string;
+  email?: string;
+  password?: string | null;
+  roleId?: string | number | null;
+  role?: string;
+  roleKey?: string;
+  status?: "ACTIVE" | "SUSPENDED" | "PENDING" | "INACTIVE" | "DISABLED";
+}>;
+
+export declare const usernameAccessFormSchema: z.ZodType<{
+  username: string;
+  password: string;
+  roleKey: string;
+}>;
+
+export declare const roleFormSchema: z.ZodType<{
+  name: string;
+  key?: string;
+  description?: string;
+  modules?: string[];
+  permissions?: Record<string, unknown>;
+  isActive?: boolean;
+}>;
+
+export declare const roleAssignmentInputSchema: z.ZodType<{
+  userId: string | number;
+  roleId?: string | number | null;
+  roleKey?: string;
+}>;
+
+export declare const vendorFormSchema: z.ZodType<{
+  name: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  mobileMoneyNumber?: string | null;
+  address?: string | null;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  leadTimeDays?: number | string | null;
+  suppliedItems?: string[];
+  notes?: string | null;
+  status?: string;
+}>;
+
 export declare const productFormSchema: z.ZodType<{
   name: string;
   slug?: string;
@@ -98,6 +156,57 @@ export declare const bookingInputSchema: z.ZodType<{
   location?: string;
   meetingLink?: string;
   honeypot?: string;
+}>;
+
+export declare const orderLineInputSchema: z.ZodType<{
+  productId?: string | number;
+  productSlug?: string;
+  variantId?: string | number | null;
+  quantity: number;
+  price?: number | string;
+  unitPrice?: number | string;
+}>;
+
+export declare const orderCreateInputSchema: z.ZodType<{
+  customerId: string | number;
+  status?: string;
+  source?: string;
+  purchaseChannel?: string;
+  fulfillmentMethod?: string;
+  deliveryMethod?: "pickup" | "delivery";
+  deliveryRequired?: boolean;
+  type?: string;
+  items: Array<{
+    productId?: string | number;
+    productSlug?: string;
+    variantId?: string | number | null;
+    quantity: number;
+    price?: number | string;
+    unitPrice?: number | string;
+  }>;
+  discount?: number | string;
+}>;
+
+export declare const orderStatusTransitionSchema: z.ZodType<{
+  orderId?: string | number;
+  status: string;
+  reason?: string | null;
+}>;
+
+export declare const bookingStatusTransitionSchema: z.ZodType<{
+  bookingId?: string | number;
+  status: string;
+  reason?: string | null;
+}>;
+
+export declare const deliveryUpdateSchema: z.ZodType<{
+  deliveryId?: string | number;
+  status: string;
+  driverId?: string | number | null;
+  vehicleId?: string | number | null;
+  scheduledAt?: string;
+  deliveredAt?: string;
+  notes?: string | null;
 }>;
 
 export declare const invoiceLineInputSchema: z.ZodType<{
@@ -192,6 +301,16 @@ export type AuthenticationRegistrationInput = z.infer<
 >;
 export type OrganisationFormInput = z.infer<typeof organisationFormSchema>;
 export type CustomerFormInput = z.infer<typeof customerFormSchema>;
+export type CustomerMasterDataFormInput = z.infer<
+  typeof customerMasterDataFormSchema
+>;
+export type UserAccessFormInput = z.infer<typeof userAccessFormSchema>;
+export type UsernameAccessFormInput = z.infer<
+  typeof usernameAccessFormSchema
+>;
+export type RoleFormInput = z.infer<typeof roleFormSchema>;
+export type RoleAssignmentInput = z.infer<typeof roleAssignmentInputSchema>;
+export type VendorFormInput = z.infer<typeof vendorFormSchema>;
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type InventoryAdjustmentInput = z.infer<
   typeof inventoryAdjustmentSchema

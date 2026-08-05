@@ -14,6 +14,7 @@ export const useMonitoringData = (range) => {
   const [partialErrors, setPartialErrors] = useState([]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const inFlightRef = useRef(false);
+  const abortControllerRef = useRef(null);
   const requestVersionRef = useRef(0);
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -21,11 +22,14 @@ export const useMonitoringData = (range) => {
     inFlightRef.current = true;
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     if (silent) setRefreshing(true);
     else setLoading(true);
     try {
       const payload = await apiGet(`/api/monitoring/summary?range=${getApiRange(range)}`, {
         cache: "no-store",
+        signal: controller.signal,
         fallbackMessage: "Unable to load system monitoring data.",
       });
       if (requestVersion !== requestVersionRef.current) return null;
@@ -35,10 +39,15 @@ export const useMonitoringData = (range) => {
       setError("");
       return payload;
     } catch (requestError) {
-      if (requestVersion === requestVersionRef.current) setError(requestError.message || "Unable to load system monitoring data.");
+      if (requestError?.name !== "AbortError" && requestVersion === requestVersionRef.current) {
+        setError(requestError.message || "Unable to load system monitoring data.");
+      }
       return null;
     } finally {
-      inFlightRef.current = false;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        inFlightRef.current = false;
+      }
       if (requestVersion === requestVersionRef.current) {
         setLoading(false);
         setRefreshing(false);
@@ -47,9 +56,11 @@ export const useMonitoringData = (range) => {
   }, [range]);
 
   useEffect(() => {
+    abortControllerRef.current?.abort();
     requestVersionRef.current += 1;
     inFlightRef.current = false;
     void load();
+    return () => abortControllerRef.current?.abort();
   }, [load]);
 
   useEffect(() => {

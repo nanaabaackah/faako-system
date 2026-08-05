@@ -128,6 +128,117 @@ export const customerFormSchema = z
     });
   });
 
+/**
+ * Compatibility schema for operational directories that historically allow a
+ * name-only customer. Account and checkout forms should use customerFormSchema.
+ */
+export const customerMasterDataFormSchema = z
+  .object({
+    name: requiredText(200),
+    email: optionalEmailSchema,
+    phone: optionalPhoneSchema,
+    businessName: optionalText(200),
+    preferredContactMethod: z
+      .enum(["email", "phone", "whatsapp"])
+      .optional(),
+    defaultDeliveryAddress: optionalText(500),
+    deliveryNotes: optionalText(1200),
+    status: optionalText(80),
+  })
+  .strip();
+
+export const userAccessFormSchema = z
+  .object({
+    firstName: requiredText(120),
+    lastName: requiredText(120),
+    email: optionalEmailSchema,
+    password: nullableOptionalText(1024),
+    roleId: domainIdSchema.nullable().optional(),
+    role: optionalText(80),
+    roleKey: optionalText(80),
+    status: z
+      .enum(["ACTIVE", "SUSPENDED", "PENDING", "INACTIVE", "DISABLED"])
+      .optional(),
+  })
+  .strip();
+
+/** Username-based operational accounts used by portals without email login. */
+export const usernameAccessFormSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1)
+      .max(50)
+      .regex(
+        /^[a-z0-9._-]+$/,
+        "Username can only use letters, numbers, dots, underscores, and hyphens.",
+      ),
+    password: z.string().min(8).max(100),
+    roleKey: requiredText(80),
+  })
+  .strip();
+
+export const roleFormSchema = z
+  .object({
+    name: requiredText(80),
+    key: z
+      .union([
+        z.string().trim().toLowerCase().max(80).regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/),
+        z.literal(""),
+      ])
+      .optional(),
+    description: optionalText(240),
+    modules: z.array(requiredText(120)).max(100).optional(),
+    permissions: z.record(z.string(), z.unknown()).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strip();
+
+export const roleAssignmentInputSchema = z
+  .object({
+    userId: domainIdSchema,
+    roleId: domainIdSchema.nullable().optional(),
+    roleKey: optionalText(80),
+  })
+  .strip()
+  .superRefine((value, context) => {
+    if (value.roleId !== undefined && value.roleId !== null) return;
+    if (value.roleKey) return;
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["roleId"],
+      message: "Choose a role assignment.",
+    });
+  });
+
+export const vendorFormSchema = z
+  .object({
+    name: requiredText(200),
+    contactName: nullableOptionalText(200),
+    email: z
+      .union([z.string().trim().max(EMAIL_MAX_LENGTH).email(), z.literal(""), z.null()])
+      .optional(),
+    phone: nullableOptionalText(80),
+    mobileMoneyNumber: nullableOptionalText(80),
+    address: nullableOptionalText(500),
+    bankName: nullableOptionalText(160),
+    bankAccount: nullableOptionalText(160),
+    leadTimeDays: z
+      .union([
+        z.number().int().nonnegative(),
+        z.string().trim().regex(/^\d+$/, "Lead time must be zero or more whole days."),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional(),
+    suppliedItems: z.array(requiredText(200)).max(500).optional(),
+    notes: nullableOptionalText(2000),
+    status: optionalText(80),
+  })
+  .strip();
+
 export const productFormSchema = z
   .object({
     name: requiredText(180),
@@ -216,6 +327,120 @@ export const bookingInputSchema = z
       });
     }
   });
+
+const ORDER_STATUS_VALUES = [
+  "pending",
+  "payment_pending",
+  "paid",
+  "processing",
+  "fulfilled",
+  "completed",
+  "cancelled",
+  "canceled",
+];
+
+const BOOKING_STATUS_VALUES = [
+  "pending",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "canceled",
+  "no_show",
+];
+
+const DELIVERY_STATUS_VALUES = [
+  "pending",
+  "scheduled",
+  "loaded",
+  "en_route",
+  "delivered",
+  "pickup",
+  "issue",
+  "cancelled",
+  "canceled",
+];
+
+const statusTransitionSchema = (allowedValues) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .refine(
+      (value) => allowedValues.includes(value.toLowerCase()),
+      "Choose a supported status.",
+    );
+
+export const orderLineInputSchema = z
+  .object({
+    productId: domainIdSchema.optional(),
+    productSlug: optionalText(180),
+    variantId: domainIdSchema.nullable().optional(),
+    quantity: z.number().int().positive().max(100000),
+    price: moneyAmountSchema.optional(),
+    unitPrice: moneyAmountSchema.optional(),
+  })
+  .strip()
+  .superRefine((value, context) => {
+    if (value.productId === undefined && !value.productSlug) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["productId"],
+        message: "Identify the product.",
+      });
+    }
+    if (value.price === undefined && value.unitPrice === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["price"],
+        message: "Provide the order-line price.",
+      });
+    }
+  });
+
+export const orderCreateInputSchema = z
+  .object({
+    customerId: domainIdSchema,
+    status: statusTransitionSchema(ORDER_STATUS_VALUES).optional(),
+    source: optionalText(120),
+    purchaseChannel: optionalText(80),
+    fulfillmentMethod: optionalText(80),
+    deliveryMethod: z.enum(["pickup", "delivery"]).optional(),
+    deliveryRequired: z.boolean().optional(),
+    type: optionalText(80),
+    items: z.array(orderLineInputSchema).min(1).max(500),
+    discount: moneyAmountSchema.optional(),
+  })
+  .strip();
+
+export const orderStatusTransitionSchema = z
+  .object({
+    orderId: domainIdSchema.optional(),
+    status: statusTransitionSchema(ORDER_STATUS_VALUES),
+    reason: nullableOptionalText(500),
+  })
+  .strip();
+
+export const bookingStatusTransitionSchema = z
+  .object({
+    bookingId: domainIdSchema.optional(),
+    status: statusTransitionSchema(BOOKING_STATUS_VALUES),
+    reason: nullableOptionalText(500),
+  })
+  .strip();
+
+export const deliveryUpdateSchema = z
+  .object({
+    deliveryId: domainIdSchema.optional(),
+    status: statusTransitionSchema(DELIVERY_STATUS_VALUES),
+    driverId: domainIdSchema.nullable().optional(),
+    vehicleId: domainIdSchema.nullable().optional(),
+    scheduledAt: z.union([isoDateTimeSchema, z.literal("")]).optional(),
+    deliveredAt: z.union([isoDateTimeSchema, z.literal("")]).optional(),
+    notes: nullableOptionalText(2000),
+  })
+  .strip();
 
 export const invoiceLineInputSchema = z
   .object({

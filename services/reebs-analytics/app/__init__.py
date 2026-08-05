@@ -1,2 +1,1 @@
-"""REEBS analytics service."""
-
+"""Shared Faako advanced analytics service."""

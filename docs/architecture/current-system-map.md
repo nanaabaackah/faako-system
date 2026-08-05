@@ -72,7 +72,7 @@ Stroane Storefront*      Stroane Portal*       Stroane API*
 | Faako Website | React Router 6 | Public, onboarding, configuration, dashboard, and auth-like pages in one tree |
 | REEBS Portal | React Router 7 | Protected admin tree |
 | REEBS Website | Astro file routes with route-level React Router islands | Public commerce/customer pages; `/login` and `/admin/*` redirect externally |
-| Stroane | React Router 7 | Separate storefront and portal trees selected by `VITE_APP_SURFACE` |
+| Stroane | React Router 7 | Separate storefront and portal entry graphs; combined routing is local-development compatibility only |
 | System Starter | React Router 7 | Starter shell |
 | UI Workbench | React Router 7 | Workbench shell |
 

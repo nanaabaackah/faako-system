@@ -7,6 +7,8 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import { useLocation } from "react-router-dom";
+import { deliveryUpdateSchema } from "@faako/validation";
+import { reebsApiResponse } from "../../api/client.js";
 
 const STATUS_OPTIONS = [
   { value: "scheduled", label: "Scheduled" },
@@ -81,7 +83,7 @@ function AdminDelivery() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/deliveries");
+      const res = await reebsApiResponse("/api/deliveries");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load deliveries.");
       setDeliveries(Array.isArray(data) ? data : []);
@@ -100,7 +102,7 @@ function AdminDelivery() {
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const res = await fetch("/api/users?role=driver");
+        const res = await reebsApiResponse("/api/users?role=driver");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load users.");
         const driverList = (Array.isArray(data) ? data : [])
@@ -252,11 +254,20 @@ function AdminDelivery() {
       setError("Completed bookings are locked and can't be edited.");
       return;
     }
+    const validation = deliveryUpdateSchema.safeParse({
+      deliveryId: selected.deliveryId || undefined,
+      status: form.status,
+      notes: form.notes || null,
+    });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || "Review the delivery details.");
+      return;
+    }
     setSaving(true);
     setStatus("");
     setError("");
     try {
-      const res = await fetch("/api/deliveries", {
+      const res = await reebsApiResponse("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

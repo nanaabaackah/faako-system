@@ -1,4 +1,5 @@
 export * from "./domain";
+export * from "./analytics";
 
 export interface ErpNavItem {
   id: string;

@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
+import { orderCreateInputSchema } from "@faako/validation";
 import "./OrderBuilder.css";
 import { computeVisibleProducts, PRODUCT_SHOW_ALL_THRESHOLD } from "./orderBuilderUtils.js";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -8,6 +9,8 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
+import { reebsApiResponse } from "../../api/client.js";
+import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 const getUnitPrice = (item) => {
   if (typeof item?.price === "number") return item.price;
@@ -102,6 +105,9 @@ function OrderBuilder() {
   const [variantDigitInputs, setVariantDigitInputs] = useState({});
   const scanTimeoutRef = useRef(null);
   const { user } = useAuth();
+  useUnsavedChanges(
+    !submitting && Boolean(selectedCustomerId || cartItems.length || orderDiscount),
+  );
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -123,8 +129,8 @@ function OrderBuilder() {
       setError("");
       try {
         const [customerRes, inventoryRes] = await Promise.all([
-          fetch("/api/customers", { signal: controller.signal }),
-          fetch("/api/inventory", { signal: controller.signal }),
+          reebsApiResponse("/api/customers", { signal: controller.signal }),
+          reebsApiResponse("/api/inventory", { signal: controller.signal }),
         ]);
 
         if (!customerRes.ok || !inventoryRes.ok) {
@@ -380,6 +386,29 @@ function OrderBuilder() {
       return;
     }
 
+    const orderInput = {
+      customerId: Number(selectedCustomerId),
+      status,
+      source: "Manual Admin Entry",
+      purchaseChannel: "Admin",
+      fulfillmentMethod: "Pickup",
+      deliveryMethod: "pickup",
+      deliveryRequired: false,
+      type: "retail",
+      items: cartItems.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId || undefined,
+        quantity: item.quantity,
+        price: item.unitPrice,
+      })),
+      discount: discountAmount,
+    };
+    const validation = orderCreateInputSchema.safeParse(orderInput);
+    if (!validation.success) {
+      setSubmitError(validation.error.issues[0]?.message || "Review the order details.");
+      return;
+    }
+
     setSubmitting(true);
     const controller = new AbortController();
     const idempotencyKey =
@@ -387,28 +416,14 @@ function OrderBuilder() {
         ? crypto.randomUUID()
         : `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      const response = await fetch("/api/orders", {
+      const response = await reebsApiResponse("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
         body: JSON.stringify({
-          customerId: Number(selectedCustomerId),
-          status,
-          source: "Manual Admin Entry",
-          purchaseChannel: "Admin",
-          fulfillmentMethod: "Pickup",
-          deliveryMethod: "pickup",
-          deliveryRequired: false,
-          type: "retail",
-          items: cartItems.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId || undefined,
-            quantity: item.quantity,
-            price: item.unitPrice,
-          })),
-          discount: discountAmount,
+          ...validation.data,
           userId: user?.id,
           userName: user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined,
           userEmail: user?.email,
@@ -423,6 +438,8 @@ function OrderBuilder() {
 
       setSuccess(`Order #${payload.orderId} created.`);
       setCartItems([]);
+      setSelectedCustomerId("");
+      setOrderDiscount("");
       if (payload?.stockCommitted === true) {
         setProducts((prev) =>
           prev.map((product) => {

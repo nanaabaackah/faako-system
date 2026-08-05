@@ -11,146 +11,122 @@ const adminUser = {
   role: { name: "Admin", permissions: null },
 };
 
-const dashboardPayload = {
-  lastSyncedAt: "2026-07-11T15:00:00.000Z",
-  status: {
-    api: "offline",
-    portfolioDb: "ok",
-    reebsDb: "error",
-    faakoDb: "ok",
-    stroaneDb: "ok",
+const timeline = Array.from({ length: 48 }, (_, index) => ({
+  id: index + 1,
+  startedAt: new Date(Date.UTC(2026, 6, 11, 12, index)).toISOString(),
+  status: index > 43 ? "DOWN" : "HEALTHY",
+  latencyMs: 90 + index,
+  httpStatus: index > 43 ? 503 : 200,
+}));
+
+const services = [
+  {
+    id: 1,
+    key: "dev-erp-api",
+    name: "Dev ERP API",
+    category: "API",
+    environment: "production",
+    provider: "Railway",
+    status: "DOWN",
+    effectiveStatus: "DOWN",
+    latencyMetrics: { current: 138, minimum: 82, maximum: 640, average: 174, p95: 530, trend: "up" },
+    uptimePercentage: 98.8,
+    lastCheckedAt: "2026-07-11T15:00:00.000Z",
+    lastSuccessfulAt: "2026-07-11T14:55:00.000Z",
+    lastFailedAt: "2026-07-11T15:00:00.000Z",
+    dependencies: ["dev-erp-db"],
+    incidents: [{ id: 17, status: "OPEN", summary: "Health endpoint unavailable", startedAt: "2026-07-11T14:58:00.000Z" }],
+    timeline,
   },
-  apiSurfaces: [
-    {
-      id: "dev-erp-api",
-      label: "Dev ERP API",
-      status: "offline",
-      note: "0/2 endpoints online | 2 offline",
-      category: "api",
-      configured: true,
-      baseUrl: "https://api.dev.example.com",
-      pages: [
-        {
-          label: "Health",
-          path: "/healthz",
-          url: "https://api.dev.example.com/healthz",
-          finalUrl: "https://api.dev.example.com/healthz",
-          status: "offline",
-          httpStatus: 503,
-          responseTimeMs: 94,
-          checkedAt: "2026-07-11T15:00:00.000Z",
-          errorType: "http_error",
-        },
-      ],
-    },
-  ],
-  siteStatus: {
-    checkedAt: "2026-07-11T15:00:00.000Z",
-    sites: [
-      {
-        id: "stroane-web",
-        title: "stroanesolutions.com",
-        category: "client",
-        baseUrl: "https://stroanesolutions.com",
-        pages: [
-          {
-            label: "Home",
-            path: "/",
-            url: "https://stroanesolutions.com/",
-            status: "online",
-            httpStatus: 200,
-            responseTimeMs: 120,
-            checkedAt: "2026-07-11T15:00:00.000Z",
-          },
-          {
-            label: "Checkout return",
-            path: "/checkout/return",
-            url: "https://stroanesolutions.com/checkout/return",
-            status: "degraded",
-            httpStatus: 404,
-            responseTimeMs: 88,
-            checkedAt: "2026-07-11T15:00:00.000Z",
-            errorType: "http_error",
-          },
-        ],
-      },
-      {
-        id: "portfolio",
-        title: "nanaabaackah.com",
-        category: "portfolio",
-        baseUrl: "https://nanaabaackah.com",
-        pages: [
-          {
-            label: "Home",
-            path: "/",
-            url: "https://nanaabaackah.com/",
-            status: "online",
-            httpStatus: 200,
-            responseTimeMs: 72,
-            checkedAt: "2026-07-11T15:00:00.000Z",
-          },
-        ],
-      },
-    ],
+  {
+    id: 2,
+    key: "dev-erp-db",
+    name: "Dev ERP PostgreSQL",
+    category: "DATABASE",
+    environment: "production",
+    provider: "Railway",
+    status: "HEALTHY",
+    effectiveStatus: "HEALTHY",
+    latencyMetrics: { current: 42, minimum: 31, maximum: 78, average: 45, p95: 70, trend: "stable" },
+    uptimePercentage: 100,
+    lastCheckedAt: "2026-07-11T15:00:00.000Z",
+    lastSuccessfulAt: "2026-07-11T15:00:00.000Z",
+    dependencies: [],
+    incidents: [],
+    timeline: timeline.map((block) => ({ ...block, status: "HEALTHY", httpStatus: null, latencyMs: 42 })),
   },
+];
+
+const incident = {
+  id: 17,
+  title: "Dev ERP API unavailable",
+  summary: "The production health endpoint is returning HTTP 503.",
+  severity: "CRITICAL",
+  status: "OPEN",
+  startedAt: "2026-07-11T14:58:00.000Z",
+  service: { id: 1, name: "Dev ERP API", environment: "production" },
+  timeline: [{ id: 1, type: "DETECTED", summary: "Three checks failed.", createdAt: "2026-07-11T14:58:00.000Z", actorLabel: "Monitoring" }],
 };
 
-const aiPayload = {
-  diagnosis: {
-    executiveSummary: "The API is reachable but its health route is returning a server error.",
-    likelyCause: "A failed deployment, database connection, or pending migration is preventing startup.",
-    impact: "Authenticated Dev ERP workflows may fail until the API recovers.",
-    confidence: "medium",
-    actions: [
-      { title: "Inspect Railway logs", instruction: "Find the first startup exception around the check time.", urgency: "now" },
-      { title: "Check migrations", instruction: "Confirm pending Prisma migrations completed successfully.", urgency: "next" },
-    ],
-    verificationSteps: ["Confirm /healthz returns HTTP 200.", "Reload the affected Dev ERP workflow."],
-    escalation: "Escalate if the service still returns 503 after a clean restart or rollback.",
-  },
-  model: "gpt-test",
-  createdAt: "2026-07-11T15:01:00.000Z",
-};
+const fulfill = (route, body) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
 
-    if (!url.pathname.startsWith("/api/")) {
-      await route.continue();
-      return;
-    }
-
-    if (url.pathname === "/api/auth/session") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: adminUser, csrfToken: "csrf-token" }) });
-      return;
-    }
-    if (url.pathname === "/api/dashboard") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify(dashboardPayload) });
-      return;
-    }
-    if (url.pathname === "/api/ai/system-health-diagnosis" && request.method() === "POST") {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify(aiPayload) });
-      return;
-    }
-    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not mocked" }) });
+    if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (url.pathname === "/api/auth/session") return fulfill(route, { user: adminUser, csrfToken: "csrf-token" });
+    if (url.pathname === "/api/monitoring/summary") return fulfill(route, { summary: { score: 76, label: "Needs attention", coveragePercentage: 100, activeIncidents: 1 }, services, range: url.searchParams.get("range"), generatedAt: "2026-07-11T15:00:00.000Z" });
+    if (url.pathname === "/api/monitoring/incidents/17") return fulfill(route, { incident });
+    if (url.pathname === "/api/monitoring/incidents") return fulfill(route, { incidents: [incident] });
+    if (url.pathname === "/api/monitoring/maintenance-windows") return fulfill(route, { maintenanceWindows: [] });
+    if (url.pathname === "/api/monitoring/notifications") return fulfill(route, { notifications: [], unreadCount: 0 });
+    if (url.pathname === "/api/monitoring/alert-rules") return fulfill(route, { alertRules: [] });
+    if (url.pathname === "/api/monitoring/channels") return fulfill(route, { channels: [], providerStatus: { whatsapp: "disabled", webhook: "disabled" } });
+    if (url.pathname === "/api/monitoring/escalation-policies") return fulfill(route, { escalationPolicies: [] });
+    if (url.pathname === "/api/monitoring/responders") return fulfill(route, { users: [{ id: 1, fullName: "Admin User" }], roles: [{ id: 1, name: "Admin" }] });
+    if (/^\/api\/monitoring\/services\/\d+\/run-check$/.test(url.pathname)) return fulfill(route, { check: { status: "HEALTHY" } });
+    return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not mocked" }) });
   });
 });
 
-test("system health explains incidents and returns an AI runbook", async ({ page }) => {
+test("system health controls, filters, timelines, and service drawer work", async ({ page }) => {
   await page.goto("/system-health", { waitUntil: "domcontentloaded" });
 
   await expect(page.getByRole("heading", { name: "System health", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Service interruption detected" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Dev ERP API/ })).toBeVisible();
-  await expect(page.getByText(/HTTP 503/).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recovery runbook" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open details for Dev ERP API/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "Analyze with AI" }).click();
-  await expect(page.getByRole("heading", { name: "AI operational assessment" })).toBeVisible();
-  await expect(page.getByText("Inspect Railway logs")).toBeVisible();
-  await expect(page.getByText(/Confirm \/healthz returns HTTP 200/)).toBeVisible();
+  await page.getByRole("tab", { name: "Alert rules" }).click();
+  const adminLayout = await page.locator(".incident-admin-grid").evaluate((grid) => {
+    const gridBounds = grid.getBoundingClientRect();
+    const formBounds = grid.querySelector(".incident-admin-form").getBoundingClientRect();
+    return { gridWidth: gridBounds.width, formWidth: formBounds.width };
+  });
+  expect(adminLayout.formWidth).toBeGreaterThan(adminLayout.gridWidth - 2);
+  await page.getByRole("tab", { name: "Incidents" }).click();
+
+  const rangeRequest = page.waitForRequest((request) => request.url().includes("/api/monitoring/summary?range=1h"));
+  await page.getByRole("button", { name: "Last hour" }).click();
+  await rangeRequest;
+
+  await page.getByRole("button", { name: "Status", exact: true }).click();
+  await page.getByRole("option", { name: "Healthy" }).click();
+  await expect(page.getByRole("button", { name: /Open details for Dev ERP API/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Open details for Dev ERP PostgreSQL/ })).toBeVisible();
+
+  await page.getByRole("button", { name: "Status", exact: true }).click();
+  await page.getByRole("option", { name: "All statuses" }).click();
+  await page.getByRole("button", { name: /Open details for Dev ERP API/ }).click();
+  const serviceDialog = page.getByRole("dialog", { name: /Dev ERP API/ });
+  await expect(serviceDialog).toBeVisible();
+  await expect(serviceDialog.getByText("production · Railway", { exact: true })).toBeVisible();
+});
+
+test("emailed incident deep links open the matching incident", async ({ page }) => {
+  await page.goto("/system-health?incident=17", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("dialog", { name: "Dev ERP API unavailable" })).toBeVisible();
+  await expect(page.getByText("Three checks failed.")).toBeVisible();
 });
 
 test("system health remains within the mobile viewport", async ({ page }) => {

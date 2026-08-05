@@ -14,7 +14,7 @@
     "@faako/utils": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.3"
+    "react-router-dom": "^7.18.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",

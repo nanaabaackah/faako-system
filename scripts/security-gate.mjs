@@ -161,7 +161,10 @@ const scanSourceForBrowserVisibleAccessCodes = (appDir) => {
 const getAppDirectories = () =>
   fs.readdirSync(appsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(appsDir, entry.name));
+    .map((entry) => path.join(appsDir, entry.name))
+    // Only pnpm workspaces are active applications. Deferred scaffolds and
+    // retained build artifacts must not masquerade as security-gated apps.
+    .filter((appDir) => fs.existsSync(path.join(appDir, "package.json")));
 
 const findings = [];
 

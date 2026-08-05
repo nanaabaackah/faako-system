@@ -9,7 +9,6 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:portfolio": "pnpm --filter @faako/bynana-portfolio run dev",
-    "dev:ttngh": "pnpm --filter @faako/ttngh run dev",
     "dev:faako": "pnpm run predeploy:faako-api && node ./scripts/dev-faako.mjs",
     "dev:dev-erp": "pnpm --filter @faako/dev-erp run dev:with-backend",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
@@ -62,5 +61,24 @@
   },
   "dependencies": {
     "react-helmet": "^6.1.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "router>path-to-regexp": "8.4.0",
+      "react-cookie-consent>js-cookie": "3.0.7",
+      "openai>ws": "8.21.0",
+      "@astrojs/internal-helpers>js-yaml": "4.3.0",
+      "astro>js-yaml": "4.3.0",
+      "c12>defu": "6.1.5",
+      "flat-cache>flatted": "3.4.2",
+      "anymatch>picomatch": "2.3.2",
+      "vite>picomatch": "4.0.4",
+      "@prisma/dev>hono": "4.12.25",
+      "@prisma/dev>@hono/node-server": "1.19.10",
+      "@prisma/config>effect": "3.20.0",
+      "@mrleebo/prisma-ast>lodash": "4.18.0",
+      "chevrotain>lodash": "4.18.0",
+      "@chevrotain/cst-dts-gen>lodash": "4.18.0"
+    }
   }
 }

@@ -41,7 +41,14 @@ const PopupModal = () => {
   return (
     <div className="popup-overlay">
       <div className="popup-box">
-        <button onClick={() => setVisible(false)} className="popup-close">×</button>
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          className="popup-close"
+          aria-label="Close announcement"
+        >
+          ×
+        </button>
         <img
           src='/imgs/promos/banner.jpg'
           alt='REEBS party promo'

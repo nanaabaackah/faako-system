@@ -1615,7 +1615,7 @@ const Dashboard = () => {
         ) : null}
 
         {!accountingLoading && accountingSummary ? (
-          <div className="kpi-grid">
+          <div className="kpi-grid dashboard-accounting-kpis">
             <KPICard
               label="Paid revenue"
               value={formatGhsAmount(accountingSummary.paidRevenueGhs)}
@@ -1717,7 +1717,7 @@ const Dashboard = () => {
           </div>
 
           <div className="dashboard-grid">
-            <article className="glass-card panel panel-span-2">
+            <article className="glass-card panel panel-span-3">
               <div className="panel-header">
                 <div>
                   <h3>Organization hierarchy</h3>

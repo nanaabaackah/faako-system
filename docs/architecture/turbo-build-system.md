@@ -32,7 +32,7 @@ Turbo creates dependency nodes even for source-consumed internal packages withou
 | `@faako/faako-website` | Astro, `astro.config.mjs` | Astro static build plus CSP finalizer | `dist/**` | Cached |
 | `@faako/reebs-portal` | Vite, PostCSS, Tailwind | Vite build | `dist/**` | Cached |
 | `@faako/reebs-website` | Astro static output with React islands | Astro build plus CSP/redirect finalizer | `dist/**` | Cached |
-| `@faako/stroane-web` | Vite, PostCSS, Tailwind; Prisma | Prisma generate, then Vite build | `dist/**` | Not cached; Prisma generation writes outside the declared artifact |
+| `@faako/stroane-web` | Vite, PostCSS, Tailwind; separate storefront/admin entries; Prisma API | Deterministic storefront and admin browser builds; API generation is a separate command | `dist/storefront/**`, `dist/admin/**` | Cached browser artifacts; API generation remains outside the browser build |
 | `@faako/system-starter` | Vite, `vite.config.js` | Vite build | `dist/**` | Cached |
 | `@faako/ui-workbench` | Vite, `vite.config.js` | Vite build | `dist/**` | Cached |
 

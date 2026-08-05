@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff, FiMail, FiSave, FiTrash2 } from "react-icons/fi";
 import { AnimatedLoadingState, SelectField } from "@faako/ui";
-import { apiDelete, apiGet, apiPatch, apiPost } from "../../api/client";
+import { roleFormSchema, userAccessFormSchema } from "@faako/validation";
+import { accessApi } from "../../api/access";
 import { readStoredSessionUser } from "../../utils/authSession";
 import "./UserControl.css";
 
@@ -44,6 +45,46 @@ const UserControl = () => {
   const [savedUserPasswords, setSavedUserPasswords] = useState({});
   const [savedCreatedPassword, setSavedCreatedPassword] = useState("");
 
+  const hasUnsavedChanges = useMemo(() => {
+    const roleChanged = roles.some((role) => {
+      const draft = roleDrafts[role.id] || {};
+      return (
+        String(draft.description || "") !== String(role.description || "") ||
+        String(draft.modulesInput || "") !==
+          (Array.isArray(role.modules) ? role.modules.join(", ") : "")
+      );
+    });
+    const userChanged = users.some((user) => {
+      const draft = userDrafts[user.id] || {};
+      return (
+        String(draft.firstName || "") !== String(user.firstName || "") ||
+        String(draft.lastName || "") !== String(user.lastName || "") ||
+        String(draft.email || "") !== String(user.email || "") ||
+        String(draft.roleId || "") !== String(user?.role?.id || "") ||
+        String(draft.status || "ACTIVE") !== String(user.status || "ACTIVE") ||
+        Boolean(String(draft.password || "").trim())
+      );
+    });
+    const createChanged = Boolean(
+      createForm.firstName ||
+      createForm.lastName ||
+      createForm.email ||
+      createForm.password ||
+      createForm.status !== "ACTIVE"
+    );
+    return roleChanged || userChanged || createChanged;
+  }, [createForm, roleDrafts, roles, userDrafts, users]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   const buildDraftsFromPayload = useCallback((nextRoles, nextUsers) => {
     const nextRoleDrafts = {};
     nextRoles.forEach((role) => {
@@ -81,8 +122,8 @@ const UserControl = () => {
 
       try {
         const [usersPayload, rolesPayload] = await Promise.all([
-          apiGet("/api/access/users", { fallbackMessage: "Unable to load user access" }),
-          apiGet("/api/access/roles", { fallbackMessage: "Unable to load role access" }),
+          accessApi.listUsers(),
+          accessApi.listRoles(),
         ]);
 
         const nextRoles = Array.isArray(rolesPayload?.roles) ? rolesPayload.roles : [];
@@ -192,14 +233,18 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      await apiPatch(
-        `/api/access/roles/${role.id}`,
-        {
-          description: draft.description,
-          modules,
-        },
-        { fallbackMessage: "Unable to save role access" }
-      );
+      const validation = roleFormSchema.safeParse({
+        name: role.name,
+        description: draft.description,
+        modules,
+      });
+      if (!validation.success) {
+        throw new Error(validation.error.issues[0]?.message || "Role access is invalid.");
+      }
+      await accessApi.updateRole(role.id, {
+        description: validation.data.description,
+        modules: validation.data.modules,
+      });
       setNotice(`Role access updated for ${role.name}.`);
       await loadData({ silent: true });
     } catch (requestError) {
@@ -228,9 +273,11 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      await apiPatch(`/api/access/users/${user.id}`, payload, {
-        fallbackMessage: "Unable to update user",
-      });
+      const validation = userAccessFormSchema.safeParse(payload);
+      if (!validation.success) {
+        throw new Error(validation.error.issues[0]?.message || "User details are invalid.");
+      }
+      await accessApi.updateUser(user.id, validation.data);
       if (password) {
         setSavedUserPasswords((prev) => ({
           ...prev,
@@ -264,14 +311,14 @@ const UserControl = () => {
 
     try {
       const createdPassword = String(createForm.password || "");
-      const payload = await apiPost(
-        "/api/access/users",
-        {
-          ...createForm,
-          roleId: Number(createForm.roleId),
-        },
-        { fallbackMessage: "Unable to create user" }
-      );
+      const validation = userAccessFormSchema.safeParse({
+        ...createForm,
+        roleId: Number(createForm.roleId),
+      });
+      if (!validation.success) {
+        throw new Error(validation.error.issues[0]?.message || "User details are invalid.");
+      }
+      const payload = await accessApi.createUser(validation.data);
 
       const invitationRecipient =
         payload && typeof payload === "object" && typeof payload.invitationRecipient === "string"
@@ -326,9 +373,7 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      const payload = await apiDelete(`/api/access/users/${user.id}`, {
-        fallbackMessage: "Unable to remove user",
-      });
+      const payload = await accessApi.removeUser(user.id);
 
       const deletedUserEmail =
         payload && typeof payload === "object" && typeof payload.deletedUserEmail === "string"
@@ -360,11 +405,7 @@ const UserControl = () => {
     setError("");
     setNotice("");
     try {
-      const payload = await apiPost(
-        `/api/access/users/${user.id}/resend-invitation`,
-        undefined,
-        { fallbackMessage: "Unable to resend setup link" }
-      );
+      const payload = await accessApi.resendInvitation(user.id);
 
       const invitationRecipient =
         payload && typeof payload === "object" && typeof payload.invitationRecipient === "string"
@@ -551,6 +592,7 @@ const UserControl = () => {
                         ariaLabel={`Role for ${draft.email || user.email}`}
                         value={draft.roleId || ""}
                         onChange={(event) => handleUserDraft(user.id, "roleId", event.target.value)}
+                        disabled={isCurrentUser}
                       >
                         {roles.map((role) => (
                           <option key={role.id} value={role.id}>
@@ -564,6 +606,7 @@ const UserControl = () => {
                         ariaLabel={`Status for ${draft.email || user.email}`}
                         value={draft.status || "ACTIVE"}
                         onChange={(event) => handleUserDraft(user.id, "status", event.target.value)}
+                        disabled={isCurrentUser}
                       >
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="SUSPENDED">SUSPENDED</option>

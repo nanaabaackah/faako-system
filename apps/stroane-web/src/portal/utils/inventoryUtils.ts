@@ -11,6 +11,7 @@ import type {
   InventoryStockStatus,
   SupplierSummary,
 } from "../types/inventory";
+import { inventoryAdjustmentSchema } from "@faako/validation";
 
 export const EMPTY_ALERT_SUMMARY = {
   active: [],
@@ -307,23 +308,31 @@ export const buildInventoryPatchFromDraft = (
     isPurchasable: boolean;
     lastCountedAt: string;
   }
-): InventoryItemPatchPayload => ({
-  quantityOnHand: draft.quantityOnHand === "" ? null : toWholeInventoryNumber(draft.quantityOnHand),
-  reservedQuantity:
-    draft.reservedQuantity === "" ? null : toWholeInventoryNumber(draft.reservedQuantity),
-  lowStockThreshold:
-    draft.lowStockThreshold === "" ? null : toWholeInventoryNumber(draft.lowStockThreshold),
-  reorderThreshold:
-    draft.reorderThreshold === "" ? null : toWholeInventoryNumber(draft.reorderThreshold),
-  stockStatus: draft.stockStatus,
-  supplierId: draft.supplierId || null,
-  sku: draft.sku.trim() || null,
-  notes: draft.notes.trim() || null,
-  inventoryTrackingEnabled: draft.inventoryTrackingEnabled,
-  allowBackorder: draft.allowBackorder,
-  isPurchasable: draft.isPurchasable,
-  lastCountedAt: draft.lastCountedAt ? new Date(draft.lastCountedAt).toISOString() : null,
-});
+): InventoryItemPatchPayload => {
+  const parseDraftQuantity = (value: string, label: string) => {
+    if (value === "") return null;
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      throw new Error(`${label} must be a whole number of zero or more.`);
+    }
+    return parsed;
+  };
+
+  return {
+    quantityOnHand: parseDraftQuantity(draft.quantityOnHand, "Quantity on hand"),
+    reservedQuantity: parseDraftQuantity(draft.reservedQuantity, "Reserved quantity"),
+    lowStockThreshold: parseDraftQuantity(draft.lowStockThreshold, "Low-stock threshold"),
+    reorderThreshold: parseDraftQuantity(draft.reorderThreshold, "Reorder threshold"),
+    stockStatus: draft.stockStatus,
+    supplierId: draft.supplierId || null,
+    sku: draft.sku.trim() || null,
+    notes: draft.notes.trim() || null,
+    inventoryTrackingEnabled: draft.inventoryTrackingEnabled,
+    allowBackorder: draft.allowBackorder,
+    isPurchasable: draft.isPurchasable,
+    lastCountedAt: draft.lastCountedAt ? new Date(draft.lastCountedAt).toISOString() : null,
+  };
+};
 
 export const buildInventoryEditDraft = (item: InventoryItem) => ({
   quantityOnHand:
@@ -368,6 +377,11 @@ export const buildInventoryMovementPayload = (
     const quantityAfter = toWholeInventoryNumber(draft.quantityAfter);
     if (quantityAfter === null) throw new Error("Enter a valid counted stock quantity.");
     payload.quantityAfter = quantityAfter;
+  }
+
+  const validation = inventoryAdjustmentSchema.safeParse(payload);
+  if (!validation.success) {
+    throw new Error(validation.error.issues[0]?.message || "Inventory movement is invalid.");
   }
 
   return payload;

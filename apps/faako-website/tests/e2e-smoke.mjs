@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { chromium } from "playwright";
 
 const baseUrl = process.env.FAAKO_PREVIEW_URL || "http://127.0.0.1:4176";
+const localChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const executablePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ||
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  (existsSync(localChrome) ? localChrome : undefined);
 
 const routes = [
   "/",
@@ -29,7 +31,10 @@ const routes = [
   "/terms",
 ];
 
-const browser = await chromium.launch({ headless: true, executablePath });
+const browser = await chromium.launch({
+  headless: true,
+  ...(executablePath ? { executablePath } : {}),
+});
 
 const waitForIsland = (page, componentName) =>
   page.waitForFunction(

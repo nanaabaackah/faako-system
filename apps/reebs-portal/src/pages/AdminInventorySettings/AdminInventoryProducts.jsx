@@ -6,6 +6,7 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
+import { reebsApiResponse } from "../../api/client.js";
 import {
   faPen,
   faArrowRight,
@@ -55,7 +56,7 @@ const readApiError = async (response, fallback) => {
 };
 
 const apiRequest = async (url, options = {}) => {
-  const response = await fetch(url, {
+  const response = await reebsApiResponse(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -136,8 +137,8 @@ function AdminInventoryProducts() {
     setError("");
     try {
       const [sourceResponse, specificResponse] = await Promise.all([
-        fetch(sourceCategoriesUrl),
-        fetch(specificCategoriesUrl),
+        reebsApiResponse(sourceCategoriesUrl),
+        reebsApiResponse(specificCategoriesUrl),
       ]);
       if (!sourceResponse.ok) {
         throw new Error(await readApiError(sourceResponse, "Products could not be loaded."));

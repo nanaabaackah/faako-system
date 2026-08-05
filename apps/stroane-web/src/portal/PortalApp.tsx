@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ExternalRedirect from "../components/ExternalRedirect";
 import Layout from "../components/Layout";
@@ -9,20 +9,21 @@ import { AdminPortalProvider } from "./context/AdminPortalContext";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { STOREFRONT_BASE_URL, storefrontUrl } from "../config/appSurface";
-import AdminPortalHome from "./pages/AdminPortalHome";
-import InventoryManagement from "./pages/InventoryManagement";
-import OrderManagement from "./pages/OrderManagement";
-import ReceiptManagement from "./pages/ReceiptManagement";
-import AccountingManagement from "./pages/AccountingManagement";
-import ExpenseManagement from "./pages/ExpenseManagement";
-import CustomerDirectory from "./pages/CustomerDirectory";
-import AdminPortalPlaceholder from "./pages/AdminPortalPlaceholder";
-import AdminPortalProfile from "./pages/AdminPortalProfile";
-import AdminPortalSignIn from "./pages/AdminPortalSignIn";
-import TeamManagement from "./pages/TeamManagement";
-import AuditLogManagement from "./pages/AuditLogManagement";
 import type { AdminRoleAction, AdminRoleModule } from "./api/adminSession";
-import { AppBottomBar } from "@faako/ui"
+import { AnimatedLoadingState, AppBottomBar } from "@faako/ui";
+
+const AdminPortalHome = lazy(() => import("./pages/AdminPortalHome"));
+const InventoryManagement = lazy(() => import("./pages/InventoryManagement"));
+const OrderManagement = lazy(() => import("./pages/OrderManagement"));
+const ReceiptManagement = lazy(() => import("./pages/ReceiptManagement"));
+const AccountingManagement = lazy(() => import("./pages/AccountingManagement"));
+const ExpenseManagement = lazy(() => import("./pages/ExpenseManagement"));
+const CustomerDirectory = lazy(() => import("./pages/CustomerDirectory"));
+const AdminPortalPlaceholder = lazy(() => import("./pages/AdminPortalPlaceholder"));
+const AdminPortalProfile = lazy(() => import("./pages/AdminPortalProfile"));
+const AdminPortalSignIn = lazy(() => import("./pages/AdminPortalSignIn"));
+const TeamManagement = lazy(() => import("./pages/TeamManagement"));
+const AuditLogManagement = lazy(() => import("./pages/AuditLogManagement"));
 
 const StorefrontExternalRedirect: React.FC = () => {
   const location = useLocation();
@@ -52,8 +53,18 @@ const PortalModule: React.FC<{
 
 const PortalApp: React.FC = () => (
   <AdminPortalProvider>
-    <Routes>
-      <Route path="/" element={<Navigate to="/admin" replace />} />
+    <Suspense
+      fallback={
+        <AnimatedLoadingState
+          page
+          variant="portal"
+          title="Loading Stroane Admin"
+          message="Preparing this workspace."
+        />
+      }
+    >
+      <Routes>
+        <Route path="/" element={<Navigate to="/admin" replace />} />
       <Route path="/login" element={<PortalLoginRoute />} />
       <Route path="/admin/signin" element={<Navigate to="/login" replace />} />
       <Route element={<RequireAdminAuth />}>
@@ -78,8 +89,9 @@ const PortalApp: React.FC = () => (
           </Route>
         </Route>
       </Route>
-      <Route path="*" element={<StorefrontExternalRedirect />} />
-    </Routes>
+        <Route path="*" element={<StorefrontExternalRedirect />} />
+      </Routes>
+    </Suspense>
     <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell">
       <AppBottomBar />
     </div>

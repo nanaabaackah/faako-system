@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### System Health Faako UI and email refresh
+
+Date: 2026-08-02
+Feature/change name: System Health interaction, visual-system, and notification refresh
+What changed: Restored working System Health range selection, filtering, service details, incident deep links, and partially available incident-response tools; replaced native selects and date/time inputs with shared Faako controls; applied the Faako bubble-and-glass card language across the page; improved active status and timeline tooltip contrast with translucent background blur; and replaced the legacy monitoring alert email with a branded, escaped alert/recovery template using the shared email kit.
+Why it changed: The operational page had unreliable interactions and generic visual treatment, while incident emails no longer matched the current Faako product presentation.
+Files changed: System Health page, components, hooks, styles, browser coverage, monitoring alert delivery/template/tests, Dev ERP README, and this progress log.
+Data impact: None. No schema, migration, monitoring observation, incident, maintenance, assignment, or alert-rule data changed.
+Security impact: Positive. Email values remain escaped, delivery logging remains minimized, monitoring targets remain server-owned, and existing authenticated capability/CSRF boundaries are unchanged.
+Testing done: Focused System Health tests, alert-email tests, full Dev ERP lint, typecheck, production build, three System Health Playwright flows, and the full 249-test Dev ERP suite passed. Four loopback HTTP tests blocked by sandbox network permissions were rerun with local-network permission and passed.
+Rollback notes: Revert the System Health presentation/hooks, alert email renderer integration, and their tests. No data rollback is required.
+Next step: Deploy normally, open a real incident deep link from a delivered test email, and visually confirm the configured production providers and environments populate the refreshed controls.
+
 ### System Health incident response Phase 3
 
 Date: 2026-07-31
