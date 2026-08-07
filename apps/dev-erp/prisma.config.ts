@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { defineConfig } from "@prisma/config";
+import { defineConfig } from "prisma/config";
 
 const normalizeEnvironmentName = (value: unknown) => {
   const normalized = String(value || "").trim().toLowerCase();
