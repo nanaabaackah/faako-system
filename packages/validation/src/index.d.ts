@@ -144,6 +144,12 @@ export declare const inventoryAdjustmentSchema: z.ZodType<{
   referenceId?: string | number | null;
 }>;
 
+export declare const orderStatusTransitionSchema: z.ZodType<{
+  orderId?: string | number;
+  status: string;
+  reason?: string | null;
+}>;
+
 export declare const bookingInputSchema: z.ZodType<{
   customerId?: string | number;
   attendeeName: string;
@@ -314,6 +320,9 @@ export type VendorFormInput = z.infer<typeof vendorFormSchema>;
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type InventoryAdjustmentInput = z.infer<
   typeof inventoryAdjustmentSchema
+>;
+export type OrderStatusTransitionInput = z.infer<
+  typeof orderStatusTransitionSchema
 >;
 export type BookingInput = z.infer<typeof bookingInputSchema>;
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;

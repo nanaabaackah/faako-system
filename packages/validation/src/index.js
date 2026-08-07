@@ -294,6 +294,36 @@ export const inventoryAdjustmentSchema = z
     });
   });
 
+const ORDER_STATUS_VALUES = [
+  "pending",
+  "payment_pending",
+  "paid",
+  "processing",
+  "fulfilled",
+  "completed",
+  "cancelled",
+  "canceled",
+];
+
+const statusTransitionSchema = (allowedValues) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .refine(
+      (value) => allowedValues.includes(value.toLowerCase()),
+      "Choose a supported status.",
+    );
+
+export const orderStatusTransitionSchema = z
+  .object({
+    orderId: domainIdSchema.optional(),
+    status: statusTransitionSchema(ORDER_STATUS_VALUES),
+    reason: nullableOptionalText(500),
+  })
+  .strip();
+
 export const bookingInputSchema = z
   .object({
     customerId: domainIdSchema.optional(),
