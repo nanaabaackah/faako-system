@@ -1,4 +1,5 @@
 import { createHttpError } from "../apiResponse.js";
+import { inventoryAdjustmentSchema } from "@faako/validation";
 
 export const STOCK_STATUSES = new Set([
   "in_stock",
@@ -302,6 +303,25 @@ export const validateMovementPayload = (body = {}) => {
 
   if (["RESTOCK", "DAMAGE", "RESERVED", "RELEASED"].includes(movementType) && quantityDelta <= 0) {
     throw createHttpError(`${movementType} movements require a positive quantity.`);
+  }
+
+  const sharedValidation = inventoryAdjustmentSchema.safeParse({
+    inventoryItemId: data.inventoryItemId,
+    productSlug: data.productSlug,
+    variantId: data.variantId,
+    movementType: data.movementType,
+    quantityDelta: data.quantityDelta,
+    quantityAfter: data.quantityAfter,
+    reason: data.reason,
+    referenceType: data.referenceType,
+    referenceId: data.referenceId,
+  });
+  if (!sharedValidation.success) {
+    const issue = sharedValidation.error.issues[0];
+    throw createHttpError(issue?.message || "Inventory movement is invalid.", 400, {
+      field: issue?.path?.join(".") || undefined,
+      code: issue?.code,
+    });
   }
 
   return data;

@@ -18,9 +18,10 @@ import {
   ERPTextField,
   SelectField,
 } from "@faako/ui";
+import { customerFormSchema, validationIssues } from "@faako/validation";
 import { portalUrl } from "../../config/appSurface";
 import useSEOMeta from "../../hooks/useSEOMeta";
-import { isLikelyEmail, isLikelyPhone, PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
+import { PHONE_INPUT_PATTERN } from "../../utils/contactValidation";
 import { hasPortalPermission } from "../api/adminSession";
 import {
   adminCustomersApi,
@@ -119,6 +120,10 @@ const CustomerDirectory: React.FC = () => {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const hasUnsavedCustomer = useMemo(
+    () => createOpen && JSON.stringify(draft) !== JSON.stringify(EMPTY_DRAFT),
+    [createOpen, draft]
+  );
 
   useSEOMeta({
     title: "CRM Directory | Stroane operations",
@@ -190,6 +195,15 @@ const CustomerDirectory: React.FC = () => {
   }, [loadCustomers]);
 
   useEffect(() => {
+    if (!hasUnsavedCustomer) return undefined;
+    const warnAboutUnsavedChanges = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnAboutUnsavedChanges);
+    return () => window.removeEventListener("beforeunload", warnAboutUnsavedChanges);
+  }, [hasUnsavedCustomer]);
+
+  useEffect(() => {
     const customerIds = new Set(customers.map((customer) => customer.id));
     setSelectedCustomerIds((current) => {
       const next = new Set(Array.from(current).filter((customerId) => customerIds.has(customerId)));
@@ -204,10 +218,16 @@ const CustomerDirectory: React.FC = () => {
   };
 
   const validateDraft = () => {
-    if (!draft.name.trim()) return "Customer name is required.";
-    if (!isLikelyEmail(draft.email)) return "Add a valid email address.";
-    if (draft.phone?.trim() && !isLikelyPhone(draft.phone)) return "Add a valid phone number.";
-    return "";
+    const parsed = customerFormSchema.safeParse(draft);
+    return parsed.success
+      ? ""
+      : validationIssues(parsed.error)[0]?.message || "Check the customer details.";
+  };
+
+  const closeCreateCustomer = () => {
+    if (hasUnsavedCustomer && !window.confirm("Discard the unsaved customer details?")) return;
+    setCreateOpen(false);
+    setDraft(EMPTY_DRAFT);
   };
 
   const handleCreateCustomer = async (event: FormEvent) => {
@@ -609,7 +629,7 @@ const CustomerDirectory: React.FC = () => {
 
       <ERPModal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={closeCreateCustomer}
         title="Create customer"
         description="Add a CRM record and optionally copy an account creation link."
         className="stroane-crm__modal"

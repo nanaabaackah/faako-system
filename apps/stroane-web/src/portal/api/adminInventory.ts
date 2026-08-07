@@ -1,31 +1,5 @@
 import type { AdminSession } from "./adminSession";
-import { apiPath } from "../../api/config";
-
-const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
-  const body = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : fallbackMessage;
-    throw new Error(message);
-  }
-
-  if (!body) throw new Error(fallbackMessage);
-  return body as T;
-};
-
-const authRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-});
-
-const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import { stroaneApiClient } from "../../api/client";
 
 const withQuery = (path: string, filters: object = {}) => {
   const params = new URLSearchParams();
@@ -33,7 +7,7 @@ const withQuery = (path: string, filters: object = {}) => {
     if (value !== undefined && value !== "") params.set(key, String(value));
   });
   const query = params.toString();
-  return apiPath(`${path}${query ? `?${query}` : ""}`);
+  return `${path}${query ? `?${query}` : ""}`;
 };
 
 export interface SupplierSummary {
@@ -204,23 +178,19 @@ export const adminInventoryApi = {
     session: AdminSession,
     filters: InventoryFilters = {}
   ): Promise<InventoryItem[]> {
-    const response = await fetch(withQuery("/api/admin/inventory", filters), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ inventory: InventoryItem[] }>(
-      response,
-      "Unable to load inventory."
+    void session;
+    const data = await stroaneApiClient.get<{ inventory: InventoryItem[] }>(
+      withQuery("/api/admin/inventory", filters),
+      { fallbackMessage: "Unable to load inventory." },
     );
     return data.inventory;
   },
 
   async listSuppliers(session: AdminSession): Promise<SupplierSummary[]> {
-    const response = await fetch(withQuery("/api/admin/suppliers", { limit: 100 }), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ suppliers: SupplierSummary[] }>(
-      response,
-      "Unable to load suppliers."
+    void session;
+    const data = await stroaneApiClient.get<{ suppliers: SupplierSummary[] }>(
+      withQuery("/api/admin/suppliers", { limit: 100 }),
+      { fallbackMessage: "Unable to load suppliers." },
     );
     return data.suppliers;
   },
@@ -229,23 +199,19 @@ export const adminInventoryApi = {
     session: AdminSession,
     filters: InventoryMovementFilters = {}
   ): Promise<InventoryMovement[]> {
-    const response = await fetch(withQuery("/api/admin/inventory/movements", filters), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ movements: InventoryMovement[] }>(
-      response,
-      "Unable to load inventory activity."
+    void session;
+    const data = await stroaneApiClient.get<{ movements: InventoryMovement[] }>(
+      withQuery("/api/admin/inventory/movements", filters),
+      { fallbackMessage: "Unable to load inventory activity." },
     );
     return data.movements;
   },
 
   async getInventoryItem(session: AdminSession, id: string): Promise<InventoryItem> {
-    const response = await fetch(apiPath(`/api/admin/inventory/${encodeURIComponent(id)}`), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ inventoryItem: InventoryItem }>(
-      response,
-      "Unable to load inventory item."
+    void session;
+    const data = await stroaneApiClient.get<{ inventoryItem: InventoryItem }>(
+      `/api/admin/inventory/${encodeURIComponent(id)}`,
+      { fallbackMessage: "Unable to load inventory item." },
     );
     return data.inventoryItem;
   },
@@ -255,14 +221,10 @@ export const adminInventoryApi = {
     id: string,
     payload: InventoryItemPatchPayload
   ): Promise<InventoryItem> {
-    const response = await fetch(apiPath(`/api/admin/inventory/${encodeURIComponent(id)}`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ inventoryItem: InventoryItem }>(
-      response,
-      "Unable to update inventory item."
+    void session;
+    const data = await stroaneApiClient.patch<{ inventoryItem: InventoryItem }>(
+      `/api/admin/inventory/${encodeURIComponent(id)}`,
+      { json: payload, fallbackMessage: "Unable to update inventory item." },
     );
     return data.inventoryItem;
   },
@@ -271,24 +233,21 @@ export const adminInventoryApi = {
     session: AdminSession,
     payload: InventoryMovementPayload
   ): Promise<{ inventoryItem: InventoryItem; movement: InventoryMovement }> {
-    const response = await fetch(apiPath("/api/admin/inventory/movements"), {
-      method: "POST",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    return parseJsonResponse<{ inventoryItem: InventoryItem; movement: InventoryMovement }>(
-      response,
-      "Unable to record inventory movement."
+    void session;
+    return stroaneApiClient.post<{
+      inventoryItem: InventoryItem;
+      movement: InventoryMovement;
+    }>(
+      "/api/admin/inventory/movements",
+      { json: payload, fallbackMessage: "Unable to record inventory movement." },
     );
   },
 
   async getAlertSummary(session: AdminSession): Promise<InventoryAlertSummary> {
-    const response = await fetch(apiPath("/api/admin/inventory/alerts"), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ summary: InventoryAlertSummary }>(
-      response,
-      "Unable to load inventory alerts."
+    void session;
+    const data = await stroaneApiClient.get<{ summary: InventoryAlertSummary }>(
+      "/api/admin/inventory/alerts",
+      { fallbackMessage: "Unable to load inventory alerts." },
     );
     return data.summary;
   },

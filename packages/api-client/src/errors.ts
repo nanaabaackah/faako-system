@@ -182,7 +182,7 @@ export const createResponseError = ({
     requestId: headerRequestId || sentRequestId,
     retryAfterSeconds,
   });
-  const error = normalized.ok
+  const error = normalized.ok === true
     ? {
         code: errorCodeForStatus(response.status),
         message: fallbackMessage,

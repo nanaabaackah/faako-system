@@ -1,8 +1,9 @@
-import { apiPath } from "../../api/config";
+import { isApiClientError, type ApiRequestOptions } from "@faako/api-client";
 import {
   STROANE_ADMIN_ACTION_IDS,
   STROANE_ADMIN_MODULE_IDS,
 } from "@faako/security";
+import { stroaneApiClient } from "../../api/client";
 
 const ADMIN_SESSION_KEY = "stroane_admin_session_v1";
 
@@ -19,19 +20,19 @@ export class AdminApiError extends Error {
 export const isAdminUnauthorizedError = (error: unknown) =>
   error instanceof AdminApiError && error.status === 401;
 
-const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
-  const body = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : fallbackMessage;
-    throw new AdminApiError(message, response.status);
+const adminRequest = async <T>(
+  method: "GET" | "POST" | "PATCH",
+  path: string,
+  options: ApiRequestOptions = {}
+): Promise<T> => {
+  try {
+    return await stroaneApiClient.request<T>(path, { ...options, method });
+  } catch (error) {
+    if (isApiClientError(error)) {
+      throw new AdminApiError(error.message, error.status);
+    }
+    throw error;
   }
-
-  if (!body) throw new Error(fallbackMessage);
-  return body as T;
 };
 
 export interface AdminSession {
@@ -284,32 +285,27 @@ export const clearAdminSession = () => {
 
 export const adminSessionApi = {
   async login(username: string, password: string): Promise<AdminSession> {
-    const response = await fetch(apiPath("/api/auth/login"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    const data = await parseJsonResponse<{
+    const data = await adminRequest<{
       ok: boolean;
       username: string;
       role: AdminRole;
       roleKey?: string;
       roleLabel?: string;
       permissions?: AdminRolePermissions;
-    }>(response, "Unable to sign in.");
+    }>("POST", "/api/auth/login", {
+      json: { username, password },
+      fallbackMessage: "Unable to sign in.",
+    });
     const session = normalizeAdminSession(data);
     if (!session) throw new Error("Unable to sign in.");
     return session;
   },
 
   async getCurrent(session: AdminSession): Promise<AdminSession> {
-    const response = await fetch(apiPath("/api/auth/me"), {
-      credentials: "include",
-    });
-    const data = await parseJsonResponse<{ ok: boolean; user: AdminSession }>(
-      response,
-      "Unable to load profile."
+    const data = await adminRequest<{ ok: boolean; user: AdminSession }>(
+      "GET",
+      "/api/auth/me",
+      { fallbackMessage: "Unable to load profile." }
     );
     const nextSession = normalizeAdminSession({ ...session, ...data.user });
     if (!nextSession) throw new Error("Unable to load profile.");
@@ -322,59 +318,44 @@ export const adminSessionApi = {
   ): Promise<AdminSession> {
     if (!session?.username) throw new Error("Sign in again to update your profile.");
 
-    const response = await fetch(apiPath("/api/auth/me"), {
-      method: "PATCH",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const data = await adminRequest<AdminSession>("PATCH", "/api/auth/me", {
+      json: payload,
+      fallbackMessage: "Unable to update profile.",
     });
-    const data = await parseJsonResponse<AdminSession>(response, "Unable to update profile.");
     const nextSession = normalizeAdminSession(data);
     if (!nextSession) throw new Error("Unable to update profile.");
     return nextSession;
   },
 
   async logout(): Promise<void> {
-    await fetch(apiPath("/api/auth/logout"), {
-      method: "POST",
-      credentials: "include",
+    await adminRequest("POST", "/api/auth/logout", {
+      fallbackMessage: "Unable to sign out.",
     }).catch(() => undefined);
   },
 
   async listUsers(): Promise<AdminTeamUser[]> {
-    const response = await fetch(apiPath("/api/auth/users"), {
-      credentials: "include",
-    });
-    const data = await parseJsonResponse<{ ok: boolean; users: AdminTeamUser[] }>(
-      response,
-      "Unable to load portal users."
+    const data = await adminRequest<{ ok: boolean; users: AdminTeamUser[] }>(
+      "GET",
+      "/api/auth/users",
+      { fallbackMessage: "Unable to load portal users." }
     );
     return Array.isArray(data.users) ? data.users : [];
   },
 
   async createUser(payload: AdminCreateUserPayload): Promise<AdminTeamUser> {
-    const response = await fetch(apiPath("/api/auth/users"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ ok: boolean; user: AdminTeamUser }>(
-      response,
-      "Unable to create portal user."
+    const data = await adminRequest<{ ok: boolean; user: AdminTeamUser }>(
+      "POST",
+      "/api/auth/users",
+      { json: payload, fallbackMessage: "Unable to create portal user." }
     );
     return data.user;
   },
 
   async listRoles(): Promise<AdminRoleDefinition[]> {
-    const response = await fetch(apiPath("/api/auth/roles"), {
-      credentials: "include",
-    });
-    const data = await parseJsonResponse<{ ok: boolean; roles: AdminRoleDefinition[] }>(
-      response,
-      "Unable to load portal roles."
+    const data = await adminRequest<{ ok: boolean; roles: AdminRoleDefinition[] }>(
+      "GET",
+      "/api/auth/roles",
+      { fallbackMessage: "Unable to load portal roles." }
     );
     return Array.isArray(data.roles)
       ? data.roles.map(normalizeRoleDefinition).filter((role): role is AdminRoleDefinition => Boolean(role))
@@ -382,15 +363,10 @@ export const adminSessionApi = {
   },
 
   async createRole(payload: AdminCreateRolePayload): Promise<AdminRoleDefinition> {
-    const response = await fetch(apiPath("/api/auth/roles"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ ok: boolean; role: AdminRoleDefinition }>(
-      response,
-      "Unable to create portal role."
+    const data = await adminRequest<{ ok: boolean; role: AdminRoleDefinition }>(
+      "POST",
+      "/api/auth/roles",
+      { json: payload, fallbackMessage: "Unable to create portal role." }
     );
     const role = normalizeRoleDefinition(data.role);
     if (!role) throw new Error("Unable to create portal role.");
@@ -398,15 +374,10 @@ export const adminSessionApi = {
   },
 
   async updateRole(id: string, payload: AdminUpdateRolePayload): Promise<AdminRoleDefinition> {
-    const response = await fetch(apiPath(`/api/auth/roles/${encodeURIComponent(id)}`), {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ ok: boolean; role: AdminRoleDefinition }>(
-      response,
-      "Unable to update portal role."
+    const data = await adminRequest<{ ok: boolean; role: AdminRoleDefinition }>(
+      "PATCH",
+      `/api/auth/roles/${encodeURIComponent(id)}`,
+      { json: payload, fallbackMessage: "Unable to update portal role." }
     );
     const role = normalizeRoleDefinition(data.role);
     if (!role) throw new Error("Unable to update portal role.");
@@ -414,15 +385,10 @@ export const adminSessionApi = {
   },
 
   async updateUser(id: string, payload: AdminUpdateUserPayload): Promise<AdminTeamUser> {
-    const response = await fetch(apiPath(`/api/auth/users/${encodeURIComponent(id)}`), {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ ok: boolean; user: AdminTeamUser }>(
-      response,
-      "Unable to update portal user."
+    const data = await adminRequest<{ ok: boolean; user: AdminTeamUser }>(
+      "PATCH",
+      `/api/auth/users/${encodeURIComponent(id)}`,
+      { json: payload, fallbackMessage: "Unable to update portal user." }
     );
     return data.user;
   },

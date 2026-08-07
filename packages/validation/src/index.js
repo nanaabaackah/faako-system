@@ -128,6 +128,40 @@ export const customerFormSchema = z
     });
   });
 
+/** Username-based staff accounts used by the Stroane operations portal. */
+export const usernameAccessFormSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(1)
+      .max(50)
+      .regex(
+        /^[a-z0-9._-]+$/,
+        "Username can only use letters, numbers, dots, underscores, and hyphens.",
+      ),
+    password: z.string().min(8).max(100),
+    roleKey: requiredText(80),
+  })
+  .strip();
+
+export const roleFormSchema = z
+  .object({
+    name: requiredText(80),
+    key: z
+      .union([
+        z.string().trim().toLowerCase().max(80).regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/),
+        z.literal(""),
+      ])
+      .optional(),
+    description: optionalText(240),
+    modules: z.array(requiredText(120)).max(100).optional(),
+    permissions: z.record(z.string(), z.unknown()).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strip();
+
 export const productFormSchema = z
   .object({
     name: requiredText(180),
@@ -182,6 +216,36 @@ export const inventoryAdjustmentSchema = z
       message: "Identify the inventory item or product.",
     });
   });
+
+const ORDER_STATUS_VALUES = [
+  "pending",
+  "payment_pending",
+  "paid",
+  "processing",
+  "fulfilled",
+  "completed",
+  "cancelled",
+  "canceled",
+];
+
+const statusTransitionSchema = (allowedValues) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .refine(
+      (value) => allowedValues.includes(value.toLowerCase()),
+      "Choose a supported status.",
+    );
+
+export const orderStatusTransitionSchema = z
+  .object({
+    orderId: domainIdSchema.optional(),
+    status: statusTransitionSchema(ORDER_STATUS_VALUES),
+    reason: nullableOptionalText(500),
+  })
+  .strip();
 
 export const bookingInputSchema = z
   .object({

@@ -6,10 +6,15 @@
       "env": [
         "$TURBO_EXTENDS$",
         "APP_ENV",
+        "STROANE_BUILD_SURFACE",
         "DATABASE_URL",
         "DATABASE_URL_DEVELOPMENT",
         "DATABASE_URL_PRODUCTION"
       ]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "cache": false
     }
   }
 }

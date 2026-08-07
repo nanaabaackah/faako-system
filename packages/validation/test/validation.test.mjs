@@ -11,10 +11,13 @@ import {
   invoiceInputSchema,
   loginInputSchema,
   newsletterInputSchema,
+  orderStatusTransitionSchema,
   organisationFormSchema,
   passwordResetInputSchema,
   paymentInputSchema,
   productFormSchema,
+  roleFormSchema,
+  usernameAccessFormSchema,
   validationIssues,
 } from "../src/index.js";
 
@@ -54,6 +57,44 @@ test("authentication schemas strip undeclared server-managed fields", () => {
     tokenVersion: 9,
   });
   assert.deepEqual(result, { email: "person@example.com" });
+});
+
+test("Stroane portal role and username inputs enforce safe identifiers", () => {
+  const account = usernameAccessFormSchema.parse({
+    username: " Store.Manager ",
+    password: "safe-password",
+    roleKey: "inventory_manager",
+  });
+  assert.equal(account.username, "store.manager");
+  assert.equal(
+    usernameAccessFormSchema.safeParse({
+      username: "unsafe user",
+      password: "safe-password",
+      roleKey: "inventory_manager",
+    }).success,
+    false,
+  );
+  assert.equal(
+    roleFormSchema.safeParse({
+      name: "Inventory Manager",
+      key: "inventory_manager",
+      modules: ["inventory"],
+      permissions: { inventory: ["view", "adjust"] },
+      isActive: true,
+    }).success,
+    true,
+  );
+});
+
+test("Stroane order status transitions accept supported states only", () => {
+  assert.equal(
+    orderStatusTransitionSchema.safeParse({ status: "processing" }).success,
+    true,
+  );
+  assert.equal(
+    orderStatusTransitionSchema.safeParse({ status: "unsupported" }).success,
+    false,
+  );
 });
 
 test("organisation and customer schemas accept string and numeric boundaries", () => {
