@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath, URL } from "node:url";
 
 const appRoot = fileURLToPath(new URL("..", import.meta.url));
+const compatibilityRoot = join(appRoot, "dist");
 const storefrontRoot = join(appRoot, "dist", "storefront");
 const adminRoot = join(appRoot, "dist", "admin");
 
@@ -15,6 +16,13 @@ const walk = (directory) =>
   });
 
 const read = (root, path) => readFileSync(join(root, path), "utf8");
+
+test("root build keeps the existing Cloudflare deployment operational during cutover", () => {
+  assert.equal(existsSync(join(compatibilityRoot, "index.html")), true);
+  const rootAssets = readdirSync(join(compatibilityRoot, "assets"));
+  assert.equal(rootAssets.some((name) => name.startsWith("StorefrontApp-") && name.endsWith(".js")), true);
+  assert.equal(rootAssets.some((name) => name.startsWith("PortalApp-") && name.endsWith(".js")), true);
+});
 
 test("storefront and admin builds emit independent browser graphs", () => {
   const storefrontScripts = walk(storefrontRoot)
