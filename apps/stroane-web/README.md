@@ -327,7 +327,7 @@ Mobile-sensitive pages use `100dvh` fallbacks where safe, plus safe-area padding
 
 ```bash
 pnpm --filter @faako/stroane-web run lint
-pnpm --filter @faako/stroane-web exec tsc -p tsconfig.app.json --noEmit
+pnpm --filter @faako/stroane-web run typecheck
 pnpm --filter @faako/stroane-web run build
 pnpm --filter @faako/stroane-web run db:deploy:prod
 pnpm --filter @faako/stroane-web start:api
@@ -339,11 +339,19 @@ Use Cloudflare Pages for the deployed frontend, Railway for the deployed API/bac
 
 Cloudflare Pages static security headers live in `public/_headers`. The Pages build copies that file into `dist/`, so the deployed frontend can allow the public API origin through the checked-in static header policy.
 
-Cloudflare Pages frontend settings:
+Cloudflare Pages storefront settings:
 
-- Build command: `pnpm --filter @faako/stroane-web build`
-- Output directory: `apps/stroane-web/dist`
+- Build command: `pnpm --filter @faako/stroane-web run build:storefront`
+- Output directory: `apps/stroane-web/dist/storefront`
 - Environment variable: `VITE_API_BASE_URL=https://api.stroanesolutions.com`
+
+Cloudflare Pages admin settings:
+
+- Build command: `pnpm --filter @faako/stroane-web run build:admin`
+- Output directory: `apps/stroane-web/dist/admin`
+- Environment variable: `VITE_API_BASE_URL=https://api.stroanesolutions.com`
+
+The browser deployments do not run Prisma generation. The Railway API owns `pnpm --filter @faako/stroane-web run build:api` and all database tooling.
 
 Railway API service command from the monorepo root with `RAILWAY_WORKSPACE=@faako/stroane-web`:
 

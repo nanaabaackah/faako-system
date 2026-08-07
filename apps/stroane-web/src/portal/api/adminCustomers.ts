@@ -1,29 +1,5 @@
-import { apiPath } from "../../api/config";
 import type { AdminSession } from "./adminSession";
-
-const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : fallbackMessage;
-    throw new Error(message);
-  }
-  if (!body) throw new Error(fallbackMessage);
-  return body as T;
-};
-
-const authRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-});
-
-const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import { stroaneApiClient } from "../../api/client";
 
 const withQuery = (path: string, filters: object = {}) => {
   const params = new URLSearchParams();
@@ -31,7 +7,7 @@ const withQuery = (path: string, filters: object = {}) => {
     if (value !== undefined && value !== "") params.set(key, String(value));
   });
   const query = params.toString();
-  return apiPath(`${path}${query ? `?${query}` : ""}`);
+  return `${path}${query ? `?${query}` : ""}`;
 };
 
 export interface AdminCustomer {
@@ -96,48 +72,51 @@ export interface AdminCustomerInvite {
 
 export const adminCustomersApi = {
   async listCustomers(session: AdminSession, filters: AdminCustomerFilters = {}) {
-    const response = await fetch(withQuery("/api/admin/customers", filters), {
-      ...authRequest(session),
+    void session;
+    return stroaneApiClient.get<{
+      customers: AdminCustomer[];
+      summary: AdminCustomerSummary;
+    }>(withQuery("/api/admin/customers", filters), {
+      fallbackMessage: "Unable to load customers.",
     });
-    return parseJsonResponse<{ customers: AdminCustomer[]; summary: AdminCustomerSummary }>(
-      response,
-      "Unable to load customers."
-    );
   },
 
   async createCustomer(session: AdminSession, payload: AdminCustomerPayload) {
-    const response = await fetch(apiPath("/api/admin/customers"), {
-      method: "POST",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
+    void session;
+    return stroaneApiClient.post<{
+      customer: AdminCustomer;
+      invite: AdminCustomerInvite | null;
+    }>("/api/admin/customers", {
+      json: payload,
+      fallbackMessage: "Unable to create customer.",
     });
-    return parseJsonResponse<{ customer: AdminCustomer; invite: AdminCustomerInvite | null }>(
-      response,
-      "Unable to create customer."
-    );
   },
 
-  async updateCustomer(session: AdminSession, customerId: string, payload: Partial<AdminCustomerPayload>) {
-    const response = await fetch(apiPath(`/api/admin/customers/${encodeURIComponent(customerId)}`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    return parseJsonResponse<{ customer: AdminCustomer }>(response, "Unable to update customer.");
+  async updateCustomer(
+    session: AdminSession,
+    customerId: string,
+    payload: Partial<AdminCustomerPayload>
+  ) {
+    void session;
+    return stroaneApiClient.patch<{ customer: AdminCustomer }>(
+      `/api/admin/customers/${encodeURIComponent(customerId)}`,
+      {
+        json: payload,
+        fallbackMessage: "Unable to update customer.",
+      }
+    );
   },
 
   async createInvite(session: AdminSession, customerId: string) {
-    const response = await fetch(
-      apiPath(`/api/admin/customers/${encodeURIComponent(customerId)}/invite`),
+    void session;
+    return stroaneApiClient.post<{
+      customer: AdminCustomer;
+      invite: AdminCustomerInvite;
+    }>(`/api/admin/customers/${encodeURIComponent(customerId)}/invite`,
       {
-        method: "POST",
-        ...jsonAuthRequest(session),
-        body: JSON.stringify({}),
+        json: {},
+        fallbackMessage: "Unable to create invitation.",
       }
-    );
-    return parseJsonResponse<{ customer: AdminCustomer; invite: AdminCustomerInvite }>(
-      response,
-      "Unable to create invitation."
     );
   },
 };

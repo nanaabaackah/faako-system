@@ -7,7 +7,10 @@ import {
   listInventoryItems,
   updateProductInventory,
 } from "./src/inventory/services.js";
-import { validateMovementPayload } from "./src/inventory/validation.js";
+import {
+  validateInventoryPatchPayload,
+  validateMovementPayload,
+} from "./src/inventory/validation.js";
 
 test("calculates available quantity from on-hand and reserved stock", () => {
   assert.equal(calculateAvailableQuantity(12, 4), 8);
@@ -201,6 +204,29 @@ test("rejects movement that would oversell reserved stock", () => {
         { movementType: "RESERVED", quantityDelta: 3 }
       ),
     /reserve more stock/
+  );
+});
+
+test("rejects stock mutations that would make on-hand or reserved stock negative", () => {
+  assert.throws(
+    () => validateInventoryPatchPayload({ quantityOnHand: -1 }),
+    /greater than or equal to 0/,
+  );
+  assert.throws(
+    () =>
+      applyInventoryMovementState(
+        { quantityOnHand: 2, reservedQuantity: 0 },
+        { movementType: "DAMAGE", quantityDelta: 3 },
+      ),
+    /negative/,
+  );
+  assert.throws(
+    () =>
+      applyInventoryMovementState(
+        { quantityOnHand: 5, reservedQuantity: 1 },
+        { movementType: "RELEASED", quantityDelta: 2 },
+      ),
+    /reserved quantity negative/,
   );
 });
 

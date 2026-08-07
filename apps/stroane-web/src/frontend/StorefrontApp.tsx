@@ -1,31 +1,35 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AnimatedLoadingState } from "@faako/ui";
 import ExternalRedirect from "../components/ExternalRedirect";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { portalUrl } from "../config/appSurface";
 import CookieConsentBanner from "./components/CookieConsentBanner";
-import Home from "./pages/Home";
-import About from "./pages/About";
-import Services from "./pages/Services";
-import Shop from "./pages/Shop";
-import Resources from "./pages/Resources";
-import Contact from "./pages/Contact";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Cookies from "./pages/Cookies";
-import Sitemap from "./pages/Sitemap";
-import ProductList from "./pages/ProductList";
-import ProductDetail from "./pages/ProductDetail";
-import Checkout from "./pages/Checkout";
-import CheckoutReturn from "./pages/CheckoutReturn";
-import CustomerAccountPlaceholder from "./pages/CustomerAccountPlaceholder";
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Search from "./pages/Search";
-import ErrorPage from "./pages/ErrorPage";
+
+const Home = lazy(() => import("./pages/Home"));
+const About = lazy(() => import("./pages/About"));
+const Services = lazy(() => import("./pages/Services"));
+const Shop = lazy(() => import("./pages/Shop"));
+const Resources = lazy(() => import("./pages/Resources"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Cookies = lazy(() => import("./pages/Cookies"));
+const Sitemap = lazy(() => import("./pages/Sitemap"));
+const ProductList = lazy(() => import("./pages/ProductList"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const CheckoutReturn = lazy(() => import("./pages/CheckoutReturn"));
+const CustomerAccountPlaceholder = lazy(
+  () => import("./pages/CustomerAccountPlaceholder"),
+);
+const SignIn = lazy(() => import("./pages/SignIn"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Search = lazy(() => import("./pages/Search"));
+const ErrorPage = lazy(() => import("./pages/ErrorPage"));
 
 const PortalExternalRedirect: React.FC = () => {
   const location = useLocation();
@@ -36,7 +40,17 @@ const PortalExternalRedirect: React.FC = () => {
 const StorefrontApp: React.FC = () => (
   <AuthProvider>
     <CartProvider>
-      <Routes>
+      <Suspense
+        fallback={
+          <AnimatedLoadingState
+            page
+            variant="storefront"
+            title="Loading Stroane"
+            message="Preparing this page."
+          />
+        }
+      >
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
@@ -71,7 +85,8 @@ const StorefrontApp: React.FC = () => (
           element={<PortalExternalRedirect />}
         />
         <Route path="*" element={<ErrorPage statusCode="404" />} />
-      </Routes>
+        </Routes>
+      </Suspense>
       <CookieConsentBanner />
     </CartProvider>
   </AuthProvider>

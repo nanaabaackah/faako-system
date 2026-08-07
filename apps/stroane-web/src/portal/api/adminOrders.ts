@@ -1,29 +1,5 @@
-import { apiPath } from "../../api/config";
 import type { AdminSession } from "./adminSession";
-
-const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : fallbackMessage;
-    throw new Error(message);
-  }
-  if (!body) throw new Error(fallbackMessage);
-  return body as T;
-};
-
-const authRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-});
-
-const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import { stroaneApiClient } from "../../api/client";
 
 const withQuery = (path: string, filters: object = {}) => {
   const params = new URLSearchParams();
@@ -31,7 +7,7 @@ const withQuery = (path: string, filters: object = {}) => {
     if (value !== undefined && value !== "") params.set(key, String(value));
   });
   const query = params.toString();
-  return apiPath(`${path}${query ? `?${query}` : ""}`);
+  return `${path}${query ? `?${query}` : ""}`;
 };
 
 export interface AdminOrderItem {
@@ -132,43 +108,32 @@ export interface AdminOrderUpdatePayload {
 
 export const adminOrdersApi = {
   async listOrders(session: AdminSession, filters: AdminOrderFilters = {}) {
-    const response = await fetch(withQuery("/api/admin/orders", filters), {
-      ...authRequest(session),
-    });
-    return parseJsonResponse<{ orders: AdminOrder[]; summary: AdminOrderSummary }>(
-      response,
-      "Unable to load orders."
+    void session;
+    return stroaneApiClient.get<{ orders: AdminOrder[]; summary: AdminOrderSummary }>(
+      withQuery("/api/admin/orders", filters),
+      { fallbackMessage: "Unable to load orders." },
     );
   },
 
   async createOrder(session: AdminSession, payload: AdminOrderCreatePayload) {
-    const response = await fetch(apiPath("/api/admin/orders"), {
-      method: "POST",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
+    void session;
+    return stroaneApiClient.post<{ order: AdminOrder }>("/api/admin/orders", {
+      json: payload,
+      fallbackMessage: "Unable to create order.",
     });
-    return parseJsonResponse<{ order: AdminOrder }>(response, "Unable to create order.");
   },
 
   async updateOrder(session: AdminSession, orderId: string, payload: AdminOrderUpdatePayload) {
-    const response = await fetch(apiPath(`/api/admin/orders/${encodeURIComponent(orderId)}`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    return parseJsonResponse<{ order: AdminOrder }>(response, "Unable to update order.");
+    void session;
+    return stroaneApiClient.patch<{ order: AdminOrder }>(
+      `/api/admin/orders/${encodeURIComponent(orderId)}`,
+      { json: payload, fallbackMessage: "Unable to update order." },
+    );
   },
 
   async initializePaystack(session: AdminSession, orderId: string) {
-    const response = await fetch(
-      apiPath(`/api/admin/orders/${encodeURIComponent(orderId)}/paystack/initialize`),
-      {
-        method: "POST",
-        ...jsonAuthRequest(session),
-        body: JSON.stringify({}),
-      }
-    );
-    return parseJsonResponse<{
+    void session;
+    return stroaneApiClient.post<{
       order: AdminOrder;
       payment: {
         provider: "paystack";
@@ -177,19 +142,15 @@ export const adminOrdersApi = {
         authorizationUrl: string;
         testMode?: boolean;
       };
-    }>(response, "Unable to initialize Paystack.");
+    }>(`/api/admin/orders/${encodeURIComponent(orderId)}/paystack/initialize`, {
+      json: {},
+      fallbackMessage: "Unable to initialize Paystack.",
+    });
   },
 
   async refreshPaystackStatus(session: AdminSession, orderId: string) {
-    const response = await fetch(
-      apiPath(`/api/admin/orders/${encodeURIComponent(orderId)}/paystack/verify`),
-      {
-        method: "POST",
-        ...jsonAuthRequest(session),
-        body: JSON.stringify({}),
-      }
-    );
-    return parseJsonResponse<{
+    void session;
+    return stroaneApiClient.post<{
       order: AdminOrder;
       payment: {
         provider: "paystack";
@@ -198,6 +159,9 @@ export const adminOrdersApi = {
         amountMatches: boolean;
         currencyMatches: boolean;
       };
-    }>(response, "Unable to refresh Paystack status.");
+    }>(`/api/admin/orders/${encodeURIComponent(orderId)}/paystack/verify`, {
+      json: {},
+      fallbackMessage: "Unable to refresh Paystack status.",
+    });
   },
 };

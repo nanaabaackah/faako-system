@@ -1,5 +1,10 @@
 import { createHttpError } from "../apiResponse.js";
 import { STOCK_STATUSES, normalizeSlug, sanitizeText } from "./validation.js";
+import {
+  AUDIT_ENTITY_TYPES,
+  AUDIT_SOURCES,
+  createAuditEvent,
+} from "@faako/audit";
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
@@ -8,6 +13,47 @@ const toNumber = (value) => {
 };
 
 const toIso = (value) => (value instanceof Date ? value.toISOString() : value || null);
+
+const buildInventoryAuditEntry = ({
+  action,
+  inventoryItemId,
+  supplierId,
+  productSlug,
+  variantId,
+  beforeState,
+  afterState,
+  note,
+  authUser,
+}) => {
+  const event = createAuditEvent({
+    application: "stroane-admin",
+    action,
+    entityType: AUDIT_ENTITY_TYPES.INVENTORY_ITEM,
+    entityId: inventoryItemId,
+    source: AUDIT_SOURCES.ONLINE,
+    actor: authUser?.id
+      ? { id: authUser.id, label: authUser.username || undefined }
+      : undefined,
+    metadata: { productSlug, variantId },
+  });
+
+  return {
+    inventoryItemId,
+    supplierId,
+    action: event.action,
+    // Preserve the existing database identifier while deriving the concept
+    // from the shared audit-event vocabulary.
+    entityType: String(event.entityType || AUDIT_ENTITY_TYPES.INVENTORY_ITEM).toLowerCase(),
+    entityId: inventoryItemId,
+    productSlug,
+    variantId,
+    beforeState,
+    afterState,
+    note,
+    createdById: event.actor?.id || null,
+    createdByName: event.actor?.label || null,
+  };
+};
 
 const supplierSummarySelect = {
   id: true,
@@ -564,12 +610,10 @@ export const updateInventoryItem = async (prisma, id, patch, authUser) => {
     });
 
     await tx.inventoryAuditEntry.create({
-      data: {
+      data: buildInventoryAuditEntry({
         inventoryItemId: id,
         supplierId: nextItem.supplierId,
         action: "INVENTORY_ITEM_UPDATED",
-        entityType: "inventory_item",
-        entityId: id,
         productSlug: nextItem.productSlug,
         variantId: nextItem.variantId,
         beforeState: {
@@ -587,9 +631,8 @@ export const updateInventoryItem = async (prisma, id, patch, authUser) => {
           supplierId: nextItem.supplierId,
         },
         note: "Inventory item updated through Stroane admin API.",
-        createdById: authUser?.id || null,
-        createdByName: authUser?.username || null,
-      },
+        authUser,
+      }),
     });
 
     return nextItem;
@@ -744,12 +787,10 @@ export const createInventoryMovement = async (prisma, movement, authUser) => {
     });
 
     await tx.inventoryAuditEntry.create({
-      data: {
+      data: buildInventoryAuditEntry({
         inventoryItemId: updatedItem.id,
         supplierId: movement.supplierId || updatedItem.supplierId,
         action: `INVENTORY_${movement.movementType}`,
-        entityType: "inventory_item",
-        entityId: updatedItem.id,
         productSlug: updatedItem.productSlug,
         variantId: updatedItem.variantId,
         beforeState: {
@@ -763,9 +804,8 @@ export const createInventoryMovement = async (prisma, movement, authUser) => {
           stockStatus: nextState.stockStatus,
         },
         note: movement.reason || "Inventory movement recorded through Stroane admin API.",
-        createdById: authUser?.id || null,
-        createdByName: authUser?.username || null,
-      },
+        authUser,
+      }),
     });
 
     return { item: updatedItem, movement: savedMovement };

@@ -51,6 +51,21 @@ export declare const customerFormSchema: z.ZodType<{
   status?: string;
 }>;
 
+export declare const usernameAccessFormSchema: z.ZodType<{
+  username: string;
+  password: string;
+  roleKey: string;
+}>;
+
+export declare const roleFormSchema: z.ZodType<{
+  name: string;
+  key?: string;
+  description?: string;
+  modules?: string[];
+  permissions?: Record<string, unknown>;
+  isActive?: boolean;
+}>;
+
 export declare const productFormSchema: z.ZodType<{
   name: string;
   slug?: string;
@@ -84,6 +99,12 @@ export declare const inventoryAdjustmentSchema: z.ZodType<{
   reason?: string | null;
   referenceType?: string | null;
   referenceId?: string | number | null;
+}>;
+
+export declare const orderStatusTransitionSchema: z.ZodType<{
+  orderId?: string | number;
+  status: string;
+  reason?: string | null;
 }>;
 
 export declare const bookingInputSchema: z.ZodType<{
@@ -192,9 +213,16 @@ export type AuthenticationRegistrationInput = z.infer<
 >;
 export type OrganisationFormInput = z.infer<typeof organisationFormSchema>;
 export type CustomerFormInput = z.infer<typeof customerFormSchema>;
+export type UsernameAccessFormInput = z.infer<
+  typeof usernameAccessFormSchema
+>;
+export type RoleFormInput = z.infer<typeof roleFormSchema>;
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type InventoryAdjustmentInput = z.infer<
   typeof inventoryAdjustmentSchema
+>;
+export type OrderStatusTransitionInput = z.infer<
+  typeof orderStatusTransitionSchema
 >;
 export type BookingInput = z.infer<typeof bookingInputSchema>;
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;

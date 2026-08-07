@@ -1,29 +1,5 @@
 import type { AdminSession } from "./adminSession";
-import { apiPath } from "../../api/config";
-
-const parseJsonResponse = async <T>(response: Response, fallbackMessage: string): Promise<T> => {
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message =
-      body && typeof body === "object" && "error" in body && typeof body.error === "string"
-        ? body.error
-        : fallbackMessage;
-    throw new Error(message);
-  }
-  if (!body) throw new Error(fallbackMessage);
-  return body as T;
-};
-
-const authRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-});
-
-const jsonAuthRequest = (_session: AdminSession): RequestInit => ({
-  credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import { stroaneApiClient } from "../../api/client";
 
 const withQuery = (path: string, filters: object = {}) => {
   const params = new URLSearchParams();
@@ -31,7 +7,7 @@ const withQuery = (path: string, filters: object = {}) => {
     if (value !== undefined && value !== "") params.set(key, String(value));
   });
   const query = params.toString();
-  return apiPath(`${path}${query ? `?${query}` : ""}`);
+  return `${path}${query ? `?${query}` : ""}`;
 };
 
 export interface AdminProductCategory {
@@ -146,22 +122,18 @@ export interface AdminProductSupplierPayload {
 
 export const adminProductsApi = {
   async listProducts(session: AdminSession, filters: AdminProductFilters = {}) {
-    const response = await fetch(withQuery("/api/admin/products", filters), {
-      ...authRequest(session),
-    });
-    return parseJsonResponse<{ products: AdminProduct[]; categories: AdminProductCategory[] }>(
-      response,
-      "Unable to load products."
+    void session;
+    return stroaneApiClient.get<{ products: AdminProduct[]; categories: AdminProductCategory[] }>(
+      withQuery("/api/admin/products", filters),
+      { fallbackMessage: "Unable to load products." },
     );
   },
 
   async getProduct(session: AdminSession, id: string): Promise<AdminProduct> {
-    const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}`), {
-      ...authRequest(session),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to load product."
+    void session;
+    const data = await stroaneApiClient.get<{ product: AdminProduct }>(
+      `/api/admin/products/${encodeURIComponent(id)}`,
+      { fallbackMessage: "Unable to load product." },
     );
     return data.product;
   },
@@ -170,14 +142,10 @@ export const adminProductsApi = {
     session: AdminSession,
     payload: AdminProductCreatePayload
   ): Promise<AdminProduct> {
-    const response = await fetch(apiPath("/api/admin/products"), {
-      method: "POST",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to create product."
+    void session;
+    const data = await stroaneApiClient.post<{ product: AdminProduct }>(
+      "/api/admin/products",
+      { json: payload, fallbackMessage: "Unable to create product." },
     );
     return data.product;
   },
@@ -186,16 +154,15 @@ export const adminProductsApi = {
     session: AdminSession,
     payload: AdminProductBulkPayload
   ): Promise<{ products: AdminProduct[]; count: number; action: AdminProductBulkPayload["action"] }> {
-    const response = await fetch(apiPath("/api/admin/products/bulk"), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    return parseJsonResponse<{
+    void session;
+    return stroaneApiClient.patch<{
       products: AdminProduct[];
       count: number;
       action: AdminProductBulkPayload["action"];
-    }>(response, "Unable to update selected products.");
+    }>("/api/admin/products/bulk", {
+      json: payload,
+      fallbackMessage: "Unable to update selected products.",
+    });
   },
 
   async updateProduct(
@@ -203,14 +170,10 @@ export const adminProductsApi = {
     id: string,
     payload: AdminProductPatchPayload
   ): Promise<AdminProduct> {
-    const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to update product."
+    void session;
+    const data = await stroaneApiClient.patch<{ product: AdminProduct }>(
+      `/api/admin/products/${encodeURIComponent(id)}`,
+      { json: payload, fallbackMessage: "Unable to update product." },
     );
     return data.product;
   },
@@ -220,14 +183,10 @@ export const adminProductsApi = {
     id: string,
     payload: AdminProductPublishingPayload
   ): Promise<AdminProduct> {
-    const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}/publishing`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to update product publishing."
+    void session;
+    const data = await stroaneApiClient.patch<{ product: AdminProduct }>(
+      `/api/admin/products/${encodeURIComponent(id)}/publishing`,
+      { json: payload, fallbackMessage: "Unable to update product publishing." },
     );
     return data.product;
   },
@@ -237,14 +196,10 @@ export const adminProductsApi = {
     id: string,
     payload: AdminProductSupplierPayload
   ): Promise<AdminProduct> {
-    const response = await fetch(apiPath(`/api/admin/products/${encodeURIComponent(id)}/suppliers`), {
-      method: "PATCH",
-      ...jsonAuthRequest(session),
-      body: JSON.stringify(payload),
-    });
-    const data = await parseJsonResponse<{ product: AdminProduct }>(
-      response,
-      "Unable to update product supplier."
+    void session;
+    const data = await stroaneApiClient.patch<{ product: AdminProduct }>(
+      `/api/admin/products/${encodeURIComponent(id)}/suppliers`,
+      { json: payload, fallbackMessage: "Unable to update product supplier." },
     );
     return data.product;
   },
