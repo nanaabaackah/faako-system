@@ -23,6 +23,19 @@ Next step:
 
 ## Entries
 
+### System Health monitoring coverage correction
+
+Date: 2026-08-06
+Feature/change name: Enabled-service monitoring coverage and scheduler state
+What changed: Monitoring coverage now excludes intentionally disabled registry entries, summary responses expose whether the scheduler is enabled, and the System Health hero distinguishes a disabled scheduler from incomplete signal coverage.
+Why it changed: A production instance with monitoring disabled displayed every registered entry as Unknown and reported 0% coverage; disabling unsupported providers also could not improve the percentage because disabled entries remained in the denominator.
+Files changed: Monitoring aggregation/service, System Health summary and hero, focused tests, Phase 2 operations documentation, and this progress log.
+Data impact: None. Existing registry and check history remain intact.
+Security impact: None. Monitor targets remain server-only and authenticated API boundaries are unchanged.
+Testing done: Twelve focused monitoring tests, all 251 Dev ERP tests, lint, and the production build passed. The public production `/healthz` endpoint returned HTTP 200.
+Rollback notes: Revert the enabled-service coverage filter and scheduler-state presentation; no data rollback is required.
+Next step: Set the production Railway monitoring variables, redeploy the API, and verify that enabled checks begin recording within one scheduler interval.
+
 ### System Health Faako UI and email refresh
 
 Date: 2026-08-02

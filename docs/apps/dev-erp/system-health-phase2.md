@@ -62,6 +62,8 @@ The Phase 1 page fetches the summary/services compatibility shape, adapts API ca
 
 See `.env.example` for the complete safe server-only list. Core variables are `MONITORING_ENABLED`, concurrency/timeout/latency thresholds, incident thresholds, retention direction, scheduler tick, disabled keys, trusted app/API monitor URLs, optional safe provider status URLs, and worker heartbeat timestamps. Never rename them with a `VITE_` prefix or configure state-changing provider endpoints.
 
+Coverage is calculated from enabled registry entries only. Put services that do not yet have a real, read-only signal in `MONITORING_DISABLED_SERVICES`; they remain visible for configuration but do not dilute the operational score. The summary reports `monitoringEnabled`, allowing the UI to distinguish a disabled scheduler from genuine low coverage.
+
 ## Retention and logging
 
 `MONITORING_RETENTION_DAYS` documents the raw-history retention target (default 60 days). Destructive cleanup is intentionally not implemented in Phase 2. Structured monitoring logs contain service key, checker type, status, latency, retry count, and incident lifecycle metadata only. Secrets, targets, connection strings, auth headers, raw provider responses, and customer data are excluded.
@@ -80,6 +82,6 @@ See `.env.example` for the complete safe server-only list. Core variables are `M
 2. Back up the target database according to the normal deployment procedure.
 3. Deploy the migration with the existing environment-specific Prisma deploy command; do not use development migration commands against production.
 4. Keep `MONITORING_ENABLED=false` for the first application deploy and verify authenticated monitoring APIs/registry rows.
-5. Configure only trusted server-side targets. Start with Dev ERP API/database and leave unsupported providers Unknown.
+5. Configure only trusted server-side targets. Start with Dev ERP API/database and explicitly disable unsupported providers until a real signal exists.
 6. Enable monitoring on one API instance, observe check creation and incident thresholds, and confirm no targets/secrets appear in responses or logs.
 7. Test 1h/24h/7d/30d, hidden-tab polling pause, filters, drawer, non-admin denial, admin manual check/audit, dark mode, and mobile layout.

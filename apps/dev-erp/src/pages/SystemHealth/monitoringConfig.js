@@ -136,12 +136,13 @@ export const filterServices = (services, filters) => services.filter((service) =
 });
 
 export const getPlatformSummary = (services, apiSummary = null) => {
-  const total = services.length;
-  const healthy = services.filter((service) => normalizeHealthStatus(service.status) === "healthy").length;
-  const degraded = services.filter((service) => normalizeHealthStatus(service.status) === "degraded").length;
-  const down = services.filter((service) => normalizeHealthStatus(service.status) === "down").length;
-  const unknown = services.filter((service) => normalizeHealthStatus(service.status) === "unknown").length;
-  const measured = services.map((service) => service.latencyMs).filter(Number.isFinite);
+  const monitoredServices = services.filter((service) => service.enabled !== false);
+  const total = monitoredServices.length;
+  const healthy = monitoredServices.filter((service) => normalizeHealthStatus(service.status) === "healthy").length;
+  const degraded = monitoredServices.filter((service) => normalizeHealthStatus(service.status) === "degraded").length;
+  const down = monitoredServices.filter((service) => normalizeHealthStatus(service.status) === "down").length;
+  const unknown = monitoredServices.filter((service) => normalizeHealthStatus(service.status) === "unknown").length;
+  const measured = monitoredServices.map((service) => service.latencyMs).filter(Number.isFinite);
   return {
     total,
     healthy,
@@ -151,6 +152,7 @@ export const getPlatformSummary = (services, apiSummary = null) => {
     score: Number.isFinite(apiSummary?.score) ? apiSummary.score : null,
     scoreLabel: apiSummary?.label || "Insufficient coverage",
     coveragePercentage: apiSummary?.coveragePercentage ?? 0,
+    monitoringEnabled: apiSummary?.monitoringEnabled ?? null,
     averageLatencyMs: measured.length ? Math.round(measured.reduce((sum, value) => sum + value, 0) / measured.length) : null,
     activeIncidents: apiSummary?.activeIncidents ?? services.reduce((sum, service) => sum + service.incidents.filter((incident) => incident.status !== "RESOLVED").length, 0),
   };
