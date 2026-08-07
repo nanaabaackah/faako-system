@@ -24,6 +24,15 @@ apps/stroane-web/dist/storefront
 
 The post-build finalizer generates route-specific HTML metadata shells and `sitemap.xml`. A build is incomplete if this finalizer does not run.
 
+### Temporary root-artifact compatibility
+
+The workspace-level `build` command also emits a hostname-aware compatibility
+artifact at `apps/stroane-web/dist`. This keeps the existing Cloudflare project
+operational while its output is changed from the old root directory to the
+dedicated storefront artifact. It is a rollback bridge, not the target deployment.
+Remove it only after `stroanesolutions.com` is verified on a Cloudflare project
+whose build command is `build:storefront` and whose output is `dist/storefront`.
+
 ## Environment variables
 
 Names only:
