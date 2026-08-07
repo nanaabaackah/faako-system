@@ -223,15 +223,16 @@ const installTaskApi = async (page, { initialTasks = [initialTask], failStatus =
   return writes;
 };
 
-const chooseDropdown = async (page, label, option) => {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const trigger = page.getByLabel(label);
-    await trigger.click();
-    await page.getByRole("option", { name: option, exact: true }).click({ force: true });
-    if ((await trigger.textContent())?.includes(option)) return;
-    await page.waitForTimeout(150);
-  }
-  await expect(page.getByLabel(label)).toContainText(option);
+const chooseDropdown = async (page, label, option, scope = page) => {
+  const trigger = scope.getByRole("button", { name: label, exact: true });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  // SelectField renders its listbox in a document-level portal.
+  const optionLocator = page.getByRole("option", { name: option, exact: true });
+  await expect(optionLocator).toBeVisible();
+  await optionLocator.click();
+  await expect(trigger).toContainText(option);
 };
 
 test("project detail creates, assigns, edits, completes, and archives tasks", async ({ page }) => {
@@ -245,7 +246,7 @@ test("project detail creates, assigns, edits, completes, and archives tasks", as
   await page.getByRole("button", { name: "New task" }).click();
   const createDialog = page.getByRole("dialog", { name: "New task" });
   await createDialog.getByLabel("Title").fill("Design QA");
-  await chooseDropdown(page, "Assignee", "Admin User");
+  await chooseDropdown(page, "Assignee", "Admin User", createDialog);
   await createDialog.getByRole("button", { name: "Create task" }).click();
   await expect(page.getByRole("heading", { name: "Design QA" })).toBeVisible();
   expect(writes[0]).toMatchObject({ operation: "create", body: { title: "Design QA", assigneeUserId: 1 } });

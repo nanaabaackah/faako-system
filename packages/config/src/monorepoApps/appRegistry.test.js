@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getMonorepoMonitoringSites } from "./appRegistry.js";
+import { getMonorepoAppByKey, getMonorepoMonitoringSites } from "./appRegistry.js";
 
 const findSite = (sites, id) => sites.find((site) => site.id === id);
 const pagePaths = (site) => new Set((site?.pages ?? []).map((page) => page.path));
+
+test("TTNGH remains registered while its application workspace is deferred", () => {
+  const ttngh = getMonorepoAppByKey("ttngh");
+
+  assert.ok(ttngh, "expected TTNGH registry metadata");
+  assert.equal(ttngh.workspaceRequired, false);
+  assert.equal(ttngh.monitoringOptional, true);
+});
 
 test("monorepo monitoring keeps Dev ERP API checks in system status surfaces", () => {
   const sites = getMonorepoMonitoringSites({});
