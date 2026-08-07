@@ -85,8 +85,8 @@ export const PlatformHealthScore = ({ summary }) => (
     </div>
     <div>
       <p className="eyebrow">Overall summary</p>
-      <h2>{!Number.isFinite(summary.score) ? "Monitoring coverage is incomplete" : summary.down ? "Platform needs attention" : summary.degraded ? "Platform is operational" : "All systems operational"}</h2>
-      <p>{!Number.isFinite(summary.score) ? `${summary.coveragePercentage}% of registered services currently have a usable signal.` : summary.down ? `${summary.down} service${summary.down === 1 ? "" : "s"} unavailable.` : summary.degraded ? `${summary.degraded} service${summary.degraded === 1 ? "" : "s"} currently degraded.` : "All monitored services are responding normally."}</p>
+      <h2>{summary.monitoringEnabled === false ? "Monitoring is not enabled" : !Number.isFinite(summary.score) ? "Monitoring coverage is incomplete" : summary.down ? "Platform needs attention" : summary.degraded ? "Platform is operational" : "All systems operational"}</h2>
+      <p>{summary.monitoringEnabled === false ? "Enable the server-side monitoring scheduler to begin collecting service signals." : !Number.isFinite(summary.score) ? `${summary.coveragePercentage}% of enabled services currently have a usable signal.` : summary.down ? `${summary.down} service${summary.down === 1 ? "" : "s"} unavailable.` : summary.degraded ? `${summary.degraded} service${summary.degraded === 1 ? "" : "s"} currently degraded.` : "All monitored services are responding normally."}</p>
     </div>
   </section>
 );

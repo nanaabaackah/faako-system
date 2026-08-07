@@ -106,7 +106,7 @@ export const createMonitoringService = ({ registry, options, repository, logger,
     async getSummary(range) {
       const services = await buildViews(range);
       const counts = services.reduce((result, service) => ({ ...result, [service.effectiveStatus]: (result[service.effectiveStatus] || 0) + 1 }), { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 });
-      return { ...calculatePlatformHealth(services), counts, activeIncidents: services.reduce((sum, service) => sum + service.incidents.filter((incident) => !["RESOLVED", "CLOSED"].includes(incident.status)).length, 0), services };
+      return { ...calculatePlatformHealth(services), monitoringEnabled: options.enabled, counts, activeIncidents: services.reduce((sum, service) => sum + service.incidents.filter((incident) => !["RESOLVED", "CLOSED"].includes(incident.status)).length, 0), services };
     },
     async getService(id, range) { return (await buildViews(range)).find((service) => service.id === id) || null; },
     async getHistory(id, range) { const service = (await buildViews(range)).find((item) => item.id === id) || null; return service ? { serviceId: id, range, timeline: service.timeline, latencyMetrics: service.latencyMetrics, uptimePercentage: service.uptimePercentage } : null; },

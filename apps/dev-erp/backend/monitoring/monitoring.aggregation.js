@@ -80,7 +80,8 @@ export const calculateUptimePercentage = (checks = []) => {
 };
 
 export const calculatePlatformHealth = (services = []) => {
-  const known = services.filter((service) => service.effectiveStatus !== "UNKNOWN");
+  const monitoredServices = services.filter((service) => service.enabled !== false);
+  const known = monitoredServices.filter((service) => service.effectiveStatus !== "UNKNOWN");
   const categories = Object.keys(CATEGORY_WEIGHTS).map((category) => {
     const categoryServices = known.filter((service) => service.category === category);
     const serviceWeight = categoryServices.reduce((sum, service) => sum + (service.critical ? 1.5 : 1), 0);
@@ -91,13 +92,13 @@ export const calculatePlatformHealth = (services = []) => {
   }).filter(({ score }) => score !== null);
   const totalWeight = categories.reduce((sum, { category }) => sum + CATEGORY_WEIGHTS[category], 0);
   const weightedScore = categories.reduce((sum, { category, score }) => sum + score * CATEGORY_WEIGHTS[category], 0);
-  const coveragePercentage = services.length ? Math.round((known.length / services.length) * 100) : 0;
+  const coveragePercentage = monitoredServices.length ? Math.round((known.length / monitoredServices.length) * 100) : 0;
   const score = totalWeight ? Math.round(weightedScore / totalWeight) : null;
   return {
     score: coveragePercentage < 50 ? null : score,
     label: coveragePercentage < 50 ? "Insufficient coverage" : score >= 90 ? "Healthy" : score >= 60 ? "Degraded" : "Critical",
     coveragePercentage,
     knownServices: known.length,
-    totalServices: services.length,
+    totalServices: monitoredServices.length,
   };
 };

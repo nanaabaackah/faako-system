@@ -4,7 +4,7 @@ from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime, timezone
 
-from .contracts import DataQualityCheck, DataQualityResult
+from .contracts import DataQualityCheck, DataQualityResult, QualityStatus
 
 
 def utc_now() -> datetime:
@@ -74,6 +74,7 @@ def empty_dataset_check(record_count: int) -> DataQualityCheck:
 
 
 def build_quality_result(checks: list[DataQualityCheck]) -> DataQualityResult:
+    status: QualityStatus
     if any(check.status == "fail" for check in checks):
         status = "blocked"
     elif any(check.status == "warning" for check in checks):
