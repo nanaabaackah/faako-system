@@ -265,7 +265,10 @@ test("Faako onboarding list opens detail and saves management updates", async ({
 
   const managementPanel = dialog.locator(".faako-management-panel");
   await managementPanel.getByRole("button", { name: "Status" }).click({ force: true });
-  await page.getByRole("option", { name: "Contacted" }).click({ force: true });
+  const statusPopover = page.locator(".ui-dropdown-field__popover").filter({ has: page.getByRole("option", { name: "Contacted", exact: true }) });
+  await expect(statusPopover).toBeVisible();
+  await statusPopover.getByRole("option", { name: "Contacted", exact: true }).click();
+  await expect(managementPanel.getByRole("button", { name: "Status" })).toContainText("Contacted");
   await managementPanel.getByLabel("Internal notes").fill("Follow up after proposal review.");
   await managementPanel.getByRole("button", { name: "Save updates" }).click();
 
