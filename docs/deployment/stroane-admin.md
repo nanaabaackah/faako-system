@@ -24,6 +24,15 @@ apps/stroane-web/dist/admin
 
 The finalizer applies admin-only metadata, CSP, `X-Robots-Tag`, and robots policy, and removes the public sitemap copied from shared static assets.
 
+### Temporary root-artifact compatibility
+
+The workspace-level `build` command also emits a hostname-aware compatibility
+artifact at `apps/stroane-web/dist` so the existing shared Cloudflare deployment
+continues serving `portal.stroanesolutions.com` during cutover. The target remains
+the dedicated `build:admin` command and `dist/admin` output in a separate
+Cloudflare project. Remove the compatibility artifact only after login, private
+route fallback, CSP, and no-index headers pass on that dedicated deployment.
+
 ## Environment variables
 
 Names only:
