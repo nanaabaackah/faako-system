@@ -88,6 +88,13 @@ export function createManualChunks() {
   return (id) => {
     const normalized = normalizePath(id);
 
+    // Keep Vite's dynamic-import helper in the shared runtime. If Rollup places
+    // it inside a heavy feature chunk, the entry imports and preloads that
+    // feature even though the underlying dependency is otherwise on demand.
+    if (normalized.includes("vite/preload-helper")) {
+      return "vendor";
+    }
+
     for (const group of GROUPS) {
       if (group.patterns.some((pattern) => normalized.includes(pattern))) {
         return group.name;

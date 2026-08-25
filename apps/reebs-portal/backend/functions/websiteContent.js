@@ -5,6 +5,10 @@ import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 
 const METHODS = "GET,POST,PATCH,OPTIONS";
+const INTERNAL_CONTENT_SECTIONS = new Set(["inventory-templates"]);
+
+export const isInternalWebsiteContentSection = (section) =>
+  INTERNAL_CONTENT_SECTIONS.has(String(section || "").trim().toLowerCase());
 
 const json = (event, statusCode, payload) =>
   respond(event, statusCode, payload, { methods: METHODS });
@@ -190,14 +194,25 @@ export async function handler(event = {}) {
     await ensureWebsiteContentSchema(client);
 
     if (method === "GET") {
-      // Intentionally public: storefront website content for the configured public organization only.
       const section = normalizeToken(event.queryStringParameters?.section || event.queryStringParameters?.group);
       const key = normalizeToken(event.queryStringParameters?.key || event.queryStringParameters?.contentKey);
       if (!section) {
         return json(event, 400, { error: "Content section is required." });
       }
 
-      const organizationId = await resolveConfiguredPublicOrganizationId(client);
+      let organizationId;
+      if (isInternalWebsiteContentSection(section)) {
+        const auth = await requireInternalUser(client, event, {
+          methods: METHODS,
+          roles: ["owner", "admin"],
+          roleError: "Only owners and admins can read internal templates.",
+        });
+        if (auth.errorResponse) return auth.errorResponse;
+        organizationId = auth.organizationId;
+      } else {
+        // Storefront content remains public for the configured public organization.
+        organizationId = await resolveConfiguredPublicOrganizationId(client);
+      }
       if (key) {
         const content = await getContent(client, organizationId, section, key);
         return json(event, 200, { content });

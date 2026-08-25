@@ -9,6 +9,7 @@ import {
   createRequestContextMiddleware,
 } from "@faako/logger";
 import { json } from "./functions/_shared/http.js";
+import { REEBS_V1_HANDLER_ALIASES } from "./versionedRoutes.js";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.join(backendDir, "functions");
@@ -302,6 +303,10 @@ export const createReebsApiServer = () => {
   app.all("/api/webhook/railway", (req, res) =>
     dispatchFunctionRequest(req, res, "railwayEvents")
   );
+
+  for (const [route, functionName] of Object.entries(REEBS_V1_HANDLER_ALIASES)) {
+    app.all(route, (req, res) => dispatchFunctionRequest(req, res, functionName));
+  }
 
   app.all("/api/:functionName", (req, res) =>
     dispatchFunctionRequest(req, res, req.params.functionName)

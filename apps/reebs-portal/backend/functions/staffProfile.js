@@ -4,6 +4,7 @@ import { Client } from "pg";
 import { hashPassword } from "../../utils/passwords.js";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { requireUser } from "./_shared/userAuth.js";
+import { ensureUserSessionsTable, revokeUserSessionsForUser } from "./_shared/userSessions.js";
 import { ensureUserImageUrlColumn, normalizeProfileImageUrl } from "./_shared/userProfileImage.js";
 import {
   ensureUserPersonalEmailColumn,
@@ -68,6 +69,8 @@ const ensureEmployeeProfileTable = async (client) => {
 
 const cleanString = (value) => (typeof value === "string" ? value.trim() : "");
 const stripSpaces = (value) => cleanString(value).replace(/\s+/g, "");
+export const isValidProfilePassword = (value) =>
+  !value || (typeof value === "string" && value.trim().length >= 8);
 
 const buildEmailFromNames = (firstName, lastName) => {
   const first = stripSpaces(firstName).toLowerCase();
@@ -122,6 +125,7 @@ export async function handler(event = {}) {
     connectionString: process.env.DATABASE_URL,
     ssl: resolvePgSslConfig(),
   });
+  let transactionStarted = false;
 
   try {
     await client.connect();
@@ -175,6 +179,9 @@ export async function handler(event = {}) {
     if (!firstName || !lastName) {
       return respond(event, 400, { error: "First and last name are required." });
     }
+    if (!isValidProfilePassword(password)) {
+      return respond(event, 400, { error: "Password must be at least 8 characters." });
+    }
     if (personalEmailProvided && !isValidPersonalEmail(nextPersonalEmail)) {
       return respond(event, 400, { error: "Enter a valid personal email address." });
     }
@@ -227,6 +234,8 @@ export async function handler(event = {}) {
     userValues.push(userId);
     userValues.push(organizationId);
 
+    await client.query("BEGIN");
+    transactionStarted = true;
     await client.query(
       `UPDATE "user" SET ${userUpdates.join(", ")}
        WHERE id = $${userValues.length - 1} AND "organizationId" = $${userValues.length}`,
@@ -246,11 +255,24 @@ export async function handler(event = {}) {
       [organizationId, userId, jobTitle, phone, address],
     );
 
+    if (password) {
+      await ensureUserSessionsTable(client);
+      await revokeUserSessionsForUser(client, userId, organizationId, {
+        exceptSessionTokenId: authUser.sessionTokenId,
+      });
+    }
+
+    await client.query("COMMIT");
+    transactionStarted = false;
+
     const updatedProfile = await selectCurrentProfile(client, userId, organizationId);
     return respond(event, 200, updatedProfile);
   } catch (error) {
-    console.error("Staff profile error:", error);
-    return respond(event, 500, { error: error?.message || "Failed to update profile." });
+    if (transactionStarted) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+    console.error("Staff profile request failed", { code: error?.code, requestId: event?.requestId });
+    return respond(event, 500, { error: "Failed to update profile." });
   } finally {
     await client.end().catch(() => {});
   }

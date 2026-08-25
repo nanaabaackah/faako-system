@@ -9,26 +9,20 @@ import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import { buildUserSessionCookie, signUserToken } from "./_shared/userAuth.js";
 import { ensureUserPersonalEmailColumn } from "./_shared/userPersonalEmail.js";
 import { getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
+import { toReebsSessionUserDto } from "@faako/api-contracts/reebs";
+import { reebsLoginInputSchema, validationIssues } from "@faako/validation";
 import {
   createUserSession,
   ensureUserSessionsTable,
   USER_SESSION_TTL_MS,
 } from "./_shared/userSessions.js";
+import { applyWindowRateLimit, getRequestClientIp } from "./_shared/requestRateLimit.js";
 const SESSION_ONLY_TTL_MS = 1000 * 60 * 60 * 12;
 
 const respond = (event, statusCode, payload = {}, extraHeaders = {}) =>
   json(event, statusCode, payload, { methods: "POST, OPTIONS", extraHeaders });
 
-export const toSafeLoginUser = (user = {}) => ({
-  id: user.id,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  fullName: user.fullName,
-  email: user.email,
-  personalEmail: user.personalEmail,
-  role: user.role,
-  organizationId: user.organizationId,
-});
+export const toSafeLoginUser = (user = {}) => toReebsSessionUserDto(user);
 
 export const buildSuccessfulLoginResponse = (
   event,
@@ -56,13 +50,21 @@ export async function handler(event) {
     return respond(event, 403, { error: "Cross-site requests are not allowed." });
   }
 
-  const { email, password, remember } = (() => {
+  const input = (() => {
     try {
       return JSON.parse(event.body || "{}");
     } catch {
       return {};
     }
   })();
+  const parsedInput = reebsLoginInputSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return respond(event, 400, {
+      error: "Email/username and password are required.",
+      issues: validationIssues(parsedInput.error),
+    });
+  }
+  const { email, password, remember } = parsedInput.data;
 
   const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
   const normalizedPassword = typeof password === "string" ? password.trim() : "";
@@ -84,6 +86,18 @@ export async function handler(event) {
 
   try {
     await client.connect();
+    const requestLimit = await applyWindowRateLimit(client, {
+      scope: "login:ip",
+      identifier: getRequestClientIp(event),
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!requestLimit.allowed) {
+      return respond(event, 429, {
+        error: "Too many login attempts. Try again later.",
+        retryAfterSeconds: requestLimit.retryAfterSeconds,
+      }, { "Retry-After": String(requestLimit.retryAfterSeconds) });
+    }
     await ensureUserPersonalEmailColumn(client);
     const result = isUsernameOnly
       ? await client.query(

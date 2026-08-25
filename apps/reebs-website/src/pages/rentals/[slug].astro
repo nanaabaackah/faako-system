@@ -1,8 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import RentalItemIsland from "../../components/islands/RentalItemIsland.jsx";
-import SiteFooter from "../../components/catalogue/SiteFooter.astro";
-import SiteHeader from "../../components/catalogue/SiteHeader.astro";
 import { publicRentals } from "../../content/publicCatalogue.js";
 import { SITE_URL } from "../../utils/seo.js";
 
@@ -47,11 +45,9 @@ const productSchema = {
   type="product"
   structuredData={productSchema}
 >
-  <SiteHeader currentPath="/rentals" />
   <RentalItemIsland
     path={item.path}
     initialRental={item}
     client:load
   />
-  <SiteFooter />
 </BaseLayout>

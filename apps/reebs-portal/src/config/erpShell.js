@@ -2,7 +2,7 @@ import { defineErpShellConfig } from "@faako/config";
 
 export default defineErpShellConfig({
   brand: {
-    name: "REEBS ERP",
+    name: "REEBS Portal",
     shortName: "REEBS",
     sidebarTitle: "REEBS Portal",
     homePath: "/admin",
@@ -30,7 +30,7 @@ export default defineErpShellConfig({
     "/admin/advanced": "Settings",
     "/admin/orders": "Orders",
     "/admin/orders/new": "New Order",
-    "/admin/crm": "CRM",
+    "/admin/crm": "Customers",
     "/admin/customers": "Customers",
     "/admin/users": "Users",
     "/admin/employees": "Employees",

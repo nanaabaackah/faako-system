@@ -6,7 +6,8 @@ Reebs Website is the public REEBS storefront, rentals, booking, and contact-inta
 
 ## What Lives Here
 
-- `src/`: React + Vite public website
+- `src/pages/` and `src/layouts/`: Astro route, metadata and static-output layer
+- `src/views/` and `src/components/`: preserved React storefront experiences mounted by Astro islands
 - `scripts/generateSitemap.mjs`: sitemap generation used before builds
 - `.env.example`: public runtime variable reference
 
@@ -41,10 +42,34 @@ Typical local ports:
 
 ## Current System Notes
 
+- Astro owns every public route, metadata, structured data and static output.
+  The established React storefront views and shared chrome are rendered by
+  Astro, then hydrated for cart, filters, authentication and live inventory.
+- Shop and Rentals include useful catalogue content in the initial generated
+  HTML rather than a client-only loading shell. The Shop index renders a
+  representative set from every public category; the generated category and
+  product pages retain full catalogue coverage for search discovery.
+- The shared navbar and footer are also server-rendered on generated category,
+  product and error pages. The party-planning CTA therefore remains present
+  across the storefront.
+- About is intentionally omitted from the desktop and mobile navbar. The About
+  page remains public, crawlable and linked from the footer.
+- Shop, Rentals and rental-detail routes intentionally preserve the established
+  React site chrome and page designs inside Astro routes. Do not replace them
+  with a separate catalogue header/prelude/footer or disable their chrome.
 - rental listings and rental detail pages now resolve through the same shared rental catalog rules so storefront links and detail slugs stay in sync
 - this app should stay frontend-focused in production and point at `https://api.reebspartythemes.com` for data and auth-adjacent flows
 - the contact form posts to `/api/contact`; the portal backend validates/rate-limits the request, stores it in CRM as a planning request, links or creates a customer, creates follow-up activity, and then sends the notification email
 - the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for a user-controlled refresh when a newer deployed bundle exists
+
+## Design Preservation
+
+REEBS website work is enhancement-first. Preserve existing page composition,
+navigation, branding, imagery, typography and conversion sections unless the
+owner explicitly approves a visual change. Any proposed redesign or visible
+layout change must be shown for approval before implementation. Bug fixes,
+accessibility corrections and responsive repairs should remain visually scoped
+and must not silently replace an established page design.
 
 ## Configuration
 
@@ -62,7 +87,11 @@ Prefer `VITE_API_BASE_URL`; `VITE_BACKEND_BASE_URL` is a legacy fallback. Keep s
 pnpm --filter @faako/reebs-website run sitemap
 pnpm --filter @faako/reebs-website run build
 pnpm --filter @faako/reebs-website run test:e2e
+pnpm run bundle:reebs
 ```
+
+The bundle report requires current Portal and Website builds. Performance and dependency
+boundaries are documented in `docs/apps/reebs-portal/performance-and-dependencies.md`.
 
 ## Deployment
 

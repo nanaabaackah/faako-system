@@ -1,5 +1,11 @@
 export const PRODUCT_SHOW_ALL_THRESHOLD = 50;
 
+export function normalizeOrderCurrency(currency) {
+  if (typeof currency !== "string") return "GHS";
+  const trimmed = currency.trim();
+  return trimmed ? trimmed.toUpperCase() : "GHS";
+}
+
 /**
  * Caps the visible product list when no search query is active.
  * Returns all products when a query is present so search always shows full results.

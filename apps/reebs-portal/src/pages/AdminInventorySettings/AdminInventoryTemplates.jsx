@@ -136,8 +136,8 @@ function AdminInventoryTemplates() {
       <div className="admin-shell">
         <AdminBreadcrumb items={[{ label: "Inventory", to: "/admin/inventory" }, { label: "Templates" }]} />
         <AdminPageHeader
-          title="Inventory templates"
-          subtitle="Edit the database-backed notes used by the inventory module."
+          title="Inventory template drafts"
+          subtitle="Review stored draft wording. These drafts are not applied to outgoing messages or documents."
           actionsClassName="inventory-admin-settings-actions"
           actions={
             <Link to="/admin/inventory" className="admin-secondary inventory-admin-settings-back">

@@ -121,6 +121,7 @@ export default function WaterOperationsGrid({
                 <AppIcon icon={faMinus} />
               </button>
               <input
+                aria-label="Expense amount"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -229,6 +230,7 @@ export default function WaterOperationsGrid({
                 <AppIcon icon={faMinus} />
               </button>
               <input
+                aria-label="Correction quantity"
                 type="number"
                 min="1"
                 step="1"

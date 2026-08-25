@@ -32,11 +32,18 @@ import {
 } from "/src/icons/iconSet";
 import { WEBSITE_URL } from "../utils/website.js";
 import { REEBS_ADMIN_MODULES } from "./adminModules.js";
+import {
+  REEBS_NAVIGATION_GROUP_BY_KEY,
+  REEBS_NAVIGATION_GROUPS,
+  getReebsNavigationOrder,
+} from "./adminNavigationHierarchy.js";
 
 const STANDARD_NAV_ROLES = ["owner", "admin", "manager", "staff", "warehouse"];
 const PRIVILEGED_NAV_ROLES = ["owner", "admin", "manager"];
 const OWNER_ADMIN_NAV_ROLES = ["owner", "admin"];
-const WATER_NAV_ROLES = ["owner", "admin", "manager", "water"];
+const WATER_NAV_ROLES = ["owner", "admin", "water"];
+
+export { REEBS_NAVIGATION_GROUPS } from "./adminNavigationHierarchy.js";
 
 const SIDEBAR_ICONS_BY_KEY = {
   "audit-log": faFileLines,
@@ -101,6 +108,8 @@ const toSidebarItem = (module) => {
     id: module.key,
     moduleKey: module.key,
     group: module.group,
+    navigationGroup: REEBS_NAVIGATION_GROUP_BY_KEY[module.key] || "Administration",
+    navigationOrder: getReebsNavigationOrder(module.key),
     status: module.status,
     state: getModuleState(module),
     visibility: getModuleVisibility(module),

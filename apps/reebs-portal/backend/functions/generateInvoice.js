@@ -1,7 +1,6 @@
 /* eslint-disable no-undef */
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
@@ -43,6 +42,11 @@ export async function handler(event = {}) {
          o."orderNumber",
          o."orderDate",
          o."total_amount",
+         o."subtotalCents",
+         o."discountCents",
+         o."deliveryFeeCents",
+         o."serviceFeeCents",
+         o."grandTotalCents",
          o.status,
          o."customerName",
          o."deliveryMethod",
@@ -122,53 +126,19 @@ export async function handler(event = {}) {
       total: Number(row.total_amount || 0) / 100,
     }));
 
-    const hasPump = items.some((item) => {
-      const name = String(item?.name || "").toLowerCase();
-      const sku = String(item?.sku || "").toUpperCase();
-      return name.includes("pump") || sku.startsWith("PUM");
-    });
-
-    const pumpQuantity = items.reduce((sum, item) => {
-      const motors = Math.max(0, Number(item?.motorsToPump || 0));
-      if (!motors) return sum;
-      const quantity = Math.max(1, parseInt(item?.quantity, 10) || 1);
-      return sum + motors * quantity;
-    }, 0);
-
-    if (pumpQuantity > 0 && !hasPump) {
-      const pumpRes = await client.query(
-        `SELECT id, name, sku, price, rate, "sourceCategoryCode"
-         FROM "product"
-         WHERE "organizationId" = $1
-           AND (UPPER(sku) LIKE 'PUM-%' OR LOWER(name) LIKE '%motor pump%')
-         ORDER BY id
-         LIMIT 1`,
-        [organizationId]
-      );
-      const pumpProduct = pumpRes.rows[0] || null;
-      items.push({
-        id: "order-pump",
-        name: pumpProduct?.name || "Motor Pump",
-        sku: pumpProduct?.sku || "PUM",
-        rate: pumpProduct?.rate || "",
-        attendantsNeeded: 0,
-        sourceCategoryCode: pumpProduct?.sourceCategoryCode || "RENTAL",
-        motorsToPump: 0,
-        quantity: pumpQuantity,
-        unitPriceCents: Number(pumpProduct?.price || 0),
-        totalCents: Number(pumpProduct?.price || 0) * pumpQuantity,
-        unitPrice: Number(pumpProduct?.price || 0) / 100,
-        total: (Number(pumpProduct?.price || 0) * pumpQuantity) / 100,
-      });
-    }
-
     const itemsSubtotalCents = itemsRes.rows.reduce(
       (acc, row) => acc + Number(row.total_amount || 0),
       0
     );
-    const orderSubtotalCentsRaw = order.total_amount == null ? null : Number(order.total_amount);
-    const orderSubtotalCents = Number.isFinite(orderSubtotalCentsRaw) ? orderSubtotalCentsRaw : null;
-    const adjustmentCents = orderSubtotalCents == null ? 0 : orderSubtotalCents - itemsSubtotalCents;
+    const persistedSubtotalCents = Number(order.subtotalCents);
+    const discountCents = Math.max(0, Number(order.discountCents || 0));
+    const deliveryFeeCents = Math.max(0, Number(order.deliveryFeeCents || 0));
+    const serviceFeeCents = Math.max(0, Number(order.serviceFeeCents || 0));
+    const persistedGrandTotalCents = Number(order.grandTotalCents ?? order.total_amount);
+    const expectedGrandTotalCents = itemsSubtotalCents - discountCents + deliveryFeeCents + serviceFeeCents;
+    const adjustmentCents = Number.isFinite(persistedGrandTotalCents)
+      ? persistedGrandTotalCents - expectedGrandTotalCents
+      : 0;
     if (adjustmentCents !== 0) {
       items.push({
         id: "order-adjustment",
@@ -183,21 +153,43 @@ export async function handler(event = {}) {
       });
     }
 
-    const { distanceKm, feeCents: deliveryFeeCents, rateCents: deliveryRateCents } =
-      getDeliveryFeeDetails(order.deliveryMethod, order.deliveryDetails);
-    const deliveryRate = deliveryRateCents / 100;
-
     if (deliveryFeeCents > 0) {
       items.push({
         id: "delivery-fee",
-        name: `Delivery fee (${distanceKm} km @ GHS ${deliveryRate.toFixed(2)}/km)`,
+        name: "Delivery fee",
         sku: null,
         rate: "",
-        quantity: distanceKm,
-        unitPriceCents: deliveryRateCents,
+        quantity: 1,
+        unitPriceCents: deliveryFeeCents,
         totalCents: deliveryFeeCents,
-        unitPrice: deliveryRate,
+        unitPrice: deliveryFeeCents / 100,
         total: deliveryFeeCents / 100,
+      });
+    }
+    if (serviceFeeCents > 0) {
+      items.push({
+        id: "service-fee",
+        name: "Service fee",
+        sku: null,
+        rate: "",
+        quantity: 1,
+        unitPriceCents: serviceFeeCents,
+        totalCents: serviceFeeCents,
+        unitPrice: serviceFeeCents / 100,
+        total: serviceFeeCents / 100,
+      });
+    }
+    if (discountCents > 0) {
+      items.push({
+        id: "discount",
+        name: "Discount",
+        sku: null,
+        rate: "",
+        quantity: 1,
+        unitPriceCents: -discountCents,
+        totalCents: -discountCents,
+        unitPrice: -discountCents / 100,
+        total: -discountCents / 100,
       });
     }
 
@@ -214,11 +206,14 @@ export async function handler(event = {}) {
       0
     );
 
-    const baseSubtotalCents = orderSubtotalCents ?? itemsSubtotalCents;
-    const subtotalCents = baseSubtotalCents + deliveryFeeCents;
+    const subtotalCents = Number.isFinite(persistedSubtotalCents)
+      ? persistedSubtotalCents
+      : itemsSubtotalCents;
     const taxRate = 0;
     const taxTotalCents = 0;
-    const grandTotalCents = subtotalCents;
+    const grandTotalCents = Number.isFinite(persistedGrandTotalCents)
+      ? persistedGrandTotalCents
+      : expectedGrandTotalCents;
 
     return json(event, 200, {
       invoiceNumber: `REC-${order.orderNumber}`,
@@ -233,6 +228,9 @@ export async function handler(event = {}) {
       items,
       summary: {
         subtotal: subtotalCents / 100,
+        discount: discountCents / 100,
+        deliveryFee: deliveryFeeCents / 100,
+        serviceFee: serviceFeeCents / 100,
         taxRate,
         taxTotal: taxTotalCents / 100,
         grandTotal: grandTotalCents / 100,

@@ -335,9 +335,9 @@ function AdminExpenses() {
         <AdminBreadcrumb items={[{ label: "Expenses" }]} />
 
         <AdminPageHeader
-          eyebrow="Operating Expenses"
+          eyebrow="REEBS Core Operating Expenses"
           title="Expense Tracker"
-          subtitle="Keep every expense inside the fixed company categories so reporting stays clean and accounting totals stay consistent."
+          subtitle="Record shop and rental/event costs here so core reporting stays consistent. Record Water costs in Water Business."
           actionsClassName="glass-card expenses-total-card"
           actions={
             <>

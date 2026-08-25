@@ -1,8 +1,15 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
-import { requirePermission, respond } from "./_shared/internalApi.js";
+import { withReebsAnalyticsScope } from "@faako/api-contracts/reebs";
+import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
+import { hasPermission, requirePermission, respond } from "./_shared/internalApi.js";
 import { serializePgClientQueries } from "./_shared/serializedPgClient.js";
+import {
+  buildConsolidatedFinancialResponse,
+  buildCoreOrderRecognitionFilter,
+  buildPersistedOrderGrandTotalSql,
+  getFinancialScopeDecision,
+} from "./_shared/financialPolicy.js";
 import {
   EXPENSE_CATEGORIES,
   buildExpenseFilter,
@@ -303,6 +310,8 @@ const buildInvoiceDocumentFinancials = async ({
      FROM "invoiceDocument"
      WHERE "organizationId" = $1
        AND "archivedAt" IS NULL
+       AND LOWER(COALESCE("paymentStatus", 'draft')) NOT IN ('draft', 'cancelled', 'canceled', 'void', 'voided')
+       AND LOWER(COALESCE("sourceType", 'manual')) NOT LIKE 'water%'
        AND COALESCE("issueDate"::timestamptz, "eventDate"::timestamptz, "createdAt", "updatedAt") >= $2
        AND COALESCE("issueDate"::timestamptz, "eventDate"::timestamptz, "createdAt", "updatedAt") < $3`,
     [organizationId, startIso, endIso]
@@ -358,6 +367,8 @@ const buildDocumentFallbackFilter = ({ enabled, alias, sourceType }) => {
                AND d."sourceType" = '${sourceType}'
                AND d."sourceId" = ${alias}.id
                AND d."archivedAt" IS NULL
+               AND LOWER(COALESCE(d."paymentStatus", 'draft')) NOT IN ('draft', 'cancelled', 'canceled', 'void', 'voided')
+               AND LOWER(COALESCE(d."sourceType", 'manual')) NOT LIKE 'water%'
            )`;
 };
 
@@ -374,6 +385,11 @@ const buildExpenseBreakdown = async ({ client, start, end, organizationId }) => 
 
   const columns = await resolveExpenseColumns(client, table);
   const hasOrganizationId = columns.includes("organizationId");
+  if (!hasOrganizationId) {
+    const error = new Error("Expense reporting is unavailable until tenant scoping is migrated.");
+    error.statusCode = 503;
+    throw error;
+  }
   const expenseTotals = new Map();
 
   const { whereClause, params } = buildExpenseFilter({
@@ -401,6 +417,11 @@ const buildExpenseBreakdown = async ({ client, start, end, organizationId }) => 
 
   try {
     const maintenanceHasOrg = await hasColumn(client, "maintenanceLog", "organizationId");
+    if (!maintenanceHasOrg) {
+      const error = new Error("Maintenance reporting is unavailable until tenant scoping is migrated.");
+      error.statusCode = 503;
+      throw error;
+    }
     const maintenanceParams = [start.toISOString(), end.toISOString()];
     const maintenanceConditions = [
       `LOWER(COALESCE(m.status, '')) IN ('open', 'resolved', 'accepted')`,
@@ -455,6 +476,82 @@ const buildExpenseBreakdown = async ({ client, start, end, organizationId }) => 
   };
 };
 
+const buildWaterWindowFinancials = async ({ client, startIso, endIso, organizationId }) => {
+  const requiredTables = ["waterRestock", "waterSale", "waterExpense"];
+  const tableChecks = await Promise.all(requiredTables.map((tableName) => hasTable(client, tableName)));
+  if (tableChecks.some((exists) => !exists)) {
+    const error = new Error("Consolidated reporting is unavailable until the Water schema is migrated.");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const [saleHasArchivedAt, expenseHasArchivedAt, saleHasCostSnapshot] = await Promise.all([
+    hasColumn(client, "waterSale", "archivedAt"),
+    hasColumn(client, "waterExpense", "archivedAt"),
+    hasColumn(client, "waterSale", "unitCostAtSaleCents"),
+  ]);
+  const costSnapshotColumn = saleHasCostSnapshot
+    ? `"unitCostAtSaleCents"`
+    : `NULL::integer AS "unitCostAtSaleCents"`;
+
+  const [restocksResult, salesResult, expensesResult] = await Promise.all([
+    client.query(
+      `SELECT id, quantity, "unitCost", date, "createdAt"
+       FROM "waterRestock"
+       WHERE "organizationId" = $1
+       ORDER BY date ASC, "createdAt" ASC, id ASC`,
+      [organizationId]
+    ),
+    client.query(
+      `SELECT id, quantity, "totalAmount", "paymentStatus", "paymentMethod",
+              ${costSnapshotColumn}, date, "createdAt"
+       FROM "waterSale"
+       WHERE "organizationId" = $1
+         AND date >= $2
+         AND date < $3
+         ${saleHasArchivedAt ? `AND "archivedAt" IS NULL` : ""}
+       ORDER BY date ASC, "createdAt" ASC, id ASC`,
+      [organizationId, startIso, endIso]
+    ),
+    client.query(
+      `SELECT COALESCE(SUM(amount), 0) AS expense_cents
+       FROM "waterExpense"
+       WHERE "organizationId" = $1
+         AND date >= $2
+         AND date < $3
+         ${expenseHasArchivedAt ? `AND "archivedAt" IS NULL` : ""}`,
+      [organizationId, startIso, endIso]
+    ),
+  ]);
+
+  const sales = salesResult.rows || [];
+  const revenueCents = sales.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
+  const outstandingCents = sales.reduce(
+    (sum, row) => String(row.paymentStatus || "").toLowerCase() === "paid"
+      ? sum
+      : sum + Number(row.totalAmount || 0),
+    0
+  );
+  const { costOfGoodsSold } = calculateWaterCostBasis({
+    restocks: restocksResult.rows || [],
+    sales,
+  });
+  const operatingExpensesCents = Number(expensesResult.rows?.[0]?.expense_cents || 0);
+  const grossProfitCents = revenueCents - costOfGoodsSold;
+  const netProfitCents = grossProfitCents - operatingExpensesCents;
+
+  return {
+    revenue: revenueCents / 100,
+    cogs: costOfGoodsSold / 100,
+    grossProfit: grossProfitCents / 100,
+    operatingExpenses: operatingExpensesCents / 100,
+    netProfit: netProfitCents / 100,
+    outstandingReceivables: outstandingCents / 100,
+    orders: sales.length,
+    costingBasis: "transaction snapshot when present; otherwise Water restock-period cost",
+  };
+};
+
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204, {}, { methods: "GET,OPTIONS" });
@@ -477,6 +574,17 @@ export async function handler(event = {}) {
       return access.errorResponse;
     }
     const { organizationId } = access;
+    const scopeDecision = getFinancialScopeDecision({
+      requestedScope: event.queryStringParameters?.scope,
+      canViewConsolidated: hasPermission(
+        access.authUser,
+        "financials:consolidated"
+      ),
+    });
+    if (!scopeDecision.allowed) {
+      return json(event, scopeDecision.statusCode, { error: scopeDecision.error });
+    }
+    const requestedScope = scopeDecision.scope;
     await ensureOrderColumns(client);
 
     const [orderHasOrg, bookingHasOrg, invoiceDocumentHasTable] = await Promise.all([
@@ -488,13 +596,20 @@ export async function handler(event = {}) {
       ? await hasColumn(client, "invoiceDocument", "organizationId")
       : false;
     const canUseInvoiceDocuments = invoiceDocumentHasTable && invoiceDocumentHasOrg;
+    if (!orderHasOrg || !bookingHasOrg) {
+      return json(event, 503, {
+        error: "Financial reporting is unavailable until tenant scoping is migrated.",
+      });
+    }
 
     const startIso = start.toISOString();
     const endIso = end.toISOString();
-    const orderParams = orderHasOrg ? [startIso, endIso, organizationId] : [startIso, endIso];
-    const bookingParams = bookingHasOrg ? [startIso, endIso, organizationId] : [startIso, endIso];
-    const orderOrgFilter = orderHasOrg ? `AND o."organizationId" = $3` : "";
-    const bookingOrgFilter = bookingHasOrg ? `AND b."organizationId" = $3` : "";
+    const orderParams = [startIso, endIso, organizationId];
+    const bookingParams = [startIso, endIso, organizationId];
+    const orderOrgFilter = `AND o."organizationId" = $3`;
+    const bookingOrgFilter = `AND b."organizationId" = $3`;
+    const orderRecognitionFilter = buildCoreOrderRecognitionFilter("o");
+    const persistedOrderGrandTotalSql = buildPersistedOrderGrandTotalSql("o");
     const orderDocumentFallbackFilter = buildDocumentFallbackFilter({
       enabled: canUseInvoiceDocuments && orderHasOrg,
       alias: "o",
@@ -527,14 +642,16 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderRecognitionFilter}
                ${orderDocumentFallbackFilter}
            ), 0)::int AS orders,
            COALESCE((
-             SELECT SUM(o.total_amount)
+             SELECT SUM(${persistedOrderGrandTotalSql})
              FROM "order" o
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderRecognitionFilter}
                ${orderDocumentFallbackFilter}
            ), 0) AS revenue_cents,
            COALESCE((
@@ -544,16 +661,18 @@ export async function handler(event = {}) {
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderRecognitionFilter}
                ${orderDocumentFallbackFilter}
            ), 0)::int AS units,
            COALESCE((
-             SELECT SUM(oi.quantity * COALESCE(p."purchasePriceGhs", 0))
+             SELECT SUM(oi.quantity * COALESCE(oi."unitCostCents", p."purchasePriceGhs", 0))
              FROM "order" o
              JOIN "orderItem" oi ON oi."orderId" = o.id
              JOIN "product" p ON p.id = oi."productId"
              WHERE o."orderDate" >= $1
                AND o."orderDate" < $2
                ${orderOrgFilter}
+               ${orderRecognitionFilter}
                ${orderDocumentFallbackFilter}
            ), 0) AS cost_cents`,
         orderParams
@@ -571,6 +690,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
            ${orderDocumentFallbackFilter}
          GROUP BY p.id, p.name, p.sku
          ORDER BY revenue_cents DESC
@@ -580,11 +700,12 @@ export async function handler(event = {}) {
       client.query(
         `SELECT
            o."orderDate"::date AS bucket,
-           COALESCE(SUM(o.total_amount), 0) AS revenue_cents
+           COALESCE(SUM(${persistedOrderGrandTotalSql}), 0) AS revenue_cents
          FROM "order" o
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
            ${orderDocumentFallbackFilter}
          GROUP BY o."orderDate"::date
          ORDER BY o."orderDate"::date ASC`,
@@ -592,13 +713,13 @@ export async function handler(event = {}) {
       ),
       client.query(
         `SELECT
-           o."deliveryMethod",
-           o."deliveryDetails",
+           COALESCE(o."deliveryFeeCents", 0) AS fee_cents,
            o."orderDate"::date AS bucket
          FROM "order" o
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
            ${orderDocumentFallbackFilter}`,
         orderParams
       ),
@@ -614,6 +735,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
            ${orderDocumentFallbackFilter}
          GROUP BY p.sku, p."sourceCategoryCode"`,
         orderParams
@@ -625,15 +747,16 @@ export async function handler(event = {}) {
            p.sku,
            COALESCE(SUM(oi.quantity), 0)::int AS units,
            COALESCE(SUM(oi.total_amount), 0) AS revenue_cents,
-           COALESCE(p."purchasePriceGhs", 0) AS unit_cost_cents
+           COALESCE(SUM(oi.quantity * COALESCE(oi."unitCostCents", p."purchasePriceGhs", 0)), 0) AS cost_cents
          FROM "order" o
          JOIN "orderItem" oi ON oi."orderId" = o.id
          JOIN "product" p ON p.id = oi."productId"
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
            ${orderDocumentFallbackFilter}
-         GROUP BY p.id, p.name, p.sku, p."purchasePriceGhs"
+         GROUP BY p.id, p.name, p.sku
          ORDER BY revenue_cents DESC
          LIMIT 50`,
         orderParams
@@ -732,16 +855,14 @@ export async function handler(event = {}) {
     const deliveryFeeTotals = new Map();
     let deliveryFeeCentsTotal = 0;
     for (const row of deliveryFeeRows.rows || []) {
-      const { feeCents } = getDeliveryFeeDetails(row.deliveryMethod, row.deliveryDetails);
+      const feeCents = Number(row.fee_cents || 0);
       if (!feeCents) continue;
       deliveryFeeCentsTotal += feeCents;
       const key = row.bucket;
       deliveryFeeTotals.set(key, (deliveryFeeTotals.get(key) || 0) + feeCents);
     }
 
-    categoryMap.retail += deliveryFeeCentsTotal;
-
-    const rawOrderRevenueCents = Number(summary.rows[0]?.revenue_cents || 0) + deliveryFeeCentsTotal;
+    const rawOrderRevenueCents = Number(summary.rows[0]?.revenue_cents || 0);
     const orderRevenueCents = rawOrderRevenueCents + documentFinancials.receiptCents;
     const costCents = Number(summary.rows[0]?.cost_cents || 0) + documentFinancials.cogsCents;
     const expenseWindowCents = Number(expenseSummary.totalCents || 0);
@@ -760,12 +881,6 @@ export async function handler(event = {}) {
       const existing = cashflowMap.get(key) || 0;
       cashflowMap.set(key, existing + Number(row.revenue_cents || 0));
     }
-    for (const [key, cents] of deliveryFeeTotals.entries()) {
-      const dateKey = toDateKey(key);
-      if (!dateKey) continue;
-      const existing = cashflowMap.get(dateKey) || 0;
-      cashflowMap.set(dateKey, existing + cents);
-    }
     for (const [key, cents] of documentFinancials.dailyCents.entries()) {
       const existing = cashflowMap.get(key) || 0;
       cashflowMap.set(key, existing + cents);
@@ -777,9 +892,9 @@ export async function handler(event = {}) {
 
     const transactions = (transactionRows.rows || []).map((row) => {
       const revenue = Number(row.revenue_cents || 0);
-      const unitCost = Number(row.unit_cost_cents || 0);
       const units = row.units || 0;
-      const cost = unitCost * units;
+      const cost = Number(row.cost_cents || 0);
+      const unitCost = units > 0 ? cost / units : 0;
       const profit = revenue - cost;
       const marginPct = revenue > 0 ? (profit / revenue) * 100 : 0;
       return {
@@ -795,7 +910,7 @@ export async function handler(event = {}) {
       };
     });
 
-    return json(event, 200, {
+    const corePayload = withReebsAnalyticsScope({
       window: windowKey,
       windowLabel: label,
       startDate: startIso,
@@ -836,6 +951,7 @@ export async function handler(event = {}) {
         units: row.units || 0,
       })),
       cashflow,
+      trendBasis: "recognized_revenue",
       automation: {
         organizationScoped: {
           orders: orderHasOrg,
@@ -845,11 +961,58 @@ export async function handler(event = {}) {
         },
         expenseSourceTable: expenseSummary.tableLabel,
         incomeSource: canUseInvoiceDocuments ? "invoiceDocument+fallback" : "orders+bookings",
+        deliveryFees: {
+          includedInPersistedOrderTotals: true,
+          breakdownCents: deliveryFeeCentsTotal,
+        },
+        cogsBasis: "order-item snapshot; current product cost is used only for legacy lines without a snapshot",
       },
     });
+
+    if (requestedScope === "consolidated") {
+      const waterFinancials = await buildWaterWindowFinancials({
+        client,
+        startIso,
+        endIso,
+        organizationId,
+      });
+      const coreFinancials = {
+        revenue: corePayload.revenue,
+        cogs: corePayload.summary.cogs,
+        grossProfit: corePayload.summary.grossProfit,
+        operatingExpenses: corePayload.summary.operatingExpenses,
+        netProfit: corePayload.summary.netProfit,
+        orders: corePayload.orders,
+        bookings: corePayload.bookings,
+      };
+      const sharedFinancials = {
+        revenue: 0,
+        cogs: 0,
+        grossProfit: 0,
+        operatingExpenses: 0,
+        netProfit: 0,
+        allocationApplied: false,
+        note: "Shared expense allocation is not supported; no shared costs are silently assigned.",
+      };
+      return json(event, 200, buildConsolidatedFinancialResponse({
+        reebsCore: coreFinancials,
+        water: waterFinancials,
+        shared: sharedFinancials,
+        metadata: {
+          window: windowKey,
+          windowLabel: label,
+          startDate: startIso,
+          endDate: endIso,
+        },
+      }));
+    }
+
+    return json(event, 200, corePayload);
   } catch (err) {
     console.error("❌ Financial stats error:", err);
-    return json(event, 500, { error: "Failed to load financial stats" });
+    return json(event, err?.statusCode || 500, {
+      error: err?.statusCode ? err.message : "Failed to load financial stats",
+    });
   } finally {
     await client.end().catch(() => {});
   }

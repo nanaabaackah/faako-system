@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 import { Client } from "pg";
+import { withReebsAnalyticsScope } from "@faako/api-contracts/reebs";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import {
   getAuditRangeKey,
@@ -87,8 +88,8 @@ export async function handler(event = {}) {
     const range = getAuditRangeKey(event.queryStringParameters?.range);
     const since = getAuditRangeStart(range);
 
-    const orderDate = buildDateClause(`"orderDate"`, since, 2);
-    const bookingDate = buildDateClause(`COALESCE("updatedAt", "createdAt")`, since, 2);
+    const orderDate = buildDateClause(`o."orderDate"`, since, 2);
+    const bookingDate = buildDateClause(`b."eventDate"`, since, 2);
     const auditEntries = await listAuditLogs(client, {
       organizationId,
       range,
@@ -97,15 +98,25 @@ export async function handler(event = {}) {
 
     const [orderStats, bookingStats, productStats] = await Promise.all([
       client.query(
-        `SELECT COUNT(*)::int AS count, COALESCE(SUM("total_amount"), 0)::bigint AS revenue
-         FROM "order"
-         WHERE "organizationId" = $1${orderDate.clause}`,
+        `SELECT COUNT(*)::int AS count, COALESCE(SUM(o."total_amount"), 0)::bigint AS revenue
+         FROM "order" o
+         WHERE o."organizationId" = $1
+           AND LOWER(COALESCE(o.status, '')) NOT IN ('cancelled', 'canceled', 'refunded')
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "orderItem" oi
+             JOIN "product" p ON p.id = oi."productId"
+             WHERE oi."orderId" = o.id
+               AND oi."organizationId" = o."organizationId"
+               AND UPPER(COALESCE(p."sourceCategoryCode", '')) = 'WATER'
+           )${orderDate.clause}`,
         [organizationId, ...orderDate.values]
       ),
       client.query(
         `SELECT COUNT(*)::int AS count
-         FROM "booking"
-         WHERE "organizationId" = $1${bookingDate.clause}`,
+         FROM "booking" b
+         WHERE b."organizationId" = $1
+           AND LOWER(COALESCE(b.status, '')) IN ('confirmed', 'completed')${bookingDate.clause}`,
         [organizationId, ...bookingDate.values]
       ),
       client.query(
@@ -113,7 +124,8 @@ export async function handler(event = {}) {
          FROM "product"
          WHERE "organizationId" = $1
            AND COALESCE("isDeleted", false) = false
-           AND COALESCE("isArchived", false) = false`,
+           AND COALESCE("isArchived", false) = false
+           AND UPPER(COALESCE("sourceCategoryCode", '')) <> 'WATER'`,
         [organizationId]
       ),
     ]);
@@ -128,26 +140,26 @@ export async function handler(event = {}) {
     return respond(
       event,
       200,
-      {
+      withReebsAnalyticsScope({
         range,
         rangeLabel: RANGE_LABELS[range] || RANGE_LABELS["7d"],
         generatedAt: new Date().toISOString(),
         kpis: [
           {
             key: "orders",
-            label: "Orders",
+            label: "Core shop orders",
             value: formatCount(orderStats.rows[0]?.count),
-            helper: `Revenue GHS ${(Number(orderStats.rows[0]?.revenue || 0) / 100).toFixed(2)}`,
+            helper: `REEBS Core revenue GHS ${(Number(orderStats.rows[0]?.revenue || 0) / 100).toFixed(2)}`,
           },
           {
             key: "bookings",
-            label: "Bookings",
+            label: "Core bookings",
             value: formatCount(bookingStats.rows[0]?.count),
             helper: "Events in the current reporting window",
           },
           {
             key: "products",
-            label: "Active products",
+            label: "Active core products",
             value: formatCount(productStats.rows[0]?.count),
             helper: "Current inventory footprint",
           },
@@ -164,7 +176,7 @@ export async function handler(event = {}) {
         topCategories: buildCounts(auditEntries, "category", 6),
         recentIncidents: incidents.slice(0, 8),
         recentEvents: auditEntries.slice(0, 12),
-      },
+      }),
       { methods: METHODS }
     );
   } catch (error) {

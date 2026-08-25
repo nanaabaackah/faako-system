@@ -118,10 +118,23 @@ function isTrackedSecretEnvFile(filePath) {
 }
 
 function getTrackedFiles() {
-  const output = execFileSync("git", ["ls-files", "-z"], {
-    cwd: rootDir,
-    encoding: "utf8",
-  });
+  let output;
+  try {
+    // `rg --files` honours repository ignore files without invoking Git. This
+    // keeps the security check usable in restricted build environments and in
+    // workflows that explicitly prohibit Git commands.
+    output = execFileSync(
+      "rg",
+      ["--files", "--hidden", "--null", "--glob", "!.git/**"],
+      { cwd: rootDir, encoding: "utf8" }
+    );
+  } catch (error) {
+    if (error?.status === 1 && !error?.stdout) return [];
+    throw new Error(
+      "Security scan requires ripgrep (rg) to enumerate non-ignored workspace files without Git.",
+      { cause: error }
+    );
+  }
 
   return output
     .split("\0")
@@ -233,4 +246,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log(`Security scan passed. Checked ${trackedFiles.length} tracked files.`);
+console.log(`Security scan passed. Checked ${trackedFiles.length} non-ignored workspace files.`);

@@ -19,7 +19,47 @@ import {
   roleFormSchema,
   usernameAccessFormSchema,
   validationIssues,
+<<<<<<< Updated upstream
+=======
+  vendorFormSchema,
+  deliveryUpdateSchema,
+  reebsBookingCreateInputSchema,
+  reebsLoginInputSchema,
+  reebsPaymentInitializationSchema,
+  waterBusinessScopeSchema,
+>>>>>>> Stashed changes
 } from "../src/index.js";
+
+test("REEBS boundary schemas preserve username login and validate public bookings", () => {
+  assert.equal(reebsLoginInputSchema.safeParse({ email: "operations", password: "secret" }).success, true);
+  assert.equal(reebsBookingCreateInputSchema.safeParse({
+    customerId: 1,
+    eventDate: "2026-08-14",
+    items: [{ productId: 2, quantity: 1 }],
+    status: "pending",
+    source: "checkout",
+  }).success, true);
+  assert.equal(reebsBookingCreateInputSchema.safeParse({
+    customerId: 1,
+    eventDate: "14/08/2026",
+    items: [],
+  }).success, false);
+  assert.equal(reebsBookingCreateInputSchema.safeParse({
+    customerId: 1,
+    eventDate: "2026-08-14",
+    items: [{ productId: 2, quantity: 0 }],
+  }).success, false);
+});
+
+test("payment initialization never accepts a browser-supplied amount", () => {
+  assert.equal(reebsPaymentInitializationSchema.safeParse({
+    orderReference: "ORDER-1",
+    idempotencyKey: "attempt-1",
+    amount: 1,
+  }).success, false);
+  assert.equal(waterBusinessScopeSchema.safeParse("water").success, true);
+  assert.equal(waterBusinessScopeSchema.safeParse("reebs-core").success, false);
+});
 
 test("authentication schemas preserve current Dev ERP login and reset limits", () => {
   assert.equal(

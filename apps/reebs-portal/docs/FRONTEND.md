@@ -1,10 +1,7 @@
 # Reebs Frontend Documentation
 
 ## Overview
-Reebs is a hybrid ERP + ecommerce site built with React and Vite. The frontend is split into:
-- Public storefront (Home, Shop, Rentals, Gallery, Contact)
-- Checkout + booking flows (Cart, Checkout, Book)
-- Admin console (inventory, orders, bookings, accounting, HR, etc.)
+REEBS uses two approved frontend applications. `apps/reebs-website` is the public Astro site with React islands for interactive flows. `apps/reebs-portal` is the React/Vite operational application for authenticated staff workflows.
 
 The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythemes.com`. Legacy `/api/*` browser calls are translated by `patchOrganizationFetch()` during the Cloudflare/API migration.
 
@@ -20,7 +17,12 @@ The app consumes the REEBS API wrapper at `/api/*` on `https://api.reebspartythe
 ## Entry Points and Boot
 - `src/main.jsx` bootstraps the React app and calls `patchOrganizationFetch()`.
 - `patchOrganizationFetch()` maps legacy function paths to `/api/*`, includes credentials, and injects `x-organization-id`. It may attach an already-present legacy bearer token during the temporary compatibility period, but new browser logins use only the HttpOnly session cookie.
-- `src/App.jsx` wires routing, auth gating, cart overlay, and global UI shell.
+- `src/App.jsx` is the small application composition root.
+- `src/app/AppProviders.jsx` owns provider and browser-router composition.
+- `src/app/AppRouter.jsx` owns auth/access guards and route rendering.
+- `src/app/routeConfig.js` owns URL, domain, and access metadata.
+- `src/app/AppShell.jsx` owns public, admin, and store-mode shell behavior.
+- `src/modules/*` provides domain entry points over existing pages during gradual migration.
 
 ## System Architecture (High Level)
 ```mermaid
@@ -71,7 +73,7 @@ Auth and admin pages:
 - `/admin/invoicing` -> Invoicing
 - `/admin/marketing` -> Marketing and discounts
 
-Protected routes use `RequireAuth` in `src/App.jsx`. Some admin routes are blocked on mobile via `MobileRestricted`.
+Protected routes use backend-compatible access classifications in `src/app/AppRouter.jsx`. Frontend guards are UX only; backend authorization remains authoritative.
 
 ## State Management
 ### AuthContext

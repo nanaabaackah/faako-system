@@ -1,11 +1,15 @@
 /* eslint-disable no-undef */
-import { isCrossSiteBrowserRequest, json } from "./http.js";
+import { isCrossSiteBrowserRequest, isTrustedBrowserMutation, json } from "./http.js";
 import { hasPermissionIdentifier } from "@faako/security";
 import {
   applyRequestOrganizationContext,
   resolveAuthorizedOrganizationId,
 } from "./organization.js";
-import { requireUser } from "./userAuth.js";
+import {
+  getBearerUserTokenFromEvent,
+  getCookieUserTokenFromEvent,
+  requireUser,
+} from "./userAuth.js";
 
 export const SYSTEM_ADMIN_EMAIL = String(
   process.env.SYSTEM_ADMIN_EMAIL || "system_admin@reebs.com"
@@ -45,11 +49,10 @@ const ROLE_PERMISSIONS = {
     "marketing:write",
     "expenses:read",
     "expenses:write",
+    "commercial-config:view",
     "timesheets:manage",
     "vendors:read",
     "vendors:write",
-    "water:read",
-    "water:write",
     "users:read",
     "website-content:write",
   ],
@@ -75,7 +78,7 @@ const ROLE_PERMISSIONS = {
     "deliveries:read",
     "deliveries:write",
   ],
-  water: ["water:read", "water:write"],
+  water: ["water:read", "water:write", "water-pricing:view"],
 };
 
 export const normalizeRole = (role) => {
@@ -149,6 +152,18 @@ const requireScopedUser = async (
         event,
         methods,
         "Cross-site requests are not allowed."
+      ),
+    };
+  }
+
+  const hasCookieCredential = Boolean(getCookieUserTokenFromEvent(event));
+  const usesBearerCredential = !hasCookieCredential && Boolean(getBearerUserTokenFromEvent(event));
+  if (!usesBearerCredential && !isTrustedBrowserMutation(event)) {
+    return {
+      errorResponse: buildForbiddenResponse(
+        event,
+        methods,
+        "Request origin could not be verified."
       ),
     };
   }

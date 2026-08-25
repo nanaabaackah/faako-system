@@ -5,6 +5,7 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEye, faEyeSlash } from "/src/icons/iconSet";
 import { buildWebsiteUrl } from "../../utils/website";
+import { reebsApiResponse } from "../../api/client";
 
 function Login({ mode = "staff" }) {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ function Login({ mode = "staff" }) {
 
     setForgotSubmitting(true);
     try {
-      const response = await fetch("/api/forgotPassword", {
+      const response = await reebsApiResponse("/api/v1/auth/forgot-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

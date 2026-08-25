@@ -4,11 +4,13 @@
 // Intentionally public lookup paths are restricted to the configured public organization.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { getRecordedDeliveryDistanceKm } from "./_shared/deliveryFee.js";
 import { ensureCrmContactTables } from "./_shared/crmContact.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { resolveConfiguredPublicOrganizationId } from "./_shared/organization.js";
 import { requireUser } from "./_shared/userAuth.js";
+import { applyWindowRateLimit, getRequestClientIp } from "./_shared/requestRateLimit.js";
+import { hasPermission } from "./_shared/accessControl.js";
 
 const publicLookupHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -19,6 +21,8 @@ const publicLookupHeaders = (event) => ({
 });
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_CUSTOMER_BODY_BYTES = 16 * 1024;
+const CUSTOMER_FIELD_LIMITS = { name: 160, email: 254, phone: 40 };
 const CUSTOMER_SEGMENTS = new Set(["prospect", "active", "loyal", "risk"]);
 const customerStatusStatements = [
   `ALTER TABLE "customer" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMPTZ`,
@@ -76,8 +80,25 @@ export async function handler(event) {
         body: JSON.stringify({ error: "Cross-site requests are not allowed." }),
       };
     }
+    if (authUser) {
+      const requiredPermission = event.httpMethod === "GET" ? "customers:read" : "customers:write";
+      if (!hasPermission(authUser, requiredPermission)) {
+        return {
+          statusCode: 403,
+          headers: publicLookupHeaders(event),
+          body: JSON.stringify({ error: "Customer permission is required." }),
+        };
+      }
+    }
     let data = null;
     if (event.httpMethod === "POST" || event.httpMethod === "PUT" || event.httpMethod === "DELETE") {
+      if (Buffer.byteLength(String(event.body || ""), "utf8") > MAX_CUSTOMER_BODY_BYTES) {
+        return {
+          statusCode: 413,
+          headers: publicLookupHeaders(event),
+          body: JSON.stringify({ error: "Request body is too large." }),
+        };
+      }
       try {
         data = JSON.parse(event.body || "{}");
       } catch (err) {
@@ -91,6 +112,25 @@ export async function handler(event) {
     const organizationId = authUser
       ? authUser.organizationId
       : await resolveConfiguredPublicOrganizationId(client);
+
+    if (!authUser) {
+      const publicLimit = await applyWindowRateLimit(client, {
+        scope: `public-customers:${organizationId}`,
+        identifier: getRequestClientIp(event),
+        limit: event.httpMethod === "POST" ? 20 : 60,
+        windowMs: 15 * 60 * 1000,
+      });
+      if (!publicLimit.allowed) {
+        return {
+          statusCode: 429,
+          headers: {
+            ...publicLookupHeaders(event),
+            "Retry-After": String(publicLimit.retryAfterSeconds),
+          },
+          body: JSON.stringify({ error: "Too many customer requests. Try again later." }),
+        };
+      }
+    }
 
     const lookupEmail = typeof event.queryStringParameters?.email === "string"
       ? event.queryStringParameters.email.trim()
@@ -146,6 +186,18 @@ export async function handler(event) {
         };
       }
 
+      if (
+        name.length > CUSTOMER_FIELD_LIMITS.name
+        || (email && (email.length > CUSTOMER_FIELD_LIMITS.email || !EMAIL_PATTERN.test(email)))
+        || (phone && phone.length > CUSTOMER_FIELD_LIMITS.phone)
+      ) {
+        return {
+          statusCode: 400,
+          headers: publicLookupHeaders(event),
+          body: JSON.stringify({ error: "Customer details are invalid or too long." }),
+        };
+      }
+
       const normalizePhoneVariants = (value) => {
         const digits = typeof value === "string" ? value.replace(/\D/g, "") : "";
         if (!digits) return [];
@@ -163,7 +215,7 @@ export async function handler(event) {
       const respondWith = (row) => ({
         statusCode: 200,
         headers: publicLookupHeaders(event),
-        body: JSON.stringify(row),
+        body: JSON.stringify(authUser ? row : { id: row?.id, name: row?.name }),
       });
 
       const restoreCustomer = async (row) => {
@@ -188,11 +240,11 @@ export async function handler(event) {
             `INSERT INTO "customer" ("organizationId", "name", "email", "phone", "createdAt", "updatedAt")
              VALUES ($1, $2, $3, $4, NOW(), NOW())
              ON CONFLICT ("organizationId", "email") DO UPDATE
-             SET "name" = EXCLUDED."name",
-                 "phone" = COALESCE(EXCLUDED."phone", "customer"."phone"),
-                 "updatedAt" = NOW()
+             SET "name" = CASE WHEN $5 THEN EXCLUDED."name" ELSE "customer"."name" END,
+                 "phone" = CASE WHEN $5 THEN COALESCE(EXCLUDED."phone", "customer"."phone") ELSE "customer"."phone" END,
+                 "updatedAt" = CASE WHEN $5 THEN NOW() ELSE "customer"."updatedAt" END
              RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
-            [organizationId, name, email, phone]
+            [organizationId, name, email, phone, Boolean(authUser)]
           )
           : client.query(
             `INSERT INTO "customer" ("organizationId", "name", "email", "phone", "createdAt", "updatedAt")
@@ -222,7 +274,8 @@ export async function handler(event) {
           if (existingRes.rowCount > 0) {
             const existingRow = existingRes.rows[0];
             if (existingRow.deletedAt) {
-              return respondWith(await restoreCustomer(existingRow));
+              if (authUser) return respondWith(await restoreCustomer(existingRow));
+              return respondWith(existingRow);
             }
             return respondWith(existingRow);
           }
@@ -425,9 +478,18 @@ export async function handler(event) {
 
       const [ordersRes, bookingsRes, contactRequestsRes, activitiesRes] = await Promise.all([
         client.query(
-          `SELECT id, "orderNumber", total_amount, "orderDate", "deliveryMethod", "deliveryDetails"
-           FROM "order"
+          `SELECT id, "orderNumber", total_amount, "grandTotalCents", "deliveryFeeCents", status,
+                  "orderDate", "deliveryMethod", "deliveryDetails"
+           FROM "order" o
            WHERE "customerId" = $1 AND "organizationId" = $2
+             AND NOT EXISTS (
+               SELECT 1
+               FROM "orderItem" oi
+               JOIN "product" p ON p.id = oi."productId"
+               WHERE oi."orderId" = o.id
+                 AND oi."organizationId" = o."organizationId"
+                 AND UPPER(COALESCE(p."sourceCategoryCode", '')) = 'WATER'
+             )
            ORDER BY "orderDate" DESC`,
           [id, organizationId]
         ),
@@ -459,25 +521,36 @@ export async function handler(event) {
       ]);
 
       const ordersWithDelivery = (ordersRes.rows || []).map((row) => {
-        const { distanceKm, feeCents } = getDeliveryFeeDetails(
+        const distanceKm = getRecordedDeliveryDistanceKm(
           row.deliveryMethod,
           row.deliveryDetails
         );
-        const baseCents = Number(row.total_amount || 0);
-        const totalWithDelivery = baseCents + feeCents;
+        const baseCents = Number(row.grandTotalCents ?? row.total_amount ?? 0);
+        const feeCents = Number(row.deliveryFeeCents || 0);
         return {
           ...row,
-          total_with_delivery: totalWithDelivery,
+          total_with_delivery: baseCents,
           delivery_fee: feeCents,
           delivery_distance_km: distanceKm || 0,
         };
       });
 
       const totalSpent = ordersWithDelivery.reduce(
-        (sum, row) => sum + Number(row.total_with_delivery || 0),
+        (sum, row) => (
+          ["cancelled", "canceled", "refunded"].includes(String(row.status || "").toLowerCase())
+            ? sum
+            : sum + Number(row.total_with_delivery || 0)
+        ),
         0
       );
-      const totalRented = bookingsRes.rows.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
+      const totalRented = bookingsRes.rows.reduce(
+        (sum, row) => (
+          ["confirmed", "completed"].includes(String(row.status || "").toLowerCase())
+            ? sum + Number(row.totalAmount || 0)
+            : sum
+        ),
+        0
+      );
 
       return {
         statusCode: 200,
@@ -681,11 +754,11 @@ export async function handler(event) {
     };
 
   } catch (err) {
-    console.error("❌ Database error:", err);
+    console.error("Customer request failed", { code: err?.code, requestId: event?.requestId });
     return {
       statusCode: 500,
       headers: publicLookupHeaders(event),
-      body: JSON.stringify({ error: err.message || "Database error" }),
+      body: JSON.stringify({ error: "Failed to process customer request." }),
     };
   } finally {
     await client.end().catch(() => {});

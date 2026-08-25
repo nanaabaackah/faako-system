@@ -1,0 +1,641 @@
+[
+  {
+    "name": "01-website-home",
+    "label": "Website homepage",
+    "url": "http://127.0.0.1:4173/",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/01-website-home.png",
+    "snapshot": {
+      "title": "Party Rentals, Decor and Supplies in Ghana | REEBS Party Themes",
+      "h1": [
+        "REEBS Party Themes"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Get planning updates→",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "02-website-catalogue",
+    "label": "Website catalogue",
+    "url": "http://127.0.0.1:4173/shop",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/02-website-catalogue.png",
+    "snapshot": {
+      "title": "Party Supplies Shop | REEBS Party Themes",
+      "h1": [
+        "Party supplies and useful extras"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "nav",
+        "footer",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "View cart",
+        "All",
+        "Other",
+        "Image not available for Cotton Candy Kit Machine",
+        "Add to cart",
+        "Image not available for Rainbow Balloon Set",
+        "Remove item",
+        "Add one",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "03-website-product",
+    "label": "Website product detail",
+    "url": "http://127.0.0.1:4173/shop/color-cup-bottle",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/03-website-product.png",
+    "snapshot": {
+      "title": "Color Cup Bottle | REEBS Party Themes",
+      "h1": [
+        "Color Cup Bottle"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "main",
+        "nav",
+        "footer",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "04-website-cart",
+    "label": "Website cart",
+    "url": "http://127.0.0.1:4173/cart",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/04-website-cart.png",
+    "snapshot": {
+      "title": "Cart | REEBS Party Themes",
+      "h1": [
+        "Your Cart"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "aside",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Clear cart",
+        "Remove Rainbow Balloon Set",
+        "Decrease Rainbow Balloon Set quantity",
+        "Increase Rainbow Balloon Set quantity",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "05-website-checkout",
+    "label": "Website checkout",
+    "url": "http://127.0.0.1:4173/checkout",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/05-website-checkout.png",
+    "snapshot": {
+      "title": "Checkout | REEBS Party Themes",
+      "h1": [
+        "Finalize your bag"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "aside",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Pickup date",
+        "Pickup time window",
+        "Confirm order",
+        "Add",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "06-website-customer-login",
+    "label": "Customer login",
+    "url": "http://127.0.0.1:4173/customer-login",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/06-website-customer-login.png",
+    "snapshot": {
+      "title": "Customer Access | REEBS Party Themes",
+      "h1": [
+        "Customer login"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "header",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Continue to booking",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "07-website-contact",
+    "label": "Contact",
+    "url": "http://127.0.0.1:4173/contact",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/07-website-contact.png",
+    "snapshot": {
+      "title": "Contact REEBS Party Themes",
+      "h1": [
+        "Contact REEBS"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Select option",
+        "Select date",
+        "Send planning brief",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "08-website-policy",
+    "label": "Privacy policy",
+    "url": "http://127.0.0.1:4173/privacy-policy",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/08-website-policy.png",
+    "snapshot": {
+      "title": "Privacy Policy | REEBS Party Themes",
+      "h1": [
+        "Privacy Policy"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "header",
+        "nav",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "09-website-error",
+    "label": "404 page",
+    "url": "http://127.0.0.1:4173/404",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/09-website-error.png",
+    "snapshot": {
+      "title": "Page Not Found | REEBS Party Themes",
+      "h1": [
+        "This page has moved or does not exist."
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "main",
+        "footer",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "10-portal-dashboard",
+    "label": "Portal dashboard",
+    "url": "http://127.0.0.1:4174/admin",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/10-portal-dashboard.png",
+    "snapshot": {
+      "title": "REEBS ERP — Dashboard",
+      "h1": [
+        "Welcome Ama!"
+      ],
+      "landmarks": [
+        "aside",
+        "nav",
+        "header",
+        "nav"
+      ],
+      "buttons": [
+        "Notifications",
+        "Open user menu",
+        "Collapse navigation",
+        "Sync",
+        "Logout",
+        "Store Mode",
+        "Create Order",
+        "Review Approvals",
+        "Add Customer",
+        "My orders0No order backlog",
+        "My bookings0No booking backlog",
+        "Due today00 orders • 0 bookings",
+        "Overdue00 orders • 0 bookings",
+        "Logged in1sActive now",
+        "Sync queue0Nothing waiting to sync",
+        "Low stock1Needs action",
+        "Customers1Directory ready",
+        "InventoryReorder 1 item todaySet vendor lead times to forecast reorder pressure.",
+        "Demand forecastSaturday is your busiest booking dayPlan delivery and setup capacity for 12 predicted bookings over the next 30 days.",
+        "Refresh"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "11-portal-orders",
+    "label": "Portal orders",
+    "url": "http://127.0.0.1:4174/admin/orders",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/11-portal-orders.png",
+    "snapshot": {
+      "title": "REEBS ERP — Orders",
+      "h1": [],
+      "landmarks": [
+        "aside",
+        "nav",
+        "aside",
+        "main"
+      ],
+      "buttons": [
+        "Notifications",
+        "Open user menu",
+        "Collapse navigation"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "12-portal-inventory",
+    "label": "Portal inventory",
+    "url": "http://127.0.0.1:4174/admin/inventory",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/12-portal-inventory.png",
+    "snapshot": {
+      "title": "REEBS ERP — Inventory",
+      "h1": [
+        "Stock Management"
+      ],
+      "landmarks": [
+        "aside",
+        "nav",
+        "nav",
+        "header",
+        "nav"
+      ],
+      "buttons": [
+        "Notifications",
+        "Open user menu",
+        "Collapse navigation",
+        "Add items",
+        "Open archived items",
+        "Open recently deleted items",
+        "Refresh inventory",
+        "All inventory312 units · 0 low",
+        "Shop210 units · 0 low",
+        "Rentals12 units · 0 low",
+        "Outsourced00 units · 0 low",
+        "Approve",
+        "Reject",
+        "Approve",
+        "Reject",
+        "Approve",
+        "Reject",
+        "List",
+        "Card",
+        "Activity"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "13-portal-water",
+    "label": "Water business",
+    "url": "http://127.0.0.1:4174/admin/water",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/13-portal-water.png",
+    "snapshot": {
+      "title": "REEBS ERP — Water",
+      "h1": [
+        "Water Business"
+      ],
+      "landmarks": [
+        "aside",
+        "nav",
+        "nav",
+        "header",
+        "nav"
+      ],
+      "buttons": [
+        "Notifications",
+        "Open user menu",
+        "Collapse navigation",
+        "Refresh Water business data",
+        "Select water stock period",
+        "Save retail price",
+        "5",
+        "10",
+        "20",
+        "50",
+        "Reduce restock quantity",
+        "Increase restock quantity",
+        "Add stock",
+        "Sale date",
+        "Retail",
+        "Company",
+        "Cash",
+        "MoMo",
+        "Pay later",
+        "Reduce quantity"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "14-portal-settings",
+    "label": "Portal settings",
+    "url": "http://127.0.0.1:4174/admin/settings",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/14-portal-settings.png",
+    "snapshot": {
+      "title": "REEBS ERP — Settings",
+      "h1": [
+        "Settings"
+      ],
+      "landmarks": [
+        "aside",
+        "nav",
+        "nav",
+        "header",
+        "nav"
+      ],
+      "buttons": [
+        "Notifications",
+        "Open user menu",
+        "Collapse navigation",
+        "Profile",
+        "User Management",
+        "ERP Config",
+        "Advanced",
+        "Save profile",
+        "Select option",
+        "Select option",
+        "Save preferences",
+        "Home",
+        "Stock",
+        "Buy",
+        "POS",
+        "Water"
+      ],
+      "dialogs": 0,
+      "width": 1440,
+      "scrollWidth": 1440
+    }
+  },
+  {
+    "name": "15-portal-water-mobile",
+    "label": "Water business mobile",
+    "url": "http://127.0.0.1:4174/admin/water",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/15-portal-water-mobile.png",
+    "snapshot": {
+      "title": "REEBS ERP — Water",
+      "h1": [
+        "Water Business"
+      ],
+      "landmarks": [
+        "aside",
+        "nav",
+        "header",
+        "nav"
+      ],
+      "buttons": [
+        "Open menu",
+        "Refresh Water business data",
+        "Select water stock period",
+        "Save retail price",
+        "5",
+        "10",
+        "20",
+        "50",
+        "Reduce restock quantity",
+        "Increase restock quantity",
+        "Add stock",
+        "Sale date",
+        "Retail",
+        "Company",
+        "Cash",
+        "MoMo",
+        "Pay later",
+        "Reduce quantity",
+        "Increase quantity",
+        "No discount"
+      ],
+      "dialogs": 0,
+      "width": 390,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "name": "16-website-checkout-mobile",
+    "label": "Checkout mobile",
+    "url": "http://127.0.0.1:4173/checkout",
+    "file": "/Users/Nana/Desktop/Developer/faako-system/docs/ux-audits/reebs-ui-consistency/after/16-website-checkout-mobile.png",
+    "snapshot": {
+      "title": "Checkout | REEBS Party Themes",
+      "h1": [
+        "Finalize your bag"
+      ],
+      "landmarks": [
+        "header",
+        "nav",
+        "nav",
+        "main",
+        "aside",
+        "footer",
+        "nav",
+        "nav",
+        "nav",
+        "aside"
+      ],
+      "buttons": [
+        "Select option",
+        "Open site search",
+        "Cart with 1 items",
+        "Open site search",
+        "Open menu",
+        "Select option",
+        "Cart with 1 items",
+        "Pickup date",
+        "Pickup time window",
+        "Confirm order",
+        "Add",
+        "Book your party",
+        "Reject all",
+        "Customize",
+        "Accept all",
+        "Save choices"
+      ],
+      "dialogs": 0,
+      "width": 390,
+      "scrollWidth": 390
+    }
+  }
+]

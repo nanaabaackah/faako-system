@@ -46,6 +46,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      modulePreload: {
+        resolveDependencies: (_filename, dependencies) =>
+          dependencies.filter((dependency) => !dependency.includes("pdf-")),
+      },
       rollupOptions: {
         output: {
           manualChunks: createManualChunks(),

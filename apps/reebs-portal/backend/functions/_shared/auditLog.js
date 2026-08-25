@@ -142,11 +142,18 @@ export const extractRailwayWebhookSecret = (event = {}) => {
   if (bearerMatch?.[1]) return bearerMatch[1].trim();
 
   return normalizeString(
-    event.queryStringParameters?.secret
-      || getEventHeader(event, "x-faako-webhook-secret")
+    getEventHeader(event, "x-faako-webhook-secret")
       || getEventHeader(event, "x-railway-webhook-secret")
       || getEventHeader(event, "x-webhook-secret")
   );
+};
+
+export const timingSafeSecretEqual = (left, right) => {
+  const leftBuffer = Buffer.from(normalizeString(left), "utf8");
+  const rightBuffer = Buffer.from(normalizeString(right), "utf8");
+  return leftBuffer.length > 0
+    && leftBuffer.length === rightBuffer.length
+    && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 };
 
 export const getRailwayWebhookDiagnostics = ({
@@ -161,7 +168,6 @@ export const getRailwayWebhookDiagnostics = ({
     "x-faako-webhook-secret",
     "x-railway-webhook-secret",
     "x-webhook-secret",
-    "?secret=<secret>",
   ],
   currentWindowEvents,
   latestEventAt: latestEvent?.createdAt

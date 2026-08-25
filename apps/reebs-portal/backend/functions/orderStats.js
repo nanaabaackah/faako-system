@@ -1,5 +1,6 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
+import { withReebsAnalyticsScope } from "@faako/api-contracts/reebs";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { requirePermission } from "./_shared/internalApi.js";
 import { buildExpenseFilter } from "./_shared/expenseAccounting.js";
@@ -189,7 +190,7 @@ export async function handler(event = {}) {
   try {
     await client.connect();
 
-    const internal = await requirePermission(client, event, "orders:read", {
+    const internal = await requirePermission(client, event, "financials:read", {
       methods: "GET,OPTIONS",
     });
     if (internal.errorResponse) {
@@ -233,6 +234,16 @@ export async function handler(event = {}) {
       ? [windowStartIso, windowEndIso, organizationId]
       : [windowStartIso, windowEndIso];
     const orderOrgFilter = orderHasOrg ? `AND o."organizationId" = $3` : "";
+    const orderRecognitionFilter = `
+      AND LOWER(COALESCE(o.status, '')) NOT IN ('cancelled', 'canceled', 'refunded')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "orderItem" scoped_oi
+        JOIN "product" scoped_p ON scoped_p.id = scoped_oi."productId"
+        WHERE scoped_oi."orderId" = o.id
+          AND scoped_oi."organizationId" = o."organizationId"
+          AND UPPER(COALESCE(scoped_p."sourceCategoryCode", '')) = 'WATER'
+      )`;
     const bookingOrgFilter = bookingHasOrg ? `AND b."organizationId" = $3` : "";
     const orderProductJoin = orderHasOrg && productHasOrg
       ? `AND p."organizationId" = o."organizationId"`
@@ -246,6 +257,7 @@ export async function handler(event = {}) {
     const productBaseFilter = `
       COALESCE(p."isArchived", false) = false
       AND COALESCE(p."isDeleted", false) = false
+      AND UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'
       ${productOrgFilter}
     `;
 
@@ -288,7 +300,8 @@ export async function handler(event = {}) {
          FROM "order" o
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
-           ${orderOrgFilter}`,
+           ${orderOrgFilter}
+           ${orderRecognitionFilter}`,
         orderParams
       ),
       () => client.query(
@@ -297,7 +310,8 @@ export async function handler(event = {}) {
          JOIN "order" o ON o.id = oi."orderId"
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
-           ${orderOrgFilter}`,
+           ${orderOrgFilter}
+           ${orderRecognitionFilter}`,
         orderParams
       ),
       () => client.query(
@@ -312,6 +326,7 @@ export async function handler(event = {}) {
          WHERE o."orderDate" >= $1
            AND o."orderDate" < $2
            ${orderOrgFilter}
+           ${orderRecognitionFilter}
          GROUP BY p.id, p.name, p.sku
          ORDER BY units DESC
          LIMIT 5`,
@@ -389,7 +404,7 @@ export async function handler(event = {}) {
         maintenanceOpenParams
       ),
       () => client.query(
-        `SELECT COALESCE(SUM(COALESCE(p.stock, 0) * COALESCE(p.price, 0)), 0) AS inventory_value_cents
+        `SELECT COALESCE(SUM(COALESCE(p.stock, 0) * COALESCE(p."purchasePriceGhs", 0)), 0) AS inventory_value_cents
          FROM "product" p
          WHERE ${productBaseFilter}`,
         productParams
@@ -410,8 +425,12 @@ export async function handler(event = {}) {
            SUM(CASE WHEN sm."type" = 'StockIn' THEN sm.quantity ELSE 0 END)::int AS stock_in,
            SUM(CASE WHEN sm."type" = 'StockOut' THEN sm.quantity ELSE 0 END)::int AS stock_out
          FROM "stockMovement" sm
+         JOIN "product" p
+           ON p.id = sm."productId"
+          AND p."organizationId" = sm."organizationId"
          WHERE sm."date" >= $1
            ${velocityOrgFilter}
+           AND UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'
          GROUP BY date_trunc('month', sm."date")
          ORDER BY date_trunc('month', sm."date") ASC`,
         velocityParams
@@ -445,7 +464,7 @@ export async function handler(event = {}) {
 
     const orders = Number(orderSummary.rows[0]?.orders || 0);
     const deliveryFeeCents = Number(orderSummary.rows[0]?.delivery_fee_cents || 0);
-    const revenueCents = Number(orderSummary.rows[0]?.revenue_cents || 0) + deliveryFeeCents;
+    const revenueCents = Number(orderSummary.rows[0]?.revenue_cents || 0);
     const units = Number(unitsSummary.rows[0]?.units || 0);
     const bookings = Number(bookingSummary.rows[0]?.bookings || 0);
     const bookingRevenueCents = Number(bookingSummary.rows[0]?.revenue_cents || 0);
@@ -492,7 +511,7 @@ export async function handler(event = {}) {
       console.warn("Locked-in projection query failed:", err?.message || err);
     }
 
-    return json(event, 200, {
+    return json(event, 200, withReebsAnalyticsScope({
       windowDays,
       orders,
       revenue: retailRevenue,
@@ -511,6 +530,7 @@ export async function handler(event = {}) {
       inventoryValue,
       productCount,
       retailRevenue,
+      deliveryFees: deliveryFeeCents / 100,
       rentalRevenue,
       categories,
       velocity,
@@ -528,7 +548,7 @@ export async function handler(event = {}) {
         ...row,
         units: Number(row.units || 0),
       })),
-    });
+    }));
   } catch (err) {
     console.error("Failed to fetch order stats:", err);
     return json(event, 500, { error: "Failed to fetch order stats" });

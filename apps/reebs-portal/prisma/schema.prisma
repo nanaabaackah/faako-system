@@ -40,6 +40,8 @@ model Organization {
   waterSales      WaterSale[]
   waterExpenses   WaterExpense[]
   waterAdjustments WaterAdjustment[]
+  commercialConfigurations CommercialConfiguration[]
+  waterProductPrices WaterProductPrice[]
   accountingConfig AccountingConfig?
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
@@ -120,6 +122,7 @@ model OrderItem {
   variantId      Int?
   quantity       Int
   unit_price     Int     
+  unitCostCents  Int?    // Historical unit cost snapshot; null means reconciliation is required
   total_amount   Int     
   Order          Order   @relation(fields: [orderId], references: [id])
   Product        Product @relation(fields: [productId], references: [id])
@@ -150,6 +153,7 @@ model OrderPayment {
   paidAt               DateTime @default(now())
   recordedByUserId     Int?
   notes                String?
+  idempotencyKey       String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   receipts             OrderReceipt[]
@@ -157,6 +161,7 @@ model OrderPayment {
   @@index([organizationId, orderId])
   @@index([organizationId, customerId])
   @@index([organizationId, paidAt])
+  @@unique([organizationId, idempotencyKey])
   @@map("orderPayment")
 }
 
@@ -258,6 +263,7 @@ model Product {
   indoorGame           IndoorGame?
   machine              Machine?
   shopItem             ShopItem?
+  waterPrices          WaterProductPrice[]
   
   @@unique([organizationId, sku])
   @@unique([organizationId, barcode])
@@ -378,6 +384,7 @@ model User {
   fullName  String
   role      String   @default("Staff")
   permissions Json?
+  imageUrl String?
   loginAttempts Int      @default(0)
   lockedUntil   DateTime?
   createdAt DateTime @default(now())
@@ -422,6 +429,7 @@ model EmployeeProfile {
   user                   User     @relation(fields: [userId], references: [id])
   jobTitle               String?
   phone                  String?
+  address                String?
   emergencyContactName   String?
   emergencyContactPhone  String?
   createdAt              DateTime @default(now())
@@ -476,6 +484,56 @@ model AccountingConfig {
   updatedAt       DateTime     @updatedAt
 
   @@map("accountingConfig")
+}
+
+model CommercialConfiguration {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  businessUnit    String
+  key             String
+  value           String
+  valueType       String
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  active          Boolean      @default(true)
+  description     String?
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, businessUnit, key, effectiveFrom], map: "commercialConfiguration_org_unit_key_from_key")
+  @@index([organizationId, businessUnit, key, active, effectiveFrom, effectiveTo], map: "commercialConfiguration_current_lookup_idx")
+  @@map("commercialConfiguration")
+}
+
+model WaterProductPrice {
+  id              Int          @id @default(autoincrement())
+  organizationId  Int          @default(1)
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  productId       Int?
+  product         Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productKey      String
+  productName     String
+  priceType       String
+  minimumQuantity Int          @default(1)
+  priceCents      Int
+  currency        String       @default("GHS")
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  active          Boolean      @default(true)
+  description     String?
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  sales           WaterSale[]
+
+  @@unique([organizationId, productKey, priceType, effectiveFrom], map: "waterProductPrice_org_product_type_from_key")
+  @@index([organizationId, productKey, priceType, active, effectiveFrom, effectiveTo], map: "waterProductPrice_current_lookup_idx")
+  @@index([organizationId, productId], map: "waterProductPrice_organizationId_productId_idx")
+  @@map("waterProductPrice")
 }
 
 model WebsiteContent {
@@ -619,10 +677,10 @@ model WaterRestock {
   id              Int          @id @default(autoincrement())
   organizationId  Int          @default(1)
   organization    Organization @relation(fields: [organizationId], references: [id])
-  productKey      String       @default("gwater-12pk")
-  productName     String       @default("12pk Gwater")
+  productKey      String       @default("gwater-15pk")
+  productName     String       @default("15pk Gwater")
   quantity        Int
-  unitCost        Int          @default(2200)
+  unitCost        Int
   vendorId        Int?
   vendorName      String?
   notes           String?
@@ -638,8 +696,8 @@ model WaterSale {
   id              Int          @id @default(autoincrement())
   organizationId  Int          @default(1)
   organization    Organization @relation(fields: [organizationId], references: [id])
-  productKey      String       @default("gwater-12pk")
-  productName     String       @default("12pk Gwater")
+  productKey      String       @default("gwater-15pk")
+  productName     String       @default("15pk Gwater")
   quantity        Int
   saleChannel     String
   paymentMethod   String       @default("cash")
@@ -650,6 +708,13 @@ model WaterSale {
   discountValue   Int          @default(0)
   discountAmount  Int          @default(0)
   unitPrice       Int
+  unitCostAtSaleCents Int?
+  standardUnitPrice Int?
+  waterProductPriceId Int?
+  waterProductPrice WaterProductPrice? @relation(fields: [waterProductPriceId], references: [id], onDelete: SetNull)
+  priceOverrideReason String?
+  priceOverriddenByUserId Int?
+  priceOverriddenAt DateTime?
   totalAmount     Int
   customerId      Int?
   customer        Customer?    @relation(fields: [customerId], references: [id])
@@ -660,8 +725,30 @@ model WaterSale {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
+  @@index([organizationId, waterProductPriceId])
   @@map("waterSale")
+}
+
+model WaterMomoWebhookEvent {
+  id                BigInt    @id @default(autoincrement())
+  eventFingerprint  String    @unique
+  organizationId    Int?
+  waterSaleId       Int?
+  providerReference String?
+  paymentReference  String?
+  paymentStatus     String?
+  receivedAt        DateTime  @default(now())
+  processedAt       DateTime?
+
+  @@index([organizationId, receivedAt])
+  @@map("waterMomoWebhookEvent")
 }
 
 model WaterExpense {
@@ -676,6 +763,9 @@ model WaterExpense {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterExpense")
 }
@@ -684,8 +774,8 @@ model WaterAdjustment {
   id              Int          @id @default(autoincrement())
   organizationId  Int          @default(1)
   organization    Organization @relation(fields: [organizationId], references: [id])
-  productKey      String       @default("gwater-12pk")
-  productName     String       @default("12pk Gwater")
+  productKey      String       @default("gwater-15pk")
+  productName     String       @default("15pk Gwater")
   quantityDelta   Int
   reason          String
   notes           String?

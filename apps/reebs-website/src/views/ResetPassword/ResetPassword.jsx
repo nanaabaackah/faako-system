@@ -4,6 +4,7 @@ import "./ResetPassword.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEye, faEyeSlash } from "/src/icons/iconSet";
 import { clearAuthState } from "@faako/core";
+import { publicApiResponse } from "../../lib/publicApi";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -46,7 +47,7 @@ function ResetPassword() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/resetPassword", {
+      const response = await publicApiResponse("/v1/auth/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

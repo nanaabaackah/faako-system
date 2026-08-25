@@ -1,6 +1,14 @@
 import { getDeliveryFeeDetails } from "./deliveryFee.js";
 import { formatVariantLabel } from "./inventoryExtensions.js";
 import { sanitizeOrderLogisticsDetails } from "./orderDetails.js";
+import {
+  COMMERCIAL_BUSINESS_UNITS,
+  COMMERCIAL_CONFIG_KEYS,
+  resolveCommercialConfiguration,
+} from "./commercialConfig.js";
+import {
+  assertCheckoutQuoteGuard,
+} from "./checkoutQuote.js";
 
 export const ORDER_METHODS = "GET,POST,PATCH,PUT,DELETE,OPTIONS";
 
@@ -17,8 +25,8 @@ const runSequentially = async (operations = []) => {
 // independently of a live database connection.
 export const buildBatchOrderItemParams = (organizationId, orderId, items) => {
   const placeholders = items.map((_, i) => {
-    const b = i * 7;
-    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7})`;
+    const b = i * 8;
+    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8})`;
   });
   const params = items.flatMap((item) => [
     organizationId,
@@ -28,6 +36,7 @@ export const buildBatchOrderItemParams = (organizationId, orderId, items) => {
     item.quantity,
     item.unitPriceCents,
     item.lineTotalCents,
+    item.unitCostCents ?? null,
   ]);
   return { placeholders, params };
 };
@@ -79,6 +88,46 @@ const STOCK_COMMIT_STATUSES = new Set([
   SHOP_ORDER_STATUS.DELIVERED,
   SHOP_ORDER_STATUS.COMPLETED,
 ]);
+
+const ORDER_STATUS_TRANSITIONS = {
+  [SHOP_ORDER_STATUS.DRAFT]: new Set([SHOP_ORDER_STATUS.PENDING_PAYMENT]),
+  [SHOP_ORDER_STATUS.PENDING_PAYMENT]: new Set([
+    SHOP_ORDER_STATUS.PARTIALLY_PAID,
+    SHOP_ORDER_STATUS.PAID,
+  ]),
+  [SHOP_ORDER_STATUS.PARTIALLY_PAID]: new Set([SHOP_ORDER_STATUS.PAID]),
+  [SHOP_ORDER_STATUS.PAID]: new Set([
+    SHOP_ORDER_STATUS.PROCESSING,
+    SHOP_ORDER_STATUS.READY_FOR_PICKUP,
+    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
+    SHOP_ORDER_STATUS.DELIVERED,
+    SHOP_ORDER_STATUS.COMPLETED,
+  ]),
+  [SHOP_ORDER_STATUS.PROCESSING]: new Set([
+    SHOP_ORDER_STATUS.READY_FOR_PICKUP,
+    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
+    SHOP_ORDER_STATUS.DELIVERED,
+    SHOP_ORDER_STATUS.COMPLETED,
+  ]),
+  [SHOP_ORDER_STATUS.READY_FOR_PICKUP]: new Set([
+    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
+    SHOP_ORDER_STATUS.DELIVERED,
+    SHOP_ORDER_STATUS.COMPLETED,
+  ]),
+  [SHOP_ORDER_STATUS.OUT_FOR_DELIVERY]: new Set([
+    SHOP_ORDER_STATUS.DELIVERED,
+    SHOP_ORDER_STATUS.COMPLETED,
+  ]),
+  [SHOP_ORDER_STATUS.DELIVERED]: new Set([SHOP_ORDER_STATUS.COMPLETED]),
+};
+
+export const canTransitionOrderStatus = (currentStatus, nextStatus) => {
+  const current = normalizeOrderStatus(currentStatus, "");
+  const next = normalizeOrderStatus(nextStatus, "");
+  if (!current || !next) return false;
+  if (current === next) return true;
+  return ORDER_STATUS_TRANSITIONS[current]?.has(next) || false;
+};
 
 const normalizeText = (value, max = 500) => {
   if (typeof value !== "string") return "";
@@ -181,6 +230,37 @@ export const normalizeDeliveryMethod = (value, fallback = "pickup") => {
   if (normalized.includes("delivery")) return "delivery";
   if (normalized.includes("pickup")) return "pickup";
   return fallback;
+};
+
+export const resolveAuthoritativeDeliveryFee = async (
+  client,
+  {
+    organizationId,
+    deliveryMethod,
+    deliveryDetails,
+    at = new Date(),
+  } = {}
+) => {
+  const method = normalizeDeliveryMethod(deliveryMethod, "pickup");
+  if (method === "pickup") {
+    return {
+      ...getDeliveryFeeDetails(method, deliveryDetails, 0),
+      commercialConfigId: null,
+      effectiveAt: new Date(at).toISOString(),
+    };
+  }
+
+  const configuration = await resolveCommercialConfiguration(client, {
+    organizationId,
+    businessUnit: COMMERCIAL_BUSINESS_UNITS.REEBS_CORE,
+    key: COMMERCIAL_CONFIG_KEYS.DELIVERY_PER_KM_FEE_CENTS,
+    at,
+  });
+  return {
+    ...getDeliveryFeeDetails(method, deliveryDetails, configuration.value),
+    commercialConfigId: configuration.id,
+    effectiveAt: new Date(at).toISOString(),
+  };
 };
 
 export const normalizePaymentMethod = (value) => {
@@ -391,14 +471,19 @@ const normalizeItems = async (client, organizationId, rawItems = []) => {
   return [...byProductVariant.values()];
 };
 
-const loadAndPriceItems = async (client, organizationId, items) => {
+export const loadAndPriceItems = async (
+  client,
+  organizationId,
+  items,
+  { lockForUpdate = true } = {}
+) => {
   const productIds = [...new Set(items.map((item) => item.productId))];
   const productRes = await client.query(
-    `SELECT id, name, sku, price, stock, "isActive", "itemType", "sourceCategoryCode", "imageUrl"
+    `SELECT id, name, sku, price, "purchasePriceGhs", stock, "isActive", "itemType", "sourceCategoryCode", "imageUrl"
      FROM "product"
      WHERE id = ANY($1::int[])
        AND "organizationId" = $2
-     FOR UPDATE`,
+     ${lockForUpdate ? "FOR UPDATE" : ""}`,
     [productIds, organizationId]
   );
   const productMap = new Map(productRes.rows.map((row) => [Number(row.id), row]));
@@ -418,7 +503,7 @@ const loadAndPriceItems = async (client, organizationId, items) => {
        FROM "inventoryVariant"
        WHERE id = ANY($1::int[])
          AND "organizationId" = $2
-       FOR UPDATE`,
+       ${lockForUpdate ? "FOR UPDATE" : ""}`,
       [variantIds, organizationId]
     );
     variantRes.rows.forEach((row) => variantMap.set(Number(row.id), row));
@@ -434,6 +519,11 @@ const loadAndPriceItems = async (client, organizationId, items) => {
     const sourceCode = normalizeText(product?.sourceCategoryCode, 80).toUpperCase();
     if (sourceCode === "RENTAL") {
       const error = new Error(`"${product?.name || `Item ${item.productId}`}" is a rental item. Use Bookings for rentals.`);
+      error.statusCode = 400;
+      throw error;
+    }
+    if (sourceCode === "WATER") {
+      const error = new Error(`"${product?.name || `Item ${item.productId}`}" belongs to the Water business. Record it in Water Business.`);
       error.statusCode = 400;
       throw error;
     }
@@ -484,7 +574,76 @@ const loadAndPriceItems = async (client, organizationId, items) => {
       itemName,
       unitPriceCents,
       lineTotalCents: unitPriceCents * item.quantity,
+      unitCostCents: Number.isFinite(Number(product?.purchasePriceGhs))
+        ? Math.max(0, Math.round(Number(product.purchasePriceGhs)))
+        : null,
     };
+  });
+};
+
+const toAuthoritativeQuote = ({
+  sourceContext,
+  pricedItems,
+  deliveryPricing,
+  discountCents = 0,
+  serviceFeeCents = 0,
+}) => {
+  const subtotalCents = pricedItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
+  const deliveryFeeCents = normalizeCents(deliveryPricing?.feeCents);
+  const normalizedDiscountCents = Math.min(subtotalCents, normalizeCents(discountCents));
+  const normalizedServiceFeeCents = normalizeCents(serviceFeeCents);
+  const grandTotalCents = Math.max(
+    0,
+    subtotalCents - normalizedDiscountCents + deliveryFeeCents + normalizedServiceFeeCents
+  );
+
+  return {
+    currency: "GHS",
+    items: pricedItems.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId || null,
+      name: item.itemName,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+      lineTotalCents: item.lineTotalCents,
+    })),
+    subtotalCents,
+    discountCents: normalizedDiscountCents,
+    deliveryFeeCents,
+    serviceFeeCents: normalizedServiceFeeCents,
+    grandTotalCents,
+    deliveryMethod: sourceContext.deliveryMethod,
+    delivery: {
+      distanceKm: Number(deliveryPricing?.distanceKm || 0),
+      rateCents: normalizeCents(deliveryPricing?.rateCents),
+      commercialConfigId: deliveryPricing?.commercialConfigId || null,
+      effectiveAt: deliveryPricing?.effectiveAt || null,
+    },
+  };
+};
+
+/** Read-only catalogue/config pricing used by public checkout before mutation. */
+export const quoteShopOrder = async (
+  client,
+  { organizationId, payload, at = new Date() }
+) => {
+  const sourceContext = normalizeSourceContext(payload);
+  const normalizedItems = await normalizeItems(client, organizationId, payload.items);
+  const pricedItems = await loadAndPriceItems(client, organizationId, normalizedItems, {
+    lockForUpdate: false,
+  });
+  const deliveryDetails = sanitizeOrderLogisticsDetails(payload.deliveryDetails);
+  const deliveryPricing = await resolveAuthoritativeDeliveryFee(client, {
+    organizationId,
+    deliveryMethod: sourceContext.deliveryMethod,
+    deliveryDetails,
+    at,
+  });
+
+  return toAuthoritativeQuote({
+    sourceContext,
+    pricedItems,
+    deliveryPricing,
   });
 };
 
@@ -891,7 +1050,7 @@ export const createReceiptForPayment = async (
 
 export const recordOrderPayment = async (
   client,
-  { organizationId, orderId, amountCents, method, provider = null, transactionReference = null, phoneNumber = null, confirmationStatus = null, status = "successful", notes = null, actor }
+  { organizationId, orderId, amountCents, method, provider = null, transactionReference = null, phoneNumber = null, confirmationStatus = null, status = "successful", notes = null, actor, idempotencyKey = "" }
 ) => {
   const orderRes = await client.query(
     `SELECT *
@@ -920,13 +1079,50 @@ export const recordOrderPayment = async (
     throw error;
   }
 
+  const normalizedIdempotencyKey = normalizeText(idempotencyKey, 160);
+  if (normalizedIdempotencyKey) {
+    const existingPaymentRes = await client.query(
+      `SELECT *
+       FROM "orderPayment"
+       WHERE "organizationId" = $1
+         AND "idempotencyKey" = $2
+       LIMIT 1`,
+      [organizationId, normalizedIdempotencyKey]
+    );
+    if (existingPaymentRes.rowCount > 0) {
+      const existingPayment = existingPaymentRes.rows[0];
+      if (
+        Number(existingPayment.orderId) !== Number(order.id)
+        || Number(existingPayment.amountCents) !== paymentAmountCents
+      ) {
+        const error = new Error("Idempotency key was already used for a different payment.");
+        error.statusCode = 409;
+        throw error;
+      }
+      const receiptRes = await client.query(
+        `SELECT id, "receiptNumber", "issuedAt"
+         FROM "orderReceipt"
+         WHERE "organizationId" = $1
+           AND "paymentId" = $2
+         LIMIT 1`,
+        [organizationId, existingPayment.id]
+      );
+      return {
+        payment: existingPayment,
+        receipt: receiptRes.rows[0] || null,
+        order,
+        idempotentReplay: true,
+      };
+    }
+  }
+
   const paymentRes = await client.query(
     `INSERT INTO "orderPayment" (
        "organizationId", "orderId", "customerId", "amountCents", "method", "provider",
        "transactionReference", "phoneNumber", "confirmationStatus", "status", "paidAt",
-       "recordedByUserId", "notes", "createdAt", "updatedAt"
+       "recordedByUserId", "notes", "idempotencyKey", "createdAt", "updatedAt"
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11,$12,NOW(),NOW())
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),$11,$12,$13,NOW(),NOW())
      RETURNING *`,
     [
       organizationId,
@@ -941,6 +1137,7 @@ export const recordOrderPayment = async (
       normalizeText(status, 80).toLowerCase() || "successful",
       actor.userId,
       notes,
+      normalizedIdempotencyKey || null,
     ]
   );
   const payment = paymentRes.rows[0];
@@ -1014,7 +1211,7 @@ export const recordOrderPayment = async (
     createdByUserId: actor.userId,
   });
 
-  return { payment, receipt, order: updatedOrder };
+  return { payment, receipt, order: updatedOrder, idempotentReplay: false };
 };
 
 export const createShopOrder = async (
@@ -1030,7 +1227,8 @@ export const createShopOrder = async (
 
   if (idempotencyKey) {
     const existingRes = await client.query(
-      `SELECT id, "orderNumber"
+      `SELECT id, "orderNumber", "subtotalCents", "discountCents", "deliveryFeeCents",
+              "serviceFeeCents", COALESCE("grandTotalCents", total_amount) AS "grandTotalCents"
        FROM "order"
        WHERE "organizationId" = $1
          AND "idempotencyKey" = $2
@@ -1038,7 +1236,7 @@ export const createShopOrder = async (
       [organizationId, idempotencyKey]
     );
     if (existingRes.rowCount > 0) {
-      return { ...existingRes.rows[0], idempotentReplay: true };
+      return { ...existingRes.rows[0], orderId: existingRes.rows[0].id, currency: "GHS", idempotentReplay: true };
     }
   }
 
@@ -1069,11 +1267,32 @@ export const createShopOrder = async (
   const serviceFeeCents = normalizeCents(payload.serviceFeeCents, normalizeMajorUnitsToCents(payload.serviceFee, 0));
   const deliveryDetails = sanitizeOrderLogisticsDetails(payload.deliveryDetails);
   const pickupDetails = sanitizeOrderLogisticsDetails(payload.pickupDetails);
-  const deliveryFeeCents = normalizeCents(
-    payload.deliveryFeeCents,
-    getDeliveryFeeDetails(sourceContext.deliveryMethod, deliveryDetails).feeCents
-  );
+  const deliveryPricing = await resolveAuthoritativeDeliveryFee(client, {
+    organizationId,
+    deliveryMethod: sourceContext.deliveryMethod,
+    deliveryDetails,
+    at: new Date(),
+  });
+  const deliveryFeeCents = deliveryPricing.feeCents;
   const grandTotalCents = Math.max(0, subtotalCents - discountCents + deliveryFeeCents + serviceFeeCents);
+  const hasQuoteGuard = Boolean(payload.quoteFingerprint)
+    || (Array.isArray(payload.items)
+      && payload.items.some((item) => item?.expectedUnitPriceCents !== null && item?.expectedUnitPriceCents !== undefined));
+  if (hasQuoteGuard) {
+    assertCheckoutQuoteGuard({
+      organizationId,
+      quote: toAuthoritativeQuote({
+        sourceContext,
+        pricedItems,
+        deliveryPricing,
+        discountCents,
+        serviceFeeCents,
+      }),
+      expectedItems: payload.items,
+      expectedFingerprint: payload.quoteFingerprint,
+      acknowledgePriceChanges: payload.acknowledgePriceChanges,
+    });
+  }
   const paymentPreference = payload.paymentPreference && typeof payload.paymentPreference === "object"
     ? payload.paymentPreference
     : {};
@@ -1170,7 +1389,7 @@ export const createShopOrder = async (
     buildBatchOrderItemParams(organizationId, order.id, pricedItems);
   const insertedItems = await client.query(
     `INSERT INTO "orderItem" (
-       "organizationId", "orderId", "productId", "variantId", quantity, unit_price, total_amount
+       "organizationId", "orderId", "productId", "variantId", quantity, unit_price, total_amount, "unitCostCents"
      )
      VALUES ${itemPlaceholders.join(", ")}
      RETURNING id`,
@@ -1199,6 +1418,9 @@ export const createShopOrder = async (
       itemCount: pricedItems.length,
       subtotalCents,
       discountCents,
+      deliveryFeeCents,
+      deliveryRateCents: deliveryPricing.rateCents,
+      deliveryCommercialConfigId: deliveryPricing.commercialConfigId,
       grandTotalCents,
       stockCommitted: shouldCommitStock,
     },
@@ -1215,6 +1437,7 @@ export const createShopOrder = async (
       amountCents: grandTotalCents,
       ...paymentData,
       actor,
+      idempotencyKey: idempotencyKey ? `${idempotencyKey}:initial-payment` : "",
     });
     payment = paymentResult.payment;
     receipt = paymentResult.receipt;
@@ -1224,6 +1447,12 @@ export const createShopOrder = async (
     id: order.id,
     orderId: order.id,
     orderNumber: order.orderNumber,
+    currency: "GHS",
+    subtotalCents,
+    discountCents,
+    deliveryFeeCents,
+    serviceFeeCents,
+    grandTotalCents,
     assignedUserId: order.assignedUserId,
     updatedByUserId: actor.userId,
     paymentId: payment?.id || null,
@@ -1564,7 +1793,12 @@ export const updateOrderMetadata = async (
   const params = [];
   const hasStatus = Object.prototype.hasOwnProperty.call(payload, "status");
   if (hasStatus) {
-    const nextStatus = normalizeOrderStatus(payload.status, order.status);
+    const nextStatus = normalizeOrderStatus(payload.status, "");
+    if (!nextStatus || !canTransitionOrderStatus(order.status, nextStatus)) {
+      const error = new Error("Invalid order status transition.");
+      error.statusCode = 409;
+      throw error;
+    }
     const grandTotalCents = normalizeCents(order.grandTotalCents ?? order.total_amount);
     const amountPaidCents = normalizeCents(order.amountPaidCents);
     if (

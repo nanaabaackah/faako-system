@@ -23,7 +23,7 @@
 
 .shop-page .shop-hero {
   --page-hero-image: url("/imgs/backgrounds/29.png");
-  min-height: var(--app-vh);
+  min-height: min(760px, 82vh);
   align-content: center;
   justify-items: center;
   padding: clamp(7rem, 14vh, 9rem) clamp(1rem, 3vw, 2rem) clamp(2.2rem, 5vw, 3rem);
@@ -49,7 +49,7 @@
 
 .shop-page .shop-hero-copy {
   width: 100%;
-  margin-top: 5rem;
+  margin-top: 2rem;
   display: grid;
   justify-items: center;
   text-align: center;
@@ -79,8 +79,8 @@
 
 .shop-hero-panels {
   width: min(1120px, 100%);
-  min-height: clamp(320px, 50vh, 430px);
-  height: clamp(320px, 50vh, 430px);
+  min-height: clamp(260px, 36vh, 340px);
+  height: clamp(260px, 36vh, 340px);
   margin: 0;
   display: flex;
   align-items: stretch;

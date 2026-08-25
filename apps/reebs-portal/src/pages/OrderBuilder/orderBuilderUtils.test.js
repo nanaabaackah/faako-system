@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { computeVisibleProducts, PRODUCT_SHOW_ALL_THRESHOLD } from "./orderBuilderUtils.js";
+import {
+  computeVisibleProducts,
+  normalizeOrderCurrency,
+  PRODUCT_SHOW_ALL_THRESHOLD,
+} from "./orderBuilderUtils.js";
 
 const makeProducts = (n) =>
   Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `Product ${i + 1}` }));
@@ -62,5 +66,17 @@ describe("computeVisibleProducts", () => {
     const result = computeVisibleProducts(products, "", PRODUCT_SHOW_ALL_THRESHOLD);
     assert.equal(result.items[0], products[0]);
     assert.equal(result.items[PRODUCT_SHOW_ALL_THRESHOLD - 1], products[PRODUCT_SHOW_ALL_THRESHOLD - 1]);
+  });
+});
+
+describe("normalizeOrderCurrency", () => {
+  it("uses GHS when product currency is missing", () => {
+    assert.equal(normalizeOrderCurrency(), "GHS");
+    assert.equal(normalizeOrderCurrency(""), "GHS");
+    assert.equal(normalizeOrderCurrency("   "), "GHS");
+  });
+
+  it("normalizes an explicit product currency", () => {
+    assert.equal(normalizeOrderCurrency(" gbp "), "GBP");
   });
 });

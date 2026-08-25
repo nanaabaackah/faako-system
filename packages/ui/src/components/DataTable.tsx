@@ -133,13 +133,22 @@ export function DataTable<Row>({
                       key={column.id}
                       style={column.width ? { width: column.width } : undefined}
                       className={column.align ? `is-${column.align}` : undefined}
+                      aria-sort={
+                        isSortable
+                          ? isActive
+                            ? sortConfig?.direction === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                          : undefined
+                      }
                     >
                       {isSortable ? (
                         <button
                           type="button"
                           className={joinClasses("ui-data-table__sort", isActive && "is-active")}
                           onClick={() => handleSort(column.id)}
-                          aria-sort={isActive ? (sortConfig?.direction === "asc" ? "ascending" : "descending") : "none"}
+                          aria-label={`Sort by ${String(column.header)}${isActive ? `, currently ${sortConfig?.direction === "asc" ? "ascending" : "descending"}` : ""}`}
                         >
                           <span>{column.header}</span>
                           <span aria-hidden="true">

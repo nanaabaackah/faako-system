@@ -131,7 +131,8 @@ security boundary.
   token's user, organisation, and session-token ID to an active database session
   (`userAuth.js:193-252`).
 - `GET /api/authSession` revalidates the database session and current user record.
-  It also converts a supported legacy bearer session to a cookie
+  It can convert a session-bound compatibility bearer token to a cookie; historical
+  user tokens without a database `sessionTokenId` now fail closed
   (`apps/reebs-portal/backend/functions/authSession.js:16-81`).
 
 ### Browser storage
@@ -157,8 +158,8 @@ security boundary.
   expires.
 - Password reset revokes every database session for the affected user and
   organisation (`apps/reebs-portal/backend/functions/resetPassword.js:58-95`).
-- An administrator changing a user's password through `users.js` does not revoke
-  that user's existing sessions (`apps/reebs-portal/backend/functions/users.js:246-265`).
+- Password changes through user administration or the current-user profile revoke
+  the affected user's database sessions. Role and permission changes do the same.
 
 ### Password reset
 
@@ -178,19 +179,15 @@ security boundary.
 - Response CORS headers use an exact configured allowlist and credentials
   (`apps/reebs-portal/backend/functions/_shared/http.js:8-18`, `37-58`, `79-118`;
   `packages/security/src/index.js:109-146`).
-- Authenticated handlers generally reject requests only when
-  `Sec-Fetch-Site: cross-site` is present. There is no synchronizer or double-submit
-  CSRF token in the current REEBS web session flow
-  (`apps/reebs-portal/backend/functions/_shared/http.js:74-77`).
-- `SameSite=Lax`, JSON requests, and CORS preflight reduce browser CSRF exposure,
-  but protection is inconsistent with Dev ERP and depends on browser headers,
-  cookie-domain configuration, and endpoint content types.
+- Cookie-authenticated unsafe requests require an exact allowed `Origin` or
+  same-origin/same-site Fetch Metadata. Requests with neither signal fail closed;
+  non-browser compatibility bearer requests remain isolated from this browser
+  origin rule. `SameSite=Lax`, JSON requests and exact CORS remain layered controls.
 
 ### Rate limiting
 
-- Account lockout exists for named REEBS users, but the primary login handler does
-  not apply the shared database-backed request limiter. Unknown usernames can
-  therefore generate unbounded password verification work per instance.
+- Account lockout exists for named REEBS users, and the primary login handler now
+  applies the shared database-backed IP request limiter before account lookup.
 - The shared database-backed limiter exists and is used by selected endpoints
   such as manager login, contact, bookings, and water workflows
   (`apps/reebs-portal/backend/functions/_shared/requestRateLimit.js:57-119`).

@@ -655,12 +655,12 @@ export default function AdminCustomers() {
   return (
     <div className="admin-page crm-page">
       <div className="admin-shell crm-shell">
-        <AdminBreadcrumb items={[{ label: "CRM" }]} />
+        <AdminBreadcrumb items={[{ label: "Customers" }]} />
 
         <AdminPageHeader
           copyClassName="crm-header-copy"
           actionsClassName="admin-header-actions crm-header-actions"
-          title="CRM"
+          title="Customers"
           actions={(
             <>
               <button
@@ -704,7 +704,7 @@ export default function AdminCustomers() {
             compact
             className="glass-card crm-loading-state admin-module-loading"
             title="Loading customers"
-            message="Preparing CRM history and segments."
+            message="Preparing customer history and segments."
             variant="dashboard"
           />
         ) : null}
@@ -771,7 +771,7 @@ export default function AdminCustomers() {
       <ERPConfirmDialog
         open={Boolean(pendingArchiveCustomer)}
         title="Archive customer?"
-        description="This removes the customer from the active CRM list."
+        description="This removes the customer from the active customer list."
         message={
           pendingArchiveCustomer
             ? `Archive ${pendingArchiveCustomer.name || "this customer"}? Existing linked records are not deleted.`

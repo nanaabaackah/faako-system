@@ -388,6 +388,80 @@ export const eventRegistrationInputSchema = z
   })
   .strip();
 
+export const reebsBusinessScopeSchema = z
+  .enum(["reebs-core", "water", "consolidated", "shared"])
+  .default("reebs-core");
+
+export const reebsPaginationQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
+    search: optionalText(200),
+    sort: optionalText(80),
+    direction: z.enum(["asc", "desc"]).optional(),
+  })
+  .strip();
+
+/** REEBS permits email addresses and legacy username-only operational accounts. */
+export const reebsLoginInputSchema = z
+  .object({
+    email: requiredText(254),
+    password: z.string().min(1).max(1024),
+    remember: z.boolean().optional(),
+  })
+  .strip();
+
+export const reebsPublicCustomerInputSchema = z
+  .object({
+    name: requiredText(200, 2),
+    email: optionalEmailSchema,
+    phone: optionalPhoneSchema,
+  })
+  .strip()
+  .superRefine((value, context) => {
+    if (value.email || value.phone) return;
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["email"],
+      message: "Enter an email address or phone number.",
+    });
+  });
+
+export const reebsBookingLineInputSchema = z
+  .object({
+    productId: domainIdSchema,
+    variantId: domainIdSchema.nullable().optional(),
+    quantity: z.coerce.number().int().min(1).max(100),
+  })
+  .strip();
+
+export const reebsBookingCreateInputSchema = z
+  .object({
+    customerId: domainIdSchema,
+    eventDate: isoDateSchema,
+    startTime: nullableOptionalText(80),
+    endTime: nullableOptionalText(80),
+    venueAddress: nullableOptionalText(240),
+    items: z.array(reebsBookingLineInputSchema).min(1).max(100),
+    paymentPreference: z.union([z.string().max(80), z.record(z.string(), z.unknown()), z.null()]).optional(),
+    applyBundleDiscount: z.boolean().optional(),
+    discount: z.number().finite().nonnegative().optional(),
+    status: optionalText(80),
+    source: optionalText(80),
+  })
+  .strip();
+
+/** Amount is deliberately omitted: the server derives payable totals from the order. */
+export const reebsPaymentInitializationSchema = z
+  .object({
+    orderReference: requiredText(160),
+    idempotencyKey: requiredText(160),
+    currency: currencyCodeSchema.optional(),
+  })
+  .strict();
+
+export const waterBusinessScopeSchema = z.literal("water");
+
 export const validationIssues = (error) =>
   error.issues.map((issue) => ({
     field: issue.path.join("."),

@@ -1,41 +1,7 @@
-<footer class="astro-site-footer">
-  <div>
-    <img src="/imgs/brand/reebs_logo2.svg" alt="REEBS Party Themes" width="150" height="64" loading="lazy" />
-    <p>Party rentals, decor, supplies, and event support in Ghana.</p>
-  </div>
-  <nav aria-label="Footer navigation">
-    <a href="/faq">FAQ</a>
-    <a href="/delivery-policy">Delivery</a>
-    <a href="/refund-policy">Refunds</a>
-    <a href="/privacy-policy">Privacy</a>
-    <a href="/terms-of-service">Terms</a>
-  </nav>
-  <address>
-    <a href="tel:+233244238419">+233 24 423 8419</a>
-    <a href="mailto:info@reebspartythemes.com">info@reebspartythemes.com</a>
-    <a href="https://wa.me/233244238419">WhatsApp</a>
-  </address>
-</footer>
+---
+import StorefrontFooterIsland from "../islands/StorefrontFooterIsland.jsx";
 
-<style>
-  .astro-site-footer {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
-    gap: 2rem;
-    padding: 3rem max(1rem, calc((100% - 1180px) / 2));
-    color: white;
-    background: var(--dark);
-  }
-  .astro-site-footer img { max-width: 130px; filter: brightness(0) invert(1); }
-  .astro-site-footer nav,
-  .astro-site-footer address {
-    display: grid;
-    align-content: start;
-    gap: .65rem;
-    font-style: normal;
-  }
-  .astro-site-footer a { color: white; }
-  @media (max-width: 700px) {
-    .astro-site-footer { grid-template-columns: 1fr; }
-  }
-</style>
+const { currentPath = Astro.url.pathname } = Astro.props;
+---
+
+<StorefrontFooterIsland path={currentPath} client:idle={{ timeout: 900 }} />

@@ -12,6 +12,7 @@ export default function WaterLedgerEditorModal({
   selectedLedgerVendor,
   ledgerSelectedVendorName,
   ledgerRestockQuantity,
+  ledgerRestockUnitCost,
   ledgerRestockCost,
   ledgerAdjustmentReasonOptions,
   ledgerAdjustmentHasCustomReason,
@@ -126,6 +127,20 @@ export default function WaterLedgerEditorModal({
                   />
                 </label>
                 <label>
+                  Cost price per pack (GHS)
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={ledgerForm.unitCost}
+                    onChange={(event) =>
+                      setLedgerForm((prev) => (prev ? { ...prev, unitCost: event.target.value } : prev))
+                    }
+                    required
+                  />
+                </label>
+                <label>
                   Date
                   <DateField
                     value={ledgerForm.date}
@@ -155,7 +170,11 @@ export default function WaterLedgerEditorModal({
                   <strong>{ledgerRestockQuantity}</strong>
                 </div>
                 <div>
-                  <span>Cost</span>
+                  <span>Cost per pack</span>
+                  <strong>{formatCurrency(ledgerRestockUnitCost)}</strong>
+                </div>
+                <div>
+                  <span>Total cost</span>
                   <strong>{formatCurrency(ledgerRestockCost)}</strong>
                 </div>
                 <div>

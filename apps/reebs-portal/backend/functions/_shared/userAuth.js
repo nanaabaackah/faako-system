@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { touchUserSession } from "./userSessions.js";
+import { isTrustedBrowserMutation } from "./http.js";
 
 const getSecret = () => process.env.USER_APP_SECRET || "";
 export const USER_SESSION_COOKIE_NAME =
@@ -136,7 +137,7 @@ export const getCookieUserTokenFromEvent = (event) => {
 };
 
 export const getUserTokenFromEvent = (event) =>
-  getBearerUserTokenFromEvent(event) || getCookieUserTokenFromEvent(event);
+  getCookieUserTokenFromEvent(event) || getBearerUserTokenFromEvent(event);
 
 export const getUserFromEvent = (event) => {
   const token = getUserTokenFromEvent(event);
@@ -191,6 +192,14 @@ export const clearUserSessionCookie = (event) => {
 };
 
 export const requireUser = async (client, event) => {
+  const cookieToken = getCookieUserTokenFromEvent(event);
+  // Cookie authentication is deliberately selected before Bearer authentication.
+  // A second Authorization header must not turn an untrusted cookie mutation into
+  // a Bearer request and bypass the browser-origin check.
+  if (cookieToken && !isTrustedBrowserMutation(event)) {
+    return null;
+  }
+
   const payload = getUserFromEvent(event);
   const userId = Number(payload?.userId);
   const organizationId = Number(payload?.organizationId);
@@ -204,8 +213,10 @@ export const requireUser = async (client, event) => {
            u.id,
            u."organizationId",
            u.role,
+           u.permissions,
            u."fullName",
            u.email,
+           s."sessionTokenId",
            s."createdAt" AS "sessionCreatedAt",
            s."lastSeenAt" AS "sessionLastSeenAt"
          FROM "user" u
@@ -234,20 +245,8 @@ export const requireUser = async (client, event) => {
     }
   }
 
-  const result = await client.query(
-    `SELECT
-       id,
-       "organizationId",
-       role,
-       "fullName",
-       email,
-       NULL::timestamptz AS "sessionCreatedAt",
-       NULL::timestamptz AS "sessionLastSeenAt"
-     FROM "user"
-     WHERE id = $1 AND "organizationId" = $2
-     LIMIT 1`,
-    [userId, organizationId]
-  );
-
-  return result.rowCount > 0 ? result.rows[0] : null;
+  // Historical user tokens without a database session cannot be revoked after
+  // logout, password reset, or an access change. Fail closed instead of falling
+  // back to a user-row-only lookup. Session-bound bearer tokens remain supported.
+  return null;
 };

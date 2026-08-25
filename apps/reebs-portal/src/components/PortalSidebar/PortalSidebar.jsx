@@ -12,6 +12,7 @@ import {
   resolveAdminTheme,
   writeAdminPreferences,
 } from "../../utils/adminPreferences";
+import { savePortalSettingsSection } from "../../utils/portalSettings";
 import {
   faBars,
   faCalendarDays,
@@ -33,6 +34,7 @@ import {
 import { useAuth } from "../AuthContext/AuthContext";
 import { DASHBOARD_PATHS } from "../../utils/adminDashboardLinks";
 import { getReebsSidebarNavItems } from "../../config/adminNavigation";
+import { REEBS_NAVIGATION_GROUPS } from "../../config/adminNavigation";
 import {
   canAccessPortalBookings,
   canAccessPortalCustomerDirectory,
@@ -115,10 +117,15 @@ const getAppActiveScore = (app, pathname) => {
 
 const sortPortalApps = (list = []) =>
   [...list].sort((left, right) => {
-    const leftIsDashboard = normalizePath(left?.path) === "/admin";
-    const rightIsDashboard = normalizePath(right?.path) === "/admin";
-    if (leftIsDashboard && !rightIsDashboard) return -1;
-    if (!leftIsDashboard && rightIsDashboard) return 1;
+    const leftGroupIndex = REEBS_NAVIGATION_GROUPS.indexOf(left?.navigationGroup);
+    const rightGroupIndex = REEBS_NAVIGATION_GROUPS.indexOf(right?.navigationGroup);
+    if (leftGroupIndex !== rightGroupIndex) {
+      return (leftGroupIndex < 0 ? Number.MAX_SAFE_INTEGER : leftGroupIndex)
+        - (rightGroupIndex < 0 ? Number.MAX_SAFE_INTEGER : rightGroupIndex);
+    }
+    const leftOrder = Number(left?.navigationOrder ?? Number.MAX_SAFE_INTEGER);
+    const rightOrder = Number(right?.navigationOrder ?? Number.MAX_SAFE_INTEGER);
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
     return String(left?.label || "").localeCompare(String(right?.label || ""), undefined, {
       sensitivity: "base",
     });
@@ -192,6 +199,10 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const notificationsRef = useRef(null);
   const notificationsPanelRef = useRef(null);
   const userMenuRef = useRef(null);
+  const overlayDialogRef = useRef(null);
+  const overlayTriggerRef = useRef(null);
+  const overlayCloseRef = useRef(null);
+  const overlayPreviousFocusRef = useRef(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
     storageKey: "reebs-portal.sidebar-collapsed",
   });
@@ -221,6 +232,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const [resolvedAdminTheme, setResolvedAdminTheme] = useState(() =>
     getResolvedAdminTheme(activeAdminUserId)
   );
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeSaveError, setThemeSaveError] = useState("");
   const isAuthenticated = Boolean(user);
   const userRole = normalizeAdminRole(user?.role);
   const isWaterUser = isWaterPortalRole(userRole);
@@ -295,7 +308,8 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       const changedUserId = String(event?.detail?.userId || "guest");
       const currentUserId = String(activeAdminUserId || "guest");
       if (changedUserId !== currentUserId) return;
-      syncTheme();
+      const preferences = event?.detail?.preferences || readAdminPreferences(activeAdminUserId);
+      setResolvedAdminTheme(resolveAdminTheme(preferences.theme, mediaQuery));
     };
 
     if (mediaQuery.addEventListener) {
@@ -351,11 +365,29 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     if (!isMobile || !overlayOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    overlayPreviousFocusRef.current = document.activeElement;
     document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => overlayCloseRef.current?.focus());
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         setOverlayOpen(false);
+        return;
+      }
+      if (event.key === "Tab") {
+        const focusable = overlayDialogRef.current?.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -363,6 +395,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      overlayPreviousFocusRef.current?.focus?.();
     };
   }, [isMobile, overlayOpen]);
 
@@ -821,8 +854,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
   const renderLinks = (context = "sidebar") => (
     visibleApps.length > 0 ? (
       <ul className={`portal-sidebar__list portal-sidebar__list--${context}`}>
-        {visibleApps.map((app) => {
+        {visibleApps.map((app, index) => {
         const active = isActive(app);
+        const startsGroup = index === 0 || visibleApps[index - 1]?.navigationGroup !== app.navigationGroup;
         const badges = Array.isArray(app.badges) ? app.badges : [];
         const renderBadges = () => (
           badges.length > 0 ? (
@@ -835,6 +869,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
         );
         const linkClasses = [
           "portal-sidebar__link",
+          app.navigationGroup === "Water Business" ? "portal-sidebar__link--water" : "",
           active ? "is-active" : "",
           app.enabled === false ? "is-disabled" : "",
         ]
@@ -842,8 +877,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
           .join(" ");
         if (app.external) {
           return (
+            <React.Fragment key={app.label}>
+            {startsGroup ? (
+              <li className="portal-sidebar__group-label" role="presentation">
+                <span>{app.navigationGroup}</span>
+              </li>
+            ) : null}
             <li
-              key={app.label}
               className={active ? "is-active" : undefined}
               data-module-key={app.moduleKey}
               data-module-group={app.group}
@@ -851,6 +891,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               data-module-state={app.state}
               data-module-visibility={app.visibility}
               data-module-status-label={app.statusLabel}
+              data-navigation-group={app.navigationGroup}
             >
               <a
                 href={app.path}
@@ -880,11 +921,17 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 />
               </a>
             </li>
+            </React.Fragment>
           );
         }
         return (
+          <React.Fragment key={app.label}>
+          {startsGroup ? (
+            <li className={`portal-sidebar__group-label${app.navigationGroup === "Water Business" ? " portal-sidebar__group-label--water" : ""}`} role="presentation">
+              <span>{app.navigationGroup}</span>
+            </li>
+          ) : null}
           <li
-            key={app.label}
             className={active ? "is-active" : undefined}
             data-module-key={app.moduleKey}
             data-module-group={app.group}
@@ -892,6 +939,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             data-module-state={app.state}
             data-module-visibility={app.visibility}
             data-module-status-label={app.statusLabel}
+            data-navigation-group={app.navigationGroup}
           >
             <Link
               to={app.path}
@@ -913,6 +961,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
               </span>
             </Link>
           </li>
+          </React.Fragment>
         );
         })}
       </ul>
@@ -1034,12 +1083,13 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     handleSignOut();
   };
 
-  const handleThemeChange = (nextTheme) => {
+  const handleThemeChange = async (nextTheme) => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
     const mediaQuery = window.matchMedia(ADMIN_THEME_MEDIA_QUERY);
+    const previousPreferences = readAdminPreferences(activeAdminUserId);
     const nextPreferences = writeAdminPreferences(activeAdminUserId, {
-      ...readAdminPreferences(activeAdminUserId),
+      ...previousPreferences,
       theme: nextTheme,
     });
 
@@ -1048,6 +1098,30 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       mediaQuery,
     });
     setResolvedAdminTheme(resolveAdminTheme(nextPreferences.theme, mediaQuery));
+    setThemeSaveError("");
+    setThemeSaving(true);
+    try {
+      const data = await savePortalSettingsSection("preferences", nextPreferences);
+      const savedPreferences = writeAdminPreferences(
+        activeAdminUserId,
+        data?.preferences || nextPreferences,
+      );
+      applyAdminPreferences(savedPreferences, {
+        root: document.documentElement,
+        mediaQuery,
+      });
+      setResolvedAdminTheme(resolveAdminTheme(savedPreferences.theme, mediaQuery));
+    } catch (error) {
+      writeAdminPreferences(activeAdminUserId, previousPreferences);
+      applyAdminPreferences(previousPreferences, {
+        root: document.documentElement,
+        mediaQuery,
+      });
+      setResolvedAdminTheme(resolveAdminTheme(previousPreferences.theme, mediaQuery));
+      setThemeSaveError(error.message || "Theme preference could not be saved.");
+    } finally {
+      setThemeSaving(false);
+    }
   };
 
   const notifications = useMemo(() => {
@@ -1399,6 +1473,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 className={`portal-sidebar__theme-option ${resolvedAdminTheme === "light" ? "is-active" : ""}`}
                 onClick={() => handleThemeChange("light")}
                 aria-pressed={resolvedAdminTheme === "light"}
+                disabled={themeSaving}
                 title="Light mode"
                 aria-label="Light mode"
               >
@@ -1410,6 +1485,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 className={`portal-sidebar__theme-option ${resolvedAdminTheme === "dark" ? "is-active" : ""}`}
                 onClick={() => handleThemeChange("dark")}
                 aria-pressed={resolvedAdminTheme === "dark"}
+                disabled={themeSaving}
                 title="Dark mode"
                 aria-label="Dark mode"
               >
@@ -1417,6 +1493,9 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                 <span className="sr-only">Dark mode</span>
               </button>
             </div>
+            {themeSaveError && (
+              <p className="portal-sidebar__theme-error" role="alert">{themeSaveError}</p>
+            )}
           </div>
           <button
             type="button"
@@ -1438,9 +1517,11 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     isMobile && overlayOpen && typeof document !== "undefined"
       ? createPortal(
           <div
+            ref={overlayDialogRef}
             className="portal-sidebar__overlay"
             role="dialog"
             aria-modal="true"
+            aria-label="Portal menu"
             onClick={() => setOverlayOpen(false)}
           >
             <div className="portal-sidebar__overlay-content" onClick={(e) => e.stopPropagation()}>
@@ -1458,6 +1539,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
                   </span>
                 </Link>
                 <button
+                  ref={overlayCloseRef}
                   type="button"
                   className="portal-sidebar__overlay-close"
                   onClick={() => setOverlayOpen(false)}
@@ -1495,6 +1577,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
             {isMobile ? (
               <div className="portal-sidebar__toggle">
                 <button
+                  ref={overlayTriggerRef}
                   type="button"
                   onClick={() => setOverlayOpen(true)}
                   className="portal-sidebar__toggle-btn"

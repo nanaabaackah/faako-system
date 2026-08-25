@@ -9,6 +9,7 @@ import {
   setAuthToken,
 } from "@faako/core";
 import { isPortalAppOrigin } from "../../utils/portal.js";
+import { publicApiResponse } from "../../lib/publicApi.js";
 
 const AuthContext = createContext(null);
 const SESSION_VALIDATION_TIMEOUT_MS = 6500;
@@ -111,7 +112,7 @@ function AuthProvider({ children }) {
         : 0;
 
       try {
-        const response = await fetch("/api/authSession", {
+        const response = await publicApiResponse("/v1/auth/session", {
           cache: "no-store",
           signal: controller?.signal,
         });
@@ -157,7 +158,7 @@ function AuthProvider({ children }) {
     setAuthLoading(true);
     setAuthError("");
     try {
-      const res = await fetch("/api/login", {
+      const res = await publicApiResponse("/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, remember }),
@@ -179,7 +180,7 @@ function AuthProvider({ children }) {
 
   const logout = () => {
     if (typeof window !== "undefined" && typeof window.fetch === "function") {
-      window.fetch("/api/logout", {
+      publicApiResponse("/v1/auth/logout", {
         method: "POST",
         keepalive: true,
       }).catch((err) => {

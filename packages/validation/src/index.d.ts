@@ -197,6 +197,49 @@ export declare const eventRegistrationInputSchema: z.ZodType<{
   honeypot?: string;
 }>;
 
+export declare const reebsBusinessScopeSchema: z.ZodType<"reebs-core" | "water" | "consolidated" | "shared">;
+export declare const reebsPaginationQuerySchema: z.ZodType<{
+  page: number;
+  pageSize: number;
+  search?: string;
+  sort?: string;
+  direction?: "asc" | "desc";
+}>;
+export declare const reebsLoginInputSchema: z.ZodType<{
+  email: string;
+  password: string;
+  remember?: boolean;
+}>;
+export declare const reebsPublicCustomerInputSchema: z.ZodType<{
+  name: string;
+  email?: string;
+  phone?: string;
+}>;
+export declare const reebsBookingLineInputSchema: z.ZodType<{
+  productId: string | number;
+  variantId?: string | number | null;
+  quantity: number;
+}>;
+export declare const reebsBookingCreateInputSchema: z.ZodType<{
+  customerId: string | number;
+  eventDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  venueAddress?: string | null;
+  items: Array<{ productId: string | number; variantId?: string | number | null; quantity: number }>;
+  paymentPreference?: string | Record<string, unknown> | null;
+  applyBundleDiscount?: boolean;
+  discount?: number;
+  status?: string;
+  source?: string;
+}>;
+export declare const reebsPaymentInitializationSchema: z.ZodType<{
+  orderReference: string;
+  idempotencyKey: string;
+  currency?: string;
+}>;
+export declare const waterBusinessScopeSchema: z.ZodType<"water">;
+
 export interface ValidationIssue {
   field: string;
   code: string;

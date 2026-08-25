@@ -5,6 +5,7 @@ import "../index.css";
 import AnalyticsIsland from "../components/islands/AnalyticsIsland.jsx";
 import ClientSetupIsland from "../components/islands/ClientSetupIsland.jsx";
 import CookieConsentIsland from "../components/islands/CookieConsentIsland.jsx";
+import ScrollRevealIsland from "../components/islands/ScrollRevealIsland.jsx";
 import {
   DEFAULT_IMAGE,
   SITE_NAME,
@@ -99,7 +100,8 @@ if (status !== 200) Astro.response.status = status;
     <a class="skip-link" href="#main">Skip to main content</a>
     <slot />
     <CookieConsentIsland client:load />
-    <AnalyticsIsland path={normalizedPath} client:load />
+    <ScrollRevealIsland path={normalizedPath} client:idle={{ timeout: 700 }} />
+    <AnalyticsIsland path={normalizedPath} client:idle={{ timeout: 900 }} />
     <ClientSetupIsland client:idle={{ timeout: 1200 }} />
     <noscript>
       <p class="noscript-note">
