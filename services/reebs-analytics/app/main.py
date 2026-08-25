@@ -8,8 +8,6 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from .analytics import build_dashboard_insights
-<<<<<<< Updated upstream
-=======
 from .contracts import AnalyticsRequest, AnalyticsResponse
 from .isolation import (
     authenticate,
@@ -19,7 +17,6 @@ from .isolation import (
 )
 from .logging_utils import log_event
 from .pilots import ANALYSIS_RUNNERS
->>>>>>> Stashed changes
 
 
 class AnalyticsSnapshot(BaseModel):
@@ -52,9 +49,6 @@ def _authorize(authorization: str | None) -> None:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-<<<<<<< Updated upstream
-    return {"ok": True, "service": "reebs-analytics", "mode": "read-only"}
-=======
     return {"ok": True, "service": "faako-analytics", "mode": "read-only"}
 
 
@@ -97,7 +91,6 @@ def shared_analytics(
         tenantId=payload.context.tenantId,
     )
     return response
->>>>>>> Stashed changes
 
 
 @app.post("/v1/dashboard/insights")

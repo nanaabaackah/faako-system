@@ -19,15 +19,12 @@ import {
   roleFormSchema,
   usernameAccessFormSchema,
   validationIssues,
-<<<<<<< Updated upstream
-=======
   vendorFormSchema,
   deliveryUpdateSchema,
   reebsBookingCreateInputSchema,
   reebsLoginInputSchema,
   reebsPaymentInitializationSchema,
   waterBusinessScopeSchema,
->>>>>>> Stashed changes
 } from "../src/index.js";
 
 test("REEBS boundary schemas preserve username login and validate public bookings", () => {

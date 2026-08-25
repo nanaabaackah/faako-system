@@ -50,42 +50,11 @@
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.2.0",
     "@react-google-maps/api": "^2.20.7",
-<<<<<<< Updated upstream
-    "animejs": "^4.3.6",
-    "brew": "^0.0.8",
-    "click-spark": "^2.1.0",
-    "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
     "express": "^5.1.0",
-    "framer-motion": "^12.23.6",
-    "fs": "^0.0.1-security",
-    "iconsax": "^0.0.1",
-=======
-    "csv-parse": "^6.1.0",
-    "express": "^5.1.0",
->>>>>>> Stashed changes
     "iconsax-react": "^0.0.8",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
-<<<<<<< Updated upstream
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.525.0",
-    "nodemailer": "^8.0.2",
-    "openai": "^6.2.0",
-    "papaparse": "^5.5.3",
-    "pg": "^8.16.3",
-    "prop-types": "^15.8.1",
-    "psql": "^0.0.1",
-    "railway": "^2.0.17",
-    "react": "^19.1.1",
-    "react-cookie-consent": "^9.0.0",
-    "react-dom": "^19.1.1",
-    "react-icons": "^5.5.0",
-    "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.9.3",
-    "react-tsparticles": "^2.12.2",
-    "yet-another-react-lightbox": "^3.25.0"
-=======
     "openai": "^6.2.0",
     "papaparse": "^5.5.3",
     "pg": "^8.16.3",
@@ -93,7 +62,6 @@
     "react-cookie-consent": "^9.0.0",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.18.0"
->>>>>>> Stashed changes
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

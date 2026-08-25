@@ -12,12 +12,9 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
-<<<<<<< Updated upstream
-=======
 import { reebsApiResponse } from "../../api/client.js";
 import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 import { isCoreOrderProduct } from "../../utils/coreCommercialInventory.js";
->>>>>>> Stashed changes
 
 const getUnitPrice = (item) => {
   if (typeof item?.price === "number") return item.price;

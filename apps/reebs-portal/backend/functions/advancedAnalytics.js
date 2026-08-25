@@ -44,8 +44,6 @@ export const normalizeAnalyticsServiceUrl = (value) => {
   }
 };
 
-<<<<<<< Updated upstream
-=======
 export const buildSharedAnalyticsRequest = (snapshot = {}) => {
   const generatedAt = new Date(snapshot.generatedAt || Date.now());
   const endAt = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
@@ -69,7 +67,6 @@ export const buildSharedAnalyticsRequest = (snapshot = {}) => {
   };
 };
 
->>>>>>> Stashed changes
 export const buildFallbackAnalytics = (snapshot = {}) => {
   const dailyRevenue = (snapshot.revenueSeries || []).map(
     (row) => toNumber(row.orderRevenueCents) + toNumber(row.bookingRevenueCents)
@@ -299,30 +296,7 @@ const requestPythonAnalytics = async (snapshot) => {
     if (Number(result?.organizationId) !== Number(snapshot.organizationId)) {
       throw new Error("Analytics service returned the wrong organization scope.");
     }
-<<<<<<< Updated upstream
     return result;
-=======
-    if (envelope?.context?.businessUnit !== REEBS_BUSINESS_UNITS.REEBS_CORE) {
-      throw new Error("Analytics service returned the wrong business-unit scope.");
-    }
-    if (envelope?.dataQuality?.status === "blocked") {
-      throw new Error("Analytics service blocked output because source data quality failed.");
-    }
-    return {
-      ...(envelope.result || {}),
-      organizationId: snapshot.organizationId,
-      generatedAt: snapshot.generatedAt,
-      source: "python",
-      analyticsMetadata: {
-        analysisId: envelope.analysisId,
-        calculationVersion: envelope.calculationVersion,
-        requestId: envelope.requestId,
-        confidence: envelope.confidence,
-        dataQuality: envelope.dataQuality,
-        warnings: envelope.warnings || [],
-      },
-    };
->>>>>>> Stashed changes
   } finally {
     clearTimeout(timeoutId);
   }

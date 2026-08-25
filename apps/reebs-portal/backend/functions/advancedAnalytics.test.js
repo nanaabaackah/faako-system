@@ -3,11 +3,8 @@ import assert from "node:assert/strict";
 import {
   buildAdvancedAnalyticsResponse,
   buildFallbackAnalytics,
-<<<<<<< Updated upstream
-=======
   buildSharedAnalyticsRequest,
   loadAnalyticsSnapshot,
->>>>>>> Stashed changes
   normalizeAnalyticsServiceUrl,
 } from "./advancedAnalytics.js";
 
@@ -96,8 +93,6 @@ test("analytics service URL accepts a Railway hostname without a scheme", () => 
   );
   assert.equal(normalizeAnalyticsServiceUrl("file:///tmp/service"), "");
 });
-<<<<<<< Updated upstream
-=======
 
 test("shared analytics request binds REEBS application and tenant context", () => {
   const request = buildSharedAnalyticsRequest({
@@ -176,4 +171,3 @@ test("Water-linked products and Water-only customers cannot change the core anal
   assert.match(mixedClient.queries[3], /IN \('confirmed', 'completed'\)/);
   assert.doesNotMatch(mixedClient.queries[3], /FROM "customer"/);
 });
->>>>>>> Stashed changes

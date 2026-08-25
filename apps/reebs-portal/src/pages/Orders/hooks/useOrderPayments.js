@@ -40,13 +40,9 @@ export default function useOrderPayments(orderId) {
 
   const recordPayment = useCallback(async (payload) => {
     const controller = new AbortController();
-<<<<<<< Updated upstream
-    const response = await fetch("/api/orderPayments", {
-=======
     const idempotencyKey = globalThis.crypto?.randomUUID?.()
       || `payment-${orderId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const response = await reebsApiResponse("/api/orderPayments", {
->>>>>>> Stashed changes
       method: "POST",
       headers: {
         "Content-Type": "application/json",

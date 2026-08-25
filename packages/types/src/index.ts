@@ -1,9 +1,6 @@
 export * from "./domain";
-<<<<<<< Updated upstream
-=======
 export * from "./analytics";
 export * from "./reebs";
->>>>>>> Stashed changes
 
 export interface ErpNavItem {
   id: string;
