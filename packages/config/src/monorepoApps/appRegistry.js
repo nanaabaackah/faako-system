@@ -34,6 +34,7 @@ export const MONOREPO_APP_REGISTRY = [
     purpose: "Public NGO website and future donation and participation surface.",
     category: "marketing",
     productionSensitive: false,
+    workspaceRequired: false,
     monitoringEnabled: true,
     monitoringOptional: true,
     envBaseUrlKeys: ["TTNGH_BASE_URL", "TTNGH_URL"],

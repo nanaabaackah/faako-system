@@ -69,7 +69,18 @@ const MaintenanceAdmin = ({ windows, services, canManage, acting, onCreate, onCa
 };
 
 export const IncidentResponsePanel = ({ response, services, canManage }) => {
-  const [tab, setTab] = useState("incidents"); const [selectedId, setSelectedId] = useState(null); const [filters, setFilters] = useState({ search: "", status: "all", severity: "all" });
+  const linkedIncidentId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const parsed = Number(new URLSearchParams(window.location.search).get("incident"));
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }, []);
+  const openedLinkedIncidentRef = useRef(false);
+  const [tab, setTab] = useState("incidents"); const [selectedId, setSelectedId] = useState(linkedIncidentId); const [filters, setFilters] = useState({ search: "", status: "all", severity: "all" });
+  useEffect(() => {
+    if (!linkedIncidentId || response.loading || openedLinkedIncidentRef.current) return;
+    openedLinkedIncidentRef.current = true;
+    void response.openIncident(linkedIncidentId);
+  }, [linkedIncidentId, response]);
   const selected = response.incidentDetail?.id === selectedId ? response.incidentDetail : null;
   const incidentSummary = summarizeIncidents(response.incidents); const visibleIncidents = filterIncidents(response.incidents, filters); const activeCount = incidentSummary.active;
   const tabs = [{ id: "incidents", label: `Incidents (${activeCount})` }, ...(canManage ? [{ id: "rules", label: "Alert rules" }, { id: "channels", label: `Channels${response.unreadCount ? ` · ${response.unreadCount} unread` : ""}` }] : []), { id: "maintenance", label: "Maintenance" }];
