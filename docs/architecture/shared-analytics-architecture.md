@@ -64,4 +64,3 @@ timestamp, calculation version and metric IDs. Current request bodies live only 
 request processing; platform access logs retain metadata, never payloads. Operational
 log retention follows the central logging policy. Future dataset retention requires a
 documented duration, purpose, deletion owner and backfill record.
-

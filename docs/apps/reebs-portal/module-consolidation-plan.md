@@ -52,7 +52,7 @@ This matches the current registry direction while clarifying where overlapping l
 - POS: store mode and purchasing workflows.
 - Orders: order list, order builder, and order detail workflows.
 - Bookings: booking and event scheduling workflows.
-- Inventory: day-to-day stock, maintenance, water, and operational inventory workflows.
+- Inventory: day-to-day rental/shop stock and maintenance workflows. Water inventory remains in the standalone Water Business domain.
 - Customers: CRM/customer relationship workflows.
 - Delivery: delivery planning and fulfillment workflows.
 - Finance: money movement, accounting, invoicing, expenses, vendors, and documents.
@@ -67,7 +67,7 @@ This matches the current registry direction while clarifying where overlapping l
 - Users, employees, HR, roles, directory, profile, and timesheets should group under Team.
 - CRM and legacy customers should group under Customers.
 - Website template, advanced, marketing, inventory products, and inventory templates should group under Settings as admin/configuration surfaces.
-- Maintenance and water should remain operational child areas of Inventory unless a later workflow review identifies a stronger Bookings or Operations home.
+- Maintenance remains an operational child area of Inventory. Water is a standalone business area and must not be folded into Inventory or core rental/event finance and analytics by default.
 - Purchases should remain a POS child for now because current bottom navigation and store workflows already treat it as a buying action.
 
 ## 5. Legacy routes to preserve

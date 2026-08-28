@@ -19,4 +19,3 @@
 | Event registration | No active TTNGH application | Add after validation/API decision | Not applicable |
 
 “Partial” means the critical backend/helper contract is exercised but a user-level browser journey remains. It is not equivalent to no coverage.
-

@@ -50,6 +50,7 @@ const whiteBlackMapStyle = [
 ];
 
 function MapComponent() {
+  const [clientReady, setClientReady] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [selected, setSelected] = useState(null);
   const [scriptError, setScriptError] = useState(null);
@@ -58,6 +59,10 @@ function MapComponent() {
   const [isOpen, setIsOpen] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const mapOptions = useMemo(
     () => ({
@@ -156,6 +161,13 @@ function MapComponent() {
       nextWindow.opener = null;
     }
   };
+
+  // The Google Maps loader reads browser-only script state. Keeping the first
+  // client render identical to SSR also covers deployments where client and
+  // build-time environment exposure differ.
+  if (!clientReady) {
+    return <p>Loading map…</p>;
+  }
 
   if (!apiKey) {
     return <p>Google Maps API key missing. Add VITE_GOOGLE_MAPS_KEY to your .env and restart the app.</p>;

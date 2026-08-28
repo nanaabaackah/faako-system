@@ -37,20 +37,6 @@ test("health score suppresses low-coverage results", () => {
   assert.equal(calculatePlatformHealth(services).score, null);
 });
 
-test("health coverage excludes intentionally disabled services", () => {
-  const services = [
-    { category: "API", effectiveStatus: "HEALTHY", critical: true, enabled: true },
-    { category: "EXTERNAL", effectiveStatus: "UNKNOWN", critical: false, enabled: false },
-  ];
-  assert.deepEqual(calculatePlatformHealth(services), {
-    score: 100,
-    label: "Healthy",
-    coveragePercentage: 100,
-    knownServices: 1,
-    totalServices: 1,
-  });
-});
-
 test("health score applies category weights once regardless of service count", () => {
   const services = [
     { category: "BUSINESS", effectiveStatus: "HEALTHY", critical: false },

@@ -38,4 +38,3 @@ Recommended events when the underlying workflow exists:
 - Query/fragment leakage at the shared page-view boundary was fixed in this phase.
 - Conversion/commerce event coverage is sparse and inconsistent; add only as each real form/commerce workflow is verified.
 - System Starter and UI Workbench must not collect production analytics by default because they are internal/reference tools.
-

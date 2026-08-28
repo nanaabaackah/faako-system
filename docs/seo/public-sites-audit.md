@@ -20,4 +20,3 @@ Automated output tests for byNana and Faako reject missing local targets; the mi
 - Dates, prices, availability, organisation identity and event status must come from an authoritative content/API source.
 - Transactional/private routes remain noindex and out of sitemaps.
 - Article `datePublished`/`dateModified`, product offers/availability and event dates must be omitted when the facts are unavailable rather than guessed.
-

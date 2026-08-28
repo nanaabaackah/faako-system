@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.contracts import AnalyticsRequest
@@ -14,7 +15,7 @@ NOW = datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc)
 
 def operational_request(tasks, source_timestamp="2026-08-04T11:00:00Z"):
     return {
-        "context": {"applicationId": "dev-erp", "tenantId": "tenant-a"},
+        "context": {"applicationId": "dev-erp", "tenantId": "tenant-a", "businessUnit": "SHARED"},
         "period": {"startAt": "2026-07-01T00:00:00Z", "endAt": "2026-08-04T12:00:00Z"},
         "sourceTimestamp": source_timestamp,
         "data": {"tasks": tasks},
@@ -23,10 +24,12 @@ def operational_request(tasks, source_timestamp="2026-08-04T11:00:00Z"):
 
 def reebs_request(inventory):
     return {
-        "context": {"applicationId": "reebs", "tenantId": "42"},
+        "context": {"applicationId": "reebs", "tenantId": "42", "businessUnit": "REEBS_CORE"},
         "period": {"startAt": "2026-05-01T00:00:00Z", "endAt": "2026-08-04T12:00:00Z"},
         "sourceTimestamp": "2026-08-04T11:00:00Z",
         "data": {
+            "scope": "reebs-core",
+            "businessUnit": "REEBS_CORE",
             "organizationId": 42,
             "generatedAt": "2026-08-04T11:00:00Z",
             "historyDays": 90,
@@ -42,6 +45,57 @@ def reebs_request(inventory):
 
 
 class SharedAnalyticsPlatformTests(unittest.TestCase):
+    def test_readiness_rejects_missing_authentication_configuration(self):
+        with patch.dict("os.environ", {}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["code"], "ANALYTICS_UNAVAILABLE")
+
+    def test_readiness_rejects_empty_scoped_configuration(self):
+        with patch.dict("os.environ", {"FAAKO_ANALYTICS_SERVICE_TOKENS": "{}"}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+
+    def test_readiness_rejects_malformed_scoped_configuration(self):
+        with patch.dict("os.environ", {"FAAKO_ANALYTICS_SERVICE_TOKENS": "not-json"}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+
+    def test_readiness_rejects_non_object_scoped_configuration(self):
+        with patch.dict("os.environ", {"FAAKO_ANALYTICS_SERVICE_TOKENS": "[]"}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+
+    def test_readiness_rejects_string_scope_lists(self):
+        tokens = json.dumps({
+            "reebs-backend": {
+                "secret": "reebs-secret",
+                "applicationIds": "reebs",
+                "tenantIds": "42",
+            }
+        })
+        with patch.dict("os.environ", {"FAAKO_ANALYTICS_SERVICE_TOKENS": tokens}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+
+    def test_readiness_accepts_valid_scoped_configuration(self):
+        tokens = json.dumps({
+            "reebs-backend": {
+                "secret": "reebs-secret",
+                "applicationIds": ["reebs"],
+                "tenantIds": ["42"],
+            }
+        })
+        with patch.dict("os.environ", {"FAAKO_ANALYTICS_SERVICE_TOKENS": tokens}, clear=True):
+            response = TestClient(app).get("/ready")
+
+        self.assertEqual(response.status_code, 200)
+
     def test_reebs_pilot_returns_stable_quality_aware_inventory_output(self):
         request = AnalyticsRequest.model_validate(reebs_request([
             {"productId": 1, "name": "Balloons", "stock": 2, "reorderLevel": 3, "unitsOut90d": 90}
@@ -51,8 +105,19 @@ class SharedAnalyticsPlatformTests(unittest.TestCase):
 
         self.assertEqual(response.analysisId, "reebs.dashboard-insights")
         self.assertEqual(response.context.tenantId, "42")
+        self.assertEqual(response.context.businessUnit, "REEBS_CORE")
         self.assertEqual(response.dataQuality.status, "good")
         self.assertEqual(response.result["inventoryRisks"][0]["productId"], 1)
+
+    def test_reebs_pilot_rejects_shared_business_unit(self):
+        payload = reebs_request([])
+        payload["context"]["businessUnit"] = "SHARED"
+        request = AnalyticsRequest.model_validate(payload)
+
+        with self.assertRaises(HTTPException) as raised:
+            run_reebs_dashboard(request, "reebs-request", now=NOW)
+
+        self.assertEqual(raised.exception.status_code, 403)
 
     def test_reebs_pilot_blocks_invalid_inventory_grain(self):
         repeated = {"productId": 1, "name": "Balloons", "stock": -1, "unitsOut90d": 5}
@@ -87,6 +152,16 @@ class SharedAnalyticsPlatformTests(unittest.TestCase):
         self.assertEqual(response.result["averageCompletionHours"], 12)
         self.assertEqual(response.result["delayConcentrationStage"], "REVIEW")
         self.assertEqual(response.dataQuality.status, "good")
+
+    def test_operational_health_rejects_core_business_unit(self):
+        payload = operational_request([])
+        payload["context"]["businessUnit"] = "REEBS_CORE"
+        request = AnalyticsRequest.model_validate(payload)
+
+        with self.assertRaises(HTTPException) as raised:
+            run_operational_health(request, "request-1", now=NOW)
+
+        self.assertEqual(raised.exception.status_code, 403)
 
     def test_operational_health_blocks_duplicate_grain(self):
         task = {
@@ -133,7 +208,11 @@ class SharedAnalyticsPlatformTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["requestId"], "request-from-dev-erp")
-        self.assertEqual(payload["context"], {"applicationId": "dev-erp", "tenantId": "tenant-a"})
+        self.assertEqual(payload["context"], {
+            "applicationId": "dev-erp",
+            "tenantId": "tenant-a",
+            "businessUnit": "SHARED",
+        })
         self.assertIn("dataQuality", payload)
 
     def test_shared_api_rejects_cross_tenant_request(self):

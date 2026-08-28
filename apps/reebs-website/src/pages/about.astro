@@ -4,5 +4,5 @@ import AboutIsland from "../components/islands/AboutIsland.jsx";
 ---
 
 <BaseLayout path="/about">
-  <AboutIsland path="/about" client:visible />
+  <AboutIsland path="/about" client:idle={{ timeout: 900 }} />
 </BaseLayout>

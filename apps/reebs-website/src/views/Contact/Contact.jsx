@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import "./Contact.css";
-import Map from '/src/components/Map/Map';
 import { Link } from 'react-router-dom';
 import ContactForm from '/src/components/ContactForm/ContactForm';
 import { AppIcon } from '/src/components/Icon/Icon';
@@ -12,6 +11,7 @@ const CONTACT_PHONE_HREF = 'tel:+233244238419';
 const CONTACT_EMAIL = 'info@reebspartythemes.com';
 const CONTACT_WHATSAPP_URL = 'https://wa.me/233244238419';
 const CONTACT_MAP_URL = 'https://maps.app.goo.gl/ykfi2iVEBfEneTx16';
+const Map = lazy(() => import('/src/components/Map/Map'));
 
 const CONTACT_HERO_CHIPS = [
     'Same-day delivery options',
@@ -186,7 +186,9 @@ function Contact() {
                             <h3>Map & directions</h3>
                         </div>
                         <div className="map-wrapper">
-                            <Map />
+                            <Suspense fallback={<p role="status">Loading map…</p>}>
+                                <Map />
+                            </Suspense>
                         </div>
                         <div className="contact-card-intro">
                             <p>Use “Get Directions” on the map for a quick route from your location.</p>

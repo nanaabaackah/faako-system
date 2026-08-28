@@ -176,11 +176,28 @@ function RentalItem({ initialRental = null }) {
           );
         });
         if (!active) return;
-        setRentals(rentalsOnly);
+        setRentals(() => {
+          if (!initialRental) return rentalsOnly;
+
+          const hasCurrentRental = rentalsOnly.some((item) =>
+            matchesFrontendRentalDetailSlug(item, slug || initialRental.slug)
+          );
+          if (hasCurrentRental) return rentalsOnly;
+
+          // The Astro catalogue is the durable detail-page fallback. A missing,
+          // partial or temporarily unavailable live response must not erase a
+          // valid pre-rendered rental after hydration.
+          return [
+            initialRental,
+            ...rentalsOnly.filter(
+              (item) => getRentalIdentity(item) !== getRentalIdentity(initialRental)
+            ),
+          ];
+        });
         setLoading(false);
       })
       .catch((err) => {
-        if (err?.name === "AbortError") return;
+        if (!active || controller.signal.aborted || err?.name === "AbortError") return;
         console.error("❌ Error fetching rental:", err);
         if (active) setLoading(false);
       });
@@ -189,7 +206,7 @@ function RentalItem({ initialRental = null }) {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [initialRental, slug]);
 
   useEffect(() => {
     fetch("/api/bouncy_castles")
@@ -306,8 +323,8 @@ useEffect(() => {
   const bookingSlug = rentalPath(rental).split("/").filter(Boolean).pop();
   const selectedBouncySlug = selectedBouncyType ? slugifyRentalValue(selectedBouncyType.name) : "";
   const bookingLink = showBouncyTable
-    ? `/Book?rental=${bookingSlug}${selectedBouncySlug ? `&bouncy=${selectedBouncySlug}` : ""}`
-    : `/Book?rental=${bookingSlug}`;
+    ? `/book?rental=${bookingSlug}${selectedBouncySlug ? `&bouncy=${selectedBouncySlug}` : ""}`
+    : `/book?rental=${bookingSlug}`;
   const attendantsNeeded = formatAttendantsNeeded(
     selectedBouncyType?.attendantsNeeded ?? rental?.attendantsNeeded
   );
@@ -431,7 +448,7 @@ useEffect(() => {
                 >
                   Back to rentals
                 </button>
-                <Link className="hero-btn hero-btn-ghost" to="/Contact">
+                <Link className="hero-btn hero-btn-ghost" to="/contact">
                   Talk to our team
                 </Link>
               </div>

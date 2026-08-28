@@ -1,12 +1,17 @@
 import {
   createBrowserApiClient,
+  createReebsApi,
   isApiClientError,
 } from "@faako/api-client";
 
 export const createReebsPortalApi = ({ fetch: configuredFetch } = {}) => {
   const fetcher = configuredFetch || ((input, init) => globalThis.fetch(input, init));
   const client = createBrowserApiClient({
-    credentials: "same-origin",
+    // REEBS API paths are rewritten to the dedicated API origin in production
+    // and to localhost:8888 during local development. The authenticated browser
+    // session lives in an HttpOnly cookie on that API origin, so both login's
+    // Set-Cookie response and every later request must opt into credentials.
+    credentials: "include",
     fetch: fetcher,
   });
 
@@ -51,3 +56,4 @@ export const createReebsPortalApi = ({ fetch: configuredFetch } = {}) => {
 
 export const reebsPortalApi = createReebsPortalApi();
 export const reebsApiResponse = reebsPortalApi.response;
+export const reebsContractApi = createReebsApi(reebsPortalApi.client);

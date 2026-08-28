@@ -22,4 +22,3 @@ Audit date: 2026-08-04. Review methods: generated-output tests, semantic source 
 - Recheck brand-token contrast for text, controls and focus rings after any visual change.
 - Verify zoom/reflow at 200% and 400%, and Windows high-contrast mode where relevant.
 - TTNGH must satisfy the full standard when its Astro scaffold is created; earlier requirements documents are not implementation evidence.
-

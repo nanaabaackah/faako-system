@@ -10,4 +10,3 @@
 
 Browser/public site -> Python service, raw production database -> unrestricted Python,
 or one tenant's extract -> another tenant's response are all prohibited.
-

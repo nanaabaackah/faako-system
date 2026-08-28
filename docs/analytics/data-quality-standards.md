@@ -49,4 +49,3 @@ must record method, threshold, affected count, decision impact and owner approva
 
 Normal tests use deterministic synthetic fixtures for valid, empty, stale, duplicate,
 negative and invalid-date cases. Live production data is never required by CI.
-

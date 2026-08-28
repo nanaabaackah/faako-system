@@ -26,6 +26,12 @@ import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
 import { calculateAttendantChargeCents } from "./_shared/bookingCharges.js";
 import {
+  calculateBundleDiscountCents,
+  resolveBookingCommercialPricingForMutation,
+  shouldPreserveBookingPriceSnapshot,
+} from "./_shared/bookingPricing.js";
+import { reebsBookingCreateInputSchema, validationIssues } from "@faako/validation";
+import {
   applyWindowRateLimit,
   getRequestClientIp,
 } from "./_shared/requestRateLimit.js";
@@ -111,9 +117,6 @@ const buildBookingWhatsAppLines = (booking) => {
   }
   return lines;
 };
-
-const BUNDLE_MIN_ITEMS = 3;
-const BUNDLE_DISCOUNT_RATE = 0.1;
 
 const json = (event, statusCode, body, options = {}) => ({
   statusCode,
@@ -358,12 +361,22 @@ export async function handler(event) {
       if (isCrossSiteBrowserRequest(event) && requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
         return json(event, 403, { error: "Cross-site bookings are not allowed." });
       }
+      const parsedInput = reebsBookingCreateInputSchema.safeParse(data);
+      if (!parsedInput.success) {
+        return json(event, 400, {
+          error: "Check the booking information and try again.",
+          issues: validationIssues(parsedInput.error),
+        });
+      }
+      data = parsedInput.data;
     }
     let organizationId;
     if (authUser) {
       const internal = await requireInternalUser(client, event, {
         methods: BOOKING_METHODS,
         body: data,
+        permission: event.httpMethod === "GET" ? "bookings:read" : "bookings:write",
+        permissionError: "Booking permission is required.",
       });
       if (internal.errorResponse) {
         return internal.errorResponse;
@@ -437,7 +450,7 @@ export async function handler(event) {
     const hasAssignedUser = Object.prototype.hasOwnProperty.call(data, "assignedUserId");
     const items = Array.isArray(data.items) ? data.items : [];
     const paymentPreference = sanitizePaymentPreference(data.paymentPreference);
-    let discountValue = 0;
+    let discountCents = 0;
     const applyBundleDiscount = data.applyBundleDiscount === true;
 
     const normalizedItems = items
@@ -485,6 +498,12 @@ export async function handler(event) {
             : null,
           quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
         }));
+    const preservePriceSnapshot = shouldPreserveBookingPriceSnapshot({
+      method: event.httpMethod,
+      hasItemsPayload,
+      requestedItems: normalizedItems,
+      persistedItems: existingBooking?.items,
+    });
 
     if (!Number.isFinite(customerId)) return json(event, 400, { error: "customerId is required." });
     if (!eventDate) return json(event, 400, { error: "eventDate is required." });
@@ -520,7 +539,7 @@ export async function handler(event) {
       }
     }
 
-    let bundleEligible = mergedItems.length >= BUNDLE_MIN_ITEMS;
+    let bundleEligible = false;
 
     const actor = authUser
       ? { userId: authUser.id, userName: authUser.fullName, userEmail: authUser.email }
@@ -538,6 +557,11 @@ export async function handler(event) {
     await client.query("BEGIN");
 
     try {
+      const commercialPricing = await resolveBookingCommercialPricingForMutation(client, {
+        organizationId,
+        preservePriceSnapshot,
+        at: new Date(),
+      });
       const customerCheck = await client.query(
         `SELECT id FROM "customer" WHERE id = $1 AND "organizationId" = $2`,
         [customerId, organizationId]
@@ -622,9 +646,11 @@ export async function handler(event) {
           : product?.price || 0;
         return priceCents > 0;
       });
-      bundleEligible = pricedItems.length >= BUNDLE_MIN_ITEMS;
+      bundleEligible = commercialPricing
+        ? pricedItems.length >= commercialPricing.bundleMinimumItems
+        : false;
 
-      if (applyBundleDiscount) {
+      if (commercialPricing && applyBundleDiscount) {
         if (bundleEligible) {
           const bundleSubtotalCents = pricedItems.reduce((sum, item) => {
             const product = productMap.get(item.productId);
@@ -635,11 +661,15 @@ export async function handler(event) {
               : product.price;
             return sum + priceCents * item.quantity;
           }, 0);
-          discountValue = bundleSubtotalCents > 0
-            ? Math.round(bundleSubtotalCents * BUNDLE_DISCOUNT_RATE) / 100
-            : 0;
+          discountCents = calculateBundleDiscountCents({
+            subtotalCents: bundleSubtotalCents,
+            itemCount: pricedItems.length,
+            applyBundleDiscount: true,
+            bundleMinimumItems: commercialPricing.bundleMinimumItems,
+            bundleDiscountBps: commercialPricing.bundleDiscountBps,
+          });
         } else {
-          discountValue = 0;
+          discountCents = 0;
         }
       }
 
@@ -804,25 +834,30 @@ export async function handler(event) {
         }
       }
 
-      const attendantCharge = calculateAttendantChargeCents(
-        finalItems.map((item) => ({
-          ...item,
-          attendantsNeeded: productMap.get(item.productId)?.attendantsNeeded,
-        }))
-      );
+      const attendantCharge = preservePriceSnapshot
+        ? { attendants: 0, rateCents: 0, totalCents: 0 }
+        : calculateAttendantChargeCents(
+            finalItems.map((item) => ({
+              ...item,
+              attendantsNeeded: productMap.get(item.productId)?.attendantsNeeded,
+            })),
+            commercialPricing.attendantUnitFeeCents
+          );
 
-      const totalAmount = Math.max(
-        0,
-        finalItems.reduce((sum, item) => {
-          const product = productMap.get(item.productId);
-          const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
-          const variantPrice = Number(variant?.priceOverride);
-          const priceCents = Number.isFinite(variantPrice) && variantPrice >= 0
-              ? variantPrice
-              : product.price;
-          return sum + priceCents * item.quantity;
-        }, 0) - Math.round(discountValue * 100) + attendantCharge.totalCents
-      );
+      const totalAmount = preservePriceSnapshot
+        ? Number(existingBooking.totalAmount)
+        : Math.max(
+            0,
+            finalItems.reduce((sum, item) => {
+              const product = productMap.get(item.productId);
+              const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+              const variantPrice = Number(variant?.priceOverride);
+              const priceCents = Number.isFinite(variantPrice) && variantPrice >= 0
+                  ? variantPrice
+                  : product.price;
+              return sum + priceCents * item.quantity;
+            }, 0) - discountCents + attendantCharge.totalCents
+          );
 
       if (event.httpMethod === "POST") {
         await ensureBookingSequence(client);
@@ -890,24 +925,28 @@ export async function handler(event) {
           ]
         );
 
-        await client.query(
-          `DELETE FROM "bookingItem" WHERE "bookingId" = $1 AND "organizationId" = $2`,
-          [bookingId, organizationId]
-        );
+        if (!preservePriceSnapshot) {
+          await client.query(
+            `DELETE FROM "bookingItem" WHERE "bookingId" = $1 AND "organizationId" = $2`,
+            [bookingId, organizationId]
+          );
+        }
       }
 
       for (const item of finalItems) {
-        const fallbackPrice = productMap.get(item.productId)?.price;
-        const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
-        const variantPrice = Number(variant?.priceOverride);
-        const price = Number.isFinite(variantPrice) && variantPrice >= 0
-            ? variantPrice
-            : fallbackPrice;
-        await client.query(
-          `INSERT INTO "bookingItem" ("organizationId", "bookingId", "productId", "variantId", quantity, price)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [organizationId, bookingId, item.productId, item.variantId || null, item.quantity, price]
-        );
+        if (!preservePriceSnapshot) {
+          const fallbackPrice = productMap.get(item.productId)?.price;
+          const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
+          const variantPrice = Number(variant?.priceOverride);
+          const price = Number.isFinite(variantPrice) && variantPrice >= 0
+              ? variantPrice
+              : fallbackPrice;
+          await client.query(
+            `INSERT INTO "bookingItem" ("organizationId", "bookingId", "productId", "variantId", quantity, price)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [organizationId, bookingId, item.productId, item.variantId || null, item.quantity, price]
+          );
+        }
         if (shouldReserveVariants && item.variantId) {
           // Keep reservedQty counter in sync for display purposes (date check already done above).
           await client.query(
@@ -995,6 +1034,10 @@ export async function handler(event) {
           itemCount: finalItems.length,
           totalAmount,
           status,
+          pricingSnapshotPreserved: preservePriceSnapshot,
+          commercialConfigurationIds: commercialPricing?.configurationIds || null,
+          bundleDiscountCents: preservePriceSnapshot ? null : discountCents,
+          attendantChargeCents: preservePriceSnapshot ? null : attendantCharge.totalCents,
         },
       });
 
@@ -1005,7 +1048,15 @@ export async function handler(event) {
     }
   } catch (err) {
     console.error("❌ Database error:", err);
-    return json(event, 500, { error: "Failed to process booking request." });
+    const statusCode = Number(err?.statusCode) || 500;
+    return json(event, statusCode, {
+      error: statusCode === 503
+        ? "Booking pricing configuration is unavailable."
+        : statusCode >= 500
+          ? "Failed to process booking request."
+          : err.message,
+      ...(err?.code ? { code: err.code } : {}),
+    });
   } finally {
     await client.end().catch(() => {});
   }

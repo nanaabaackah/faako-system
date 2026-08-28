@@ -9,7 +9,7 @@ REEBS is one product system with separately owned deployable surfaces:
 
 | Surface | Responsibility | Current deployment shape |
 | --- | --- | --- |
-| REEBS Website | Public content, catalogue and rental discovery, public cart/checkout UI, booking/contact intake, policies, customer-facing session UI, SEO metadata, sitemap snapshot | React/Vite static frontend on Cloudflare Pages |
+| REEBS Website | Public content, catalogue and rental discovery, public cart/checkout UI, booking/contact intake, policies, customer-facing session UI, SEO metadata, sitemap snapshot | Astro static frontend with React islands on Cloudflare Pages |
 | REEBS Portal | Authenticated staff operations, administration, Store Mode, orders, bookings, inventory, CRM, finance, reporting, settings, roles, offline admin workflows | React/Vite frontend on Cloudflare Pages |
 | REEBS API | Authentication and authorisation, organisation isolation, validation, inventory and availability truth, orders/bookings/payments, contact persistence, CRM activity, notifications, integration orchestration | Express/functions on Railway |
 | REEBS database | Persistent operational and customer data | PostgreSQL through Portal-owned Prisma schema and migrations |

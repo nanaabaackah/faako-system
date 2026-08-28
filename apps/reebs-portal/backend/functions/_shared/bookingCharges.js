@@ -1,18 +1,10 @@
-const DEFAULT_ATTENDANT_RATE_CENTS = 10000;
-
-const normalizeCents = (value, fallback = 0) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.round(parsed));
+export const getAttendantRateCents = (rateCents) => {
+  const parsed = Number(rateCents);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new TypeError("An explicit non-negative attendant rate in cents is required.");
+  }
+  return Math.round(parsed);
 };
-
-export const getAttendantRateCents = () =>
-  normalizeCents(
-    process.env.REEBS_ATTENDANT_RATE_CENTS
-      || process.env.ATTENDANT_RATE_CENTS
-      || process.env.REEBS_ATTENDANT_FEE_CENTS,
-    DEFAULT_ATTENDANT_RATE_CENTS
-  );
 
 export const countRequiredAttendants = (items = []) =>
   (Array.isArray(items) ? items : []).reduce((sum, item) => {
@@ -22,12 +14,13 @@ export const countRequiredAttendants = (items = []) =>
     return sum + attendantsPerUnit * quantity;
   }, 0);
 
-export const calculateAttendantChargeCents = (items = [], rateCents = getAttendantRateCents()) => {
+export const calculateAttendantChargeCents = (items = [], rateCents) => {
   const attendants = countRequiredAttendants(items);
+  const normalizedRateCents = getAttendantRateCents(rateCents);
   return {
     attendants,
-    rateCents: normalizeCents(rateCents, 0),
-    totalCents: attendants * normalizeCents(rateCents, 0),
+    rateCents: normalizedRateCents,
+    totalCents: attendants * normalizedRateCents,
   };
 };
 

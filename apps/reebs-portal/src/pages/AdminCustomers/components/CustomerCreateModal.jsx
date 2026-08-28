@@ -20,7 +20,7 @@ export default function CustomerCreateModal({
       <div className="admin-modal-panel crm-modal-panel">
         <header className="crm-modal-header">
           <div>
-            <p className="admin-eyebrow">CRM</p>
+            <p className="admin-eyebrow">Customers</p>
             <h2>New customer</h2>
           </div>
           <button type="button" className="admin-close" onClick={onClose} aria-label="Close">

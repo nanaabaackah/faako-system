@@ -15,7 +15,7 @@
 | 401 | Caller credential/rotation and Authorization transport | Restore scoped credential; never print it |
 | 403 | Path/header/body context and principal scopes | Correct producer scope; do not broaden tenant access as a shortcut |
 | 422 | Producer contract/version | Fix producer or use documented adapter; do not bypass validation |
-| 503 readiness | Authentication configuration | Restore configuration; keep consumers on fallback |
+| 503 readiness | Authentication is absent, empty or malformed | Restore a valid scoped configuration; keep consumers on fallback |
 | Quality warning | Freshness/empty/incomplete checks | Show stale/limited state; refresh source |
 | Quality blocked | Duplicate grain, invalid lifecycle or negative values | Suppress decision output and remediate source |
 | Timeout/unavailable | Service/network/CPU | Use approved fallback; retry bounded safe requests only |
@@ -48,4 +48,3 @@ fallback and rollback.
 Use the service virtual environment and run Ruff, mypy and pytest. CI uses Python 3.12
 without production credentials. Deterministic fixtures cover calculations, contracts,
 empty/stale data and tenant isolation.
-

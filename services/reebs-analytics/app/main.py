@@ -13,9 +13,9 @@ from .analytics import build_dashboard_insights
 from .contracts import AnalyticsRequest, AnalyticsResponse
 from .isolation import (
     authenticate,
-    authentication_is_configured,
     authorize_context,
     authorize_legacy_reebs_context,
+    validate_authentication_configuration,
 )
 from .logging_utils import log_event
 from .pilots import ANALYSIS_RUNNERS
@@ -135,8 +135,7 @@ def health() -> dict[str, Any]:
 
 @app.get("/ready")
 def readiness() -> dict[str, Any]:
-    if not authentication_is_configured():
-        raise HTTPException(status_code=503, detail="Analytics service authentication is not configured.")
+    validate_authentication_configuration()
     return {"ok": True, "service": "faako-analytics"}
 
 

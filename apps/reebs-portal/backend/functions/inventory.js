@@ -586,6 +586,8 @@ export async function handler(event = {}) {
     const access = await requireInternalUser(client, event, {
       methods: "GET,POST,PATCH,DELETE,OPTIONS",
       body: payload,
+      permission: method === "GET" ? "inventory:read" : "inventory:write",
+      permissionError: "Inventory permission is required.",
     });
     if (access.errorResponse) {
       return access.errorResponse;

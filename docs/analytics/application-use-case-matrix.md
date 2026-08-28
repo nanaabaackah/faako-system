@@ -17,4 +17,3 @@ simpler; **Later** = requires data/definition/governance work; **N/A** = no curr
 
 No `Later` entry authorises data collection. It identifies a question that must pass
 privacy, source, metric and value review before implementation.
-

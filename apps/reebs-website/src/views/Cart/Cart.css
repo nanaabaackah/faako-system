@@ -22,7 +22,7 @@
 }
 
 .cart-shell .cart-hero {
-  min-height: var(--app-vh);
+  min-height: min(720px, 78vh);
   border: 0;
   box-shadow: none;
   justify-items: center;
@@ -713,8 +713,13 @@
 
 @media (max-width: 760px) {
   .cart-shell .cart-hero {
-    padding-inline: 0.85rem;
+    padding: 6.5rem 0.85rem 1.5rem;
     gap: 1rem;
+  }
+
+  .cart-shell .cart-hero-pills,
+  .cart-shell .hero-card-perks {
+    display: none;
   }
 
   .cart-shell .cart-hero-stats,

@@ -4,13 +4,14 @@ import { Client } from "pg";
 import emailKit from "../../../../packages/email-kit/src/index.cjs";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 import { sendNotificationEmail } from "./_shared/email.js";
-import { DEFAULT_SERVICE_DEPOSIT_DUE_LABEL } from "../../shared/paymentCopy.js";
+import { buildPaymentInstructionLines } from "./_shared/paymentInstructions.js";
 
 const {
   EMAIL_THEMES,
   renderDataTable,
   renderEmailLayout,
   renderKeyValueTable,
+  renderList,
   renderMetricGrid,
   renderNotice,
   renderPanel,
@@ -19,10 +20,9 @@ const {
 
 const INVOICE_DOCUMENT_EMAIL_METHODS = "POST,OPTIONS";
 const FAAKO_THEME = EMAIL_THEMES.faako;
-const SERVICE_DEPOSIT_SUMMARY_LABEL = "Deposit due (70%)";
+const SERVICE_DEPOSIT_SUMMARY_LABEL = "Deposit due";
 const SERVICE_BALANCE_SUMMARY_LABEL = "Remaining balance";
 const SERVICE_DUE_DATE_LABEL = "Deposit due date";
-const INVOICE_DEPOSIT_RATE = 0.7;
 
 const cleanText = (value, maxLength = 400) => {
   if (typeof value !== "string") return "";
@@ -34,6 +34,16 @@ const cleanEmail = (value) => {
   if (!email) return "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "";
   return email;
+};
+
+const normalizeId = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const normalizeCurrency = (value) => {
+  const currency = cleanText(value, 3).toUpperCase();
+  return /^[A-Z]{3}$/.test(currency) ? currency : "GHS";
 };
 
 const normalizeMoney = (value, fallback = 0) => {
@@ -51,18 +61,17 @@ const normalizeDateValue = (value) => {
 
 const todayValue = () => new Date().toISOString().slice(0, 10);
 
-const isInvoiceFullPaymentDue = (document) => {
+const isInvoiceOverdue = (document) => {
   if (document?.documentType !== "invoice") return false;
   if (String(document?.paymentStatus || "").toLowerCase() === "paid") return false;
   const dueDate = normalizeDateValue(document?.dueDate);
   return Boolean(dueDate) && dueDate < todayValue();
 };
 
-const getInvoiceDueDateSummaryLabel = (document) =>
-  document?.documentType === "invoice" && isInvoiceFullPaymentDue(document) ? "Payment due date" : SERVICE_DUE_DATE_LABEL;
+const getInvoiceDueDateSummaryLabel = () => SERVICE_DUE_DATE_LABEL;
 
 const getInvoiceDepositLabel = (document) =>
-  isInvoiceFullPaymentDue(document) ? "Amount due (100%)" : SERVICE_DEPOSIT_SUMMARY_LABEL;
+  isInvoiceOverdue(document) ? "Deposit overdue" : SERVICE_DEPOSIT_SUMMARY_LABEL;
 
 const normalizeTaxRate = (value) => {
   const rate = Number(value);
@@ -162,19 +171,26 @@ const formatDocumentIdentity = (document) => {
   return `${cleanText(document?.docLabel, 40) || "Document"} ${number}`;
 };
 
+const buildLinkedLabel = (record) => {
+  const sourceType = cleanText(record?.sourceType, 20).toLowerCase();
+  const sourceId = normalizeId(record?.sourceId);
+  if (sourceType === "orders" && sourceId) return `Order #${sourceId}`;
+  if (sourceType === "bookings" && sourceId) return `Booking #${sourceId}`;
+  return "";
+};
+
 const buildDocumentIntro = (document, summary, currency) => {
   const customerName = document?.customerName || "there";
   const documentIdentity = formatDocumentIdentity(document);
-  const balanceLabel =
-    document?.documentType === "invoice"
-      ? formatCurrency(summary.fullPaymentDue ? summary.depositAmount : summary.balanceDue, currency)
-      : formatCurrency(summary.grandTotal, currency);
+  const depositLabel = formatCurrency(summary.depositAmount, currency);
 
   return [
     `Hello ${customerName},`,
     document?.documentType === "receipt"
       ? `Your receipt is ready. ${documentIdentity} is attached below for your records.`
-      : `Your invoice is ready. ${documentIdentity} is prepared with a ${summary.fullPaymentDue ? "full amount due" : "remaining balance"} of ${balanceLabel}.`,
+      : summary.depositAmount > 0
+        ? `Your invoice is ready. ${documentIdentity} has a recorded deposit due of ${depositLabel}.`
+        : `Your invoice is ready. ${documentIdentity} is prepared for your review.`,
     document?.dueDate
       ? `Please review the ${document?.documentType === "invoice" ? getInvoiceDueDateSummaryLabel(document).toLowerCase() : "due date"} of ${formatDate(document.dueDate)} and the item breakdown below.`
       : "Please review the document details and item breakdown below.",
@@ -202,9 +218,7 @@ const buildSummaryRows = (document, summary, currency) => [
   ...(document?.documentType === "invoice"
     ? [
         [getInvoiceDepositLabel(document), formatCurrency(summary.depositAmount, currency)],
-        ...(summary.fullPaymentDue
-          ? []
-          : [[SERVICE_BALANCE_SUMMARY_LABEL, formatCurrency(summary.balanceDue, currency)]]),
+        [SERVICE_BALANCE_SUMMARY_LABEL, formatCurrency(summary.balanceDue, currency)],
       ]
     : []),
 ];
@@ -247,7 +261,7 @@ const buildLineItemTableRows = (summary, currency) => {
   return rows;
 };
 
-const buildSummary = (document) => {
+export const buildInvoiceDocumentSummary = (document) => {
   const lineItems = normalizeLineItems(document?.lineItems);
   const additionalItems = normalizeAdditionalItems(document?.additionalItems);
   const billableLineItems = lineItems.filter((item) => !isHeadingLineItem(item) && !isNoteLineItem(item));
@@ -263,12 +277,10 @@ const buildSummary = (document) => {
   );
   const depositAmount =
     document?.documentType === "invoice"
-      ? isInvoiceFullPaymentDue(document)
-        ? grandTotal
-        : Math.round(grandTotal * INVOICE_DEPOSIT_RATE * 100) / 100
+      ? Math.max(0, normalizeMoney(document?.depositAmount, 0))
       : 0;
   const balanceDue =
-    document?.documentType === "invoice" && isInvoiceFullPaymentDue(document)
+    String(document?.paymentStatus || "draft").toLowerCase() === "paid"
       ? 0
       : Math.max(0, Math.round((grandTotal - depositAmount) * 100) / 100);
   return {
@@ -283,11 +295,18 @@ const buildSummary = (document) => {
     grandTotal,
     depositAmount,
     balanceDue,
-    fullPaymentDue: isInvoiceFullPaymentDue(document),
+    overdue: isInvoiceOverdue(document),
   };
 };
 
-const buildEmailText = (document, summary, currency) => {
+const buildInvoicePaymentInstructionLines = (document, internal = false) =>
+  buildPaymentInstructionLines({
+    paymentPreference: { method: "pay-later", payLater: true },
+    reference: cleanText(document?.invoiceNumber, 120),
+    internal,
+  });
+
+export const buildInvoiceDocumentEmailText = (document, summary, currency) => {
   const documentIdentity = formatDocumentIdentity(document);
   const lines = [
     documentIdentity,
@@ -340,8 +359,10 @@ const buildEmailText = (document, summary, currency) => {
   lines.push(`Total: ${formatCurrency(summary.grandTotal, currency)}`);
   if (document.documentType === "invoice") {
     lines.push(`${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`);
-    if (!summary.fullPaymentDue) {
-      lines.push(`${SERVICE_BALANCE_SUMMARY_LABEL}: ${formatCurrency(summary.balanceDue, currency)}`);
+    lines.push(`${SERVICE_BALANCE_SUMMARY_LABEL}: ${formatCurrency(summary.balanceDue, currency)}`);
+    if (String(document.paymentStatus || "draft").toLowerCase() !== "paid") {
+      lines.push("", "Payment instructions:");
+      lines.push(...buildInvoicePaymentInstructionLines(document));
     }
   }
   if (document.notes) {
@@ -353,16 +374,16 @@ const buildEmailText = (document, summary, currency) => {
   return lines.join("\n");
 };
 
-const buildEmailHtml = (document, summary, currency) => {
+export const buildInvoiceDocumentEmailHtml = (document, summary, currency) => {
   const documentIdentity = formatDocumentIdentity(document);
   const metricCards = [
     { label: "Total", value: formatCurrency(summary.grandTotal, currency) },
     { label: "Status", value: titleCase(document.paymentStatus || "draft") },
     {
-      label: document.documentType === "invoice" ? (summary.fullPaymentDue ? "Amount due" : "Balance due") : "Items",
+      label: document.documentType === "invoice" ? "Deposit due" : "Items",
       value:
         document.documentType === "invoice"
-          ? formatCurrency(summary.fullPaymentDue ? summary.depositAmount : summary.balanceDue, currency)
+          ? formatCurrency(summary.depositAmount, currency)
           : String(summary.billableLineItems.length || 0),
     },
     {
@@ -422,11 +443,27 @@ const buildEmailHtml = (document, summary, currency) => {
         lines: document.dueDate
           ? [
               `${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`,
-              summary.fullPaymentDue
-                ? `The deposit date has passed. Please settle the full amount by ${formatDate(document.dueDate)}.`
-                : `Please settle the deposit by ${formatDate(document.dueDate)}. This is ${DEFAULT_SERVICE_DEPOSIT_DUE_LABEL.toLowerCase()}.`,
+              summary.overdue
+                ? `The recorded deposit was due by ${formatDate(document.dueDate)}.`
+                : `Please settle the recorded deposit by ${formatDate(document.dueDate)}.`,
             ]
           : [`${getInvoiceDepositLabel(document)}: ${formatCurrency(summary.depositAmount, currency)}`],
+      })
+    );
+  }
+
+  if (
+    document.documentType === "invoice" &&
+    String(document.paymentStatus || "draft").toLowerCase() !== "paid"
+  ) {
+    bodyBlocks.push(
+      renderPanel({
+        theme: FAAKO_THEME,
+        eyebrow: "Payment",
+        title: "Payment instructions",
+        bodyHtml: renderList(buildInvoicePaymentInstructionLines(document), {
+          theme: FAAKO_THEME,
+        }),
       })
     );
   }
@@ -500,6 +537,7 @@ export async function handler(event = {}) {
     if (authResult.errorResponse) {
       return authResult.errorResponse;
     }
+    const { organizationId } = authResult;
 
     let payload = {};
     try {
@@ -508,26 +546,62 @@ export async function handler(event = {}) {
       return respond(event, 400, { error: "Invalid JSON body." }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
     }
 
-    const to = cleanEmail(payload.customerEmail || payload.to);
-    const docLabel = cleanText(
-      payload.docLabel || (payload.documentType === "receipt" ? "Receipt" : "Invoice"),
-      40
+    const documentId = normalizeId(payload.documentId);
+    if (!documentId) {
+      return respond(
+        event,
+        400,
+        { error: "Save the document before sending it." },
+        { methods: INVOICE_DOCUMENT_EMAIL_METHODS }
+      );
+    }
+
+    const persistedResult = await client.query(
+      `SELECT
+         id,
+         "sourceType",
+         "sourceId",
+         "documentType",
+         title,
+         "invoiceNumber",
+         "issueDate",
+         "dueDate",
+         "paymentStatus",
+         "depositAmount",
+         "customerName",
+         "customerEmail",
+         "lineItems",
+         "additionalItems",
+         notes,
+         terms,
+         "taxRate",
+         "discountAmount"
+       FROM "invoiceDocument"
+       WHERE id = $1
+         AND "organizationId" = $2
+         AND "archivedAt" IS NULL
+       LIMIT 1`,
+      [documentId, organizationId]
     );
-    const invoiceNumber = cleanText(payload.invoiceNumber, 120);
-    const customerName = cleanText(payload.customerName, 200) || "Customer";
-    const paymentStatus = cleanText(payload.paymentStatus, 20).toLowerCase() || "draft";
-    const linkedLabel = cleanText(payload.linkedLabel, 120);
-    const currency = cleanText(payload.currency, 12) || "GHS";
-    const issueDate = cleanText(payload.issueDate, 40);
-    const dueDate = cleanText(payload.dueDate, 40);
-    const documentType = cleanText(payload.documentType, 20).toLowerCase() === "receipt" ? "receipt" : "invoice";
-    const notes = cleanText(payload.notes, 4000);
-    const terms = cleanText(payload.terms, 4000);
-    const taxRate = normalizeTaxRate(payload.taxRate);
-    const depositAmount = Math.max(0, normalizeMoney(payload.depositAmount, 0));
-    const discountAmount = Math.max(0, normalizeMoney(payload.discountAmount, 0));
-    const lineItems = normalizeLineItems(payload.lineItems);
-    const additionalItems = normalizeAdditionalItems(payload.additionalItems);
+    const persisted = persistedResult.rows[0];
+    if (!persisted) {
+      return respond(
+        event,
+        404,
+        { error: "Invoice document not found." },
+        { methods: INVOICE_DOCUMENT_EMAIL_METHODS }
+      );
+    }
+
+    const documentType =
+      cleanText(persisted.documentType, 20).toLowerCase() === "receipt"
+        ? "receipt"
+        : "invoice";
+    const docLabel = documentType === "receipt" ? "Receipt" : "Invoice";
+    const invoiceNumber = cleanText(persisted.invoiceNumber, 120);
+    const to = cleanEmail(persisted.customerEmail);
+    const lineItems = normalizeLineItems(persisted.lineItems);
+    const currency = normalizeCurrency(payload.currency);
 
     if (!to) {
       return respond(event, 400, { error: "Customer email is required." }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
@@ -542,26 +616,26 @@ export async function handler(event = {}) {
     const document = {
       docLabel,
       invoiceNumber,
-      customerName,
-      paymentStatus,
-      linkedLabel,
-      issueDate,
-      dueDate,
+      customerName: cleanText(persisted.customerName, 200) || "Customer",
+      paymentStatus: cleanText(persisted.paymentStatus, 20).toLowerCase() || "draft",
+      linkedLabel: buildLinkedLabel(persisted),
+      issueDate: persisted.issueDate,
+      dueDate: persisted.dueDate,
       documentType,
-      notes,
-      terms,
-      taxRate,
-      depositAmount,
-      discountAmount,
+      notes: cleanText(persisted.notes, 4000),
+      terms: cleanText(persisted.terms, 4000),
+      taxRate: normalizeTaxRate(persisted.taxRate),
+      depositAmount: Math.max(0, normalizeMoney(persisted.depositAmount, 0)),
+      discountAmount: Math.max(0, normalizeMoney(persisted.discountAmount, 0)),
       lineItems,
-      additionalItems,
+      additionalItems: normalizeAdditionalItems(persisted.additionalItems),
     };
-    const summary = buildSummary(document);
+    const summary = buildInvoiceDocumentSummary(document);
     const result = await sendNotificationEmail({
       to,
       subject: `${docLabel} ${invoiceNumber} from REEBS`,
-      text: buildEmailText(document, summary, currency),
-      html: buildEmailHtml(document, summary, currency),
+      text: buildInvoiceDocumentEmailText(document, summary, currency),
+      html: buildInvoiceDocumentEmailHtml(document, summary, currency),
     });
 
     if (result?.skipped) {
@@ -573,7 +647,12 @@ export async function handler(event = {}) {
       );
     }
 
-    return respond(event, 200, { ok: true, deliveredTo: to }, { methods: INVOICE_DOCUMENT_EMAIL_METHODS });
+    return respond(
+      event,
+      200,
+      { ok: true, documentId, deliveredTo: to },
+      { methods: INVOICE_DOCUMENT_EMAIL_METHODS }
+    );
   } catch (err) {
     console.error("invoice-document-email error:", err);
     return respond(

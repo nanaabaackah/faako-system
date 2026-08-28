@@ -1,10 +1,11 @@
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { ensureAuditColumns, backfillAuditDefaults } from "./auditHelpers.js";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { getRecordedDeliveryDistanceKm } from "./_shared/deliveryFee.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { serializePgClientQueries } from "./_shared/serializedPgClient.js";
 import { requireUser } from "./_shared/userAuth.js";
+import { hasPermission } from "./_shared/accessControl.js";
 
 const responseHeaders = (event) => ({
   "Content-Type": "application/json",
@@ -60,6 +61,9 @@ export async function handler(event = {}) {
     const authUser = await requireUser(client, event);
     if (!authUser) {
       return json(event, 401, { error: "Unauthorized" });
+    }
+    if (!hasPermission(authUser, "orders:read") || !hasPermission(authUser, "bookings:read")) {
+      return json(event, 403, { error: "Core operations permission is required." });
     }
 
     const organizationId = Number(authUser.organizationId);
@@ -136,6 +140,9 @@ export async function handler(event = {}) {
            o."customerName",
            o.status,
            o."total_amount",
+           o."subtotalCents",
+           o."deliveryFeeCents",
+           o."grandTotalCents",
            o."deliveryMethod",
            o."deliveryDetails",
            o."orderDate",
@@ -163,6 +170,9 @@ export async function handler(event = {}) {
            o."customerName",
            o.status,
            o."total_amount",
+           o."subtotalCents",
+           o."deliveryFeeCents",
+           o."grandTotalCents",
            o."deliveryMethod",
            o."deliveryDetails",
            o."orderDate",
@@ -340,16 +350,19 @@ export async function handler(event = {}) {
     const orderRows = orderDetails?.rows || [];
     let orderRevenueCents = 0;
     const orderDetailList = orderRows.map((row) => {
-      const baseCents = Number(row.total_amount || 0);
-      const { distanceKm, feeCents } = getDeliveryFeeDetails(
+      const totalCents = Number(row.grandTotalCents ?? row.total_amount ?? 0);
+      const feeCents = Number(row.deliveryFeeCents || 0);
+      const itemsTotalCents = Number(
+        row.subtotalCents ?? Math.max(0, totalCents - feeCents)
+      );
+      const distanceKm = getRecordedDeliveryDistanceKm(
         row.deliveryMethod,
         row.deliveryDetails
       );
-      const totalCents = baseCents + feeCents;
       orderRevenueCents += totalCents;
       return {
         ...row,
-        itemsTotal: baseCents / 100,
+        itemsTotal: itemsTotalCents / 100,
         deliveryFee: feeCents / 100,
         deliveryFeeCents: feeCents,
         deliveryDistanceKm: distanceKm || 0,

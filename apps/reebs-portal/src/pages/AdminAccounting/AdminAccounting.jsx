@@ -1471,7 +1471,9 @@ function AdminAccounting() {
         <AdminBreadcrumb items={[{ label: "Accounting" }]} />
 
         <AdminPageHeader
+          eyebrow="REEBS Core Finance"
           title="Accounting"
+          subtitle="Shop and rental/event finance only. Water Business revenue, costs, and profit are excluded."
         />
 
         <section className="accounting-toolbar" aria-label="Accounting controls">

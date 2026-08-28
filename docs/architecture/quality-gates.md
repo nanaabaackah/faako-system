@@ -48,7 +48,7 @@ An em dash in the inventory means that no applicable check or test asset current
 | `@faako/ui` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/utils` | `eslint src` | `tsc --noEmit -p tsconfig.json` | —; none found | —; source-consumed | — |
 | `@faako/validation` | `eslint src test` | declaration check with `tsc --noEmit` | `node --test` | —; source-consumed | — |
-| `faako-analytics` (compatibility path `reebs-analytics`) | Ruff | mypy + Pydantic contracts | `python -m pytest` through `pnpm test:python` | Docker/Python service; outside Turbo | — |
+| `reebs-analytics` | Python tooling applies | Python/Pydantic import-time checking only | `python -m pytest` through `pnpm test:python` | Docker/Python service; outside Turbo | — |
 
 `apps/ttngh` is not listed as an active workspace because it has no source manifest. Its registry entry is explicitly marked as not requiring a workspace until the deferred scaffold is approved, so registry validation reports that state without treating it as a stale active application. The three manifest-less package placeholders are also outside the executable gate.
 

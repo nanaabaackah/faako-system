@@ -31,4 +31,3 @@ These are editorial inputs to collect, not invented copy.
 ## TTNGH before scaffold content is approved
 
 Collect legal organisation name, registration details safe for publication, programme/service descriptions, support boundaries/crisis wording, verified contact channels, safeguarding/privacy policies, donation fund use, Paystack/MoMo merchant ownership, refund policy, event owners/dates, team consent, impact evidence and authentic image consent. The existing requirements and tagline are inputs, not proof of these facts.
-

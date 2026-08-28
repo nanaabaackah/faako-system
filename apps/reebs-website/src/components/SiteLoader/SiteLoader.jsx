@@ -15,6 +15,7 @@ function SiteLoader({
       title={label}
       message={sublabel}
       variant={variant}
+      className="storefront-site-loader"
     />
   );
 }

@@ -1,10 +1,11 @@
 import { sanitizeText } from "../monitoring.security.js";
-import { buildMonitoringAlertEmailContent } from "./alertEmailTemplate.js";
 
 const safeError = (error) => {
   const code = sanitizeText(error?.code || error?.name, 40);
   return code && code !== "Error" ? `Notification provider failed (${code}).` : "Notification provider failed.";
 };
+const escapeHtml = (value) => String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
 export const createAlertDelivery = ({ prisma, channelCrypto, sendEmail, options = {} }) => {
   const decodeConfig = (channel) => {
     if (!channel.encryptedConfig) return {};
@@ -21,22 +22,7 @@ export const createAlertDelivery = ({ prisma, channelCrypto, sendEmail, options 
     if (channel.type === "EMAIL") {
       const config = decodeConfig(channel);
       if (!Array.isArray(config.recipients) || !config.recipients.length) return { status: "SKIPPED", errorSummary: "Email recipients are not configured." };
-      const content = buildMonitoringAlertEmailContent({
-        event: { ...event, safeSummary: sanitizeText(event.safeSummary || incident.summary, 300) },
-        incident: {
-          ...incident,
-          title: sanitizeText(incident.title || incident.summary, 180),
-          summary: sanitizeText(incident.summary, 300),
-        },
-        appBaseUrl: options.appBaseUrl,
-      });
-      await sendEmail({
-        fromEmail: options.emailFrom,
-        fromName: "Dev ERP Monitoring",
-        recipients: config.recipients,
-        replyTo: options.emailReplyTo,
-        ...content,
-      });
+      await sendEmail({ fromEmail: options.emailFrom, fromName: "Dev ERP Monitoring", recipients: config.recipients, replyTo: options.emailReplyTo, subject: `[${incident.severity}] ${sanitizeText(incident.title || incident.summary, 180)}`, text: `${event.safeSummary || incident.summary}\n\nIncident: ${incident.id}\nStatus: ${incident.status}\nService: ${incident.service?.name || incident.serviceId}\nOpen Dev ERP: ${options.appBaseUrl || ""}/system-health?incident=${incident.id}`.trim(), html: `<p><strong>${escapeHtml(sanitizeText(event.safeSummary || incident.summary, 300))}</strong></p><p>Incident #${incident.id} · ${escapeHtml(incident.status)} · ${escapeHtml(incident.service?.name || "Monitored service")}</p>` });
       return { status: "SENT" };
     }
     return { status: "SKIPPED", errorSummary: `${channel.type} delivery is disabled until an approved provider is configured.` };

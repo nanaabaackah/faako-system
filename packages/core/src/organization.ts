@@ -367,9 +367,10 @@ export const patchOrganizationFetch = () => {
     if (!Object.prototype.hasOwnProperty.call(nextInit, "cache")) {
       nextInit.cache = "no-store";
     }
-    if (!Object.prototype.hasOwnProperty.call(nextInit, "credentials")) {
-      nextInit.credentials = "include";
-    }
+    const requestedCredentials = nextInit.credentials;
+    nextInit.credentials = requestedCredentials && requestedCredentials !== "same-origin"
+      ? requestedCredentials
+      : "include";
 
     return originalFetch(nextUrl, nextInit).then((response) => {
       if (isAuthenticatedRequest && response.status === 401) {

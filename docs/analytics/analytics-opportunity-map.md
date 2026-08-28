@@ -21,4 +21,3 @@ The first pilots have known source fields, immediate operational decisions, boun
 tenant scope and deterministic baselines. Forecasting, segmentation and cross-tenant
 product analytics are not selected because history, definitions or approvals are not
 yet strong enough.
-

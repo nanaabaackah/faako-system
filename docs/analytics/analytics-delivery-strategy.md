@@ -29,4 +29,3 @@ Application adapters may reshape stable results for existing UI compatibility.
   not a financial forecast or automated purchase order.
 - Dev ERP identifies delay concentration, not causal process bottlenecks, because stage
   transition history is not currently available.
-

@@ -2,6 +2,11 @@ import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
+import { buildCoreOrderRecognitionFilter } from "./_shared/financialPolicy.js";
+import {
+  REEBS_BUSINESS_UNITS,
+  withReebsAnalyticsScope,
+} from "@faako/api-contracts/reebs";
 
 const METHODS = "GET,OPTIONS";
 const SERVICE_TIMEOUT_MS = 4_000;
@@ -51,13 +56,14 @@ export const buildSharedAnalyticsRequest = (snapshot = {}) => {
     context: {
       applicationId: "reebs",
       tenantId: String(snapshot.organizationId),
+      businessUnit: REEBS_BUSINESS_UNITS.REEBS_CORE,
     },
     period: {
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString(),
     },
     sourceTimestamp: endAt.toISOString(),
-    data: snapshot,
+    data: withReebsAnalyticsScope(snapshot),
   };
 };
 
@@ -134,7 +140,7 @@ export const buildFallbackAnalytics = (snapshot = {}) => {
   }
 
   return {
-    version: "2026-07-reebs-dashboard-v1",
+    version: "2026-08-reebs-core-recognition-v2",
     source: "node-fallback",
     forecast: {
       next30RevenueCents: Math.round(recentAverage * (1 + boundedChange / 200) * 30),
@@ -155,29 +161,29 @@ export const buildFallbackAnalytics = (snapshot = {}) => {
   };
 };
 
-const loadAnalyticsSnapshot = async (client, organizationId) => {
+export const loadAnalyticsSnapshot = async (client, organizationId) => {
   const [revenueResult, demandResult, inventoryResult, customerResult] = await runSequentially([
     () => client.query(
       `WITH days AS (
          SELECT generate_series(CURRENT_DATE - INTERVAL '89 days', CURRENT_DATE, INTERVAL '1 day')::date AS day
        ), order_daily AS (
-         SELECT "orderDate"::date AS day,
-                COALESCE(SUM(COALESCE("grandTotalCents", "total_amount")), 0)::bigint AS revenue,
+         SELECT o."orderDate"::date AS day,
+                COALESCE(SUM(COALESCE(o."grandTotalCents", o."total_amount")), 0)::bigint AS revenue,
                 COUNT(*)::int AS orders
-         FROM "order"
-         WHERE "organizationId" = $1
-           AND "orderDate" >= CURRENT_DATE - INTERVAL '89 days'
-           AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')
-         GROUP BY "orderDate"::date
+         FROM "order" o
+         WHERE o."organizationId" = $1
+           AND o."orderDate" >= CURRENT_DATE - INTERVAL '89 days'
+           ${buildCoreOrderRecognitionFilter("o")}
+         GROUP BY o."orderDate"::date
        ), booking_daily AS (
-         SELECT "createdAt"::date AS day,
+         SELECT "eventDate"::date AS day,
                 COALESCE(SUM("totalAmount"), 0)::bigint AS revenue,
                 COUNT(*)::int AS bookings
          FROM "booking"
          WHERE "organizationId" = $1
-           AND "createdAt" >= CURRENT_DATE - INTERVAL '89 days'
-           AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')
-         GROUP BY "createdAt"::date
+           AND "eventDate" >= CURRENT_DATE - INTERVAL '89 days'
+           AND LOWER(COALESCE(status, '')) IN ('confirmed', 'completed')
+         GROUP BY "eventDate"::date
        )
        SELECT days.day,
               COALESCE(order_daily.revenue, 0)::bigint AS "orderRevenueCents",
@@ -197,7 +203,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
        WHERE "organizationId" = $1
          AND "eventDate" >= CURRENT_DATE - INTERVAL '180 days'
          AND "eventDate" <= CURRENT_DATE
-         AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')
+         AND LOWER(COALESCE(status, '')) IN ('confirmed', 'completed')
        GROUP BY weekday_number
        ORDER BY weekday_number`,
       [organizationId]
@@ -217,6 +223,7 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
         AND sm."organizationId" = p."organizationId"
         AND sm.date >= CURRENT_DATE - INTERVAL '90 days'
        WHERE p."organizationId" = $1
+         AND UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'
          AND COALESCE(p."isDeleted", false) = false
          AND COALESCE(p."isArchived", false) = false
          AND COALESCE(p."isActive", true) = true
@@ -229,19 +236,20 @@ const loadAnalyticsSnapshot = async (client, organizationId) => {
       `WITH activity AS (
          SELECT "customerId", COUNT(*)::int AS interactions
          FROM (
-           SELECT "customerId" FROM "order"
-           WHERE "organizationId" = $1 AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')
+           SELECT o."customerId" FROM "order" o
+           WHERE o."organizationId" = $1
+             ${buildCoreOrderRecognitionFilter("o")}
            UNION ALL
            SELECT "customerId" FROM "booking"
-           WHERE "organizationId" = $1 AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled')
+           WHERE "organizationId" = $1
+             AND LOWER(COALESCE(status, '')) IN ('confirmed', 'completed')
          ) customer_activity
+         WHERE "customerId" IS NOT NULL
          GROUP BY "customerId"
        )
-       SELECT COUNT(c.id)::int AS total,
-              COUNT(c.id) FILTER (WHERE COALESCE(activity.interactions, 0) > 1)::int AS repeat
-       FROM "customer" c
-       LEFT JOIN activity ON activity."customerId" = c.id
-       WHERE c."organizationId" = $1`,
+       SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE activity.interactions > 1)::int AS repeat
+       FROM activity`,
       [organizationId]
     ),
   ]);
@@ -318,6 +326,18 @@ const requestPythonAnalytics = async (snapshot, requestId = "") => {
   }
 };
 
+export const buildAdvancedAnalyticsResponse = ({ result = {}, snapshot = {}, serviceMessage = "" } = {}) =>
+  withReebsAnalyticsScope({
+    ...result,
+    organizationId: snapshot.organizationId,
+    generatedAt: snapshot.generatedAt,
+    service: {
+      connected: result.source === "python",
+      mode: result.source === "python" ? "python" : "fallback",
+      message: serviceMessage,
+    },
+  });
+
 export async function handler(event = {}) {
   const method = String(event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") return respond(event, 204, {}, { methods: METHODS });
@@ -348,16 +368,12 @@ export async function handler(event = {}) {
     }
 
     const result = analytics || buildFallbackAnalytics(snapshot);
-    return respond(event, 200, {
-      ...result,
-      organizationId: snapshot.organizationId,
-      generatedAt: snapshot.generatedAt,
-      service: {
-        connected: result.source === "python",
-        mode: result.source === "python" ? "python" : "fallback",
-        message: serviceMessage,
-      },
-    }, { methods: METHODS });
+    return respond(
+      event,
+      200,
+      buildAdvancedAnalyticsResponse({ result, snapshot, serviceMessage }),
+      { methods: METHODS }
+    );
   } catch (error) {
     console.error("Advanced dashboard analytics failed", error?.message || error);
     return respond(event, 500, { error: "Unable to load advanced analytics." }, { methods: METHODS });

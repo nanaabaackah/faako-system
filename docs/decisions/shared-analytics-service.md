@@ -71,4 +71,3 @@ review. Public Astro sites and browsers are not direct consumers.
 The repository gains one governed platform boundary without a risky deployment rename.
 Consumers must provide stable context and accept quality/staleness states. Some existing
 REEBS naming remains temporarily and is tracked as migration debt.
-

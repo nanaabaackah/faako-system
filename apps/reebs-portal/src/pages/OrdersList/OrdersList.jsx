@@ -887,7 +887,11 @@ function OrdersList() {
 
       const response = await reebsApiResponse("/api/orderPayments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": globalThis.crypto?.randomUUID?.()
+            || `payment-${paymentAction.order.id}-${Date.now()}`,
+        },
         body: JSON.stringify(paymentPayload),
         signal: controller.signal,
       });

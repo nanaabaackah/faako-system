@@ -7,7 +7,7 @@
 - **Runtime:** Python 3.12 container; code supports Python 3.11+
 - **Build:** Dockerfile or `python -m pip install .`
 - **Start:** Uvicorn `app.main:app`
-- **Health:** `/health`
+- **Liveness:** `/health`
 - **Readiness:** `/ready`
 - **Network:** private/internal service networking preferred; never directly exposed to browsers
 
@@ -34,9 +34,12 @@ Do not configure transactional database, payment or browser-public secrets in th
 ## Deployment sequence
 
 1. Build/test the image with isolated Python dependencies.
-2. Configure caller-scoped credentials and private network route.
+2. Configure caller-scoped credentials and private network route. For REEBS, the
+   `reebs-backend` scoped entry's secret must match the portal API service's
+   `FAAKO_ANALYTICS_SERVICE_SECRET`; never put either value in a browser variable.
 3. Deploy the service while legacy REEBS endpoint/configuration remains active.
-4. Verify `/health`, `/ready`, one authorised tenant request and one denied tenant request.
+4. Configure the platform health-check path as `/ready`, then verify `/health`,
+   `/ready`, one authorised tenant request and one denied tenant request.
 5. Deploy consumer adapters and observe fallback/error rates.
 6. Rotate/remove legacy aliases only in a later verified migration.
 
@@ -51,4 +54,3 @@ external error monitoring is enabled.
 Rollback the consumer first to `/v1/dashboard/insights` or its safe local fallback,
 then restore the prior service image. The service is stateless and introduces no data
 migration/backfill in this phase.
-

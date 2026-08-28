@@ -57,4 +57,3 @@ not-found, rate-limit and server/unavailable. No stack trace or input record is 
 Additive result fields may be introduced without changing a calculation version.
 Formula, window, exclusion, grain or threshold changes require a new calculation
 version and metric-catalogue review. Breaking envelope changes require a new API version.
-

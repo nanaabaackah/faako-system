@@ -144,20 +144,6 @@ export declare const inventoryAdjustmentSchema: z.ZodType<{
   referenceId?: string | number | null;
 }>;
 
-export declare const bookingInputSchema: z.ZodType<{
-  customerId?: string | number;
-  attendeeName: string;
-  attendeeEmail: string;
-  title: string;
-  description?: string;
-  startAt: string;
-  endAt?: string;
-  durationMinutes?: number;
-  location?: string;
-  meetingLink?: string;
-  honeypot?: string;
-}>;
-
 export declare const orderLineInputSchema: z.ZodType<{
   productId?: string | number;
   productSlug?: string;
@@ -207,6 +193,20 @@ export declare const deliveryUpdateSchema: z.ZodType<{
   scheduledAt?: string;
   deliveredAt?: string;
   notes?: string | null;
+}>;
+
+export declare const bookingInputSchema: z.ZodType<{
+  customerId?: string | number;
+  attendeeName: string;
+  attendeeEmail: string;
+  title: string;
+  description?: string;
+  startAt: string;
+  endAt?: string;
+  durationMinutes?: number;
+  location?: string;
+  meetingLink?: string;
+  honeypot?: string;
 }>;
 
 export declare const invoiceLineInputSchema: z.ZodType<{
@@ -285,6 +285,49 @@ export declare const eventRegistrationInputSchema: z.ZodType<{
   honeypot?: string;
 }>;
 
+export declare const reebsBusinessScopeSchema: z.ZodType<"reebs-core" | "water" | "consolidated" | "shared">;
+export declare const reebsPaginationQuerySchema: z.ZodType<{
+  page: number;
+  pageSize: number;
+  search?: string;
+  sort?: string;
+  direction?: "asc" | "desc";
+}>;
+export declare const reebsLoginInputSchema: z.ZodType<{
+  email: string;
+  password: string;
+  remember?: boolean;
+}>;
+export declare const reebsPublicCustomerInputSchema: z.ZodType<{
+  name: string;
+  email?: string;
+  phone?: string;
+}>;
+export declare const reebsBookingLineInputSchema: z.ZodType<{
+  productId: string | number;
+  variantId?: string | number | null;
+  quantity: number;
+}>;
+export declare const reebsBookingCreateInputSchema: z.ZodType<{
+  customerId: string | number;
+  eventDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  venueAddress?: string | null;
+  items: Array<{ productId: string | number; variantId?: string | number | null; quantity: number }>;
+  paymentPreference?: string | Record<string, unknown> | null;
+  applyBundleDiscount?: boolean;
+  discount?: number;
+  status?: string;
+  source?: string;
+}>;
+export declare const reebsPaymentInitializationSchema: z.ZodType<{
+  orderReference: string;
+  idempotencyKey: string;
+  currency?: string;
+}>;
+export declare const waterBusinessScopeSchema: z.ZodType<"water">;
+
 export interface ValidationIssue {
   field: string;
   code: string;
@@ -314,6 +357,9 @@ export type VendorFormInput = z.infer<typeof vendorFormSchema>;
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type InventoryAdjustmentInput = z.infer<
   typeof inventoryAdjustmentSchema
+>;
+export type OrderStatusTransitionInput = z.infer<
+  typeof orderStatusTransitionSchema
 >;
 export type BookingInput = z.infer<typeof bookingInputSchema>;
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;

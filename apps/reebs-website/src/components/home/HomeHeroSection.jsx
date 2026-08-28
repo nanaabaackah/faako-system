@@ -37,17 +37,24 @@ function HomeHeroSection({
 
         <p className="hero-subtitle">{templateSettings.heroTagline}</p>
 
+        <div className="hero-primary-actions" aria-label="Start planning">
+          <a href="/rentals" className="hero-primary-action">Browse rentals</a>
+          <a href="/shop" className="hero-secondary-action">Shop party supplies</a>
+        </div>
+
         <form className="hero-lead-form reveal" onSubmit={onHeroLeadSubmit}>
+          <span className="sr-only" id="home-newsletter-label">Get planning updates by email</span>
           <input
             type="email"
             value={heroEmail}
             onChange={(event) => onHeroEmailChange(event.target.value)}
             placeholder="Email address"
             aria-label="Email address"
+            aria-describedby="home-newsletter-label"
             required
           />
           <button type="submit" className="hero-lead-submit">
-            <span>Sign up to our Newsletter</span>
+            <span>Get planning updates</span>
             <span aria-hidden="true">→</span>
           </button>
         </form>

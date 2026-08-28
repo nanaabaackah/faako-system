@@ -11,6 +11,7 @@ import {
   appendQuery,
   createApiClient,
   createCustomersApi,
+  createReebsApi,
   getApiErrorPresentation,
 } from "../src/index.ts";
 import { createServerApiClient } from "../src/server.ts";
@@ -24,6 +25,23 @@ const jsonResponse = (
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+
+test("REEBS client targets stable customer routes without changing payloads", async () => {
+  const calls: Array<{ url: string; method?: string; body?: BodyInit | null }> = [];
+  const client = createApiClient({
+    baseUrl: "https://example.com/api",
+    fetch: async (input, init) => {
+      calls.push({ url: String(input), method: init?.method, body: init?.body });
+      return jsonResponse({ id: 7 });
+    },
+  });
+  const reebs = createReebsApi(client, { pathPrefix: "/v1" });
+  await reebs.bookings.create({ customerId: 1, items: [] });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "https://example.com/api/v1/bookings");
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].body, JSON.stringify({ customerId: 1, items: [] }));
+});
 
 test("standardises JSON headers, explicit credentials, and raw payloads", async () => {
   let capturedUrl = "";

@@ -12,6 +12,8 @@ import SearchField from "../../components/SearchField/SearchField";
 import { useCart } from "../../components/CartContext/CartContext";
 import SiteLoader from "/src/components/SiteLoader/SiteLoader";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
+import { publicApiResponse } from "/src/lib/publicApi";
+import { normalizePublicCommercialTerms } from "/src/utils/commercialTerms";
 import {
   getCatalogItemBackgroundStyle,
   getCatalogItemDisplayName,
@@ -155,10 +157,6 @@ const formatDateShort = (value) => {
   });
 };
 
-const BUNDLE_MIN_ITEMS = 3;
-const BUNDLE_DISCOUNT_RATE = 0.1;
-const DEFAULT_ATTENDANT_RATE = 100;
-const ATTENDANT_RATE = Number.parseFloat(import.meta.env?.VITE_REEBS_ATTENDANT_RATE || "") || DEFAULT_ATTENDANT_RATE;
 const BOOKING_DRAFT_KEY = "bookingDraft";
 const EVENT_WINDOW_OPTIONS = [
   { value: "Morning setup (7am - 11am)", label: "Morning setup (7am – 11am)", endMinutes: 11 * 60 },
@@ -192,6 +190,9 @@ function Book() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+  const [commercialTerms, setCommercialTerms] = useState(null);
+  const [commercialTermsLoading, setCommercialTermsLoading] = useState(true);
+  const [commercialTermsError, setCommercialTermsError] = useState("");
   const [bookingReceipt, setBookingReceipt] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const [selectedIndoorGameIds, setSelectedIndoorGameIds] = useState([]);
@@ -204,6 +205,41 @@ function Book() {
   useEffect(() => {
     const intervalId = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadCommercialTerms = async () => {
+      setCommercialTermsLoading(true);
+      setCommercialTermsError("");
+      try {
+        const response = await publicApiResponse("/v1/commercial-config/public", {
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Current booking prices are unavailable.");
+        }
+        const normalized = normalizePublicCommercialTerms(payload);
+        if (active) setCommercialTerms(normalized);
+      } catch (error) {
+        if (!active || controller.signal.aborted || error?.name === "AbortError") return;
+        setCommercialTerms(null);
+        setCommercialTermsError(
+          error?.message || "Current booking prices are unavailable."
+        );
+      } finally {
+        if (active) setCommercialTermsLoading(false);
+      }
+    };
+
+    loadCommercialTerms();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -262,7 +298,7 @@ function Book() {
         setBouncyTypes(Array.isArray(bouncyData) ? bouncyData : []);
         setPumpProduct(pumpItem);
       } catch (err) {
-        if (err?.name === "AbortError") return;
+        if (!active || controller.signal.aborted || err?.name === "AbortError") return;
         console.error("❌ Error fetching rental:", err);
       } finally {
         if (active) setLoading(false);
@@ -407,11 +443,19 @@ function Book() {
   const getBookingQuantity = (item) =>
     isPerHeadRate(item?.rate) && guestCountValue > 0 ? guestCountValue : 1;
 
-  const bundleEligible = selectedRentals.length >= BUNDLE_MIN_ITEMS;
+  const bundleMinimumItems = commercialTerms?.booking?.bundleMinimumItems ?? null;
+  const bundleDiscountBps = commercialTerms?.booking?.bundleDiscountBps ?? null;
+  const attendantUnitFeeCents = commercialTerms?.booking?.attendantUnitFeeCents ?? null;
+  const commercialPricingReady = Number.isInteger(bundleMinimumItems)
+    && Number.isInteger(bundleDiscountBps)
+    && Number.isInteger(attendantUnitFeeCents);
+  const bundleDiscountRate = commercialPricingReady ? bundleDiscountBps / 10000 : 0;
+  const attendantRate = commercialPricingReady ? attendantUnitFeeCents / 100 : 0;
+  const bundleEligible = commercialPricingReady && selectedRentals.length >= bundleMinimumItems;
   const subtotal = selectedRentals.reduce((sum, item) => {
     return sum + getItemTotal(item);
   }, 0);
-  const bundleDiscount = bundleEligible ? subtotal * BUNDLE_DISCOUNT_RATE : 0;
+  const bundleDiscount = bundleEligible ? subtotal * bundleDiscountRate : 0;
   const pumpQuantity = selectedRentals.reduce((sum, item) => {
     const motors = Math.max(0, Number(item?.motorsToPump || 0));
     if (!motors) return sum;
@@ -424,7 +468,7 @@ function Book() {
     if (!attendants) return sum;
     return sum + attendants * getBookingQuantity(item);
   }, 0);
-  const attendantCharge = attendantCount * ATTENDANT_RATE;
+  const attendantCharge = attendantCount * attendantRate;
   const automaticChargeLines = [
     pumpQuantity > 0
       ? {
@@ -442,7 +486,7 @@ function Book() {
           label: "Attendant fee",
           helper: `${attendantCount} ${attendantCount === 1 ? "attendant" : "attendants"} required`,
           quantity: attendantCount,
-          unitPrice: ATTENDANT_RATE,
+          unitPrice: attendantRate,
           total: attendantCharge,
         }
       : null,
@@ -450,7 +494,9 @@ function Book() {
   const automaticChargeTotal = automaticChargeLines.reduce((sum, line) => sum + line.total, 0);
   const automaticChargeNote = automaticChargeLines.map((line) => `${line.label}: ${line.helper}`).join(", ");
   const totalAfterDiscount = Math.max(0, subtotal - bundleDiscount + automaticChargeTotal);
-  const bundleRemaining = Math.max(0, BUNDLE_MIN_ITEMS - selectedRentals.length);
+  const bundleRemaining = commercialPricingReady
+    ? Math.max(0, bundleMinimumItems - selectedRentals.length)
+    : 0;
 
   useEffect(() => {
     if (!noteTouched) {
@@ -535,9 +581,13 @@ function Book() {
     if (!Number.isFinite(parsed) || parsed <= 0) return "TBD";
     return formatCurrency(convertPrice(parsed / 100));
   };
-  const bundleLabel = `Bundle discount (${Math.round(BUNDLE_DISCOUNT_RATE * 100)}% off ${BUNDLE_MIN_ITEMS}+ items)`;
-  const subtotalReady = subtotal > 0;
-  const discountDisplay = bundleEligible
+  const bundleLabel = commercialPricingReady
+    ? `Bundle discount (${bundleDiscountBps / 100}% off ${bundleMinimumItems}+ items)`
+    : "Bundle discount (confirmed from current terms)";
+  const subtotalReady = subtotal > 0 && commercialPricingReady;
+  const discountDisplay = !commercialPricingReady
+    ? "Pricing unavailable"
+    : bundleEligible
     ? subtotalReady
       ? `- ${formatAmount(bundleDiscount)}`
       : "Applied at confirmation"
@@ -556,7 +606,7 @@ function Book() {
       lookups.push(`/api/customers?name=${encodeURIComponent(lookupName)}`);
     }
     for (const lookupUrl of lookups) {
-      const existingRes = await fetch(lookupUrl);
+      const existingRes = await publicApiResponse(lookupUrl.replace("/api/customers", "/v1/customers"));
       if (!existingRes.ok) continue;
       const payload = await existingRes.json();
       if (payload?.id) return payload;
@@ -598,6 +648,10 @@ function Book() {
       setSubmitError("Select at least one rental item before booking.");
       return;
     }
+    if (!commercialPricingReady) {
+      setSubmitError("Current booking prices are unavailable. Please try again shortly.");
+      return;
+    }
     if (bundleSelected && selectedIndoorGameIds.length < 3) {
       setSubmitError("Select at least three indoor games for the board game bundle.");
       return;
@@ -622,7 +676,7 @@ function Book() {
     try {
       let customerPayload = await fetchExistingCustomer({ email, phone, name });
       if (!customerPayload?.id) {
-        const customerRes = await fetch("/api/customers", {
+        const customerRes = await publicApiResponse("/v1/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, phone }),
@@ -657,7 +711,7 @@ function Book() {
         applyBundleDiscount: true,
         status: "pending",
       };
-      let bookingRes = await fetch("/api/bookings", {
+      let bookingRes = await publicApiResponse("/v1/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingBody),
@@ -667,7 +721,7 @@ function Book() {
         const existing = await fetchExistingCustomer({ email, phone, name });
         if (existing?.id) {
           bookingBody.customerId = existing.id;
-          bookingRes = await fetch("/api/bookings", {
+          bookingRes = await publicApiResponse("/v1/bookings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bookingBody),
@@ -761,8 +815,8 @@ function Book() {
                   <span>Delivery & pickup</span>
                 </div>
                 <div>
-                  <strong>48 hrs</strong>
-                  <span>Reschedule window</span>
+                  <strong>Live terms</strong>
+                  <span>Server-priced</span>
                 </div>
               </div>
             </div>
@@ -968,10 +1022,23 @@ function Book() {
 
                 <div className="form-footer">
                   <small className="hint">We reply same day for bookings within Accra.</small>
-                  <button type="submit" className="btn btn-primary" disabled={submitting}>
-                    {submitting ? "Submitting..." : "Request booking"}
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={submitting || commercialTermsLoading || !commercialPricingReady}
+                  >
+                    {submitting
+                      ? "Submitting..."
+                      : commercialTermsLoading
+                        ? "Loading current prices..."
+                        : "Request booking"}
                   </button>
                 </div>
+                {commercialTermsError && (
+                  <p className="form-error" role="alert">
+                    {commercialTermsError} Booking submission is paused so an outdated price cannot be used.
+                  </p>
+                )}
                 {submitError && <p className="form-error">{submitError}</p>}
                 {submitSuccess && <p className="form-success">{submitSuccess}</p>}
               </form>

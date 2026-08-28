@@ -35,4 +35,3 @@
 - Permission/tenant changes require representative denied and allowed route tests.
 - Authentication changes require login, logout, expiry, invalidation, and protected-route tests.
 - Payment/webhook changes require signature, replay/idempotency, and redaction tests.
-

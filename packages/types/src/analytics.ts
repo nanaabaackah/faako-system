@@ -2,6 +2,7 @@ import type { DomainValue, IsoDateTimeString } from "./domain";
 
 export type AnalyticsApplicationId = string;
 export type AnalyticsTenantId = string;
+export type AnalyticsBusinessUnit = "REEBS_CORE" | "SHARED";
 export type AnalyticsConfidence = "low" | "medium" | "high" | "not_applicable";
 export type AnalyticsDataQualityStatus = "good" | "warning" | "blocked";
 export type AnalyticsDataQualityCheckStatus = "pass" | "warning" | "fail";
@@ -9,6 +10,7 @@ export type AnalyticsDataQualityCheckStatus = "pass" | "warning" | "fail";
 export interface AnalyticsContext {
   applicationId: AnalyticsApplicationId;
   tenantId: AnalyticsTenantId;
+  businessUnit: AnalyticsBusinessUnit;
 }
 
 export interface AnalyticsCalculationPeriod {
@@ -108,4 +110,3 @@ export interface AnalyticsDataset<Row extends Record<string, DomainValue> = Reco
   grain: string;
   rows: Row[];
 }
-

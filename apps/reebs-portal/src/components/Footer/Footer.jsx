@@ -2,16 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
 import { Link } from 'react-router-dom';
-import { Call, Location, Sms } from 'iconsax-react';
+import { ArrowRight, Call, Facebook, Instagram, Location, Sms, Whatsapp } from 'iconsax-react';
 import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from '@faako/finance';
 import { useCart } from '../CartContext/CartContext';
-import {
-  IoLogoFacebook,
-  IoLogoInstagram,
-  IoLogoTiktok,
-  IoLogoWhatsapp,
-  IoArrowForward,
-} from 'react-icons/io5';
 import {
   clearExpiringDraft,
   loadExpiringDraft,
@@ -117,7 +110,7 @@ function Footer() {
             />
             <button type="submit">
               <span>Book your party</span>
-              <IoArrowForward aria-hidden="true" />
+              <ArrowRight aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -180,7 +173,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoFacebook />
+                <Facebook />
                 <span>Facebook</span>
               </a>
               <a
@@ -189,7 +182,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoInstagram />
+                <Instagram />
                 <span>Instagram</span>
               </a>
               <a
@@ -198,7 +191,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoTiktok />
+                <span aria-hidden="true" className="footer-social-monogram">T</span>
                 <span>TikTok</span>
               </a>
               <a
@@ -207,7 +200,7 @@ function Footer() {
                 rel="noopener noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoWhatsapp />
+                <Whatsapp />
                 <span>WhatsApp</span>
               </a>
             </div>

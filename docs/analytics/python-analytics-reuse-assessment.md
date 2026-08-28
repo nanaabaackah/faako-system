@@ -23,4 +23,3 @@
 A calculation is not reusable merely because its code is generic. It becomes a
 shared metric only after its business definition, source grain, exclusions, owner,
 refresh cadence and data-quality requirements are approved in the metric catalogue.
-

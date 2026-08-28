@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -8,6 +8,7 @@ import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
+  ADMIN_PREFERENCES_CHANGE_EVENT,
   ADMIN_FONT_SIZE_OPTIONS,
   ADMIN_THEME_OPTIONS,
   DEFAULT_ADMIN_PREFERENCES,
@@ -19,16 +20,34 @@ import {
   loadInventorySnapshot,
   loadOfflineQueue,
 } from "../../utils/offlineQueue";
+import {
+  COMMERCIAL_CONFIG_ENDPOINT,
+  WATER_PRICE_TYPES,
+  buildCommercialRulePayload,
+  buildWaterPricePayload,
+  formatCommercialRuleValue,
+  formatWaterPrice,
+  getCommercialScheduleAccess,
+  getCoreRuleModels,
+  getRuleInputBounds,
+  groupWaterPriceSchedule,
+  toDateInputValue,
+} from "./commercialSettings";
+import {
+  DEFAULT_DOCUMENT_IDENTITY,
+  cacheDocumentIdentity,
+  loadPortalSettings,
+  readCachedPortalConfig,
+  savePortalSettingsSection,
+} from "../../utils/portalSettings";
 
 const defaultConfig = {
   currency: "GHS",
   taxRate: "0",
-  storeName: "Reebs Rentals",
-  storeEmail: "",
-  storePhone: "",
-  storeAddress: "Sakumono Broadway, Tema, Ghana",
   transportRate: "0",
+  ...DEFAULT_DOCUMENT_IDENTITY,
 };
+const SYSTEM_ADMIN_EMAIL = "system_admin@reebs.com";
 const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const PROFILE_IMAGE_TARGET_SIZE = 320;
 const PROFILE_IMAGE_TYPES = new Set([
@@ -38,6 +57,19 @@ const PROFILE_IMAGE_TYPES = new Set([
   "image/gif",
 ]);
 const LOW_STOCK_THRESHOLD = 3;
+const scheduleDateFormatter = new Intl.DateTimeFormat("en-GH", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+const formatScheduleDate = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown date" : scheduleDateFormatter.format(date);
+};
+
+const formatWaterPriceType = (value) =>
+  WATER_PRICE_TYPES.find((option) => option.value === value)?.label || String(value || "Price");
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -147,6 +179,9 @@ function AdminSettings({ profileOnly = false }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [preferencesForm, setPreferencesForm] = useState(DEFAULT_ADMIN_PREFERENCES);
   const [preferencesStatus, setPreferencesStatus] = useState("");
+  const [preferencesError, setPreferencesError] = useState("");
+  const [preferencesSaving, setPreferencesSaving] = useState(false);
+  const preferencesRevisionRef = useRef(0);
 
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -154,9 +189,33 @@ function AdminSettings({ profileOnly = false }) {
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff", password: "" });
   const [inviteStatus, setInviteStatus] = useState("");
 
-  const [configForm, setConfigForm] = useState(defaultConfig);
+  const [configForm, setConfigForm] = useState(() => ({
+    ...defaultConfig,
+    ...readCachedPortalConfig(),
+  }));
   const [configStatus, setConfigStatus] = useState("");
-  const [advancedViewMode, setAdvancedViewMode] = useState("simple");
+  const [configError, setConfigError] = useState("");
+  const [configSaving, setConfigSaving] = useState(false);
+  const [portalSettingsLoading, setPortalSettingsLoading] = useState(false);
+  const [portalSettingsError, setPortalSettingsError] = useState("");
+  const [canManageDocumentIdentity, setCanManageDocumentIdentity] = useState(false);
+  const [commercialSchedule, setCommercialSchedule] = useState(null);
+  const [commercialLoading, setCommercialLoading] = useState(false);
+  const [commercialLoadError, setCommercialLoadError] = useState("");
+  const [commercialSaveError, setCommercialSaveError] = useState("");
+  const [commercialStatus, setCommercialStatus] = useState("");
+  const [commercialSavingKey, setCommercialSavingKey] = useState("");
+  const [commercialRuleDrafts, setCommercialRuleDrafts] = useState({});
+  const [waterPriceDrafts, setWaterPriceDrafts] = useState({});
+  const [newWaterPriceDraft, setNewWaterPriceDraft] = useState({
+    productKey: "",
+    productName: "",
+    priceType: "RETAIL",
+    minimumQuantity: "1",
+    price: "",
+    currency: "GHS",
+    effectiveDate: toDateInputValue(),
+  });
   const [advancedHealth, setAdvancedHealth] = useState({
     queuePending: 0,
     queueFailed: 0,
@@ -166,18 +225,29 @@ function AdminSettings({ profileOnly = false }) {
   });
 
   const roleKey = (user?.role || "staff").toLowerCase();
-  const isAdmin = roleKey === "admin";
+  const isSystemAdmin = String(user?.email || "").trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+  const canViewUsers = ["owner", "admin", "manager"].includes(roleKey);
+  const canCreateUsers = ["owner", "admin"].includes(roleKey);
+  const canManageIdentityForRole = ["owner", "admin"].includes(roleKey);
+  const commercialScheduleAccess = getCommercialScheduleAccess(roleKey);
+  const canManageCommercialSchedule = commercialScheduleAccess.canManage;
+  const canViewCoreCommercialSchedule = commercialScheduleAccess.canViewCore;
+  const canViewWaterPriceSchedule = commercialScheduleAccess.canViewWater;
+  const canViewCommercialSchedule = canViewCoreCommercialSchedule || canViewWaterPriceSchedule;
   const showTabs = !profileOnly;
   const pageTitle = profileOnly ? "My Profile" : "Settings";
   const pageSubtitle = profileOnly
     ? "Update your name, username, delivery email, password, photo, and system preferences."
-    : "Manage your profile, staff access, ERP configuration, and admin controls.";
+    : "Manage your profile, staff access, commercial configuration, and portal controls.";
   const breadcrumbItems = [{ label: profileOnly ? "Profile" : "Settings" }];
-  const viewModeStorageKey = useMemo(
-    () => `reebs_admin_view_mode_${user?.id || "guest"}`,
-    [user?.id]
-  );
   const legacyModuleLinks = useMemo(() => getAdminQuickActions(roleKey), [roleKey]);
+
+  const selectSettingsTab = useCallback((tab) => {
+    setActiveTab(tab);
+    if (!profileOnly) {
+      navigate(`/admin/settings?tab=${tab}`, { replace: true });
+    }
+  }, [navigate, profileOnly]);
 
   const syncUserProfile = (data) => {
     const nextFirstName = String(data?.firstName || "").trim();
@@ -208,31 +278,78 @@ function AdminSettings({ profileOnly = false }) {
       return;
     }
     const params = new URLSearchParams(location.search);
-    const requestedTab = params.get("tab");
+    const requestedTab = params.get("tab") === "commercial" ? "config" : params.get("tab");
     const allowedTabs = new Set(["profile", "users", "config", "advanced"]);
     if (!allowedTabs.has(requestedTab)) return;
-    if (requestedTab === "users" && !isAdmin) {
+    if (requestedTab === "users" && !canViewUsers) {
       setActiveTab("profile");
       return;
     }
     setActiveTab(requestedTab);
-  }, [isAdmin, location.search, profileOnly]);
+  }, [canViewUsers, location.search, profileOnly]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
     return () => document.body.classList.remove("admin-theme");
   }, []);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("reebs_erp_config");
-    if (stored) {
-      try {
-        setConfigForm({ ...defaultConfig, ...JSON.parse(stored) });
-      } catch {
-        setConfigForm(defaultConfig);
-      }
-    }
+  const hydrateCommercialDrafts = useCallback((schedule) => {
+    const effectiveDate = toDateInputValue();
+    setCommercialRuleDrafts(Object.fromEntries(
+      getCoreRuleModels(schedule).map(({ definition }) => [
+        definition.key,
+        { value: "", effectiveDate },
+      ]),
+    ));
+    setWaterPriceDrafts(Object.fromEntries(
+      groupWaterPriceSchedule(schedule).map(({ key, reference }) => [
+        key,
+        {
+          price: "",
+          minimumQuantity: String(reference?.minimumQuantity || 1),
+          currency: String(reference?.currency || "GHS").toUpperCase(),
+          effectiveDate,
+        },
+      ]),
+    ));
   }, []);
+
+  const loadCommercialSchedule = useCallback(async () => {
+    if (!canViewCommercialSchedule) {
+      setCommercialSchedule(null);
+      setCommercialLoadError("");
+      return;
+    }
+    setCommercialLoading(true);
+    setCommercialLoadError("");
+    try {
+      const response = await fetch(`${COMMERCIAL_CONFIG_ENDPOINT}?view=schedule`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to load the shared commercial schedule.");
+      }
+      setCommercialSchedule(data);
+      hydrateCommercialDrafts(data);
+    } catch (error) {
+      setCommercialLoadError(error.message || "Failed to load the shared commercial schedule.");
+    } finally {
+      setCommercialLoading(false);
+    }
+  }, [canViewCommercialSchedule, hydrateCommercialDrafts]);
+
+  useEffect(() => {
+    if (activeTab !== "config") return;
+    loadCommercialSchedule();
+  }, [activeTab, loadCommercialSchedule]);
+
+  const coreRuleModels = useMemo(
+    () => getCoreRuleModels(commercialSchedule || {}),
+    [commercialSchedule],
+  );
+  const waterPriceGroups = useMemo(
+    () => groupWaterPriceSchedule(commercialSchedule || {}),
+    [commercialSchedule],
+  );
 
   useEffect(() => {
     const name =
@@ -258,31 +375,59 @@ function AdminSettings({ profileOnly = false }) {
   useEffect(() => {
     setPreferencesForm(readAdminPreferences(user?.id));
     setPreferencesStatus("");
+    setPreferencesError("");
+
+    const handlePreferenceChange = (event) => {
+      const changedUserId = String(event?.detail?.userId || "guest");
+      if (changedUserId !== String(user?.id || "guest")) return;
+      preferencesRevisionRef.current += 1;
+      setPreferencesForm(event?.detail?.preferences || readAdminPreferences(user?.id));
+    };
+    window.addEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferenceChange);
+    return () => window.removeEventListener(ADMIN_PREFERENCES_CHANGE_EVENT, handlePreferenceChange);
   }, [user?.id]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isAdmin) {
-      setAdvancedViewMode("simple");
-      return;
-    }
-    try {
-      const stored = window.localStorage.getItem(viewModeStorageKey);
-      if (stored === "advanced" || stored === "simple") {
-        setAdvancedViewMode(stored);
-      }
-    } catch {
-      setAdvancedViewMode("simple");
-    }
-  }, [isAdmin, viewModeStorageKey]);
+    if (!user?.id) return undefined;
+    const controller = new AbortController();
+    let ignore = false;
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !isAdmin) return;
-    try {
-      window.localStorage.setItem(viewModeStorageKey, advancedViewMode);
-    } catch {
-      // ignore storage failures
-    }
-  }, [advancedViewMode, isAdmin, viewModeStorageKey]);
+    const syncPortalSettings = async () => {
+      const loadRevision = preferencesRevisionRef.current;
+      setPortalSettingsLoading(true);
+      setPortalSettingsError("");
+      try {
+        const data = await loadPortalSettings({ signal: controller.signal });
+        if (ignore) return;
+        if (
+          data?.preferences
+          && preferencesRevisionRef.current === loadRevision
+        ) {
+          setPreferencesForm(writeAdminPreferences(user.id, data.preferences));
+        }
+        if (data?.documentIdentity) {
+          const identity = cacheDocumentIdentity(data.documentIdentity);
+          setConfigForm((previous) => ({ ...previous, ...identity }));
+        }
+        setCanManageDocumentIdentity(
+          Boolean(data?.capabilities?.canManageDocumentIdentity) && canManageIdentityForRole,
+        );
+      } catch (error) {
+        if (error?.name !== "AbortError" && !ignore) {
+          setPortalSettingsError(error.message || "Shared portal settings could not be loaded.");
+          setCanManageDocumentIdentity(canManageIdentityForRole);
+        }
+      } finally {
+        if (!ignore) setPortalSettingsLoading(false);
+      }
+    };
+
+    syncPortalSettings();
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [canManageIdentityForRole, user?.id]);
 
   useEffect(() => {
     if (activeTab !== "profile") return;
@@ -379,9 +524,9 @@ function AdminSettings({ profileOnly = false }) {
   };
 
   useEffect(() => {
-    if (activeTab !== "users" || !isAdmin) return;
+    if (activeTab !== "users" || !canViewUsers) return;
     fetchUsers();
-  }, [activeTab, isAdmin]);
+  }, [activeTab, canViewUsers]);
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -390,6 +535,10 @@ function AdminSettings({ profileOnly = false }) {
     setProfileImageError("");
     if (!profileForm.firstName || !profileForm.lastName) {
       setProfileError("First and last name are required.");
+      return;
+    }
+    if (profileForm.password && profileForm.password.length < 8) {
+      setProfileError("New password must be at least 8 characters.");
       return;
     }
     try {
@@ -456,6 +605,7 @@ function AdminSettings({ profileOnly = false }) {
 
   const inviteUser = async (event) => {
     event.preventDefault();
+    if (!canCreateUsers) return;
     setInviteStatus("");
     setUsersError("");
     try {
@@ -475,17 +625,152 @@ function AdminSettings({ profileOnly = false }) {
     }
   };
 
-  const saveConfig = (event) => {
-    event.preventDefault();
-    localStorage.setItem("reebs_erp_config", JSON.stringify(configForm));
-    setConfigStatus("Configuration saved.");
+  const postCommercialResource = async (payload) => {
+    const response = await fetch(COMMERCIAL_CONFIG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.error || "The commercial schedule was not updated.");
+    }
+    return data;
   };
 
-  const savePreferences = (event) => {
+  const saveCommercialRule = async (event, model) => {
     event.preventDefault();
-    const nextPreferences = writeAdminPreferences(user?.id, preferencesForm);
-    setPreferencesForm(nextPreferences);
-    setPreferencesStatus("System preferences updated.");
+    if (!canManageCommercialSchedule) return;
+    const savingKey = `rule:${model.definition.key}`;
+    setCommercialSavingKey(savingKey);
+    setCommercialSaveError("");
+    setCommercialStatus("");
+    try {
+      const payload = buildCommercialRulePayload(
+        commercialRuleDrafts[model.definition.key],
+        model.definition,
+        model.metadata,
+      );
+      await postCommercialResource(payload);
+      setCommercialStatus(`${model.metadata.label} scheduled successfully.`);
+      await loadCommercialSchedule();
+    } catch (error) {
+      setCommercialSaveError(error.message || "The REEBS Core rule was not scheduled.");
+    } finally {
+      setCommercialSavingKey("");
+    }
+  };
+
+  const saveWaterPrice = async (event, group) => {
+    event.preventDefault();
+    if (!canManageCommercialSchedule) return;
+    const savingKey = `water:${group.key}`;
+    setCommercialSavingKey(savingKey);
+    setCommercialSaveError("");
+    setCommercialStatus("");
+    try {
+      const payload = buildWaterPricePayload(waterPriceDrafts[group.key], group.reference);
+      await postCommercialResource(payload);
+      setCommercialStatus(
+        `${group.reference.productName} ${formatWaterPriceType(group.reference.priceType).toLowerCase()} price scheduled successfully.`,
+      );
+      await loadCommercialSchedule();
+    } catch (error) {
+      setCommercialSaveError(error.message || "The Water price was not scheduled.");
+    } finally {
+      setCommercialSavingKey("");
+    }
+  };
+
+  const addWaterPrice = async (event) => {
+    event.preventDefault();
+    if (!canManageCommercialSchedule) return;
+    setCommercialSavingKey("water:new");
+    setCommercialSaveError("");
+    setCommercialStatus("");
+    try {
+      const payload = buildWaterPricePayload(newWaterPriceDraft);
+      await postCommercialResource(payload);
+      setCommercialStatus(`${payload.productName} Water price scheduled successfully.`);
+      setNewWaterPriceDraft({
+        productKey: "",
+        productName: "",
+        priceType: "RETAIL",
+        minimumQuantity: "1",
+        price: "",
+        currency: "GHS",
+        effectiveDate: toDateInputValue(),
+      });
+      await loadCommercialSchedule();
+    } catch (error) {
+      setCommercialSaveError(error.message || "The Water price was not scheduled.");
+    } finally {
+      setCommercialSavingKey("");
+    }
+  };
+
+  const saveConfig = async (event) => {
+    event.preventDefault();
+    if (!canManageDocumentIdentity) return;
+    setConfigStatus("");
+    setConfigError("");
+    setConfigSaving(true);
+    try {
+      const data = await savePortalSettingsSection("documentIdentity", {
+        storeName: configForm.storeName,
+        storeEmail: configForm.storeEmail,
+        storePhone: configForm.storePhone,
+        storeAddress: configForm.storeAddress,
+      });
+      const identity = cacheDocumentIdentity(data?.documentIdentity || configForm);
+      setConfigForm((previous) => ({ ...previous, ...identity }));
+      setConfigStatus("Document identity saved for this organization.");
+    } catch (error) {
+      setConfigError(error.message || "Document identity could not be saved.");
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
+  const savePreferences = async (event) => {
+    event.preventDefault();
+    setPreferencesStatus("");
+    setPreferencesError("");
+    setPreferencesSaving(true);
+    try {
+      const data = await savePortalSettingsSection("preferences", preferencesForm);
+      const nextPreferences = writeAdminPreferences(
+        user?.id,
+        data?.preferences || preferencesForm,
+      );
+      setPreferencesForm(nextPreferences);
+      setPreferencesStatus("System preferences updated and synced.");
+    } catch (error) {
+      setPreferencesError(error.message || "System preferences could not be saved.");
+    } finally {
+      setPreferencesSaving(false);
+    }
+  };
+
+  const handleSettingsTabKeyDown = (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = Array.from(
+      event.currentTarget.querySelectorAll('[role="tab"]:not(:disabled)'),
+    );
+    if (!tabs.length) return;
+    event.preventDefault();
+    const currentIndex = tabs.indexOf(document.activeElement);
+    let nextIndex = currentIndex;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (event.key === "ArrowRight") {
+      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % tabs.length;
+    }
+    if (event.key === "ArrowLeft") {
+      nextIndex = currentIndex <= 0 ? tabs.length - 1 : currentIndex - 1;
+    }
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
   };
 
   return (
@@ -496,13 +781,19 @@ function AdminSettings({ profileOnly = false }) {
         <AdminPageHeader title={pageTitle} subtitle={pageSubtitle} />
 
         {showTabs && (
-          <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+          <div
+            className="settings-tabs"
+            role="tablist"
+            aria-label="Settings sections"
+            onKeyDown={handleSettingsTabKeyDown}
+          >
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === "profile"}
+              tabIndex={activeTab === "profile" ? 0 : -1}
               className={activeTab === "profile" ? "is-active" : ""}
-              onClick={() => setActiveTab("profile")}
+              onClick={() => selectSettingsTab("profile")}
             >
               Profile
             </button>
@@ -510,9 +801,10 @@ function AdminSettings({ profileOnly = false }) {
               type="button"
               role="tab"
               aria-selected={activeTab === "users"}
+              tabIndex={activeTab === "users" ? 0 : -1}
               className={activeTab === "users" ? "is-active" : ""}
-              onClick={() => setActiveTab("users")}
-              disabled={!isAdmin}
+              onClick={() => selectSettingsTab("users")}
+              disabled={!canViewUsers}
             >
               User Management
             </button>
@@ -520,17 +812,19 @@ function AdminSettings({ profileOnly = false }) {
               type="button"
               role="tab"
               aria-selected={activeTab === "config"}
+              tabIndex={activeTab === "config" ? 0 : -1}
               className={activeTab === "config" ? "is-active" : ""}
-              onClick={() => setActiveTab("config")}
+              onClick={() => selectSettingsTab("config")}
             >
-              ERP Config
+              Commercial Config
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === "advanced"}
+              tabIndex={activeTab === "advanced" ? 0 : -1}
               className={activeTab === "advanced" ? "is-active" : ""}
-              onClick={() => setActiveTab("advanced")}
+              onClick={() => selectSettingsTab("advanced")}
             >
               Advanced
             </button>
@@ -546,7 +840,7 @@ function AdminSettings({ profileOnly = false }) {
                     compact
                     className="glass-card admin-module-loading"
                     title="Loading profile"
-                    message="Fetching profile, preferences, and notification settings."
+                    message="Fetching your saved profile details."
                     variant="detail"
                   />
                 )}
@@ -620,7 +914,7 @@ function AdminSettings({ profileOnly = false }) {
                       autoComplete="email"
                     />
                     <span className="settings-muted">
-                      Password reset links and staff notifications are sent here.
+                      Password reset links are sent here.
                     </span>
                   </label>
                   <label>
@@ -658,7 +952,10 @@ function AdminSettings({ profileOnly = false }) {
                     value={profileForm.password}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, password: e.target.value }))}
                     placeholder="New password"
+                    minLength={8}
+                    autoComplete="new-password"
                   />
+                  <span className="settings-muted">Use at least 8 characters.</span>
                 </label>
                 {profileError && (
                   <ERPFormNotice tone="danger" title="Profile not saved" onDismiss={() => setProfileError("")}>
@@ -681,59 +978,74 @@ function AdminSettings({ profileOnly = false }) {
                 <div>
                   <h3>System preferences</h3>
                   <p className="settings-muted">
-                    Choose how the admin system looks on this device for your account.
+                    Choose how REEBS Portal looks for your account across signed-in devices.
                   </p>
                 </div>
               </div>
               <form className="settings-form" onSubmit={savePreferences}>
                 <div className="settings-grid settings-grid--preferences">
-                  <label>
-                    Theme mode
-                    <span className="settings-select">
-                      <SelectField
-                        value={preferencesForm.theme}
-                        onChange={(e) => {
-                          setPreferencesStatus("");
-                          setPreferencesForm((prev) => ({ ...prev, theme: e.target.value }));
-                        }}
-                      >
-                        {ADMIN_THEME_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </span>
-                  </label>
-                  <label>
-                    Font size
-                    <span className="settings-select">
-                      <SelectField
-                        value={preferencesForm.fontSize}
-                        onChange={(e) => {
-                          setPreferencesStatus("");
-                          setPreferencesForm((prev) => ({ ...prev, fontSize: e.target.value }));
-                        }}
-                      >
-                        {ADMIN_FONT_SIZE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </span>
-                  </label>
+                  <SelectField
+                    label="Theme mode"
+                    fieldClassName="settings-select"
+                    value={preferencesForm.theme}
+                    disabled={portalSettingsLoading || preferencesSaving}
+                    onChange={(e) => {
+                      setPreferencesStatus("");
+                      setPreferencesForm((prev) => ({ ...prev, theme: e.target.value }));
+                    }}
+                  >
+                    {ADMIN_THEME_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <SelectField
+                    label="Font size"
+                    fieldClassName="settings-select"
+                    value={preferencesForm.fontSize}
+                    disabled={portalSettingsLoading || preferencesSaving}
+                    onChange={(e) => {
+                      setPreferencesStatus("");
+                      setPreferencesForm((prev) => ({ ...prev, fontSize: e.target.value }));
+                    }}
+                  >
+                    {ADMIN_FONT_SIZE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </SelectField>
                 </div>
                 <p className="settings-muted settings-preferences-note">
-                  These preferences are stored per user in this browser and apply across the admin system.
+                  Preferences are saved to your account and cached locally so they can apply immediately.
                 </p>
+                {portalSettingsLoading && (
+                  <p className="settings-muted" role="status">Syncing saved portal preferences…</p>
+                )}
+                {portalSettingsError && (
+                  <ERPFormNotice tone="danger" title="Settings sync unavailable" onDismiss={() => setPortalSettingsError("")}>
+                    {portalSettingsError} Your cached appearance remains active.
+                  </ERPFormNotice>
+                )}
+                {preferencesError && (
+                  <ERPFormNotice tone="danger" title="Preferences not saved" onDismiss={() => setPreferencesError("")}>
+                    {preferencesError}
+                  </ERPFormNotice>
+                )}
                 {preferencesStatus && (
                   <ERPFormNotice tone="success" title="Preferences saved" onDismiss={() => setPreferencesStatus("")}>
                     {preferencesStatus}
                   </ERPFormNotice>
                 )}
                 <div className="settings-actions">
-                  <button type="submit" className="settings-primary">Save preferences</button>
+                  <button
+                    type="submit"
+                    className="settings-primary"
+                    disabled={portalSettingsLoading || preferencesSaving}
+                  >
+                    {preferencesSaving ? "Saving…" : "Save preferences"}
+                  </button>
                 </div>
               </form>
             </section>
@@ -742,11 +1054,22 @@ function AdminSettings({ profileOnly = false }) {
 
         {activeTab === "users" && (
           <section className="glass-card settings-panel">
-            <div className="settings-panel-head">
+            <div className="settings-panel-head settings-panel-head--split">
               <div>
                 <h3>User management</h3>
-                <p className="settings-muted">Admins can add staff and adjust roles.</p>
+                <p className="settings-muted">
+                  Review staff access. Owners and admins can add standard operational accounts.
+                </p>
               </div>
+              {isSystemAdmin && (
+                <button
+                  type="button"
+                  className="settings-advanced-refresh"
+                  onClick={() => navigate("/admin/roles")}
+                >
+                  Manage roles &amp; permissions
+                </button>
+              )}
             </div>
             {usersLoading && (
               <AnimatedLoadingState
@@ -778,8 +1101,9 @@ function AdminSettings({ profileOnly = false }) {
                 )}
               </div>
               <aside className="settings-sidebar">
-                <h4>Add new user</h4>
-                <form className="settings-form" onSubmit={inviteUser}>
+                <h4>{canCreateUsers ? "Add new user" : "Account access"}</h4>
+                {canCreateUsers ? (
+                  <form className="settings-form" onSubmit={inviteUser}>
                   <label>
                     First name
                     <input
@@ -798,29 +1122,33 @@ function AdminSettings({ profileOnly = false }) {
                       required
                     />
                   </label>
+                  <SelectField
+                    label="Role"
+                    fieldClassName="settings-select"
+                    value={inviteForm.role}
+                    onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
+                  >
+                    <option value="Staff">Staff</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Driver">Driver</option>
+                    {isSystemAdmin && <option value="Owner">Owner</option>}
+                    {isSystemAdmin && <option value="Admin">Admin</option>}
+                    {isSystemAdmin && <option value="Manager">Manager</option>}
+                    {isSystemAdmin && <option value="Water">Water</option>}
+                  </SelectField>
                   <label>
-                    Role
-                    <span className="settings-select">
-                      <SelectField
-                        value={inviteForm.role}
-                        onChange={(e) => setInviteForm((prev) => ({ ...prev, role: e.target.value }))}
-                      >
-                        <option value="Admin">Admin</option>
-                        <option value="Manager">Manager</option>
-                        <option value="Staff">Staff</option>
-                        <option value="Water">Water</option>
-                        <option value="Warehouse">Warehouse</option>
-                      </SelectField>
-                    </span>
-                  </label>
-                  <label>
-                    Temporary password
+                    Initial password
                     <input
                       type="password"
                       value={inviteForm.password}
                       onChange={(e) => setInviteForm((prev) => ({ ...prev, password: e.target.value }))}
+                      minLength={8}
+                      autoComplete="new-password"
                       required
                     />
+                    <span className="settings-muted">
+                      Use at least 8 characters and share it through a secure channel.
+                    </span>
                   </label>
                   {inviteStatus && (
                     <ERPFormNotice tone="success" title="User added" onDismiss={() => setInviteStatus("")}>
@@ -828,137 +1156,549 @@ function AdminSettings({ profileOnly = false }) {
                     </ERPFormNotice>
                   )}
                   <button type="submit" className="settings-primary">Add user</button>
-                </form>
+                  </form>
+                ) : (
+                  <p className="settings-muted">
+                    Your role can review staff accounts. An owner or administrator must create new accounts.
+                  </p>
+                )}
               </aside>
             </div>
           </section>
         )}
 
         {activeTab === "config" && (
-          <section className="glass-card settings-panel">
-            <div className="settings-panel-head">
-              <div>
-                <h3>ERP configuration</h3>
-                <p className="settings-muted">Set defaults like currency and tax rates.</p>
+          <>
+            {commercialSaveError && (
+              <ERPFormNotice
+                tone="danger"
+                title="Commercial schedule not updated"
+                onDismiss={() => setCommercialSaveError("")}
+              >
+                {commercialSaveError}
+              </ERPFormNotice>
+            )}
+            {commercialStatus && (
+              <ERPFormNotice
+                tone="success"
+                title="Commercial schedule updated"
+                onDismiss={() => setCommercialStatus("")}
+              >
+                {commercialStatus}
+              </ERPFormNotice>
+            )}
+            {commercialLoadError && (
+              <div className="settings-commercial-load-error">
+                <ERPFormNotice
+                  tone="danger"
+                  title="Commercial schedule unavailable"
+                  onDismiss={() => setCommercialLoadError("")}
+                >
+                  {commercialLoadError}
+                </ERPFormNotice>
+                <button
+                  type="button"
+                  className="settings-advanced-refresh"
+                  onClick={loadCommercialSchedule}
+                  disabled={commercialLoading}
+                >
+                  Try again
+                </button>
               </div>
-            </div>
-            <form className="settings-form" onSubmit={saveConfig}>
-              <label>
-                Base currency
-                <span className="settings-select">
-                  <SelectField
-                    value={configForm.currency}
-                    onChange={(e) => setConfigForm((prev) => ({ ...prev, currency: e.target.value }))}
-                  >
-                    <option value="GHS">GHS</option>
-                    <option value="GBP">GBP</option>
-                  </SelectField>
-                </span>
-              </label>
-              <label>
-                Tax rate (%)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={configForm.taxRate}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, taxRate: e.target.value }))}
+            )}
+
+            <section className="glass-card settings-panel settings-commercial-panel">
+              <div className="settings-panel-head settings-panel-head--split">
+                <div>
+                  <p className="settings-commercial-eyebrow">REEBS Core</p>
+                  <h3>Booking, delivery and deposit rules</h3>
+                  <p className="settings-muted">
+                    Shared, effective-dated rules for the REEBS rental and event business. Water is excluded.
+                  </p>
+                </div>
+                {!canManageCommercialSchedule && canViewCoreCommercialSchedule && (
+                  <span className="settings-commercial-access">Read only</span>
+                )}
+              </div>
+
+              {commercialLoading && canViewCoreCommercialSchedule && (
+                <AnimatedLoadingState
+                  compact
+                  className="glass-card admin-module-loading"
+                  title="Loading REEBS Core rules"
+                  message="Fetching the current and scheduled commercial values."
+                  variant="detail"
                 />
-              </label>
-              <label>
-                Store address
-                <input
-                  type="text"
-                  value={configForm.storeAddress}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, storeAddress: e.target.value }))}
+              )}
+
+              {!canViewCoreCommercialSchedule ? (
+                <p className="settings-commercial-empty">
+                  REEBS Core commercial rules are available to managers, admins and owners.
+                </p>
+              ) : !commercialLoading && !commercialLoadError && coreRuleModels.length === 0 ? (
+                <p className="settings-commercial-empty">
+                  No supported REEBS Core rule definitions are available.
+                </p>
+              ) : (
+                <div className="settings-commercial-list">
+                  {coreRuleModels.map((model) => {
+                    const draft = commercialRuleDrafts[model.definition.key] || {
+                      value: "",
+                      effectiveDate: toDateInputValue(),
+                    };
+                    const bounds = getRuleInputBounds(model.definition);
+                    const savingKey = `rule:${model.definition.key}`;
+                    const isSaving = commercialSavingKey === savingKey;
+                    return (
+                      <form
+                        key={model.definition.key}
+                        className="settings-commercial-row"
+                        onSubmit={(event) => saveCommercialRule(event, model)}
+                      >
+                        <div className="settings-commercial-current">
+                          <span className="settings-commercial-step">Current</span>
+                          <strong>{model.metadata.label}</strong>
+                          <span className="settings-commercial-value">
+                            {formatCommercialRuleValue(model.current, model.metadata)}
+                          </span>
+                          <small>{model.metadata.description}</small>
+                          {model.upcoming && (
+                            <small className="settings-commercial-upcoming">
+                              Scheduled: {formatCommercialRuleValue(model.upcoming, model.metadata)} from{" "}
+                              {formatScheduleDate(model.upcoming.effectiveFrom)}
+                            </small>
+                          )}
+                        </div>
+                        <label className="settings-commercial-field">
+                          <span className="settings-commercial-step">New</span>
+                          <span>{model.metadata.inputLabel}</span>
+                          <div className="settings-commercial-input-with-unit">
+                            <input
+                              type="number"
+                              min={bounds.min}
+                              max={bounds.max}
+                              step={bounds.step}
+                              value={draft.value}
+                              onChange={(event) => {
+                                setCommercialSaveError("");
+                                setCommercialRuleDrafts((previous) => ({
+                                  ...previous,
+                                  [model.definition.key]: { ...draft, value: event.target.value },
+                                }));
+                              }}
+                              placeholder={canManageCommercialSchedule ? "Enter new value" : "Owner/admin only"}
+                              disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                              required={canManageCommercialSchedule}
+                            />
+                            <span>{model.metadata.displayUnit}</span>
+                          </div>
+                        </label>
+                        <label className="settings-commercial-field">
+                          <span className="settings-commercial-step">Effective date</span>
+                          <span>Starts on</span>
+                          <input
+                            type="date"
+                            min={toDateInputValue()}
+                            value={draft.effectiveDate}
+                            onChange={(event) => setCommercialRuleDrafts((previous) => ({
+                              ...previous,
+                              [model.definition.key]: { ...draft, effectiveDate: event.target.value },
+                            }))}
+                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                            required={canManageCommercialSchedule}
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="settings-primary settings-commercial-save"
+                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                        >
+                          {isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
+                        </button>
+                      </form>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="glass-card settings-panel settings-commercial-panel settings-commercial-panel--water">
+              <div className="settings-panel-head settings-panel-head--split">
+                <div>
+                  <p className="settings-commercial-eyebrow settings-commercial-eyebrow--water">Water Business</p>
+                  <h3>Water pricing schedule</h3>
+                  <p className="settings-muted">
+                    Standalone Water product prices. These values do not become REEBS rental or event revenue.
+                  </p>
+                </div>
+                {!canManageCommercialSchedule && canViewWaterPriceSchedule && (
+                  <span className="settings-commercial-access settings-commercial-access--water">Read only</span>
+                )}
+              </div>
+
+              {commercialLoading && canViewWaterPriceSchedule && !canViewCoreCommercialSchedule && (
+                <AnimatedLoadingState
+                  compact
+                  className="glass-card admin-module-loading"
+                  title="Loading Water prices"
+                  message="Fetching the current and scheduled Water price list."
+                  variant="detail"
                 />
-              </label>
-              <label>
-                Transport rate (GHS per km)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={configForm.transportRate}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, transportRate: e.target.value }))}
-                />
-              </label>
-              <label>
-                Store name
-                <input
-                  type="text"
-                  value={configForm.storeName}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, storeName: e.target.value }))}
-                />
-              </label>
-              <label>
-                Store email
-                <input
-                  type="email"
-                  value={configForm.storeEmail}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, storeEmail: e.target.value }))}
-                />
-              </label>
-              <label>
-                Store phone
-                <input
-                  type="text"
-                  value={configForm.storePhone}
-                  onChange={(e) => setConfigForm((prev) => ({ ...prev, storePhone: e.target.value }))}
-                />
-              </label>
-              {configStatus && (
-                <ERPFormNotice tone="success" title="Configuration saved" onDismiss={() => setConfigStatus("")}>
-                  {configStatus}
+              )}
+
+              {!canViewWaterPriceSchedule ? (
+                <p className="settings-commercial-empty settings-commercial-empty--water">
+                  Water pricing is visible to authorized Water staff, admins and owners.
+                </p>
+              ) : !commercialLoading && !commercialLoadError && waterPriceGroups.length === 0 ? (
+                <p className="settings-commercial-empty settings-commercial-empty--water">
+                  No Water prices have been scheduled yet.
+                </p>
+              ) : (
+                <div className="settings-commercial-list">
+                  {waterPriceGroups.map((group) => {
+                    const draft = waterPriceDrafts[group.key] || {
+                      price: "",
+                      minimumQuantity: String(group.reference?.minimumQuantity || 1),
+                      currency: String(group.reference?.currency || "GHS"),
+                      effectiveDate: toDateInputValue(),
+                    };
+                    const savingKey = `water:${group.key}`;
+                    const isSaving = commercialSavingKey === savingKey;
+                    return (
+                      <form
+                        key={group.key}
+                        className="settings-commercial-row settings-commercial-row--water"
+                        onSubmit={(event) => saveWaterPrice(event, group)}
+                      >
+                        <div className="settings-commercial-current">
+                          <span className="settings-commercial-step">Current</span>
+                          <strong>{group.reference?.productName || group.reference?.productKey}</strong>
+                          <span className="settings-commercial-price-type">
+                            {formatWaterPriceType(group.reference?.priceType)}
+                          </span>
+                          <span className="settings-commercial-value">{formatWaterPrice(group.current)}</span>
+                          <small>
+                            Minimum {group.current?.minimumQuantity || group.reference?.minimumQuantity || 1} units
+                          </small>
+                          {group.upcoming && (
+                            <small className="settings-commercial-upcoming">
+                              Scheduled: {formatWaterPrice(group.upcoming)} from{" "}
+                              {formatScheduleDate(group.upcoming.effectiveFrom)}
+                            </small>
+                          )}
+                        </div>
+                        <div className="settings-commercial-field settings-commercial-field--price">
+                          <span className="settings-commercial-step">New</span>
+                          <div className="settings-commercial-price-fields">
+                            <label>
+                              Price
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={draft.price}
+                                onChange={(event) => {
+                                  setCommercialSaveError("");
+                                  setWaterPriceDrafts((previous) => ({
+                                    ...previous,
+                                    [group.key]: { ...draft, price: event.target.value },
+                                  }));
+                                }}
+                                placeholder="0.00"
+                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                                required={canManageCommercialSchedule}
+                              />
+                            </label>
+                            <label>
+                              Currency
+                              <input
+                                type="text"
+                                value={draft.currency}
+                                maxLength={3}
+                                onChange={(event) => setWaterPriceDrafts((previous) => ({
+                                  ...previous,
+                                  [group.key]: { ...draft, currency: event.target.value.toUpperCase() },
+                                }))}
+                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                                required={canManageCommercialSchedule}
+                              />
+                            </label>
+                            <label>
+                              Minimum quantity
+                              <input
+                                type="number"
+                                min="1"
+                                max="100000"
+                                step="1"
+                                value={draft.minimumQuantity}
+                                onChange={(event) => setWaterPriceDrafts((previous) => ({
+                                  ...previous,
+                                  [group.key]: { ...draft, minimumQuantity: event.target.value },
+                                }))}
+                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                                required={canManageCommercialSchedule}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        <label className="settings-commercial-field">
+                          <span className="settings-commercial-step">Effective date</span>
+                          <span>Starts on</span>
+                          <input
+                            type="date"
+                            min={toDateInputValue()}
+                            value={draft.effectiveDate}
+                            onChange={(event) => setWaterPriceDrafts((previous) => ({
+                              ...previous,
+                              [group.key]: { ...draft, effectiveDate: event.target.value },
+                            }))}
+                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                            required={canManageCommercialSchedule}
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="settings-primary settings-commercial-save settings-commercial-save--water"
+                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                        >
+                          {isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
+                        </button>
+                      </form>
+                    );
+                  })}
+                </div>
+              )}
+
+              {canManageCommercialSchedule && canViewWaterPriceSchedule && (
+                <details className="settings-commercial-new-water">
+                  <summary>Add a Water price schedule</summary>
+                  <form className="settings-form" onSubmit={addWaterPrice}>
+                    <div className="settings-grid">
+                      <label>
+                        Product name
+                        <input
+                          type="text"
+                          maxLength={160}
+                          value={newWaterPriceDraft.productName}
+                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                            ...previous,
+                            productName: event.target.value,
+                          }))}
+                          placeholder="500 ml bottle"
+                          disabled={Boolean(commercialSavingKey)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Product key
+                        <input
+                          type="text"
+                          value={newWaterPriceDraft.productKey}
+                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                            ...previous,
+                            productKey: event.target.value.toLowerCase(),
+                          }))}
+                          placeholder="500ml-bottle"
+                          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                          disabled={Boolean(commercialSavingKey)}
+                          required
+                        />
+                        <span className="settings-muted">Lowercase letters, numbers and hyphens.</span>
+                      </label>
+                      <SelectField
+                        label="Price type"
+                        fieldClassName="settings-select"
+                        value={newWaterPriceDraft.priceType}
+                        onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          priceType: event.target.value,
+                        }))}
+                        disabled={Boolean(commercialSavingKey)}
+                      >
+                        {WATER_PRICE_TYPES.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </SelectField>
+                    </div>
+                    <div className="settings-commercial-new-water-flow">
+                      <div className="settings-commercial-current">
+                        <span className="settings-commercial-step">Current</span>
+                        <strong>New schedule</strong>
+                        <small>No current price exists for this product and price type.</small>
+                      </div>
+                      <div className="settings-commercial-field settings-commercial-field--price">
+                        <span className="settings-commercial-step">New</span>
+                        <div className="settings-commercial-price-fields">
+                          <label>
+                            Price
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              value={newWaterPriceDraft.price}
+                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                                ...previous,
+                                price: event.target.value,
+                              }))}
+                              placeholder="0.00"
+                              disabled={Boolean(commercialSavingKey)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Currency
+                            <input
+                              type="text"
+                              value={newWaterPriceDraft.currency}
+                              maxLength={3}
+                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                                ...previous,
+                                currency: event.target.value.toUpperCase(),
+                              }))}
+                              disabled={Boolean(commercialSavingKey)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Minimum quantity
+                            <input
+                              type="number"
+                              min="1"
+                              max="100000"
+                              step="1"
+                              value={newWaterPriceDraft.minimumQuantity}
+                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                                ...previous,
+                                minimumQuantity: event.target.value,
+                              }))}
+                              disabled={Boolean(commercialSavingKey)}
+                              required
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <label className="settings-commercial-field">
+                        <span className="settings-commercial-step">Effective date</span>
+                        <span>Starts on</span>
+                        <input
+                          type="date"
+                          min={toDateInputValue()}
+                          value={newWaterPriceDraft.effectiveDate}
+                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                            ...previous,
+                            effectiveDate: event.target.value,
+                          }))}
+                          disabled={Boolean(commercialSavingKey)}
+                          required
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="settings-primary settings-commercial-save settings-commercial-save--water"
+                        disabled={Boolean(commercialSavingKey)}
+                      >
+                        {commercialSavingKey === "water:new" ? "Saving..." : "Schedule price"}
+                      </button>
+                    </div>
+                  </form>
+                </details>
+              )}
+            </section>
+
+            <section className="glass-card settings-panel">
+              <div className="settings-panel-head settings-panel-head--split">
+                <div>
+                  <h3>Organization document identity</h3>
+                  <p className="settings-muted">
+                    Shared business contact details used when preparing REEBS Core documents.
+                  </p>
+                </div>
+                {!canManageDocumentIdentity && (
+                  <span className="settings-commercial-access">Read only</span>
+                )}
+              </div>
+              <div className="settings-commercial-retired" role="note">
+                Legacy browser-only currency, tax and transport controls remain retired. They are not used as
+                shared commercial policy and are not migrated into the schedules above.
+              </div>
+              {portalSettingsLoading && (
+                <p className="settings-muted" role="status">Loading shared document identity…</p>
+              )}
+              {portalSettingsError && (
+                <ERPFormNotice tone="danger" title="Document identity unavailable" onDismiss={() => setPortalSettingsError("")}>
+                  {portalSettingsError}
                 </ERPFormNotice>
               )}
-              <div className="settings-actions">
-                <button type="submit" className="settings-primary">Save configuration</button>
-              </div>
-            </form>
-          </section>
+              <form className="settings-form" onSubmit={saveConfig}>
+                <div className="settings-grid">
+                  <label>
+                    Business name
+                    <input
+                      type="text"
+                      value={configForm.storeName}
+                      onChange={(e) => setConfigForm((prev) => ({ ...prev, storeName: e.target.value }))}
+                      disabled={!canManageDocumentIdentity || configSaving}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Business address
+                    <input
+                      type="text"
+                      value={configForm.storeAddress}
+                      onChange={(e) => setConfigForm((prev) => ({ ...prev, storeAddress: e.target.value }))}
+                      disabled={!canManageDocumentIdentity || configSaving}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Business email
+                    <input
+                      type="email"
+                      value={configForm.storeEmail}
+                      onChange={(e) => setConfigForm((prev) => ({ ...prev, storeEmail: e.target.value }))}
+                      disabled={!canManageDocumentIdentity || configSaving}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Business phone
+                    <input
+                      type="tel"
+                      value={configForm.storePhone}
+                      onChange={(e) => setConfigForm((prev) => ({ ...prev, storePhone: e.target.value }))}
+                      disabled={!canManageDocumentIdentity || configSaving}
+                      required
+                    />
+                  </label>
+                </div>
+                {configStatus && (
+                  <ERPFormNotice tone="success" title="Document identity saved" onDismiss={() => setConfigStatus("")}>
+                    {configStatus}
+                  </ERPFormNotice>
+                )}
+                {configError && (
+                  <ERPFormNotice tone="danger" title="Document identity not saved" onDismiss={() => setConfigError("")}>
+                    {configError}
+                  </ERPFormNotice>
+                )}
+                <div className="settings-actions">
+                  <button
+                    type="submit"
+                    className="settings-primary"
+                    disabled={!canManageDocumentIdentity || configSaving || portalSettingsLoading}
+                  >
+                    {configSaving ? "Saving…" : canManageDocumentIdentity ? "Save document identity" : "Read only"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </>
         )}
 
         {activeTab === "advanced" && (
           <>
-            <section className="glass-card settings-panel">
-              <div className="settings-panel-head">
-                <div>
-                  <h3>Admin controls</h3>
-                  <p className="settings-muted">
-                    Advanced controls now live inside Settings instead of a separate module.
-                  </p>
-                </div>
-              </div>
-              {isAdmin ? (
-                <>
-                  <div className="settings-advanced-toggle" role="group" aria-label="Admin view mode">
-                    <button
-                      type="button"
-                      className={advancedViewMode === "simple" ? "is-active" : ""}
-                      onClick={() => setAdvancedViewMode("simple")}
-                    >
-                      Simple
-                    </button>
-                    <button
-                      type="button"
-                      className={advancedViewMode === "advanced" ? "is-active" : ""}
-                      onClick={() => setAdvancedViewMode("advanced")}
-                    >
-                      Advanced
-                    </button>
-                  </div>
-                  <p className="settings-muted settings-advanced-note">
-                    This sets which dashboard control view is used for your account.
-                  </p>
-                </>
-              ) : (
-                <p className="settings-muted">
-                  Managers can review system shortcuts and local health data here.
-                </p>
-              )}
-            </section>
-
             <section className="glass-card settings-panel">
               <div className="settings-panel-head">
                 <div>

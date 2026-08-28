@@ -6,6 +6,7 @@ import {
   ensureExtendedAuditLogSchema,
   extractRailwayWebhookSecret,
   getRailwayWebhookSecret,
+  timingSafeSecretEqual,
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { respond } from "./_shared/internalApi.js";
@@ -31,6 +32,10 @@ export async function handler(event = {}) {
     return respond(event, 405, { error: "Method Not Allowed" }, RESPONSE_OPTIONS);
   }
 
+  if (Buffer.byteLength(String(event.body || ""), "utf8") > 256 * 1024) {
+    return respond(event, 413, { error: "Webhook payload is too large." }, RESPONSE_OPTIONS);
+  }
+
   // Intentionally public: Railway posts deployment and alert events here.
   const configuredSecret = getRailwayWebhookSecret();
   if (!configuredSecret) {
@@ -44,7 +49,7 @@ export async function handler(event = {}) {
 
   const suppliedSecret = extractRailwayWebhookSecret(event);
 
-  if (!suppliedSecret || suppliedSecret !== configuredSecret) {
+  if (!timingSafeSecretEqual(suppliedSecret, configuredSecret)) {
     return respond(event, 401, { error: "Invalid webhook secret." }, RESPONSE_OPTIONS);
   }
 
@@ -66,11 +71,11 @@ export async function handler(event = {}) {
     await writeAuditLog(client, buildRailwayAuditEvent(payload));
     return respond(event, 202, { ok: true }, RESPONSE_OPTIONS);
   } catch (error) {
-    console.error("Railway event ingest failed", error);
+    console.error("Railway event ingest failed", { code: error?.code, requestId: event?.requestId });
     return respond(
       event,
       error?.statusCode || 500,
-      { error: error?.message || "Unable to record Railway event." },
+      { error: "Unable to record Railway event." },
       RESPONSE_OPTIONS
     );
   } finally {

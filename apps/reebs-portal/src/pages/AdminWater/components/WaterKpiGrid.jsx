@@ -5,7 +5,6 @@ import {
   faChartLine,
   faMoneyCheckDollar,
   faReceipt,
-  faStore,
 } from "/src/icons/iconSet";
 
 export default function WaterKpiGrid({
@@ -41,7 +40,7 @@ export default function WaterKpiGrid({
         </SelectField>
       </div>
 
-      <section className="water-module-kpis">
+      <section className="water-module-kpis" aria-label="Water business summary">
         <article className="water-module-kpi bubble-card">
           <p className="water-module-kpi-label">In stock</p>
           <div className="water-module-kpi-value">
@@ -51,7 +50,7 @@ export default function WaterKpiGrid({
           <span>Live value {formatCurrency(liveSummary.inventoryValue)}</span>
         </article>
         <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Orders</p>
+          <p className="water-module-kpi-label">Water orders</p>
           <div className="water-module-kpi-value">
             <AppIcon icon={faReceipt} />
             <strong>{salesCount}</strong>
@@ -59,7 +58,7 @@ export default function WaterKpiGrid({
           <span>{unpaidOrderCount} open</span>
         </article>
         <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Revenue</p>
+          <p className="water-module-kpi-label">Water revenue</p>
           <div className="water-module-kpi-value">
             <AppIcon icon={faReceipt} />
             <strong>{formatCurrency(trackingSummary.revenue)}</strong>
@@ -67,53 +66,33 @@ export default function WaterKpiGrid({
           <span>{trackingSummary.unitsSold} packs sold</span>
         </article>
         <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Gross profit</p>
+          <p className="water-module-kpi-label">Water net profit</p>
           <div className="water-module-kpi-value">
             <AppIcon icon={faChartLine} />
-            <strong>{formatCurrency(trackingSummary.grossProfit)}</strong>
+            <strong>{formatCurrency(trackingSummary.netProfit)}</strong>
           </div>
-          <span>After {formatCurrency(trackingSummary.costOfGoodsSold)} COGS</span>
+          <span>After Water stock costs and extra expenses</span>
         </article>
-        <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Cash position</p>
-          <div className="water-module-kpi-value">
-            <AppIcon icon={faMoneyCheckDollar} />
-            <strong>{formatCurrency(trackingSummary.cashPosition)}</strong>
+      </section>
+
+      <section className="water-module-finance-breakdown" aria-labelledby="water-finance-breakdown-title">
+        <div className="water-module-finance-breakdown__heading">
+          <AppIcon icon={faMoneyCheckDollar} aria-hidden="true" />
+          <div>
+            <p className="water-module-kpi-label">Water finance detail</p>
+            <h2 id="water-finance-breakdown-title">Cash, credit and cost breakdown</h2>
           </div>
-          <span>{formatCurrency(trackingSummary.cashCollected)} collected</span>
-        </article>
-        <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Total credit</p>
-          <div className="water-module-kpi-value">
-            <AppIcon icon={faMoneyCheckDollar} />
-            <strong>{formatCurrency(trackingSummary.outstandingCredit)}</strong>
-          </div>
-          <span>{totalCreditCount} credit orders</span>
-        </article>
-        <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Extra expenses</p>
-          <div className="water-module-kpi-value">
-            <AppIcon icon={faStore} />
-            <strong>{formatCurrency(trackingSummary.extraExpenses)}</strong>
-          </div>
-          <span>Net profit {formatCurrency(trackingSummary.netProfit)}</span>
-        </article>
-        <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">Cash</p>
-          <div className="water-module-kpi-value">
-            <AppIcon icon={faMoneyCheckDollar} />
-            <strong>{formatCurrency(trackingSummary.cashSalesTotal)}</strong>
-          </div>
-          <span>{formatCurrency(trackingSummary.pendingCash)} pending</span>
-        </article>
-        <article className="water-module-kpi bubble-card">
-          <p className="water-module-kpi-label">MoMo</p>
-          <div className="water-module-kpi-value">
-            <AppIcon icon={faMoneyCheckDollar} />
-            <strong>{formatCurrency(trackingSummary.momoSalesTotal)}</strong>
-          </div>
-          <span>{formatCurrency(trackingSummary.pendingMomo)} pending</span>
-        </article>
+        </div>
+        <dl>
+          <div><dt>Gross profit</dt><dd>{formatCurrency(trackingSummary.grossProfit)}</dd></div>
+          <div><dt>Water stock costs</dt><dd>{formatCurrency(trackingSummary.costOfGoodsSold)}</dd></div>
+          <div><dt>Extra expenses</dt><dd>{formatCurrency(trackingSummary.extraExpenses)}</dd></div>
+          <div><dt>Cash position</dt><dd>{formatCurrency(trackingSummary.cashPosition)}</dd></div>
+          <div><dt>Outstanding credit</dt><dd>{formatCurrency(trackingSummary.outstandingCredit)} · {totalCreditCount} orders</dd></div>
+          <div><dt>Cash sales</dt><dd>{formatCurrency(trackingSummary.cashSalesTotal)} · {formatCurrency(trackingSummary.pendingCash)} pending</dd></div>
+          <div><dt>MoMo sales</dt><dd>{formatCurrency(trackingSummary.momoSalesTotal)} · {formatCurrency(trackingSummary.pendingMomo)} pending</dd></div>
+          <div><dt>Collected</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
+        </dl>
       </section>
     </section>
   );

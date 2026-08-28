@@ -24,19 +24,27 @@ def _configured_principals() -> list[tuple[str, ServicePrincipal]]:
     if not raw:
         return []
     try:
-        configured: dict[str, dict[str, Any]] = json.loads(raw)
+        configured: Any = json.loads(raw)
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Analytics service authentication is misconfigured.") from error
+    if not isinstance(configured, dict):
+        raise HTTPException(status_code=503, detail="Analytics service authentication is misconfigured.")
 
     principals: list[tuple[str, ServicePrincipal]] = []
     for caller_id, value in configured.items():
+        if not str(caller_id).strip() or not isinstance(value, dict):
+            raise HTTPException(status_code=503, detail="Analytics service authentication is misconfigured.")
         secret = str(value.get("secret") or "").strip()
+        configured_applications = value.get("applicationIds", [])
+        configured_tenants = value.get("tenantIds", [])
+        if not isinstance(configured_applications, list) or not isinstance(configured_tenants, list):
+            raise HTTPException(status_code=503, detail="Analytics service authentication is misconfigured.")
         applications = frozenset(
             str(item).strip()
-            for item in value.get("applicationIds", [])
+            for item in configured_applications
             if str(item).strip()
         )
-        tenants = frozenset(str(item).strip() for item in value.get("tenantIds", []) if str(item).strip())
+        tenants = frozenset(str(item).strip() for item in configured_tenants if str(item).strip())
         platform_admin = value.get("platformAdmin") is True
         if not secret or not applications or (not tenants and not platform_admin):
             raise HTTPException(status_code=503, detail="Analytics service authentication is misconfigured.")
@@ -73,24 +81,19 @@ def _legacy_principal() -> tuple[str, ServicePrincipal] | None:
     )
 
 
-def authentication_is_configured() -> bool:
-    return bool(
-        os.getenv("FAAKO_ANALYTICS_SERVICE_TOKENS", "").strip()
-        or os.getenv("FAAKO_ANALYTICS_SERVICE_SECRET", "").strip()
-        or os.getenv("REEBS_ANALYTICS_SERVICE_SECRET", "").strip()
-    )
+def validate_authentication_configuration() -> None:
+    """Fail readiness when configured credentials cannot authenticate any caller."""
+    principals = _configured_principals()
+    legacy = _legacy_principal()
+    if not principals and legacy is None:
+        raise HTTPException(status_code=503, detail="Analytics service authentication is not configured.")
 
 
 def authenticate(authorization: str | None) -> ServicePrincipal:
     supplied = (authorization or "").removeprefix("Bearer ").strip()
-    if not supplied or not authentication_is_configured():
-        status = 401 if authentication_is_configured() else 503
-        message = (
-            "Invalid analytics service credential."
-            if status == 401
-            else "Analytics service authentication is not configured."
-        )
-        raise HTTPException(status_code=status, detail=message)
+    validate_authentication_configuration()
+    if not supplied:
+        raise HTTPException(status_code=401, detail="Invalid analytics service credential.")
 
     candidates = _configured_principals()
     legacy = _legacy_principal()

@@ -14,39 +14,18 @@ export const useIncidentResponse = ({ enabled = true, canManage = false } = {}) 
     if (!enabled) return null;
     setLoading(true);
     try {
-      const requests = [
-        ["incidents", apiGet("/api/monitoring/incidents?take=100")],
-        ["maintenance", apiGet("/api/monitoring/maintenance-windows")],
-        ["notifications", apiGet("/api/monitoring/notifications")],
-        ...(canManage ? [
-          ["rules", apiGet("/api/monitoring/alert-rules")],
-          ["channels", apiGet("/api/monitoring/channels")],
-          ["policies", apiGet("/api/monitoring/escalation-policies")],
-          ["responders", apiGet("/api/monitoring/responders")],
-        ] : []),
-      ];
-      const results = await Promise.allSettled(requests.map(([, request]) => request));
-      const payloads = Object.fromEntries(results.map((result, index) => [
-        requests[index][0],
-        result.status === "fulfilled" ? result.value : null,
-      ]));
-      const unavailable = results
-        .map((result, index) => result.status === "rejected" ? requests[index][0] : null)
-        .filter(Boolean);
-
-      setData((current) => ({
-        incidents: payloads.incidents?.incidents || current.incidents,
-        maintenanceWindows: payloads.maintenance?.maintenanceWindows || current.maintenanceWindows,
-        notifications: payloads.notifications?.notifications || current.notifications,
-        unreadCount: payloads.notifications?.unreadCount ?? current.unreadCount,
-        alertRules: payloads.rules?.alertRules || current.alertRules,
-        channels: payloads.channels?.channels || current.channels,
-        providerStatus: payloads.channels?.providerStatus || current.providerStatus,
-        escalationPolicies: payloads.policies?.escalationPolicies || current.escalationPolicies,
-        responders: payloads.responders || current.responders,
-      }));
-      setError(unavailable.length ? `Some incident tools are temporarily unavailable: ${unavailable.join(", ")}.` : "");
-      return payloads.incidents;
+      const baseRequests = [apiGet("/api/monitoring/incidents?take=100"), apiGet("/api/monitoring/maintenance-windows"), apiGet("/api/monitoring/notifications")];
+      const adminRequests = canManage ? [apiGet("/api/monitoring/alert-rules"), apiGet("/api/monitoring/channels"), apiGet("/api/monitoring/escalation-policies"), apiGet("/api/monitoring/responders")] : [];
+      const [incidentPayload, maintenancePayload, notificationPayload, rulesPayload, channelsPayload, policiesPayload, respondersPayload] = await Promise.all([...baseRequests, ...adminRequests]);
+      setData({
+        incidents: incidentPayload?.incidents || [], maintenanceWindows: maintenancePayload?.maintenanceWindows || [],
+        notifications: notificationPayload?.notifications || [], unreadCount: notificationPayload?.unreadCount || 0,
+        alertRules: rulesPayload?.alertRules || [], channels: channelsPayload?.channels || [], providerStatus: channelsPayload?.providerStatus || {},
+        escalationPolicies: policiesPayload?.escalationPolicies || [],
+        responders: respondersPayload || { users: [], roles: [] },
+      });
+      setError("");
+      return incidentPayload;
     } catch (requestError) {
       setError(requestError.message || "Incident response data is unavailable.");
       return null;

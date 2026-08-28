@@ -111,12 +111,12 @@ test("system health controls, filters, timelines, and service drawer work", asyn
   await rangeRequest;
 
   await page.getByRole("button", { name: "Status", exact: true }).click();
-  await page.getByRole("option", { name: "Healthy" }).click();
+  await page.locator('[role="listbox"]:visible').getByRole("option", { name: "Healthy" }).click();
   await expect(page.getByRole("button", { name: /Open details for Dev ERP API/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Open details for Dev ERP PostgreSQL/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Status", exact: true }).click();
-  await page.getByRole("option", { name: "All statuses" }).click();
+  await page.locator('[role="listbox"]:visible').getByRole("option", { name: "All statuses" }).click();
   await page.getByRole("button", { name: /Open details for Dev ERP API/ }).click();
   const serviceDialog = page.getByRole("dialog", { name: /Dev ERP API/ });
   await expect(serviceDialog).toBeVisible();

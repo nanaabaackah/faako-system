@@ -13,7 +13,7 @@ const STANDARD_PORTAL_ROLES = ["owner", "admin", "manager", "staff", "warehouse"
 const OWNER_ADMIN_ROLES = ["owner", "admin"];
 const PRIVILEGED_PORTAL_ROLES = ["owner", "admin", "manager"];
 const DRIVER_PORTAL_ROLES = ["driver"];
-const WATER_PORTAL_ROLES = ["owner", "admin", "manager", "water"];
+const WATER_PORTAL_ROLES = ["owner", "admin", "water"];
 
 const roleMatchesAllowedRoles = (role, allowedRoles = []) => {
   const normalizedRole = normalizeAdminRole(role);
@@ -76,6 +76,10 @@ const canAccessPortalRoute = (role, path = "") => {
     return canAccessWaterPortalArea(role);
   }
 
+  if (normalizedPath === "/admin/settings") {
+    return canAccessPrivilegedPortalArea(role) || isWaterPortalRole(role);
+  }
+
   if (
     normalizedPath === "/admin/inventory/products"
     || normalizedPath === "/admin/inventory/templates"
@@ -99,7 +103,6 @@ const canAccessPortalRoute = (role, path = "") => {
     || normalizedPath === "/admin/expenses"
     || normalizedPath === "/admin/vendors"
     || normalizedPath === "/admin/documents"
-    || normalizedPath === "/admin/settings"
     || normalizedPath === "/admin/hr"
     || normalizedPath === "/admin/roles"
     || normalizedPath === "/admin/invoicing"

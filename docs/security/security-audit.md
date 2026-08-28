@@ -50,4 +50,3 @@ Audit date: 2026-08-04. This is a code/configuration review; no destructive pene
 | `pnpm audit --prod --audit-level high` | Failed: 3 documented high findings |
 | REEBS manager/password-reset focused tests | Passed |
 | REEBS Analytics tests | Blocked locally by Python 3.11+ / pytest absence; CI now provisions Python 3.12 and the dev extra |
-

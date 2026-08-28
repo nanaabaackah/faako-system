@@ -12,8 +12,6 @@ icon-renderer contracts now live in `@faako/ui`.
 ## Where it lives
 
 - `src/domain.ts`: framework-independent business-domain contracts.
-- `src/analytics.ts`: application-neutral analytical context, result, quality,
-  time-series, KPI, forecast, anomaly, segment, recommendation and dataset contracts.
 - `src/index.ts`: public exports plus existing framework-independent app, shell,
   navigation, form, and feedback contracts.
 

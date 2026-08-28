@@ -6,7 +6,15 @@ import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
-import { buildAttendantChargeExpenseRow } from "./_shared/bookingCharges.js";
+import {
+  buildAttendantChargeExpenseRow,
+  countRequiredAttendants,
+} from "./_shared/bookingCharges.js";
+import {
+  COMMERCIAL_BUSINESS_UNITS,
+  COMMERCIAL_CONFIG_KEYS,
+  resolveCommercialValue,
+} from "./_shared/commercialConfig.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
@@ -75,6 +83,7 @@ export async function handler(event = {}) {
          b."venueAddress",
          b."totalAmount",
          b.status,
+         b."createdAt",
          c.id AS "customerId",
          c.name AS "customerName",
          c.email AS "customerEmail",
@@ -187,9 +196,25 @@ export async function handler(event = {}) {
       const haystack = `${row.category || ""} ${row.description || ""}`.toLowerCase();
       return haystack.includes("attendant");
     });
-    const attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
-      date: bookingRow.eventDate || new Date().toISOString(),
-    });
+    let attendantExpense = null;
+    if (!hasAttendantExpense && countRequiredAttendants(bookingItems) > 0) {
+      try {
+        const rateCents = await resolveCommercialValue(client, {
+          organizationId,
+          businessUnit: COMMERCIAL_BUSINESS_UNITS.REEBS_CORE,
+          key: COMMERCIAL_CONFIG_KEYS.BOOKING_ATTENDANT_UNIT_FEE_CENTS,
+          at: bookingRow.createdAt,
+        });
+        attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
+          date: bookingRow.eventDate || new Date().toISOString(),
+          rateCents,
+        });
+      } catch (error) {
+        if (error?.code !== "MISSING_COMMERCIAL_CONFIGURATION") throw error;
+        // Legacy bookings predate the effective-dated configuration. Their
+        // persisted total stays authoritative; do not invent a current-rate fee.
+      }
+    }
     const chargebackRows = attendantExpense && !hasAttendantExpense
       ? [...expenseRows, attendantExpense]
       : expenseRows;

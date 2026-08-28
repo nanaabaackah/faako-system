@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 QualityCheckStatus = Literal["pass", "warning", "fail"]
 QualityStatus = Literal["good", "warning", "blocked"]
 Confidence = Literal["low", "medium", "high", "not_applicable"]
+BusinessUnit = Literal["REEBS_CORE", "SHARED"]
 
 
 class AnalyticsContext(BaseModel):
@@ -15,6 +16,7 @@ class AnalyticsContext(BaseModel):
 
     applicationId: str = Field(min_length=1, max_length=80, pattern=r"^[a-z0-9][a-z0-9-]*$")
     tenantId: str = Field(min_length=1, max_length=120)
+    businessUnit: BusinessUnit
 
 
 class CalculationPeriod(BaseModel):

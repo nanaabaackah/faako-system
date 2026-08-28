@@ -232,7 +232,7 @@ The Website also carries Prisma and server-oriented development tooling. Its
 manifest defines seven `db:*` commands despite having no `prisma/` directory,
 Prisma configuration, schema, migrations, or generated client. Its
 `rehash:passwords` command points to a missing
-`scripts/rehashPasswords.js`.
+`scripts/maintenance/rehashPasswords.js`.
 
 `apps/reebs-website/utils/passwords.js` is an exact copy of the Portal's Node
 `crypto` password implementation. It is unused by Website, while the Portal

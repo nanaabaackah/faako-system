@@ -78,7 +78,7 @@ export const HOME_SERVICES = [
   {
     title: "Party Rentals",
     copy: "Bouncy castles, tents, tables, chairs, games, and crowd favorites for every party size.",
-    to: "/Rentals",
+    to: "/rentals",
     image: "/imgs/services/bouncer.png",
     alt: "Party equipment rentals",
     linkLabel: "See rentals",
@@ -86,7 +86,7 @@ export const HOME_SERVICES = [
   {
     title: "Full Party Styling",
     copy: "From balloons to backdrops, we style the space so it looks great in real life and in photos.",
-    to: "/Contact",
+    to: "/contact",
     image: "/imgs/services/decor.png",
     alt: "Full party styling service",
     linkLabel: "Plan with us",
@@ -94,7 +94,7 @@ export const HOME_SERVICES = [
   {
     title: "Party Supply Shop",
     copy: "Need quick add-ons? Grab decor, balloons, favors, and essentials in one stop.",
-    to: "/Shop",
+    to: "/shop",
     image: "/imgs/services/supplies.png",
     alt: "Party supplies shop",
     linkLabel: "Shop now",

@@ -12,8 +12,13 @@ This document records the existing REEBS Portal payment boundary. Batch 1 does n
 - Payment records may contain method, provider, transaction reference, phone number, amount, status, and operator notes.
 - Amount and balance calculations for orders use integer cents.
 - Payment aggregation can change order status, commit stock, create receipts, write accounting entries, and emit audit events. It is not a presentation-only operation.
+- Payment posting requires a persistent `Idempotency-Key`. The key is unique per
+  organisation; replay returns the original payment/receipt, while reuse for a
+  different order or amount is rejected.
 - MoMo metadata is not proof of provider settlement. The reviewed general payment workflow is manual; it must not be described as provider-verified.
 - Water MoMo notifications use a separate webhook boundary and `WATER_MOMO_WEBHOOK_SECRET`. The webhook requires the secret in `X-Water-Webhook-Secret`, uses timing-safe comparison, rejects legacy query/body secrets, and is rate limited.
+- Water webhook delivery fingerprints are persisted in the same transaction as
+  the Water sale update. Paid status cannot be downgraded by a later notification.
 - Paystack credentials or an active Paystack verification flow were not found in the current REEBS Portal configuration reviewed for this programme.
 
 ## Data classification

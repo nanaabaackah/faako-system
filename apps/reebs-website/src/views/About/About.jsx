@@ -59,7 +59,7 @@ function About() {
                 setRentalsCount(rentals.length);
                 setProductsCount(products.length);
             } catch (err) {
-                if (err?.name === "AbortError") return;
+                if (!isMounted || controller.signal.aborted || err?.name === "AbortError") return;
                 console.error("Error loading counts:", err);
                 try {
                     const productsRes = await fetch("/api/inventoryCounts", {
@@ -76,7 +76,7 @@ function About() {
                     setRentalsCount(Number.isFinite(rentals) ? rentals : null);
                     setProductsCount(Number.isFinite(products) ? products : null);
                 } catch (fallbackErr) {
-                    if (fallbackErr?.name !== "AbortError") {
+                    if (isMounted && !controller.signal.aborted && fallbackErr?.name !== "AbortError") {
                         console.error("Error loading counts fallback:", fallbackErr);
                     }
                 }
@@ -112,8 +112,8 @@ function About() {
                             in every moment.
                         </p>
                         <div className="hero-ctas" aria-label="About page actions">
-                            <Link className="hero-btn hero-btn-primary" to="/Rentals">Browse rentals</Link>
-                            <Link className="hero-btn hero-btn-ghost" to="/Contact">Plan with us</Link>
+                            <Link className="hero-btn hero-btn-primary" to="/rentals">Browse rentals</Link>
+                            <Link className="hero-btn hero-btn-ghost" to="/contact">Plan with us</Link>
                         </div>
                     </div>
                     {/*<div className="about-hero-media">
@@ -216,7 +216,7 @@ function About() {
                             Call us
                         </a>
                         <a
-                            href="https://wa.me/233244781819"
+                            href="https://wa.me/233244238419"
                             className="cta-chip"
                             target="_blank"
                             rel="noopener noreferrer"

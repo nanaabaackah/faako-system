@@ -59,4 +59,3 @@ forecast, demand, inventory-risk and repeat-customer results.
 There is still no warehouse, historical analytical store, scheduler, notebook or
 model registry. That is intentional. Current pilots are request/response analysis
 of governed snapshots, not a claim of a complete data platform.
-

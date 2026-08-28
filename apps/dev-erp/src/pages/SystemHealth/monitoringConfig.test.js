@@ -61,18 +61,6 @@ test("filters and summary preserve real status and coverage", () => {
   assert.deepEqual(getPlatformSummary(services, { score: null, label: "Insufficient coverage", coveragePercentage: 50 }).score, null);
 });
 
-test("platform summary excludes intentionally disabled services", () => {
-  const services = [
-    { name: "API", status: "healthy", enabled: true, latencyMs: 100, incidents: [] },
-    { name: "Unused provider", status: "unknown", enabled: false, latencyMs: null, incidents: [] },
-  ];
-  const summary = getPlatformSummary(services, { score: 100, label: "Healthy", coveragePercentage: 100, monitoringEnabled: true });
-  assert.equal(summary.total, 1);
-  assert.equal(summary.healthy, 1);
-  assert.equal(summary.unknown, 0);
-  assert.equal(summary.monitoringEnabled, true);
-});
-
 test("dashboard fallback timeline remains range aware", () => {
   const timeline = buildHealthTimeline({ id: "api", status: "offline", latencyMs: 400, range: "hour" });
   assert.equal(timeline.length, 30);

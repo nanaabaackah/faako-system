@@ -1,8 +1,20 @@
 /* eslint-disable no-undef */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSuccessfulLoginResponse } from "./login.js";
+import { buildSuccessfulLoginResponse, handler } from "./login.js";
 import { getUserFromEvent, signUserToken } from "./_shared/userAuth.js";
+
+test("invalid login input is rejected before database access", async () => {
+  const response = await handler({
+    httpMethod: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "", password: "" }),
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(response.statusCode, 400);
+  assert.equal(payload.apiError.code, "validation_error");
+  assert.ok(Array.isArray(payload.apiError.issues));
+});
 
 test("successful login sets an HttpOnly cookie without returning sensitive fields", () => {
   const previousSecret = process.env.USER_APP_SECRET;

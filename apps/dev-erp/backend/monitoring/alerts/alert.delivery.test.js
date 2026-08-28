@@ -23,22 +23,3 @@ test("email failures retain sanitized delivery state without leaking provider se
   assert.equal(update.deliveryStatus, "FAILED");
   assert.equal(update.errorSummary.includes("super-secret"), false);
 });
-
-test("email delivery sends the branded monitoring template", async () => {
-  let message;
-  const prisma = { alertEvent: { update: async ({ data }) => data } };
-  const channelCrypto = { decrypt: () => JSON.stringify({ recipients: ["ops@example.com"] }) };
-  const delivery = createAlertDelivery({
-    prisma,
-    channelCrypto,
-    sendEmail: async (payload) => { message = payload; },
-    options: { maxRetries: 3, retryDelayMs: 1000, appBaseUrl: "https://dev.example.com" },
-  });
-
-  await delivery.deliverEvent(event, { id: 2, type: "EMAIL", enabled: true, encryptedConfig: "encrypted" }, incident);
-
-  assert.equal(message.subject, "[CRITICAL] API down");
-  assert.match(message.html, /Dev ERP Monitoring/);
-  assert.match(message.html, /Open incident in Dev ERP/);
-  assert.match(message.text, /system-health\?incident=9/);
-});

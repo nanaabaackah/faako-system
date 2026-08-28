@@ -3,7 +3,6 @@ import {
   buildPaymentInstructionLines,
   sanitizePaymentPreference,
 } from "./paymentInstructions.js";
-import { buildServicePaymentInstructionLines } from "../../../shared/paymentCopy.js";
 
 const {
   EMAIL_THEMES,
@@ -145,18 +144,20 @@ const renderPaymentPanel = ({ paymentPreference, reference, internal = false }) 
     ),
   });
 
-const buildBookingPaymentInstructionLines = (reference = "") =>
-  buildServicePaymentInstructionLines({
-    includeHeading: false,
+const buildBookingPaymentInstructionLines = (booking, reference = "", internal = false) =>
+  buildPaymentInstructionLines({
+    paymentPreference:
+      booking?.paymentPreference || { method: "pay-later", payLater: true },
     reference,
+    internal,
   });
 
-const renderBookingPaymentPanel = ({ reference = "" }) =>
+const renderBookingPaymentPanel = ({ booking, reference = "", internal = false }) =>
   renderPanel({
     theme: REEBS_THEME,
     eyebrow: "Payment",
-    title: "Payment instructions",
-    bodyHtml: renderList(buildBookingPaymentInstructionLines(reference), {
+    title: internal ? "Payment handling" : "Payment instructions",
+    bodyHtml: renderList(buildBookingPaymentInstructionLines(booking, reference, internal), {
       theme: REEBS_THEME,
     }),
   });
@@ -400,7 +401,7 @@ export const buildInternalBookingEmailText = (booking) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
+  lines.push(...buildBookingPaymentInstructionLines(booking, bookingReference, true));
 
   lines.push("", "Booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
@@ -434,7 +435,9 @@ export const buildInternalBookingEmailHtml = (booking) =>
         bodyHtml: renderKeyValueTable(buildBookingDetailRows(booking), { theme: REEBS_THEME, labelWidth: "34%" }),
       }),
       renderBookingPaymentPanel({
+        booking,
         reference: booking?.id ? `#${booking.id}` : "",
+        internal: true,
       }),
       renderListPanel("Booked items", buildBookingItemLines(booking?.items || [])),
     ].join(""),
@@ -461,14 +464,14 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
+  lines.push(...buildBookingPaymentInstructionLines(booking, bookingReference));
 
   lines.push("", "Your booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
   lines.push(
     "",
     "Next steps:",
-    "Review your booking details above and arrange the 70% deposit using the payment instructions provided.",
+    "Review your booking details above and arrange the required deposit using the payment instructions provided.",
     "We will confirm your booking and event timing once payment is reviewed.",
     "",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
@@ -481,7 +484,7 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
 
 export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
   const nextStepLines = [
-    "Review your booking details above and arrange the 70% deposit using the payment instructions provided.",
+    "Review your booking details above and arrange the required deposit using the payment instructions provided.",
     "We will confirm your booking and event timing once payment is reviewed.",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
   ];
@@ -515,6 +518,7 @@ export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
       }),
       renderListPanel("Your booked items", buildBookingItemLines(booking?.items || [])),
       renderBookingPaymentPanel({
+        booking,
         reference: booking?.id ? `#${booking.id}` : "",
       }),
       renderPanel({

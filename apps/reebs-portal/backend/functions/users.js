@@ -11,7 +11,11 @@ import {
 } from "./_shared/accessControl.js";
 import { createLogger } from "./_shared/logger.js";
 import { requireUser } from "./_shared/userAuth.js";
-import { ensureUserSessionsTable } from "./_shared/userSessions.js";
+import {
+  ensureUserSessionsTable,
+  revokeUserSessionsForUser,
+} from "./_shared/userSessions.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 
 const logger = createLogger("users");
 const respond = (event, statusCode, body = {}) =>
@@ -104,6 +108,14 @@ export const canAccessUsersMethod = (user, method) => {
   return hasPermission(user, requiredUsersPermission(normalizedMethod));
 };
 
+const STANDARD_ASSIGNABLE_ROLES = new Set(["staff", "warehouse", "driver"]);
+export const isValidUserPassword = (value) =>
+  typeof value === "string" && value.trim().length >= 8;
+
+export const canAssignUserRole = (requester, requestedRole) =>
+  isSystemAdminUser(requester)
+  || STANDARD_ASSIGNABLE_ROLES.has(normalizeRoleKey(requestedRole));
+
 export async function handler(event) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204);
@@ -161,6 +173,18 @@ export async function handler(event) {
         return respond(event, 400, { error: "Invalid user role." });
       }
 
+      if (!canAssignUserRole(authUser, roleKey)) {
+        return respond(event, 403, {
+          error: "Only the system administrator can assign privileged or Water roles.",
+        });
+      }
+
+      if (Object.keys(permissions).length > 0 && !isSystemAdmin) {
+        return respond(event, 403, {
+          error: "Only the system administrator can assign custom permissions.",
+        });
+      }
+
       const email = buildEmailFromNames(firstName, lastName);
       const fullName = buildFullName(firstName, lastName);
 
@@ -171,6 +195,9 @@ export async function handler(event) {
       if (!password) {
         return respond(event, 400, { error: "Password is required." });
       }
+      if (!isValidUserPassword(password)) {
+        return respond(event, 400, { error: "Password must be at least 8 characters." });
+      }
 
       try {
         const passwordHash = await hashPassword(password);
@@ -180,6 +207,22 @@ export async function handler(event) {
            RETURNING id, email, "firstName", "lastName", "fullName", role, permissions, "createdAt", "updatedAt"`,
           [organizationId, email, passwordHash, firstName, lastName, fullName, role, permissions]
         );
+
+        await writeAuditLog(client, {
+          userId: authUser.id,
+          organizationId,
+          action: "USER_CREATED",
+          targetType: "user",
+          targetId: String(result.rows[0]?.id || ""),
+          category: "access",
+          severity: "info",
+          status: "ok",
+          summary: `Created a ${role} user account.`,
+          actorLabel: authUser.fullName || authUser.email,
+          requestId: getEventHeader(event, "x-request-id"),
+          ipAddress: getEventIpAddress(event),
+          metadata: { assignedRole: role },
+        });
 
         return respond(event, 201, normalizeUserRecord(result.rows[0]));
       } catch (err) {
@@ -227,12 +270,22 @@ export async function handler(event) {
         return respond(event, 403, { error: "Only system administrator can change roles." });
       }
 
+      if (parsedPermissions !== null && !isSystemAdmin) {
+        return respond(event, 403, {
+          error: "Only the system administrator can change permissions.",
+        });
+      }
+
       if (requestedRoleNormalized && !VALID_USER_ROLE_KEYS.has(requestedRoleNormalized)) {
         return respond(event, 400, { error: "Invalid user role." });
       }
 
       if (!nextFirstName || !nextLastName) {
         return respond(event, 400, { error: "Users must have both firstName and lastName." });
+      }
+
+      if (password && !isValidUserPassword(password)) {
+        return respond(event, 400, { error: "Password must be at least 8 characters." });
       }
 
       const updates = [];
@@ -294,6 +347,32 @@ export async function handler(event) {
         if (result.rowCount === 0) {
           return respond(event, 404, { error: "User not found." });
         }
+
+        if (password || wantsRoleChange || parsedPermissions !== null) {
+          await ensureUserSessionsTable(client);
+          await revokeUserSessionsForUser(client, id, organizationId);
+        }
+
+
+        await writeAuditLog(client, {
+          userId: authUser.id,
+          organizationId,
+          action: "USER_ACCESS_UPDATED",
+          targetType: "user",
+          targetId: String(id),
+          category: "access",
+          severity: wantsRoleChange || parsedPermissions !== null ? "warning" : "info",
+          status: "ok",
+          summary: "Updated a portal user account.",
+          actorLabel: authUser.fullName || authUser.email,
+          requestId: getEventHeader(event, "x-request-id"),
+          ipAddress: getEventIpAddress(event),
+          metadata: {
+            roleChanged: Boolean(wantsRoleChange),
+            permissionsChanged: parsedPermissions !== null,
+            passwordChanged: Boolean(password),
+          },
+        });
 
         return respond(event, 200, normalizeUserRecord(result.rows[0]));
       } catch (err) {

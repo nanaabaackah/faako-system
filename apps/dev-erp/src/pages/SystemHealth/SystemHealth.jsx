@@ -29,7 +29,7 @@ const DEFAULT_FILTERS = { search: "", environment: "all", status: "all", categor
 const SystemHealthHeader = ({ range, onRangeChange, onRefresh, checking, lastUpdatedAt }) => {
   const interval = TIMELINE_RANGES.find((item) => item.value === range)?.interval;
   return (
-    <header className="page-header system-health-header glass-card">
+    <header className="page-header system-health-header">
       <div><p className="eyebrow">System operations</p><h1>System health</h1><p className="muted">Monitor service availability, latency, dependencies, and incidents across the platform.</p></div>
       <div className="system-health-header__actions">
         <TimelineRangeSelector value={range} onChange={onRangeChange} />
@@ -85,7 +85,7 @@ const SystemHealth = () => {
       {error ? <div className={`notice ${services.length ? "is-warning" : "is-error"}`} role="alert">{error} <button className="button button-ghost" type="button" onClick={() => reload()}>Retry</button></div> : null}
       {partialErrors.length ? <div className="notice is-warning" role="status">Some monitoring sections could not be refreshed. Available service data is shown below.</div> : null}
       {canViewIncidents ? <ActiveMaintenanceBanner windows={incidentResponse.maintenanceWindows} /> : null}
-      {loading && !services.length ? <section className="health-loading-state glass-card" aria-label="Loading system health"><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></section> : null}
+      {loading && !services.length ? <section className="health-loading-state" aria-label="Loading system health"><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></section> : null}
       {services.length ? (
         <>
           <div className="health-overall-grid"><PlatformHealthScore summary={summary} /><MonitoringSummaryCards summary={summary} /></div>

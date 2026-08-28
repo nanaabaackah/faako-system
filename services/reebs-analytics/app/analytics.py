@@ -131,7 +131,7 @@ def build_dashboard_insights(payload: dict[str, Any]) -> dict[str, Any]:
         })
 
     return {
-        "version": "2026-07-reebs-dashboard-v1",
+        "version": "2026-08-reebs-core-recognition-v2",
         "forecast": forecast,
         "demand": {
             "peakWeekday": peak_weekday,

@@ -30,4 +30,3 @@ def log_event(event_name: str, **fields: Any) -> None:
         }
     }
     LOGGER.info(json.dumps({"eventName": event_name, **safe_fields}, default=str, sort_keys=True))
-

@@ -41,4 +41,3 @@ No training pipeline exists in this phase.
 On suspected exposure: revoke the caller credential, disable the affected route,
 identify request IDs/tenants from metadata-only logs, preserve evidence, follow the
 repository incident process, notify the privacy/security owner and document remediation.
-

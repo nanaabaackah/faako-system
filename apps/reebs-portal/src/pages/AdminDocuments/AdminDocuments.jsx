@@ -11,8 +11,6 @@ import {
   faFolderOpen,
   faSearch,
 } from "/src/icons/iconSet";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
@@ -318,7 +316,11 @@ function AdminDocuments() {
     }
   };
 
-  const buildPdf = (docData) => {
+  const buildPdf = async (docData) => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
@@ -398,8 +400,12 @@ function AdminDocuments() {
     const totalsX = pageWidth - margin - 70;
     const totalsY = finalY + 8;
 
+    const recordedDeposit = Number(
+      docData.summary?.depositAmount ?? docData.depositAmount
+    );
+    const hasRecordedDeposit = Number.isFinite(recordedDeposit) && recordedDeposit > 0;
     doc.setFillColor(245, 245, 245);
-    doc.rect(totalsX, totalsY - 4, 70, docData.type === "booking" ? 34 : 24, "F");
+    doc.rect(totalsX, totalsY - 4, 70, hasRecordedDeposit ? 34 : 24, "F");
     doc.setFontSize(10);
     doc.text("Subtotal:", totalsX + 4, totalsY + 4);
     doc.text(formatPdfCurrency(docData.summary?.subtotal || 0), pageWidth - margin, totalsY + 4, { align: "right" });
@@ -411,10 +417,10 @@ function AdminDocuments() {
     doc.text("Total:", totalsX + 4, totalsY + 18);
     doc.text(formatPdfCurrency(docData.summary?.grandTotal || 0), pageWidth - margin, totalsY + 18, { align: "right" });
 
-    if (docData.type === "booking") {
+    if (hasRecordedDeposit) {
       const totalDue = Number(docData.summary?.grandTotal || 0);
-      const deposit = Number((totalDue * 0.7).toFixed(2));
-      const balance = Number((totalDue - deposit).toFixed(2));
+      const deposit = recordedDeposit;
+      const balance = Math.max(0, Number((totalDue - deposit).toFixed(2)));
       doc.setFontSize(10);
       doc.text("Deposit:", totalsX + 4, totalsY + 24);
       doc.text(formatPdfCurrency(deposit), pageWidth - margin, totalsY + 24, { align: "right" });
@@ -429,7 +435,7 @@ function AdminDocuments() {
         formatPdfCurrency(expense.amount),
         expense.description || "-",
       ]);
-      const expensesY = totalsY + (docData.type === "booking" ? 40 : 30);
+      const expensesY = totalsY + (hasRecordedDeposit ? 40 : 30);
       const expensesConfig = {
         startY: expensesY,
         head: [["Related expenses", "Date", "Amount", "Notes"]],
@@ -456,14 +462,14 @@ function AdminDocuments() {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load receipt");
         const normalized = normalizeOrderDoc(data);
-        const pdf = buildPdf(normalized);
+        const pdf = await buildPdf(normalized);
         pdf.save(`receipt-${normalized.invoiceNumber || doc.referenceId}.pdf`);
       } else {
         const res = await fetch(`/api/getInvoiceDetails?id=${doc.referenceId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load invoice");
         const normalized = normalizeBookingDoc(data);
-        const pdf = buildPdf(normalized);
+        const pdf = await buildPdf(normalized);
         pdf.save(`invoice-${normalized.invoiceNumber || doc.referenceId}.pdf`);
       }
     } catch (err) {

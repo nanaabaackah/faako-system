@@ -27,4 +27,3 @@ No public route was deleted, so no new redirect was required in this cleanup gro
 2. Split old REEBS public E2E fixtures from portal tests, add deterministic portal auth fixtures, then remove public-only duplicates.
 3. Continue converting legacy API calls to the shared client; delete adapters only after every consumer is verified.
 4. Remove retired environment names only after deployment-platform inventories and preview/production logs prove they are unused.
-

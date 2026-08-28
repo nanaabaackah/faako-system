@@ -130,7 +130,7 @@ export interface Product<
   price?: Money<number | string> | null;
 }
 
-/** Framework-independent contract for catalogue data safe to expose publicly. */
+/** Framework-independent catalogue data that is safe for Stroane's public surface. */
 export type CatalogueAvailabilityStatus =
   | "in_stock"
   | "low_stock"

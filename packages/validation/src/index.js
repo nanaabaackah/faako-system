@@ -138,9 +138,7 @@ export const customerMasterDataFormSchema = z
     email: optionalEmailSchema,
     phone: optionalPhoneSchema,
     businessName: optionalText(200),
-    preferredContactMethod: z
-      .enum(["email", "phone", "whatsapp"])
-      .optional(),
+    preferredContactMethod: z.enum(["email", "phone", "whatsapp"]).optional(),
     defaultDeliveryAddress: optionalText(500),
     deliveryNotes: optionalText(1200),
     status: optionalText(80),
@@ -162,7 +160,7 @@ export const userAccessFormSchema = z
   })
   .strip();
 
-/** Username-based operational accounts used by portals without email login. */
+/** Username-based staff accounts used by the Stroane operations portal. */
 export const usernameAccessFormSchema = z
   .object({
     username: z
@@ -294,40 +292,6 @@ export const inventoryAdjustmentSchema = z
     });
   });
 
-export const bookingInputSchema = z
-  .object({
-    customerId: domainIdSchema.optional(),
-    attendeeName: requiredText(200),
-    attendeeEmail: emailSchema,
-    title: requiredText(300),
-    description: optionalText(2000),
-    startAt: isoDateTimeSchema,
-    endAt: isoDateTimeSchema.optional(),
-    durationMinutes: z.number().int().positive().max(1440).optional(),
-    location: optionalText(500),
-    meetingLink: z
-      .union([z.string().url().max(2000), z.literal("")])
-      .optional(),
-    honeypot: optionalText(200),
-  })
-  .strip()
-  .superRefine((value, context) => {
-    if (!value.endAt && !value.durationMinutes) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["endAt"],
-        message: "Provide an end time or duration.",
-      });
-    }
-    if (value.endAt && Date.parse(value.endAt) <= Date.parse(value.startAt)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["endAt"],
-        message: "End time must be after start time.",
-      });
-    }
-  });
-
 const ORDER_STATUS_VALUES = [
   "pending",
   "payment_pending",
@@ -442,6 +406,40 @@ export const deliveryUpdateSchema = z
   })
   .strip();
 
+export const bookingInputSchema = z
+  .object({
+    customerId: domainIdSchema.optional(),
+    attendeeName: requiredText(200),
+    attendeeEmail: emailSchema,
+    title: requiredText(300),
+    description: optionalText(2000),
+    startAt: isoDateTimeSchema,
+    endAt: isoDateTimeSchema.optional(),
+    durationMinutes: z.number().int().positive().max(1440).optional(),
+    location: optionalText(500),
+    meetingLink: z
+      .union([z.string().url().max(2000), z.literal("")])
+      .optional(),
+    honeypot: optionalText(200),
+  })
+  .strip()
+  .superRefine((value, context) => {
+    if (!value.endAt && !value.durationMinutes) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endAt"],
+        message: "Provide an end time or duration.",
+      });
+    }
+    if (value.endAt && Date.parse(value.endAt) <= Date.parse(value.startAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endAt"],
+        message: "End time must be after start time.",
+      });
+    }
+  });
+
 export const invoiceLineInputSchema = z
   .object({
     description: requiredText(500),
@@ -548,6 +546,80 @@ export const eventRegistrationInputSchema = z
     honeypot: optionalText(200),
   })
   .strip();
+
+export const reebsBusinessScopeSchema = z
+  .enum(["reebs-core", "water", "consolidated", "shared"])
+  .default("reebs-core");
+
+export const reebsPaginationQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25),
+    search: optionalText(200),
+    sort: optionalText(80),
+    direction: z.enum(["asc", "desc"]).optional(),
+  })
+  .strip();
+
+/** REEBS permits email addresses and legacy username-only operational accounts. */
+export const reebsLoginInputSchema = z
+  .object({
+    email: requiredText(254),
+    password: z.string().min(1).max(1024),
+    remember: z.boolean().optional(),
+  })
+  .strip();
+
+export const reebsPublicCustomerInputSchema = z
+  .object({
+    name: requiredText(200, 2),
+    email: optionalEmailSchema,
+    phone: optionalPhoneSchema,
+  })
+  .strip()
+  .superRefine((value, context) => {
+    if (value.email || value.phone) return;
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["email"],
+      message: "Enter an email address or phone number.",
+    });
+  });
+
+export const reebsBookingLineInputSchema = z
+  .object({
+    productId: domainIdSchema,
+    variantId: domainIdSchema.nullable().optional(),
+    quantity: z.coerce.number().int().min(1).max(100),
+  })
+  .strip();
+
+export const reebsBookingCreateInputSchema = z
+  .object({
+    customerId: domainIdSchema,
+    eventDate: isoDateSchema,
+    startTime: nullableOptionalText(80),
+    endTime: nullableOptionalText(80),
+    venueAddress: nullableOptionalText(240),
+    items: z.array(reebsBookingLineInputSchema).min(1).max(100),
+    paymentPreference: z.union([z.string().max(80), z.record(z.string(), z.unknown()), z.null()]).optional(),
+    applyBundleDiscount: z.boolean().optional(),
+    discount: z.number().finite().nonnegative().optional(),
+    status: optionalText(80),
+    source: optionalText(80),
+  })
+  .strip();
+
+/** Amount is deliberately omitted: the server derives payable totals from the order. */
+export const reebsPaymentInitializationSchema = z
+  .object({
+    orderReference: requiredText(160),
+    idempotencyKey: requiredText(160),
+    currency: currencyCodeSchema.optional(),
+  })
+  .strict();
+
+export const waterBusinessScopeSchema = z.literal("water");
 
 export const validationIssues = (error) =>
   error.issues.map((issue) => ({

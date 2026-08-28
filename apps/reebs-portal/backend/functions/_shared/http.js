@@ -15,6 +15,9 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.reebspartythemes.com",
   "https://reebspartythemes.com",
   "https://portal.reebspartythemes.com",
+];
+
+const LOCAL_ALLOWED_ORIGINS = [
   "http://localhost:8888",
   "http://localhost:5173",
   "http://localhost:5174",
@@ -53,7 +56,13 @@ const getAllowedOrigins = () => {
     ...splitConfiguredOrigins(process.env.CORS_ORIGINS),
     ...splitConfiguredOrigins(process.env.ALLOWED_ORIGINS),
   ];
-  return mergeAllowedOrigins(DEFAULT_ALLOWED_ORIGINS, configured);
+  const runtime = String(process.env.APP_ENV || process.env.NODE_ENV || "")
+    .trim()
+    .toLowerCase();
+  const defaults = runtime === "production" || runtime === "prod"
+    ? DEFAULT_ALLOWED_ORIGINS
+    : [...DEFAULT_ALLOWED_ORIGINS, ...LOCAL_ALLOWED_ORIGINS];
+  return mergeAllowedOrigins(defaults, configured);
 };
 
 const DEFAULT_ALLOW_HEADERS = [
@@ -62,6 +71,7 @@ const DEFAULT_ALLOW_HEADERS = [
   "X-Organization-Id",
   "X-CSRF-Token",
   "X-Request-Id",
+  "Idempotency-Key",
 ];
 
 const mergeAllowHeaders = (value) => {
@@ -81,6 +91,25 @@ export const isAllowedAppOrigin = (origin) => {
 export const isCrossSiteBrowserRequest = (event) => {
   const fetchSite = getHeaderValue(event, "sec-fetch-site").toLowerCase();
   return fetchSite === "cross-site";
+};
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+export const isUnsafeRequestMethod = (event) =>
+  !SAFE_METHODS.has(String(event?.httpMethod || "GET").trim().toUpperCase());
+
+// Cookie-authenticated mutations must be attributable to an allowed browser
+// origin. Sec-Fetch-Site is useful defense-in-depth, but it is not accepted as
+// the only signal when both Origin and Fetch Metadata are absent.
+export const isTrustedBrowserMutation = (event) => {
+  if (!isUnsafeRequestMethod(event)) return true;
+  if (isCrossSiteBrowserRequest(event)) return false;
+
+  const origin = getHeaderValue(event, "origin");
+  if (origin) return isAllowedAppOrigin(origin);
+
+  const fetchSite = getHeaderValue(event, "sec-fetch-site").toLowerCase();
+  return fetchSite === "same-origin" || fetchSite === "same-site";
 };
 
 export const getEventRequestId = (event) => {

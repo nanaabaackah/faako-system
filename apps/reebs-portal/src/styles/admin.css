@@ -50,7 +50,7 @@ h1{
   --admin-breadcrumb-current-border:
     color-mix(in srgb, var(--other, #ff9932) 30%, rgba(148, 163, 184, 0.22));
   --admin-breadcrumb-current-ink:
-    color-mix(in srgb, var(--other, #ff9932) 72%, #1f2937 28%);
+    #82430f;
   --admin-breadcrumb-focus-ring: rgba(255, 153, 50, 0.32);
   --admin-breadcrumb-root-marker:
     linear-gradient(135deg, rgba(255, 153, 50, 0.96), rgba(116, 181, 63, 0.9));
@@ -225,7 +225,7 @@ h1{
 .admin-subtitle {
   max-width: 520px;
   color: var(--text-main);
-  opacity: 0.75;
+  opacity: 1;
   font-size: 1rem;
 }
 
@@ -9376,6 +9376,10 @@ body.admin-readonly .delivery-form .delivery-primary {
 /*********************************************************************************************************************/
 /**************************************            SETTINGS               *****************************************/
 /*********************************************************************************************************************/
+html[data-admin-font-size] body.admin-theme {
+  font-size: 1rem;
+}
+
 .settings-page {
   min-height: 100vh;
   padding: 50px 20px 90px;
@@ -12097,7 +12101,7 @@ body.admin-theme .admin-breadcrumb {
   --admin-breadcrumb-current-border:
     color-mix(in srgb, var(--other, #ff9932) 30%, rgba(148, 163, 184, 0.24));
   --admin-breadcrumb-current-ink:
-    color-mix(in srgb, var(--other, #ff9932) 72%, #1f2937 28%);
+    #82430f;
   --admin-breadcrumb-focus-ring: rgba(255, 153, 50, 0.34);
   color: var(--muted);
 }
@@ -13454,7 +13458,7 @@ body.admin-theme {
   --admin-surface: rgba(247, 249, 253, 0.92);
   --admin-border: rgba(148, 163, 184, 0.36);
   --admin-text: #111827;
-  --admin-muted: rgba(82, 96, 114, 0.82);
+  --admin-muted: #526072;
   --admin-overlay: rgba(15, 23, 42, 0.46);
   background: var(--admin-bg);
   color-scheme: light;

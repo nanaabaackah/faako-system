@@ -8,7 +8,7 @@ import { classifyWorkerHeartbeat, runWorkerCheck } from "./worker.check.js";
 const response = (status = 200) => ({ status, headers: new Headers(), clone() { return this; } });
 
 test("HTTP checker classifies healthy, degraded, bad status, and timeout", async () => {
-  assert.equal((await runHttpCheck({ target: "https://example.test", fetchImpl: async () => response(200), degradedLatencyMs: Number.MAX_SAFE_INTEGER })).status, "HEALTHY");
+  assert.equal((await runHttpCheck({ target: "https://example.test", fetchImpl: async () => response(200), degradedLatencyMs: 1000 })).status, "HEALTHY");
   assert.equal((await runHttpCheck({ target: "https://example.test", fetchImpl: async () => response(503) })).errorCode, "UNEXPECTED_STATUS");
   assert.equal((await runHttpCheck({ target: null })).status, "UNKNOWN");
   const timeout = await runHttpCheck({ target: "https://example.test", timeoutMs: 5, fetchImpl: async (_url, options) => new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })))) });

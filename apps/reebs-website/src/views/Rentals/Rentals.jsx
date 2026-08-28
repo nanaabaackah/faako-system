@@ -180,12 +180,15 @@ const mergeRentalCollections = (...collections) => {
     return Array.from(merged.values());
 };
 
-function Rentals() {
-    const [rentals, setRentals] = useState([]);
+function Rentals({ initialRentals = [] }) {
+    const hasInitialRentals = Array.isArray(initialRentals) && initialRentals.length > 0;
+    const [rentals, setRentals] = useState(() =>
+        hasInitialRentals ? initialRentals : []
+    );
     const { convertPrice, formatCurrency, openCart } = useCart();
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("All");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!hasInitialRentals);
     const [showSideNav, setShowSideNav] = useState(false);
     const [activeHeroPanelIndex, setActiveHeroPanelIndex] = useState(0);
     const [searchParams] = useSearchParams();
@@ -199,7 +202,7 @@ function Rentals() {
             if (cached?.length) {
                 setRentals(cached);
             }
-            setLoading(!cached);
+            setLoading(!cached && !hasInitialRentals);
             try {
                 const inventoryPromise = fetchInventoryWithCache({ signal: controller.signal });
                 const indoorPromise = fetch("/api/indoor_games", { signal: controller.signal });
@@ -217,7 +220,7 @@ function Rentals() {
                     (item) => !isCategoryStub(item) && !shouldExcludeFromRentals(item)
                 );
                 if (isMounted) {
-                    setRentals(uniqueByKey(baseCombined));
+                    setRentals(uniqueByKey(mergeRentalCollections(initialRentals, baseCombined)));
                     setLoading(false);
                 }
 
@@ -278,6 +281,7 @@ function Rentals() {
                 }));
 
                 const merged = mergeRentalCollections(
+                    initialRentals,
                     rentalItems,
                     machineItems,
                     indoorItems,
@@ -289,7 +293,7 @@ function Rentals() {
                     writeRentalsCache(merged);
                 }
             } catch (err) {
-                if (err?.name !== "AbortError") {
+                if (isMounted && !controller.signal.aborted && err?.name !== "AbortError") {
                     console.error("Error loading rentals:", err);
                 }
             } finally {
@@ -302,7 +306,7 @@ function Rentals() {
             isMounted = false;
             controller.abort();
         };
-    }, []);
+    }, [hasInitialRentals, initialRentals]);
 
     useEffect(() => {
         document.body.classList.add("rentals-theme");

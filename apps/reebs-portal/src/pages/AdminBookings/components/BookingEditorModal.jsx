@@ -240,6 +240,7 @@ function BookingEditorModal({
                         min="1"
                         value={item.quantity}
                         onChange={(event) => updateItemQuantity(lineKey, event.target.value)}
+                        aria-label={`${itemName} quantity`}
                       />
                       <button type="button" onClick={() => removeItem(lineKey)}>
                         Remove

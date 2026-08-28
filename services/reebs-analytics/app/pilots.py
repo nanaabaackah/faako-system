@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime
 from statistics import mean
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -26,6 +26,8 @@ class ReebsInventoryRow(BaseModel):
 class ReebsDashboardSnapshot(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    scope: Literal["reebs-core"]
+    businessUnit: Literal["REEBS_CORE"]
     organizationId: int = Field(gt=0)
     generatedAt: datetime
     historyDays: int = Field(default=180, ge=1, le=730)
@@ -75,6 +77,8 @@ def run_reebs_dashboard(
     request_id: str,
     now: datetime | None = None,
 ) -> AnalyticsResponse:
+    if request.context.businessUnit != "REEBS_CORE":
+        raise HTTPException(status_code=403, detail="REEBS analytics requires the REEBS_CORE business unit.")
     snapshot = ReebsDashboardSnapshot.model_validate(request.data)
     if str(snapshot.organizationId) != request.context.tenantId:
         raise HTTPException(status_code=403, detail="REEBS organisation does not match the analytics tenant context.")
@@ -126,6 +130,8 @@ def run_operational_health(
     request_id: str,
     now: datetime | None = None,
 ) -> AnalyticsResponse:
+    if request.context.businessUnit != "SHARED":
+        raise HTTPException(status_code=403, detail="Operational analytics requires the SHARED business unit.")
     snapshot = OperationalHealthSnapshot.model_validate(request.data)
     effective_now = now or utc_now()
     tasks = snapshot.tasks

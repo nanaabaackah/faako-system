@@ -31,4 +31,3 @@ Audit date: 2026-08-04. Values below are local built-output disk sizes, not netw
 - Operational route chunks: investigate any new gzip chunk over 150 KB.
 - Images: no unoptimised multi-megabyte hero/product image in initial viewport.
 - New third-party scripts require purpose, consent classification, failure behaviour and performance evidence.
-

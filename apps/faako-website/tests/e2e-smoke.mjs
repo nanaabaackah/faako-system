@@ -103,13 +103,13 @@ try {
   await contactForm.locator('[name="email"]').fill("ama@example.com");
   await contactForm.locator('[name="phone"]').fill("12");
   await contactForm.locator('[name="message"]').fill("Please help us plan a system.");
-  await contactForm.evaluate((form) => form.requestSubmit());
+  await contactForm.getByRole("button", { name: "Submit request" }).click();
   await contactForm.getByText("Check the form").waitFor({ state: "visible" });
   await contactForm.locator('[name="phone"]').fill("55 500 0111");
   await contactForm.locator('[name="website"]').evaluate((input) => {
     input.value = "https://bot.invalid";
   });
-  await contactForm.evaluate((form) => form.requestSubmit());
+  await contactForm.getByRole("button", { name: "Submit request" }).click();
   await contactForm.getByText("Email hand-off started").waitFor({ state: "visible" });
 
   await mobilePage.goto(`${baseUrl}/signup`, { waitUntil: "domcontentloaded" });

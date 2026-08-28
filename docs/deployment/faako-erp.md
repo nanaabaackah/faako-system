@@ -9,4 +9,3 @@ Faako ERP is currently a React/Vite fixture/demo surface, not an independently a
 - **Cache/redirects/headers:** deploy `public/_headers` and `_redirects`; immutable hashed assets, SPA fallback only for its internal routes.
 - **Rollback:** redeploy the previous static artifact.
 - **Environment names:** `VITE_FAAKO_ERP_DEMO_ACCESS_ENDPOINT`, `VITE_FAAKO_ERP_DEMO_ACCESS_MODE`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_ENABLE_GA_IN_DEV`, `VITE_ENABLE_APP_UPDATE_NOTICE`.
-
