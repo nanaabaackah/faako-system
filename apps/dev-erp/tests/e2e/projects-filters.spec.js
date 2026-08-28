@@ -61,7 +61,9 @@ test("project filters combine server-side and clear back to the full board", asy
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const trigger = page.getByLabel(label);
       await trigger.click();
-      await page.getByRole("option", { name: option, exact: true }).click({ force: true });
+      const visibleOptions = page.locator('[role="listbox"]:visible');
+      await expect(visibleOptions).toBeVisible();
+      await visibleOptions.getByRole("option", { name: option, exact: true }).click();
       if ((await trigger.textContent())?.includes(option)) return;
       await page.waitForTimeout(150);
     }
