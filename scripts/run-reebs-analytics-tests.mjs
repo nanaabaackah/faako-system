@@ -43,7 +43,7 @@ if (!pythonCommand) {
 
 if (result?.status !== 0) {
   console.error(
-    "\nREEBS analytics tests require an isolated Python environment. " +
+    "\nShared analytics tests require an isolated Python environment. " +
       "Create services/reebs-analytics/.venv, install the service's dev dependencies, " +
       "then rerun pnpm test:python.",
   );

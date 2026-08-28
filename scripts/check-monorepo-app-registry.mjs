@@ -47,7 +47,14 @@ const appDirSet = new Set(appDirs);
 const monitoredAppKeySet = new Set(monitoredAppKeys);
 
 const missingFromRegistry = appDirs.filter((dirName) => !registryDirSet.has(dirName));
-const staleRegistryPaths = registryDirs.filter((dirName) => !appDirSet.has(dirName));
+const staleRegistryPaths = registryApps
+  .filter((app) => app.workspaceRequired !== false)
+  .map((app) => toAppDirName(app.path))
+  .filter((dirName) => dirName && !appDirSet.has(dirName));
+const deferredRegistryPaths = registryApps
+  .filter((app) => app.workspaceRequired === false)
+  .map((app) => toAppDirName(app.path))
+  .filter((dirName) => dirName && !appDirSet.has(dirName));
 const duplicateKeys = findDuplicates(registryKeys);
 const duplicatePaths = findDuplicates(registryDirs);
 const enabledMonitoringMissing = registryApps
@@ -77,12 +84,19 @@ console.log(
       monitoredAppKeys,
       registeredAppCount: registryApps.length,
       monitoredAppCount: monitoredAppKeys.length,
+      deferredRegistryPaths,
       status: warnings.length ? "warning" : "ok",
     },
     null,
     2
   )
 );
+
+if (deferredRegistryPaths.length) {
+  console.log(
+    `Registry check note: Deferred registry paths without app directories: ${deferredRegistryPaths.join(", ")}`
+  );
+}
 
 if (warnings.length) {
   for (const warning of warnings) {

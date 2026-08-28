@@ -2,6 +2,11 @@ node_modules
 .turbo
 dist
 coverage
+*.egg-info/
+**/__pycache__/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
 .env
 .env.*
 .obsidian

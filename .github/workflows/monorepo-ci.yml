@@ -1,8 +1,7 @@
 name: Monorepo CI
 
 run-name: >
-
-  Stroane CI • ${{ github.event_name }} • ${{ github.ref_name }}
+  Faako CI • ${{ github.event_name }} • ${{ github.ref_name }}
 
 on:
   pull_request:
@@ -10,13 +9,23 @@ on:
   push:
     branches: [develop]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: faako-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   detect-changes:
-    name: Detect Changes
+    name: Detect affected surfaces
     runs-on: ubuntu-latest
     outputs:
-      stroane: ${{ steps.filter.outputs.stroane }}
-      shared: ${{ steps.filter.outputs.shared }}
+      javascript: ${{ steps.filter.outputs.javascript }}
+      python: ${{ steps.filter.outputs.python }}
+      faako_public: ${{ steps.filter.outputs.faako_public }}
+      reebs_public: ${{ steps.filter.outputs.reebs_public }}
+      dev_erp: ${{ steps.filter.outputs.dev_erp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,21 +33,118 @@ jobs:
         id: filter
         with:
           filters: |
-            stroane:
-              - 'apps/stroane-web/**'
-            shared:
+            javascript:
+              - 'apps/**'
               - 'packages/**'
+              - 'scripts/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+              - 'turbo.json'
               - '.github/workflows/monorepo-ci.yml'
+            python:
+              - 'services/reebs-analytics/**'
+              - '.github/workflows/monorepo-ci.yml'
+            faako_public:
+              - 'apps/faako-website/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+            reebs_public:
+              - 'apps/reebs-website/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+            dev_erp:
+              - 'apps/dev-erp/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
 
-  stroane-checks:
-    name: Stroane Checks
+  javascript-quality:
+    name: Affected JavaScript quality gates
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.stroane == 'true' || needs.detect-changes.outputs.shared == 'true'
+    if: needs.detect-changes.outputs.javascript == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build affected applications and packages
+        run: pnpm exec turbo run build --affected
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Run affected lint, type-check, and tests
+        run: pnpm exec turbo run lint typecheck test --affected
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Run repository security and registry gates
+        run: |
+          pnpm security:all
+          pnpm monitoring:check
+          pnpm project-registry:check
+          pnpm hosting:check
+
+  python-tests:
+    name: Shared Analytics quality gates
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/reebs-analytics/pyproject.toml
+
+      - name: Install service test dependencies
+        run: python -m pip install -e 'services/reebs-analytics[dev]'
+
+      - name: Lint shared analytics service
+        working-directory: services/reebs-analytics
+        run: python -m ruff check app tests
+
+      - name: Type-check shared analytics service
+        working-directory: services/reebs-analytics
+        run: python -m mypy app
+
+      - name: Run shared analytics tests
+        working-directory: services/reebs-analytics
+        run: python -m pytest --disable-warnings
+
+  public-browser-smoke:
+    name: Public-site browser smoke
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.faako_public == 'true' || needs.detect-changes.outputs.reebs_public == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -46,44 +152,53 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies and Chromium
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @faako/faako-website exec playwright install --with-deps chromium
 
-      - name: Generate Prisma client
-        run: pnpm --filter @faako/stroane-web run db:generate
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      - name: Build and smoke-test Faako Website
+        if: needs.detect-changes.outputs.faako_public == 'true'
+        run: |
+          pnpm --filter @faako/faako-website run build
+          pnpm --filter @faako/faako-website exec astro preview --host 127.0.0.1 --port 4176 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:4176/ >/dev/null && break; sleep 1; done
+          pnpm --filter @faako/faako-website run test:e2e
 
-      - name: Validate Prisma schema
-        run: pnpm --filter @faako/stroane-web exec prisma validate
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      - name: Build and smoke-test REEBS Website
+        if: needs.detect-changes.outputs.reebs_public == 'true'
+        run: |
+          pnpm --filter @faako/reebs-website run build
+          pnpm --filter @faako/reebs-website exec astro preview --host 127.0.0.1 --port 4177 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:4177/ >/dev/null && break; sleep 1; done
+          REEBS_PREVIEW_URL=http://127.0.0.1:4177 pnpm --filter @faako/reebs-website run test:e2e
 
-      - name: Lint
-        run: pnpm --filter @faako/stroane-web run lint
+  dev-erp-browser:
+    name: Dev ERP browser regressions
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dev_erp == 'true'
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Backend tests
-        run: pnpm --filter @faako/stroane-web run test:backend
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      - uses: pnpm/action-setup@v4
 
-      - name: Build storefront
-        run: pnpm --filter @faako/stroane-web run build
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-          VITE_APP_SURFACE: storefront
-          VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
-          VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
-          VITE_APP_ENV: staging
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
-      - name: Build portal
-        run: pnpm --filter @faako/stroane-web run build
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-          VITE_APP_SURFACE: portal
-          VITE_API_BASE_URL: https://api-staging.stroanesolutions.com/api
-          VITE_BACKEND_BASE_URL: https://api-staging.stroanesolutions.com
-          VITE_APP_ENV: staging
+      - name: Install dependencies and Chromium
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @faako/dev-erp exec playwright install --with-deps chromium
+
+      - name: Run non-production Dev ERP E2E suite
+        run: pnpm --filter @faako/dev-erp run test:e2e

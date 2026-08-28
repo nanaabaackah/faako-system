@@ -23,7 +23,7 @@ The application-specific names currently referenced by frontend source or build 
 | Faako Website | `VITE_API_BASE_URL`, `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_ERP_DEMO_URL`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID` |
 | REEBS Portal | `VITE_API_BASE_URL`, `VITE_BACKEND_BASE_URL`, `VITE_CURRENCY_API_KEY`, `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_EXCHANGE_API_KEY`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_GOOGLE_MAPS_KEY`, `VITE_REEBS_WEBSITE_URL` |
 | REEBS Website | `VITE_API_BASE_URL`, `VITE_BACKEND_BASE_URL`, `VITE_CURRENCY_API_KEY`, `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_EXCHANGE_API_KEY`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_GOOGLE_MAPS_KEY`, `VITE_REEBS_ATTENDANT_RATE`, `VITE_REEBS_PORTAL_URL` |
-| Stroane | `APP_ENV`, `DATABASE_URL`, `DATABASE_URL_DEVELOPMENT`, `DATABASE_URL_PRODUCTION`, `VITE_ADMIN_PORTAL_URL`, `VITE_API_BASE_URL`, `VITE_APP_SURFACE`, `VITE_BACKEND_BASE_URL`, `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_PAYSTACK_PUBLIC_KEY`, `VITE_PORTAL_BASE_URL`, `VITE_STOREFRONT_BASE_URL` |
+| Stroane | `APP_ENV`, `DATABASE_URL`, `DATABASE_URL_DEVELOPMENT`, `DATABASE_URL_PRODUCTION`, `STROANE_BUILD_SURFACE`, `VITE_ADMIN_PORTAL_URL`, `VITE_API_BASE_URL`, `VITE_APP_SURFACE`, `VITE_BACKEND_BASE_URL`, `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID`, `VITE_PAYSTACK_PUBLIC_KEY`, `VITE_PORTAL_BASE_URL`, `VITE_STOREFRONT_BASE_URL` |
 | System Starter | `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID` |
 | UI Workbench | `VITE_ENABLE_APP_UPDATE_NOTICE`, `VITE_ENABLE_GA_IN_DEV`, `VITE_GA_ID`, `VITE_GA_MEASUREMENT_ID` |
 
@@ -73,7 +73,7 @@ Cached:
 
 Uncached:
 
-- Dev ERP and Stroane builds, because their existing build scripts run Prisma generation and write generated client state outside `dist/**`;
+- Dev ERP builds, because the existing build script runs Prisma generation and writes generated client state outside `dist/**`. Stroane browser builds no longer run Prisma generation; its API generation remains a separate non-browser task.
 - tests, E2E, development servers, database operations, and deployment side effects.
 
 Remote caching may be enabled later without changing these correctness rules. Dev ERP and Stroane should remain uncached until Prisma generation is separated into an explicit, safely modelled task or its complete outputs are declared.

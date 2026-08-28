@@ -128,6 +128,21 @@ export const isGoogleAnalyticsEnabledForEnvironment = (
   return Boolean(isProduction || enableInDevelopment === true || enableInDevelopment === "true");
 };
 
+export const sanitizeAnalyticsPageLocation = (
+  value: string,
+  fallbackOrigin = "https://analytics.invalid",
+) => {
+  try {
+    const url = new URL(value || "/", fallbackOrigin);
+    return {
+      location: `${url.origin}${url.pathname}`,
+      path: url.pathname || "/",
+    };
+  } catch {
+    return { location: fallbackOrigin, path: "/" };
+  }
+};
+
 export const setGoogleAnalyticsCollectionEnabled = (
   measurementId: string | null | undefined,
   enabled: boolean,
@@ -243,13 +258,22 @@ export const trackGoogleAnalyticsPageView = ({
     return false;
   }
 
+  const safePage = sanitizeAnalyticsPageLocation(
+    pageLocation || analyticsWindow.location.href,
+    analyticsWindow.location.origin,
+  );
+  const safePath = sanitizeAnalyticsPageLocation(
+    pagePath || safePage.path,
+    analyticsWindow.location.origin,
+  ).path;
+
   analyticsWindow.gtag("event", "page_view", {
     send_to: resolvedMeasurementId,
     page_title: pageTitle || analyticsDocument.title,
-    page_location: pageLocation || analyticsWindow.location.href,
-    page_path:
-      pagePath
-      || `${analyticsWindow.location.pathname}${analyticsWindow.location.search}${analyticsWindow.location.hash}`,
+    // Query strings and fragments commonly contain form, reset, search, or
+    // campaign values. The shared boundary deliberately sends route paths only.
+    page_location: safePage.location,
+    page_path: safePath,
   });
 
   return true;

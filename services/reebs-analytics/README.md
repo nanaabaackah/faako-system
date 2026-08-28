@@ -1,8 +1,12 @@
-# REEBS Advanced Analytics
+# Faako Analytics
 
-This is an isolated, read-only FastAPI service for dashboard forecasting and operational insights.
-It does not connect to the REEBS database and cannot mutate orders, payments, bookings, stock, or customers.
-The existing Node API sends it a small organization-scoped aggregate snapshot.
+This directory hosts the shared, isolated and read-only Python analytics service.
+The logical service/package name is `faako-analytics`; the existing directory and
+REEBS configuration aliases remain temporarily stable for deployment compatibility.
+
+The service has no transactional database connection. Approved application backends
+send tenant-scoped, minimised snapshots through stable analytical contracts. It cannot
+mutate orders, payments, bookings, stock, users or operational records.
 
 ## Local run
 
@@ -14,7 +18,8 @@ pip install -e '.[dev]'
 uvicorn app.main:app --host 0.0.0.0 --port 8010 --reload
 ```
 
-Configure the portal backend with:
+Portal compatibility configuration uses the names
+`REEBS_ANALYTICS_SERVICE_URL` and `REEBS_ANALYTICS_SERVICE_SECRET`.
 
 New consumers should use `FAAKO_ANALYTICS_SERVICE_URL` and a scoped entry in
 `FAAKO_ANALYTICS_SERVICE_TOKENS`. Values are intentionally omitted from documentation.
@@ -27,14 +32,17 @@ continuity model whenever the isolated service is temporarily unavailable.
 ## Deployment boundary
 
 - Deploy this directory as its own Railway/Docker service.
-- Configure the same strong `REEBS_ANALYTICS_SERVICE_SECRET` in this service and the REEBS Node API.
+- Prefer caller-scoped credentials in `FAAKO_ANALYTICS_SERVICE_TOKENS`.
+- `FAAKO_ANALYTICS_SERVICE_SECRET` and `REEBS_ANALYTICS_SERVICE_SECRET` are compatibility aliases for REEBS only.
 - Keep the service private where the hosting platform supports private networking.
-- Do not add `DATABASE_URL`; the service is intentionally unable to read or write the REEBS database.
+- Do not add `DATABASE_URL`; the service is intentionally unable to read or write transactional databases.
 - Use `/health` for health checks.
 - Do not add `DATABASE_URL`; the service is intentionally unable to read or write transactional databases.
 - Use `/health` for process liveness only.
 - Use `/ready` for deployment health checks. It rejects missing, empty, or malformed
 
 ```bash
-python -m unittest discover -s tests
+python -m ruff check app tests
+python -m mypy app
+python -m pytest
 ```

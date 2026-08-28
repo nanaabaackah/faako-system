@@ -17,8 +17,9 @@ Key responsibilities:
 - `GET /api/advancedAnalytics` is restricted to users with `financials:read`.
 - The Node handler reads organization-scoped aggregates for revenue, booking demand,
   stock velocity, and customer repeat activity.
-- When `REEBS_ANALYTICS_SERVICE_URL` is configured, Node sends only those aggregates
-  to the isolated FastAPI service in `services/reebs-analytics`.
+- When `FAAKO_ANALYTICS_SERVICE_URL` (or the legacy REEBS alias) is configured,
+  Node sends only those tenant-scoped aggregates to the shared isolated FastAPI
+  service at the temporary `services/reebs-analytics` compatibility path.
 - The Python service has no database connection and cannot mutate orders, payments,
   bookings, inventory, or customers.
 - Node validates the returned organization scope and falls back to local deterministic

@@ -18,7 +18,7 @@ export default function useOrderPayments(orderId) {
     const fetchSignal = signal || fallbackController.signal;
     setLoading(true);
     setError("");
-    return fetch(`/api/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
+    return reebsApiResponse(`/api/orderPayments?orderId=${encodeURIComponent(orderId)}`, { signal: fetchSignal })
       .then(async (response) => {
         const payload = await response.json().catch(() => []);
         if (!response.ok) {

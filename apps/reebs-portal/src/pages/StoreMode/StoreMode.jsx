@@ -9,6 +9,7 @@ import {
   useOnlineStatus,
 } from "@faako/offline-sync";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { reebsApiResponse } from "../../api/client.js";
 import { StoreModeLayout } from "./components/StoreModeLayout";
 import {
   EMAIL_PATTERN,
@@ -133,7 +134,7 @@ function StoreMode() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/inventory", { signal: fetchSignal });
+      const response = await reebsApiResponse("/api/inventory", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load stock.");
@@ -159,7 +160,7 @@ function StoreMode() {
     setCustomersLoading(true);
     setCustomersError("");
     try {
-      const response = await fetch("/api/customers", { signal: fetchSignal });
+      const response = await reebsApiResponse("/api/customers", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load customers.");
@@ -896,7 +897,7 @@ function StoreMode() {
         return selectedCustomer;
       }
 
-      const response = await fetch("/api/customers", {
+      const response = await reebsApiResponse("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nextPayload),
@@ -911,7 +912,7 @@ function StoreMode() {
       return payload;
     }
 
-    const response = await fetch("/api/customers", {
+    const response = await reebsApiResponse("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -948,7 +949,7 @@ function StoreMode() {
     };
 
     if (Number.isFinite(existingCustomerId) && existingCustomerId > 0) {
-      const response = await fetch("/api/customers", {
+      const response = await reebsApiResponse("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -965,7 +966,7 @@ function StoreMode() {
       return payload;
     }
 
-    const response = await fetch("/api/customers", {
+    const response = await reebsApiResponse("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(customerPayload),
@@ -998,7 +999,7 @@ function StoreMode() {
         ...(queuedPayload.orderPayload || {}),
         customerId: Number(customer?.id),
       };
-      const response = await fetch("/api/orders", {
+      const response = await reebsApiResponse("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1172,7 +1173,7 @@ function StoreMode() {
     const controller = new AbortController();
     try {
       const customer = await ensureCustomer(receiptContact, controller.signal);
-      const response = await fetch("/api/orders", {
+      const response = await reebsApiResponse("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

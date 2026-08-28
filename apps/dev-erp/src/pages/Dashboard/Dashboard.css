@@ -148,6 +148,10 @@
   gap: 1rem;
 }
 
+.dashboard-accounting-kpis {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .dashboard-operations-brief,
 .dashboard-system-status {
   gap: 1rem;
@@ -818,6 +822,18 @@
     gap: 0.8rem;
   }
 
+  .dashboard-accounting-kpis {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dashboard-accounting-kpis > * {
+    grid-column: span 2;
+  }
+
+  .dashboard-accounting-kpis > :nth-last-child(-n + 2) {
+    grid-column: span 3;
+  }
+
   .dashboard-hero__intro h1 {
     font-size: 1.55rem;
     line-height: 1.12;
@@ -1025,6 +1041,19 @@
 }
 
 @media (max-width: 620px) {
+  .dashboard-accounting-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-accounting-kpis > *,
+  .dashboard-accounting-kpis > :nth-last-child(-n + 2) {
+    grid-column: span 1;
+  }
+
+  .dashboard-accounting-kpis > :last-child {
+    grid-column: 1 / -1;
+  }
+
   .dashboard-brief-grid {
     grid-template-columns: 1fr;
   }

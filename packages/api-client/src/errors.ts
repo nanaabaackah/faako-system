@@ -43,7 +43,7 @@ export class ApiClientError extends Error {
   issues?: ApiValidationIssue[];
   requestId?: string;
   retryAfterSeconds?: number;
-  override cause?: unknown;
+  cause?: unknown;
 
   constructor(message: string, options: ApiClientErrorOptions = {}) {
     super(message);

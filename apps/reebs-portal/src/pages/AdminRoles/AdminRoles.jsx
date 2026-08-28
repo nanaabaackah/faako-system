@@ -8,6 +8,9 @@ import { faEllipsisVertical } from "/src/icons/iconSet";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../components/SearchField/SearchField";
 import roleColors from "../../utils/roleColors";
+import { reebsApiResponse } from "../../api/client";
+import { userAccessFormSchema, validationIssues } from "@faako/validation";
+import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 const ROLE_OPTIONS = [
   "Owner",
@@ -123,6 +126,16 @@ function AdminRoles() {
   const [inviteError, setInviteError] = useState("");
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff", password: "" });
   const [openMenu, setOpenMenu] = useState(null);
+  const inviteDirty = inviteOpen && Boolean(
+    inviteForm.firstName || inviteForm.lastName || inviteForm.password || inviteForm.role !== "Staff"
+  );
+  const permissionDirty = Boolean(
+    detailUser &&
+    (detailRole !== (detailUser.role || "Staff") ||
+      JSON.stringify(detailPermissions) !==
+        JSON.stringify(normalizePermissions(detailUser.permissions, detailUser.role)))
+  );
+  useUnsavedChanges((inviteDirty && !inviteSaving) || (permissionDirty && !permissionSaving));
   const openDetailModal = (user) => {
     setOpenMenu(null);
     setDetailUser(user);
@@ -155,7 +168,7 @@ function AdminRoles() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/users");
+      const res = await reebsApiResponse("/api/users");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load users");
       const list = Array.isArray(data) ? data : [];
@@ -316,15 +329,20 @@ function AdminRoles() {
         throw new Error("Password is required.");
       }
 
-      const res = await fetch("/api/users", {
+      const validation = userAccessFormSchema.safeParse({
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+        password: trimmedPassword,
+        role: inviteForm.role,
+      });
+      if (!validation.success) {
+        throw new Error(validationIssues(validation.error)[0]?.message || "User details are invalid.");
+      }
+
+      const res = await reebsApiResponse("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: trimmedFirst,
-          lastName: trimmedLast,
-          role: inviteForm.role,
-          password: trimmedPassword,
-        }),
+        body: JSON.stringify(validation.data),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to invite user");
@@ -363,7 +381,7 @@ function AdminRoles() {
       if (isSystemAdmin) {
         body.role = detailRole;
       }
-      const response = await fetch("/api/users", {
+      const response = await reebsApiResponse("/api/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

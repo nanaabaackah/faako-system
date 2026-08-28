@@ -8,6 +8,7 @@ import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import { AppIcon } from "../../components/Icon/Icon";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { reebsApiResponse } from "../../api/client.js";
 import {
   faCalendarDays,
   faFileInvoiceDollar,
@@ -214,7 +215,7 @@ const buildRentalFormFromItem = (item) => ({
 });
 
 const fetchJson = async (url, init) => {
-  const response = await fetch(url, init);
+  const response = await reebsApiResponse(url, init);
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(payload?.detail || payload?.error || `Request failed (${response.status}).`);

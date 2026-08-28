@@ -37,7 +37,7 @@ Decision status: proposed, based on repository audit
 - System Starter
 - UI Workbench
 
-Stroane's current workspace should remain Vite until its storefront and portal are separated. That recommendation does not mean the public storefront must remain Vite permanently.
+Stroane's storefront and portal now have independent compile-time entries and deployable artifacts. The evidence-based ADR retains Vite for the storefront because customer authentication, live catalogue reconciliation, cart, location search, Paystack checkout, and return verification are core responsibilities. Reconsider Astro only after measuring the route-shell SEO result and defining a separate customer/checkout owner.
 
 ## Applications that should use Astro
 
@@ -45,7 +45,7 @@ Stroane's current workspace should remain Vite until its storefront and portal a
 - Faako Website: public routes.
 - REEBS Website: public/content/catalogue routes with commerce islands.
 - TTNGH: when its scaffold is recreated.
-- Stroane Storefront: conditional future candidate after ownership separation.
+- Stroane Storefront is not an active Astro candidate under the accepted 2026-08-02 ADR; reconsider only with measured evidence and a customer/checkout boundary plan.
 
 ## Applications that should use Next.js
 
