@@ -100,8 +100,7 @@ const CookieBanner = () => {
   return (
     <aside
       className={`cookie-banner ${isExpanded ? 'is-expanded' : ''}`}
-      role="dialog"
-      aria-modal="false"
+      role="region"
       aria-live="polite"
       aria-label="Cookie settings"
     >
@@ -109,11 +108,8 @@ const CookieBanner = () => {
         <div className="cookie-copy">
           <h3 className="cookie-title">Cookie Settings</h3>
           <p className="cookie-sub">
-            REEBS uses essential browser storage for your cart, booking drafts,
-            checkout, currency choice, account session, and security. Optional
-            analytics helps us improve pages in aggregate. Card, mobile money,
-            and bank details are handled by Paystack or your payment provider,
-            not stored on REEBS systems.
+            Essential storage keeps your cart, booking drafts, checkout and account secure.
+            Optional analytics helps us improve the site. Payment details stay with your payment provider.
             {' '}
             Read our
             {' '}
@@ -132,7 +128,7 @@ const CookieBanner = () => {
             onClick={() => setIsExpanded((open) => !open)}
             aria-expanded={isExpanded}
           >
-            Customize
+            {isExpanded ? 'Hide options' : 'Customize'}
           </button>
           <button type="button" className="cookie-btn cookie-accept" onClick={handleAcceptAll}>
             Accept all

@@ -113,18 +113,27 @@ export const revokeUserSession = async (client, sessionTokenId) => {
   return result.rowCount > 0;
 };
 
-export const revokeUserSessionsForUser = async (client, userId, organizationId) => {
+export const revokeUserSessionsForUser = async (
+  client,
+  userId,
+  organizationId,
+  { exceptSessionTokenId = "" } = {},
+) => {
   if (!Number.isFinite(Number(userId)) || !Number.isFinite(Number(organizationId))) {
     return 0;
   }
 
+  const normalizedExceptSessionTokenId = String(exceptSessionTokenId || "").trim();
   const result = await client.query(
     `UPDATE "userSession"
      SET "revokedAt" = NOW()
      WHERE "userId" = $1
        AND "organizationId" = $2
-       AND "revokedAt" IS NULL`,
-    [Number(userId), Number(organizationId)]
+       AND "revokedAt" IS NULL
+       ${normalizedExceptSessionTokenId ? 'AND "sessionTokenId" <> $3' : ""}`,
+    normalizedExceptSessionTokenId
+      ? [Number(userId), Number(organizationId), normalizedExceptSessionTokenId]
+      : [Number(userId), Number(organizationId)]
   );
 
   return result.rowCount || 0;

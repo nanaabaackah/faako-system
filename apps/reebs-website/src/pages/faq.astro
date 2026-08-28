@@ -4,5 +4,5 @@ import FaqIsland from "../components/islands/FaqIsland.jsx";
 ---
 
 <BaseLayout path="/faq">
-  <FaqIsland path="/faq" client:visible />
+  <FaqIsland path="/faq" client:idle={{ timeout: 900 }} />
 </BaseLayout>

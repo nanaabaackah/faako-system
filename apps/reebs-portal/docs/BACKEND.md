@@ -26,7 +26,8 @@ Key responsibilities:
 
 ## Runtime and Data Access
 - API wrapper lives in `backend/server.js`.
-- Handler source lives in `backend/functions/*.js` for compatibility during the migration.
+- Stable handler entry points live in `backend/functions/*.js` for compatibility during the migration.
+- Domain ownership lives in `backend/modules/*`. Implementations move there incrementally behind compatibility exports; `auditLogs` is the first representative migration.
 - Production base URL: `https://api.reebspartythemes.com/api/*`.
 - Legacy `/api/*` remains an API-server alias while browser calls migrate to `/api/*`.
 - Each function now loads the shared runtime env helper, resolves `DATABASE_URL` from the active app environment, and uses `resolvePgSslConfig()` so local Postgres can run with `DATABASE_SSL_MODE="disable"` while hosted Postgres keeps SSL enabled.
@@ -567,8 +568,8 @@ Response:
   - Requires manager device tokens in `managerDevice` table.
 
 ## Scripts and Imports
-- Data import scripts: `importUsers.js`, `importProducts.js`, `importOrders.js`, `importVendors.js`, etc.
-- Password tooling: `scripts/rehashPasswords.js`, `scripts/hashManagerPin.js`.
+- Data import scripts: `scripts/imports/importUsers.js`, `scripts/imports/importProducts.js`, `scripts/imports/importOrders.js`, `scripts/imports/importVendors.js`, etc.
+- Password tooling: `scripts/maintenance/rehashPasswords.js`, `scripts/maintenance/hashManagerPin.js`.
 - Prisma migrations: `prisma/migrations/*`.
 
 ## Environment Variables (Backend)
@@ -598,7 +599,8 @@ Railway (PostgreSQL):
 - Prisma migrations live in `prisma/migrations/*` and can be applied via `npx prisma migrate`.
 
 Data imports:
-- One-off import scripts exist in the repo root (`importUsers.js`, `importProducts.js`, etc.).
+- Operational utilities are classified under `scripts/imports`, `scripts/backfills`, `scripts/seeds`, and `scripts/maintenance`. Run them from the portal package directory so existing package-relative data paths remain valid.
+- Water is a standalone business domain. See `docs/WATER_ARCHITECTURE.md`; core rental/event metrics exclude Water by default.
 - These scripts use the same `DATABASE_URL` to seed or transform data.
 
 ## Related Files

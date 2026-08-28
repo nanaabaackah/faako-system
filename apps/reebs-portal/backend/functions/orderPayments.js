@@ -4,6 +4,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 import {
+  getHeaderValue,
   ORDER_METHODS,
   parseJsonBody,
   recordOrderPayment,
@@ -61,6 +62,10 @@ export async function handler(event = {}) {
     const parsed = parseJsonBody(event);
     if (parsed.error) return json(event, 400, { error: parsed.error });
     const body = parsed.body || {};
+    const idempotencyKey = getHeaderValue(event, "Idempotency-Key");
+    if (!idempotencyKey) {
+      return json(event, 400, { error: "Idempotency-Key is required for payment writes." });
+    }
     const orderId = normalizeOrderId(body.orderId);
     if (!orderId) return json(event, 400, { error: "orderId is required." });
     const amountCents = body.amountCents ?? Math.round(Number(body.amount || 0) * 100);
@@ -78,6 +83,7 @@ export async function handler(event = {}) {
         confirmationStatus: body.confirmationStatus || null,
         notes: body.notes || null,
         actor: buildActor(authUser),
+        idempotencyKey,
       });
       await writeAuditLog(client, {
         userId: authUser.id,
@@ -100,7 +106,7 @@ export async function handler(event = {}) {
         },
       });
       await client.query("COMMIT");
-      return json(event, 201, result);
+      return json(event, result.idempotentReplay ? 200 : 201, result);
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       throw error;

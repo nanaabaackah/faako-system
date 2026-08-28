@@ -43,14 +43,33 @@ const readDistanceKm = (details) => {
   return null;
 };
 
-export const getDeliveryFeeDetails = (deliveryMethod, deliveryDetails, rateCents = 50) => {
+export const getRecordedDeliveryDistanceKm = (deliveryMethod, deliveryDetails) => {
   const isPickup = String(deliveryMethod || "").toLowerCase().includes("pickup");
-  if (isPickup) return { distanceKm: 0, feeCents: 0, rateCents };
+  if (isPickup) return 0;
+  const rawDistance = readDistanceKm(deliveryDetails);
+  return Number.isFinite(rawDistance) && rawDistance > 0
+    ? Math.round(rawDistance * 10) / 10
+    : 0;
+};
+
+export const getDeliveryFeeDetails = (deliveryMethod, deliveryDetails, rateCents) => {
+  const parsedRateCents = Number(rateCents);
+  if (!Number.isFinite(parsedRateCents) || parsedRateCents < 0) {
+    throw new TypeError("An explicit non-negative delivery rate in cents is required.");
+  }
+  const normalizedRateCents = Math.round(parsedRateCents);
+  const isPickup = String(deliveryMethod || "").toLowerCase().includes("pickup");
+  if (isPickup) return { distanceKm: 0, feeCents: 0, rateCents: normalizedRateCents };
   const rawDistance = readDistanceKm(deliveryDetails);
   if (!Number.isFinite(rawDistance) || rawDistance <= 0) {
-    return { distanceKm: 0, feeCents: 0, rateCents };
+    const error = new Error(
+      "A positive delivery distance is required before the delivery fee can be calculated."
+    );
+    error.statusCode = 422;
+    error.code = "DELIVERY_DISTANCE_REQUIRED";
+    throw error;
   }
   const distanceKm = Math.round(rawDistance * 10) / 10;
-  const feeCents = Math.round(distanceKm * rateCents);
-  return { distanceKm, feeCents, rateCents };
+  const feeCents = Math.round(distanceKm * normalizedRateCents);
+  return { distanceKm, feeCents, rateCents: normalizedRateCents };
 };

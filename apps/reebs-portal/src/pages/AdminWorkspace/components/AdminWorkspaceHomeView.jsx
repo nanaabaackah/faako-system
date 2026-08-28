@@ -466,7 +466,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               onClick={() => onNavigate(revenueMix.path)}
             >
               <div className="aw-home-kpi-chart-head">
-                <h3>Revenue mix</h3>
+                <h3>Core revenue mix</h3>
                 <span>Retail, rental, expenses</span>
               </div>
               <div className="aw-home-kpi-donut-wrap">
@@ -491,7 +491,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
                   </svg>
                   <div className="aw-home-kpi-donut-center">
                     <strong>{revenueMix.totalValue}</strong>
-                    <span>Total revenue</span>
+                    <span>Core revenue</span>
                   </div>
                 </div>
                 <ul className="aw-home-kpi-legend">
@@ -523,7 +523,7 @@ function BusinessKpiPanel({ panel, onNavigate }) {
               )}
             >
               <div className="aw-home-kpi-chart-head">
-                <h3>Revenue trend</h3>
+                <h3>Core revenue trend</h3>
                 <span>{revenueTrend.windowLabel}</span>
               </div>
               {revenueTrend.loading ? (

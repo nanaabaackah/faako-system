@@ -10,13 +10,3 @@ export const parseMoneyInputValue = (value) => {
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return Math.round(parsed * 100);
 };
-
-export const buildRetailPriceUpdatePayload = (value) => {
-  const cents = parseMoneyInputValue(value);
-  if (!cents) return null;
-
-  return {
-    cents,
-    retailSingle: toMoneyInputValue(cents),
-  };
-};

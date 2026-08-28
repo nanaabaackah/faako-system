@@ -430,6 +430,7 @@ export const SelectField = forwardRef<
   const inputRef = useRef<HTMLSelectElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const openFocusDirectionRef = useRef<"first" | "last" | "selected">("selected");
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
   const resolvedOptions = useMemo(
@@ -497,6 +498,24 @@ export const SelectField = forwardRef<
   useEffect(() => {
     if (!open) return;
     updatePanelPosition();
+    const focusFrame = window.requestAnimationFrame(() => {
+      const optionButtons = Array.from(
+        panelRef.current?.querySelectorAll<HTMLButtonElement>(
+          'button[role="option"]:not(:disabled)',
+        ) || [],
+      );
+      if (!optionButtons.length) return;
+      const selectedButton = optionButtons.find(
+        (button) => button.getAttribute("aria-selected") === "true",
+      );
+      const target = openFocusDirectionRef.current === "last"
+        ? optionButtons[optionButtons.length - 1]
+        : openFocusDirectionRef.current === "first"
+          ? optionButtons[0]
+          : selectedButton || optionButtons[0];
+      target?.focus();
+      openFocusDirectionRef.current = "selected";
+    });
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
@@ -518,6 +537,7 @@ export const SelectField = forwardRef<
       document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
+      window.cancelAnimationFrame(focusFrame);
     };
   }, [open, resolvedOptions.length]);
 
@@ -607,12 +627,18 @@ export const SelectField = forwardRef<
           )}
           onClick={() => {
             if (disabled) return;
+            openFocusDirectionRef.current = "selected";
             setOpen((current) => !current);
+          }}
+          onKeyDown={(event) => {
+            if (disabled || !["ArrowDown", "ArrowUp"].includes(event.key)) return;
+            event.preventDefault();
+            openFocusDirectionRef.current = event.key === "ArrowUp" ? "last" : "first";
+            setOpen(true);
           }}
           aria-label={ariaLabel || (typeof label === "string" ? label : "Select option")}
           aria-haspopup="listbox"
           aria-expanded={open}
-          aria-required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
@@ -633,6 +659,29 @@ export const SelectField = forwardRef<
               role="listbox"
               aria-multiselectable={multiple || undefined}
               aria-label={ariaLabel || "Options"}
+              onKeyDown={(event) => {
+                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+                const optionButtons = Array.from(
+                  panelRef.current?.querySelectorAll<HTMLButtonElement>(
+                    'button[role="option"]:not(:disabled)',
+                  ) || [],
+                );
+                if (!optionButtons.length) return;
+                event.preventDefault();
+                const currentIndex = optionButtons.findIndex(
+                  (button) => button === document.activeElement,
+                );
+                let nextIndex = currentIndex;
+                if (event.key === "Home") nextIndex = 0;
+                if (event.key === "End") nextIndex = optionButtons.length - 1;
+                if (event.key === "ArrowDown") {
+                  nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % optionButtons.length;
+                }
+                if (event.key === "ArrowUp") {
+                  nextIndex = currentIndex <= 0 ? optionButtons.length - 1 : currentIndex - 1;
+                }
+                optionButtons[nextIndex]?.focus();
+              }}
             >
               <div className="ui-dropdown-field__list">
                 {resolvedOptions.map((option) => {
@@ -894,7 +943,6 @@ export const DateField = forwardRef<
           aria-label={ariaLabel || (typeof label === "string" ? label : "Select date")}
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
@@ -1190,7 +1238,6 @@ export const MonthField = forwardRef<
           aria-label={ariaLabel || (typeof label === "string" ? label : "Select month")}
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}

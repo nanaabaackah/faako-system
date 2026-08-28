@@ -1,14 +1,50 @@
 # REEBS Portal Finance Consolidation Plan
 
+> The normative financial source, recognition, business-unit, commercial-policy
+> and P&L definitions now live in
+> `docs/apps/reebs-portal/financial-domain-architecture.md`. This earlier
+> navigation/consolidation plan does not override those rules, and it never
+> authorises Water to be included in Core metrics.
+
 ## Purpose
 
-Document a safe, planning-only path for future Finance consolidation in REEBS Portal. REEBS Portal is live/private beta, so this plan must not change app logic, database schema, payment flows, receipt generation, order logic, POS logic, accounting logic, files, routes, or redirects.
+Document the incremental Finance navigation/workflow plan and the current Phase
+6 integration points in REEBS Portal. The normative source, recognition and
+business-unit rules are in `financial-domain-architecture.md`; this document
+must not be used to collapse distinct payment, receipt, invoice, Order, Booking,
+accounting or Water records into one write model.
 
 ## Current Implementation Status
 
-Low-risk Finance navigation grouping is implemented in registry metadata. `/admin/accounting`, `/admin/expenses`, and `/admin/invoicing` now resolve visually through the Finance module while existing routes, APIs, calculations, payment recording, receipt generation, invoice generation, POS logic, order balance behavior, and accounting logic remain unchanged.
+Low-risk Finance navigation grouping is implemented in registry metadata.
+`/admin/accounting`, `/admin/expenses`, and `/admin/invoicing` now resolve
+visually through the Finance module. That navigation-only change did not alter
+routes, APIs, calculations, payment recording, receipt generation, POS logic,
+order balances or accounting logic.
 
 Vendors, Documents, POS, Orders, Reports, and Bookings remain separate visible workflow areas until a later shared workflow review decides whether they should become Finance children or cross-links.
+
+Phase 6 also implements additive finance foundations outside navigation:
+
+- Core financial reporting is the default and explicitly excludes
+  Water-contaminated Orders;
+- `scope=consolidated` is an opt-in, permission-gated, segmented operational
+  P&L response with visible Core, Water and unallocated Shared components;
+- Core/Water commercial configuration and Water price history are
+  effective-dated and organisation-scoped;
+- the website reads narrow public Core booking/payment terms and requests an
+  authoritative shop quote before creating a shop Order; public Order creation
+  requires that current quote fingerprint;
+- new/draft invoice deposit/default due terms are server-resolved and persisted,
+  while issued/sent document terms are preserved; Core invoice writes reject
+  Products classified as Water;
+- ordinary commercial/Water price configuration changes preserve Water sale
+  cost snapshots, while restock creation/backdated insertion, cost/date update
+  and deletion transactionally re-resolve the Water cost basis. An existing
+  restock correction is the audited Water COGS/profit restatement.
+
+These additions do not make the current general ledger business-unit aware and
+do not merge Water into Core finance.
 
 ## 1. Current Finance-Related Modules/Routes
 
@@ -33,8 +69,14 @@ Current API handlers and helpers:
 - `backend/functions/invoice-document-email.js`
 - `backend/functions/expenses.js`
 - `backend/functions/financials.js`
+- `backend/functions/commercial-config.js`
+- `backend/functions/publicCommercialConfig.js`
+- `backend/functions/checkoutQuote.js`
 - `backend/functions/accounting-*`
 - `backend/functions/_shared/shopOrders.js`
+- `backend/functions/_shared/commercialConfig.js`
+- `backend/functions/_shared/checkoutQuote.js`
+- `backend/functions/_shared/invoiceCommercialTerms.js`
 - `backend/functions/_shared/expenseAccounting.js`
 - `backend/functions/_shared/accountingExtensions.js`
 
@@ -49,8 +91,42 @@ Current API handlers and helpers:
 - Balances are calculated from `OrderPayment` totals against `Order.grandTotalCents` in `_shared/shopOrders.js`, updating `amountPaidCents`, `balanceDueCents`, and `paymentStatus`.
 - Reports and financial summaries read from `/api/financials`, invoice documents, orders, bookings, expenses, and accounting data depending on available tables.
 - Invoices originate in `AdminInvoicing`, can reference orders or bookings, and can be opened from booking/order contexts.
+- New invoice drafts receive a server-calculated deposit from the effective
+  Core service-deposit rule and a configured default due date when no explicit
+  date was chosen. Unsent drafts refresh against their creation-time policy;
+  issued or sent documents retain the stored deposit and due date. Receipts have
+  no service deposit.
+- Invoice create/update resolves linked Products on the server and rejects a
+  Core invoice line classified as Water by `sourceCategoryCode` or an explicit
+  `WaterProductPrice.productId` link. It does not fuzzy-classify free text.
 - Expenses originate in `AdminExpenses` and can link to orders or bookings when supported by the current schema/function behavior.
 - Accounting reads and writes accounting configuration, chart of accounts, journals, imports, trial balance, historical import batches, and revenue recognition data through the accounting functions.
+- The website reads Core booking/payment terms from
+  `/api/v1/commercial-config/public`. Shop checkout obtains
+  `/api/v1/checkout/quote`; public Order creation requires the returned valid
+  fingerprint, then reloads prices/fees and rejects a missing, malformed or
+  stale fingerprint or an unacknowledged price change.
+- A mixed storefront checkout is still two sequential writes: shop Order first,
+  then rental Booking. It is not a distributed transaction. A Booking failure
+  after a successful Order requires the surfaced Order reference and an
+  operator reconciliation path.
+- `/api/financials` defaults to Core. An authorised
+  `/api/financials?scope=consolidated` response keeps Core, Water and Shared
+  components visible; `/api/water` remains Water-only.
+- Scheduling a Water selling-price/configuration change does not rewrite
+  `WaterSale.unitCostAtSaleCents`. Restock creation (including backdated
+  insertion), cost/date update and deletion are the deliberate exception: the
+  same transaction re-resolves non-archived sale costs and updates every
+  resolvable differing snapshot. A cost/date update records
+  `WATER_RESTOCK_COST_BASIS_CORRECTED` with `restatedSaleCostCount`. An update or
+  delete that would orphan an existing positive sale-cost snapshot returns
+  `409 WATER_COST_BASIS_REQUIRED` and rolls back. The snapshot restatement
+  changes Water COGS/profit, not Water revenue, sale quantities or Core totals.
+- For a new or explicitly repriced Water sale, today's date-only UI value uses
+  the current server transaction timestamp for effective Water price/discount
+  lookup, so a same-day saved rule applies. The persisted Water sale business
+  date and restock-cost date remain unchanged. Explicit non-midnight timestamps
+  and earlier, backdated or other dates retain their supplied effective time.
 
 ## 3. Target Finance Structure
 
@@ -66,7 +142,9 @@ Suggested target structure for future implementation:
 - Documents
 - Financial Reports
 
-Initial implementation should be navigation metadata only. Existing URLs, APIs, calculations, receipt numbering, and page behavior should remain unchanged.
+Changes to this navigation hierarchy should begin as metadata only. Existing
+URLs, APIs, calculations, receipt numbering and page behavior should remain
+unchanged by a navigation regrouping.
 
 ## 4. High-Risk Areas
 
@@ -77,6 +155,28 @@ Initial implementation should be navigation metadata only. Existing URLs, APIs, 
 - Invoice generation from bookings, orders, manual entries, and documents.
 - Offline payment sync later, especially if Store Mode adds offline payment queueing.
 - Reporting dependencies that combine invoice documents, orders, bookings, expenses, and accounting fallback data.
+- Silent Water inclusion through a generic financial total or a role that has
+  Core finance access but not deliberate consolidated access.
+- Treating the checkout fingerprint as price authority rather than recomputing
+  the Order from catalogue and effective commercial configuration.
+- Allowing public Order creation without the required current quote fingerprint
+  or treating the fingerprint as an authentication/payment credential.
+- Partial success in mixed shop+rental checkout because the Order and Booking
+  are separate mutations and only the shop Order has the quote/fingerprint
+  guard.
+- Rewriting deposit or due terms on an issued/sent invoice after a commercial
+  policy change.
+- Allowing a linked Water Product onto a Core invoice, or text-guessing an
+  unlinked manual invoice line's business unit.
+- Running a production backdated restock create, cost/date update or deletion
+  without reconciling changed sale snapshots and the affected Water COGS/profit;
+  cost/date correction must additionally reconcile the finance audit event's
+  `restatedSaleCostCount`.
+- Permitting a restock update/delete that orphans a previously snapshotted
+  Water sale instead of returning `409 WATER_COST_BASIS_REQUIRED` and rolling
+  back the transaction.
+- The split between a legacy device-local invoice tax default, persisted
+  invoice `taxRate`, and statutory `AccountingConfig`/`TaxRate` settings.
 - Paid-order cancellation rules that currently restrict cancellation of paid orders to owner/admin users.
 - Revenue recognition and deferred revenue dependencies for bookings.
 - Any attempt to merge POS, order, invoice, and accounting concepts before source-of-truth ownership is reviewed.
@@ -92,6 +192,7 @@ Current shared tables/models and runtime tables include:
 - `Booking`, `BookingItem`, `DeferredRevenue`, `RevenueRecognitionLine`
 - `ChartOfAccount`, `TaxRate`, `HistoricalImportBatch`, `JournalEntry`, `JournalLine`, `OpeningBalance`
 - `AccountingManualSales`, `AccountingConfig`
+- `CommercialConfiguration`, `WaterProductPrice`
 - `StockMovement`, `Product`, `InventoryVariant`
 - Runtime `invoiceDocument` table used by `invoice-documents.js`
 - Water-specific finance-adjacent records such as `WaterSale`, `WaterExpense`, and `WaterRestock`
@@ -114,24 +215,64 @@ API/reporting dependencies include:
 - Frontend navigation grouping must never become the source of access control.
 - Receipt, invoice, payment, and customer data must be treated as production-sensitive.
 - Browser-visible `VITE_*` values must not contain finance secrets or payment-provider credentials.
+- Public commercial-term and checkout-quote routes resolve the public
+  organisation on the server, enforce allowed origins and rate limits, and do
+  not accept a browser-selected tenant or Water scope.
+- Consolidated operational reporting requires `financials:read` and the
+  deliberate `financials:consolidated` permission. Frontend navigation is not
+  evidence of either permission.
+- Quote fingerprints are staleness/integrity values only; they must never be
+  treated as authentication, authorisation or a signed payment approval.
 
 ## 7. Recommended Implementation Order
 
-1. Keep this plan documentation-only until finance workflow owners approve the target structure.
-2. Confirm all current finance routes, functions, tables, role guards, and report dependencies.
-3. Add registry metadata only for Finance grouping while preserving current route paths and sidebar behavior. Initial grouping is implemented for Accounting, Expenses, and Invoicing.
-4. Keep Orders, POS, and Bookings as their own workflow modules; add Finance cross-links only where current users already expect them.
-5. Preserve `recordOrderPayment`, `OrderReceipt`, invoice-document behavior, and all balance calculations unchanged.
-6. Validate that each role still sees the same allowed workflows before changing labels or parent group visibility.
-7. Add a Finance parent navigation item only after duplicate sidebar behavior is tested and rollback is obvious. The first parent grouping is implemented; deeper Finance workspace behavior remains future work.
-8. Later, consider a read-only Finance overview that links to existing pages without changing data writes.
-9. Only after repeated validation, design shared ledger/receipt/invoice services as separate production-sensitive tasks.
+1. Preserve existing route paths and keep Orders, POS and Bookings as their own
+   workflow modules. The initial Accounting, Expenses and Invoicing grouping is
+   implemented.
+2. Deploy the reviewed additive migration before the backend/runtime consumers,
+   then verify every organisation's effective Core rules and Water price tiers.
+   Follow `financial-domain-architecture.md`; do not apply production migrations
+   from routine development or review sessions.
+3. Validate public Core terms, quote/order revalidation, Booking pricing,
+   invoice draft terms and Water pricing against the approved compatibility
+   values before scheduling any price change.
+4. Keep `recordOrderPayment`, `OrderPayment`, `OrderReceipt` and order balance
+   calculations as separate authoritative facts until their reconciliation and
+   refund rules are approved.
+5. Use the Core financial scope by default. Expose consolidated results only in
+   a deliberately labelled, permission-gated view that preserves every segment.
+6. Assign and test an operational recovery path for mixed-cart partial success
+   before representing mixed checkout as one atomic customer transaction.
+7. Treat a backdated restock create, cost/date update or deletion as a
+   controlled financial restatement. Rehearse it on an isolated copy and
+   capture the pre-change Water cost/profit and sale snapshots. Reconcile direct
+   pre/post snapshot changes for create/delete; for a correction also reconcile
+   the audit event's `restatedSaleCostCount`. Confirm sale quantities, selling
+   prices, Water revenue and Core totals are unchanged, and verify an orphaning
+   update/delete fails with `409 WATER_COST_BASIS_REQUIRED` and rolls back.
+8. Reconcile invoice tax sources and obtain finance/legal approval before
+   replacing the legacy device-local default or changing statutory logic.
+9. Add first-class ledger business units, shared-cost allocation and Water GL
+   posting only as separately reviewed accounting migrations with rollback and
+   reconciliation evidence.
+10. Only after repeated validation, design shared ledger/receipt/invoice services
+   as separate production-sensitive tasks.
 
 ## 8. Rollback Strategy
 
 - Revert Finance registry/navigation metadata to the previous module shape.
 - Restore prior labels and sidebar visibility.
-- Keep every route, page, function, schema, and calculation unchanged.
+- For a navigation-only rollback, leave every route, page, function, schema and
+  calculation unchanged.
+- Restore the last compatible backend before rolling back website/Portal
+  consumers of public terms or quote fields. Retain additive commercial history
+  and transaction snapshots for investigation; do not drop the tables or erase
+  applied configuration as an application rollback.
+- Preserve already-issued invoice deposit/due snapshots and already-created
+  Orders/Bookings. Reconcile partial mixed-cart writes instead of deleting them.
+- Do not undo a restock cost-basis restatement by bulk-overwriting Water sale
+  snapshots. Restore only through an approved compensating restock operation
+  with the same audit/reconciliation evidence and orphan-protection checks.
 - If users report workflow disruption, restore previous top-level visibility for accounting, expenses, invoicing, vendors, documents, reports, POS, and orders first.
 - Do not roll back by deleting routes, data records, or business page files.
 
@@ -147,6 +288,35 @@ API/reporting dependencies include:
 - Verify `/admin/expenses` still loads and links supported order/booking context.
 - Verify `/admin/accounting` accounting imports, chart of accounts, trial balance, and journal workflows remain unchanged.
 - Verify `/admin/reports` and financial summaries still match known order/payment/expense totals.
+- Verify `/api/financials` with no scope is Core-only and excludes Water-owned
+  facts; verify `scope=consolidated` is denied without the dedicated permission
+  and exposes separate Core, Water and Shared components when allowed.
+- Verify public commercial terms contain Core booking/payment terms only and
+  become unavailable rather than falling back to hardcoded values when required
+  configuration is missing or overlaps.
+- Verify a shop quote reports a changed catalogue price, requires customer
+  acknowledgement, rejects public Order creation when the quote fingerprint is
+  missing/malformed, and returns `409` if it changes again during creation.
+- Verify a mixed checkout failure after Order creation shows the Order reference
+  and does not invite a duplicate submission; follow the operator
+  reconciliation runbook.
+- Verify new/draft invoice deposit/default due terms match the server
+  configuration, receipts retain zero deposit, and an issued/sent invoice keeps
+  its stored terms after a configuration change.
+- Verify Core invoice create/update rejects a linked Water Product by source
+  category and by explicit Water product-price identity.
+- Verify an ordinary Water price/configuration change leaves existing
+  `unitCostAtSaleCents` values unchanged. On an isolated correction fixture,
+  verify a backdated restock create and a deletion re-resolve non-archived sale
+  snapshots; verify a restock cost/date update emits
+  `WATER_RESTOCK_COST_BASIS_CORRECTED` and its `restatedSaleCostCount` equals the
+  changed/resolved snapshots. Confirm Water COGS/profit changes without changing
+  sale quantities, selling prices, Water revenue or Core totals.
+- Verify a restock update/delete that would orphan a previously snapshotted sale
+  returns `409 WATER_COST_BASIS_REQUIRED`, with neither the restock mutation nor
+  sale-snapshot changes persisted.
+- Verify Water-only and Core-only totals independently before checking the exact
+  consolidated sum.
 - Verify paid-order cancellation protection still blocks non-owner/admin users.
 - Confirm no duplicate sidebar items and no broken links.
 
@@ -156,6 +326,12 @@ API/reporting dependencies include:
 - Shared receipt service with consistent numbering, snapshots, delivery, and print formats.
 - Shared invoice engine with app-specific source adapters.
 - Shared accounting summaries and financial reporting helpers.
+- Atomic, idempotent mixed-cart orchestration with compensation/recovery and one
+  customer-reviewed quote contract across shop and rental commands.
+- One finance/legal-approved, effective-dated statutory tax authority replacing
+  the legacy device-local invoice default.
+- First-class ledger business-unit segments, dedicated Water chart-of-account
+  mapping, shared-cost allocation and inter-unit eliminations.
 - Shared audit events for payment, receipt, invoice, refund, and adjustment actions.
 - Offline-safe payment queue later, after idempotency, reconciliation, and conflict handling are designed.
 - Common finance module registry patterns for payments, receipts, invoices, expenses, accounting, and reports.

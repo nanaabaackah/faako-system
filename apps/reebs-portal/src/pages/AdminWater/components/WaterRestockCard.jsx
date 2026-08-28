@@ -6,67 +6,44 @@ export default function WaterRestockCard({
   quickQuantities,
   restockQuantity,
   quantityValue,
+  unitCostValue,
   onSelectQuickQuantity,
   onAdjustQuantity,
   onQuantityChange,
+  onUnitCostChange,
   supplierLabel,
   restockCost,
   saving,
   loading,
   formatCurrency,
-  retailPriceInputValue,
-  onRetailPriceChange,
-  onRetailPriceSubmit,
   retailPriceLabel,
-  retailPriceSaving,
-  retailPriceLoading,
+  retailPriceAvailable,
+  canManageWaterPricing,
 }) {
-  const showRetailPriceControls = typeof retailPriceInputValue !== "undefined";
-
   return (
     <section className="water-module-network-grid">
       <article className="admin-card water-module-card water-module-card--full bubble-card">
         <div className="water-module-card-head">
           <div>
-            <h3>{showRetailPriceControls ? "Pricing & Restock" : "Restock"}</h3>
+            <h3>Pricing & Restock</h3>
           </div>
         </div>
-        {showRetailPriceControls ? (
-          <form className="water-module-form" onSubmit={onRetailPriceSubmit}>
-            <div className="water-module-sale-block">
-              <div className="water-module-inline-head">
-                <span className="water-module-field-label">Retail price</span>
-              </div>
-              <label>
-                <span className="water-module-field-label">Price per pack (GHS)</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={retailPriceInputValue}
-                  onChange={onRetailPriceChange}
-                  placeholder="0.00"
-                  required
-                />
-              </label>
-              <div className="water-module-inline-summary">
-                <span>Current default</span>
-                <strong>{retailPriceLabel}</strong>
-              </div>
-              <p className="water-module-inline-note">
-                New retail orders use this price unless the order price is edited.
-              </p>
+        <div className="water-module-form">
+          <div className="water-module-sale-block">
+            <div className="water-module-inline-summary">
+              <span>Current scheduled retail price</span>
+              <strong>{retailPriceAvailable ? retailPriceLabel : "Not configured"}</strong>
             </div>
-            <button
-              type="submit"
-              className="admin-secondary water-module-sale-submit"
-              disabled={retailPriceSaving || retailPriceLoading}
-            >
-              {retailPriceSaving ? "Saving..." : "Save retail price"}
-            </button>
-          </form>
-        ) : null}
+            <p className="water-module-inline-note">
+              New Water orders use the active effective-dated price from Commercial Settings.
+            </p>
+          </div>
+          {canManageWaterPricing ? (
+            <a className="admin-secondary water-module-sale-submit" href="/admin/settings?tab=config">
+              Manage scheduled prices
+            </a>
+          ) : null}
+        </div>
         <form className="water-module-form" onSubmit={onSubmit}>
           <div className="water-module-sale-block">
             <div className="water-module-inline-head">
@@ -94,6 +71,7 @@ export default function WaterRestockCard({
                 <AppIcon icon={faMinus} />
               </button>
               <input
+                aria-label="Restock quantity"
                 type="number"
                 min="1"
                 step="1"
@@ -111,11 +89,28 @@ export default function WaterRestockCard({
                 <AppIcon icon={faPlus} />
               </button>
             </div>
+            <label>
+              <span className="water-module-field-label">Cost price per pack (GHS)</span>
+              <input
+                aria-label="Restock cost price per pack"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={unitCostValue}
+                onChange={(event) => onUnitCostChange(event.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </label>
           </div>
           <div className="water-module-inline-summary">
             <span>{supplierLabel}</span>
-            <strong>Cost: {formatCurrency(restockCost)}</strong>
+            <strong>Total cost: {formatCurrency(restockCost)}</strong>
           </div>
+          <p className="water-module-inline-note">
+            Water cost of goods and profit use the cost recorded for each restock period.
+          </p>
           <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
             <AppIcon icon={faPlus} />{" "}
             {saving

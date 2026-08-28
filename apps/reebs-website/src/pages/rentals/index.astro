@@ -1,14 +1,24 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import CataloguePrelude from "../../components/catalogue/CataloguePrelude.astro";
-import SiteFooter from "../../components/catalogue/SiteFooter.astro";
-import SiteHeader from "../../components/catalogue/SiteHeader.astro";
 import RentalsIsland from "../../components/islands/RentalsIsland.jsx";
+import { publicRentals } from "../../content/publicCatalogue.js";
+
+const initialRentals = publicRentals.map((item) => ({
+  ...item,
+  productId: item.id,
+  sourceCategoryCode: "RENTAL",
+  specificCategory: item.category,
+  imageUrl: item.image,
+  quantity: item.availability === "out-of-stock" ? 0 : 1,
+  status: item.availability !== "out-of-stock",
+}));
 ---
 
 <BaseLayout path="/rentals">
-  <SiteHeader currentPath="/rentals" />
-  <CataloguePrelude kind="rental" />
-  <RentalsIsland path={`/rentals${Astro.url.search}`} chrome={false} client:load />
-  <SiteFooter />
+  <h1 class="sr-only">Party rentals</h1>
+  <RentalsIsland
+    path={`/rentals${Astro.url.search}`}
+    initialRentals={initialRentals}
+    client:load
+  />
 </BaseLayout>

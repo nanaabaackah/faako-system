@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faEye, faEyeSlash } from "/src/icons/iconSet";
+import { publicApiResponse } from "../../lib/publicApi";
 
 function Login({ mode = "staff" }) {
   const { login, authLoading, authError } = useAuth();
@@ -95,7 +96,7 @@ function Login({ mode = "staff" }) {
 
     setForgotSubmitting(true);
     try {
-      const response = await fetch("/api/forgotPassword", {
+      const response = await publicApiResponse("/v1/auth/forgot-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

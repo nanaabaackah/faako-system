@@ -15,7 +15,67 @@ import {
   resolveRequestId,
   safeMessageForErrorCode,
   statusForErrorCode,
+  createConsolidatedAnalyticsResponse,
+  toReebsPublicProductDto,
+  toReebsSessionUserDto,
+  toReebsCustomerSelfDto,
+  toReebsPaymentInitializationDto,
+  REEBS_ERROR_CODES,
+  REEBS_API_V1_ROUTES,
+  REEBS_BUSINESS_UNITS,
+  withReebsAnalyticsScope,
+  withSharedBusinessContext,
+  withWaterBusinessContext,
 } from "../src/index.js";
+
+test("REEBS DTOs exclude sensitive and admin-only fields", () => {
+  assert.deepEqual(toReebsSessionUserDto({ id: 1, email: "a@example.com", password: "secret" }), {
+    id: 1,
+    email: "a@example.com",
+  });
+  const product = toReebsPublicProductDto({ id: 2, name: "Castle", price: 100, costPrice: 20, margin: 80 });
+  assert.deepEqual(product, { id: 2, name: "Castle", price: 100 });
+  assert.deepEqual(toReebsCustomerSelfDto({ id: 3, name: "Customer", segmentOverride: "VIP", organizationId: 8 }), {
+    id: 3,
+    name: "Customer",
+  });
+  assert.deepEqual(toReebsPaymentInitializationDto({
+    reference: "PAY-1",
+    authorizationUrl: "https://pay.example/1",
+    status: "pending",
+    providerSecret: "must-not-leak",
+    rawProviderResponse: { secret: true },
+  }), {
+    reference: "PAY-1",
+    authorizationUrl: "https://pay.example/1",
+    status: "pending",
+  });
+  assert.equal(REEBS_ERROR_CODES.BOOKING_CONFLICT, "BOOKING_CONFLICT");
+});
+
+test("Water and core analytics remain explicitly separate", () => {
+  assert.equal(withReebsAnalyticsScope({ revenue: 10 }).scope, "reebs-core");
+  assert.equal(withWaterBusinessContext({ revenue: 20 }).scope, "water");
+  assert.deepEqual(withSharedBusinessContext({ jobs: 3 }), {
+    jobs: 3,
+    scope: "shared",
+    businessUnit: "SHARED",
+  });
+  assert.equal(REEBS_BUSINESS_UNITS.REEBS_CORE, "REEBS_CORE");
+  assert.equal(REEBS_BUSINESS_UNITS.SHARED, "SHARED");
+  const consolidated = createConsolidatedAnalyticsResponse({
+    reebsCore: { revenue: 10 },
+    water: { revenue: 20 },
+  });
+  assert.equal(consolidated.scope, "consolidated");
+  assert.equal(consolidated.components.reebsCore.revenue, 10);
+  assert.equal(consolidated.components.water.revenue, 20);
+  assert.equal("revenue" in consolidated, false);
+});
+
+test("portal settings use the stable authenticated shared route", () => {
+  assert.equal(REEBS_API_V1_ROUTES.PORTAL_SETTINGS, "/api/v1/portal-settings");
+});
 
 test("compatible success keeps legacy fields and exposes canonical data", () => {
   const response = createCompatibleSuccessResponse(

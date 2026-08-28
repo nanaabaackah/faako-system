@@ -149,6 +149,44 @@
   animation: homeRise 0.85s ease 0.15s both;
 }
 
+.hero-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.hero-primary-action,
+.hero-secondary-action {
+  min-height: 3rem;
+  padding: 0.75rem 1.15rem;
+  border: 2px solid rgba(var(--white-rgb), 0.76);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.hero-primary-action {
+  border-color: var(--other);
+  background: var(--other);
+  color: var(--ink);
+}
+
+.hero-secondary-action {
+  background: rgba(var(--ink-rgb), 0.38);
+}
+
+.hero-primary-action:focus-visible,
+.hero-secondary-action:focus-visible {
+  outline: 3px solid var(--white);
+  outline-offset: 3px;
+}
+
 .hero-lead-form input {
   border: none;
   background: transparent;
@@ -430,7 +468,7 @@
   display: grid;
   align-items: center;
   background: #006f8c;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .home-flow--services .container {

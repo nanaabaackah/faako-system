@@ -40,6 +40,11 @@ export { createOrdersApi } from "./orders.ts";
 export { createInvoicesApi } from "./invoices.ts";
 export { createPaymentsApi } from "./payments.ts";
 export {
+  createReebsApi,
+  type ReebsApi,
+  type ReebsApiOptions,
+} from "./reebs.ts";
+export {
   createResourceApi,
   resourceRoutes,
   type ResourceApi,

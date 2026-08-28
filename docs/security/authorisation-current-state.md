@@ -98,20 +98,12 @@ principal, role or permission, resource ownership, and organisation scope.
 - Many operational functions use these helpers, including orders, inventory,
   finance, documents, invoices, reports, and audit logs.
 
-### Critical privilege escalation
+### Privileged account delegation (remediated in Phase 5)
 
-`apps/reebs-portal/backend/functions/users.js` authenticates the caller but does
-not require an admin role or `users:write` permission before `POST`:
-
-- any authenticated user reaches the create branch (`users.js:87-121`);
-- the request may choose any accepted role, including `Owner` or `Admin`, and
-  provide arbitrary permissions (`users.js:121-156`);
-- the new account is created in the attacker's organisation.
-
-Although existing-user role changes are limited to the hard-coded system admin
-(`users.js:168-203`), that does not prevent a lower-privileged user from creating a
-new elevated account. This is a server-side privilege escalation, not merely a
-frontend-guard issue.
+`users.js` now maps reads and writes to `users:read`/`users:write`. Only the
+configured system administrator may assign Owner, Admin, Manager or Water roles
+or custom permissions. Standard organisation administrators may create Staff,
+Warehouse and Driver users. Material access changes revoke the target sessions.
 
 ### Tenant isolation
 
@@ -162,11 +154,10 @@ authoritative tenant boundary.
 These checks are useful UX only. They did not prevent the `users.js` privilege
 escalation and cannot constrain direct API requests.
 
-### Other server-side inconsistencies
+### Other server-side notes
 
-- Any authenticated user can list organisation users, permissions, session
-  counts, last-seen timestamps, IP addresses, and user agents; only drivers receive
-  a reduced record (`apps/reebs-portal/backend/functions/users.js:286-374`).
+- User-directory reads require `users:read`; the established driver compatibility
+  view remains reduced and mutation-denied.
 - Some older functions use bespoke `requireUser` checks rather than the central
   permission helpers, increasing the chance of inconsistent role behavior.
 - Public and authenticated behavior coexist in functions such as customers,

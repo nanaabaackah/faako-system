@@ -29,6 +29,11 @@ import {
 import { isOnlineShopItem } from "/src/utils/frontendInventoryFilters";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
 import {
+  createCheckoutCommandItems,
+  normalizeCheckoutDeliveryDistance,
+} from "/src/utils/checkoutPricing";
+import { publicApiResponse } from "/src/lib/publicApi";
+import {
   clearExpiringDraft,
   loadExpiringDraft,
   saveExpiringDraft,
@@ -155,6 +160,7 @@ const sanitizeDraftDeliveryDetails = (value) => {
     date: cleanDraftText(value.date, 20),
     window: cleanDraftText(value.window, 40),
     notes: cleanDraftText(value.notes, 240),
+    distanceKm: normalizeCheckoutDeliveryDistance(value.distanceKm),
   };
 };
 
@@ -210,6 +216,7 @@ const Checkout = () => {
     date: "",
     window: "",
     notes: "",
+    distanceKm: "",
   });
   const [pickupDetails, setPickupDetails] = useState({
     date: "",
@@ -225,8 +232,11 @@ const Checkout = () => {
     momoProvider: "",
   });
   const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [shopQuoteReview, setShopQuoteReview] = useState(null);
+  const [priceChangeAccepted, setPriceChangeAccepted] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const draftLoadedRef = useRef(false);
+  const checkoutAttemptRef = useRef("");
   const itemCount = cart.reduce((acc, item) => acc + getCartItemBillingQuantity(item), 0);
   const subtotal = cart.reduce((acc, item) => acc + getCartItemLineTotal(item), 0);
   const formattedSubtotal = formatCurrency(convertPrice(subtotal));
@@ -260,6 +270,11 @@ const Checkout = () => {
   const needsPickupDetails =
     selectedFulfillment === "pickup" || (hasShopItems && !shopItemsRideWithRentalDelivery);
   const needsDeliveryDetails = hasRentalItems && selectedFulfillment === "delivery";
+  const shopQuoteGuardKey = useMemo(() => JSON.stringify({
+    items: createCheckoutCommandItems(cartGroups.shop),
+    deliveryMethod: shopItemsRideWithRentalDelivery ? "delivery" : "pickup",
+    distanceKm: normalizeCheckoutDeliveryDistance(deliveryDetails.distanceKm),
+  }), [cartGroups.shop, shopItemsRideWithRentalDelivery, deliveryDetails.distanceKm]);
   const fulfillmentBadgeLabel = isMixedCart
     ? selectedFulfillment === "delivery"
       ? shopItemsRideWithRentalDelivery
@@ -386,6 +401,11 @@ const Checkout = () => {
   }, []);
 
   useEffect(() => {
+    setShopQuoteReview(null);
+    setPriceChangeAccepted(false);
+  }, [shopQuoteGuardKey]);
+
+  useEffect(() => {
     if (!paymentOpen || typeof document === "undefined") return undefined;
 
     const previousOverflow = document.body.style.overflow;
@@ -434,7 +454,7 @@ const Checkout = () => {
         setRecommendedProducts(picks);
       })
       .catch((err) => {
-        if (err?.name !== "AbortError") {
+        if (active && !controller.signal.aborted && err?.name !== "AbortError") {
           console.error("Failed to load checkout recommendations:", err);
         }
       });
@@ -548,24 +568,6 @@ const Checkout = () => {
 
   const resetPaymentStatus = () => setPaymentStatus({ state: "idle", message: "" });
 
-  const createCheckoutItems = (items) =>
-    items
-      .map((item) => {
-        const productId = Number(item.productId ?? item.id);
-        const variantId = Number(item.variantId);
-
-        return {
-          productId,
-          variantId:
-            Number.isFinite(variantId) && variantId > 0
-              ? variantId
-              : undefined,
-          quantity: getCartItemBillingQuantity(item),
-          price: getCartItemPrice(item),
-        };
-      })
-      .filter((item) => Number.isFinite(item.productId));
-
   useEffect(() => {
     setDeliveryDetails((prev) => {
       if (!prev.date || prev.date !== today) return prev;
@@ -586,7 +588,7 @@ const Checkout = () => {
     const email = paymentDetails.email.trim();
     const phone = formatPhoneNumber(paymentDetails.phoneCode, paymentDetails.phoneLocal);
 
-    const createRes = await fetch("/api/customers", {
+    const createRes = await publicApiResponse("/v1/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, phone }),
@@ -605,7 +607,7 @@ const Checkout = () => {
     if (email) params.set("email", email);
     if (phone) params.set("phone", phone);
     if (name) params.set("name", name);
-    const lookupRes = await fetch(`/api/customers?${params.toString()}`);
+    const lookupRes = await publicApiResponse(`/v1/customers?${params.toString()}`);
     if (lookupRes.ok) {
       const match = await readApiPayload(lookupRes);
       if (match?.id) return match;
@@ -633,6 +635,12 @@ const Checkout = () => {
     }
     if (needsDeliveryDetails && !deliveryDetails.date) {
       return "Select a delivery date.";
+    }
+    if (
+      shopItemsRideWithRentalDelivery
+      && !normalizeCheckoutDeliveryDistance(deliveryDetails.distanceKm)
+    ) {
+      return "Add the confirmed delivery distance in kilometres, or keep shop items for pickup.";
     }
     if (needsDeliveryDetails && deliveryDetails.contactNumber && normalizePhoneDigits(deliveryDetails.contactNumber).length !== 10) {
       return "Enter a valid 10-digit delivery contact number.";
@@ -662,21 +670,56 @@ const Checkout = () => {
 
     setPaymentStatus({ state: "saving", message: "Confirming your order..." });
     try {
-      const customer = await resolveCustomer();
       const normalizedDeliveryDetails = sanitizeDraftDeliveryDetails(deliveryDetails) || deliveryDetails;
+      const shopUsesDelivery = shopItemsRideWithRentalDelivery;
+      const shopCommandItems = createCheckoutCommandItems(cartGroups.shop);
+      let authoritativeShopQuote = null;
+
+      if (shopCommandItems.length > 0) {
+        setPaymentStatus({ state: "saving", message: "Checking current shop prices and availability..." });
+        const quoteRes = await publicApiResponse("/v1/checkout/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: shopCommandItems,
+            deliveryMethod: shopUsesDelivery ? "delivery" : "pickup",
+            deliveryDetails: shopUsesDelivery ? normalizedDeliveryDetails : null,
+            pickupDetails: shopUsesDelivery ? null : pickupDetails,
+          }),
+        });
+        const quoteData = await readApiPayload(quoteRes);
+        if (!quoteRes.ok) {
+          throw new Error(quoteData?.error || "Unable to verify current shop prices.");
+        }
+        authoritativeShopQuote = quoteData;
+
+        const isSameReviewedQuote = shopQuoteReview?.fingerprint === quoteData.fingerprint;
+        if (quoteData.priceChanged && (!isSameReviewedQuote || !priceChangeAccepted)) {
+          setShopQuoteReview(quoteData);
+          if (!isSameReviewedQuote) setPriceChangeAccepted(false);
+          setPaymentStatus({
+            state: "error",
+            message: "One or more shop prices changed since the item was added. Review and accept the current prices before confirming.",
+          });
+          return;
+        }
+        setShopQuoteReview(quoteData);
+      }
+
+      const customer = await resolveCustomer();
       if (!customer.id) {
         throw new Error("Customer already exists but could not be found.");
       }
 
       const createdRefs = [];
       let createdShopOrderRef = null;
-      const shopUsesDelivery = shopItemsRideWithRentalDelivery;
+      let authoritativeTotalCents = 0;
 
       if (cartGroups.shop.length > 0) {
         setPaymentStatus({ state: "saving", message: "Creating shop order..." });
         const orderPayload = {
           customerId: customer.id,
-          items: createCheckoutItems(cartGroups.shop),
+          items: shopCommandItems,
           status: "pending",
           deliveryMethod: shopUsesDelivery ? "delivery" : "pickup",
           deliveryDetails: shopUsesDelivery ? normalizedDeliveryDetails : null,
@@ -686,18 +729,38 @@ const Checkout = () => {
             momoProvider: paymentDetails.method === "momo" ? paymentDetails.momoProvider : "",
           },
           source: "checkout",
+          quoteFingerprint: authoritativeShopQuote?.fingerprint || "",
+          acknowledgePriceChanges: Boolean(
+            authoritativeShopQuote?.priceChanged && priceChangeAccepted
+          ),
         };
 
-        const orderRes = await fetch("/api/createOrder", {
+        const orderRes = await publicApiResponse("/v1/checkout/orders", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": checkoutAttemptRef.current || (
+              checkoutAttemptRef.current = globalThis.crypto?.randomUUID?.()
+                || `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            ),
+          },
           body: JSON.stringify(orderPayload),
         });
         const orderData = await readApiPayload(orderRes);
         if (!orderRes.ok) {
+          if (orderRes.status === 409 && orderData?.quote?.fingerprint) {
+            setShopQuoteReview(orderData.quote);
+            setPriceChangeAccepted(false);
+            setPaymentStatus({
+              state: "error",
+              message: orderData?.error || "Shop prices changed again. Review the latest total before confirming.",
+            });
+            return;
+          }
           throw new Error(orderData?.error || "Failed to create shop order.");
         }
         createdShopOrderRef = orderData.orderNumber || orderData.orderId;
+        authoritativeTotalCents += Number(orderData.grandTotalCents || 0);
         createdRefs.push(`Order ${createdShopOrderRef}`);
       }
 
@@ -715,7 +778,7 @@ const Checkout = () => {
             selectedFulfillment === "delivery"
               ? normalizedDeliveryDetails.address.trim()
               : normalizedDeliveryDetails.address.trim() || PICKUP_VENUE_FALLBACK,
-          items: createCheckoutItems(cartGroups.rentals),
+          items: createCheckoutCommandItems(cartGroups.rentals),
           status: "pending",
           paymentPreference: {
             method: paymentDetails.method,
@@ -724,7 +787,7 @@ const Checkout = () => {
           source: "checkout",
         };
 
-        const bookingRes = await fetch("/api/bookings", {
+        const bookingRes = await publicApiResponse("/v1/bookings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bookingPayload),
@@ -738,6 +801,7 @@ const Checkout = () => {
           }
           throw new Error(bookingData?.error || "Failed to create rental booking.");
         }
+        authoritativeTotalCents += Number(bookingData.totalAmount || 0);
         createdRefs.push(`Booking ${bookingData.id}`);
       }
 
@@ -750,10 +814,15 @@ const Checkout = () => {
               ? `Booking created. ${paymentConfirmationMessage}`
               : `Order created. ${paymentConfirmationMessage}`,
       });
-      setConfirmedAmount(formattedSubtotal);
+      setConfirmedAmount(
+        authoritativeTotalCents > 0
+          ? formatCurrency(convertPrice(authoritativeTotalCents / 100))
+          : formattedSubtotal
+      );
       setOrderSuccess(`${createdRefs.join(" and ")} confirmed.`);
       clearCart();
       clearExpiringDraft(draftKey);
+      checkoutAttemptRef.current = "";
     } catch (err) {
       setPaymentStatus({ state: "error", message: err.message || "Payment failed." });
     }
@@ -808,8 +877,8 @@ const Checkout = () => {
           <h2>Your bag is empty</h2>
           <p>Add rentals or supplies to move to checkout.</p>
           <div className="checkout-empty-actions">
-            <Link className="hero-btn hero-btn-primary" to="/Shop">Browse shop</Link>
-            <Link className="hero-btn hero-btn-ghost" to="/Rentals">View rentals</Link>
+            <Link className="hero-btn hero-btn-primary" to="/shop">Browse shop</Link>
+            <Link className="hero-btn hero-btn-ghost" to="/rentals">View rentals</Link>
           </div>
         </section>
       ) : (
@@ -956,6 +1025,26 @@ const Checkout = () => {
                       placeholder="Street, neighborhood, landmark"
                     />
                   </div>
+                  {shopItemsRideWithRentalDelivery ? (
+                    <div className="checkout-field">
+                      <label htmlFor="delivery-distance">Confirmed distance from REEBS (km)</label>
+                      <input
+                        id="delivery-distance"
+                        type="number"
+                        name="deliveryDistanceKm"
+                        min="0.1"
+                        step="0.1"
+                        inputMode="decimal"
+                        value={deliveryDetails.distanceKm ?? ""}
+                        onChange={updateDelivery("distanceKm")}
+                        placeholder="e.g. 12.4"
+                      />
+                      <small>
+                        This is required to calculate the server-authoritative shop delivery fee.
+                        If it is not confirmed, keep the shop items for pickup.
+                      </small>
+                    </div>
+                  ) : null}
                   <div className="checkout-field">
                     <label htmlFor="delivery-contact">Contact number</label>
                     <div className="checkout-phone-row">
@@ -1098,7 +1187,7 @@ const Checkout = () => {
                 >
                   Confirm order
                 </button>
-                <Link className="hero-btn hero-btn-ghost" to="/Cart">
+                <Link className="hero-btn hero-btn-ghost" to="/cart">
                   Back to cart
                 </Link>
               </div>
@@ -1420,8 +1509,48 @@ const Checkout = () => {
                       <strong>{modalAmount}</strong>
                     </div>
 
+                    {shopQuoteReview?.priceChanged ? (
+                      <section
+                        className="checkout-price-review"
+                        role="alert"
+                        aria-labelledby="checkout-price-review-title"
+                      >
+                        <div className="checkout-price-review-head">
+                          <div>
+                            <h3 id="checkout-price-review-title">Shop prices updated</h3>
+                            <p>The server checked today&apos;s catalogue prices. Your order has not been created yet.</p>
+                          </div>
+                          <strong>
+                            Shop total {formatCurrency(convertPrice(Number(shopQuoteReview.grandTotalCents || 0) / 100))}
+                          </strong>
+                        </div>
+                        <ul className="checkout-price-review-list">
+                          {(shopQuoteReview.priceChanges || []).map((change) => (
+                            <li key={`${change.productId}:${change.variantId || ""}`}>
+                              <span>{change.name}</span>
+                              <span>
+                                {formatCurrency(convertPrice(Number(change.expectedUnitPriceCents || 0) / 100))}
+                                {" → "}
+                                <strong>
+                                  {formatCurrency(convertPrice(Number(change.authoritativeUnitPriceCents || 0) / 100))}
+                                </strong>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        <label className="checkout-price-acceptance">
+                          <input
+                            type="checkbox"
+                            checked={priceChangeAccepted}
+                            onChange={(event) => setPriceChangeAccepted(event.target.checked)}
+                          />
+                          <span>I accept the current shop prices shown above.</span>
+                        </label>
+                      </section>
+                    ) : null}
+
                     {paymentStatus.message && (
-                      <div className={`checkout-modal-status ${paymentStatus.state}`}>
+                      <div className={`checkout-modal-status ${paymentStatus.state}`} role="status" aria-live="polite">
                         {paymentStatus.message}
                       </div>
                     )}
@@ -1430,9 +1559,17 @@ const Checkout = () => {
                       <button
                         className="hero-btn hero-btn-primary"
                         type="submit"
-                        disabled={paymentStatus.state === "saving" || paymentStatus.state === "success"}
+                        disabled={
+                          paymentStatus.state === "saving"
+                          || paymentStatus.state === "success"
+                          || (shopQuoteReview?.priceChanged && !priceChangeAccepted)
+                        }
                       >
-                        {paymentStatus.state === "saving" ? "Confirming..." : "Confirm order"}
+                        {paymentStatus.state === "saving"
+                          ? "Confirming..."
+                          : shopQuoteReview?.priceChanged
+                            ? "Accept prices and confirm"
+                            : "Confirm order"}
                       </button>
                       <button
                         className="hero-btn hero-btn-ghost"

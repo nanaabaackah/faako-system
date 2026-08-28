@@ -3,7 +3,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { getManagerFromEvent } from "./_shared/managerAuth.js";
 import { ensureManagerDeviceTable } from "./_shared/managerPush.js";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { getRecordedDeliveryDistanceKm } from "./_shared/deliveryFee.js";
 
 const MANAGER_ORIGIN = String(process.env.MANAGER_APP_ORIGIN || process.env.URL || "").trim();
 const allowedOrigin = MANAGER_ORIGIN || null;
@@ -26,19 +26,23 @@ const json = (statusCode, body, extraHeaders = {}) => ({
 });
 
 const withDeliveryTotals = (order) => {
-  const baseTotal = Number(order?.total || 0);
-  const { distanceKm, feeCents } = getDeliveryFeeDetails(
+  const grandTotal = Number(order?.total || 0);
+  const feeCents = Number(order?.deliveryFeeCents || 0);
+  const itemsTotal = Number.isFinite(Number(order?.subtotalCents))
+    ? Number(order.subtotalCents) / 100
+    : Math.max(0, grandTotal - feeCents / 100);
+  const distanceKm = getRecordedDeliveryDistanceKm(
     order?.deliveryMethod,
     order?.deliveryDetails
   );
   const deliveryFee = feeCents / 100;
   return {
     ...order,
-    itemsTotal: baseTotal,
+    itemsTotal,
     deliveryFee,
     deliveryFeeCents: feeCents,
     deliveryDistanceKm: distanceKm || 0,
-    total: baseTotal + deliveryFee,
+    total: grandTotal,
   };
 };
 
@@ -79,7 +83,9 @@ export async function handler(event = {}) {
          o."deliveryMethod",
          o."deliveryDetails",
          o."pickupDetails",
-         (o."total_amount"::numeric / 100) AS total,
+         o."subtotalCents",
+         o."deliveryFeeCents",
+         (COALESCE(o."grandTotalCents", o."total_amount")::numeric / 100) AS total,
          o."orderDate",
          o."lastModifiedAt",
          COALESCE(

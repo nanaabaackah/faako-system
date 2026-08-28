@@ -4,7 +4,7 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 
 const logger = createLogger("reebs:logout");
 import { Client } from "pg";
-import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
+import { isCrossSiteBrowserRequest, isTrustedBrowserMutation, json } from "./_shared/http.js";
 import { clearUserSessionCookie, getUserFromEvent } from "./_shared/userAuth.js";
 import { getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { ensureUserSessionsTable, revokeUserSession } from "./_shared/userSessions.js";
@@ -21,7 +21,7 @@ export async function handler(event) {
     return respond(event, 405, { error: "Method not allowed" });
   }
 
-  if (isCrossSiteBrowserRequest(event)) {
+  if (isCrossSiteBrowserRequest(event) || !isTrustedBrowserMutation(event)) {
     return respond(event, 403, { error: "Cross-site requests are not allowed." });
   }
 

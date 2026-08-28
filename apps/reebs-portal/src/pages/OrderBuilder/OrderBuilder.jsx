@@ -2,12 +2,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SelectField } from "@faako/ui";
 import "./OrderBuilder.css";
-import { computeVisibleProducts, PRODUCT_SHOW_ALL_THRESHOLD } from "./orderBuilderUtils.js";
+import {
+  computeVisibleProducts,
+  normalizeOrderCurrency,
+  PRODUCT_SHOW_ALL_THRESHOLD,
+} from "./orderBuilderUtils.js";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
+import { reebsApiResponse } from "../../api/client.js";
+import { isCoreOrderProduct } from "../../utils/coreCommercialInventory.js";
 
 const getUnitPrice = (item) => {
   if (typeof item?.price === "number") return item.price;
@@ -57,16 +63,10 @@ const formatVariantName = (product, variant) =>
 
 const getOrderLineKey = (productId, variantId = "") => `${productId}:${variantId || "standard"}`;
 
-const normalizeCurrency = (currency) => {
-  if (typeof currency !== "string") return "GBP";
-  const trimmed = currency.trim();
-  return trimmed ? trimmed.toUpperCase() : "GBP";
-};
-
 const normalizeCode = (value) => (value || "").toString().trim().toLowerCase();
 
-const formatCurrency = (amount, currency = "GBP") => {
-  const normalizedCurrency = normalizeCurrency(currency);
+const formatCurrency = (amount, currency = "GHS") => {
+  const normalizedCurrency = normalizeOrderCurrency(currency);
   try {
     return new Intl.NumberFormat("en-GB", {
       style: "currency",
@@ -137,11 +137,7 @@ function OrderBuilder() {
         ]);
 
         const inventoryOnly = (Array.isArray(inventoryData) ? inventoryData : []).filter(
-          (item) => {
-            const source = (item.sourceCategoryCode || item.sourcecategorycode || "").toString().toLowerCase();
-            if (!source) return true;
-            return source !== "rental";
-          }
+          isCoreOrderProduct,
         );
 
         setCustomers(Array.isArray(customerData) ? customerData : []);
@@ -250,9 +246,9 @@ function OrderBuilder() {
   );
 
   const orderCurrency = useMemo(() => {
-    if (!cartItems.length) return "GBP";
+    if (!cartItems.length) return "GHS";
     const currencies = new Set(
-      cartItems.map((item) => normalizeCurrency(item.currency || "GBP"))
+      cartItems.map((item) => normalizeOrderCurrency(item.currency || "GHS"))
     );
     if (currencies.size === 1) return [...currencies][0];
     return "MIXED";
@@ -285,7 +281,7 @@ function OrderBuilder() {
           name: variant ? formatVariantName(product, variant) : product.name,
           productName: product.name,
           unitPrice: variant ? getVariantPrice(product, variant) : getUnitPrice(product),
-          currency: normalizeCurrency(product.currency || "GBP"),
+          currency: normalizeOrderCurrency(product.currency || "GHS"),
           quantity: 1,
           stock,
         },

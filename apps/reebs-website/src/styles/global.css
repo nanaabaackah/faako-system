@@ -236,7 +236,7 @@ body.admin-readonly::after {
   inset: 0;
   border-radius: inherit;
   overflow-y: auto;
-  overflow-x: visible;
+  overflow-x: clip;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   background: #f8f6f2;
@@ -669,6 +669,41 @@ hr {
   width: 110px;
   height: 110px;
   object-fit: contain;
+}
+
+.storefront-site-loader {
+  --ui-loading-bg: #f8f6f2;
+  --ui-loading-surface: #ffffff;
+  --ui-loading-accent: var(--other);
+  --ui-loading-block: color-mix(in srgb, var(--other) 16%, #ffffff);
+  --ui-loading-shimmer: color-mix(in srgb, var(--back) 20%, #ffffff);
+  --ui-loading-border: rgba(var(--back3-rgb), 0.16);
+  min-height: 100%;
+  border-radius: inherit;
+}
+
+.storefront-site-loader .ui-animated-loading-state__page-skeleton {
+  min-height: 100%;
+  padding-top: clamp(8rem, 13vw, 10rem);
+  background: #f8f6f2;
+}
+
+.storefront-site-loader .ui-animated-loading-state__copy {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront-site-loader :is(
+    .ui-animated-loading-state__skeleton-mark,
+    .ui-animated-loading-state__skeleton-line,
+    .ui-animated-loading-state__skeleton-metrics span,
+    .ui-animated-loading-state__skeleton-rows i,
+    .ui-animated-loading-state__skeleton-media,
+    .ui-animated-loading-state__skeleton-toolbar span,
+    .ui-animated-loading-state__skeleton-card i
+  )::after {
+    display: none;
+  }
 }
 
 .hidden {

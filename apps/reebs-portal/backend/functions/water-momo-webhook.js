@@ -6,6 +6,7 @@ import { buildResponseHeaders } from "./_shared/http.js";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX = 120;
+const MAX_WEBHOOK_BODY_BYTES = 64 * 1024;
 
 const webhookRateLimitBuckets =
   globalThis.__reebsWaterMomoWebhookRateLimitBuckets || new Map();
@@ -81,8 +82,8 @@ const saleTableStatements = [
   `CREATE TABLE IF NOT EXISTS "waterSale" (
     "id" SERIAL PRIMARY KEY,
     "organizationId" INTEGER NOT NULL,
-    "productKey" TEXT NOT NULL DEFAULT 'gwater-12pk',
-    "productName" TEXT NOT NULL DEFAULT '12pk Gwater',
+    "productKey" TEXT NOT NULL DEFAULT 'gwater-15pk',
+    "productName" TEXT NOT NULL DEFAULT '15pk Gwater',
     "quantity" INTEGER NOT NULL,
     "saleChannel" TEXT NOT NULL,
     "paymentMethod" TEXT NOT NULL DEFAULT 'cash',
@@ -116,6 +117,19 @@ const ensureSaleTable = async (client) => {
     `UPDATE "waterSale"
      SET "paymentReference" = 'WATER-' || "organizationId"::text || '-' || id::text
      WHERE COALESCE(NULLIF(TRIM("paymentReference"), ''), '') = ''`
+  );
+  await client.query(
+    `CREATE TABLE IF NOT EXISTS "waterMomoWebhookEvent" (
+      "id" BIGSERIAL PRIMARY KEY,
+      "eventFingerprint" TEXT NOT NULL UNIQUE,
+      "organizationId" INTEGER,
+      "waterSaleId" INTEGER,
+      "providerReference" TEXT,
+      "paymentReference" TEXT,
+      "paymentStatus" TEXT,
+      "receivedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      "processedAt" TIMESTAMPTZ
+    )`
   );
 };
 
@@ -242,6 +256,15 @@ const parseWaterReference = (value) => {
   };
 };
 
+export const isAllowedWaterPaymentTransition = (currentStatus, nextStatus) => {
+  const current = cleanText(currentStatus).toLowerCase() || "pending";
+  const next = cleanText(nextStatus).toLowerCase();
+  if (!next) return false;
+  if (current === "paid") return next === "paid";
+  if (current === "unpaid") return next === "unpaid" || next === "pending" || next === "paid";
+  return ["pending", "unpaid", "paid"].includes(next);
+};
+
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
     return {
@@ -254,6 +277,15 @@ export async function handler(event = {}) {
   const method = (event.httpMethod || "POST").toUpperCase();
   if (method !== "POST" && method !== "PUT") {
     return json(event, 405, { error: "Method Not Allowed" });
+  }
+
+  const rawBody = typeof event.body === "string" ? event.body : "";
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_WEBHOOK_BODY_BYTES) {
+    return json(event, 413, { error: "Webhook payload is too large." });
+  }
+  const contentType = getHeaderValue(event, "content-type").toLowerCase();
+  if (contentType && !contentType.includes("application/json")) {
+    return json(event, 415, { error: "Content-Type must be application/json." });
   }
 
   const clientAddress = getClientAddress(event);
@@ -331,6 +363,20 @@ export async function handler(event = {}) {
   try {
     await client.connect();
     await ensureSaleTable(client);
+    await client.query("BEGIN");
+    const eventFingerprint = crypto.createHash("sha256").update(rawBody).digest("hex");
+    const eventInsert = await client.query(
+      `INSERT INTO "waterMomoWebhookEvent" ("eventFingerprint")
+       VALUES ($1)
+       ON CONFLICT ("eventFingerprint") DO NOTHING
+       RETURNING id`,
+      [eventFingerprint]
+    );
+    if (eventInsert.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return json(event, 200, { ok: true, idempotentReplay: true });
+    }
+    const webhookEventId = eventInsert.rows[0].id;
 
     let saleRes;
     if (saleId) {
@@ -352,7 +398,8 @@ export async function handler(event = {}) {
            "paidAt"
          FROM "waterSale"
          WHERE id = $1${organizationFilter}
-         LIMIT 1`,
+         LIMIT 1
+         FOR UPDATE`,
         values
       );
     } else {
@@ -368,7 +415,8 @@ export async function handler(event = {}) {
            "paidAt"
          FROM "waterSale"
          WHERE "paymentReference" = $1
-         LIMIT 1`,
+         LIMIT 1
+         FOR UPDATE`,
         [incomingReference]
       );
     }
@@ -380,6 +428,11 @@ export async function handler(event = {}) {
     const sale = saleRes.rows[0];
     const expectedAmount = Number(sale.totalAmount || 0);
     const notifiedAmount = parseWebhookAmount(payload);
+    const notifiedCurrency = cleanText(payload.currency || payload.currencyCode).toUpperCase();
+    if (notifiedCurrency && notifiedCurrency !== "GHS") {
+      await client.query("ROLLBACK");
+      return json(event, 409, { error: "Webhook currency does not match the Water sale currency." });
+    }
     if (notifiedAmount && expectedAmount > 0 && notifiedAmount !== expectedAmount) {
       return json(event, 409, {
         error: "Payment amount does not match the recorded sale total.",
@@ -396,6 +449,14 @@ export async function handler(event = {}) {
       typeof payload.success === "boolean" ? payload.success : null,
       reasonCode
     );
+    if (nextPaymentStatus === "paid" && !notifiedAmount) {
+      await client.query("ROLLBACK");
+      return json(event, 400, { error: "A paid notification must include the settled amount." });
+    }
+    if (!isAllowedWaterPaymentTransition(sale.paymentStatus, nextPaymentStatus)) {
+      await client.query("ROLLBACK");
+      return json(event, 409, { error: "Invalid Water payment status transition." });
+    }
     const nextProviderReference =
       cleanText(payload.providerReference) ||
       cleanText(payload.financialTransactionId) ||
@@ -423,8 +484,9 @@ export async function handler(event = {}) {
            "paymentStatus" = $3,
            "paymentReference" = $4,
            "providerReference" = $5,
-           "paidAt" = $6
-       WHERE id = $1
+           "paidAt" = $6,
+           "updatedAt" = NOW()
+       WHERE id = $1 AND "organizationId" = $7
        RETURNING
          id,
          "organizationId",
@@ -440,14 +502,37 @@ export async function handler(event = {}) {
         nextPaymentReference,
         nextProviderReference,
         nextPaidAt,
+        sale.organizationId,
       ]
     );
 
+    await client.query(
+      `UPDATE "waterMomoWebhookEvent"
+       SET "organizationId" = $1,
+           "waterSaleId" = $2,
+           "providerReference" = $3,
+           "paymentReference" = $4,
+           "paymentStatus" = $5,
+           "processedAt" = NOW()
+       WHERE id = $6`,
+      [
+        sale.organizationId,
+        sale.id,
+        nextProviderReference,
+        nextPaymentReference,
+        nextPaymentStatus,
+        webhookEventId,
+      ]
+    );
+    await client.query("COMMIT");
+
     return json(event, 200, {
       ok: true,
+      idempotentReplay: false,
       sale: updateRes.rows?.[0] || null,
     });
   } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error("Water MoMo webhook error", err);
     return json(event, 500, { error: "Failed to process the MoMo notification." });
   } finally {

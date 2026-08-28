@@ -29,7 +29,6 @@ import {
   fetchOrderInvoiceDetails,
 } from "../../utils/invoiceDocumentCache";
 import {
-  DEFAULT_SERVICE_DEPOSIT_DUE_DAYS,
   DEFAULT_SERVICE_PAYMENT_NOTE,
   DEFAULT_SERVICE_PAYMENT_TERMS,
 } from "../../../shared/paymentCopy.js";
@@ -43,6 +42,8 @@ import {
   getVariantUnitPrice,
   isVariantParentItem,
 } from "../../utils/productVariants";
+import { isCoreCommercialProduct } from "../../utils/coreCommercialInventory.js";
+import { cacheDocumentIdentity, loadPortalSettings } from "../../utils/portalSettings.js";
 
 const COMPANY = {
   name: "REEBS Party Themes",
@@ -80,9 +81,8 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
-const INVOICE_DEPOSIT_RATE = 0.7;
-
 const INVOICE_DUE_DATE_OPTIONS = [
+  { value: "service_deposit", label: "Configured service terms" },
   { value: "immediately", label: "Immediately" },
   { value: "twenty_four_hours", label: "24hrs" },
   { value: "forty_eight_hours", label: "48hrs" },
@@ -194,7 +194,7 @@ const formatDateStamp = (value) => {
 const todayValue = () => new Date().toISOString().slice(0, 10);
 
 const defaultDueDateOptionForType = (documentType) =>
-  documentType === "invoice" ? "forty_eight_hours" : "none";
+  documentType === "invoice" ? "service_deposit" : "none";
 
 const getDueDateOptionsForType = (documentType) =>
   documentType === "invoice" ? INVOICE_DUE_DATE_OPTIONS : RECEIPT_DUE_DATE_OPTIONS;
@@ -257,10 +257,17 @@ const computeDueDate = (document, dueDateOption) => {
   if (option === "twenty_four_hours") {
     return mode === "before_event" ? subtractDaysFromDate(referenceDate, 1) : addDaysToDate(referenceDate, 1);
   }
-  if (option === "forty_eight_hours" || option === "service_deposit") {
+  if (option === "service_deposit") {
+    const configuredDays = Number(document?.serviceDepositDueDays);
+    if (!Number.isInteger(configuredDays) || configuredDays < 0) return "";
     return mode === "before_event"
-      ? subtractDaysFromDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS)
-      : addDaysToDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS);
+      ? subtractDaysFromDate(referenceDate, configuredDays)
+      : addDaysToDate(referenceDate, configuredDays);
+  }
+  if (option === "forty_eight_hours") {
+    return mode === "before_event"
+      ? subtractDaysFromDate(referenceDate, 2)
+      : addDaysToDate(referenceDate, 2);
   }
   if (option === "seventy_two_hours") {
     return mode === "before_event" ? subtractDaysFromDate(referenceDate, 3) : addDaysToDate(referenceDate, 3);
@@ -280,7 +287,7 @@ const inferDueDateOption = (document, dueDate) => {
   if (normalizedDueDate === computeDueDate(document, "immediately")) return "immediately";
   if (normalizedDueDate === computeDueDate(document, "twenty_four_hours")) return "twenty_four_hours";
   if (normalizedDueDate === computeDueDate(document, "forty_eight_hours")) return "forty_eight_hours";
-  if (normalizedDueDate === computeDueDate(document, "service_deposit")) return "forty_eight_hours";
+  if (normalizedDueDate === computeDueDate(document, "service_deposit")) return "service_deposit";
   if (normalizedDueDate === computeDueDate(document, "seventy_two_hours")) return "seventy_two_hours";
   if (normalizedDueDate === computeDueDate(document, "two_weeks")) return "custom";
   if (normalizedDueDate === computeDueDate(document, "thirty_days")) return "custom";
@@ -290,18 +297,10 @@ const inferDueDateOption = (document, dueDate) => {
 const getInvoiceDueDateLabel = (document) =>
   document?.documentType === "invoice" ? "Deposit due" : "Due date";
 
-const isInvoiceFullPaymentDue = (document) => {
-  if (document?.documentType !== "invoice") return false;
-  if (String(document?.paymentStatus || "").toLowerCase() === "paid") return false;
-  const dueDate = normalizeDateInput(document?.dueDate);
-  return Boolean(dueDate) && dueDate < todayValue();
-};
-
 const getInvoiceDueDateSummaryLabel = (document) =>
-  document?.documentType === "invoice" && isInvoiceFullPaymentDue(document) ? "Payment due" : "Deposit due";
+  document?.documentType === "invoice" ? "Deposit due" : "Due date";
 
-const getInvoiceDepositLabel = (document) =>
-  isInvoiceFullPaymentDue(document) ? "Amount due (100%)" : "Deposit due (70%)";
+const getInvoiceDepositLabel = () => "Recorded deposit due";
 
 const getInvoiceBalanceLabel = () => "Remaining balance";
 
@@ -953,6 +952,7 @@ const normalizeStoredDocument = (record) => {
     dueDateOption: inferDueDateOption(dueDateReference, dueDate),
     paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
     depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
+    depositAmountIsPersisted: true,
     discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
 
     customer: {
@@ -1060,7 +1060,6 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
   if (!items.length && Array.isArray(fallbackItems) && fallbackItems.length) {
     items = fallbackItems;
   }
-  const subtotal = toNumber(payload?.totalAmount, 0) / 100;
   const expenseInfo = normalizeExpenseList(payload);
   const issueDate = normalizeDateInput(payload?.eventDate) || todayValue();
   const event = {
@@ -1087,7 +1086,7 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
     ),
     dueDateOption: defaultDueDateOptionForType("invoice"),
     paymentStatus: "draft",
-    depositAmount: Number((subtotal * 0.7).toFixed(2)),
+    depositAmount: 0,
     discountAmount: 0,
 
     customer: {
@@ -1200,12 +1199,10 @@ const computeDocumentSummary = (document) => {
   const taxTotal = Number(((subtotal + additionalTotal) * taxRate).toFixed(2));
   const discountTotal = Math.min(rawDiscount, subtotal + additionalTotal + taxTotal);
   const grandTotal = Math.max(0, Number((subtotal + additionalTotal + taxTotal - discountTotal).toFixed(2)));
-  const fullPaymentDue = isInvoiceFullPaymentDue(document);
+  const fullPaymentDue = false;
   const depositAmount =
     document?.documentType === "invoice"
-      ? fullPaymentDue
-        ? grandTotal
-        : Number((grandTotal * INVOICE_DEPOSIT_RATE).toFixed(2))
+      ? Math.min(grandTotal, Math.max(0, toNumber(document?.depositAmount, 0)))
       : 0;
   const amountPaid = document?.paymentStatus === "paid" ? grandTotal : depositAmount;
   const balanceDue =
@@ -1408,7 +1405,7 @@ function InvoiceProductPicker({
   const availableOptions = useMemo(() => {
     if (!Array.isArray(products)) return [];
 
-    return products.flatMap((product) => {
+    return products.filter(isCoreCommercialProduct).flatMap((product) => {
       const productId = Number(product?.id);
       if (!Number.isFinite(productId) || productId <= 0) return [];
 
@@ -2313,13 +2310,30 @@ function AdminInvoicing() {
 
   useEffect(() => {
     setConfig(loadConfig());
+    const controller = new AbortController();
+    let ignore = false;
+    loadPortalSettings({ signal: controller.signal })
+      .then((data) => {
+        if (ignore || !data?.documentIdentity) return;
+        cacheDocumentIdentity(data.documentIdentity);
+        setConfig(loadConfig());
+      })
+      .catch((error) => {
+        if (error?.name !== "AbortError") {
+          // The last cached identity remains available while the settings service is offline.
+        }
+      });
     const handleStorage = (event) => {
       if (event.key === "reebs_erp_config") {
         setConfig(loadConfig());
       }
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => {
+      ignore = true;
+      controller.abort();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const defaultTaxRate = useMemo(() => parseTaxRate(config?.taxRate), [config]);
@@ -2734,6 +2748,9 @@ function AdminInvoicing() {
                 invoiceNumber: saved.invoiceNumber || current.invoiceNumber,
                 updatedAt: saved.updatedAt || current.updatedAt,
                 createdAt: saved.createdAt || current.createdAt,
+                depositAmount: saved.depositAmount,
+                depositAmountIsPersisted: true,
+                dueDate: current.dueDate || saved.dueDate || "",
                 stockCommittedAt: saved.stockCommittedAt || current.stockCommittedAt || null,
                 sentAt: saved.sentAt || current.sentAt || null,
                 sentToEmail: saved.sentToEmail || current.sentToEmail || "",
@@ -3934,41 +3951,49 @@ function AdminInvoicing() {
       const sentToEmail = activeDocument.customer?.email || "";
       const invoiceNumber = getDocumentNumberValue(activeDocument.invoiceNumber) || buildDocumentNumber(activeDocument.documentType);
       const paymentStatus = activeDocument.paymentStatus === "draft" ? "unpaid" : activeDocument.paymentStatus;
-      const documentToSend = finalizeWorkingDocument({
+      const documentToPersist = finalizeWorkingDocument({
         ...activeDocument,
         invoiceNumber,
         paymentStatus,
-        sentAt,
-        sentToEmail,
       }, activeDocument);
+      const savedBeforeSend = await persistDocument(documentToPersist, {
+        documentKey: selectedKey,
+      });
+      if (!savedBeforeSend?.id) {
+        throw new Error("Save the document before sending it.");
+      }
+      const persistedDocument = finalizeWorkingDocument(
+        mergeDocument(documentToPersist, savedBeforeSend),
+        documentToPersist
+      );
+      const persistedDocumentKey = buildEntryKey(
+        savedBeforeSend.sourceType,
+        savedBeforeSend.sourceId,
+        savedBeforeSend.id
+      );
       const response = await fetch("/api/invoice-document-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          documentType: documentToSend.documentType,
-          docLabel: documentToSend.docLabel,
-          invoiceNumber: documentToSend.invoiceNumber,
-          issueDate: documentToSend.issueDate,
-          dueDate: documentToSend.dueDate,
-          paymentStatus: documentToSend.paymentStatus,
-          customerName: documentToSend.customer?.name || "",
-          customerEmail: documentToSend.customer?.email || "",
-          linkedLabel: documentToSend.linkedLabel || "",
-          lineItems: documentToSend.lineItems,
-          notes: documentToSend.notes || "",
-          terms: documentToSend.terms || "",
-          taxRate: documentToSend.taxRate,
-          depositAmount: documentToSend.depositAmount,
-          discountAmount: documentToSend.discountAmount,
-          additionalItems: documentToSend.additionalItems,
+          documentId: savedBeforeSend.id,
           currency: config.currency,
         }),
       });
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to send document email."));
       }
+      const documentToSend = finalizeWorkingDocument(
+        {
+          ...persistedDocument,
+          sentAt,
+          sentToEmail,
+        },
+        persistedDocument
+      );
       setSelectedDocument(documentToSend);
-      const saved = await persistDocument(documentToSend, { documentKey: selectedKey });
+      const saved = await persistDocument(documentToSend, {
+        documentKey: persistedDocumentKey,
+      });
       if (!saved) {
         setSaveError("Email sent, but the sent banner could not be saved yet.");
       }
@@ -4112,6 +4137,7 @@ function AdminInvoicing() {
             copyClassName="invoice-hub-copy"
             eyebrow={activeDocument?.sourceType === "manual" ? MANUAL_LINKED_NOTE : activeDocument?.linkedLabel || "Document"}
             title={documentTitle}
+            subtitle="REEBS Core shop and rental/event document. Water Business transactions stay separate."
           >
             <div className="invoice-hub-header-actions">
               <button
@@ -4304,7 +4330,9 @@ function AdminInvoicing() {
 
         <AdminPageHeader
           copyClassName="invoice-hub-copy"
+          eyebrow="REEBS Core Finance"
           title="Invoicing"
+          subtitle="Create shop and rental/event documents here. Water Business transactions stay separate."
         >
           <div className="invoice-hub-header-actions">
             <button

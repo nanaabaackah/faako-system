@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { reebsApiResponse } from "../../../api/client.js";
 
 export default function useOrderPayments(orderId) {
   const [payments, setPayments] = useState([]);
@@ -40,9 +41,14 @@ export default function useOrderPayments(orderId) {
 
   const recordPayment = useCallback(async (payload) => {
     const controller = new AbortController();
-    const response = await fetch("/api/orderPayments", {
+    const idempotencyKey = globalThis.crypto?.randomUUID?.()
+      || `payment-${orderId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const response = await reebsApiResponse("/api/orderPayments", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+      },
       body: JSON.stringify({ ...payload, orderId }),
       signal: controller.signal,
     });

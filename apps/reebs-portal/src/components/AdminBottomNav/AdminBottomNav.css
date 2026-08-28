@@ -31,3 +31,8 @@
 .aw-nav-btn.is-disabled {
   opacity: 0.72;
 }
+
+.aw-nav-btn[data-module-key="water"].is-active {
+  background: #dcefeb;
+  color: #075f52;
+}

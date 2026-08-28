@@ -36,6 +36,9 @@ const CART_SECTION_CONFIG = {
 function CartOverlay({ open, onClose }) {
   const location = useLocation();
   const previousPathRef = useRef(location.pathname);
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const previousFocusRef = useRef(null);
   const {
     cart,
     cartOpen,
@@ -67,11 +70,29 @@ function CartOverlay({ open, onClose }) {
     if (!isOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    previousFocusRef.current = document.activeElement;
     document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => closeButtonRef.current?.focus());
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         handleClose();
+        return;
+      }
+      if (event.key === "Tab") {
+        const focusable = dialogRef.current?.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -80,6 +101,7 @@ function CartOverlay({ open, onClose }) {
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus?.();
     };
   }, [handleClose, isOpen]);
 
@@ -90,6 +112,8 @@ function CartOverlay({ open, onClose }) {
     previousPathRef.current = location.pathname;
   }, [handleClose, isOpen, location.pathname]);
 
+  if (!isOpen) return null;
+
   return (
     <div className={`cart-drawer ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
       <button
@@ -99,6 +123,7 @@ function CartOverlay({ open, onClose }) {
         aria-label="Close cart"
       />
       <aside
+        ref={dialogRef}
         className={`cart-overlay ${isOpen ? "open" : ""}`}
         role="dialog"
         aria-modal="true"
@@ -109,7 +134,7 @@ function CartOverlay({ open, onClose }) {
             <h2 id="cart-title">Your Cart</h2>
           </div>
           <div className="cart-header-actions">
-            <button type="button" className="close-cart" onClick={handleClose} aria-label="Close cart">
+            <button ref={closeButtonRef} type="button" className="close-cart" onClick={handleClose} aria-label="Close cart">
               <AppIcon icon={faTimes} />
             </button>
           </div>

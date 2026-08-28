@@ -1,5 +1,5 @@
 import RentalItem from "../../views/RentalItem/RentalItem.jsx";
-import { createCatalogueRouteIsland } from "./createCatalogueRouteIsland.jsx";
+import { createPublicRouteIsland } from "./createPublicRouteIsland.jsx";
 
-const RentalItemIsland = createCatalogueRouteIsland(RentalItem, "/rentals/:slug");
+const RentalItemIsland = createPublicRouteIsland(RentalItem, "/rentals/:slug");
 export default RentalItemIsland;

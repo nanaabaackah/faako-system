@@ -1,0 +1,73 @@
+export const REEBS_NAVIGATION_GROUPS = Object.freeze([
+  "Overview",
+  "Sales & Rentals",
+  "Operations",
+  "Finance",
+  "People & Growth",
+  "Water Business",
+  "Administration",
+]);
+
+export const REEBS_NAVIGATION_GROUP_BY_KEY = Object.freeze({
+  home: "Overview",
+  reports: "Overview",
+  pos: "Sales & Rentals",
+  purchases: "Sales & Rentals",
+  orders: "Sales & Rentals",
+  bookings: "Sales & Rentals",
+  schedule: "Sales & Rentals",
+  rentals: "Sales & Rentals",
+  customers: "Sales & Rentals",
+  inventory: "Operations",
+  maintenance: "Operations",
+  delivery: "Operations",
+  documents: "Operations",
+  finance: "Finance",
+  accounting: "Finance",
+  invoicing: "Finance",
+  expenses: "Finance",
+  vendors: "Finance",
+  team: "People & Growth",
+  directory: "People & Growth",
+  hr: "People & Growth",
+  timesheets: "People & Growth",
+  marketing: "People & Growth",
+  water: "Water Business",
+  "audit-log": "Administration",
+  settings: "Administration",
+  roles: "Administration",
+  website: "Administration",
+});
+
+// Keeps each section task-oriented instead of relying on alphabetical order.
+// Keys that are not listed remain visible after the known items in their group.
+export const REEBS_NAVIGATION_ORDER_BY_KEY = Object.freeze({
+  home: 10,
+  reports: 20,
+  bookings: 10,
+  rentals: 20,
+  orders: 30,
+  customers: 40,
+  pos: 50,
+  schedule: 60,
+  inventory: 10,
+  delivery: 20,
+  maintenance: 30,
+  documents: 40,
+  invoicing: 10,
+  expenses: 20,
+  accounting: 30,
+  vendors: 40,
+  hr: 10,
+  marketing: 20,
+  directory: 30,
+  timesheets: 40,
+  water: 10,
+  "audit-log": 10,
+  settings: 20,
+  roles: 30,
+  website: 40,
+});
+
+export const getReebsNavigationOrder = (key) =>
+  REEBS_NAVIGATION_ORDER_BY_KEY[key] ?? Number.MAX_SAFE_INTEGER;

@@ -2,45 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
 import { Link } from 'react-router-dom';
-import { Call, Location, Sms } from 'iconsax-react';
+import { ArrowRight, Call, Facebook, Instagram, Location, Sms, Whatsapp } from 'iconsax-react';
 import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from '@faako/finance';
 import { useCart } from '../CartContext/CartContext';
-import {
-  IoLogoFacebook,
-  IoLogoInstagram,
-  IoLogoTiktok,
-  IoLogoWhatsapp,
-  IoArrowForward,
-} from 'react-icons/io5';
 import {
   clearExpiringDraft,
   loadExpiringDraft,
   saveExpiringDraft,
 } from '@faako/utils';
-
-const MENU_LINKS = [
-  { to: '/', label: 'Home' },
-  { to: '/about', label: 'About Us' },
-  { to: '/rentals', label: 'Rentals' },
-  { to: '/shop', label: 'Shop' },
-  { to: '/book', label: 'Book a party' },
-  { to: '/contact', label: 'Contact' },
-];
-
-const ACCOUNT_LINKS = [
-  { to: '/login', label: 'Staff login' },
-  { to: '/customer-login', label: 'Customer login' },
-  { to: '/book', label: 'Booking portal' },
-  { to: '/checkout', label: 'Checkout' },
-];
-
-const COMPANY_LINKS = [
-  { to: '/faq', label: 'FAQ' },
-  { to: '/refund-policy', label: 'Refund policy' },
-  { to: '/delivery-policy', label: 'Delivery policy' },
-  { to: '/privacy-policy', label: 'Privacy & cookie policy' },
-  { to: '/terms-of-service', label: 'Terms of service' },
-];
+import {
+  STOREFRONT_ACCOUNT_NAVIGATION,
+  STOREFRONT_HELP_NAVIGATION,
+  STOREFRONT_PRIMARY_NAVIGATION,
+} from '../../config/storefrontNavigation';
+import { buildPortalUrl } from '../../utils/portal';
 
 const FOOTER_PROMO_DRAFT_KEY = "footerPromoDraft";
 
@@ -111,7 +86,7 @@ function Footer() {
             />
             <button type="submit">
               <span>Book your party</span>
-              <IoArrowForward aria-hidden="true" />
+              <ArrowRight aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -135,8 +110,8 @@ function Footer() {
           <div className="footer-columns">
             <nav className="footer-column" aria-label="Main links">
               <h3>Menu</h3>
-              {MENU_LINKS.map((link) => (
-                <Link key={link.to} to={link.to} className="footer-link">
+              {STOREFRONT_PRIMARY_NAVIGATION.map((link) => (
+                <Link key={link.href} to={link.href} className="footer-link">
                   {link.label}
                 </Link>
               ))}
@@ -144,17 +119,18 @@ function Footer() {
 
             <nav className="footer-column" aria-label="Account links">
               <h3>Accounts</h3>
-              {ACCOUNT_LINKS.map((link) => (
-                <Link key={link.to} to={link.to} className="footer-link">
+              {STOREFRONT_ACCOUNT_NAVIGATION.map((link) => (
+                <Link key={link.href} to={link.href} className="footer-link">
                   {link.label}
                 </Link>
               ))}
+              <a href={buildPortalUrl('/login')} className="footer-link">Staff login</a>
             </nav>
 
             <nav className="footer-column" aria-label="Company links">
               <h3>Company</h3>
-              {COMPANY_LINKS.map((link) => (
-                <Link key={link.to} to={link.to} className="footer-link">
+              {STOREFRONT_HELP_NAVIGATION.map((link) => (
+                <Link key={link.href} to={link.href} className="footer-link">
                   {link.label}
                 </Link>
               ))}
@@ -168,7 +144,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoFacebook />
+                <Facebook />
                 <span>Facebook</span>
               </a>
               <a
@@ -177,7 +153,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoInstagram />
+                <Instagram />
                 <span>Instagram</span>
               </a>
               <a
@@ -186,7 +162,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoTiktok />
+                <span aria-hidden="true" className="footer-social-monogram">T</span>
                 <span>TikTok</span>
               </a>
               <a
@@ -195,7 +171,7 @@ function Footer() {
                 rel="noopener noreferrer"
                 className="footer-link footer-social-link"
               >
-                <IoLogoWhatsapp />
+                <Whatsapp />
                 <span>WhatsApp</span>
               </a>
             </div>

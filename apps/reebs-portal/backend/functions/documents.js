@@ -59,6 +59,37 @@ const ensureDocumentTable = async (client) => {
 
 const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
 
+export const sanitizeDocumentFileName = (value) => {
+  const cleaned = cleanText(value)
+    .replace(/\\/g, "/")
+    .split("/")
+    .pop()
+    ?.replace(/[\u0000-\u001f\u007f]/g, "")
+    .slice(0, 240);
+  return cleaned || "";
+};
+
+export const documentBytesMatchMimeType = (bytes, mimeType) => {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0) return false;
+  const startsWith = (...signature) => signature.every((value, index) => bytes[index] === value);
+  if (mimeType === "application/pdf") return startsWith(0x25, 0x50, 0x44, 0x46, 0x2d);
+  if (mimeType === "image/jpeg") return startsWith(0xff, 0xd8, 0xff);
+  if (mimeType === "image/png") return startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+  if (mimeType === "image/gif") return bytes.subarray(0, 6).toString("ascii") === "GIF87a"
+    || bytes.subarray(0, 6).toString("ascii") === "GIF89a";
+  if (mimeType === "image/webp") {
+    return bytes.subarray(0, 4).toString("ascii") === "RIFF"
+      && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  }
+  if (mimeType.startsWith("application/vnd.openxmlformats-officedocument.")) {
+    return startsWith(0x50, 0x4b, 0x03, 0x04);
+  }
+  if (mimeType === "text/plain" || mimeType === "text/csv") {
+    return !bytes.includes(0);
+  }
+  return false;
+};
+
 export async function handler(event = {}) {
   if (event.httpMethod === "OPTIONS") {
     return respond(event, 204, {}, { methods: DOCUMENT_METHODS });
@@ -93,6 +124,11 @@ export async function handler(event = {}) {
        LIMIT 1`
     );
     const hasOrganizationId = orgColumnRes.rowCount > 0;
+    if (!hasOrganizationId) {
+      return respond(event, 503, { error: "Document tenant isolation is unavailable." }, {
+        methods: DOCUMENT_METHODS,
+      });
+    }
 
     if (event.httpMethod === "GET") {
       const id = Number(event.queryStringParameters?.id);
@@ -100,8 +136,8 @@ export async function handler(event = {}) {
         const result = await client.query(
           `SELECT id, title, category, "fileName", "mimeType", size, data, source, "createdAt"
            FROM "document"
-           WHERE id = $1${hasOrganizationId ? ` AND "organizationId" = $2` : ""}`,
-          hasOrganizationId ? [id, organizationId] : [id]
+           WHERE id = $1 AND "organizationId" = $2`,
+          [id, organizationId]
         );
         if (result.rowCount === 0) {
           return respond(event, 404, { error: "Document not found." }, { methods: DOCUMENT_METHODS });
@@ -112,9 +148,9 @@ export async function handler(event = {}) {
       const list = await client.query(
         `SELECT id, title, category, "fileName", "mimeType", size, source, "createdAt"
          FROM "document"
-         ${hasOrganizationId ? `WHERE "organizationId" = $1` : ""}
+         WHERE "organizationId" = $1
         ORDER BY "createdAt" DESC, id DESC`,
-        hasOrganizationId ? [organizationId] : []
+        [organizationId]
       );
       return respond(event, 200, list.rows || [], { methods: DOCUMENT_METHODS });
     }
@@ -132,7 +168,7 @@ export async function handler(event = {}) {
 
     const title = cleanText(payload.title) || cleanText(payload.fileName);
     const category = cleanText(payload.category) || "Other";
-    const fileName = cleanText(payload.fileName);
+    const fileName = sanitizeDocumentFileName(payload.fileName);
     const mimeType = cleanText(payload.mimeType);
     const data = cleanText(payload.data).replace(/\s+/g, "");
     const source = cleanText(payload.source) || "upload";
@@ -160,14 +196,13 @@ export async function handler(event = {}) {
       });
     }
 
-    let size = Number(payload.size);
-    if (!Number.isFinite(size) || size <= 0) {
-      try {
-        size = Buffer.from(data, "base64").length;
-      } catch {
-        size = null;
-      }
+    let decodedData;
+    try {
+      decodedData = Buffer.from(data, "base64");
+    } catch {
+      decodedData = null;
     }
+    const size = decodedData?.length || 0;
     if (!Number.isFinite(size) || size <= 0) {
       return respond(event, 400, { error: "Document size is invalid." }, { methods: DOCUMENT_METHODS });
     }
@@ -176,14 +211,17 @@ export async function handler(event = {}) {
         methods: DOCUMENT_METHODS,
       });
     }
+    if (!documentBytesMatchMimeType(decodedData, mimeType)) {
+      return respond(event, 415, { error: "Document contents do not match the declared file type." }, {
+        methods: DOCUMENT_METHODS,
+      });
+    }
 
     const result = await client.query(
-      `INSERT INTO "document" (${hasOrganizationId ? `"organizationId", ` : ""}title, category, "fileName", "mimeType", size, data, source, "createdAt", "updatedAt")
-       VALUES (${hasOrganizationId ? `$1, ` : ""}$${hasOrganizationId ? 2 : 1}, $${hasOrganizationId ? 3 : 2}, $${hasOrganizationId ? 4 : 3}, $${hasOrganizationId ? 5 : 4}, $${hasOrganizationId ? 6 : 5}, $${hasOrganizationId ? 7 : 6}, $${hasOrganizationId ? 8 : 7}, NOW(), NOW())
+      `INSERT INTO "document" ("organizationId", title, category, "fileName", "mimeType", size, data, source, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
        RETURNING id, title, category, "fileName", "mimeType", size, source, "createdAt"`,
-      hasOrganizationId
-        ? [organizationId, title, category, fileName, mimeType, size, data, source]
-        : [title, category, fileName, mimeType, size, data, source]
+      [organizationId, title, category, fileName, mimeType, size, data, source]
     );
 
     await writeAuditLog(client, {

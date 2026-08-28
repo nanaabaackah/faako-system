@@ -3,6 +3,17 @@ import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 import { ensureAuditColumns } from "./auditHelpers.js";
+import {
+  COMMERCIAL_BUSINESS_UNITS,
+  COMMERCIAL_CONFIG_KEYS,
+  resolveCommercialConfiguration,
+} from "./_shared/commercialConfig.js";
+import {
+  calculateServiceDepositAmount,
+  calculateServiceDepositDueDate,
+  preservePersistedInvoiceTerms,
+  shouldRefreshDraftDeposit,
+} from "./_shared/invoiceCommercialTerms.js";
 
 const INVOICE_DOCUMENT_METHODS = "GET,POST,PUT,DELETE,OPTIONS";
 const SOURCE_TYPES = new Set(["manual", "orders", "bookings"]);
@@ -300,14 +311,33 @@ const selectProductsForInventory = async (client, organizationId, productIds = [
        id,
        name,
        stock,
-       COALESCE("isActive", true) AS "isActive"
-     FROM "product"
-     WHERE id = ANY($1::int[])
-       AND "organizationId" = $2
+       "sourceCategoryCode",
+       COALESCE("isActive", true) AS "isActive",
+       EXISTS (
+         SELECT 1
+         FROM "waterProductPrice" AS water_price
+         WHERE water_price."organizationId" = product."organizationId"
+           AND water_price."productId" = product.id
+       ) AS "isWaterProduct"
+     FROM "product" AS product
+     WHERE product.id = ANY($1::int[])
+       AND product."organizationId" = $2
      FOR UPDATE`,
     [productIds, organizationId]
   );
   return new Map((result.rows || []).map((row) => [Number(row.id), row]));
+};
+
+export const validateCoreInvoiceProducts = ({ documentQuantities, productMap }) => {
+  for (const productId of documentQuantities.keys()) {
+    const product = productMap.get(productId);
+    if (!product) return `Product ${productId} was not found.`;
+    const sourceCategoryCode = String(product.sourceCategoryCode || "").trim().toUpperCase();
+    if (sourceCategoryCode === "WATER" || product.isWaterProduct === true) {
+      return `${product.name || `Product ${productId}`} belongs to Water Business and cannot be added to a REEBS Core invoice.`;
+    }
+  }
+  return "";
 };
 
 const validateCommittedInventory = ({ requestedQuantities, previouslyCommittedQuantities, productMap }) => {
@@ -454,6 +484,47 @@ const computeGrandTotalFromRecord = (record) => {
   const discountAmount = Math.max(0, normalizeMoney(record?.discountAmount, 0));
   const discountTotal = Math.min(discountAmount, subtotal + additionalTotal + taxTotal);
   return Math.max(0, Math.round((subtotal + additionalTotal + taxTotal - discountTotal) * 100) / 100);
+};
+
+const resolveCoreDepositTerms = async (client, organizationId, at) => {
+  const [deposit, dueDays] = await Promise.all([
+    resolveCommercialConfiguration(client, {
+      organizationId,
+      businessUnit: COMMERCIAL_BUSINESS_UNITS.REEBS_CORE,
+      key: COMMERCIAL_CONFIG_KEYS.SERVICE_DEPOSIT_BPS,
+      at,
+    }),
+    resolveCommercialConfiguration(client, {
+      organizationId,
+      businessUnit: COMMERCIAL_BUSINESS_UNITS.REEBS_CORE,
+      key: COMMERCIAL_CONFIG_KEYS.SERVICE_DEPOSIT_DUE_DAYS,
+      at,
+    }),
+  ]);
+  return {
+    depositBps: deposit.value,
+    dueDays: dueDays.value,
+  };
+};
+
+export const applyAuthoritativeInvoiceDeposit = async (
+  client,
+  organizationId,
+  record,
+  { at = new Date(), fillDueDate = true } = {}
+) => {
+  if (record.documentType !== "invoice") {
+    return { ...record, depositAmount: 0 };
+  }
+  const terms = await resolveCoreDepositTerms(client, organizationId, at);
+  const grandTotal = computeGrandTotalFromRecord(record);
+  const dueDate = record.dueDate
+    || (fillDueDate ? calculateServiceDepositDueDate(record, terms.dueDays) : null);
+  return {
+    ...record,
+    depositAmount: calculateServiceDepositAmount(grandTotal, terms.depositBps),
+    dueDate,
+  };
 };
 
 const buildCompactDocumentRecord = (record) => ({
@@ -860,7 +931,7 @@ export async function handler(event = {}) {
       return respond(event, 200, archivedDocument, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
-    const normalized = normalizePayload(payload);
+    let normalized = normalizePayload(payload);
     const validationError = validatePayload(normalized);
     if (validationError) {
       return respond(event, 400, { error: validationError }, { methods: INVOICE_DOCUMENT_METHODS });
@@ -886,15 +957,31 @@ export async function handler(event = {}) {
       if (payload.id) {
         event.httpMethod = "PUT";
       } else {
+        normalized = await applyAuthoritativeInvoiceDeposit(
+          client,
+          organizationId,
+          normalized,
+          { at: new Date() }
+        );
         await client.query("BEGIN");
         transactionOpen = true;
+        const documentQuantities = buildLineItemProductQuantityMap(normalized.lineItems);
         const requestedQuantities = shouldManageInventory(normalized.sourceType)
-          ? buildLineItemProductQuantityMap(normalized.lineItems)
+          ? documentQuantities
           : new Map();
         const nextCommittedQuantities =
           shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
-        const productIds = collectProductIdsFromMaps(requestedQuantities, nextCommittedQuantities);
+        const productIds = collectProductIdsFromMaps(documentQuantities, nextCommittedQuantities);
         const productMap = await selectProductsForInventory(client, organizationId, productIds);
+        const coreDomainValidationError = validateCoreInvoiceProducts({
+          documentQuantities,
+          productMap,
+        });
+        if (coreDomainValidationError) {
+          await client.query("ROLLBACK");
+          transactionOpen = false;
+          return respond(event, 400, { error: coreDomainValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
+        }
         const inventoryValidationError = validateCommittedInventory({
           requestedQuantities,
           previouslyCommittedQuantities: new Map(),
@@ -1014,16 +1101,58 @@ export async function handler(event = {}) {
       return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
+    if (shouldRefreshDraftDeposit(existingDocument)) {
+      try {
+        normalized = await applyAuthoritativeInvoiceDeposit(
+          client,
+          organizationId,
+          normalized,
+          { at: existingDocument.createdAt || new Date() }
+        );
+      } catch (error) {
+        if (error?.code !== "MISSING_COMMERCIAL_CONFIGURATION") throw error;
+        // Pre-Phase-6 drafts can predate the seeded effective window. They are
+        // still drafts, so apply today's authoritative rule rather than a code fallback.
+        normalized = await applyAuthoritativeInvoiceDeposit(
+          client,
+          organizationId,
+          normalized,
+          { at: new Date() }
+        );
+      }
+    } else {
+      const persistedTerms = preservePersistedInvoiceTerms(existingDocument, normalized);
+      normalized = {
+        ...persistedTerms,
+        depositAmount: Math.max(0, normalizeMoney(persistedTerms.depositAmount, 0)),
+        dueDate: normalizeDateValue(persistedTerms.dueDate),
+      };
+    }
+
     const previouslyCommittedQuantities = isInventoryCommittedDocument(existingDocument)
       ? buildLineItemProductQuantityMap(existingDocument.lineItems)
       : new Map();
+    const documentQuantities = buildLineItemProductQuantityMap(normalized.lineItems);
     const requestedQuantities = shouldManageInventory(normalized.sourceType)
-      ? buildLineItemProductQuantityMap(normalized.lineItems)
+      ? documentQuantities
       : new Map();
     const nextCommittedQuantities =
       shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
-    const productIds = collectProductIdsFromMaps(previouslyCommittedQuantities, requestedQuantities, nextCommittedQuantities);
+    const productIds = collectProductIdsFromMaps(
+      previouslyCommittedQuantities,
+      documentQuantities,
+      nextCommittedQuantities
+    );
     const productMap = await selectProductsForInventory(client, organizationId, productIds);
+    const coreDomainValidationError = validateCoreInvoiceProducts({
+      documentQuantities,
+      productMap,
+    });
+    if (coreDomainValidationError) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
+      return respond(event, 400, { error: coreDomainValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
+    }
     const inventoryValidationError = validateCommittedInventory({
       requestedQuantities,
       previouslyCommittedQuantities,
@@ -1124,7 +1253,17 @@ export async function handler(event = {}) {
       await client.query("ROLLBACK").catch(() => {});
     }
     console.error("invoice-documents error:", err);
-    return respond(event, 500, { error: "Failed to process invoice documents." }, {
+    const isCommercialConfigurationFailure =
+      err?.name === "CommercialConfigurationError"
+      && Number(err?.statusCode) === 503;
+    const statusCode = isCommercialConfigurationFailure ? 503 : 500;
+    const error = isCommercialConfigurationFailure
+      ? "Required commercial configuration is unavailable."
+      : "Failed to process invoice documents.";
+    return respond(event, statusCode, {
+      error,
+      ...(isCommercialConfigurationFailure && err?.code ? { code: err.code } : {}),
+    }, {
       methods: INVOICE_DOCUMENT_METHODS,
     });
   } finally {

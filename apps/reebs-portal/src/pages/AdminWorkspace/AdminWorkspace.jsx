@@ -31,6 +31,7 @@ import {
   faXmark,
 } from "/src/icons/iconSet";
 import { useAuth } from "../../components/AuthContext/AuthContext";
+import { reebsApiResponse } from "../../api/client";
 import {
   createQueueItem,
   loadCustomerSnapshot,
@@ -40,7 +41,6 @@ import {
   saveInventorySnapshot,
   saveOfflineQueue,
 } from "../../utils/offlineQueue";
-import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
   DASHBOARD_PATHS,
 } from "../../utils/adminDashboardLinks";
@@ -450,14 +450,12 @@ const SECTION_CONFIG = {
   inventory: { title: "Stock", subtitle: "Fast count updates from phone." },
   purchases: { title: "Purchases", subtitle: "Quick checkout from inventory." },
   offline: { title: "Offline Sync", subtitle: "Queued actions and retry status." },
-  advanced: { title: "System Admin", subtitle: "Advanced monitoring and controls." },
 };
 
 function AdminWorkspace({ section = "home" }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const roleKey = normalizeAdminRole(user?.role);
-  const isSystemAdmin = roleKey === "admin";
   const isDriverUser = isDriverPortalRole(roleKey);
   const canViewHomeKpis = canAccessPrivilegedPortalArea(roleKey);
   const isWaterUser = isWaterPortalRole(roleKey);
@@ -536,7 +534,6 @@ function AdminWorkspace({ section = "home" }) {
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [purchaseSubmitting, setPurchaseSubmitting] = useState(false);
 
-  const [adminViewMode, setAdminViewMode] = useState("simple");
   const [surfaceError, setSurfaceError] = useState("");
   const [surfaceNotice, setSurfaceNotice] = useState("");
   const [kpiStats, setKpiStats] = useState(null);
@@ -594,10 +591,6 @@ function AdminWorkspace({ section = "home" }) {
     "Team member";
   const profileFirstName = getFirstName(user, profileName);
 
-  const viewModeStorageKey = useMemo(
-    () => `reebs_admin_view_mode_${user?.id || "guest"}`,
-    [user?.id]
-  );
   const activeWindowConfig = useMemo(
     () => HOME_WINDOW_OPTIONS.find((option) => option.key === dashboardWindow) || HOME_WINDOW_OPTIONS[2],
     [dashboardWindow]
@@ -789,7 +782,7 @@ function AdminWorkspace({ section = "home" }) {
   );
 
   const sendPurchase = useCallback(
-    async (payload) => postJson("/api/createOrder", payload),
+    async (payload) => postJson("/api/orders", payload),
     [postJson]
   );
 
@@ -1063,7 +1056,7 @@ function AdminWorkspace({ section = "home" }) {
     setAdvancedAnalyticsLoading(true);
     setAdvancedAnalyticsError("");
     try {
-      const response = await fetch(`/api/advancedAnalytics?ts=${Date.now()}`);
+      const response = await reebsApiResponse(`/api/advancedAnalytics?ts=${Date.now()}`);
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Failed to load advanced insights.");
@@ -1359,30 +1352,6 @@ function AdminWorkspace({ section = "home" }) {
   useEffect(() => {
     saveOfflineQueue(queue);
   }, [queue]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !isSystemAdmin) {
-      setAdminViewMode("simple");
-      return;
-    }
-    try {
-      const stored = window.localStorage.getItem(viewModeStorageKey);
-      if (stored === "advanced" || stored === "simple") {
-        setAdminViewMode(stored);
-      }
-    } catch {
-      setAdminViewMode("simple");
-    }
-  }, [isSystemAdmin, viewModeStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !isSystemAdmin) return;
-    try {
-      window.localStorage.setItem(viewModeStorageKey, adminViewMode);
-    } catch {
-      // ignore
-    }
-  }, [adminViewMode, isSystemAdmin, viewModeStorageKey]);
 
   useEffect(() => {
     loadInventory();
@@ -2400,7 +2369,7 @@ function AdminWorkspace({ section = "home" }) {
       return ({
       visible: canViewHomeKpis,
       updatedAt: homeUpdatedAt ? formatRelativeTime(homeUpdatedAt) : "",
-      sourceLabel: `${activeWindowConfig.sourceLabel} • ${forecastStatus}`,
+      sourceLabel: `${activeWindowConfig.sourceLabel} • ${forecastStatus} • REEBS Core only • Water excluded`,
       windowOptions: HOME_WINDOW_OPTIONS,
       activeWindow: dashboardWindow,
       onWindowChange: setDashboardWindow,
@@ -2417,7 +2386,7 @@ function AdminWorkspace({ section = "home" }) {
       summaryCards: [
         {
           key: "revenue",
-          label: "Revenue",
+          label: "Core revenue",
           value: toCurrency(totalRevenue, "GHS"),
           meta: revenueDeltaLabel,
           signal: {
@@ -2809,8 +2778,6 @@ function AdminWorkspace({ section = "home" }) {
       ? filtered
       : [{ key: "profile", label: "My Profile", icon: faUser, path: "/admin/profile" }];
   }, [canViewHomeKpis, isDriverUser, isWaterUser, roleKey]);
-
-  const legacyModuleLinks = useMemo(() => getAdminQuickActions(roleKey), [roleKey]);
 
   const purchaseCatalog = useMemo(() => {
     const products = searchedInventory.filter(
@@ -3515,78 +3482,6 @@ function AdminWorkspace({ section = "home" }) {
     </section>
   );
 
-  const renderAdvanced = () => (
-    <section className="aw-section-grid">
-      <div className="glass-card aw-panel">
-        <div className="aw-panel-header">
-          <h2>Admin Controls</h2>
-        </div>
-        {isSystemAdmin ? (
-          <div className="aw-admin-toggle">
-            <button
-              type="button"
-              className={`aw-pill ${adminViewMode === "simple" ? "is-active" : ""}`}
-              onClick={() => setAdminViewMode("simple")}
-            >
-              Simple
-            </button>
-            <button
-              type="button"
-              className={`aw-pill ${adminViewMode === "advanced" ? "is-active" : ""}`}
-              onClick={() => setAdminViewMode("advanced")}
-            >
-              Advanced
-            </button>
-          </div>
-        ) : (
-          <p className="aw-muted">Manager view with direct access to KPI-linked modules.</p>
-        )}
-      </div>
-
-      <div className="glass-card aw-panel">
-        <div className="aw-panel-header">
-          <h2>Legacy Modules</h2>
-        </div>
-        <div className="aw-link-grid">
-          {legacyModuleLinks.map((item) => (
-            <button
-              key={item.path}
-              type="button"
-              className="glass-card aw-link-card"
-              onClick={() => navigate(item.path)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="glass-card aw-panel">
-        <div className="aw-panel-header">
-          <h2>System Health</h2>
-        </div>
-        <div className="aw-kpi-grid">
-          <article className="aw-kpi">
-            <p className="aw-kpi-label">Queue pending</p>
-            <strong>{pendingQueue.length}</strong>
-          </article>
-          <article className="aw-kpi">
-            <p className="aw-kpi-label">Queue failed</p>
-            <strong>{failedQueueCount}</strong>
-          </article>
-            <article className="aw-kpi">
-              <p className="aw-kpi-label">Low stock</p>
-              <strong>{inventoryLowStockItems.length}</strong>
-            </article>
-          <article className="aw-kpi">
-            <p className="aw-kpi-label">Snapshot mode</p>
-            <strong>{usingInventorySnapshot || usingCustomerSnapshot ? "On" : "Off"}</strong>
-          </article>
-        </div>
-      </div>
-    </section>
-  );
-
   return (
     <div className="aw-shell">
       <header className="aw-topbar">
@@ -3633,8 +3528,6 @@ function AdminWorkspace({ section = "home" }) {
       {activeSection === "inventory" && renderInventory()}
       {activeSection === "purchases" && renderPurchases()}
       {activeSection === "offline" && renderOffline()}
-      {activeSection === "advanced" && renderAdvanced()}
-
     </div>
   );
 }

@@ -207,9 +207,74 @@ body.admin-theme .water-module-shell > .admin-header.water-module-header > .wate
 .water-module-kpis {
   order: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.9rem;
   min-width: 0;
+}
+
+.water-module-finance-breakdown {
+  order: 2;
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  border-radius: 1.35rem;
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.water-module-finance-breakdown__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.water-module-finance-breakdown__heading > .app-icon {
+  margin-top: 0.2rem;
+  color: #0f766e;
+}
+
+.water-module-finance-breakdown h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}
+
+.water-module-finance-breakdown dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.water-module-finance-breakdown dl > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(13, 148, 136, 0.16);
+}
+
+.water-module-finance-breakdown dt {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.water-module-finance-breakdown dd {
+  margin: 0;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .water-module-kpis,
+  .water-module-finance-breakdown dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .water-module-finance-breakdown dl {
+    grid-template-columns: 1fr;
+  }
 }
 
 .water-module-kpi-stack {

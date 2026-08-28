@@ -204,9 +204,9 @@ function AdminReports() {
         <AdminBreadcrumb items={[{ label: "Reports" }]} />
 
         <AdminPageHeader
-          eyebrow="Operations"
+          eyebrow="REEBS Core Operations"
           title="Reports"
-          subtitle="Review performance, incident trends, and system activity for the current portal organization."
+          subtitle="Commercial KPIs cover REEBS Core orders and bookings. Water Business financials stay separate."
           actionsClassName="admin-header-actions admin-reports-actions"
           actions={(
             <>

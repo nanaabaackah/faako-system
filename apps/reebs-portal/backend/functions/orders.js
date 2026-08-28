@@ -203,6 +203,10 @@ export async function handler(event = {}) {
 
       if (body.payment || body.recordPayment) {
         const paymentPayload = body.payment || body.recordPayment || {};
+        const paymentIdempotencyKey = getHeaderValue(event, "Idempotency-Key");
+        if (!paymentIdempotencyKey) {
+          return json(event, 400, { error: "Idempotency-Key is required for payment writes." });
+        }
         await client.query("BEGIN");
         try {
           const result = await recordOrderPayment(client, {
@@ -216,6 +220,7 @@ export async function handler(event = {}) {
             confirmationStatus: paymentPayload.confirmationStatus || null,
             notes: paymentPayload.notes || null,
             actor,
+            idempotencyKey: paymentIdempotencyKey,
           });
           await writeMutationAudit(client, event, {
             action: "ORDER_PAYMENT_RECORDED",

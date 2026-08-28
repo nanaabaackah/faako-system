@@ -11,13 +11,7 @@ import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCac
 import { isOnlineShopItem, isTestCategoryItem } from '/src/utils/frontendInventoryFilters';
 import { getCatalogItemDisplayName } from '/src/utils/itemMediaBackgrounds';
 import { buildPortalUrl } from '../../utils/portal';
-
-const NAV_LINKS = [
-  { label: 'Home', path: '/' },
-  { label: 'Shop', path: '/Shop' },
-  { label: 'Rentals', path: '/Rentals' },
-  { label: 'Contact', path: '/Contact' }
-];
+import { STOREFRONT_HEADER_NAVIGATION } from '../../config/storefrontNavigation';
 
 const SEARCH_SHORTCUTS = [
   {
@@ -498,12 +492,12 @@ const Navbar = ({ scrollContainerRef }) => {
 
   const renderLinks = (onClick) => (
     <ul className="navbar-links" role="list">
-      {NAV_LINKS.map((item) => (
-        <li key={item.path}>
+      {STOREFRONT_HEADER_NAVIGATION.map((item) => (
+        <li key={item.href}>
           <Link
-            to={item.path}
-            className={isPathActive(location.pathname, item.path) ? 'is-active' : ''}
-            aria-current={isPathActive(location.pathname, item.path) ? 'page' : undefined}
+            to={item.href}
+            className={isPathActive(location.pathname, item.href) ? 'is-active' : ''}
+            aria-current={isPathActive(location.pathname, item.href) ? 'page' : undefined}
             onClick={onClick}
           >
             {item.label}

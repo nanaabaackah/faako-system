@@ -13,6 +13,11 @@
       "types": "./src/index.d.ts",
       "import": "./src/index.js",
       "default": "./src/index.js"
+    },
+    "./reebs": {
+      "types": "./src/reebs/index.d.ts",
+      "import": "./src/reebs/index.js",
+      "default": "./src/reebs/index.js"
     }
   }
 }

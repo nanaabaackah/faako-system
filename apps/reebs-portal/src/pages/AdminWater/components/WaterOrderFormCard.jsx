@@ -10,6 +10,7 @@ export default function WaterOrderFormCard({
   saleCustomerLabel,
   customerPickerProps,
   unitPriceInputValue,
+  canManageWaterPricing,
   salePreview,
   saleRateLabel,
   salePaymentLabel,
@@ -22,6 +23,7 @@ export default function WaterOrderFormCard({
   formatCurrency,
   saving,
   loading,
+  pricingAvailable,
 }) {
   return (
     <section className="water-module-order-section">
@@ -129,6 +131,7 @@ export default function WaterOrderFormCard({
                     <AppIcon icon={faMinus} />
                   </button>
                   <input
+                    aria-label="Sale quantity"
                     type="number"
                     min="1"
                     inputMode="numeric"
@@ -155,17 +158,44 @@ export default function WaterOrderFormCard({
                     min="0.01"
                     step="0.01"
                     inputMode="decimal"
-                    value={unitPriceInputValue}
-                    onChange={(event) => setSaleForm((prev) => ({ ...prev, unitPrice: event.target.value }))}
-                    placeholder="0.00"
-                    required
-                  />
-                </label>
-                {salePreview.usesCustomUnitPrice ? (
+                  value={unitPriceInputValue}
+                  onChange={(event) => setSaleForm((prev) => ({ ...prev, unitPrice: event.target.value }))}
+                  placeholder="0.00"
+                  readOnly={!canManageWaterPricing}
+                  required
+                />
+              </label>
+              {salePreview.usesCustomUnitPrice ? (
+                <>
                   <p className="water-module-inline-note">
-                    Default {formatCurrency(salePreview.suggestedUnitPrice)}.
+                    Standard {formatCurrency(salePreview.suggestedUnitPrice)}. Overrides are audited.
                   </p>
-                ) : null}
+                  <label>
+                    <span className="water-module-field-label">Price override reason</span>
+                    <textarea
+                      rows="2"
+                      value={saleForm.priceOverrideReason}
+                      onChange={(event) =>
+                        setSaleForm((prev) => ({
+                          ...prev,
+                          priceOverrideReason: event.target.value,
+                        }))
+                      }
+                      placeholder="Why is this price changing?"
+                      required
+                    />
+                  </label>
+                </>
+              ) : !canManageWaterPricing ? (
+                <p className="water-module-inline-note">
+                  This is the active server-authoritative Water price.
+                </p>
+              ) : null}
+              {!pricingAvailable ? (
+                <p className="water-module-inline-note" role="alert">
+                  No active Water price is configured. An administrator must schedule one before sale.
+                </p>
+              ) : null}
               </div>
             </div>
           </div>
@@ -237,7 +267,11 @@ export default function WaterOrderFormCard({
               ) : null}
             </div>
 
-            <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
+            <button
+              type="submit"
+              className="admin-primary water-module-sale-submit"
+              disabled={saving || loading || !pricingAvailable}
+            >
               <AppIcon icon={faReceipt} /> {saving ? "Saving..." : `Record ${formatCurrency(salePreview.total)}`}
             </button>
           </div>

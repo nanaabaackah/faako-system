@@ -59,7 +59,12 @@ pnpm --filter @faako/reebs-portal run source-categories:seed
 pnpm --filter @faako/reebs-portal run source-categories:relink:dry
 pnpm --filter @faako/reebs-portal run source-categories:relink:apply
 pnpm --filter @faako/reebs-portal run test:e2e
+pnpm run bundle:reebs
 ```
+
+The bundle report requires current Portal and Website builds. Lazy route, PDF, maps,
+hydration, Water and dependency rules are documented in
+`docs/apps/reebs-portal/performance-and-dependencies.md`.
 
 ## Current Shared Shell
 

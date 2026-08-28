@@ -250,14 +250,17 @@ const buildVariantCartItem = (item, productLabel, variant) => {
   };
 };
 
-function Shop() {
-  const [inventory, setInventory] = useState([]);
+function Shop({ initialInventory = [] }) {
+  const hasInitialInventory = Array.isArray(initialInventory) && initialInventory.length > 0;
+  const [inventory, setInventory] = useState(() =>
+    hasInitialInventory ? initialInventory.filter(isOnlineShopItem) : []
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!hasInitialInventory);
   const [announce, setAnnounce] = useState("");
   const [activeHeroPanelIndex, setActiveHeroPanelIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -266,6 +269,7 @@ function Shop() {
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
   const [pendingScrollTarget, setPendingScrollTarget] = useState("");
   const gridRef = useRef(null);
+  const hasAppliedInitialCategoryRef = useRef(false);
   const [searchParams] = useSearchParams();
 
   const { isAuthenticated, authReady } = useAuth();
@@ -314,7 +318,7 @@ function Shop() {
     if (hasCached) {
       setInventory(cached.filter(isOnlineShopItem));
     }
-    setLoading(!hasCached);
+    setLoading(!hasCached && !hasInitialInventory);
 
     const controller = new AbortController();
     fetchInventoryWithCache({ signal: controller.signal })
@@ -323,7 +327,11 @@ function Shop() {
           isOnlineShopItem
         );
         if (!isMounted) return;
-        setInventory(visibleProducts);
+        setInventory((currentInventory) => {
+          if (visibleProducts.length > 0) return visibleProducts;
+          if (hasInitialInventory) return initialInventory.filter(isOnlineShopItem);
+          return currentInventory;
+        });
         setLoading(false);
       })
       .catch((err) => {
@@ -336,7 +344,7 @@ function Shop() {
       isMounted = false;
       controller.abort();
     };
-  }, []);
+  }, [hasInitialInventory, initialInventory]);
 
   useEffect(() => {
     document.body.classList.add("shop-theme");
@@ -730,13 +738,18 @@ function Shop() {
   }, [groupedProducts]);
 
   useEffect(() => {
+    if (!hasAppliedInitialCategoryRef.current) {
+      hasAppliedInitialCategoryRef.current = true;
+      return;
+    }
+
     const gridEl = gridRef.current;
     if (pendingScrollTarget) return;
     if (!gridEl || typeof gridEl.scrollIntoView !== "function") return;
     gridEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [categoryFilter, pendingScrollTarget]);
 
-  if (loading || !authReady) {
+  if (loading || (!authReady && inventory.length === 0)) {
     return (
       <SiteLoader
         label="Loading shop"

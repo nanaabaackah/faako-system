@@ -1,5 +1,5 @@
 import Shop from "../../views/Shop/Shop.jsx";
-import { createCatalogueRouteIsland } from "./createCatalogueRouteIsland.jsx";
+import { createPublicRouteIsland } from "./createPublicRouteIsland.jsx";
 
-const ShopIsland = createCatalogueRouteIsland(Shop, "/shop");
+const ShopIsland = createPublicRouteIsland(Shop, "/shop");
 export default ShopIsland;

@@ -1,9 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canAssignUserRole,
   canAccessUsersMethod,
+  isValidUserPassword,
   requiredUsersPermission,
 } from "./users.js";
+
+test("only the system administrator may assign privileged or Water roles", () => {
+  const admin = { role: "admin", email: "admin@example.com" };
+  const systemAdmin = { role: "admin", email: "system_admin@reebs.com" };
+  assert.equal(canAssignUserRole(admin, "staff"), true);
+  assert.equal(canAssignUserRole(admin, "manager"), false);
+  assert.equal(canAssignUserRole(admin, "water"), false);
+  assert.equal(canAssignUserRole(admin, "admin"), false);
+  assert.equal(canAssignUserRole(systemAdmin, "water"), true);
+  assert.equal(canAssignUserRole(systemAdmin, "owner"), true);
+});
 
 test("users endpoint maps reads and mutations to stable permission identifiers", () => {
   assert.equal(requiredUsersPermission("GET"), "users:read");
@@ -33,4 +46,10 @@ test("users endpoint permits established owner/admin writes and denies lower rol
   assert.equal(canAccessUsersMethod({ role: "staff" }, "POST"), false);
   assert.equal(canAccessUsersMethod({ role: "warehouse" }, "POST"), false);
   assert.equal(canAccessUsersMethod({ role: "water" }, "POST"), false);
+});
+
+test("new and changed user passwords require at least eight characters", () => {
+  assert.equal(isValidUserPassword("short"), false);
+  assert.equal(isValidUserPassword(" 1234567 "), false);
+  assert.equal(isValidUserPassword("correct-horse"), true);
 });
