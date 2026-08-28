@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   authenticationRegistrationInputSchema,
   bookingInputSchema,
+  bookingStatusTransitionSchema,
   contactInputSchema,
   customerFormSchema,
   eventRegistrationInputSchema,
@@ -17,6 +18,7 @@ import {
   paymentInputSchema,
   productFormSchema,
   roleFormSchema,
+  userAccessFormSchema,
   usernameAccessFormSchema,
   validationIssues,
   vendorFormSchema,
@@ -131,6 +133,38 @@ test("Stroane order status transitions accept supported states only", () => {
   assert.equal(
     orderStatusTransitionSchema.safeParse({ status: "unsupported" }).success,
     false,
+  );
+});
+
+test("shared user and booking schemas preserve operational boundaries", () => {
+  assert.equal(
+    userAccessFormSchema.safeParse({
+      firstName: "Ama",
+      lastName: "Mensah",
+      roleKey: "manager",
+      status: "ACTIVE",
+    }).success,
+    true,
+  );
+  assert.equal(
+    userAccessFormSchema.safeParse({ firstName: "", lastName: "Mensah" }).success,
+    false,
+  );
+  assert.equal(
+    bookingStatusTransitionSchema.safeParse({ status: "confirmed" }).success,
+    true,
+  );
+  assert.equal(
+    bookingStatusTransitionSchema.safeParse({ status: "unsupported" }).success,
+    false,
+  );
+  assert.equal(
+    vendorFormSchema.safeParse({ name: "Accra Supplies", leadTimeDays: 4 }).success,
+    true,
+  );
+  assert.equal(
+    deliveryUpdateSchema.safeParse({ status: "en_route" }).success,
+    true,
   );
 });
 

@@ -14,6 +14,9 @@ import {
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
+import { reebsApiResponse } from "../../api/client";
+import { validationIssues, vendorFormSchema } from "@faako/validation";
+import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 const emptyForm = {
   name: "",
@@ -75,6 +78,29 @@ function AdminVendors() {
   const [selectedVendorId, setSelectedVendorId] = useState(null);
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
   const [autoLinking, setAutoLinking] = useState(false);
+  const vendorFormBaseline = useMemo(
+    () =>
+      activeVendor
+        ? {
+            name: activeVendor.name || "",
+            contactName: activeVendor.contactName || "",
+            email: activeVendor.email || "",
+            phone: activeVendor.phone || "",
+            mobileMoneyNumber: activeVendor.mobileMoneyNumber || "",
+            address: activeVendor.address || "",
+            bankName: activeVendor.bankName || "",
+            bankAccount: activeVendor.bankAccount || "",
+            leadTimeDays: activeVendor.leadTimeDays ?? "",
+            suppliedItemsText: Array.isArray(activeVendor.suppliedItems)
+              ? activeVendor.suppliedItems.join("\n")
+              : "",
+            notes: activeVendor.notes || "",
+          }
+        : emptyForm,
+    [activeVendor]
+  );
+  const vendorFormDirty = formOpen && JSON.stringify(form) !== JSON.stringify(vendorFormBaseline);
+  useUnsavedChanges(vendorFormDirty && !saving);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -106,7 +132,7 @@ function AdminVendors() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/vendors");
+      const res = await reebsApiResponse("/api/vendors");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to load vendors.");
       setVendors(Array.isArray(data) ? data : []);
@@ -228,10 +254,14 @@ function AdminVendors() {
     }
 
     try {
-      const res = await fetch("/api/vendors", {
+      const validation = vendorFormSchema.safeParse(payload);
+      if (!validation.success) {
+        throw new Error(validationIssues(validation.error)[0]?.message || "Vendor details are invalid.");
+      }
+      const res = await reebsApiResponse("/api/vendors", {
         method: activeVendor ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(activeVendor ? { ...validation.data, id: activeVendor.id } : validation.data),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to save vendor.");
@@ -251,7 +281,7 @@ function AdminVendors() {
     setError("");
     setStatus("");
     try {
-      const res = await fetch("/api/vendors", {
+      const res = await reebsApiResponse("/api/vendors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

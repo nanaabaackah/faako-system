@@ -19,6 +19,10 @@ import {
   PASSWORD_RESET_TTL_MS,
 } from "./_shared/passwordReset.js";
 import {
+  applyWindowRateLimit,
+  getRequestClientIp,
+} from "./_shared/requestRateLimit.js";
+import {
   ensureUserPersonalEmailColumn,
   isValidPersonalEmail,
   normalizePersonalEmail,
@@ -282,6 +286,18 @@ export async function handler(event = {}) {
     });
     // Intentionally public: password reset requests are limited to the configured public organization.
     const organizationId = await resolveConfiguredPublicOrganizationId(client);
+    const limitResult = await applyWindowRateLimit(client, {
+      scope: `forgot-password:${organizationId}:ip`,
+      identifier: getRequestClientIp(event),
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!limitResult.allowed) {
+      return respond(event, 429, {
+        error: "Too many reset attempts. Try again later.",
+        retryAfterSeconds: limitResult.retryAfterSeconds,
+      });
+    }
 
     const isUsernameOnly = !identifier.includes("@");
     const result = isUsernameOnly

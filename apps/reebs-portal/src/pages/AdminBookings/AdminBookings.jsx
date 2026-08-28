@@ -10,6 +10,8 @@ import {
   useOnlineStatus,
 } from "@faako/offline-sync";
 import { AnimatedLoadingState, NoticeBanner, SelectField } from "@faako/ui";
+import { bookingStatusTransitionSchema } from "@faako/validation";
+import { reebsApiResponse } from "../../api/client.js";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
   faPlus,
@@ -741,7 +743,7 @@ function AdminBookings() {
     runSupportLoader(
       "products",
       async () => {
-        const response = await fetch("/api/inventory");
+        const response = await reebsApiResponse("/api/inventory");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch products (${response.status}).`);
@@ -762,7 +764,7 @@ function AdminBookings() {
     runSupportLoader(
       "customers",
       async () => {
-        const response = await fetch("/api/customers?compact=1");
+        const response = await reebsApiResponse("/api/customers?compact=1");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch customers (${response.status}).`);
@@ -776,7 +778,7 @@ function AdminBookings() {
     runSupportLoader(
       "bouncyCastles",
       async () => {
-        const response = await fetch("/api/bouncy_castles");
+        const response = await reebsApiResponse("/api/bouncy_castles");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch bouncy castles (${response.status}).`);
@@ -790,7 +792,7 @@ function AdminBookings() {
     runSupportLoader(
       "deliveries",
       async () => {
-        const response = await fetch("/api/deliveries");
+        const response = await reebsApiResponse("/api/deliveries");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch deliveries (${response.status}).`);
@@ -804,7 +806,7 @@ function AdminBookings() {
     runSupportLoader(
       "expenses",
       async () => {
-        const response = await fetch("/api/expenses");
+        const response = await reebsApiResponse("/api/expenses");
         const payload = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(payload?.error || `Failed to fetch expenses (${response.status}).`);
@@ -822,7 +824,7 @@ function AdminBookings() {
     requestCancelRef.current = createAbortController();
     
     try {
-      const response = await fetch(`/api/bookings?id=${bookingId}`, {
+      const response = await reebsApiResponse(`/api/bookings?id=${bookingId}`, {
         signal: requestCancelRef.current?.signal,
       });
       const payload = await parseJsonResponse(response);
@@ -872,10 +874,10 @@ function AdminBookings() {
     setLoading(true);
     setError("");
     try {
-      const requests = [fetch("/api/bookings?compact=1")];
+      const requests = [reebsApiResponse("/api/bookings?compact=1")];
       if (canManageBookings) {
-        requests.push(fetch("/api/users"));
-        requests.push(fetch("/api/invoice-documents?compact=1"));
+        requests.push(reebsApiResponse("/api/users"));
+        requests.push(reebsApiResponse("/api/invoice-documents?compact=1"));
       }
       const responses = await Promise.all(requests);
       const payloads = await Promise.all(responses.map((response) => parseJsonResponse(response)));
@@ -1411,7 +1413,7 @@ function AdminBookings() {
     setDetailExpenseError("");
 
     try {
-      const response = await fetch("/api/expenses", {
+      const response = await reebsApiResponse("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1568,7 +1570,7 @@ function AdminBookings() {
     try {
       const queuedPayload = queueItem.payload || {};
       const endpoint = queuedPayload.endpoint || {};
-      const response = await fetch(endpoint.path || "/api/bookings", {
+      const response = await reebsApiResponse(endpoint.path || "/api/bookings", {
         method: endpoint.method || "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1773,7 +1775,7 @@ function AdminBookings() {
     setCustomerCreating(true);
     setSaveError("");
     try {
-      const response = await fetch("/api/customers", {
+      const response = await reebsApiResponse("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: customerName }),
@@ -2034,7 +2036,7 @@ function AdminBookings() {
         customerId,
         isEdit,
       });
-      const response = await fetch("/api/bookings", {
+      const response = await reebsApiResponse("/api/bookings", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingPayload),
@@ -2068,6 +2070,14 @@ function AdminBookings() {
     if (!booking?.id) return;
     if (isCompletedBooking(booking)) return;
     if (normalizeStatus(booking.status) === normalizeStatus(nextStatus)) return;
+    const validation = bookingStatusTransitionSchema.safeParse({
+      bookingId: booking.id,
+      status: nextStatus,
+    });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || "Choose a supported booking status.");
+      return;
+    }
 
     if (!isOnline) {
       setStatusUpdatingId(booking.id);
@@ -2123,7 +2133,7 @@ function AdminBookings() {
     setDetailBooking((prev) => (prev && prev.id === booking.id ? { ...prev, status: nextStatus } : prev));
     
     try {
-      const response = await fetch("/api/bookings", {
+      const response = await reebsApiResponse("/api/bookings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -129,7 +129,7 @@ const Cart = () => {
                   <h3>Review each section before checkout</h3>
                 </div>
                 <div className="toolbar-actions">
-                  <button className="ghost-btn clear-all" onClick={clearCart}>Clear cart</button>
+                  <button type="button" className="ghost-btn clear-all" onClick={clearCart}>Clear cart</button>
                   <Link className="pill-link" to="/rentals">
                     <AppIcon icon={faArrowLeft} /> View rentals
                   </Link>

@@ -11,6 +11,13 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import { normalizeAdminRole } from "../../utils/adminAccess";
 import TablePagination from "../../components/TablePagination/TablePagination";
 import roleColors from "../../utils/roleColors";
+import { reebsApiResponse } from "../../api/client";
+import {
+  customerMasterDataFormSchema,
+  userAccessFormSchema,
+  validationIssues,
+} from "@faako/validation";
+import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 const formatMoney = (value, currency = "GHS") => {
   try {
@@ -113,6 +120,18 @@ function AdminDirectory() {
 
   const [userForm, setUserForm] = useState({ firstName: "", lastName: "", password: "", role: "Staff" });
   const [customerForm, setCustomerForm] = useState({ name: "", email: "", phone: "" });
+  const directoryFormDirty = Boolean(
+    modalOpen &&
+    (activeTab === "customers"
+      ? customerForm.name !== (editing?.name || "") ||
+        customerForm.email !== (editing?.email || "") ||
+        customerForm.phone !== (editing?.phone || "")
+      : userForm.firstName !== (editing?.firstName || "") ||
+        userForm.lastName !== (editing?.lastName || "") ||
+        Boolean(userForm.password) ||
+        userForm.role !== (editing?.role || "Staff"))
+  );
+  useUnsavedChanges(directoryFormDirty && !saving);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -131,11 +150,11 @@ function AdminDirectory() {
     setError("");
     try {
       const requests = isDriverUser
-        ? [fetch("/api/customers")]
+        ? [reebsApiResponse("/api/customers")]
         : [
-            fetch("/api/users"),
-            fetch("/api/customers"),
-            fetch("/api/vendors"),
+            reebsApiResponse("/api/users"),
+            reebsApiResponse("/api/customers"),
+            reebsApiResponse("/api/vendors"),
           ];
       const responses = await Promise.all(requests);
       const payloads = await Promise.all(responses.map((response) => response.json().catch(() => null)));
@@ -321,7 +340,7 @@ function AdminDirectory() {
     if (activeTab === "customers") {
       setDetailLoading(true);
       try {
-        const res = await fetch(`/api/customers?id=${row.id}`);
+        const res = await reebsApiResponse(`/api/customers?id=${row.id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load customer details.");
         setDetailRecord(data);
@@ -369,14 +388,20 @@ function AdminDirectory() {
         }
 
         const isEdit = Boolean(editing?.id);
-        const response = await fetch("/api/customers", {
+        const validation = customerMasterDataFormSchema.safeParse({
+          name: trimmedCustomerName,
+          email: trimmedCustomerEmail,
+          phone: trimmedCustomerPhone,
+        });
+        if (!validation.success) {
+          throw new Error(validationIssues(validation.error)[0]?.message || "Customer details are invalid.");
+        }
+        const response = await reebsApiResponse("/api/customers", {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: isEdit ? editing.id : undefined,
-            name: trimmedCustomerName,
-            email: trimmedCustomerEmail,
-            phone: trimmedCustomerPhone,
+            ...validation.data,
           }),
         });
 
@@ -408,10 +433,14 @@ function AdminDirectory() {
           requestBody.password = trimmedPassword;
         }
 
-        const response = await fetch("/api/users", {
+        const validation = userAccessFormSchema.safeParse(requestBody);
+        if (!validation.success) {
+          throw new Error(validationIssues(validation.error)[0]?.message || "User details are invalid.");
+        }
+        const response = await reebsApiResponse("/api/users", {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({ id: isEdit ? editing.id : undefined, ...validation.data }),
         });
 
         const payload = await response.json();

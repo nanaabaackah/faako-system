@@ -54,11 +54,6 @@ export async function handler(event = {}) {
     return json(500, { error: "Manager PIN is not configured." });
   }
 
-  const { isValid } = await verifyPassword(pin, storedHash);
-  if (!isValid) {
-    return json(401, { error: "Invalid PIN." });
-  }
-
   const organizationId = Number(process.env.MANAGER_ORGANIZATION_ID);
   if (!Number.isFinite(organizationId) || organizationId <= 0) {
     return json(500, { error: "Manager organization is not configured." });
@@ -71,6 +66,8 @@ export async function handler(event = {}) {
 
   try {
     await client.connect();
+    // Throttle before the expensive password check so failed guesses are
+    // counted. The former ordering only limited already-successful logins.
     const limitResult = await applyWindowRateLimit(client, {
       scope: `manager-login:${organizationId}:ip`,
       identifier: getRequestClientIp(event),
@@ -83,6 +80,11 @@ export async function handler(event = {}) {
         { error: "Too many attempts. Try again later." },
         { "Retry-After": String(limitResult.retryAfterSeconds) }
       );
+    }
+
+    const { isValid } = await verifyPassword(pin, storedHash);
+    if (!isValid) {
+      return json(401, { error: "Invalid PIN." });
     }
 
     const token = signManagerToken({

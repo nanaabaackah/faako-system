@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   getDeleteUserBlocker,
   getResendInvitationBlocker,
+  getUserAccessUpdateBlocker,
   resolveUserStatusForPasswordState,
 } from "./accessUsers.js";
 
@@ -50,6 +51,56 @@ test("getResendInvitationBlocker blocks suspended users", () => {
 test("getResendInvitationBlocker allows active and pending users", () => {
   assert.equal(getResendInvitationBlocker({ targetStatus: "ACTIVE" }), null);
   assert.equal(getResendInvitationBlocker({ targetStatus: "PENDING" }), null);
+});
+
+test("getUserAccessUpdateBlocker prevents self-deactivation and self-role changes", () => {
+  assert.equal(
+    getUserAccessUpdateBlocker({
+      requesterUserId: 7,
+      targetUserId: 7,
+      targetRoleName: "Admin",
+      nextRoleName: "Admin",
+      nextStatus: "SUSPENDED",
+      remainingActiveAdminCount: 2,
+    }),
+    "You cannot deactivate your own account.",
+  );
+  assert.equal(
+    getUserAccessUpdateBlocker({
+      requesterUserId: 7,
+      targetUserId: 7,
+      targetRoleName: "Admin",
+      nextRoleName: "Manager",
+      nextStatus: "ACTIVE",
+      remainingActiveAdminCount: 2,
+    }),
+    "You cannot change your own role assignment.",
+  );
+});
+
+test("getUserAccessUpdateBlocker protects the last active admin", () => {
+  assert.equal(
+    getUserAccessUpdateBlocker({
+      requesterUserId: 2,
+      targetUserId: 7,
+      targetRoleName: "Admin",
+      nextRoleName: "Tenant",
+      nextStatus: "ACTIVE",
+      remainingActiveAdminCount: 0,
+    }),
+    "You cannot deactivate or reassign the last active admin user.",
+  );
+  assert.equal(
+    getUserAccessUpdateBlocker({
+      requesterUserId: 2,
+      targetUserId: 7,
+      targetRoleName: "Admin",
+      nextRoleName: "Admin",
+      nextStatus: "ACTIVE",
+      remainingActiveAdminCount: 0,
+    }),
+    null,
+  );
 });
 
 test("resolveUserStatusForPasswordState returns pending until a password exists", () => {

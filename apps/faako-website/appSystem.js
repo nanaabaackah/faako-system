@@ -3,8 +3,8 @@ export default {
   brand: {
     name: "Faako Website",
     businessName: "Faako",
-    shortName: "FAAKO",
-    browserChromeColor: "#fbfbfb",
+    shortName: "Faako",
+    browserChromeColor: "#111827",
   },
   theme: {
     presetId: "faako-website",

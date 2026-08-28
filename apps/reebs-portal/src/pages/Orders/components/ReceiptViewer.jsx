@@ -7,6 +7,7 @@ import {
   getAvailableNotificationChannels,
 } from "@faako/notifications";
 import { InlineNotice } from "../../../components/InlineNotice/InlineNotice";
+import { reebsApiResponse } from "../../../api/client.js";
 import { formatCurrencyFromCents, formatDateTime } from "../orderUi";
 
 const buildEscPosLines = (receipt) => {
@@ -58,7 +59,7 @@ export default function ReceiptViewer({ receipts = [] }) {
       setLoading(true);
       setNotice(null);
       try {
-        const response = await fetch(`/api/orderReceipts?id=${encodeURIComponent(selectedId)}`, {
+        const response = await reebsApiResponse(`/api/orderReceipts?id=${encodeURIComponent(selectedId)}`, {
           signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));

@@ -134,6 +134,7 @@ import {
 import {
   getDeleteUserBlocker,
   getResendInvitationBlocker,
+  getUserAccessUpdateBlocker,
   resolveUserStatusForPasswordState,
 } from "./utils/accessUsers.js";
 import {
@@ -5669,6 +5670,7 @@ app.patch("/api/access/users/:id", authMiddleware, requireAdmin, async (req, res
 
   const updateData = {};
   let requestedStatus = null;
+  let nextRoleName = user.role?.name || "";
 
   if (req.body?.firstName !== undefined) {
     const firstName = String(req.body.firstName || "").trim();
@@ -5715,6 +5717,7 @@ app.patch("/api/access/users/:id", authMiddleware, requireAdmin, async (req, res
       return res.status(400).json({ error: "Selected role does not belong to this organization." });
     }
     updateData.roleId = role.id;
+    nextRoleName = role.name;
   }
 
   if (req.body?.password !== undefined) {
@@ -5751,6 +5754,31 @@ app.patch("/api/access/users/:id", authMiddleware, requireAdmin, async (req, res
     return res.status(400).json({
       error: "Provide firstName, lastName, email, roleId, status, or password to update the user.",
     });
+  }
+
+  const nextStatus = updateData.status ?? user.status;
+  const remainingActiveAdminCount =
+    user.role?.name === "Admin" &&
+    (nextRoleName !== "Admin" || nextStatus !== "ACTIVE")
+      ? await prisma.user.count({
+          where: {
+            organizationId: req.user.organizationId,
+            roleId: user.roleId,
+            status: "ACTIVE",
+            id: { not: user.id },
+          },
+        })
+      : 1;
+  const accessUpdateBlocker = getUserAccessUpdateBlocker({
+    requesterUserId: req.user.userId,
+    targetUserId: user.id,
+    targetRoleName: user.role?.name,
+    nextRoleName,
+    nextStatus,
+    remainingActiveAdminCount,
+  });
+  if (accessUpdateBlocker) {
+    return res.status(409).json({ error: accessUpdateBlocker });
   }
 
   const updatedUser = await prisma.user.update({
@@ -5845,6 +5873,7 @@ app.delete("/api/access/users/:id", authMiddleware, requireAdmin, async (req, re
       where: {
         organizationId: req.user.organizationId,
         roleId: user.roleId,
+        status: "ACTIVE",
         id: { not: user.id },
       },
     });

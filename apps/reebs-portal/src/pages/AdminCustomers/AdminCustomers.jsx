@@ -27,6 +27,9 @@ import {
   readResponseError,
   toNumber,
 } from "./crmShared";
+import { reebsApiResponse } from "../../api/client";
+import { customerMasterDataFormSchema, validationIssues } from "@faako/validation";
+import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 export default function AdminCustomers() {
   const location = useLocation();
@@ -60,6 +63,19 @@ export default function AdminCustomers() {
   const [dragOverSegment, setDragOverSegment] = useState("");
   const [movingCustomerId, setMovingCustomerId] = useState(null);
   const detailRequestRef = useRef(0);
+  const createFormDirty = createOpen && Boolean(
+    createForm.name || createForm.email || createForm.phone
+  );
+  const detailFormDirty = Boolean(
+    detailOpen &&
+    activeCustomer &&
+    (detailForm.name !== (activeCustomer.name || "") ||
+      detailForm.email !== (activeCustomer.email || "") ||
+      detailForm.phone !== (activeCustomer.phone || ""))
+  );
+  useUnsavedChanges(
+    (createFormDirty && !createSaving) || (detailFormDirty && !detailSaving)
+  );
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -84,7 +100,7 @@ export default function AdminCustomers() {
     setError("");
 
     try {
-      const response = await fetch("/api/customers");
+      const response = await reebsApiResponse("/api/customers");
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customers."));
       }
@@ -282,7 +298,7 @@ export default function AdminCustomers() {
     );
 
     try {
-      const response = await fetch("/api/customers", {
+      const response = await reebsApiResponse("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -410,7 +426,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await fetch("/api/customers", {
+      const response = await reebsApiResponse("/api/customers", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: customerId }),
@@ -475,7 +491,7 @@ export default function AdminCustomers() {
     });
 
     try {
-      const response = await fetch(`/api/customers?id=${customer.id}`);
+      const response = await reebsApiResponse(`/api/customers?id=${customer.id}`);
       if (detailRequestRef.current !== requestId) return;
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customer."));
@@ -541,14 +557,16 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await fetch("/api/customers", {
+      const validation = customerMasterDataFormSchema.safeParse(detailForm);
+      if (!validation.success) {
+        throw new Error(validationIssues(validation.error)[0]?.message || "Customer details are invalid.");
+      }
+      const response = await reebsApiResponse("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedCustomer.id,
-          name: detailForm.name.trim(),
-          email: detailForm.email.trim(),
-          phone: detailForm.phone.trim(),
+          ...validation.data,
         }),
       });
 
@@ -585,14 +603,14 @@ export default function AdminCustomers() {
     setCreateError("");
 
     try {
-      const response = await fetch("/api/customers", {
+      const validation = customerMasterDataFormSchema.safeParse(createForm);
+      if (!validation.success) {
+        throw new Error(validationIssues(validation.error)[0]?.message || "Customer details are invalid.");
+      }
+      const response = await reebsApiResponse("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: createForm.name.trim(),
-          email: createForm.email.trim(),
-          phone: createForm.phone.trim(),
-        }),
+        body: JSON.stringify(validation.data),
       });
 
       if (!response.ok) {
@@ -620,7 +638,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await fetch("/api/contactRequests", {
+      const response = await reebsApiResponse("/api/contactRequests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: requestId, status }),
