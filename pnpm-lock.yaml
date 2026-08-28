@@ -514,6 +514,9 @@ importers:
 
   apps/reebs-portal:
     dependencies:
+      '@faako/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@faako/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
@@ -544,6 +547,9 @@ importers:
       '@faako/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@faako/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       '@prisma/adapter-pg':
         specifier: ^7.1.0
         version: 7.5.0

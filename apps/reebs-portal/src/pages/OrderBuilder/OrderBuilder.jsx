@@ -13,7 +13,6 @@ import { useAuth } from "../../components/AuthContext/AuthContext";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import SearchField from "../../components/SearchField/SearchField";
 import { reebsApiResponse } from "../../api/client.js";
-import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 import { isCoreOrderProduct } from "../../utils/coreCommercialInventory.js";
 
 const getUnitPrice = (item) => {

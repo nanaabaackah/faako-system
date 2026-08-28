@@ -160,7 +160,10 @@ const scanSourceForBrowserVisibleAccessCodes = (appDir) => {
 
 const getAppDirectories = () =>
   fs.readdirSync(appsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) =>
+      entry.isDirectory()
+      && fs.existsSync(path.join(appsDir, entry.name, "package.json")),
+    )
     .map((entry) => path.join(appsDir, entry.name));
 
 const findings = [];
