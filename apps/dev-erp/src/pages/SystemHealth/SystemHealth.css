@@ -160,10 +160,11 @@
 .incident-response-row small { color: var(--muted); }
 .incident-state { display: inline-flex; width: fit-content; padding: .22rem .5rem; border: 1px solid var(--border); border-radius: 999px; font-size: .7rem; font-weight: 800; }
 .incident-state.is-open { color: var(--danger); }.incident-state.is-acknowledged { color: var(--warning); }.incident-state.is-resolved { color: var(--success); }.incident-state.is-closed { color: var(--muted); }
-.incident-admin-grid { display: grid; grid-template-columns: minmax(16rem, .75fr) minmax(20rem, 1.5fr); gap: 1rem; align-items: start; }
-.incident-admin-form { display: grid; gap: .7rem; padding: 1rem; }
+.incident-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; align-items: stretch; }
+.incident-admin-form { display: grid; align-content: start; gap: .7rem; width: 100%; height: 100%; padding: 1rem; }
 .incident-admin-form h3 { margin: 0; }
 .incident-admin-list { display: grid; gap: .55rem; }
+.incident-admin-list:empty { display: none; }
 .incident-admin-list article { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .85rem; }
 .incident-admin-list article p { margin: .2rem 0 0; color: var(--muted); }
 .incident-detail-drawer { width: min(46rem, 100%); }
