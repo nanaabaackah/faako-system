@@ -953,7 +953,7 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   await backfillProductVendorLinksFromProducts(client, organizationId);
 
   const productResult = await client.query(
-    `SELECT id, name, price
+    `SELECT id, name
      FROM "product"
      WHERE "organizationId" = $1
        AND COALESCE("isDeleted", false) = false
@@ -993,10 +993,6 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   return {
     inventoryProductId: Number(matchedProduct.id) || null,
     linkedVendorIds,
-    retailPrice:
-      Number.isFinite(Number(matchedProduct.price)) && Number(matchedProduct.price) > 0
-        ? Number(matchedProduct.price)
-        : RETAIL_PRICE,
   };
 };
 
